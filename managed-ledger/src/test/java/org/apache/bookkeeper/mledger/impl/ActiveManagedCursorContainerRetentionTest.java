@@ -27,8 +27,11 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -43,6 +46,58 @@ import org.testng.annotations.Test;
 
 public class ActiveManagedCursorContainerRetentionTest {
     private static final Position POSITION = PositionFactory.create(1, 1);
+
+    @DataProvider
+    public Object[][] positionUpdateBatches() {
+        List<Object[]> cases = new ArrayList<>();
+        for (int batchSize : new int[] {1, 31, 32, 33, 80, 100}) {
+            for (boolean reverse : new boolean[] {false, true}) {
+                for (boolean includeNewCursors : new boolean[] {false, true}) {
+                    cases.add(new Object[] {batchSize, reverse, includeNewCursors});
+                }
+            }
+        }
+        return cases.toArray(new Object[0][]);
+    }
+
+    @Test(dataProvider = "positionUpdateBatches")
+    public void testBatchedPositionsMatchCursorRanks(int batchSize, boolean reverse, boolean includeNewCursors) {
+        ActiveManagedCursorContainerImpl container = new ActiveManagedCursorContainerImpl();
+        Map<String, Position> positions = new HashMap<>();
+        for (int i = 0; i < 200; i++) {
+            Position position = PositionFactory.create(1, i / 3);
+            addCursor(container, "cursor" + i, position);
+            positions.put("cursor" + i, position);
+        }
+        container.getSlowestCursorPosition();
+        for (int round = 0; round < 2; round++) {
+            for (int i = 0; i < batchSize; i++) {
+                int index = reverse ? batchSize - i - 1 : i;
+                String name = includeNewCursors && index % 2 == 0 ? "new" + index : "cursor" + index;
+                Position intermediate = PositionFactory.create(1, 1000 + index);
+                if (!positions.containsKey(name)) {
+                    addCursor(container, name, intermediate);
+                } else {
+                    container.updateCursor(container.get(name), intermediate);
+                }
+                // Coalesce repeated updates while moving into shared groups in both directions.
+                Position latest = PositionFactory.create(1, (index + round) % 2 == 0 ? index % 7 : 200 + index % 7);
+                container.updateCursor(container.get(name), latest);
+                positions.put(name, latest);
+            }
+            assertThat(container.getPendingPositionUpdatesCount()).isEqualTo(batchSize);
+            for (Map.Entry<String, Position> entry : positions.entrySet()) {
+                int expectedRank = (int) positions.values().stream()
+                        .filter(position -> position.compareTo(entry.getValue()) <= 0).count();
+                assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(container.get(entry.getKey())))
+                        .as("rank of %s after batch %s", entry.getKey(), round).isEqualTo(expectedRank);
+            }
+            assertThat(container.getSlowestCursorPosition())
+                    .isEqualTo(positions.values().stream().min(Position::compareTo).orElseThrow());
+            assertThat(container.getPendingPositionUpdatesCount()).isZero();
+            container.checkOrderingAndNumberOfCursorsState();
+        }
+    }
 
     @DataProvider
     public Object[][] tracked() {
@@ -186,7 +241,7 @@ public class ActiveManagedCursorContainerRetentionTest {
                 assertThat(container.getPendingPositionUpdatesCount()).isEqualTo(2);
             } else {
                 // Compaction can discard the removed node before reactivation, leaving new orphan
-                // nodes until the next batch. Reused active nodes must not accumulate heap entries.
+                // nodes until the next batch. Reused active nodes must not accumulate pending-list entries.
                 assertThat(container.getPendingPositionUpdatesCount()).isLessThanOrEqualTo(66);
             }
         }

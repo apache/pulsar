@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -28,7 +29,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -53,6 +53,8 @@ import org.apache.commons.lang3.tuple.Pair;
 @CustomLog
 public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorContainer {
     private static final int MIN_REMOVALS_BEFORE_CLEANUP = 64;
+    // Below this size, the JDK 21 object-array sort does not allocate a temporary merge buffer.
+    private static final int SMALL_POSITION_UPDATE_BATCH = 32;
 
     private static class Node {
         // Iterators read this without the lock. Removed nodes must not retain the cursor's object graph.
@@ -95,18 +97,20 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
     // Maps a cursor to the node
     private final ConcurrentMap<String, Node> cursors = new ConcurrentHashMap<>();
     private final Map<String, Node> pendingRemovedCursors = new HashMap<>();
-    private final PriorityQueue<Node> pendingPositionUpdates = new PriorityQueue<>(new Comparator<Node>() {
+    // Accumulate without ordering; only incremental flushes benefit from ordering by old position.
+    private final ObjectArrayList<Node> pendingPositionUpdates = new ObjectArrayList<>();
+    private static final Comparator<Node> PENDING_POSITION_COMPARATOR = new Comparator<Node>() {
         @Override
         public int compare(Node o1, Node o2) {
             if (o1.position == null) {
-                return 1; // o1 is null, should be after o2
+                return o2.position == null ? 0 : -1;
             }
             if (o2.position == null) {
-                return -1; // o2 is null, should be after o1
+                return 1;
             }
-            return o2.position.compareTo(o1.position);
+            return o1.position.compareTo(o2.position);
         }
-    });
+    };
 
     private final StampedLock rwLock = new StampedLock();
 
@@ -290,7 +294,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
     }
 
     private void compactRemovedNodes() {
-        // Preserve lazy position updates. PriorityQueue.removeIf compacts and heapifies in linear time.
+        // Preserve lazy position updates while compacting the pending list in linear time.
         pendingPositionUpdates.removeIf(node -> {
             if (node.cursor == null) {
                 node.pendingPositionUpdateQueued = false;
@@ -400,7 +404,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
     }
 
     private void queuePositionUpdate(Node node, Position position) {
-        // Clearing pendingPosition cancels an update, but does not remove its heap entry.
+        // Clearing pendingPosition cancels an update, but does not remove its pending-list entry.
         // In particular, reactivating a node must not enqueue the same node again.
         if (!node.pendingPositionUpdateQueued) {
             pendingPositionUpdates.add(node);
@@ -431,11 +435,23 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
             }
             pendingRemovedCursors.clear();
         }
-        while (true) {
-            Node node = pendingPositionUpdates.poll();
-            if (node == null) {
-                break; // No more pending updates
+        int pendingCount = pendingPositionUpdates.size();
+        if (pendingCount > 1 && pendingCount < SMALL_POSITION_UPDATE_BATCH) {
+            // Keep the efficient small-array sort without allocating a temporary merge buffer.
+            pendingPositionUpdates.sort(PENDING_POSITION_COMPARATOR);
+        } else if (pendingCount >= SMALL_POSITION_UPDATE_BATCH) {
+            // Ordered batches need no sort. Otherwise use in-place sorting to avoid per-flush buffers.
+            for (int i = 1; i < pendingCount; i++) {
+                if (PENDING_POSITION_COMPARATOR.compare(pendingPositionUpdates.get(i - 1),
+                        pendingPositionUpdates.get(i)) > 0) {
+                    pendingPositionUpdates.unstableSort(PENDING_POSITION_COMPARATOR);
+                    break;
+                }
             }
+        }
+        while (!pendingPositionUpdates.isEmpty()) {
+            // Drain from the end to process descending old positions without shifting array elements.
+            Node node = pendingPositionUpdates.remove(pendingPositionUpdates.size() - 1);
             node.pendingPositionUpdateQueued = false;
             if (node.pendingPosition != null) {
                 if (node.position == null) {
