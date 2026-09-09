@@ -904,10 +904,17 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
         try {
             processPendingPositions();
             Node current = head;
+            Node previous = null;
             int currentCount = 0;
             Position lastPosition = null;
             List<String> lastPositionCursorNames = new ArrayList<>();
             while (current != null) {
+                if (current.cursor == null) {
+                    throw new IllegalStateException("Released node still linked");
+                }
+                if (current.prev != previous) {
+                    throw new IllegalStateException("Previous node link is inconsistent");
+                }
                 if (current.prev != null && current.position.compareTo(current.prev.position) < 0) {
                     throw new IllegalStateException("Cursors are not ordered: " + current.cursor.getName()
                             + " with position " + current.position + " is after cursor " + current.prev.cursor.getName()
@@ -942,8 +949,15 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                 } else {
                     lastPositionCursorNames.add(current.cursor.getName());
                 }
+                previous = current;
                 current = current.next;
-
+            }
+            if (tail != previous) {
+                throw new IllegalStateException("Tail does not match the last linked node");
+            }
+            if (currentCount != trackedNodeCount) {
+                throw new IllegalStateException("Tracked node count does not match the linked list: expected "
+                        + trackedNodeCount + ", but found " + currentCount);
             }
         } finally {
             rwLock.unlockWrite(stamp);

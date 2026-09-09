@@ -23,6 +23,7 @@ import static org.apache.bookkeeper.mledger.impl.MockManagedCursor.addCursor;
 import static org.apache.bookkeeper.mledger.impl.MockManagedCursor.createCursor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -33,6 +34,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -289,6 +291,75 @@ public class ActiveManagedCursorContainerRetentionTest {
         }
         assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(tailCursor)).isEqualTo(4);
         container.checkOrderingAndNumberOfCursorsState();
+    }
+
+    @Test
+    public void testCompactionRemovesTailBeforeAppending() {
+        ActiveManagedCursorContainerImpl container = new ActiveManagedCursorContainerImpl();
+        for (int i = 1; i <= 5; i++) {
+            addCursor(container, "cursor" + i, PositionFactory.create(1, i));
+        }
+        container.getSlowestCursorPosition();
+        container.removeCursor("cursor5");
+        for (int i = 0; i < 63; i++) {
+            addCursor(container, "temporary" + i, POSITION);
+            container.removeCursor("temporary" + i);
+        }
+        // Verify compaction occurred without a position query repairing the list first.
+        assertThat(container.getRetainedCursors()).hasSize(4).doesNotContainNull();
+        Position appendedPosition = PositionFactory.create(1, 9);
+        addCursor(container, "appended", appendedPosition);
+        ManagedCursor appended = container.get("appended");
+        assertThat(container.getPendingPositionUpdatesCount()).isEqualTo(1);
+        assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(appended)).isEqualTo(5);
+        container.checkOrderingAndNumberOfCursorsState();
+        for (int i = 1; i <= 4; i++) {
+            container.removeCursor("cursor" + i);
+        }
+        assertThat(container.size()).isEqualTo(1);
+        assertThat(container.getSlowestCursorPosition()).isEqualTo(appendedPosition);
+        assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(appended)).isEqualTo(1);
+        container.checkOrderingAndNumberOfCursorsState();
+    }
+
+    @Test
+    public void testSlowestPositionFlushWaitsForReaders() throws Exception {
+        ActiveManagedCursorContainerImpl container = new ActiveManagedCursorContainerImpl();
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        when(cursor.getName()).thenReturn("cursor");
+        container.add(cursor, POSITION);
+        CountDownLatch readLockHeld = new CountDownLatch(1);
+        CountDownLatch releaseReadLock = new CountDownLatch(1);
+        AtomicReference<Thread> flushThread = new AtomicReference<>();
+        assertThat(container.getPendingPositionUpdatesCount()).isEqualTo(1);
+        when(cursor.toString()).thenAnswer(invocation -> {
+            readLockHeld.countDown();
+            assertThat(releaseReadLock.await(30, SECONDS)).isTrue();
+            return "cursor";
+        });
+        ExecutorService executor = Executors.newFixedThreadPool(2,
+                new DefaultThreadFactory("cursor-container-flush-test"));
+        try {
+            Future<String> reader = executor.submit(container::toString);
+            assertThat(readLockHeld.await(10, SECONDS)).isTrue();
+            Future<Position> slowest = executor.submit(() -> {
+                flushThread.set(Thread.currentThread());
+                return container.getSlowestCursorPosition();
+            });
+            // Wait for actual lock contention, rather than assuming the task ran after a fixed delay.
+            // A shared-lock regression completes the task instead and fails the following assertion.
+            await().atMost(10, SECONDS).until(() -> slowest.isDone()
+                    || (flushThread.get() != null && flushThread.get().getState() == Thread.State.WAITING));
+            assertThat(slowest.isDone()).isFalse();
+            releaseReadLock.countDown();
+            assertThat(slowest.get(10, SECONDS)).isEqualTo(POSITION);
+            assertThat(reader.get(10, SECONDS)).isEqualTo("[cursor]");
+            assertThat(container.getPendingPositionUpdatesCount()).isZero();
+        } finally {
+            releaseReadLock.countDown();
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, SECONDS)).isTrue();
+        }
     }
 
     @Test
