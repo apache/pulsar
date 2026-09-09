@@ -3001,6 +3001,19 @@ public class BrokerService implements Closeable {
     }
 
     /**
+     * Cleans up topics that failed to unload from the broker's topic cache, using a snapshot captured at call
+     * time.
+     *
+     * @deprecated use {@link #cleanUnloadedTopicFromCache(NamespaceBundle, Map)} with the snapshot captured via
+     * {@link #getTopicFuturesInBundle(NamespaceBundle)} before the unload started, so that a stale cleanup can
+     * never evict a topic installed by a newer ownership generation while the unload was still running.
+     */
+    @Deprecated
+    public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
+        cleanUnloadedTopicFromCache(serviceUnit, getTopicFuturesInBundle(serviceUnit));
+    }
+
+    /**
      * Cleans up topics that failed to unload from the broker's topic cache. Only removes a topic if its
      * currently-cached future is exactly the one captured in {@code topicFutures} (see
      * {@link #getTopicFuturesInBundle(NamespaceBundle)}), so a stale call for an old ownership generation can

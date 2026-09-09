@@ -550,6 +550,36 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     @SuppressWarnings("deprecation")
     @Test
+    public void testSplitCompletesWhenReleasingTheOldBundleStalls() throws Exception {
+        OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        // The old bundle's release is queued behind an acquire that never settles (e.g. metadata store unreachable)
+        doReturn(new CompletableFuture<Void>()).when(ownershipCache).removeOwnership(any(NamespaceBundle.class));
+
+        Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
+        ownership.setAccessible(true);
+        ownership.set(pulsar.getNamespaceService(), ownershipCache);
+
+        int originalTimeout = conf.getMetadataStoreOperationTimeoutSeconds();
+        conf.setMetadataStoreOperationTimeoutSeconds(2);
+        try {
+            NamespaceService namespaceService = pulsar.getNamespaceService();
+            NamespaceName nsname = NamespaceName.get("prop/ns-split-release-stalls");
+            admin.namespaces().createNamespace(nsname.toString());
+            TopicName topicName = TopicName.get("persistent://" + nsname + "/topic-1");
+            NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+            NamespaceBundle bundle = bundles.findBundle(topicName);
+            ownershipCache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+
+            // The split itself succeeded; a release that never settles must not hold the split's completion
+            // hostage, it is bounded by the metadata operation timeout and then logged.
+            namespaceService.splitAndOwnBundle(bundle, false,
+                    NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null).get(30, TimeUnit.SECONDS);
+        } finally {
+            conf.setMetadataStoreOperationTimeoutSeconds(originalTimeout);
+        }
+    }
+
+    @Test
     public void testSplitBundleAndRemoveOldBundleFromOwnerShipCache() throws Exception {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
         doReturn(CompletableFuture.completedFuture(null)).when(ownershipCache)

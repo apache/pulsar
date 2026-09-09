@@ -30,6 +30,7 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.prometheus.client.Counter;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -1078,14 +1079,34 @@ public class NamespaceService implements AutoCloseable {
                             // discarding it, so a delayed or failed release is observed here rather than letting
                             // completionFuture complete while the release may still be in flight; a release
                             // failure is logged and does not fail the split, which has already succeeded.
-                            return pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle)
-                                    .exceptionally(ex1 -> {
-                                        log.warn()
-                                                .attr("bundle", bundle.toString())
-                                                .exception(ex1)
-                                                .log("Failed to release ownership of the old bundle after split");
-                                        return null;
-                                    });
+                            // The wait is bounded: the release is queued behind any in-flight acquire of the same
+                            // bundle, and an acquire stuck on an unreachable metadata store has no timeout of its
+                            // own, so an unbounded wait here could hold the split's completion hostage. On timeout
+                            // the release keeps running in the background and the split completes.
+                            CompletableFuture<Void> release =
+                                    pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
+                            CompletableFuture<Void> boundedRelease = new CompletableFuture<>();
+                            release.whenComplete((released, releaseEx) -> {
+                                if (releaseEx != null) {
+                                    boundedRelease.completeExceptionally(releaseEx);
+                                } else {
+                                    boundedRelease.complete(released);
+                                }
+                            });
+                            FutureUtil.addTimeoutHandling(boundedRelease,
+                                    Duration.ofSeconds(config.getMetadataStoreOperationTimeoutSeconds()),
+                                    pulsar.getExecutor(),
+                                    () -> FutureUtil.createTimeoutException(
+                                            "Timed out waiting for the ownership of the old bundle " + bundle
+                                                    + " to be released after split",
+                                            NamespaceService.class, "splitAndOwnBundleOnceAndRetry"));
+                            return boundedRelease.exceptionally(ex1 -> {
+                                log.warn()
+                                        .attr("bundle", bundle.toString())
+                                        .exception(ex1)
+                                        .log("Failed to release ownership of the old bundle after split");
+                                return null;
+                            });
                         })
                         .thenRun(() -> {
                             completionFuture.complete(null);

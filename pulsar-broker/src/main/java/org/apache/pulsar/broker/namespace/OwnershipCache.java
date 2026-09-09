@@ -31,9 +31,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.CustomLog;
@@ -112,47 +112,50 @@ public class OwnershipCache {
                     .thenApply(rl -> {
                         locallyAcquiredLocks.put(namespaceBundle, rl);
                         OwnedBundle ownedBundle = new OwnedBundle(namespaceBundle, rl);
-                        // Set by the expiry listener below once it runs, whether that happens synchronously as
-                        // part of registering it on the next line (the lock was already expired at that point)
-                        // or later, asynchronously on whatever thread completes the future. thenRun() only
-                        // guarantees inline, synchronous execution for the former case: per the CompletableFuture
-                        // class javadoc, a non-async dependent action "may be performed by the thread that
-                        // completes the current CompletableFuture, or by any other caller of a completion
-                        // method" — there is no guarantee that a *concurrent* completion is reflected here by
-                        // the time thenRun() returns. So this flag alone cannot be trusted to catch every case
-                        // where the lock died right around registration; the isDone() recheck below closes that
-                        // gap by reading the future's own state directly instead of relying on the listener
-                        // having finished running.
-                        AtomicBoolean expiredBeforePublication = new AtomicBoolean(false);
                         rl.getLockExpiredFuture()
                                 .thenRun(() -> {
                                     log.info().attr("path", rl.getPath()).log("Resource lock has expired");
-                                    expiredBeforePublication.set(true);
                                     locallyAcquiredLocks.remove(namespaceBundle, rl);
-                                    namespaceService.unloadNamespaceBundle(namespaceBundle)
-                                            .exceptionally(ex -> {
-                                                log.debug()
-                                                        .attr("bundle", namespaceBundle)
-                                                        .exception(ex)
-                                                        .log("Failed to unload namespace bundle after its"
-                                                                + " resource lock expired");
-                                                return null;
-                                            });
-                                    invalidateLocalOwnerCache(namespaceBundle, ownedBundle);
-                                    namespaceService.onNamespaceBundleUnload(namespaceBundle);
+                                    // Only unload the generation this listener belongs to.
+                                    // unloadNamespaceBundle resolves the owner by bundle name, so a listener
+                                    // that runs late (the load already failed the publication check below and
+                                    // a lookup re-acquired the bundle in the meantime) would otherwise close a
+                                    // newer generation's topics and release its lock. If the cache does not
+                                    // hold this instance, this generation never served anything (or is already
+                                    // gone), so there is nothing to unload.
+                                    if (getOwnedBundle(namespaceBundle) == ownedBundle) {
+                                        namespaceService.unloadNamespaceBundle(namespaceBundle)
+                                                .exceptionally(ex -> {
+                                                    log.debug()
+                                                            .attr("bundle", namespaceBundle)
+                                                            .exception(ex)
+                                                            .log("Failed to unload namespace bundle after its"
+                                                                    + " resource lock expired");
+                                                    return null;
+                                                });
+                                    }
+                                    // The unload event is tied to the same generation check: it is delivered
+                                    // only if this generation's entry was the one published in the cache (and is
+                                    // removed here). A generation that never got published never produced an
+                                    // owned event, and if the cache holds a newer generation that one is still
+                                    // owned; in both cases an unload event would be unmatched. Listeners keep
+                                    // per-namespace bookkeeping on these events (the topic-policies service counts
+                                    // owned bundles and tears the namespace's cache down at zero), so an
+                                    // unmatched event is not harmless.
+                                    invalidateLocalOwnerCache(namespaceBundle, ownedBundle,
+                                            () -> namespaceService.onNamespaceBundleUnload(namespaceBundle));
                                 });
-                        if (expiredBeforePublication.get() || rl.getLockExpiredFuture().isDone()) {
+                        if (rl.getLockExpiredFuture().isDone()) {
                             // Expiry won the race: never publish an OwnedBundle whose lock is already gone. Let
                             // this load fail instead; Caffeine removes a failed load from the cache automatically,
                             // so no separate cache invalidation is needed here, and the caller of
                             // tryAcquiringOwnership observes a failure instead of a fleeting, already-invalid
-                            // success. The isDone() check is a defensive addition alongside the flag: it reads
-                            // the future's state directly, so it also catches the case where the lock expired
-                            // concurrently with registration above but the listener callback (and therefore the
-                            // flag) hasn't finished running yet. Even without it, a lock that expires around here
-                            // and is missed by both checks still converges correctly once the listener does run
-                            // (see invalidateLocalOwnerCache(NamespaceBundle, OwnedBundle)) — this just narrows
-                            // that window rather than being the sole safeguard against it.
+                            // success. Reading the future's own state covers both the lock that was already
+                            // expired when the listener above was registered (the listener ran inline) and one
+                            // that expired concurrently with the registration (the listener may still be
+                            // running on the completing thread). A lock that expires right after this check
+                            // still converges once the listener runs: see
+                            // invalidateLocalOwnerCache(NamespaceBundle, OwnedBundle).
                             throw new IllegalStateException(
                                     "Lock for bundle " + namespaceBundle
                                             + " expired before ownership could be published");
@@ -301,7 +304,9 @@ public class OwnershipCache {
      * {@link #removeOwnership(NamespaceBundle)}, or {@link #removeOwnership(OwnedBundle)} call for the same
      * bundle has settled, and queues subsequent calls for that bundle behind this one in turn. The barrier entry
      * for a bundle is removed once no further operation is queued behind it, so {@link #bundleOperationBarriers}
-     * does not grow unboundedly.
+     * does not grow unboundedly. Each operation's completion hands the barrier to the next queued operation via
+     * {@link PulsarService#getExecutor()}, so the depth of the drain does not depend on the length of the queue
+     * (and a caller's completion callbacks never run the next queued operation on their own stack).
      *
      * <p>The {@code compute} call below only captures the preceding barrier and installs the new one; it does not
      * chain {@code operation} itself. {@code ConcurrentHashMap.compute} runs its remapping function while holding
@@ -330,7 +335,20 @@ public class OwnershipCache {
                     } else {
                         result.complete(r);
                     }
-                    opDone.complete(null);
+                    // Release the barrier on the executor rather than inline: the next queued operation runs
+                    // as a dependent of opDone, and a cache-hit acquire completes synchronously, so completing
+                    // inline would run each queued operation nested inside the previous one's stack frame. A
+                    // deep enough backlog then overflows the stack, the StackOverflowError is swallowed by the
+                    // CompletableFuture machinery, and this barrier entry is never released, leaving the bundle
+                    // permanently unacquirable and unreleasable on this broker.
+                    try {
+                        opDone.completeAsync(() -> null, pulsar.getExecutor());
+                    } catch (RejectedExecutionException ree) {
+                        // The executor is gone (broker shutting down): still release the barrier, inline, so
+                        // that the operations queued behind it (e.g. the releases of the remaining bundles) can
+                        // run instead of hanging forever.
+                        opDone.complete(null);
+                    }
                 });
         opDone.whenComplete((r, e) -> bundleOperationBarriers.remove(bundle, opDone));
         return result;
@@ -340,7 +358,8 @@ public class OwnershipCache {
      * Method to remove the ownership that was acquired for the given {@link OwnedBundle} instance only.
      *
      * <p>If the bundle has since been re-acquired (the given instance's lock expired and a newer
-     * {@link OwnedBundle} with a newer lock owns the bundle now), the newer ownership is left untouched.
+     * {@link OwnedBundle} with a newer lock owns the bundle now), the newer ownership is left untouched. An
+     * instance that is not bound to a lock at all (not created by this cache) releases nothing.
      *
      * <p>Serialized against {@link #tryAcquiringOwnership(NamespaceBundle)} for the same bundle: see
      * {@link #bundleOperationBarriers}. This is the release path every normal {@link OwnedBundle#handleUnloadRequest}
@@ -350,9 +369,12 @@ public class OwnershipCache {
     public CompletableFuture<Void> removeOwnership(OwnedBundle ownedBundle) {
         ResourceLock<NamespaceEphemeralData> lock = ownedBundle.getResourceLock();
         if (lock == null) {
-            // The instance is not bound to a lock (not created by this cache): fall back to removing whatever
-            // ownership currently exists for the bundle, which is itself serialized already.
-            return removeOwnership(ownedBundle.getNamespaceBundle());
+            // The instance is not bound to a lock (not created by this cache), so it represents no ownership
+            // generation and there is nothing of its own to release. Releasing whatever generation currently
+            // owns the bundle instead would be exactly the generation-blind release this method exists to avoid.
+            log.warn().attr("bundle", ownedBundle.getNamespaceBundle())
+                    .log("Ignoring release request for an OwnedBundle that is not bound to a resource lock");
+            return CompletableFuture.completedFuture(null);
         }
         return serialize(ownedBundle.getNamespaceBundle(), () -> {
             if (!locallyAcquiredLocks.remove(ownedBundle.getNamespaceBundle(), lock)) {
@@ -477,7 +499,8 @@ public class OwnershipCache {
 
     /**
      * Invalidate the local owner cache entry once it holds the given {@link OwnedBundle} instance, so that a
-     * stale lock-expiry callback cannot drop an entry installed by a newer acquisition.
+     * stale lock-expiry callback cannot drop an entry installed by a newer acquisition. {@code onInvalidated}
+     * runs only if this call actually removed that entry, i.e. only for a generation that had been published.
      *
      * <p>The callback that calls this can run before the cache's own load future for this bundle has completed:
      * the lock-expiry listener is registered inside the cache loader's {@code thenApply}, and if the lock was
@@ -490,14 +513,16 @@ public class OwnershipCache {
      * immediately, and if not, the removal is deferred until the loader publishes it, so the newly-published
      * {@link OwnedBundle} — whose lock has already expired — is not left claiming active ownership forever.
      */
-    private void invalidateLocalOwnerCache(NamespaceBundle namespaceBundle, OwnedBundle expectedOwnedBundle) {
+    private void invalidateLocalOwnerCache(NamespaceBundle namespaceBundle, OwnedBundle expectedOwnedBundle,
+                                           Runnable onInvalidated) {
         CompletableFuture<OwnedBundle> future = ownedBundlesCache.getIfPresent(namespaceBundle);
         if (future == null) {
             return;
         }
         future.whenComplete((ownedBundle, ex) -> {
-            if (ex == null && ownedBundle == expectedOwnedBundle) {
-                ownedBundlesCache.asMap().remove(namespaceBundle, future);
+            if (ex == null && ownedBundle == expectedOwnedBundle
+                    && ownedBundlesCache.asMap().remove(namespaceBundle, future)) {
+                onInvalidated.run();
             }
         });
     }
@@ -505,6 +530,11 @@ public class OwnershipCache {
     @VisibleForTesting
     public Map<NamespaceBundle, ResourceLock<NamespaceEphemeralData>> getLocallyAcquiredLocks() {
         return locallyAcquiredLocks;
+    }
+
+    @VisibleForTesting
+    Map<NamespaceBundle, CompletableFuture<Void>> getBundleOperationBarriers() {
+        return bundleOperationBarriers;
     }
 
     public synchronized boolean refreshSelfOwnerInfo() {

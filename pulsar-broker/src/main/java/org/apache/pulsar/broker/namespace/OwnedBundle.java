@@ -66,7 +66,11 @@ public class OwnedBundle {
      * constructor.
      *
      * @param suName
+     * @deprecated an {@link OwnedBundle} created this way is not bound to a {@link ResourceLock}, so it
+     * represents no ownership generation: {@link OwnershipCache#removeOwnership(OwnedBundle)} releases nothing
+     * for it. Instances that own a bundle are created by {@link OwnershipCache} only.
      */
+    @Deprecated
     public OwnedBundle(NamespaceBundle suName) {
         this(suName, true);
     }
@@ -76,7 +80,9 @@ public class OwnedBundle {
      *
      * @param suName
      * @param active
+     * @deprecated see {@link #OwnedBundle(NamespaceBundle)}.
      */
+    @Deprecated
     public OwnedBundle(NamespaceBundle suName, boolean active) {
         this.bundle = suName;
         this.resourceLock = null;
@@ -166,14 +172,35 @@ public class OwnedBundle {
         // converge through the normal lookup path once ownership has actually moved, and BookKeeper's ledger
         // fencing (see ManagedLedgerImpl#addEntryFailedDueToConcurrentlyModified) is what prevents it from
         // silently double-writing if a new owner's ManagedLedger instance does start writing the same topic.
-        Map<String, CompletableFuture<Optional<Topic>>> topicFutures =
-                pulsar.getBrokerService().getTopicFuturesInBundle(bundle);
+        //
+        // Both the snapshot and the start of the unload are guarded against synchronous exceptions: isActive has
+        // already been flipped above and cannot be flipped back, so letting an exception escape here (instead of
+        // feeding it into the chain below, which treats a topic-close failure as non-fatal and still releases the
+        // ownership) would leave this bundle inactive with its lock still registered, and every retried unload
+        // would fail fast with "Namespace is not active".
+        Map<String, CompletableFuture<Optional<Topic>>> snapshot;
+        try {
+            snapshot = pulsar.getBrokerService().getTopicFuturesInBundle(bundle);
+        } catch (RuntimeException e) {
+            log.warn().attr("bundle", bundle).exception(e).log("Failed to snapshot the topics of the bundle");
+            snapshot = Map.of();
+        }
+        final Map<String, CompletableFuture<Optional<Topic>>> topicFutures = snapshot;
 
         // close topics forcefully
         // isActive was already flipped to false above; looking the bundle up in the ownership cache here could
         // deactivate a newer OwnedBundle that re-acquired the bundle after this instance's lock expired.
-        return pulsar.getBrokerService().unloadServiceUnit(
-                        bundle, true, closeWithoutWaitingClientDisconnect, timeout, timeoutUnit, topicFutures)
+        CompletableFuture<Integer> unloadFuture;
+        try {
+            unloadFuture = pulsar.getBrokerService().unloadServiceUnit(
+                    bundle, true, closeWithoutWaitingClientDisconnect, timeout, timeoutUnit, topicFutures);
+        } catch (RuntimeException e) {
+            // The topic closes may already have been started from the snapshot before the exception (e.g. the
+            // unload timeout could not be scheduled), so the cleanup below keeps using the same snapshot.
+            unloadFuture = FutureUtil.failedFuture(e);
+        }
+
+        return unloadFuture
                 .handle((numUnloadedTopics, ex) -> {
                     if (ex != null) {
                         // ignore topic-close failure to unload bundle
