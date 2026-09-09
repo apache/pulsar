@@ -240,7 +240,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * pulsar-perf runs with the client memory limit disabled unless {@code --memory-limit} is given, so
+     * When pulsar-perf runs with the client memory limit disabled using {@code --memory-limit 0},
      * the producer's only backpressure is its pending-message queue. Leaving the options unset has to
      * leave the client's own defaults in place; passing their unset value of 0 through would read as an
      * explicit "no message-count limit" and leave the producer unbounded, which is what exhausts direct
@@ -249,6 +249,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     @Test(timeOut = 20000)
     public void testPendingMessageLimitsAreLeftToTheClientWhenUnset() throws Exception {
         PerformanceProducer producer = new PerformanceProducer();
+        producer.memoryLimit = 0;
         producer.topics = List.of(testTopic + UUID.randomUUID());
         producer.serviceURL = pulsar.getBrokerServiceUrl();
 
