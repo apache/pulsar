@@ -53,9 +53,16 @@ public interface ClusterPolicies {
         String brokerServiceUrl;
         String brokerServiceUrlTls;
 
+        /**
+         * @return true when no URL of any kind (HTTP or binary, plain or TLS) is configured.
+         */
         public boolean isEmpty() {
-            return serviceUrl != null && serviceUrlTls != null && brokerServiceUrl == null
-                    && brokerServiceUrlTls == null;
+            return isBlank(serviceUrl) && isBlank(serviceUrlTls)
+                    && isBlank(brokerServiceUrl) && isBlank(brokerServiceUrlTls);
+        }
+
+        private static boolean isBlank(String s) {
+            return s == null || s.trim().equals("");
         }
     }
 }
