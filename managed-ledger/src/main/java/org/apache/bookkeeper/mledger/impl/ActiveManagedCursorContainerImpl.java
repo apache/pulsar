@@ -20,13 +20,16 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static java.util.Objects.requireNonNull;
 import com.google.common.annotations.VisibleForTesting;
+import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
+import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.StampedLock;
@@ -49,10 +52,16 @@ import org.apache.commons.lang3.tuple.Pair;
  */
 @Slf4j
 public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorContainer {
+    private static final int MIN_REMOVALS_BEFORE_CLEANUP = 64;
+    // Below this size, the JDK 21 object-array sort does not allocate a temporary merge buffer.
+    private static final int SMALL_POSITION_UPDATE_BATCH = 32;
+
     private static class Node {
-        final ManagedCursor cursor;
+        // Iterators read this without the lock. Removed nodes must not retain the cursor's object graph.
+        volatile ManagedCursor cursor;
         Position position;
         Position pendingPosition;
+        boolean pendingPositionUpdateQueued;
         boolean pendingRemove = false;
         MutableInt numberOfCursorsAtSamePositionOrBefore;
         Node prev;
@@ -65,6 +74,8 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
     }
     // number of nodes in the double-linked list
     int trackedNodeCount = 0;
+    // Conservative count: a removed node may have been reused since the last cleanup or position flush.
+    private int removalsSinceLastCleanup;
     private final long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
     private volatile long cursorRemovedTimestampMillis;
     private volatile int cursorCount;
@@ -86,18 +97,20 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
     // Maps a cursor to the node
     private final ConcurrentMap<String, Node> cursors = new ConcurrentHashMap<>();
     private final Map<String, Node> pendingRemovedCursors = new HashMap<>();
-    private final PriorityQueue<Node> pendingPositionUpdates = new PriorityQueue<>(new Comparator<Node>() {
+    // Accumulate without ordering; only incremental flushes benefit from ordering by old position.
+    private final ObjectArrayList<Node> pendingPositionUpdates = new ObjectArrayList<>();
+    private static final Comparator<Node> PENDING_POSITION_COMPARATOR = new Comparator<Node>() {
         @Override
         public int compare(Node o1, Node o2) {
             if (o1.position == null) {
-                return 1; // o1 is null, should be after o2
+                return o2.position == null ? 0 : -1;
             }
             if (o2.position == null) {
-                return -1; // o2 is null, should be after o1
+                return 1;
             }
-            return o2.position.compareTo(o1.position);
+            return o1.position.compareTo(o2.position);
         }
-    });
+    };
 
     private final StampedLock rwLock = new StampedLock();
 
@@ -114,24 +127,26 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                     }
                     node.pendingPosition = null;
                 } else {
-                    if (node.pendingPosition == null) {
-                        pendingPositionUpdates.add(node);
+                    // Re-adding an existing cursor cancels pending untracking, just like updateCursor.
+                    if (node.pendingRemove) {
+                        node.pendingRemove = false;
+                        pendingRemovedCursors.remove(cursor.getName());
                     }
-                    node.pendingPosition = position;
+                    queuePositionUpdate(node, position);
                 }
             } else {
                 if (position != null) {
                     node = pendingRemovedCursors.remove(cursor.getName());
                     if (node != null) {
                         node.pendingRemove = false;
+                        node.cursor = cursor;
                     }
                 }
                 if (node == null) {
                     node = new Node(cursor, position);
                 }
                 if (position != null) {
-                    node.pendingPosition = position;
-                    pendingPositionUpdates.add(node);
+                    queuePositionUpdate(node, position);
                 }
                 if (cursors.put(cursor.getName(), node) == null) {
                     cursorCount++;
@@ -259,9 +274,16 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                     pendingRemovedCursors.put(name, node);
                     node.pendingRemove = true;
                 }
+                node.cursor = null;
                 node.pendingPosition = null;
                 cursorRemovedTimestampMillis = System.currentTimeMillis();
                 cursorCount--;
+                // Keep position updates lazy, but bound retained nodes even if nobody queries their ordering.
+                // Scaling the batch with the live set amortizes scanning it over many removals.
+                if (++removalsSinceLastCleanup >= Math.max(MIN_REMOVALS_BEFORE_CLEANUP, cursorCount)
+                        || cursorCount == 0) {
+                    compactRemovedNodes();
+                }
                 return true;
             } else {
                 return false;
@@ -269,6 +291,46 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
         } finally {
             rwLock.unlockWrite(stamp);
         }
+    }
+
+    private void compactRemovedNodes() {
+        // Preserve lazy position updates while compacting the pending list in linear time.
+        pendingPositionUpdates.removeIf(node -> {
+            if (node.cursor == null) {
+                node.pendingPositionUpdateQueued = false;
+                return true;
+            }
+            return false;
+        });
+        if (pendingRemovedCursors.values().removeIf(node -> node.cursor == null)) {
+            Node previous = null;
+            Node current = head;
+            int count = 0;
+            while (current != null) {
+                Node next = current.next;
+                if (current.cursor == null) {
+                    if (previous == null) {
+                        head = next;
+                    } else {
+                        previous.next = next;
+                    }
+                    if (next != null) {
+                        next.prev = previous;
+                    }
+                    current.prev = null;
+                    current.next = null;
+                    trackedNodeCount--;
+                } else {
+                    // Equal-position nodes already share a counter. The last survivor in each group
+                    // sets its final rank, avoiding per-removal counter scans and new allocations.
+                    current.numberOfCursorsAtSamePositionOrBefore.setValue(++count);
+                    previous = current;
+                }
+                current = next;
+            }
+            tail = previous;
+        }
+        removalsSinceLastCleanup = 0;
     }
 
     /**
@@ -334,17 +396,25 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                     pendingRemovedCursors.remove(cursor.getName());
                 }
                 // position changed, mark the node as pending
-                if (node.pendingPosition == null) {
-                    pendingPositionUpdates.add(node);
-                }
-                node.pendingPosition = newPosition;
+                queuePositionUpdate(node, newPosition);
             }
         } finally {
             rwLock.unlockWrite(stamp);
         }
     }
 
+    private void queuePositionUpdate(Node node, Position position) {
+        // Clearing pendingPosition cancels an update, but does not remove its pending-list entry.
+        // In particular, reactivating a node must not enqueue the same node again.
+        if (!node.pendingPositionUpdateQueued) {
+            pendingPositionUpdates.add(node);
+            node.pendingPositionUpdateQueued = true;
+        }
+        node.pendingPosition = position;
+    }
+
     private void processPendingPositions() {
+        removalsSinceLastCleanup = 0;
         if (pendingRemovedCursors.isEmpty() && pendingPositionUpdates.isEmpty()) {
             // No pending changes, nothing to do
             return;
@@ -365,11 +435,24 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
             }
             pendingRemovedCursors.clear();
         }
-        while (true) {
-            Node node = pendingPositionUpdates.poll();
-            if (node == null) {
-                break; // No more pending updates
+        int pendingCount = pendingPositionUpdates.size();
+        if (pendingCount > 1 && pendingCount < SMALL_POSITION_UPDATE_BATCH) {
+            // Keep the efficient small-array sort without allocating a temporary merge buffer.
+            pendingPositionUpdates.sort(PENDING_POSITION_COMPARATOR);
+        } else if (pendingCount >= SMALL_POSITION_UPDATE_BATCH) {
+            // Ordered batches need no sort. Otherwise use in-place sorting to avoid per-flush buffers.
+            for (int i = 1; i < pendingCount; i++) {
+                if (PENDING_POSITION_COMPARATOR.compare(pendingPositionUpdates.get(i - 1),
+                        pendingPositionUpdates.get(i)) > 0) {
+                    pendingPositionUpdates.unstableSort(PENDING_POSITION_COMPARATOR);
+                    break;
+                }
             }
+        }
+        while (!pendingPositionUpdates.isEmpty()) {
+            // Drain from the end to process descending old positions without shifting array elements.
+            Node node = pendingPositionUpdates.remove(pendingPositionUpdates.size() - 1);
+            node.pendingPositionUpdateQueued = false;
             if (node.pendingPosition != null) {
                 if (node.position == null) {
                     node.position = node.pendingPosition;
@@ -393,6 +476,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
         // Collect all nodes that should be in the list and update their positions
         List<Node> activeNodes = new ArrayList<>();
         for (Node node : cursors.values()) {
+            node.pendingPositionUpdateQueued = false;
             if (node.pendingPosition != null) {
                 node.position = node.pendingPosition;
                 node.pendingPosition = null;
@@ -473,12 +557,13 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
 
             // update the position
             node.position = newPosition;
-            if (node == tail) {
-                // Node is at the tail, no need to update counters
+            // A tail that remains in its own position group keeps the same rank and counter.
+            if (node == tail && (node.prev == null
+                    || (node.prev.position.compareTo(oldPosition) != 0
+                    && node.prev.position.compareTo(newPosition) != 0))) {
                 return;
             }
-
-            // update the counters
+            // Even the tail must leave or join shared counters when its position group changes.
             if (movingForward) {
                 // first decrement the counter for the old position
                 node.numberOfCursorsAtSamePositionOrBefore.decrement();
@@ -684,11 +769,21 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
 
     @Override
     public Position getSlowestCursorPosition() {
-        long stamp = rwLock.readLock();
+        long stamp = rwLock.tryOptimisticRead();
+        if (stamp != 0 && pendingRemovedCursors.isEmpty() && pendingPositionUpdates.isEmpty()) {
+            // Snapshot scalar fields only; a concurrent writer can invalidate the list before validation.
+            Node first = head;
+            Position position = first != null ? first.position : null;
+            if (rwLock.validate(stamp)) {
+                return position;
+            }
+        }
+        // Flushing pending changes mutates the list and must be exclusive.
+        stamp = rwLock.writeLock();
         try {
             return internalSlowestReaderPosition();
         } finally {
-            rwLock.unlockRead(stamp);
+            rwLock.unlockWrite(stamp);
         }
     }
 
@@ -725,14 +820,24 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
     public Iterator<ManagedCursor> iterator() {
         final Iterator<Map.Entry<String, Node>> it = cursors.entrySet().iterator();
         return new Iterator<ManagedCursor>() {
+            private ManagedCursor nextCursor;
+
             @Override
             public boolean hasNext() {
-                return it.hasNext();
+                while (nextCursor == null && it.hasNext()) {
+                    nextCursor = it.next().getValue().cursor;
+                }
+                return nextCursor != null;
             }
 
             @Override
             public ManagedCursor next() {
-                return it.next().getValue().cursor;
+                if (!hasNext()) {
+                    throw new NoSuchElementException();
+                }
+                ManagedCursor result = nextCursor;
+                nextCursor = null;
+                return result;
             }
 
             @Override
@@ -754,6 +859,33 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
             return node.numberOfCursorsAtSamePositionOrBefore.intValue();
         } finally {
             rwLock.unlockWrite(stamp);
+        }
+    }
+
+    @VisibleForTesting
+    int getPendingPositionUpdatesCount() {
+        long stamp = rwLock.readLock();
+        try {
+            return pendingPositionUpdates.size();
+        } finally {
+            rwLock.unlockRead(stamp);
+        }
+    }
+
+    /** Returns one entry per retained node, including null for nodes whose cursor was released. */
+    @VisibleForTesting
+    List<ManagedCursor> getRetainedCursors() {
+        long stamp = rwLock.readLock();
+        try {
+            Set<Node> nodes = new HashSet<>(cursors.values());
+            nodes.addAll(pendingPositionUpdates);
+            nodes.addAll(pendingRemovedCursors.values());
+            for (Node node = head; node != null; node = node.next) {
+                nodes.add(node);
+            }
+            return nodes.stream().map(node -> node.cursor).toList();
+        } finally {
+            rwLock.unlockRead(stamp);
         }
     }
 
@@ -784,14 +916,21 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
      */
     @VisibleForTesting
     void checkOrderingAndNumberOfCursorsState() {
-        long stamp = rwLock.readLock();
+        long stamp = rwLock.writeLock();
         try {
             processPendingPositions();
             Node current = head;
+            Node previous = null;
             int currentCount = 0;
             Position lastPosition = null;
             List<String> lastPositionCursorNames = new ArrayList<>();
             while (current != null) {
+                if (current.cursor == null) {
+                    throw new IllegalStateException("Released node still linked");
+                }
+                if (current.prev != previous) {
+                    throw new IllegalStateException("Previous node link is inconsistent");
+                }
                 if (current.prev != null && current.position.compareTo(current.prev.position) < 0) {
                     throw new IllegalStateException("Cursors are not ordered: " + current.cursor.getName()
                             + " with position " + current.position + " is after cursor " + current.prev.cursor.getName()
@@ -826,11 +965,18 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                 } else {
                     lastPositionCursorNames.add(current.cursor.getName());
                 }
+                previous = current;
                 current = current.next;
-
+            }
+            if (tail != previous) {
+                throw new IllegalStateException("Tail does not match the last linked node");
+            }
+            if (currentCount != trackedNodeCount) {
+                throw new IllegalStateException("Tracked node count does not match the linked list: expected "
+                        + trackedNodeCount + ", but found " + currentCount);
             }
         } finally {
-            rwLock.unlockRead(stamp);
+            rwLock.unlockWrite(stamp);
         }
     }
 }
