@@ -79,6 +79,9 @@ public class V5DagWatchAutoReconnectTest extends V5ClientBaseTest {
         // on the DagWatchClient, which schedules a reconnect.
         forceCloseDagWatchOnProducer(producer);
 
+        // Send a second batch immediately. The force-close also drops the shared client
+        // connection, so the per-segment v4 producers reconnect; sends issued here are
+        // queued and flushed once the connection is re-established.
         int secondN = 10;
         Set<String> secondSent = new HashSet<>();
         for (int i = 0; i < secondN; i++) {
