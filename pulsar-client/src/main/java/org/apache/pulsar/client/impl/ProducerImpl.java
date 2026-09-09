@@ -2553,8 +2553,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (state == State.Terminated || state == State.Closed || state == State.ProducerFenced) {
                 // The producer is in a terminal state and will never reconnect. Fail the message immediately
                 // rather than leaving it stuck in pendingMessages until sendTimeout.
+                // releaseSemaphoreForSendOp() also gives the reserved memory back, so it must not be released again.
                 releaseSemaphoreForSendOp(op);
-                client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
                 op.sendComplete(getTerminalException(state));
                 ReferenceCountUtil.safeRelease(op.cmd);
                 op.recycle();
