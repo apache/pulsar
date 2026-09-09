@@ -193,6 +193,39 @@ public class ActiveManagedCursorContainerRetentionTest {
         assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(container.get("second"))).isEqualTo(2);
     }
 
+    @DataProvider
+    public Object[][] pendingUntracking() {
+        return new Object[][] {{1, false}, {1, true}, {10, false}, {10, true}};
+    }
+
+    @Test(dataProvider = "pendingUntracking")
+    public void testAddExistingCursorCancelsPendingUntracking(int cursorCount, boolean untrackWithAdd) {
+        ActiveManagedCursorContainerImpl container = new ActiveManagedCursorContainerImpl();
+        for (int i = 0; i < cursorCount; i++) {
+            addCursor(container, "cursor" + i, PositionFactory.create(1, i + 1));
+        }
+        container.getSlowestCursorPosition();
+        int movedIndex = cursorCount / 2;
+        ManagedCursor moved = container.get("cursor" + movedIndex);
+        if (untrackWithAdd) {
+            container.add(moved, null);
+        } else {
+            container.updateCursor(moved, null);
+        }
+        Position later = PositionFactory.create(1, cursorCount + 1);
+        container.add(moved, later);
+        // One pending update rebuilds a singleton container but uses incremental movement with ten cursors.
+        assertThat(container.getSlowestCursorPosition()).isEqualTo(cursorCount == 1 ? later : POSITION);
+        assertThat(container.size()).isEqualTo(cursorCount);
+        for (int i = 0; i < cursorCount; i++) {
+            int expectedRank = i == movedIndex ? cursorCount : (i < movedIndex ? i + 1 : i);
+            assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(container.get("cursor" + i)))
+                    .as("rank of cursor%s after cancelling pending untracking", i)
+                    .isEqualTo(expectedRank);
+        }
+        container.checkOrderingAndNumberOfCursorsState();
+    }
+
     @Test
     public void testReactivatedTailLeavesSharedPositionGroup() {
         ActiveManagedCursorContainerImpl container = new ActiveManagedCursorContainerImpl();

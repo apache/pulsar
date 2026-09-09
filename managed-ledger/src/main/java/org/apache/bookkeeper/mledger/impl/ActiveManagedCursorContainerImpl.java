@@ -123,6 +123,11 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                     }
                     node.pendingPosition = null;
                 } else {
+                    // Re-adding an existing cursor cancels pending untracking, just like updateCursor.
+                    if (node.pendingRemove) {
+                        node.pendingRemove = false;
+                        pendingRemovedCursors.remove(cursor.getName());
+                    }
                     queuePositionUpdate(node, position);
                 }
             } else {
