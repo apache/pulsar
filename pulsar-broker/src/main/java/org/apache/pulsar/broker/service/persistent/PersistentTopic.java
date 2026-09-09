@@ -2298,7 +2298,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private void checkMessageExpiryWithoutSharedPosition(int messageTtlInSeconds) {
         subscriptions.forEach((__, sub) -> {
-            if (!isCompactionSubscription(sub.getName())
+            // TTL must not advance non-durable reader cursors past unread retained messages.
+            if (sub.getCursor().isDurable() && !isCompactionSubscription(sub.getName())
                     && (additionalSystemCursorNames.isEmpty()
                     || !additionalSystemCursorNames.contains(sub.getName()))) {
                 sub.expireMessagesAsync(messageTtlInSeconds);
@@ -2343,9 +2344,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 // Nothing need to be expired.
                 return;
             }
-            // Expire messages by position, which is more efficient.
+            // Expire durable subscriptions by position. Non-durable readers must retain their read position.
             subscriptions.forEach((__, sub) -> {
-                if (!isCompactionSubscription(sub.getName())
+                if (sub.getCursor().isDurable() && !isCompactionSubscription(sub.getName())
                         && (additionalSystemCursorNames.isEmpty()
                         || !additionalSystemCursorNames.contains(sub.getName()))) {
                     // The variable "position" is to mark delete position.
