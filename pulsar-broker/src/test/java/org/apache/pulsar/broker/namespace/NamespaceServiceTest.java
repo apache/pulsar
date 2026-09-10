@@ -551,18 +551,16 @@ public class NamespaceServiceTest extends BrokerTestBase {
     @SuppressWarnings("deprecation")
     @Test
     public void testSplitCompletesWhenReleasingTheOldBundleStalls() throws Exception {
-        OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        OwnershipCache realOwnershipCache = namespaceService.getOwnershipCache();
+        OwnershipCache ownershipCache = spy(realOwnershipCache);
         // The old bundle's release is queued behind an acquire that never settles (e.g. metadata store unreachable)
         doReturn(new CompletableFuture<Void>()).when(ownershipCache).removeOwnership(any(NamespaceBundle.class));
-
-        Field ownership = NamespaceService.class.getDeclaredField("ownershipCache");
-        ownership.setAccessible(true);
-        ownership.set(pulsar.getNamespaceService(), ownershipCache);
+        namespaceService.setOwnershipCache(ownershipCache);
 
         int originalTimeout = conf.getMetadataStoreOperationTimeoutSeconds();
         conf.setMetadataStoreOperationTimeoutSeconds(2);
         try {
-            NamespaceService namespaceService = pulsar.getNamespaceService();
             NamespaceName nsname = NamespaceName.get("prop/ns-split-release-stalls");
             admin.namespaces().createNamespace(nsname.toString());
             TopicName topicName = TopicName.get("persistent://" + nsname + "/topic-1");
@@ -576,6 +574,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                     NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null).get(30, TimeUnit.SECONDS);
         } finally {
             conf.setMetadataStoreOperationTimeoutSeconds(originalTimeout);
+            namespaceService.setOwnershipCache(realOwnershipCache);
         }
     }
 

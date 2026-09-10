@@ -25,6 +25,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.api.PulsarClientException.FailedFeatureCheck.SupportsGetPartitionedMetadataWithoutAutoCreation;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -128,7 +129,10 @@ public class NamespaceService implements AutoCloseable {
     private final ServiceConfiguration config;
     private final AtomicReference<LoadManager> loadManager;
     private final PulsarService pulsar;
-    private final OwnershipCache ownershipCache;
+    // Not final so that tests in this package can install a spy through setOwnershipCache(); volatile keeps
+    // the safe-publication guarantee that the final field used to provide, since this is read from the
+    // lookup path on many threads.
+    private volatile OwnershipCache ownershipCache;
     private final MetadataCache<LocalBrokerData> localBrokerDataCache;
     private final NamespaceBundleFactory bundleFactory;
     private final String host;
@@ -1239,6 +1243,11 @@ public class NamespaceService implements AutoCloseable {
 
         return pulsar.getPulsarResources().getLocalPolicies()
                 .setLocalPoliciesWithVersion(nsname, localPolicies, nsBundles.getVersion());
+    }
+
+    @VisibleForTesting
+    void setOwnershipCache(OwnershipCache ownershipCache) {
+        this.ownershipCache = ownershipCache;
     }
 
     public OwnershipCache getOwnershipCache() {
