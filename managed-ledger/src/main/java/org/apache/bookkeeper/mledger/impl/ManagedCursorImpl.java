@@ -4074,6 +4074,16 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     @Override
+    public long[] getDeletedBatchIndexesAsLongArray(long ledgerId, long entryId) {
+        // Subclasses may override the position-based lookup, so preserve their virtual dispatch.
+        if (getClass() == ManagedCursorImpl.class
+                && (batchDeletedIndexes == null || batchDeletedIndexes.isEmpty())) {
+            return null;
+        }
+        return getDeletedBatchIndexesAsLongArray(PositionFactory.create(ledgerId, entryId));
+    }
+
+    @Override
     public ManagedCursorMXBean getStats() {
         return this.mbean;
     }

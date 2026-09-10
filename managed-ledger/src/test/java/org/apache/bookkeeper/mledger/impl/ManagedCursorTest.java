@@ -4973,6 +4973,53 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testBatchIndexLookupByIdsPreservesSubclassOverride() {
+        ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getLogger()).thenReturn(log);
+        long[] expected = {7};
+        ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c1") {
+            @Override
+            public long[] getDeletedBatchIndexesAsLongArray(Position position) {
+                assertEquals(position.getLedgerId(), 12L);
+                assertEquals(position.getEntryId(), 34L);
+                return expected;
+            }
+        };
+        assertEquals(cursor.getDeletedBatchIndexesAsLongArray(12, 34), expected);
+    }
+
+    @Test
+    public void testBatchIndexLookupByIdsDefaultImplementation() {
+        ManagedCursor cursor = mock(ManagedCursor.class, Mockito.CALLS_REAL_METHODS);
+        Position position = PositionFactory.create(12, 34);
+        long[] expected = {7};
+        when(cursor.getDeletedBatchIndexesAsLongArray(position)).thenReturn(expected);
+        assertEquals(cursor.getDeletedBatchIndexesAsLongArray(12, 34), expected);
+        verify(cursor).getDeletedBatchIndexesAsLongArray(position);
+    }
+
+    @Test
+    public void testBatchIndexLookupByLedgerAndEntryIds() throws Exception {
+        ManagedLedger ledger = factory.open("batch_index_lookup_ids");
+        ManagedCursor cursor = ledger.openCursor("c1");
+        Position position = ledger.addEntry("entry".getBytes(Encoding));
+        long ledgerId = position.getLedgerId();
+        long entryId = position.getEntryId();
+        assertNull(cursor.getDeletedBatchIndexesAsLongArray(ledgerId, entryId));
+
+        deleteBatchIndex(cursor, position, 10, Lists.newArrayList(new IntRange().setStart(2).setEnd(4)));
+        long[] snapshot = cursor.getDeletedBatchIndexesAsLongArray(ledgerId, entryId);
+        assertEquals(snapshot, cursor.getDeletedBatchIndexesAsLongArray(position));
+        assertNull(cursor.getDeletedBatchIndexesAsLongArray(ledgerId, entryId + 1));
+        snapshot[0] = 0;
+        assertNotEquals(cursor.getDeletedBatchIndexesAsLongArray(ledgerId, entryId)[0], 0L);
+
+        cursor.delete(position);
+        assertNull(cursor.getDeletedBatchIndexesAsLongArray(ledgerId, entryId));
+    }
+
+    @Test
     public void testBatchIndexDelete() throws ManagedLedgerException, InterruptedException {
         ManagedLedger ledger = factory.open("test_batch_index_delete");
         ManagedCursor cursor = ledger.openCursor("c1");
