@@ -2623,14 +2623,16 @@ public class ManagedCursorImpl implements ManagedCursor {
                     // make the RangeSet recognize the "continuity" between adjacent Positions.
                     // Before https://github.com/apache/pulsar/pull/21105 is merged, the range does not support crossing
                     // multi ledgers, so the first position's entryId maybe "-1".
-                    Position previousPosition;
-                    if (position.getEntryId() == 0) {
-                        previousPosition = PositionFactory.create(position.getLedgerId(), -1);
+                    long ledgerId = position.getLedgerId();
+                    long entryId = position.getEntryId();
+                    if (entryId >= 0) {
+                        // For entry zero, keep the lower bound in this ledger, as before.
+                        individualDeletedMessages.addOpenClosed(ledgerId, entryId - 1, ledgerId, entryId);
                     } else {
-                        previousPosition = ledger.getPreviousPosition(position);
+                        Position previousPosition = ledger.getPreviousPosition(position);
+                        individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
+                                previousPosition.getEntryId(), ledgerId, entryId);
                     }
-                    individualDeletedMessages.addOpenClosed(previousPosition.getLedgerId(),
-                        previousPosition.getEntryId(), position.getLedgerId(), position.getEntryId());
                     MSG_CONSUMED_COUNTER_UPDATER.incrementAndGet(this);
 
                     log.debug().attr("deletedMessages", individualDeletedMessages).log("Individually deleted messages");
