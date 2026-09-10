@@ -23,25 +23,37 @@ import static org.apache.pulsar.client.api.MessageId.latest;
 import static org.apache.pulsar.common.api.proto.CommandSubscribe.SubType.Exclusive;
 import static org.apache.pulsar.common.api.proto.KeySharedMode.AUTO_SPLIT;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import java.net.SocketAddress;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ConsumerTest {
     private Consumer consumer;
+    private Subscription subscription;
     private final ConsumerStatsImpl stats = new ConsumerStatsImpl();
 
     @BeforeMethod
     public void beforeMethod() {
-        Subscription subscription = mock(Subscription.class);
+        subscription = mock(Subscription.class);
         ServerCnx cnx = mock(ServerCnx.class);
         SocketAddress address = mock(SocketAddress.class);
         Topic topic = mock(Topic.class);
@@ -51,6 +63,9 @@ public class ConsumerTest {
 
         when(cnx.clientAddress()).thenReturn(address);
         when(subscription.getTopic()).thenReturn(topic);
+        HierarchyTopicPolicies policies = new HierarchyTopicPolicies();
+        policies.getMaxUnackedMessagesOnConsumer().updateBrokerValue(0);
+        when(topic.getHierarchyTopicPolicies()).thenReturn(policies);
         when(topic.getBrokerService()).thenReturn(brokerService);
         when(brokerService.getPulsar()).thenReturn(pulsarService);
         when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
@@ -72,5 +87,37 @@ public class ConsumerTest {
         stats.bytesOutCounter = 1L;
         consumer.updateStats(stats);
         assertEquals(consumer.getBytesOutCounter(), 1L);
+    }
+
+    @DataProvider
+    public Object[][] groupedAcknowledgements() {
+        return new Object[][] {{0, false}, {1, false}, {1000, false}, {1, true}};
+    }
+
+    @Test(dataProvider = "groupedAcknowledgements")
+    public void testGroupedAcknowledgementsPreservePositionsAndCompletion(int count, boolean validationError) {
+        CompletableFuture<Void> persistence = new CompletableFuture<>();
+        when(subscription.acknowledgeMessageAsync(any(), eq(CommandAck.AckType.Individual), any()))
+                .thenReturn(persistence);
+        CommandAck ack = new CommandAck().setConsumerId(1).setAckType(CommandAck.AckType.Individual);
+        if (validationError) {
+            ack.setValidationError(CommandAck.ValidationError.ChecksumMismatch);
+        }
+        for (int i = 0; i < count; i++) {
+            ack.addMessageId().setLedgerId(7).setEntryId(i);
+        }
+
+        CompletableFuture<Void> result = consumer.messageAcked(ack, true);
+        ArgumentCaptor<List<Position>> positions = ArgumentCaptor.captor();
+        verify(subscription).acknowledgeMessageAsync(positions.capture(),
+                eq(CommandAck.AckType.Individual), eq(emptyMap()));
+        assertThat(positions.getValue()).hasSize(count);
+        for (int i = 0; i < count; i++) {
+            assertThat(positions.getValue().get(i).getLedgerId()).isEqualTo(7);
+            assertThat(positions.getValue().get(i).getEntryId()).isEqualTo(i);
+        }
+        assertThat(result).isNotDone();
+        persistence.complete(null);
+        assertThat(result).isCompletedWithValue(null);
     }
 }
