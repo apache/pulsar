@@ -55,6 +55,7 @@ import org.apache.pulsar.functions.proto.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
@@ -279,36 +280,20 @@ public class FunctionAssignmentTailerTest {
         FunctionAssignmentTailer functionAssignmentTailer =
                 spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
 
-        functionAssignmentTailer.start();
+        try (functionAssignmentTailer) {
+            functionAssignmentTailer.start();
 
-        messageList.add(message1);
-        for (int i = 0; i < 10; i++) {
-            try {
-                verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1));
-                break;
-            } catch (org.mockito.exceptions.verification.WantedButNotInvoked e) {
-                if (i == 9) {
-                    throw e;
-                }
-            }
-            Thread.sleep(200);
+            messageList.add(message1);
+            Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() ->
+                    verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1)));
+
+            messageList.add(message2);
+            Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() ->
+                    verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message2)));
         }
 
-        messageList.add(message2);
-        for (int i = 0; i < 10; i++) {
-            try {
-                verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message2));
-                break;
-            } catch (org.mockito.exceptions.verification.WantedButNotInvoked e) {
-                if (i == 9) {
-                    throw e;
-                }
-            }
-            Thread.sleep(200);
-        }
-
+        // Verification observes method entry; close joins the tailer after it updates the last message id.
         Assert.assertEquals(functionAssignmentTailer.getLastMessageId(), message2.getMessageId());
-        functionAssignmentTailer.close();
     }
 
     @Test(timeOut = 10000)
