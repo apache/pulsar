@@ -37,7 +37,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
-import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
+import org.apache.pulsar.client.impl.metrics.ProducerMetrics;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.protocol.ByteBufPair;
@@ -192,7 +192,7 @@ public class MessageChecksumTest extends SharedPulsarBaseTest {
         // WHEN
         // protocol message is created with checksum
         ByteBufPair cmd = Commands.newSend(1, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
-        OpSendMsg op = OpSendMsg.create(LatencyHistogram.NOOP,
+        OpSendMsg op = OpSendMsg.create(ProducerMetrics.NOOP,
                 (MessageImpl<byte[]>) msgBuilder.getMessage(), cmd, 1, null);
 
         // THEN

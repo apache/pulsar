@@ -24,7 +24,8 @@ import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.Iterator;
-import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.ProducerMetrics;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -32,6 +33,9 @@ import org.testng.annotations.Test;
  * Contains unit tests for ProducerImpl.OpSendMsgQueue inner class.
  */
 public class OpSendMsgQueueTest {
+    private static final ProducerMetrics NOOP_PRODUCER_METRICS =
+            new ProducerMetrics(InstrumentProvider.NOOP, "test-topic");
+
     MessageImpl<?> message;
 
     @BeforeClass
@@ -41,7 +45,7 @@ public class OpSendMsgQueueTest {
     }
 
     private ProducerImpl.OpSendMsg createDummyOpSendMsg() {
-        return ProducerImpl.OpSendMsg.create(LatencyHistogram.NOOP, message, null, 0L, null);
+        return ProducerImpl.OpSendMsg.create(NOOP_PRODUCER_METRICS, message, null, 0L, null);
     }
 
     @Test
