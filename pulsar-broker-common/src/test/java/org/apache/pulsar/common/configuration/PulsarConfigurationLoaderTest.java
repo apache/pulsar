@@ -25,6 +25,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import com.google.common.collect.Sets;
 import java.io.File;
 import java.io.FileInputStream;
@@ -84,6 +85,69 @@ public class PulsarConfigurationLoaderTest {
     public void testConfigurationConverting_checkNonExistMember() {
         assertThrows(IllegalArgumentException.class,
                 () -> PulsarConfigurationLoader.convertFrom(new MockConfiguration(), false));
+    }
+
+    // PIP-478: a stale, removed PIP-337 sslFactoryPlugin key set to a non-default value is rejected loudly at
+    // config-file load with an actionable migration message, replacing the removed @Deprecated fail-loud field.
+    @Test
+    public void testRemovedPip337SslFactoryPluginKeysRejectedLoudly() {
+        for (String key : new String[] {"sslFactoryPlugin", "sslFactoryPluginParams",
+                "brokerClientSslFactoryPlugin", "brokerClientSslFactoryPluginParams",
+                // PIP-478 (FIX): broker.conf passes brokerClient_<clientKey> through to the internal client, so
+                // the prefixed form of the client removed keys must be rejected too (it would otherwise be
+                // silently dropped by ClientConfigurationData ignoreUnknown).
+                "brokerClient_sslFactoryPlugin", "brokerClient_sslFactoryPluginParams"}) {
+            Properties props = new Properties();
+            props.setProperty("clusterName", "test");
+            props.setProperty(key, "com.example.CustomSslFactory");
+            IllegalArgumentException ex = expectThrows(IllegalArgumentException.class,
+                    () -> PulsarConfigurationLoader.create(props, ServiceConfiguration.class));
+            assertTrue(ex.getMessage().contains(key), "message should name the removed key: " + ex.getMessage());
+            assertTrue(ex.getMessage().contains("tlsFactoryClassName"),
+                    "message should point to the successor: " + ex.getMessage());
+        }
+        // A blank value (the default) is tolerated -> loads cleanly.
+        Properties blank = new Properties();
+        blank.setProperty("clusterName", "test");
+        blank.setProperty("sslFactoryPlugin", "");
+        blank.setProperty("brokerClientSslFactoryPlugin", "");
+        assertNotNull(expectNoThrow(() -> PulsarConfigurationLoader.create(blank, ServiceConfiguration.class)));
+    }
+
+    // PIP-478 (FIX): a *Plugin key still naming the OLD DEFAULT factory FQCN is equivalent to "unset" (no
+    // custom factory), so it is tolerated — only a non-default (custom) value needs migration. The *PluginParams
+    // keys carry no default value, so any non-blank value is still rejected.
+    @Test
+    public void testRemovedPip337DefaultSslFactoryFqcnTolerated() {
+        String defaultFqcn = "org.apache.pulsar.common.util.DefaultPulsarSslFactory";
+        for (String key : new String[] {"sslFactoryPlugin", "brokerClientSslFactoryPlugin",
+                "brokerClient_sslFactoryPlugin"}) {
+            Properties props = new Properties();
+            props.setProperty("clusterName", "test");
+            props.setProperty(key, defaultFqcn);
+            assertNotNull(expectNoThrow(() -> PulsarConfigurationLoader.create(props, ServiceConfiguration.class)),
+                    "old default factory FQCN on '" + key + "' should be tolerated");
+        }
+        // A custom (non-default) value on the same key is still rejected.
+        Properties custom = new Properties();
+        custom.setProperty("clusterName", "test");
+        custom.setProperty("sslFactoryPlugin", "com.acme.CustomFactory");
+        expectThrows(IllegalArgumentException.class,
+                () -> PulsarConfigurationLoader.create(custom, ServiceConfiguration.class));
+        // The default FQCN is NOT a *PluginParams default -> a non-blank params value is still rejected.
+        Properties params = new Properties();
+        params.setProperty("clusterName", "test");
+        params.setProperty("sslFactoryPluginParams", defaultFqcn);
+        expectThrows(IllegalArgumentException.class,
+                () -> PulsarConfigurationLoader.create(params, ServiceConfiguration.class));
+    }
+
+    private static <T> T expectNoThrow(java.util.concurrent.Callable<T> callable) {
+        try {
+            return callable.call();
+        } catch (Exception e) {
+            throw new AssertionError("expected no exception but got: " + e, e);
+        }
     }
 
     // Deprecation warning suppressed as this test targets deprecated methods

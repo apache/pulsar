@@ -55,14 +55,18 @@ public final class AuthenticationFactory {
     }
 
     /**
-     * Create TLS mutual authentication.
+     * Create the built-in TLS mutual-authentication marker plugin (PIP-478).
      *
-     * @param certFilePath the path to the client certificate file (PEM format)
-     * @param keyFilePath  the path to the client private key file (PEM format)
-     * @return an {@link Authentication} instance configured for TLS mutual authentication
+     * <p>This plugin carries no TLS material of its own: it only advertises the {@code "tls"}
+     * authentication method so the broker authenticates from the client certificate presented during the
+     * TLS handshake. Configure the client certificate, private key, and trust material through the client
+     * builder's {@code tlsPolicy(...)} (e.g. {@code TlsPolicy.pem(trustCerts, certFile, keyFile)}); the
+     * transport reads its material from the client TLS factory.
+     *
+     * @return an {@link Authentication} instance that advertises the {@code "tls"} method
      */
-    public static Authentication tls(String certFilePath, String keyFilePath) {
-        return PulsarClientProvider.get().authenticationTls(certFilePath, keyFilePath);
+    public static Authentication tls() {
+        return PulsarClientProvider.get().authenticationTls();
     }
 
     /**

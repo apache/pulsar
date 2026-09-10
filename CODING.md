@@ -236,6 +236,8 @@ defaulting to the safe/old behaviour.
 
 - **Back optimizations with evidence** — a JMH benchmark (see *Testing conventions*) or a profile, not
   intuition — measured on JIT-warmed code (see *Reproducing concurrency / memory-visibility bugs*).
+  `-PtestAsyncProfiler` profiles a test run with async-profiler (see
+  [`CONTRIBUTING.md`](CONTRIBUTING.md#profiling-tests-with-async-profiler)).
 - **On hot paths** (dispatch, IO, per-message): avoid `String.format` (build strings directly),
   `Enum.values()` (match explicitly), and unnecessary allocation/locking; prefer lock-free or
   single-writer designs.
