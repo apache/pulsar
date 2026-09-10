@@ -21,6 +21,9 @@ for the agent-specific guardrails on top of it.
   `import` statement (or the same package); never write a fully qualified class name in a statement or
   expression. The only exception is a simple-name collision that imports cannot resolve — then fully
   qualify the conflicting type and note why.
+- Note that Pulsar's code style does **not** put a blank line between static imports and regular
+imports. The Checkstyle config linked in the bullet point above is the authoritative source for the
+exact rules.
 
 ## Logging
 
