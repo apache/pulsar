@@ -24,17 +24,21 @@ import static org.apache.pulsar.common.api.proto.CompressionType.ZSTD;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -322,7 +326,16 @@ public class RawBatchMessageContainerImplTest {
     @Test
     public void testToByteBufReleasesPayloadWhenEncryptionFailsUnexpectedly() throws Exception {
         setEncryptionAndCompression(true, false);
-        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl();
+        // Track every buffer the container allocates, so the partially built encrypted output buffer is
+        // asserted as well, not just the batch payload it hands over.
+        List<ByteBuf> allocated = new ArrayList<>();
+        ByteBufAllocator trackingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ByteBuf buffer = Unpooled.buffer(invocation.getArgument(0));
+            allocated.add(buffer);
+            return buffer;
+        }).when(trackingAllocator).buffer(anyInt());
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(trackingAllocator);
         container.setCryptoKeyReader(cryptoKeyReader);
         container.add(createMessage("my-topic", "hi-1", 0), null);
 
@@ -346,6 +359,10 @@ public class RawBatchMessageContainerImplTest {
         // The compressed batch payload must have been released instead of leaked; the container keeps its
         // (now released) buffer reference until the caller recovers, mirroring the producer path.
         Assert.assertEquals(container.batchedMessageMetadataAndPayload.refCnt(), 0);
+        // The partially built encrypted output buffer must have been released as well, not only the source.
+        for (ByteBuf buffer : allocated) {
+            Assert.assertEquals(buffer.refCnt(), 0);
+        }
 
         container.discard(null);
     }

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
 import java.nio.ByteBuffer;
 import java.util.Set;
@@ -54,6 +55,14 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
 
     public RawBatchMessageContainerImpl() {
         super();
+        this.compressionType = CompressionType.NONE;
+        this.compressor = new CompressionCodecNone();
+    }
+
+    /** This constructor is for testing only, to track the buffers the container allocates. */
+    @VisibleForTesting
+    RawBatchMessageContainerImpl(ByteBufAllocator allocator) {
+        super(allocator);
         this.compressionType = CompressionType.NONE;
         this.compressor = new CompressionCodecNone();
     }

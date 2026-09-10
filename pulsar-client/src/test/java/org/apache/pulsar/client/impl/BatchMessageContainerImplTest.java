@@ -22,11 +22,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -34,17 +36,23 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.Timeout;
+import io.netty.util.Timer;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -271,19 +279,19 @@ public class BatchMessageContainerImplTest {
             return compressed;
         }).when(producer).applyCompression(any());
         AtomicBoolean fail = new AtomicBoolean(true);
-        when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> {
+        doAnswer(invocation -> {
             if (fail.get()) {
                 throw new RuntimeException("mocked encryption failure");
             }
             return invocation.getArgument(1);
-        });
-        when(producer.sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any())).thenAnswer(invocation -> {
+        }).when(producer).encryptMessage(any(), any());
+        doAnswer(invocation -> {
             ByteBuf payload = invocation.getArgument(5);
             ByteBuf header = PulsarByteBufAllocator.DEFAULT.buffer();
             header.writeInt(4 + 4 + payload.readableBytes());
             header.writeInt(0);
             return ByteBufPair.get(header, payload);
-        });
+        }).when(producer).sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any());
 
         BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(producer);
         List<MessageImpl<?>> messages = addMessages(batchMessageContainer, 2);
@@ -328,7 +336,7 @@ public class BatchMessageContainerImplTest {
 
         AtomicBoolean failSend = new AtomicBoolean(true);
         AtomicReference<ByteBuf> firstEncryptedRef = new AtomicReference<>();
-        when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> {
+        doAnswer(invocation -> {
             // Real encryption allocates a new buffer and releases the source payload.
             ByteBuf source = invocation.getArgument(1);
             ByteBuf encrypted = PulsarByteBufAllocator.DEFAULT.buffer(source.readableBytes());
@@ -338,8 +346,8 @@ public class BatchMessageContainerImplTest {
                 firstEncryptedRef.set(encrypted);
             }
             return encrypted;
-        });
-        when(producer.sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any())).thenAnswer(invocation -> {
+        }).when(producer).encryptMessage(any(), any());
+        doAnswer(invocation -> {
             if (failSend.getAndSet(false)) {
                 throw new RuntimeException("mocked send failure");
             }
@@ -348,7 +356,7 @@ public class BatchMessageContainerImplTest {
             header.writeInt(4 + 4 + payload.readableBytes());
             header.writeInt(0);
             return ByteBufPair.get(header, payload);
-        });
+        }).when(producer).sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any());
 
         BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(producer);
         List<MessageImpl<?>> messages = addMessages(batchMessageContainer, 2);
@@ -381,16 +389,16 @@ public class BatchMessageContainerImplTest {
 
         AtomicBoolean failOnce = new AtomicBoolean(true);
         if (failAtEncrypt) {
-            when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> {
+            doAnswer(invocation -> {
                 if (failOnce.getAndSet(false)) {
                     throw new RuntimeException("mocked encryption failure");
                 }
                 return invocation.getArgument(1);
-            });
+            }).when(producer).encryptMessage(any(), any());
         } else {
-            when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+            doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
         }
-        when(producer.sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any())).thenAnswer(invocation -> {
+        doAnswer(invocation -> {
             if (failAtSend && failOnce.getAndSet(false)) {
                 throw new RuntimeException("mocked send failure");
             }
@@ -398,7 +406,7 @@ public class BatchMessageContainerImplTest {
             ByteBuf payload = invocation.getArgument(5);
             return Commands.newSend(0L, metadata.hasSequenceId() ? metadata.getSequenceId() : 0L, 1,
                     Commands.ChecksumType.Crc32c, metadata, payload);
-        });
+        }).when(producer).sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any());
 
         BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(producer);
         List<MessageImpl<?>> messages = addMessages(batchMessageContainer, 3);
@@ -420,10 +428,11 @@ public class BatchMessageContainerImplTest {
         // The total-size field must equal the number of bytes that follow it.
         assertEquals(totalSize, cmd.readableBytes() - 4,
                 "TOTAL_SIZE must equal the number of bytes following the total-size field");
-        // The command must parse cleanly as a SEND command.
+        // The command must parse cleanly as a SEND command. Skip both length fields: TOTAL_SIZE and
+        // CMD_SIZE (getInt above reads absolutely and does not move the reader index).
         BaseCommand parsed = new BaseCommand();
         header.markReaderIndex();
-        header.skipBytes(4);
+        header.skipBytes(8);
         parsed.parseFrom(header, cmdSize);
         assertEquals(parsed.getType(), BaseCommand.Type.SEND);
         header.resetReaderIndex();
@@ -447,13 +456,13 @@ public class BatchMessageContainerImplTest {
     public void testMultiBatchesPartialBuildFailureReleasesBuiltOps(CompressionType compressionType)
             throws Exception {
         ProducerImpl<?> producer = createTestProducer(compressionType);
-        when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
         List<ByteBufPair> builtPairs = new ArrayList<>();
         // The pair clears its component references when released, so track the buffers at build time.
         List<ByteBuf> builtHeaders = new ArrayList<>();
         List<ByteBuf> builtPayloads = new ArrayList<>();
         AtomicInteger sendCalls = new AtomicInteger();
-        when(producer.sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any())).thenAnswer(invocation -> {
+        doAnswer(invocation -> {
             if (sendCalls.incrementAndGet() == 2) {
                 throw new RuntimeException("mocked second sub-batch failure");
             }
@@ -466,7 +475,7 @@ public class BatchMessageContainerImplTest {
             builtHeaders.add(header);
             builtPayloads.add(payload);
             return pair;
-        });
+        }).when(producer).sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any());
 
         BatchMessageKeyBasedContainer container = new BatchMessageKeyBasedContainer();
         container.setProducer(producer);
@@ -516,34 +525,38 @@ public class BatchMessageContainerImplTest {
     }
 
     private ProducerImpl<?> createTestProducer(CompressionType compressionType) throws Exception {
-        ProducerImpl<?> producer = mock(ProducerImpl.class);
         ProducerConfigurationData producerConfigurationData = new ProducerConfigurationData();
         producerConfigurationData.setCompressionType(compressionType);
         // Force the compression branch even for the tiny payloads used here, so the ZLIB case
         // actually compresses instead of silently taking the below-threshold no-compression path.
         producerConfigurationData.setCompressMinMsgBodySize(0);
         PulsarClientImpl pulsarClient = mock(PulsarClientImpl.class);
+        when(pulsarClient.newProducerId()).thenReturn(1L);
+        when(pulsarClient.getCnxPool()).thenReturn(mock(ConnectionPool.class));
         when(pulsarClient.getMemoryLimitController()).thenReturn(mock(MemoryLimitController.class));
-        try {
-            Field clientFiled = HandlerState.class.getDeclaredField("client");
-            clientFiled.setAccessible(true);
-            clientFiled.set(producer, pulsarClient);
-            Field confFiled = ProducerBase.class.getDeclaredField("conf");
-            confFiled.setAccessible(true);
-            confFiled.set(producer, producerConfigurationData);
-        } catch (Exception e) {
-            fail(e.getMessage());
-        }
-        when(producer.getConfiguration()).thenReturn(producerConfigurationData);
+        Timer timer = mock(Timer.class);
+        when(timer.newTimeout(any(), anyLong(), any())).thenReturn(mock(Timeout.class));
+        when(pulsarClient.timer()).thenReturn(timer);
+        ClientConfigurationData clientConfigurationData = new ClientConfigurationData();
+        clientConfigurationData.setStatsIntervalSeconds(0);
+        when(pulsarClient.getConfiguration()).thenReturn(clientConfigurationData);
+        when(pulsarClient.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+
+        ProducerImpl<?> producer = mock(ProducerImpl.class, withSettings()
+                .useConstructor(pulsarClient, "persistent://public/default/batch-container-test",
+                        producerConfigurationData, new CompletableFuture<>(), 0, Schema.BYTES,
+                        null, Optional.empty())
+                .defaultAnswer(CALLS_REAL_METHODS));
         // Mirror ProducerImpl.applyCompression semantics: encode into a new buffer and release
         // the source, so the container's ownership-transfer logic is exercised the real way.
-        when(producer.applyCompression(any())).thenAnswer(invocation -> {
+        // doAnswer-form stubbing: when-form would execute the real method while registering.
+        doAnswer(invocation -> {
             ByteBuf source = invocation.getArgument(0);
             ByteBuf compressed = PulsarByteBufAllocator.DEFAULT.buffer(source.readableBytes());
             compressed.writeBytes(source);
             source.release();
             return compressed;
-        });
+        }).when(producer).applyCompression(any());
         return producer;
     }
 
