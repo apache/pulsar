@@ -2298,14 +2298,10 @@ public abstract class NamespacesBase extends AdminResource {
         return pulsar().getNamespaceService().getOwnedPersistentTopicListForNamespaceBundle(bundle)
                 .thenCompose(topicsInBundle -> {
                     List<CompletableFuture<Void>> futures = new ArrayList<>();
-                    String effectiveSubscription = subscription;
                     final String replicatorPrefix = pulsar().getConfiguration().getReplicatorPrefix();
-                    if (effectiveSubscription != null
-                            && effectiveSubscription.startsWith(replicatorPrefix)) {
-                        effectiveSubscription =
-                                PersistentReplicator.getRemoteCluster(replicatorPrefix, effectiveSubscription);
-                    }
-                    final String finalSubscription = effectiveSubscription;
+                    final String finalSubscription = subscription == null ? null
+                            : PersistentReplicator.getRemoteCluster(replicatorPrefix, subscription)
+                                    .orElse(subscription);
 
                     for (String topic : topicsInBundle) {
                         TopicName topicName = TopicName.get(topic);

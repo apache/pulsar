@@ -481,17 +481,20 @@ public abstract class AbstractReplicator implements Replicator {
      * the part after the last dot for those — so a cluster named {@code us-east.prod} resolved to
      * {@code prod}.
      *
+     * <p>This is also the authoritative test of whether a name belongs to a replicator: an empty result
+     * means the name is an ordinary subscription, so callers need no separate prefix check. The prefix must
+     * be followed by the {@code '.'} separator, so a subscription such as {@code pulsar.replication-state}
+     * is not mistaken for a replicator of the {@code pulsar.repl} prefix.
+     *
      * @param replicatorPrefix      the configured replicator prefix (e.g. {@code pulsar.repl})
      * @param replicatorCursorName  the replicator cursor / subscription name
-     * @return the remote cluster name, or {@code replicatorCursorName} unchanged when it does not carry the
-     *         prefix (the callers then fail their replicator lookup, as before)
+     * @return the remote cluster name, or empty when the name does not carry the prefix and separator
      */
-    public static String getRemoteCluster(String replicatorPrefix, String replicatorCursorName) {
+    public static Optional<String> getRemoteCluster(String replicatorPrefix, String replicatorCursorName) {
         String prefix = replicatorPrefix + ".";
-        if (replicatorCursorName.startsWith(prefix)) {
-            return replicatorCursorName.substring(prefix.length());
-        }
-        return replicatorCursorName;
+        return replicatorCursorName.startsWith(prefix)
+                ? Optional.of(replicatorCursorName.substring(prefix.length()))
+                : Optional.empty();
     }
 
     public static String getReplicatorName(String replicatorPrefix, String cluster) {

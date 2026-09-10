@@ -141,24 +141,36 @@ public class AbstractReplicatorTest {
      */
     @Test
     public void testGetRemoteClusterRoundTripsClusterNamesContainingDots() {
-        final String replicatorPrefix = "pulsar.repl";
-        for (String cluster : new String[]{"us-west", "us-east.prod", "a.b.c", "cluster:1", "r3"}) {
-            String cursorName = AbstractReplicator.getReplicatorName(replicatorPrefix, cluster);
-            Assert.assertEquals(AbstractReplicator.getRemoteCluster(replicatorPrefix, cursorName), cluster,
-                    "remote cluster not recovered from cursor name " + cursorName);
+        for (String replicatorPrefix : new String[]{"pulsar.repl", "repl", "my.custom.repl"}) {
+            for (String cluster : new String[]{"us-west", "us-east.prod", "a.b.c", "cluster:1", "r3"}) {
+                String cursorName = AbstractReplicator.getReplicatorName(replicatorPrefix, cluster);
+                Assert.assertEquals(AbstractReplicator.getRemoteCluster(replicatorPrefix, cursorName),
+                        Optional.of(cluster),
+                        "remote cluster not recovered from cursor name " + cursorName);
+            }
         }
     }
 
     /**
-     * A prefix that is not the configured replicator prefix must not be stripped, so that callers keep failing
-     * their replicator lookup instead of resolving to some other cluster.
+     * An empty result is what tells a caller that the name is an ordinary subscription rather than a
+     * replicator's, so a name must match the prefix <b>and</b> the {@code '.'} separator to be accepted. A
+     * name that merely starts with the prefix characters, such as {@code pulsar.replication-state} against
+     * the prefix {@code pulsar.repl}, belongs to a subscription and must not be mistaken for a replicator.
      */
     @Test
-    public void testGetRemoteClusterLeavesNonReplicatorNamesUnchanged() {
-        Assert.assertEquals(AbstractReplicator.getRemoteCluster("pulsar.repl", "my-subscription"),
-                "my-subscription");
-        Assert.assertEquals(AbstractReplicator.getRemoteCluster("pulsar.repl", "other.prefix.us-east"),
-                "other.prefix.us-east");
+    public void testGetRemoteClusterIsEmptyForNamesThatAreNotReplicators() {
+        final String replicatorPrefix = "pulsar.repl";
+        for (String notAReplicator : new String[]{
+                "my-subscription",              // an ordinary subscription
+                "other.prefix.us-east",         // a different prefix entirely
+                "pulsar.replication-state",     // starts with the prefix, but the separator does not follow
+                "pulsar.repl",                  // the bare prefix, with no separator and no cluster
+                "pulsar.rep",                   // shorter than the prefix
+                ""}) {
+            Assert.assertEquals(AbstractReplicator.getRemoteCluster(replicatorPrefix, notAReplicator),
+                    Optional.empty(),
+                    "name wrongly resolved to a replicator: " + notAReplicator);
+        }
     }
 
     private static class ReplicatorInTest extends AbstractReplicator {
