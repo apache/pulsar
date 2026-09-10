@@ -135,6 +135,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected Optional<DispatchRateLimiter> dispatchRateLimiter = Optional.empty();
     private AtomicBoolean isRescheduleReadInProgress = new AtomicBoolean(false);
     private final AtomicBoolean readMoreEntriesAsyncRequested = new AtomicBoolean(false);
+    private static final int IDLE = 0;
+    private static final int RUNNING = 1;
+    private static final int RUNNING_REQUESTED = 2;
+    private final AtomicInteger readMoreEntriesState = new AtomicInteger(IDLE);
     protected final ExecutorService dispatchMessagesThread;
     private final SharedConsumerAssignor assignor;
     // tracks how many entries were processed by consumers in the last trySendMessagesToConsumers call
@@ -358,7 +362,39 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
     }
 
-    public synchronized void readMoreEntries() {
+    public void readMoreEntries() {
+        for (;;) {
+            int state = readMoreEntriesState.get();
+            if (state == IDLE) {
+                if (readMoreEntriesState.compareAndSet(IDLE, RUNNING)) {
+                    break;
+                }
+            } else if (state == RUNNING) {
+                if (readMoreEntriesState.compareAndSet(RUNNING, RUNNING_REQUESTED)) {
+                    return;
+                }
+            } else {
+                // A follow-up pass is already requested.
+                return;
+            }
+        }
+        try {
+            for (;;) {
+                // Requests received before this pass are covered by this pass.
+                readMoreEntriesState.set(RUNNING);
+                internalReadMoreEntries();
+                if (readMoreEntriesState.compareAndSet(RUNNING, IDLE)) {
+                    return;
+                }
+                // A request arrived during the pass. Run another pass without recursion.
+            }
+        } catch (Throwable t) {
+            readMoreEntriesState.set(IDLE);
+            throw t;
+        }
+    }
+
+    private synchronized void internalReadMoreEntries() {
         if (cursor.isClosed()) {
             log.debug("Cursor is already closed, skipping read more entries");
             return;
@@ -378,7 +414,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return;
         }
 
-        // increment the counter for readMoreEntries calls, to track the number of times readMoreEntries is called
+        // Count executed passes, not conflated requests, for pending-read rescheduling.
         readMoreEntriesCallCount++;
 
         // totalAvailablePermits may be updated by other threads
