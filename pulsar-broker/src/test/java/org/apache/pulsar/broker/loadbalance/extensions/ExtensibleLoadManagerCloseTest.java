@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
@@ -34,6 +35,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -52,11 +54,10 @@ public class ExtensibleLoadManagerCloseTest {
     }
 
     private void setupBrokers(int numBrokers) throws Exception {
-        brokers.clear();
         for (int i = 0; i < numBrokers; i++) {
             final var broker = new PulsarService(brokerConfig());
-            broker.start();
             brokers.add(broker);
+            broker.start();
         }
         final var admin = brokers.get(0).getAdminClient();
         if (!admin.clusters().getClusters().contains(clusterName)) {
@@ -67,6 +68,15 @@ public class ExtensibleLoadManagerCloseTest {
         }
     }
 
+
+    @AfterMethod(alwaysRun = true, timeOut = 30000)
+    public void cleanupBrokers() throws Exception {
+        try {
+            FutureUtil.waitForAll(brokers.stream().map(PulsarService::closeAsync).toList()).get();
+        } finally {
+            brokers.clear();
+        }
+    }
 
     @AfterClass(alwaysRun = true, timeOut = 30000)
     public void cleanup() throws Exception {
@@ -85,6 +95,8 @@ public class ExtensibleLoadManagerCloseTest {
         config.setManagedLedgerDefaultEnsembleSize(1);
         config.setDefaultNumberOfNamespaceBundles(16);
         config.setLoadBalancerAutoBundleSplitEnabled(false);
+        // Bundle lookups must not start background __change_events assignments that race with shutdown.
+        config.setTopicLevelPoliciesEnabled(false);
         config.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         config.setLoadBalancerDebugModeEnabled(true);
         config.setBrokerShutdownTimeoutMs(100);
@@ -123,7 +135,7 @@ public class ExtensibleLoadManagerCloseTest {
     @Test
     public void testLookup() throws Exception {
         setupBrokers(1);
-        final var topic = "test-lookup";
+        final var topic = "test-lookup-" + UUID.randomUUID();
         final var numPartitions = 16;
         final var admin = brokers.get(0).getAdminClient();
         admin.topics().createPartitionedTopic(topic, numPartitions);
