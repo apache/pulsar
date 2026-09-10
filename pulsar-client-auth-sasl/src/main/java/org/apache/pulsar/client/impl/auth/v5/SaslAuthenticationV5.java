@@ -194,9 +194,9 @@ public class SaslAuthenticationV5 implements Authentication, BinaryAuthDataProvi
                 // SaslAuthenticationDataProvider overrides both, but SaslProviderFactory is a public seam.
                 addHttpHeaders(conv.provider, headers);
 
-                // Role token exists but the server reported it expired: drop it (including the cross-request
+                // Role token exists but the server rejected it: drop it (including the cross-request
                 // cache, FIX C) and restart the SASL exchange.
-                if (isRoleTokenExpired(conv, ctx)) {
+                if (isRoleTokenRejected(conv, ctx, hasPrevious)) {
                     hasPrevious = false;
                     conv.roleToken = null;
                     cachedRoleToken = null;
@@ -278,12 +278,35 @@ public class SaslAuthenticationV5 implements Authentication, BinaryAuthDataProvi
         return conv;
     }
 
-    // Mirrors AuthenticationSasl.isRoleTokenExpired: a role token exists and the server's prior response
-    // is a Kerberos SASL response whose State reports the role token expired.
-    private static boolean isRoleTokenExpired(SaslHttpConversation conv, HttpAuthCallContext ctx) {
-        return conv.roleToken != null
-                && SASL_TYPE_VALUE.equalsIgnoreCase(header(ctx, SASL_HEADER_TYPE))
-                && SASL_AUTH_ROLE_TOKEN_EXPIRED.equalsIgnoreCase(header(ctx, SASL_HEADER_STATE));
+    /**
+     * Whether a role token this exchange replayed has been rejected and must be discarded.
+     *
+     * <p>A server can say so in two ways. The explicit one is a Kerberos SASL response whose {@code State}
+     * reports the token expired — what {@code AuthenticationSasl} checks, and all it checks. The other is a
+     * bare refusal: a broker whose signer secret has rotated, or a peer broker holding a divergent secret,
+     * rejects the replayed token with a response carrying no SASL headers at all.
+     *
+     * <p>Handling only the explicit form leaves a <em>poisoned</em> token cached: every request replays it,
+     * burns the whole round budget, and fails, for the life of the client — and the cache exists precisely
+     * so the token is replayed. Treating an unadorned response to a replay round as a rejection costs at
+     * most one extra negotiation in the case where a server answers oddly, and restores progress in the
+     * case where it does not.
+     *
+     * @param conv        this exchange's conversation
+     * @param ctx         the call context, carrying the server's prior response headers
+     * @param hasPrevious whether a prior round happened — without one there is no response to read
+     */
+    private static boolean isRoleTokenRejected(SaslHttpConversation conv, HttpAuthCallContext ctx,
+            boolean hasPrevious) {
+        if (conv.roleToken == null || !hasPrevious) {
+            return false;
+        }
+        String type = header(ctx, SASL_HEADER_TYPE);
+        if (SASL_TYPE_VALUE.equalsIgnoreCase(type)) {
+            return SASL_AUTH_ROLE_TOKEN_EXPIRED.equalsIgnoreCase(header(ctx, SASL_HEADER_STATE));
+        }
+        // Not a SASL response at all, in answer to a round that replayed the token: a bare refusal.
+        return true;
     }
 
     /**

@@ -261,39 +261,16 @@ func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
 		gi.context.instanceConf.funcDetails.Namespace,
 		gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
 
-	batchBuilderType := pulsar.DefaultBatchBuilder
+	// Compression and batching come from the function's producerSpec; everything else is fixed by
+	// the runtime.
+	options := producerOptionsFromSpec(gi.context.instanceConf.funcDetails.Sink.ProducerSpec)
+	options.Topic = topicName
+	options.Properties = properties
+	// Set send timeout to be infinity to prevent potential deadlock with consumer
+	// that might happen when consumer is blocked due to unacked messages
+	options.SendTimeout = 0
 
-	compressionType := pulsar.LZ4
-	if gi.context.instanceConf.funcDetails.Sink.ProducerSpec != nil {
-		switch gi.context.instanceConf.funcDetails.Sink.ProducerSpec.CompressionType {
-		case pb.CompressionType_NONE:
-			compressionType = pulsar.NoCompression
-		case pb.CompressionType_ZLIB:
-			compressionType = pulsar.ZLib
-		case pb.CompressionType_ZSTD:
-			compressionType = pulsar.ZSTD
-		default:
-			compressionType = pulsar.LZ4 // go doesn't support SNAPPY yet
-		}
-
-		batchBuilder := gi.context.instanceConf.funcDetails.Sink.ProducerSpec.BatchBuilder
-		if batchBuilder != "" {
-			if batchBuilder == "KEY_BASED" {
-				batchBuilderType = pulsar.KeyBasedBatchBuilder
-			}
-		}
-	}
-
-	producer, err := gi.client.CreateProducer(pulsar.ProducerOptions{
-		Topic:                   topicName,
-		Properties:              properties,
-		CompressionType:         compressionType,
-		BatchingMaxPublishDelay: time.Millisecond * 10,
-		BatcherBuilderType:      batchBuilderType,
-		SendTimeout:             0,
-		// Set send timeout to be infinity to prevent potential deadlock with consumer
-		// that might happen when consumer is blocked due to unacked messages
-	})
+	producer, err := gi.client.CreateProducer(options)
 	if err != nil {
 		gi.stats.incrTotalSysExceptions(err)
 		log.Errorf("create producer error:%s", err.Error())

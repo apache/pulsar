@@ -31,6 +31,7 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -39,6 +40,8 @@ import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.config.ProxyProtocol;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.tls.TlsPolicy;
 
@@ -48,6 +51,23 @@ import org.apache.pulsar.tls.TlsPolicy;
 @CustomLog
 @UtilityClass
 public class PerfClientUtils {
+
+    /**
+     * Number of significant decimal digits kept by the perf clients' latency histograms.
+     *
+     * <p>HdrHistogram sizes a fixed-range histogram's counts array proportionally to
+     * {@code 2^ceil(log2(2 * 10^digits))}, so every extra digit multiplies the allocation by
+     * roughly 10. At 5 digits (HdrHistogram's maximum) a single {@code Recorder} over the ranges
+     * used here costs 14-16 MB, and a command holds several of them (a live and a cumulative
+     * recorder per measured latency), so the running subcommand pays a multiple of that.
+     *
+     * <p>3 digits bounds the error of a reported percentile at 0.1%. That is far below the
+     * run-to-run variance of a benchmark, and finer than the reports resolve anyway: the
+     * microsecond-based tools print milliseconds with {@code %.3f}, and the millisecond-based
+     * ones print whole milliseconds with {@code %d}. It is also HdrHistogram's own recommended
+     * default.
+     */
+    public static final int LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS = 3;
 
     private static volatile  Consumer<Integer> exitProcedure = System::exit;
 
@@ -110,6 +130,22 @@ public class PerfClientUtils {
         if (isNotBlank(arguments.listenerName)) {
             clientBuilder.listenerName(arguments.listenerName);
         }
+
+        // PIP-478: pin the same two provider axes the V5 builder and the admin builder pin, so that
+        // `pulsar-perf produce-v4 --jsse-provider/--jca-provider` really runs on those providers
+        // rather than silently falling back to the JVM provider search order. ClientBuilder has no
+        // fluent setter for either, so this mirrors createAdminBuilderFromArguments and writes them
+        // onto the underlying configuration.
+        if (clientBuilder instanceof ClientBuilderImpl clientBuilderImpl
+                && (isNotBlank(arguments.jsseProvider) || isNotBlank(arguments.jcaProvider))) {
+            ClientConfigurationData conf = clientBuilderImpl.getClientConfigurationData();
+            if (isNotBlank(arguments.jsseProvider)) {
+                conf.setJsseProvider(arguments.jsseProvider);
+            }
+            if (isNotBlank(arguments.jcaProvider)) {
+                conf.setJcaProvider(arguments.jcaProvider);
+            }
+        }
         return clientBuilder;
     }
 
@@ -161,6 +197,14 @@ public class PerfClientUtils {
             }
             if (arguments.tlsHostnameVerificationEnable != null) {
                 tls.enableHostnameVerification(arguments.tlsHostnameVerificationEnable);
+            }
+            // PIP-478: both provider axes, so a FIPS run can pin BCJSSE and BCFIPS together. Format-
+            // independent — they apply to PEM and keystore material alike.
+            if (isNotBlank(arguments.jsseProvider)) {
+                tls.jsseProvider(arguments.jsseProvider);
+            }
+            if (isNotBlank(arguments.jcaProvider)) {
+                tls.jcaProvider(arguments.jcaProvider);
             }
             builder.tlsPolicy(tls.build());
         }
@@ -220,6 +264,23 @@ public class PerfClientUtils {
 
         if (arguments.tlsHostnameVerificationEnable != null) {
             pulsarAdminBuilder.enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable);
+        }
+
+        // PIP-478: the admin leg must be pinned on the same two axes as the binary leg above, otherwise
+        // `pulsar-perf --jsse-provider/--jca-provider` would parse the broker certificate for its HTTPS admin
+        // calls through the JVM provider search order while the data connection is pinned — a FIPS-shaped run
+        // rather than a FIPS one, on the tool whose flags exist to validate exactly that. PulsarAdminBuilder has
+        // no fluent setter for either axis, so this mirrors BrokerService.configAdminTlsSettings and writes them
+        // onto the underlying configuration.
+        if (pulsarAdminBuilder instanceof PulsarAdminBuilderImpl adminBuilderImpl
+                && (isNotBlank(arguments.jsseProvider) || isNotBlank(arguments.jcaProvider))) {
+            ClientConfigurationData adminConf = adminBuilderImpl.getConf();
+            if (isNotBlank(arguments.jsseProvider)) {
+                adminConf.setJsseProvider(arguments.jsseProvider);
+            }
+            if (isNotBlank(arguments.jcaProvider)) {
+                adminConf.setJcaProvider(arguments.jcaProvider);
+            }
         }
 
         return pulsarAdminBuilder;

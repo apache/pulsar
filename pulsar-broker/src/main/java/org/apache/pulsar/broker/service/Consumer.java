@@ -117,6 +117,18 @@ public class Consumer {
     private static final AtomicIntegerFieldUpdater<Consumer> MESSAGE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "messagePermits");
     private volatile int messagePermits = 0;
+    /**
+     * Guards the Flow-side compound update of {@link #messagePermits} and
+     * {@link #pendingDispatcherFlowPermits}. A Flow command increases the consumer permits before the dispatcher
+     * processes the corresponding update asynchronously. Consumer removal can happen between those two operations,
+     * so both values must be observed consistently when calculating how many permits are already included in the
+     * dispatcher total.
+     *
+     * <p>The dispatcher callback is invoked only after this lock is released. This avoids holding the lock while
+     * calling into the subscription and preserves the lock order used by dispatcher flow processing and removal.
+     */
+    private final Object flowPermitAccountingLock = new Object();
+    private int pendingDispatcherFlowPermits = 0;
     // It starts keep tracking of messagePermits once consumer gets blocked, as consumer needs two separate counts:
     // messagePermits (1) before and (2) after being blocked: to dispatch only blockedPermit number of messages at the
     // time of redelivery
@@ -916,7 +928,7 @@ public class Consumer {
         }
         int oldPermits;
         if (!blockedConsumerOnUnackedMsgs) {
-            oldPermits = MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfMessages);
+            oldPermits = addPermitsPendingDispatcherUpdate(additionalNumberOfMessages);
             log.debug()
                     .attr("additionalNumberOfMessages", additionalNumberOfMessages)
                     .log("Added message permits before updating dispatcher");
@@ -943,7 +955,7 @@ public class Consumer {
     void flowConsumerBlockedPermits(Consumer consumer) {
         int additionalNumberOfPermits = PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.getAndSet(consumer, 0);
         // add newly flow permits to actual consumer.messagePermits
-        MESSAGE_PERMITS_UPDATER.getAndAdd(consumer, additionalNumberOfPermits);
+        consumer.addPermitsPendingDispatcherUpdate(additionalNumberOfPermits);
         log.debug()
                 .attr("additionalNumberOfPermits", additionalNumberOfPermits)
                 .log("Added blocked permits");
@@ -953,6 +965,57 @@ public class Consumer {
 
     public int getAvailablePermits() {
         return MESSAGE_PERMITS_UPDATER.get(this);
+    }
+
+    /**
+     * Adds permits after a Flow command is accepted and immediately before notifying the dispatcher. The pending
+     * count covers the interval until the dispatcher's asynchronous Flow task starts processing the same permits.
+     */
+    private int addPermitsPendingDispatcherUpdate(int additionalNumberOfPermits) {
+        if (!shouldTrackPendingDispatcherFlowPermits()) {
+            return MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfPermits);
+        }
+        synchronized (flowPermitAccountingLock) {
+            pendingDispatcherFlowPermits += additionalNumberOfPermits;
+            return MESSAGE_PERMITS_UPDATER.getAndAdd(this, additionalNumberOfPermits);
+        }
+    }
+
+    private boolean shouldTrackPendingDispatcherFlowPermits() {
+        return isPersistentTopic && Subscription.isIndividualAckMode(subType);
+    }
+
+    /**
+     * Called at the start of the dispatcher's asynchronous Flow task, before checking whether this consumer is still
+     * connected. At this point the Flow update is no longer pending: the dispatcher will either add the permits to
+     * its total or ignore them because the consumer has already been removed.
+     */
+    public void completePendingDispatcherFlow(int additionalNumberOfPermits) {
+        synchronized (flowPermitAccountingLock) {
+            // Preserve the accounting delta across signed int wrap, matching the other permit counters.
+            pendingDispatcherFlowPermits -= additionalNumberOfPermits;
+        }
+    }
+
+    /**
+     * Called while the dispatcher removes this consumer. Permits belonging to Flow tasks that have not started yet
+     * are excluded because those permits have not been added to the dispatcher total and must not be subtracted from
+     * it during removal.
+     *
+     * <p>This accounting is enabled for persistent Shared and Key_Shared dispatchers. It relies on every dispatcher
+     * Flow task calling {@link #completePendingDispatcherFlow(int)} before applying or ignoring the update. For these
+     * dispatchers, when observed under the dispatcher monitor, the total available permits equal the sum of this
+     * balance over all connected consumers.
+     *
+     * <p>The returned balance can be negative. A pending Flow makes permits visible on the consumer before its
+     * asynchronous dispatcher update runs, so the dispatcher can consume those permits while they are still counted
+     * as pending. Subtracting the negative balance during removal is required to restore the dispatcher total; callers
+     * must not clamp it to zero.
+     */
+    public int getAvailablePermitsForDispatcherRemoval() {
+        synchronized (flowPermitAccountingLock) {
+            return MESSAGE_PERMITS_UPDATER.get(this) - pendingDispatcherFlowPermits;
+        }
     }
 
     /**

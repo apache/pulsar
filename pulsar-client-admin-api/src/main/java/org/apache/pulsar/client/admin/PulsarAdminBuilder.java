@@ -35,6 +35,12 @@ public interface PulsarAdminBuilder {
 
     /**
      * @return the new {@link PulsarAdmin} instance
+     * @throws PulsarClientException if the admin client cannot be created
+     * @throws IllegalStateException if a {@code PulsarTlsFactory} set on this builder's configuration was
+     *         already taken by an earlier {@code build()} — taking it initializes it, so it belongs to that
+     *         build and cannot be handed over twice. Deliberately unchecked: it reports a programming error
+     *         in how the builder is used, not a failure to reach or configure a cluster, so it is not
+     *         something a caller catching {@link PulsarClientException} should be made to handle
      */
     PulsarAdmin build() throws PulsarClientException;
 

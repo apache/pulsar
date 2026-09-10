@@ -272,6 +272,7 @@ public final class WorkerUtils {
                 adminBuilder.enableTlsHostnameVerification(enableTlsHostnameVerification);
             }
 
+            applyBrokerClientProviders(adminBuilder, workerConfig);
             applyBrokerClientTlsFactoryToAdmin(adminBuilder, workerConfig);
             return adminBuilder.build();
         } catch (PulsarClientException e) {
@@ -323,6 +324,7 @@ public final class WorkerUtils {
             if (enableTlsHostnameVerificationEnable != null) {
                 clientBuilder.enableTlsHostnameVerification(enableTlsHostnameVerificationEnable);
             }
+            applyBrokerClientProviders(clientBuilder, workerConfig);
             applyBrokerClientTlsFactory(clientBuilder, workerConfig);
             return clientBuilder.build();
         } catch (PulsarClientException e) {
@@ -340,6 +342,41 @@ public final class WorkerUtils {
      * the transport reads for {@code CLIENT_DEFAULT}. Leaves the client on the built-in TLS path when the gate
      * is off, when the client is not TLS, or when it is already on the new path.
      */
+    /**
+     * PIP-478: pin the worker's own outbound (worker-to-broker) client onto the configured engine and JSSE
+     * providers. Applied independently of {@code brokerClientTlsFactoryClassName} — the providers describe how
+     * TLS is built, not which factory builds it — mirroring what the broker
+     * ({@code PulsarService}/{@code BrokerService}) and the proxy ({@code ProxyConnection}) already do for
+     * their outbound legs. The listener-side {@code tlsProvider}/{@code jsseProvider} govern the worker's own
+     * web server and must not leak onto this leg.
+     */
+    private static void applyBrokerClientProviders(ClientBuilder clientBuilder, WorkerConfig workerConfig) {
+        if (workerConfig == null || !(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
+            return;
+        }
+        applyBrokerClientProviders(builderImpl.getClientConfigurationData(), workerConfig);
+    }
+
+    /** The {@code PulsarAdmin} counterpart of {@link #applyBrokerClientProviders(ClientBuilder, WorkerConfig)}. */
+    private static void applyBrokerClientProviders(PulsarAdminBuilder adminBuilder, WorkerConfig workerConfig) {
+        if (workerConfig == null || !(adminBuilder instanceof PulsarAdminBuilderImpl builderImpl)) {
+            return;
+        }
+        applyBrokerClientProviders(builderImpl.getConf(), workerConfig);
+    }
+
+    private static void applyBrokerClientProviders(ClientConfigurationData conf, WorkerConfig workerConfig) {
+        if (isNotBlank(workerConfig.getBrokerClientSslProvider())) {
+            conf.setSslProvider(workerConfig.getBrokerClientSslProvider());
+        }
+        if (isNotBlank(workerConfig.getBrokerClientJsseProvider())) {
+            conf.setJsseProvider(workerConfig.getBrokerClientJsseProvider());
+        }
+        if (isNotBlank(workerConfig.getBrokerClientJcaProvider())) {
+            conf.setJcaProvider(workerConfig.getBrokerClientJcaProvider());
+        }
+    }
+
     private static void applyBrokerClientTlsFactory(ClientBuilder clientBuilder, WorkerConfig workerConfig) {
         if (workerConfig == null || !isNotBlank(workerConfig.getBrokerClientTlsFactoryClassName())
                 || !(clientBuilder instanceof ClientBuilderImpl builderImpl)) {

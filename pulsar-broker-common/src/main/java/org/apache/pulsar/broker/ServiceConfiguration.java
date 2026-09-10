@@ -834,6 +834,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
+        doc = "Enable closing (unloading from broker memory) of inactive topics without deleting their data.\n"
+        + "When a topic is deemed inactive (no producers and no subscriptions), the broker will close the topic\n"
+        + "instance, releasing in-memory resources such as the managed ledger cache, subscription state, and\n"
+        + "per-topic metrics. The topic data in BookKeeper is preserved; clients will transparently reload the\n"
+        + "topic on the next produce/consume.\n"
+        + "This option is mutually exclusive with 'brokerDeleteInactiveTopicsEnabled': only one of the two may\n"
+        + "be enabled at a time. It also requires 'brokerDeleteInactiveTopicsMode' to be\n"
+        + "'delete_when_no_subscriptions'; with 'delete_when_subscriptions_caught_up' a topic is inactive as\n"
+        + "soon as its subscriptions are caught up even while consumers are connected, so closing it would only\n"
+        + "disconnect those consumers and immediately reload the topic. The broker fails to start on either\n"
+        + "unsupported combination.\n"
+        + "While enabled, this broker-level setting takes precedence over any namespace- or topic-level\n"
+        + "'inactive_topic_policies.deleteWhileInactive': inactive topics are closed, never deleted.\n"
+        + "The inactivity detection reuses 'brokerDeleteInactiveTopicsMode',\n"
+        + "'brokerDeleteInactiveTopicsFrequencySeconds', and\n"
+        + "'brokerDeleteInactiveTopicsMaxInactiveDurationSeconds'."
+    )
+    private boolean brokerCloseInactiveTopicsEnabled = false;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        dynamic = true,
         doc = "Time in seconds that a persistent geo-replication replicator may stay idle before the broker"
                 + " disconnects its replication producer. A replicator is eligible only when it has no backlog and"
                 + " has not read entries for replication processing for longer than this threshold. Disconnecting"
@@ -1449,6 +1471,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
+            doc = "Hard ceiling on a single segment's entry-bucket count (PIP-486). Bounds both the "
+                    + "manual rebucket operation and the controller's auto rebucket-up; a segment's "
+                    + "bucket count caps how many consumers can share it."
+    )
+    private int scalableTopicEntryBucketMaxPerSegment = 1024;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
             doc = "Max number of merges allowed in a segment's lineage. Once a segment reaches this depth "
                     + "it stops being a merge candidate (load-driven splits are still allowed), bounding "
                     + "split/merge flip-flopping."
@@ -1463,6 +1494,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "connecting at once)."
     )
     private int scalableTopicSplitCooldownSeconds = 60;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "PIP-486 segments-vs-buckets lever: on consumer-driven scale-up, split only if the "
+                    + "busiest segment's inbound msg/s is at or above this floor; below it the "
+                    + "controller grows the segment's entry-buckets instead (a low-throughput topic "
+                    + "should not materialize physical segments just for consumer count)."
+    )
+    private double scalableTopicSplitVsRebucketMinMsgRateInThreshold = 1_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Minimum time (seconds) between automatic entry-bucket rollovers (rebuckets) on a "
+                    + "topic. Coalesces consumer-join bursts, like the split cooldown."
+    )
+    private int scalableTopicRebucketCooldownSeconds = 60;
 
     @FieldContext(
             dynamic = true,
@@ -3862,6 +3911,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_METRICS,
+            doc = "Enable computing the age of the oldest unacknowledged message for each subscription and exposing "
+                    + "it through topic stats and Prometheus.\n"
+                    + " When disabled, the broker skips computing per-subscription backlog age and "
+                    + "SubscriptionStats.oldestBacklogMessageAgeSeconds remains -1. Default is false."
+    )
+    private boolean exposeSubscriptionBacklogAgeInPrometheus = false;
+
+    @FieldContext(
+            category = CATEGORY_METRICS,
             doc = "Enable splitting topic and partition label in Prometheus.\n"
                     + " If enabled, a topic name will split into 2 parts, one is topic name without partition index,\n"
                     + " another one is partition index, e.g. (topic=xxx, partition=0).\n"
@@ -4280,10 +4338,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
                     + "broker's server-side (listener/web) TLS SSLContext. A distinct axis from tlsProvider (the "
                     + "JDK-vs-OpenSSL engine switch): when set, the default factory builds the JDK engine with "
-                    + "this provider as the SSLContext provider, overriding the engine choice. Resolved via the "
-                    + "ServiceLoader mechanism (with a fallback to an already-registered provider), failing "
-                    + "loudly when unresolvable.")
+                    + "this provider as the SSLContext provider, overriding the engine choice. Resolved by "
+                    + "preferring a provider already registered in the JVM (Security.getProvider), falling back "
+                    + "to the ServiceLoader mechanism, and failing loudly when unresolvable.")
     private String jsseProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext: JSSE service types are never taken from this provider. "
+                    + "Unset uses the JVM provider search order, i.e. the behaviour of releases before "
+                    + "PIP-478. Applies to the broker's listeners.")
+    private String jcaProvider = null;
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,
@@ -4449,9 +4517,17 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
                     + "broker's own outbound (broker-to-broker / replication) client TLS SSLContext. When set, "
                     + "the default factory builds the JDK engine with this provider as the SSLContext provider, "
-                    + "overriding the engine choice. Resolved via the ServiceLoader mechanism (with a fallback "
-                    + "to an already-registered provider), failing loudly when unresolvable.")
+                    + "overriding the engine choice. Resolved by preferring a provider already registered in the "
+                    + "JVM (Security.getProvider), falling back to the ServiceLoader mechanism, and failing "
+                    + "loudly when unresolvable.")
     private String brokerClientJsseProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_TLS,
+            doc = "PIP-478: the JCA (material) provider for the broker's own outbound (broker-to-broker) "
+                    + "client connections — the outbound counterpart of jcaProvider, on the same axis. "
+                    + "Unset uses the JVM provider search order.")
+    private String brokerClientJcaProvider = null;
 
     /* packages management service configurations (begin) */
 

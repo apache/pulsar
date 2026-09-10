@@ -589,11 +589,48 @@ public class WorkerConfig implements Serializable, PulsarConfiguration {
                     + "an SSLContext (TLS) implementation (e.g. the BouncyCastle JSSE provider BCJSSE for FIPS, "
                     + "with BCFIPS registered separately as the crypto provider it uses) — used to build the "
                     + "functions worker web-server TLS SSLContext. When set, the default factory builds the JDK "
-                    + "engine with this provider as the SSLContext provider. Resolved via the ServiceLoader "
-                    + "mechanism (with a fallback to an already-registered provider), failing loudly when "
-                    + "unresolvable."
+                    + "engine with this provider as the SSLContext provider. Resolved by preferring a provider "
+                    + "already registered in the JVM (Security.getProvider), falling back to the ServiceLoader "
+                    + "mechanism, and failing loudly when unresolvable."
     )
     private String jsseProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the Netty SSL engine provider for the worker's own outbound (worker-to-broker) "
+                    + "client and admin connections — JDK, OPENSSL or OPENSSL_REFCNT. The listener-side "
+                    + "tlsProvider governs the worker's web server only; this is the outbound counterpart, "
+                    + "matching the broker's brokerClientSslProvider. Leave unset to keep the JVM default."
+    )
+    private String brokerClientSslProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the name of a JSSE (SSLContext) provider used for the worker's own outbound "
+                    + "(worker-to-broker) client and admin connections (e.g. BCJSSE for FIPS). The "
+                    + "listener-side jsseProvider governs the worker's web server only; this is the outbound "
+                    + "counterpart, matching the broker's brokerClientJsseProvider. Applied independently of "
+                    + "brokerClientTlsFactoryClassName. Leave unset to use the JVM provider search order."
+    )
+    private String brokerClientJsseProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the name of a JCA (material) provider — a java.security.Provider supplying the "
+                    + "KeyStore, CertificateFactory and KeyFactory engines that parse the TLS material (e.g. "
+                    + "BCFIPS for FIPS, alongside jsseProvider=BCJSSE). A distinct axis from jsseProvider, "
+                    + "which supplies the SSLContext. Unset uses the JVM provider search order. Applies to "
+                    + "the functions worker's web listener."
+    )
+    private String jcaProvider = null;
+
+    @FieldContext(
+            category = CATEGORY_SECURITY,
+            doc = "PIP-478: the JCA (material) provider for the worker's own outbound (worker-to-broker) "
+                    + "client and admin connections — the outbound counterpart of jcaProvider. An embedded "
+                    + "(broker-hosted) worker inherits the broker's value when this is unset."
+    )
+    private String brokerClientJcaProvider = null;
 
     @FieldContext(
             category = CATEGORY_KEYSTORE_TLS,

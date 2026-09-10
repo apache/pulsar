@@ -27,6 +27,7 @@ import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -138,6 +139,13 @@ public class Commands {
     public static final short magicCrc32c = 0x0e01;
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicBrokerEntryMetadata = 0x0e02;
+
+    /**
+     * Payloads up to this size are copied into a single buffer when broker entry metadata is prepended; larger ones
+     * are wrapped in a composite instead. Matches the size below which the BookKeeper client copies entries anyway.
+     */
+    @VisibleForTesting
+    static final int BROKER_ENTRY_METADATA_COPY_THRESHOLD = 16 * 1024;
     private static final int checksumSize = 4;
 
     @VisibleForTesting
@@ -1805,6 +1813,19 @@ public class Commands {
     }
 
     /**
+     * Client -> Broker: a scalable consumer is cleanly leaving its subscription; the
+     * controller unregisters it and rebalances immediately instead of waiting out the
+     * disconnect grace period. Acknowledged with {@code CommandSuccess}.
+     */
+    public static ByteBuf newScalableTopicUnsubscribe(long requestId, long consumerId) {
+        BaseCommand cmd = localCmd(Type.SCALABLE_TOPIC_UNSUBSCRIBE);
+        cmd.setScalableTopicUnsubscribe()
+                .setRequestId(requestId)
+                .setConsumerId(consumerId);
+        return serializeWithSize(cmd);
+    }
+
+    /**
      * Broker -> Client: response to a scalable-topic subscribe request. On success the
      * caller must populate the nested {@link ScalableConsumerAssignment} via
      * {@code response.setAssignment()} before serializing; on failure the error and
@@ -2020,36 +2041,44 @@ public class Commands {
         int checksumReaderIndex = -1;
 
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
-        headers.writeInt(totalSize); // External frame
+        try {
+            headers.writeInt(totalSize); // External frame
 
-        // Write cmd
-        headers.writeInt(cmdSize);
-        cmd.writeTo(headers);
+            // Write cmd
+            headers.writeInt(cmdSize);
+            cmd.writeTo(headers);
 
-        // Create checksum placeholder
-        if (includeChecksum) {
-            headers.writeShort(magicCrc32c);
-            checksumReaderIndex = headers.writerIndex();
-            headers.writerIndex(headers.writerIndex() + checksumSize); // skip 4 bytes of checksum
+            // Create checksum placeholder
+            if (includeChecksum) {
+                headers.writeShort(magicCrc32c);
+                checksumReaderIndex = headers.writerIndex();
+                headers.writerIndex(headers.writerIndex() + checksumSize); // skip 4 bytes of checksum
+            }
+
+            // Write metadata
+            headers.writeInt(msgMetadataSize);
+            msgMetadata.writeTo(headers);
+
+            // write checksum at created checksum-placeholder
+            if (includeChecksum) {
+                headers.markReaderIndex();
+                headers.readerIndex(checksumReaderIndex + checksumSize);
+                int metadataChecksum = computeChecksum(headers);
+                int computedChecksum = resumeChecksum(metadataChecksum, payload);
+                // set computed checksum
+                headers.setInt(checksumReaderIndex, computedChecksum);
+                headers.resetReaderIndex();
+            }
+
+            // Create the pair last so it becomes the single owner of both buffers on success: if anything above
+            // throws (e.g. an OOM while serializing the command or metadata), the header is released here instead
+            // of being orphaned. The payload is deliberately not touched on failure; releasing it on a failed
+            // send remains a pre-existing gap on the caller side.
+            return ByteBufPair.get(headers, payload);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(headers);
+            throw t;
         }
-
-        // Write metadata
-        headers.writeInt(msgMetadataSize);
-        msgMetadata.writeTo(headers);
-
-        ByteBufPair command = ByteBufPair.get(headers, payload);
-
-        // write checksum at created checksum-placeholder
-        if (includeChecksum) {
-            headers.markReaderIndex();
-            headers.readerIndex(checksumReaderIndex + checksumSize);
-            int metadataChecksum = computeChecksum(headers);
-            int computedChecksum = resumeChecksum(metadataChecksum, payload);
-            // set computed checksum
-            headers.setInt(checksumReaderIndex, computedChecksum);
-            headers.resetReaderIndex();
-        }
-        return command;
     }
 
     public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
@@ -2073,6 +2102,24 @@ public class Commands {
         }
 
         int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
+        int payloadSize = headerAndPayload.readableBytes();
+
+        if (payloadSize <= BROKER_ENTRY_METADATA_COPY_THRESHOLD) {
+            // For small payloads, produce a single contiguous buffer. A composite reaching the socket goes through
+            // nioBuffers(), which allocates two NIO views per component on every flush (BK write and each consumer
+            // dispatch), and makes every metadata parse walk the components. At this size the copy is cheaper than
+            // that, and it happens once at publish while the entry is written and parsed many more times.
+            int totalSize = 6 + brokerMetaSize + payloadSize;
+            ByteBuf entry = PulsarByteBufAllocator.DEFAULT.buffer(totalSize, totalSize);
+            entry.writeShort(Commands.magicBrokerEntryMetadata);
+            entry.writeInt(brokerMetaSize);
+            brokerEntryMetadata.writeTo(entry);
+            entry.writeBytes(headerAndPayload, headerAndPayload.readerIndex(), payloadSize);
+            headerAndPayload.release();
+            return entry;
+        }
+
+        // For large payloads the copy would cost more than the per-flush view allocations it saves.
         ByteBuf brokerMeta =
                 PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
         brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
@@ -2360,12 +2407,17 @@ public class Commands {
         int headersSize = 4 + 4 + cmdSize;
 
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize);
-        headers.writeInt(totalSize); // External frame
+        try {
+            headers.writeInt(totalSize); // External frame
 
-        // Write cmd
-        headers.writeInt(cmdSize);
-        cmd.writeTo(headers);
-        return ByteBufPair.get(headers, metadataAndPayload);
+            // Write cmd
+            headers.writeInt(cmdSize);
+            cmd.writeTo(headers);
+            return ByteBufPair.get(headers, metadataAndPayload);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(headers);
+            throw t;
+        }
     }
 
     public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, String subscription,

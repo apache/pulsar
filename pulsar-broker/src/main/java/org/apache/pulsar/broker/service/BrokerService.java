@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.util.RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
 import static org.apache.pulsar.client.util.RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.RateLimiter;
@@ -266,6 +267,7 @@ public class BrokerService implements Closeable {
 
     @Getter
     private final SingleThreadNonConcurrentFixedRateScheduler backlogQuotaChecker;
+    private final SingleThreadNonConcurrentFixedRateScheduler subscriptionBacklogAgeChecker;
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     @Getter
@@ -411,6 +413,8 @@ public class BrokerService implements Closeable {
                 new SingleThreadNonConcurrentFixedRateScheduler("pulsar-consumed-ledgers-monitor");
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-backlog-quota-checker");
+        this.subscriptionBacklogAgeChecker =
+                new SingleThreadNonConcurrentFixedRateScheduler("pulsar-subscription-backlog-age-checker");
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration(),
                 pulsar.getOpenTelemetry().getOpenTelemetry());
         this.topicFactory = createPersistentTopicFactory();
@@ -703,6 +707,7 @@ public class BrokerService implements Closeable {
         this.startCompactionMonitor();
         this.startConsumedLedgersMonitor();
         this.startBacklogQuotaChecker();
+        this.startSubscriptionBacklogAgeChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
         this.updateBrokerDispatchThrottlingMaxRate();
         this.startCheckReplicationPolicies();
@@ -822,8 +827,9 @@ public class BrokerService implements Closeable {
     }
 
     protected void startInactivityMonitor() {
-        if (pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled()) {
-            int interval = pulsar().getConfiguration().getBrokerDeleteInactiveTopicsFrequencySeconds();
+        ServiceConfiguration config = pulsar().getConfiguration();
+        if (config.isBrokerDeleteInactiveTopicsEnabled() || config.isBrokerCloseInactiveTopicsEnabled()) {
+            int interval = config.getBrokerDeleteInactiveTopicsFrequencySeconds();
             inactivityMonitor.scheduleAtFixedRateNonConcurrently(() -> checkGC(), interval, interval,
                     TimeUnit.SECONDS);
             if (pulsar().getConfig().getBrokerReplicationInactiveThresholdSeconds() > 0) {
@@ -899,6 +905,20 @@ public class BrokerService implements Closeable {
             log.info("Backlog quota check monitoring is disabled");
         }
 
+    }
+
+    protected void startSubscriptionBacklogAgeChecker() {
+        if (pulsar().getConfiguration().isExposeSubscriptionBacklogAgeInPrometheus()) {
+            final int interval = pulsar().getConfiguration().getBacklogQuotaCheckIntervalInSeconds();
+            log.info()
+                    .attr("intervalSeconds", interval)
+                    .log("Scheduling a thread to refresh subscription backlog age in background");
+            subscriptionBacklogAgeChecker.scheduleAtFixedRateNonConcurrently(
+                    catchingAndLoggingThrowables(() -> refreshSubscriptionBacklogAge().join()), interval, interval,
+                    TimeUnit.SECONDS);
+        } else {
+            log.info("Subscription backlog age monitoring is disabled");
+        }
     }
 
     public void close() throws IOException {
@@ -1057,6 +1077,7 @@ public class BrokerService implements Closeable {
                                                 compactionMonitor,
                                                 consumedLedgersMonitor,
                                                 backlogQuotaChecker,
+                                                subscriptionBacklogAgeChecker,
                                                 topicOrderedExecutor,
                                                 deduplicationSnapshotMonitor,
                                                 segmentLoadReporterMonitor)
@@ -1793,22 +1814,6 @@ public class BrokerService implements Closeable {
     }
 
     /**
-     * Resolve the {@code PulsarTlsFactory} class name for outbound connections to a remote cluster: the
-     * cluster's own {@code brokerClientTlsFactoryClassName} when set, else the broker-level one (PIP-478).
-     *
-     * <p>Unlike the TLS <em>material</em> in a {@link ClusterData} entry — which is taken wholesale, so a
-     * cluster that enables broker-client TLS supplies all of its own certificates — the factory falls back.
-     * The factory selects the <em>mechanism</em> that loads material rather than the material itself, and a
-     * deployment that configured a custom broker-client factory (an HSM-backed one, say) must not silently
-     * revert to the default file-based factory just because a cluster entry did not repeat the setting.
-     * That is the same reasoning that makes {@code brokerClientSslProvider} / {@code brokerClientJsseProvider}
-     * broker-level in these helpers: a silent downgrade of the TLS mechanism is a security regression.
-     *
-     * @param clusterValue the cluster's value, possibly blank
-     * @param brokerValue  the broker-level value
-     * @return the cluster value when non-blank, else the broker-level value
-     */
-    /**
      * Log the stale PIP-337 per-cluster factory selection, once per cluster (PIP-478). This is the single
      * removed PIP-337 key whose stale value cannot fail loud — rejecting it on a metadata read would make the
      * cluster unloadable — so a WARN naming the cluster is the whole remediation signal, and both
@@ -1826,10 +1831,14 @@ public class BrokerService implements Closeable {
         if (!stalePip337ClusterFactoryWarned.add(cluster)) {
             return;
         }
+        // The params value is deliberately NOT logged: PIP-337 defined it as an opaque string interpreted by
+        // the custom plugin, so it routinely carries keystore passwords or KMS credentials. Report only
+        // whether it was set — enough for the operator to find it, without copying a secret into the log.
         log.warn()
                 .attr("cluster", cluster)
                 .attr("brokerClientSslFactoryPlugin", data.getBrokerClientSslFactoryPlugin())
-                .attr("brokerClientSslFactoryPluginParams", data.getBrokerClientSslFactoryPluginParams())
+                .attr("hasBrokerClientSslFactoryPluginParams",
+                        StringUtils.isNotBlank(data.getBrokerClientSslFactoryPluginParams()))
                 .log("Ignoring the PIP-337 per-cluster SSL factory settings: it was removed in Pulsar 5.0 "
                         + "(PIP-478). Set ClusterData.brokerClientTlsFactoryClassName (per cluster) or the "
                         + "broker-level brokerClientTlsFactoryClassName instead");
@@ -1905,15 +1914,25 @@ public class BrokerService implements Closeable {
                 .allowTlsInsecureConnection(isTlsAllowInsecureConnection)
                 .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled)
                 .tlsFactoryClassName(tlsFactoryClassName)
-                .tlsFactoryConfig(tlsFactoryConfig)
-                // PIP-478: propagate the broker-client TLS engine (sslProvider) and JSSE (SSLContext) provider
-                // (jsseProvider) so geo-replication clients honor them, mirroring
-                // PulsarService.createClientConfigurationData. Without this the replication client silently
-                // builds TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade).
-                .sslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
-        // jsseProvider has no ClientBuilder setter; set it on the underlying config like sslProvider above.
-        ((ClientBuilderImpl) clientBuilder).getClientConfigurationData()
-                .setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
+                .tlsFactoryConfig(tlsFactoryConfig);
+        // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+        // (jsseProvider) and JCA (crypto) provider (jcaProvider) so geo-replication clients honor them,
+        // mirroring PulsarService.createClientConfigurationData. Without this the replication client silently
+        // builds TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade), and pinning only
+        // the JSSE half is FIPS-shaped rather than FIPS-compliant. None of the three has a ClientBuilder
+        // setter that reaches the underlying config safely here, so all three are set on it directly — each
+        // only when configured, so the brokerClient_* loadConf overrides applied earlier are not clobbered by
+        // an unset first-class key.
+        ClientConfigurationData replicationConf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientSslProvider())) {
+            replicationConf.setSslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJsseProvider())) {
+            replicationConf.setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJcaProvider())) {
+            replicationConf.setJcaProvider(pulsar.getConfiguration().getBrokerClientJcaProvider());
+        }
         if (brokerClientTlsEnabledWithKeyStore) {
             clientBuilder.useKeyStoreTls(true)
                     .tlsTrustStoreType(brokerClientTlsTrustStoreType)
@@ -1957,15 +1976,24 @@ public class BrokerService implements Closeable {
                     .tlsCertificateFilePath(brokerClientCertificateFilePath);
         }
         adminBuilder.allowTlsInsecureConnection(isTlsAllowInsecureConnection)
-                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled)
-                // PIP-478: propagate the broker-client TLS engine (sslProvider) and JSSE (SSLContext) provider
-                // (jsseProvider) so cross-cluster admin clients honor them, mirroring
-                // PulsarService.createClientConfigurationData. Without this the cluster admin silently builds
-                // TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade).
-                .sslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
-        // jsseProvider has no PulsarAdminBuilder setter; set it on the underlying config like sslProvider.
-        ((PulsarAdminBuilderImpl) adminBuilder).getConf()
-                .setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
+                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled);
+        // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+        // (jsseProvider) and JCA (crypto) provider (jcaProvider) so cross-cluster admin clients honor them,
+        // mirroring PulsarService.createClientConfigurationData. Without this the cluster admin silently
+        // builds TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade), and pinning only
+        // the JSSE half is FIPS-shaped rather than FIPS-compliant. Set on the underlying config, each only
+        // when configured, so the brokerClient_* loadConf overrides applied earlier are not clobbered by an
+        // unset first-class key.
+        ClientConfigurationData adminConf = ((PulsarAdminBuilderImpl) adminBuilder).getConf();
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientSslProvider())) {
+            adminConf.setSslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJsseProvider())) {
+            adminConf.setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJcaProvider())) {
+            adminConf.setJcaProvider(pulsar.getConfiguration().getBrokerClientJcaProvider());
+        }
     }
 
     public PulsarAdmin getClusterPulsarAdmin(String cluster, Optional<ClusterData> clusterDataOp) {
@@ -2801,6 +2829,21 @@ public class BrokerService implements Closeable {
                 backlogQuotaCheckDuration.observe(
                         MILLISECONDS.toSeconds(System.currentTimeMillis() - startTimeMillis));
             });
+        });
+    }
+
+    public CompletableFuture<Void> refreshSubscriptionBacklogAge() {
+        if (!pulsar.getConfiguration().isExposeSubscriptionBacklogAgeInPrometheus()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        forEachPersistentTopic(topic -> futures.add(topic.updateSubscriptionOldPositionInfo()));
+        return FutureUtil.waitForAll(futures).exceptionally(throwable -> {
+            log.warn()
+                    .exception(throwable)
+                    .log("Error when refreshSubscriptionBacklogAge()");
+            return null;
         });
     }
 

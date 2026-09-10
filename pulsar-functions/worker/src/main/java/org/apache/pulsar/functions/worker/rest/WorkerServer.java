@@ -371,7 +371,8 @@ public class WorkerServer {
                 // and an unset value falls back to Conscrypt when it is usable (web-listener default).
                 // mirroring the broker's two-axis split.
                 .jsseProvider(TlsFactorySupport.resolveWebJsseProvider(config.getJsseProvider(),
-                        config.getTlsProvider()));
+                        config.getTlsProvider()))
+                .jcaProvider(config.getJcaProvider());
         if (config.isTlsEnabledWithKeyStore()) {
             policyBuilder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(config.getTlsKeyStoreType())
