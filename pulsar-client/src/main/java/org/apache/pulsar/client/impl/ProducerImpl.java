@@ -36,6 +36,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandler;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.EventLoop;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -58,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1159,8 +1161,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
 
             try {
-                cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
-                op.updateSentTimestamp();
+                // Stale guard: the op may have been re-sent on another connection or disposed while this callback
+                // was queued behind a disconnect storm. Only write if this loop is still the op's write loop and
+                // op.cmd still identifies our cmd; otherwise drop only the reference this callback took.
+                if (op.writeEventLoop == cnx.ctx().channel().eventLoop() && op.cmd == cmd) {
+                    cnx.ctx().writeAndFlush(cmd, cnx.ctx().voidPromise());
+                    // Re-check before mutating: the op may have been disposed concurrently on another loop.
+                    if (op.cmd == cmd) {
+                        op.updateSentTimestamp();
+                    }
+                } else {
+                    cmd.release();
+                }
             } finally {
                 recycle();
             }
@@ -1401,8 +1413,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         producerName, sequenceId, t);
             }
         }
-        ReferenceCountUtil.safeRelease(op.cmd);
-        op.recycle();
+        releaseOpCmdAndRecycle(op);
     }
 
     protected long getHighestSequenceId(OpSendMsg op) {
@@ -1459,8 +1470,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic,
                                 producerName, sequenceId, t);
                     }
-                    ReferenceCountUtil.safeRelease(op.cmd);
-                    op.recycle();
+                    releaseOpCmdAndRecycle(op);
                     return;
                 } else {
                     if (log.isDebugEnabled()) {
@@ -1491,8 +1501,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic,
                         producerName, sequenceId, t);
             }
-            ReferenceCountUtil.safeRelease(op.cmd);
-            op.recycle();
+            releaseOpCmdAndRecycle(op);
         }
     }
 
@@ -1581,10 +1590,21 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         LatencyHistogram rpcLatencyHistogram;
         MessageImpl<?> msg;
         List<MessageImpl<?>> msgs;
-        ByteBufPair cmd;
+        // Volatile so a stale WriteInEventLoopCallback on an older connection's event loop can never observe
+        // cmd == this after the disposal has released it; the disposal also clears this field before releasing.
+        volatile ByteBufPair cmd;
         SendCallback callback;
         Runnable rePopulate;
         ChunkedMessageCtx chunkedMessageCtx;
+        /**
+         * The connection event loop that this op's {@link #cmd} was last handed to for writing, or
+         * {@code null} if the {@link #cmd} has never been handed to a connection.
+         *
+         * <p>When a timeout or recovery path fails this op from another thread (e.g. the send-timeout timer
+         * while the producer is in the reconnect window), the cmd release and op recycle are deferred to this
+         * loop so they are serialized after any in-flight write.
+         */
+        volatile EventLoop writeEventLoop;
         long uncompressedSize;
         long sequenceId;
         long createdAt;
@@ -1604,6 +1624,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             cmd = null;
             callback = null;
             rePopulate = null;
+            writeEventLoop = null;
             sequenceId = -1L;
             createdAt = -1L;
             firstSentAt = -1L;
@@ -2368,8 +2389,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
 
                 client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
-                ReferenceCountUtil.safeRelease(op.cmd);
-                op.recycle();
+                releaseOpCmdAndRecycle(op);
             }
 
             semaphoreRelease(releaseCount.get());
@@ -2380,12 +2400,51 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             // If we have a connection, we schedule the callback and recycle on the event loop thread to avoid any
             // race condition since we also write the message on the socket from this thread
-            cnx.ctx().channel().eventLoop().execute(() -> {
-                synchronized (ProducerImpl.this) {
-                    failPendingMessages(null, ex);
-                }
-            });
+            try {
+                cnx.ctx().channel().eventLoop().execute(() -> {
+                    synchronized (ProducerImpl.this) {
+                        failPendingMessages(null, ex);
+                    }
+                });
+            } catch (RejectedExecutionException e) {
+                // The connection's event loop is shutting down; the deferred task would be dropped. Fail inline
+                // instead (per-op cmd release is still deferred to each op's write event loop).
+                log.warn("Connection event loop is shutting down while failing pending messages; failing inline", e);
+                failPendingMessages(null, ex);
+            }
         }
+    }
+
+    /**
+     * Releases the op's cmd and recycles the op, deferred to the event loop the cmd was last handed to for writing
+     * so the buffers are never released on another thread while a write may still be reading them (e.g. the
+     * send-timeout timer thread during the reconnect window). If the op was never handed to a connection, the
+     * cleanup runs inline.
+     */
+    private void releaseOpCmdAndRecycle(OpSendMsg op) {
+        final EventLoop writeEventLoop = op.writeEventLoop;
+        if (writeEventLoop != null) {
+            try {
+                writeEventLoop.execute(() -> releaseOpCmd(op));
+                return;
+            } catch (RejectedExecutionException e) {
+                // Event loop shutting down: release inline (the write either never ran, or the channel now owns
+                // the buffer reference it held).
+                log.warn("Write event loop is shutting down while releasing an in-flight op cmd", e);
+            }
+        }
+        releaseOpCmd(op);
+    }
+
+    /**
+     * Detaches {@code op.cmd} before releasing it so a stale write callback can never pass its guard and write a
+     * released (possibly re-pooled) buffer, then recycles the op.
+     */
+    private void releaseOpCmd(OpSendMsg op) {
+        final ByteBufPair cmd = op.cmd;
+        op.cmd = null;
+        ReferenceCountUtil.safeRelease(cmd);
+        op.recycle();
     }
 
     /**
@@ -2519,8 +2578,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // releaseSemaphoreForSendOp() also gives the reserved memory back, so it must not be released again.
                 releaseSemaphoreForSendOp(op);
                 op.sendComplete(getTerminalException(state));
-                ReferenceCountUtil.safeRelease(op.cmd);
-                op.recycle();
+                releaseOpCmdAndRecycle(op);
                 return;
             }
             pendingMessages.add(op);
@@ -2540,6 +2598,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // If we do have a connection, the message is sent immediately, otherwise we'll try again once a new
                 // connection is established
                 op.cmd.retain();
+                op.writeEventLoop = cnx.ctx().channel().eventLoop();
                 cnx.ctx().channel().eventLoop().execute(WriteInEventLoopCallback.create(this, cnx, op));
                 stats.updateNumMsgsSent(op.numMessagesInBatch, op.batchSizeByte);
             } else {
@@ -2621,7 +2680,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             topic, producerName, SchemaUtils.jsonifySchemaInfo(msgSchemaInfo, false));
                         releaseSemaphoreForSendOp(op);
                         msgIterator.remove();
-                        op.recycle();
+                        releaseOpCmdAndRecycle(op);
                         continue;
                     }
                 } else if (op.msg == latestMsgAttemptedRegisteredSchema && failedIncompatibleSchema
@@ -2653,7 +2712,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         op.rePopulate.run();
                     }
                     msgIterator.remove();
-                    ReferenceCountUtil.safeRelease(op.cmd);
                     try {
                         // Need to protect ourselves from any exception being thrown in the future handler from the
                         // application
@@ -2662,7 +2720,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         log.warn("Got exception while completing the failed publishing: {}", failedMsg, t);
                     }
                     releaseSemaphoreForSendOp(op);
-                    op.recycle();
+                    releaseOpCmdAndRecycle(op);
                     continue;
                 } else if (op.msg.getSchemaState() == None) {
                     // Event 1-1.
@@ -2685,6 +2743,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 stripChecksum(op);
             }
             op.cmd.retain();
+            op.writeEventLoop = cnx.ctx().channel().eventLoop();
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Re-Sending message in cnx {}, sequenceId {}", topic, producerName,
                         cnx.channel(), op.sequenceId);
