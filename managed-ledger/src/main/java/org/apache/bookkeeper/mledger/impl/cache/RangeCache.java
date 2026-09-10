@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
@@ -178,6 +179,24 @@ class RangeCache {
         }
 
         return values;
+    }
+
+    /**
+     * Visits matching entries in order without collecting them. Each entry is retained during the callback and
+     * released afterwards, including when the callback throws. The visitor must retain entries it needs to keep.
+     */
+    public void forEachInRange(Position first, Position last, Consumer<ReferenceCountedEntry> visitor) {
+        for (Map.Entry<Position, RangeCacheEntryWrapper> entry : entries.subMap(first, true, last, true)
+                .entrySet()) {
+            ReferenceCountedEntry value = getValueMatchingEntry(entry);
+            if (value != null) {
+                try {
+                    visitor.accept(value);
+                } finally {
+                    value.release();
+                }
+            }
+        }
     }
 
     /**
