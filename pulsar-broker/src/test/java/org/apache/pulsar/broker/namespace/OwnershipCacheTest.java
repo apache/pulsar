@@ -55,6 +55,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -71,6 +72,7 @@ import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
@@ -935,6 +937,54 @@ public class OwnershipCacheTest {
         assertSame(cache.getLocallyAcquiredLocks().get(bundle), currentLock);
         assertTrue(store.exists(ServiceUnitUtils.path(bundle)).join());
         assertTrue(cache.checkOwnershipAsync(bundle).get());
+    }
+
+    private static boolean loggedLockExpiredAtInfo(TestLogAppender logAppender) {
+        return logAppender.getEvents().stream()
+                .anyMatch(event -> event.getLevel() == Level.INFO
+                        && event.getMessage().getFormattedMessage().contains("Resource lock has expired"));
+    }
+
+    @Test
+    public void testReleasingOwnershipDoesNotReportTheLockAsExpired() throws Exception {
+        @Cleanup
+        TestLogAppender logAppender = TestLogAppender.create(OwnershipCache.class);
+        OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
+        NamespaceBundle bundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-release-not-expiry"),
+                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
+                bundleFactory);
+
+        cache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+        logAppender.clearEvents();
+
+        // ResourceLockImpl.release() completes the lock's expiry future too, so the expiry listener also runs at
+        // the tail of every deliberate release. That is not an expiry and must not be reported as one: operators
+        // searching for lost metadata sessions would otherwise get one false hit per unload.
+        cache.removeOwnership(bundle).get(10, TimeUnit.SECONDS);
+
+        assertFalse(loggedLockExpiredAtInfo(logAppender),
+                "a deliberate ownership release reported the resource lock as expired");
+    }
+
+    @Test
+    public void testLockDyingOutsideOfReleaseIsReportedAsExpired() throws Exception {
+        @Cleanup
+        TestLogAppender logAppender = TestLogAppender.create(OwnershipCache.class);
+        OwnershipCache cache = new OwnershipCache(this.pulsar, nsService);
+        NamespaceBundle bundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-real-expiry-logged"),
+                Range.closedOpen(0L, (long) Integer.MAX_VALUE),
+                bundleFactory);
+
+        cache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+        ResourceLock<NamespaceEphemeralData> lock = cache.getLocallyAcquiredLocks().get(bundle);
+        assertNotNull(lock);
+        logAppender.clearEvents();
+
+        // The lock dies without the cache asking for it, as on a metadata session loss or a failed revalidation
+        lock.release().join();
+
+        Awaitility.await().untilAsserted(() -> assertTrue(loggedLockExpiredAtInfo(logAppender),
+                "a resource lock that died on its own was not reported as expired"));
     }
 
 }
