@@ -27,6 +27,7 @@ import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -1715,36 +1716,44 @@ public class Commands {
         int checksumReaderIndex = -1;
 
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
-        headers.writeInt(totalSize); // External frame
+        try {
+            headers.writeInt(totalSize); // External frame
 
-        // Write cmd
-        headers.writeInt(cmdSize);
-        cmd.writeTo(headers);
+            // Write cmd
+            headers.writeInt(cmdSize);
+            cmd.writeTo(headers);
 
-        // Create checksum placeholder
-        if (includeChecksum) {
-            headers.writeShort(magicCrc32c);
-            checksumReaderIndex = headers.writerIndex();
-            headers.writerIndex(headers.writerIndex() + checksumSize); // skip 4 bytes of checksum
+            // Create checksum placeholder
+            if (includeChecksum) {
+                headers.writeShort(magicCrc32c);
+                checksumReaderIndex = headers.writerIndex();
+                headers.writerIndex(headers.writerIndex() + checksumSize); // skip 4 bytes of checksum
+            }
+
+            // Write metadata
+            headers.writeInt(msgMetadataSize);
+            msgMetadata.writeTo(headers);
+
+            // write checksum at created checksum-placeholder
+            if (includeChecksum) {
+                headers.markReaderIndex();
+                headers.readerIndex(checksumReaderIndex + checksumSize);
+                int metadataChecksum = computeChecksum(headers);
+                int computedChecksum = resumeChecksum(metadataChecksum, payload);
+                // set computed checksum
+                headers.setInt(checksumReaderIndex, computedChecksum);
+                headers.resetReaderIndex();
+            }
+
+            // Create the pair last so it becomes the single owner of both buffers on success: if anything above
+            // throws (e.g. an OOM while serializing the command or metadata), the header is released here instead
+            // of being orphaned. The payload is deliberately not touched on failure; releasing it on a failed
+            // send remains a pre-existing gap on the caller side.
+            return ByteBufPair.get(headers, payload);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(headers);
+            throw t;
         }
-
-        // Write metadata
-        headers.writeInt(msgMetadataSize);
-        msgMetadata.writeTo(headers);
-
-        ByteBufPair command = ByteBufPair.get(headers, payload);
-
-        // write checksum at created checksum-placeholder
-        if (includeChecksum) {
-            headers.markReaderIndex();
-            headers.readerIndex(checksumReaderIndex + checksumSize);
-            int metadataChecksum = computeChecksum(headers);
-            int computedChecksum = resumeChecksum(metadataChecksum, payload);
-            // set computed checksum
-            headers.setInt(checksumReaderIndex, computedChecksum);
-            headers.resetReaderIndex();
-        }
-        return command;
     }
 
     public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
@@ -2073,12 +2082,17 @@ public class Commands {
         int headersSize = 4 + 4 + cmdSize;
 
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize);
-        headers.writeInt(totalSize); // External frame
+        try {
+            headers.writeInt(totalSize); // External frame
 
-        // Write cmd
-        headers.writeInt(cmdSize);
-        cmd.writeTo(headers);
-        return ByteBufPair.get(headers, metadataAndPayload);
+            // Write cmd
+            headers.writeInt(cmdSize);
+            cmd.writeTo(headers);
+            return ByteBufPair.get(headers, metadataAndPayload);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(headers);
+            throw t;
+        }
     }
 
     public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, String subscription,
