@@ -790,7 +790,6 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         this.recyclerHandle = recyclerHandle;
         this.redeliveryCount = 0;
         this.msgMetadata = new MessageMetadata();
-        this.brokerEntryMetadata = new BrokerEntryMetadata();
         this.consumerEpoch = DEFAULT_CONSUMER_EPOCH;
     }
 
