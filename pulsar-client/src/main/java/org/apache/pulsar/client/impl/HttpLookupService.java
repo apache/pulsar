@@ -31,6 +31,7 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -78,7 +79,14 @@ public class HttpLookupService implements LookupService {
                              EventLoopGroup eventLoopGroup, Timer timer,
                              NameResolver<InetAddress> nameResolver)
             throws PulsarClientException {
-        this.httpClient = new HttpClient(conf, eventLoopGroup, timer, nameResolver);
+        this(instrumentProvider, conf, eventLoopGroup, timer, nameResolver, null);
+    }
+
+    public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
+                             EventLoopGroup eventLoopGroup, Timer timer,
+                             NameResolver<InetAddress> nameResolver, Executor blockingAuthExecutor)
+            throws PulsarClientException {
+        this.httpClient = new HttpClient(conf, eventLoopGroup, timer, nameResolver, blockingAuthExecutor);
         this.useTls = conf.isUseTls();
         this.listenerName = conf.getListenerName();
 

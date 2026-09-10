@@ -88,7 +88,6 @@ public class PositionRangeSetCompatibilityTest extends BookKeeperClusterTestCase
 
         ManagedLedgerConfig config = new ManagedLedgerConfig()
                 .setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1)
-                .setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1).setMetadataAckQuorumSize(1)
                 .setMaxEntriesPerLedger(5);
 
         ManagedLedger ledger = factory.open(mlName, config);

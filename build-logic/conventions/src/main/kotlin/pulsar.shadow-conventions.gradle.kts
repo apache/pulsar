@@ -32,7 +32,24 @@ shadow {
 
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     archiveClassifier.set("")
+    // ShadowJar's duplicatesStrategy is applied *before* the resource transformers run, so its
+    // EXCLUDE default drops every duplicate META-INF/services file and mergeServiceFiles() ends up
+    // keeping only the first provider file instead of merging them all. Keep EXCLUDE as the global
+    // strategy — class files bypass the transformers entirely (ShadowCopyAction handles them in a
+    // dedicated branch), so the strategy is the only thing deduplicating them — and let just the
+    // service descriptors through to the transformer.
     mergeServiceFiles()
+    // Paths owned by a resource transformer: ServiceFileTransformer (mergeServiceFiles) and the
+    // KotlinModuleMetadataTransformer that ShadowJar applies on its own.
+    val transformedPaths = listOf("META-INF/services/**", "META-INF/*.kotlin_module")
+    filesMatching(transformedPaths) {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    // filesMatching {} actions are not part of the task's input fingerprint, so without this the
+    // build cache serves jars built under the old behaviour even after this block changes.
+    inputs.property("transformedPathsDuplicatesStrategy", "$transformedPaths=INCLUDE")
+    // Nothing should reach the archive twice; catch it if a future change makes it happen.
+    failOnDuplicateEntries.set(true)
 }
 
 tasks.named<Jar>("jar") {
