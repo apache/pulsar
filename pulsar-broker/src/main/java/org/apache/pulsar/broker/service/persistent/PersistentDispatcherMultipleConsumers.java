@@ -229,9 +229,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
-        // decrement unack-message count for removed consumer
-        addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
+            // decrement unack-message count for removed consumer. Only the removal that actually
+            // unregisters the consumer may debit it, otherwise removing an already-removed consumer
+            // debits the same messages again and drives the subscription counter negative.
+            addUnAckedMessages(-consumer.getUnackedMessages());
             consumerList.remove(consumer);
             log.info("Removed consumer {} with pending {} acks", consumer, consumer.getPendingAcks().size());
             if (consumerList.isEmpty()) {
@@ -267,6 +269,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
              * are not mismatch with {@link #consumerSet}. See more detail: https://github.com/apache/pulsar/pull/22270.
              */
             log.error("[{}] Trying to remove a non-connected consumer: {}", name, consumer);
+            // The debit belongs to the removal that unregisters the consumer; do not repeat it here.
+            // The add-consumer failure path can also unregister via internalRemoveConsumer, but that
+            // consumer has not received any messages and therefore has nothing to debit.
             consumerList.removeIf(c -> consumer.equals(c));
             if (consumerList.isEmpty()) {
                 clearComponentsAfterRemovedAllConsumers();
