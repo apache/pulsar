@@ -76,6 +76,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -1848,10 +1849,11 @@ public class PersistentTopicsBase extends AdminResource {
                             log.info("[{}] Cleared backlog on {} {}", clientAppId(), topicName, subName);
                         }
                     };
-                    if (subName.startsWith(topic.getReplicatorPrefix())) {
-                        String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                    Optional<String> remoteCluster =
+                            AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                    if (remoteCluster.isPresent()) {
                         PersistentReplicator repl =
-                            (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                            (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                         if (repl == null) {
                             asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                     getSubNotFoundErrorMessage(topicName.toString(), subName)));
@@ -1896,10 +1898,11 @@ public class PersistentTopicsBase extends AdminResource {
                      throw new RestException(new RestException(Status.NOT_FOUND,
                              getTopicNotFoundErrorMessage(topicName.toString())));
                  }
-                 if (subName.startsWith(topic.getReplicatorPrefix())) {
-                     String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                 Optional<String> remoteCluster =
+                         AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                 if (remoteCluster.isPresent()) {
                      PersistentReplicator repl =
-                             (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                             (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                      if (repl == null) {
                          return FutureUtil.failedFuture(
                                  new RestException(Status.NOT_FOUND, "Replicator not found"));
@@ -3901,14 +3904,15 @@ public class PersistentTopicsBase extends AdminResource {
                 PersistentTopic topic = (PersistentTopic) t;
 
                 final MessageExpirer messageExpirer;
-                if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                Optional<String> remoteCluster =
+                        AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                if (remoteCluster.isPresent()) {
+                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                 } else {
                     messageExpirer = topic.getSubscription(subName);
                 }
                 if (messageExpirer == null) {
-                    final String message = subName.startsWith(topic.getReplicatorPrefix())
+                    final String message = remoteCluster.isPresent()
                             ? "Replicator not found" : getSubNotFoundErrorMessage(topicName.toString(), subName);
                     resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, message));
                     return;
@@ -3998,14 +4002,15 @@ public class PersistentTopicsBase extends AdminResource {
             }
             try {
                 final MessageExpirer messageExpirer;
-                if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                Optional<String> remoteCluster =
+                        AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                if (remoteCluster.isPresent()) {
+                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                 } else {
                     messageExpirer = topic.getSubscription(subName);
                 }
                 if (messageExpirer == null) {
-                    final String message = (subName.startsWith(topic.getReplicatorPrefix()))
+                    final String message = remoteCluster.isPresent()
                             ? "Replicator not found" : getSubNotFoundErrorMessage(topicName.toString(), subName);
                     asyncResponse.resume(new RestException(Status.NOT_FOUND, message));
                     return;
@@ -4384,7 +4389,8 @@ public class PersistentTopicsBase extends AdminResource {
      */
     private PersistentReplicator getReplicatorReference(String replName, PersistentTopic topic) {
         try {
-            String remoteCluster = PersistentReplicator.getRemoteCluster(replName);
+            String remoteCluster = AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), replName)
+                    .orElseThrow();
             PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
             return checkNotNull(repl);
         } catch (Exception e) {
