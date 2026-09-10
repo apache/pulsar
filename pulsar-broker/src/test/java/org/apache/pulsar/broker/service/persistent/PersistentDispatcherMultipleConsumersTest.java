@@ -46,20 +46,22 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
 @Test(groups = "broker-api")
 public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseTest {
 
-    @Test(timeOut = 30_000)
-    public void testReadMoreEntriesConflatesConcurrentRequests() throws Exception {
+    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
+    public void testReadMoreEntriesConflatesConcurrentRequests(boolean classic) throws Exception {
         ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
-        PersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
         CountDownLatch[] passStarted = {new CountDownLatch(1), new CountDownLatch(1)};
         CountDownLatch[] releasePass = {new CountDownLatch(1), new CountDownLatch(1)};
         AtomicInteger passes = new AtomicInteger();
         Mockito.doAnswer(inv -> {
+            assertThat(Thread.holdsLock(dispatcher)).isTrue();
             int pass = passes.getAndIncrement();
             if (pass < passStarted.length) {
                 passStarted[pass].countDown();
@@ -95,10 +97,10 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         }
     }
 
-    @Test(timeOut = 30_000)
-    public void testReadMoreEntriesConflatesReentrantRequests() throws Exception {
+    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
+    public void testReadMoreEntriesConflatesReentrantRequests(boolean classic) throws Exception {
         ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
-        PersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
         AtomicInteger passes = new AtomicInteger();
         AtomicInteger depth = new AtomicInteger();
         Mockito.doAnswer(inv -> {
@@ -118,10 +120,10 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         assertThat(passes.get()).isEqualTo(1000);
     }
 
-    @Test(timeOut = 30_000)
-    public void testReadMoreEntriesRecoversAfterFailure() throws Exception {
+    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
+    public void testReadMoreEntriesRecoversAfterFailure(boolean classic) throws Exception {
         ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
-        PersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
         IllegalStateException failure = new IllegalStateException("read failed");
         Mockito.doAnswer(inv -> {
             dispatcher.readMoreEntries();
@@ -135,7 +137,13 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         Mockito.verify(cursor).isClosed();
     }
 
-    private PersistentDispatcherMultipleConsumers createReadConflationDispatcher(ManagedCursor cursor)
+    @DataProvider
+    public Object[][] readConflationDispatcherTypes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    private AbstractPersistentDispatcherMultipleConsumers createReadConflationDispatcher(ManagedCursor cursor,
+                                                                                       boolean classic)
             throws Exception {
         String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
@@ -144,7 +152,8 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         Mockito.doReturn("s1").when(cursor).getName();
         Subscription subscription = Mockito.mock(PersistentSubscription.class);
         Mockito.doReturn(topic).when(subscription).getTopic();
-        return new PersistentDispatcherMultipleConsumers(topic, cursor, subscription);
+        return classic ? new PersistentDispatcherMultipleConsumersClassic(topic, cursor, subscription)
+                : new PersistentDispatcherMultipleConsumers(topic, cursor, subscription);
     }
 
     @Test(timeOut = 30 * 1000)
