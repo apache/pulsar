@@ -44,6 +44,7 @@ import java.util.Optional;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageCrypto;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -365,5 +366,44 @@ public class RawBatchMessageContainerImplTest {
         }
 
         container.discard(null);
+    }
+
+    /**
+     * A crypto provider failing with a {@link PulsarClientException} must release the compressed batch payload
+     * and the partially built encrypted buffer and discard the batch, so the compactor can reuse the container.
+     */
+    @Test
+    public void testToByteBufReleasesPayloadAndDiscardsWhenEncryptionFailsWithClientException() throws Exception {
+        setEncryptionAndCompression(true, false);
+        List<ByteBuf> allocated = new ArrayList<>();
+        ByteBufAllocator trackingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ByteBuf buffer = Unpooled.buffer(invocation.getArgument(0));
+            allocated.add(buffer);
+            return buffer;
+        }).when(trackingAllocator).buffer(anyInt());
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(trackingAllocator);
+        container.setCryptoKeyReader(cryptoKeyReader);
+        container.add(createMessage("my-topic", "hi-1", 0), null);
+
+        MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
+        when(crypto.getMaxOutputSize(anyInt())).thenReturn(128);
+        doThrow(new PulsarClientException("mocked crypto failure"))
+                .when(crypto).encrypt(anySet(), any(), any(), any(), any());
+        container.setMsgCryptoForTesting(crypto);
+
+        try {
+            container.toByteBuf();
+            Assert.fail("expected the encryption failure to propagate");
+        } catch (RuntimeException e) {
+            Assert.assertTrue(e.getMessage().contains("Failed to encrypt payload"));
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException);
+        }
+        // Unlike the unexpected-Throwable branch, the PulsarClientException branch discards the batch so the
+        // container is empty and reusable for the next flush.
+        Assert.assertEquals(container.getNumMessagesInBatch(), 0);
+        for (ByteBuf buffer : allocated) {
+            Assert.assertEquals(buffer.refCnt(), 0);
+        }
     }
 }

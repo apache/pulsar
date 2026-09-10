@@ -699,9 +699,21 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     final long sequenceId = updateMessageMetadataSequenceId(msgMetadata);
                     String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
 
-                    serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
-                            readStartIndex, payloadChunkSize, compressedPayload, compressed,
-                            compressedPayload.readableBytes(), callback, chunkedMessageCtx, messageId);
+                    try {
+                        serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
+                                readStartIndex, payloadChunkSize, compressedPayload, compressed,
+                                compressedPayload.readableBytes(), callback, chunkedMessageCtx, messageId);
+                    } catch (Throwable t) {
+                        // For chunked persistent messages the last chunk's slice is never retained, so the base
+                        // payload's own ref-count claim is the vehicle that releases it. A failure on any earlier
+                        // chunk orphans that claim (the failing chunk's retained slice is already released by the
+                        // send-path helper); release it here. Earlier chunks' retained slices keep the memory
+                        // alive until their operations complete.
+                        if (totalChunks > 1 && chunkId != totalChunks - 1 && TopicName.get(topic).isPersistent()) {
+                            ReferenceCountUtil.safeRelease(compressedPayload);
+                        }
+                        throw t;
+                    }
                     readStartIndex = ((chunkId + 1) * payloadChunkSize);
                 }
             }

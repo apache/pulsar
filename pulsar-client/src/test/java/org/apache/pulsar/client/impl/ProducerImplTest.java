@@ -32,6 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
@@ -48,6 +49,7 @@ import java.util.Optional;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -60,6 +62,7 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -464,10 +467,166 @@ public class ProducerImplTest {
                 "the compressed payload must be released by the serialization stage");
     }
 
+    /**
+     * Exercises the chunked send path: when a chunk's command serialization fails, the chunk slice's claim on
+     * the shared payload buffer must be released by {@code sendMessageOrReleasePayload}. This cannot be detected
+     * by the helper-level tests alone, because the call site is only reachable with chunking enabled and a
+     * payload large enough to split.
+     */
+    @Test
+    public void testChunkedSendFailureReleasesChunkSliceClaim() throws Exception {
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatchingEnabled(false);
+        conf.setChunkingEnabled(true);
+        conf.setCompressMinMsgBodySize(0);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(new MemoryLimitController(1024 * 1024));
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(ProducerImpl.State.Ready);
+        // A small max message size forces the 10 KB payload into several chunks.
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.getMaxMessageSize()).thenReturn(1024);
+        doReturn(connectionHandler).when(producer).getConnectionHandler();
+        // No-op compression, so the compressed payload is the message payload itself.
+        doAnswer(invocation -> invocation.getArgument(0)).when(producer).applyCompression(any());
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
+        doThrow(new RuntimeException("mocked chunk serialization failure"))
+                .when(producer).sendMessage(anyLong(), anyLong(), anyInt(), any(), any(), any());
+
+        MessageImpl<byte[]> message = newMessage(new byte[10 * 1024]);
+        ByteBuf payload = message.getDataBuffer();
+        SendCallback callback = mock(SendCallback.class);
+        producer.sendAsync(message, callback);
+
+        ArgumentCaptor<Throwable> throwableCaptor = ArgumentCaptor.forClass(Throwable.class);
+        verify(callback).sendComplete(throwableCaptor.capture(), any());
+        assertTrue(throwableCaptor.getValue().getMessage().contains("mocked chunk serialization failure"));
+        // The failing chunk's retained slice is released by the send-path helper and the base payload's own
+        // claim by the chunk-loop failure handling. With no compression the base is the message payload
+        // itself, so nothing may remain after the failure.
+        assertEquals(payload.refCnt(), 0, "the failing chunk slice's claim must be released");
+    }
+
+    /**
+     * When the whole payload is compressed before chunking, a failure on a middle chunk must release not only
+     * the failing chunk's retained slice but also the base payload's own claim — the one the last chunk would
+     * have carried. Otherwise the compressed base buffer leaks on every failed chunked send.
+     */
+    @Test
+    public void testChunkedSendFailureReleasesCompressedBasePayload() throws Exception {
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatchingEnabled(false);
+        conf.setChunkingEnabled(true);
+        conf.setCompressMinMsgBodySize(0);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(new MemoryLimitController(1024 * 1024));
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(ProducerImpl.State.Ready);
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.getMaxMessageSize()).thenReturn(1024);
+        doReturn(connectionHandler).when(producer).getConnectionHandler();
+
+        ByteBuf compressed = Unpooled.buffer(10 * 1024);
+        compressed.writeBytes(new byte[10 * 1024]);
+        doAnswer(invocation -> {
+            ByteBuf source = invocation.getArgument(0);
+            source.release();
+            return compressed;
+        }).when(producer).applyCompression(any());
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
+        doThrow(new RuntimeException("mocked chunk serialization failure"))
+                .when(producer).sendMessage(anyLong(), anyLong(), anyInt(), any(), any(), any());
+
+        SendCallback callback = mock(SendCallback.class);
+        producer.sendAsync(newMessage(new byte[10 * 1024]), callback);
+        verify(callback).sendComplete(any(), any());
+        // The failing chunk's retained slice and the base payload's own claim must both be released.
+        assertEquals(compressed.refCnt(), 0, "the compressed base payload must be released on a chunk failure");
+    }
+
+    /**
+     * A message whose schema is not yet registered goes through the deferred-command branch of the real send
+     * path: the op holds the encrypted payload (pendingPayload) instead of a command and builds it later via
+     * rePopulate(). A failed first build must keep the payload with the op for the resend, and failing the op
+     * before the command was built must release it.
+     */
+    @Test
+    public void testDeferredSchemaOpWiringThroughSendPath() throws Exception {
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatchingEnabled(false);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(new MemoryLimitController(1024 * 1024));
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(ProducerImpl.State.Ready);
+        // Keep the schema state non-Ready: the real populateMessageSchema would mark it Ready for the
+        // matching schema, so the deferred branch would not run.
+        doAnswer(invocation -> true).when(producer).populateMessageSchema(any(), any());
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
+        AtomicReference<ProducerImpl.OpSendMsg> captured = new AtomicReference<>();
+        doAnswer(invocation -> {
+            captured.set(invocation.getArgument(0));
+            return null;
+        }).when(producer).processOpSendMsg(any());
+        AtomicInteger sendCalls = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (sendCalls.incrementAndGet() == 1) {
+                throw new RuntimeException("mocked deferred header allocation failure");
+            }
+            ByteBuf payload = invocation.getArgument(5);
+            ByteBuf header = Unpooled.buffer();
+            header.writeInt(4 + 4 + payload.readableBytes());
+            header.writeInt(0);
+            return ByteBufPair.get(header, payload);
+        }).when(producer).sendMessage(anyLong(), anyLong(), anyInt(), any(), any(), any());
+
+        MessageImpl<byte[]> message = newMessage("deferred");
+        ByteBuf payload = message.getDataBuffer();
+        producer.sendAsync(message, mock(SendCallback.class));
+
+        ProducerImpl.OpSendMsg op = captured.get();
+        assertNotNull(op);
+        assertNull(op.cmd, "the command must be deferred until the schema is registered");
+        assertSame(op.pendingPayload, payload, "the op must own the deferred payload");
+        assertNotNull(op.rePopulate);
+
+        // First build fails: the payload stays with the op for the next resend.
+        assertThatThrownBy(() -> op.rePopulate.run())
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("mocked deferred");
+        assertEquals(payload.refCnt(), 1, "the payload must stay alive for the next resend");
+        assertSame(op.pendingPayload, payload, "the op keeps owning the deferred payload");
+        assertNull(op.cmd);
+
+        // The resend after reconnect rebuilds from the same buffer and hands it to the command.
+        op.rePopulate.run();
+        assertNotNull(op.cmd);
+        assertNull(op.pendingPayload, "the payload's ownership moved into the command");
+        op.cmd.release();
+        assertEquals(payload.refCnt(), 0, "the payload belongs to the command now, not to the op");
+        op.recycle();
+
+        // A second deferred op failed before the schema was registered (e.g. send timeout): recycle() must
+        // release the deferred payload instead of orphaning it.
+        MessageImpl<byte[]> secondMessage = newMessage("deferred-2");
+        ByteBuf secondPayload = secondMessage.getDataBuffer();
+        producer.sendAsync(secondMessage, mock(SendCallback.class));
+        ProducerImpl.OpSendMsg secondOp = captured.get();
+        assertSame(secondOp.pendingPayload, secondPayload);
+        secondOp.recycle();
+        assertEquals(secondPayload.refCnt(), 0,
+                "the deferred payload must be released when the op is failed");
+    }
+
     private static MessageImpl<byte[]> newMessage(String content) {
         MessageMetadata metadata = new MessageMetadata();
         metadata.setPublishTime(System.currentTimeMillis());
         return MessageImpl.create(metadata,
                 ByteBuffer.wrap(content.getBytes(StandardCharsets.UTF_8)), Schema.BYTES, null);
+    }
+
+    private static MessageImpl<byte[]> newMessage(byte[] content) {
+        MessageMetadata metadata = new MessageMetadata();
+        metadata.setPublishTime(System.currentTimeMillis());
+        return MessageImpl.create(metadata, ByteBuffer.wrap(content), Schema.BYTES, null);
     }
 }

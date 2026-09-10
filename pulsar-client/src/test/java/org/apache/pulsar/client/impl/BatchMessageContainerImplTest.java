@@ -42,6 +42,7 @@ import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -511,6 +512,82 @@ public class BatchMessageContainerImplTest {
             }
 
             // All messages stay in their sub-batches and the retry produces a complete batch again.
+            assertEquals(container.getNumMessagesInBatch(), 4);
+            container.resetPayloadAfterFailedPublishing();
+            List<ProducerImpl.OpSendMsg> ops = container.createOpSendMsgs();
+            assertEquals(ops.size(), 2);
+            ops.forEach(op -> op.cmd.release());
+            assertEquals(builtPairs.get(1).refCnt(), 0);
+            assertEquals(builtPairs.get(2).refCnt(), 0);
+            container.clear();
+        } finally {
+            messages.forEach(ReferenceCountUtil::safeRelease);
+        }
+    }
+
+    /**
+     * The entry-bucket container builds its buckets through the same loop as the key-based container, so a later
+     * bucket failing to build must release the operations already built there as well: a regression in this loop
+     * would otherwise leak command buffers on every failed flush.
+     */
+    @Test(dataProvider = "compressionTypes")
+    public void testEntryBucketPartialBuildFailureReleasesBuiltOps(CompressionType compressionType)
+            throws Exception {
+        ProducerImpl<?> producer = createTestProducer(compressionType);
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
+        List<ByteBufPair> builtPairs = new ArrayList<>();
+        List<ByteBuf> builtHeaders = new ArrayList<>();
+        List<ByteBuf> builtPayloads = new ArrayList<>();
+        AtomicInteger sendCalls = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (sendCalls.incrementAndGet() == 2) {
+                throw new RuntimeException("mocked second bucket failure");
+            }
+            ByteBuf payload = invocation.getArgument(5);
+            ByteBuf header = PulsarByteBufAllocator.DEFAULT.buffer();
+            header.writeInt(4 + 4 + payload.readableBytes());
+            header.writeInt(0);
+            ByteBufPair pair = ByteBufPair.get(header, payload);
+            builtPairs.add(pair);
+            builtHeaders.add(header);
+            builtPayloads.add(payload);
+            return pair;
+        }).when(producer).sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any());
+
+        // "key-1" and "key-2" hash into different entry buckets with these splits.
+        EntryBucketBatchContainer container =
+                new EntryBucketBatchContainer(Arrays.asList(0x4000, 0x8000, 0xC000));
+        container.setProducer(producer);
+        List<MessageImpl<?>> messages = new ArrayList<>();
+        try {
+            for (int i = 0; i < 4; i++) {
+                MessageMetadata messageMetadata = new MessageMetadata();
+                messageMetadata.setSequenceId(i);
+                messageMetadata.setProducerName("producer");
+                messageMetadata.setPublishTime(System.currentTimeMillis());
+                messageMetadata.setPartitionKey(i < 2 ? "key-1" : "key-2");
+                ByteBuffer payload = ByteBuffer.wrap(("payload-" + i).getBytes(StandardCharsets.UTF_8));
+                MessageImpl<?> message = MessageImpl.create(messageMetadata, payload, Schema.BYTES, null);
+                messages.add(message);
+                container.add(message, null);
+            }
+
+            // Bucket "key-1" builds its operation, bucket "key-2" fails: the built command must not leak.
+            assertThatThrownBy(container::createOpSendMsgs)
+                    .isInstanceOf(RuntimeException.class)
+                    .hasMessageContaining("mocked second");
+            assertEquals(builtPairs.size(), 1);
+            assertEquals(builtPairs.get(0).refCnt(), 0);
+            assertEquals(builtHeaders.get(0).refCnt(), 0);
+            if (compressionType != CompressionType.NONE) {
+                // Compression handed the payload over to the command, so it must be released as well.
+                assertEquals(builtPayloads.get(0).refCnt(), 0);
+            } else {
+                // Without compression the container still owns the payload buffer and reuses it on retry.
+                assertEquals(builtPayloads.get(0).refCnt(), 1);
+            }
+
+            // All messages stay in their buckets and the retry produces a complete batch again.
             assertEquals(container.getNumMessagesInBatch(), 4);
             container.resetPayloadAfterFailedPublishing();
             List<ProducerImpl.OpSendMsg> ops = container.createOpSendMsgs();
