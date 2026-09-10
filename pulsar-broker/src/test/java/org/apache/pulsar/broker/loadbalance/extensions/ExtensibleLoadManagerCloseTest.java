@@ -37,6 +37,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -53,9 +54,9 @@ public class ExtensibleLoadManagerCloseTest {
         bk.start();
     }
 
-    private void setupBrokers(int numBrokers) throws Exception {
+    private void setupBrokers(int numBrokers, boolean topicPoliciesEnabled) throws Exception {
         for (int i = 0; i < numBrokers; i++) {
-            final var broker = new PulsarService(brokerConfig());
+            final var broker = new PulsarService(brokerConfig(topicPoliciesEnabled));
             brokers.add(broker);
             broker.start();
         }
@@ -83,7 +84,7 @@ public class ExtensibleLoadManagerCloseTest {
         bk.stop();
     }
 
-    private ServiceConfiguration brokerConfig() {
+    private ServiceConfiguration brokerConfig(boolean topicPoliciesEnabled) {
         final var config = new ServiceConfiguration();
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
@@ -95,8 +96,7 @@ public class ExtensibleLoadManagerCloseTest {
         config.setManagedLedgerDefaultEnsembleSize(1);
         config.setDefaultNumberOfNamespaceBundles(16);
         config.setLoadBalancerAutoBundleSplitEnabled(false);
-        // Bundle lookups must not start background __change_events assignments that race with shutdown.
-        config.setTopicLevelPoliciesEnabled(false);
+        config.setTopicLevelPoliciesEnabled(topicPoliciesEnabled);
         config.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         config.setLoadBalancerDebugModeEnabled(true);
         config.setBrokerShutdownTimeoutMs(100);
@@ -108,9 +108,14 @@ public class ExtensibleLoadManagerCloseTest {
     }
 
 
-    @Test(invocationCount = 10)
-    public void testCloseAfterLoadingBundles() throws Exception {
-        setupBrokers(3);
+    @DataProvider
+    public Object[][] topicPoliciesEnabled() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(invocationCount = 10, dataProvider = "topicPoliciesEnabled")
+    public void testCloseAfterLoadingBundles(boolean topicPoliciesEnabled) throws Exception {
+        setupBrokers(3, topicPoliciesEnabled);
         final var topic = "test-" + System.currentTimeMillis();
         final var admin = brokers.get(0).getAdminClient();
         admin.topics().createPartitionedTopic(topic, 20);
@@ -132,9 +137,9 @@ public class ExtensibleLoadManagerCloseTest {
         }
     }
 
-    @Test
-    public void testLookup() throws Exception {
-        setupBrokers(1);
+    @Test(dataProvider = "topicPoliciesEnabled")
+    public void testLookup(boolean topicPoliciesEnabled) throws Exception {
+        setupBrokers(1, topicPoliciesEnabled);
         final var topic = "test-lookup-" + UUID.randomUUID();
         final var numPartitions = 16;
         final var admin = brokers.get(0).getAdminClient();
