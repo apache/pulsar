@@ -241,7 +241,7 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
             try {
                 httpClient.close();
             } catch (IOException e) {
-                log.error("Failed to close http client.");
+                log.error().exception(e).log("Failed to close http client.");
             }
         }
     }

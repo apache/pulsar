@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -41,15 +42,15 @@ public class CmdScalableTopics extends CmdBase {
         private String namespace;
 
         @Option(names = {"-p", "--property"},
-                description = "Filter to topics whose properties contain this key=value pair."
-                        + " Repeat to AND multiple filters together.",
-                arity = "0..*")
+                description = "Filter to topics whose properties contain key=value pairs."
+                        + " Repeat or separate with commas to AND multiple filters together.",
+                arity = "1")
         private List<String> properties;
 
         @Override
         void run() throws Exception {
             String ns = validateNamespace(namespace);
-            Map<String, String> filters = parseListKeyValueMap(properties);
+            Map<String, String> filters = parseProperties(properties);
             if (filters == null || filters.isEmpty()) {
                 print(scalableTopics().listScalableTopics(ns));
             } else {
@@ -67,13 +68,14 @@ public class CmdScalableTopics extends CmdBase {
                 description = "Number of initial segments", defaultValue = "1")
         private int numInitialSegments;
 
-        @Option(names = {"-p", "--property"}, description = "Key-value properties (key=value)",
-                arity = "0..*")
+        @Option(names = {"-p", "--property"},
+                description = "Key-value properties. Repeat or separate with commas (key=value[,key=value...])",
+                arity = "1")
         private List<String> properties;
 
         @Override
         void run() throws Exception {
-            Map<String, String> props = parseListKeyValueMap(properties);
+            Map<String, String> props = parseProperties(properties);
             if (props != null) {
                 scalableTopics().createScalableTopic(topic, numInitialSegments, props);
             } else {
@@ -230,5 +232,18 @@ public class CmdScalableTopics extends CmdBase {
         addCommand("merge-segments", new MergeSegmentsCmd());
         addCommand("seek", new SeekSubscriptionCmd());
         addCommand("clear-backlog", new ClearBacklogCmd());
+    }
+
+    private Map<String, String> parseProperties(List<String> properties) {
+        if (properties == null || properties.isEmpty()) {
+            return null;
+        }
+        List<String> entries = new ArrayList<>();
+        for (String property : properties) {
+            for (String entry : property.split(",", -1)) {
+                entries.add(entry.trim());
+            }
+        }
+        return parseListKeyValueMap(entries);
     }
 }

@@ -36,6 +36,7 @@ import static org.testng.Assert.fail;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -64,6 +65,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -1689,4 +1691,149 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         verify(client, times(0)).getPartitionedTopicMetadata(anyString(), anyBoolean(), anyBoolean());
     }
 
+    @Test
+    public void testAckedBatchMessageNotSentToDeadLetterTopicOnFinalRedeliveryRound() throws Exception {
+        final String topic = newTopicName();
+        final int maxRedeliveryCount = 3;
+        final int batchSize = 5;
+        final String subscriptionName = "my-subscription";
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .enableBatchIndexAcknowledgment(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
+                .ackTimeout(1, TimeUnit.SECONDS)
+                .receiverQueueSize(100)
+                .subscribe();
+
+        @Cleanup
+        PulsarClient newPulsarClient = newPulsarClient();
+        Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic + "-" + subscriptionName + "-DLQ")
+                .subscriptionName(subscriptionName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .create();
+        List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            sendFutures.add(producer.newMessage().value(("message-" + i).getBytes()).sendAsync());
+        }
+        for (CompletableFuture<MessageId> future : sendFutures) {
+            future.get();
+        }
+        producer.close();
+
+        // Batch indices 1 and 2 are deliberately left to time out for the first `maxRedeliveryCount`
+        // rounds, then explicitly acked on the final round (redeliveryCount == maxRedeliveryCount) --
+        // the app's last chance to prevent them from being routed to the DLQ. The other 3 messages in
+        // the batch are acked immediately on the first delivery.
+        // Expected deliveries: (batchSize - 2) once each, plus indices 1 and 2 redelivered on every
+        // round from 0 through maxRedeliveryCount inclusive.
+        final int expectedDeliveries = (batchSize - 2) + 2 * (maxRedeliveryCount + 1);
+        int received = 0;
+        while (received < expectedDeliveries) {
+            Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(message, "consumer should keep receiving messages until the batch settles");
+            received++;
+            MessageIdAdv messageId = (MessageIdAdv) message.getMessageId();
+            int batchIndex = messageId.getBatchIndex();
+            int redeliveryCount = message.getRedeliveryCount();
+            if ((batchIndex == 1 || batchIndex == 2) && redeliveryCount < maxRedeliveryCount) {
+                // Let it time out instead of acking.
+                continue;
+            }
+            consumer.acknowledge(message);
+        }
+
+        // No message should ever be routed to the DLQ, since every message was explicitly acked at or
+        // before its final allowed redelivery round.
+        Message<byte[]> deadLetterMessage = deadLetterConsumer.receive(5, TimeUnit.SECONDS);
+        assertNull(deadLetterMessage, "no message should have been routed to the DLQ, "
+                + "but received: " + deadLetterMessage);
+
+        deadLetterConsumer.close();
+        consumer.close();
+    }
+
+    /**
+     * {@link org.apache.pulsar.client.impl.ConsumerImpl#processPossibleToDLQ} looks the entry up with the batch
+     * index discarded, because {@code possibleSendToDeadLetterTopicMessages} is always keyed by the entry-level
+     * message id. It must delete it with the same key: a message id that still carries its batch index -- the
+     * shape {@link MultiTopicsConsumerImpl} passes down from its unacked-message tracker, which keeps the batch
+     * index -- otherwise the entry survives the delivery to the DLQ, the map grows without bound and the whole
+     * batch is written to the DLQ again on the next redelivery of that entry.
+     */
+    @Test
+    public void testPossibleToDeadLetterEntryIsRemovedWhenRedeliveringABatchMessageId() throws Exception {
+        final String topic = newTopicName();
+        final String subscriptionName = "my-subscription";
+        final int batchSize = 5;
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(1).build())
+                .subscribe();
+
+        @Cleanup
+        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic + "-" + subscriptionName + "-DLQ")
+                .subscriptionName(subscriptionName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxMessages(batchSize)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .create();
+        List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            sendFutures.add(producer.newMessage().value(("message-" + i).getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(sendFutures).get();
+
+        // First delivery: redeliveryCount is 0, below maxRedeliverCount, so nothing is registered yet
+        for (int i = 0; i < batchSize; i++) {
+            assertNotNull(consumer.receive(5, TimeUnit.SECONDS));
+        }
+        consumer.redeliverUnacknowledgedMessages();
+
+        // Second delivery: redeliveryCount reaches maxRedeliverCount, so the whole batch is registered as a
+        // DLQ candidate under its entry-level message id
+        List<Message<byte[]>> messages = new ArrayList<>();
+        for (int i = 0; i < batchSize; i++) {
+            messages.add(consumer.receive(5, TimeUnit.SECONDS));
+        }
+        ConsumerImpl<byte[]> consumerImpl = (ConsumerImpl<byte[]>) consumer;
+        assertThat(consumerImpl.getPossibleSendToDeadLetterTopicMessages()).hasSize(1);
+
+        // Redeliver a single message id that still carries its batch index
+        MessageId batchMessageId = messages.get(0).getMessageId();
+        assertThat(((MessageIdAdv) batchMessageId).getBatchIndex()).isNotNegative();
+        consumerImpl.redeliverUnacknowledgedMessages(Collections.singleton(batchMessageId));
+
+        // The batch really was routed to the DLQ, so the bookkeeping below is not vacuously satisfied
+        for (int i = 0; i < batchSize; i++) {
+            assertNotNull(deadLetterConsumer.receive(10, TimeUnit.SECONDS),
+                    "every message of the batch should be routed to the DLQ");
+        }
+
+        Awaitility.await().untilAsserted(() -> assertThat(consumerImpl.getPossibleSendToDeadLetterTopicMessages())
+                .as("the entry must be dropped once its batch reached the DLQ")
+                .isEmpty());
+    }
 }

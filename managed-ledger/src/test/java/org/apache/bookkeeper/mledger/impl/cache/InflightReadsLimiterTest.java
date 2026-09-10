@@ -25,12 +25,15 @@ import static org.mockito.Mockito.mock;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.data.MetricData;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
@@ -551,6 +554,81 @@ public class InflightReadsLimiterTest {
                 .isEqualTo(maxReadsInFlightSize);
     }
 
+    @Test
+    public void testAcquireReleaseCountMetrics() throws Exception {
+        var otel = buildOpenTelemetryAndReader();
+        @Cleanup var openTelemetry = otel.getLeft();
+        @Cleanup var metricReader = otel.getRight();
+
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        mock(ScheduledExecutorService.class), openTelemetry);
+
+        // Normal acquire: remainingBytes decreases -> acquire count +1
+        Optional<InflightReadsLimiter.Handle> h1 = limiter.acquire(50, null);
+        assertThat(h1).isPresent();
+        assertCountMetrics(metricReader, 1, 0);
+
+        // Normal acquire again
+        Optional<InflightReadsLimiter.Handle> h2 = limiter.acquire(50, null);
+        assertThat(h2).isPresent();
+        assertCountMetrics(metricReader, 2, 0);
+
+        // Queue a request (not yet acquired, so count unchanged)
+        AtomicReference<InflightReadsLimiter.Handle> h3Ref = new AtomicReference<>();
+        limiter.acquire(50, h3Ref::set);
+        assertCountMetrics(metricReader, 2, 0);
+
+        // Release h1: release count +1, queued h3 gets processed -> acquire count +1
+        limiter.release(h1.get());
+        assertThat(h3Ref).hasValueSatisfying(h -> assertThat(h.success()).isTrue());
+        assertCountMetrics(metricReader, 3, 1);
+
+        // Release h2
+        limiter.release(h2.get());
+        assertCountMetrics(metricReader, 3, 2);
+
+        // Release h3
+        limiter.release(h3Ref.get());
+        assertCountMetrics(metricReader, 3, 3);
+    }
+
+    @Test
+    public void testAcquireCountMetricsExceedingMax() throws Exception {
+        var otel = buildOpenTelemetryAndReader();
+        @Cleanup var openTelemetry = otel.getLeft();
+        @Cleanup var metricReader = otel.getRight();
+
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        mock(ScheduledExecutorService.class), openTelemetry);
+
+        // Acquire > maxReadsInFlightSize from internalAcquire (remainingBytes == maxReadsInFlightSize)
+        Optional<InflightReadsLimiter.Handle> h1 = limiter.acquire(200, null);
+        assertThat(h1).hasValueSatisfying(h -> {
+            assertThat(h.success()).isTrue();
+            assertThat(h.permits()).isEqualTo(100);
+        });
+        assertCountMetrics(metricReader, 1, 0);
+
+        // Queue another request > maxReadsInFlightSize (will be handled by handleQueuedHandle)
+        AtomicReference<InflightReadsLimiter.Handle> h2Ref = new AtomicReference<>();
+        limiter.acquire(200, h2Ref::set);
+        assertCountMetrics(metricReader, 1, 0);
+
+        // Release h1 -> triggers h2 queued handle processing -> acquire count +1
+        limiter.release(h1.get());
+        assertThat(h2Ref).hasValueSatisfying(h -> {
+            assertThat(h.success()).isTrue();
+            assertThat(h.permits()).isEqualTo(100);
+        });
+        assertCountMetrics(metricReader, 2, 1);
+
+        // Release h2
+        limiter.release(h2Ref.get());
+        assertCountMetrics(metricReader, 2, 2);
+    }
+
     private Pair<OpenTelemetrySdk, InMemoryMetricReader> buildOpenTelemetryAndReader() {
         var metricReader = InMemoryMetricReader.create();
         var openTelemetry = AutoConfiguredOpenTelemetrySdk.builder()
@@ -562,6 +640,28 @@ public class InflightReadsLimiterTest {
                 .build()
                 .getOpenTelemetrySdk();
         return Pair.of(openTelemetry, metricReader);
+    }
+
+    private void assertCountMetrics(InMemoryMetricReader metricReader,
+                                     long expectedAcquireCount, long expectedReleaseCount) {
+        var metrics = metricReader.collectAllMetrics();
+        assertMetricCount(metrics, InflightReadsLimiter.INFLIGHT_READS_LIMITER_ACQUIRE_COUNT_METRIC_NAME,
+                expectedAcquireCount);
+        assertMetricCount(metrics, InflightReadsLimiter.INFLIGHT_READS_LIMITER_RELEASE_COUNT_METRIC_NAME,
+                expectedReleaseCount);
+    }
+
+    private static void assertMetricCount(Collection<MetricData> metrics, String metricName, long expectedValue) {
+        var matches = metrics.stream()
+                .filter(m -> m.getName().equals(metricName))
+                .collect(Collectors.toList());
+        if (expectedValue == 0 && matches.isEmpty()) {
+            return;
+        }
+        assertThat(matches).hasSize(1);
+        assertThat(matches.get(0))
+                .hasLongSumSatisfying(longSum -> longSum.hasPointsSatisfying(
+                        point -> point.hasValue(expectedValue)));
     }
 
     private void assertLimiterMetrics(InMemoryMetricReader metricReader,

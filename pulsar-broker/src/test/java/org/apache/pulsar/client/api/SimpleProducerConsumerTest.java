@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.naming.TopicName.PARTITIONED_TOPIC_SUFFIX;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
@@ -111,6 +112,7 @@ import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.client.impl.ProducerImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -3512,6 +3514,137 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = 100000)
+    public void testConsumerImplHasMessageAvailableDoesNotThrowBeforeReceive() throws Exception {
+        log.info().attr("method", methodName).log("Starting test");
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/has-message-available");
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        producer.send("existing-message".getBytes(UTF_8));
+
+        // hasMessageAvailable is exposed by ConsumerImpl, not the Consumer public API.
+        @Cleanup
+        ConsumerImpl<byte[]> latestConsumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("test-has-message-available-latest")
+                .receiverQueueSize(0)
+                .subscribe();
+        assertThat(latestConsumer.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(false);
+        assertThatCode(latestConsumer::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertFalse(latestConsumer.hasMessageAvailable());
+
+        @Cleanup
+        ConsumerImpl<byte[]> earliestConsumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("test-has-message-available-earliest")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .receiverQueueSize(0)
+                .subscribe();
+        assertThat(earliestConsumer.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(true);
+        assertThatCode(earliestConsumer::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertTrue(earliestConsumer.hasMessageAvailable());
+
+        log.info().attr("method", methodName).log("Exiting test");
+    }
+
+    @Test(timeOut = 100000)
+    public void testReaderHasMessageAvailableDoesNotThrowBeforeRead() throws Exception {
+        log.info().attr("method", methodName).log("Starting test");
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/reader-has-message-available");
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+        producer.send("existing-message".getBytes(UTF_8));
+
+        @Cleanup
+        Reader<byte[]> latestReader = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.latest)
+                .receiverQueueSize(0)
+                .create();
+        assertThat(latestReader.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(false);
+        assertThatCode(latestReader::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertFalse(latestReader.hasMessageAvailable());
+
+        @Cleanup
+        Reader<byte[]> earliestReader = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.earliest)
+                .receiverQueueSize(0)
+                .create();
+        assertThat(earliestReader.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(true);
+        assertThatCode(earliestReader::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertTrue(earliestReader.hasMessageAvailable());
+
+        log.info().attr("method", methodName).log("Exiting test");
+    }
+
+    @Test(timeOut = 100000)
+    public void testHasMessageAvailableDoesNotThrowOnEmptyTopic() throws Exception {
+        log.info().attr("method", methodName).log("Starting test");
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/empty-has-message-available");
+
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("test-empty-has-message-available")
+                .receiverQueueSize(0)
+                .subscribe();
+        assertThat(consumer.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(false);
+        assertThatCode(consumer::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertFalse(consumer.hasMessageAvailable());
+
+        @Cleanup
+        Reader<byte[]> latestReader = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.latest)
+                .receiverQueueSize(0)
+                .create();
+        assertThat(latestReader.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(false);
+        assertThatCode(latestReader::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertFalse(latestReader.hasMessageAvailable());
+
+        @Cleanup
+        Reader<byte[]> earliestReader = pulsarClient.newReader()
+                .topic(topicName)
+                .startMessageId(MessageId.earliest)
+                .receiverQueueSize(0)
+                .create();
+        assertThat(earliestReader.hasMessageAvailableAsync())
+                .succeedsWithin(Duration.ofSeconds(10))
+                .isEqualTo(false);
+        assertThatCode(earliestReader::hasMessageAvailable)
+                .doesNotThrowAnyException();
+        assertFalse(earliestReader.hasMessageAvailable());
+
+        log.info().attr("method", methodName).log("Exiting test");
+    }
+
+    @Test(timeOut = 100000)
     public void testMultiTopicsConsumerImplPauseForPartitionNumberChange() throws Exception {
         log.info().attr("method", methodName).log("Starting test");
         String topicName = "persistent://my-property/my-ns/partition-topic";
@@ -5454,6 +5587,65 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // cleanup
         admin.topics().delete(topic, false);
+    }
+
+    @Test
+    public void testTopicPartitionCannotBeCreatedAfterTopicDeleted() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createPartitionedTopic(topic, 1);
+
+        // Inject an delay: delay to handle channel inactive event, to let the producer delay to reconnect.
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .connectionsPerBroker(1);
+        CountDownLatch countDownLatch = new CountDownLatch(1);
+        PulsarClientImpl pulsarClient = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) -> {
+
+            return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+
+                @Override
+                public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+                    // Delay receiving the event, let producer will not reconnect immediately.
+                    log.info("channel inactive");
+                    countDownLatch.await();
+                    super.channelInactive(ctx);
+                }
+            };
+        });
+
+        // Producer connected.
+        Producer producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+        PersistentTopic persistentTopic1 = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topic + "-partition-0", false)
+                .get(5, TimeUnit.SECONDS).get();
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertEquals(persistentTopic1.getProducers().values().size(), 1);
+        });
+
+        // Make a network issue which leads to the connection breaks.
+        org.apache.pulsar.broker.service.Producer serviceProducer = persistentTopic1.getProducers().values()
+                .iterator().next();
+        ServerCnx servercnx = (ServerCnx) serviceProducer.getCnx();
+        servercnx.ctx().close();
+        // After the connection is break, and before the producer reconnects, the partitioned topic can be deleted
+        // without "--force".
+        admin.topics().deletePartitionedTopic(topic);
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(persistentTopic1.isClosingOrDeleting());
+        });
+
+        // Verify: the partition can not be loaded up once the partitioned topic was deleted.
+        countDownLatch.countDown();
+        Thread.sleep(10_000);
+        assertFalse(producer.isConnected());
+        assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic + "-partition-0"));
+
+        // cleanup.
+        producer.close();
+        pulsarClient.close();
     }
 
     /**

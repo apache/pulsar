@@ -154,8 +154,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
         try {
             // This flag is set to true when we skip at least one local message,
             // in order to skip remaining local messages.
-            boolean isLocalMessageSkippedOnce = false;
-            boolean skipRemainingMessages = inFlightTask.isSkipReadResultDueToCursorRewind();
+            boolean skipRemainingMessages = false;
             for (int i = 0; i < entries.size(); i++) {
                 Entry entry = entries.get(i);
                 // Skip the messages since the replicator need to fetch the schema info to replicate the schema to the
@@ -239,13 +238,13 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     continue;
                 }
 
-                if (STATE_UPDATER.get(this) != State.Started || isLocalMessageSkippedOnce) {
+                if (STATE_UPDATER.get(this) != State.Started || inFlightTask.isSkipReadResultDueToCursorRewind()) {
                     // The producer is not ready yet after having stopped/restarted. Drop the message because it will
                     // recover when the producer is ready
                     log.debug()
                             .attr("position", entry.getPosition())
                             .log("Dropping read message because producer is not ready");
-                    isLocalMessageSkippedOnce = true;
+                    skipRemainingMessages = true;
                     inFlightTask.incCompletedEntries();
                     entry.release();
                     msg.recycle();
@@ -264,9 +263,9 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                      * Explain the result of the race-condition between:
                      *   - {@link #readMoreEntries}
                      *   - {@link #beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding)}
-                     * Since {@link #acquirePermitsIfNotFetchingSchema} and
-                     *   {@link #beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding)} acquire the
-                     * same lock, it is safe.
+                     * Since the read scheduling path in {@link #readMoreEntries()} and
+                     *   {@link #beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding)} update in-flight
+                     * read state under the same lock, it is safe.
                      */
                     beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Fetching_Schema);
                     inFlightTask.incCompletedEntries();

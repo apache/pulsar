@@ -86,6 +86,16 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
      */
     void close();
 
+    /**
+     * Close the subscription tracker and release all resources, completing the returned future once the
+     * tracker has finished closing. Prefer this over {@link #close()} on asynchronous paths (e.g. inside a
+     * {@link CompletableFuture} continuation) so the caller is not blocked.
+     */
+    default CompletableFuture<Void> closeAsync() {
+        close();
+        return CompletableFuture.completedFuture(null);
+    }
+
     DelayedDeliveryTracker DISABLE = new DelayedDeliveryTracker() {
         @Override
         public boolean addMessage(long ledgerId, long entryId, long deliveryAt) {

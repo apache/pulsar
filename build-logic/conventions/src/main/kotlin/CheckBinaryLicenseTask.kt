@@ -65,7 +65,9 @@ abstract class CheckBinaryLicenseTask : DefaultTask() {
             "pulsar-client",
             "pulsar-cli-utils",
             "pulsar-common",
+            "pulsar-http-client-api",
             "pulsar-package",
+            "pulsar-tls-factory-api",
             "pulsar-websocket",
         )
 

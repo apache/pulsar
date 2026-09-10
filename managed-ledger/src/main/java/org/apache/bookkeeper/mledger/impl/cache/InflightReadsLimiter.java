@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl.cache;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongCounter;
 import io.prometheus.client.Gauge;
 import java.util.ArrayDeque;
@@ -52,6 +53,15 @@ public class InflightReadsLimiter implements AutoCloseable {
     public static final String INFLIGHT_READS_LIMITER_USAGE_METRIC_NAME =
             "pulsar.broker.managed_ledger.inflight.read.usage";
     private final ObservableLongCounter inflightReadsUsageCounter;
+
+    public static final String INFLIGHT_READS_LIMITER_ACQUIRE_COUNT_METRIC_NAME =
+            "pulsar.broker.managed_ledger.inflight.read.acquire.count";
+    private final LongCounter inflightReadsAcquireCountCounter;
+
+    public static final String INFLIGHT_READS_LIMITER_RELEASE_COUNT_METRIC_NAME =
+            "pulsar.broker.managed_ledger.inflight.read.release.count";
+    private final LongCounter inflightReadsReleaseCountCounter;
+
     private final int maxReadsInFlightAcquireQueueSize;
 
     @PulsarDeprecatedMetric(newMetricName = INFLIGHT_READS_LIMITER_USAGE_METRIC_NAME)
@@ -118,6 +128,18 @@ public class InflightReadsLimiter implements AutoCloseable {
                         measurement.record(usedBytes, InflightReadLimiterUtilization.USED.attributes);
                     }
                 });
+        inflightReadsAcquireCountCounter = meter
+                .counterBuilder(INFLIGHT_READS_LIMITER_ACQUIRE_COUNT_METRIC_NAME)
+                .setDescription("The number of times inflight read permits were acquired, "
+                        + "decreasing the remaining bytes.")
+                .setUnit("{event}")
+                .build();
+        inflightReadsReleaseCountCounter = meter
+                .counterBuilder(INFLIGHT_READS_LIMITER_RELEASE_COUNT_METRIC_NAME)
+                .setDescription("The number of times inflight read permits were released, "
+                        + "increasing the remaining bytes.")
+                .setUnit("{event}")
+                .build();
     }
 
     @VisibleForTesting
@@ -163,6 +185,7 @@ public class InflightReadsLimiter implements AutoCloseable {
         Handle handle = new Handle(permits, System.currentTimeMillis(), true);
         if (remainingBytes >= permits) {
             remainingBytes -= permits;
+            inflightReadsAcquireCountCounter.add(1);
             log.debug().attr("permits", permits)
                     .attr("creationTime", handle.creationTime)
                     .attr("remainingBytes", remainingBytes).log("Acquired permits");
@@ -170,6 +193,7 @@ public class InflightReadsLimiter implements AutoCloseable {
             return Optional.of(handle);
         } else if (permits > maxReadsInFlightSize && remainingBytes == maxReadsInFlightSize) {
             remainingBytes = 0;
+            inflightReadsAcquireCountCounter.add(1);
             log.info().attr("permits", permits)
                     .attr("maxReadsInFlightSize", maxReadsInFlightSize)
                     .attr("creationTime", handle.creationTime)
@@ -266,6 +290,7 @@ public class InflightReadsLimiter implements AutoCloseable {
                 .attr("remainingBytes", getRemainingBytes())
                 .log("Release permits");
         remainingBytes += handle.permits;
+        inflightReadsReleaseCountCounter.add(1);
         while (true) {
             QueuedHandle queuedHandle = queuedHandles.peek();
             if (queuedHandle != null) {
@@ -296,6 +321,7 @@ public class InflightReadsLimiter implements AutoCloseable {
         Handle handleForCallback = queuedHandle.handle;
         if (permits > maxReadsInFlightSize && remainingBytes == maxReadsInFlightSize) {
             remainingBytes = 0;
+            inflightReadsAcquireCountCounter.add(1);
             log.info().attr("permits", permits)
                     .attr("maxReadsInFlightSize", maxReadsInFlightSize)
                     .attr("creationTime", queuedHandle.handle.creationTime)
@@ -306,6 +332,7 @@ public class InflightReadsLimiter implements AutoCloseable {
             handleForCallback = new Handle(maxReadsInFlightSize, queuedHandle.handle.creationTime, true);
         } else {
             remainingBytes -= permits;
+            inflightReadsAcquireCountCounter.add(1);
             log.debug().attr("permits", permits)
                     .attr("creationTime", queuedHandle.handle.creationTime)
                     .attr("remainingBytes", remainingBytes)

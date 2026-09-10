@@ -23,6 +23,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -30,7 +31,9 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.service.PulsarCommandSender;
 import org.apache.pulsar.broker.service.SubscriptionOption;
+import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -39,7 +42,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -125,6 +130,90 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 4);
     }
 
+
+    /**
+     * Regression test for the migration-redirect race in {@code NonPersistentTopic.internalSubscribe}
+     * (introduced by PR #26051, which turned a blocking, ordered migration redirect into a fire-and-forget
+     * async one). When the topic is migrated, the migration check must complete <i>before</i>
+     * {@code addConsumerToSubscription}, and the consumer must NOT be attached to the subscription on the
+     * old cluster. The previous code ran {@code getMigratedClusterUrlAsync().thenAccept(consumer::topicMigrated)}
+     * concurrently with {@code addConsumerToSubscription}, so the consumer could be added before the redirect
+     * and disconnect ran. The fix sequences the check through {@link org.apache.pulsar.broker.service.Consumer
+     * #checkAndApplyTopicMigrationAsync()} and skips the add when migrated.
+     */
+    @Test
+    public void testSubscribeOnMigratedTopicSkipsAddingConsumer() throws Exception {
+        final String topicName = "non-persistent://prop/ns-abc/migration-race-" + UUID.randomUUID();
+        final String subName = "migration-sub";
+
+        // Materialize the real topic on the broker and acquire namespace-bundle ownership via a client lookup.
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        NonPersistentTopic realTopic =
+                (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+
+        // Mark the local cluster as migrated so AbstractTopic.getMigratedClusterUrlAsync() (used by
+        // Consumer.checkAndApplyTopicMigrationAsync()) resolves to a present migrated-cluster URL.
+        ClusterUrl migratedUrl = new ClusterUrl("http://migrated:8080", "https://migrated:8443",
+                "pulsar://migrated:6650", "pulsar+ssl://migrated:6651");
+        admin.clusters().updateClusterMigration(conf.getClusterName(), true, migratedUrl);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                AbstractTopic.getMigratedClusterUrlAsync(pulsar, topicName).get().isPresent());
+
+        // Spy the topic and force isMigrated() so the subscription is considered migrated.
+        NonPersistentTopic spyTopic = Mockito.spy(realTopic);
+        Mockito.doReturn(true).when(spyTopic).isMigrated();
+
+        // Pre-install a spy subscription so we can assert addConsumer is never invoked when migrated.
+        NonPersistentSubscription spySubscription =
+                Mockito.spy(new NonPersistentSubscription(spyTopic, subName, Collections.emptyMap()));
+        spyTopic.getSubscriptions().put(subName, spySubscription);
+
+        // An active transport connection that records the migration redirect.
+        PulsarCommandSender commandSender = Mockito.mock(PulsarCommandSender.class);
+        TransportCnx cnx = Mockito.mock(TransportCnx.class);
+        Mockito.doReturn(true).when(cnx).isActive();
+        Mockito.doReturn(true).when(cnx).isBatchMessageCompatibleVersion();
+        Mockito.doReturn("test-role").when(cnx).getAuthRole();
+        Mockito.doReturn(pulsar.getBrokerService()).when(cnx).getBrokerService();
+        Mockito.doReturn(commandSender).when(cnx).getCommandSender();
+
+        SubscriptionOption option = SubscriptionOption.builder()
+                .cnx(cnx)
+                .subscriptionName(subName)
+                .consumerId(1L)
+                .subType(CommandSubscribe.SubType.Shared)
+                .priorityLevel(0)
+                .consumerName("consumer-1")
+                .isDurable(false)
+                .startMessageId(null)
+                .metadata(Collections.emptyMap())
+                .readCompacted(false)
+                .initialPosition(CommandSubscribe.InitialPosition.Latest)
+                .startMessageRollbackDurationSec(0)
+                .replicatedSubscriptionStateArg(false)
+                .keySharedMeta(null)
+                .subscriptionProperties(Optional.empty())
+                .build();
+
+        long usageBefore = spyTopic.currentUsageCount();
+
+        org.apache.pulsar.broker.service.Consumer consumer =
+                spyTopic.subscribe(option).get(10, TimeUnit.SECONDS);
+        assertNotNull(consumer);
+
+        // The migration redirect must have been sent to the client.
+        Mockito.verify(commandSender).sendTopicMigrated(Mockito.any(), Mockito.eq(1L),
+                Mockito.eq(migratedUrl.getBrokerServiceUrl()), Mockito.eq(migratedUrl.getBrokerServiceUrlTls()));
+
+        // The core regression assertion: a migrated topic must never attach the consumer to the
+        // subscription. The buggy code added it before the async redirect/disconnect could run.
+        Mockito.verify(spySubscription, Mockito.never()).addConsumer(Mockito.any());
+        assertTrue(spySubscription.getConsumers().isEmpty());
+
+        // No usage-count leak: handleConsumerAdded's increment is balanced by the disconnect's removeConsumer.
+        assertEquals(spyTopic.currentUsageCount(), usageBefore);
+    }
 
     @Test
     public void testSubscriptionsOnNonPersistentTopic() throws Exception {

@@ -277,10 +277,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                         }
                     }
                 }
+                // No explicit null write is needed for a missing ackSet. EntryBatchIndexesAcks is reset before
+                // reuse, so absent ack sets are already null.
                 if (ackSet != null) {
                     indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
-                } else {
-                    indexesAcks.setIndexesAcks(i, null);
                 }
             }
 
@@ -487,7 +487,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     public static void checkAndApplyReachedEndOfTopicOrTopicMigration(PersistentTopic topic, List<Consumer> consumers) {
         if (topic.isMigrated()) {
-            consumers.forEach(c -> c.topicMigrated(topic.getMigratedClusterUrl()));
+            topic.getMigratedClusterUrlAsync()
+                    .thenAccept(clusterUrl -> consumers.forEach(c -> c.topicMigrated(clusterUrl)));
         } else {
             consumers.forEach(Consumer::reachedEndOfTopic);
         }

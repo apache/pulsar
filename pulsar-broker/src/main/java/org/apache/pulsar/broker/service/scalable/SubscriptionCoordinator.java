@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.scalable;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -37,6 +38,7 @@ import lombok.Getter;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.Backoff;
@@ -212,19 +214,49 @@ public class SubscriptionCoordinator {
     }
 
     /**
-     * Explicit unregister (consumer asked to leave the subscription). Cancels any pending
-     * grace timer, deletes the persisted registration, and rebalances.
+     * Explicit unregister (consumer asked to leave the subscription). Deletes the persisted
+     * registration first, and only on success removes the in-memory session, cancels its
+     * grace timer, and rebalances. A failed delete therefore changes nothing: the session
+     * stays registered and connected, so the channelInactive → grace-period fallback still
+     * works, and a retried unregister actually retries the deletion instead of short-
+     * circuiting on an already-removed session.
+     *
+     * <p>{@code expectedConsumerId} guards the removal against a same-name rejoin racing the
+     * in-flight delete: a re-register attaches a new consumer id to the session, so if the
+     * id no longer matches when the delete completes, the departed consumer's leave must not
+     * take the rejoined consumer down with it — the session is kept and the persisted
+     * registration the delete just erased is restored.
      */
     public synchronized CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> unregisterConsumer(
-            String consumerName) {
-        ConsumerSession removed = sessions.remove(consumerName);
-        if (removed == null) {
+            String consumerName, long expectedConsumerId) {
+        ConsumerSession session = sessions.get(consumerName);
+        if (session == null || session.getConsumerId() != expectedConsumerId) {
             return CompletableFuture.completedFuture(snapshotAssignments());
         }
-        removed.cancelGraceTimer();
         return resources.unregisterConsumerAsync(topicName, subscriptionName, consumerName)
                 .thenApply(__ -> {
                     synchronized (this) {
+                        ConsumerSession current = sessions.get(consumerName);
+                        if (current != null && current.getConsumerId() != expectedConsumerId) {
+                            // A same-name consumer rejoined while the delete was in flight
+                            // (the reconnect branch attached a new id). Keep it, and restore
+                            // the persisted registration the delete just erased so a
+                            // controller failover still knows this member.
+                            resources.registerConsumerAsync(topicName, subscriptionName,
+                                            consumerName)
+                                    .exceptionally(ex -> {
+                                        log.warn().attr("consumer", consumerName)
+                                                .exceptionMessage(ex)
+                                                .log("Failed to restore the rejoined consumer's "
+                                                        + "persisted registration");
+                                        return null;
+                                    });
+                            return snapshotAssignments();
+                        }
+                        ConsumerSession removed = sessions.remove(consumerName);
+                        if (removed != null) {
+                            removed.cancelGraceTimer();
+                        }
                         if (sessions.isEmpty()) {
                             segmentAssignments.clear();
                             return Map.of();
@@ -342,8 +374,15 @@ public class SubscriptionCoordinator {
      * as assignable.
      */
     private boolean isAssignable(SegmentInfo segment, SegmentLayout layout) {
-        if (drainChecker == null || !segment.isActive()) {
+        if (drainChecker == null) {
             return true;
+        }
+        if (!segment.isActive()) {
+            // A sealed segment is assignable only while it still has backlog to drain. Once
+            // fully drained it carries no traffic, and keeping it assignable would pin
+            // consumers to a dead segment forever (the drain rebalance would spread the
+            // group across it and its successor).
+            return !drainedSegmentIds.contains(segment.segmentId());
         }
         for (long parentId : segment.parentIds()) {
             // A parent that's no longer in the DAG has been pruned (its data is gone), so
@@ -533,9 +572,9 @@ public class SubscriptionCoordinator {
      * Compute a balanced assignment of segments to consumers.
      *
      * <p>Strategy: sort segments by hash range, then segment id (tiebreak), sort consumers by
-     * name, then round-robin. Deterministic: the same inputs always produce the same output,
-     * so a new leader recomputing assignments after failover gets the same result as the old
-     * leader.
+     * name, then "segments first, entry-buckets absorb the surplus" (see the inline comment).
+     * Deterministic: the same inputs always produce the same output, so a new leader recomputing
+     * assignments after failover gets the same result as the old leader.
      *
      * <p><b>DAG replay.</b> The assignment includes every <em>sealed</em> segment in the
      * DAG. A fresh EARLIEST subscription needs to read messages produced before it joined,
@@ -577,17 +616,69 @@ public class SubscriptionCoordinator {
             assignmentLists.put(consumer, new ArrayList<>());
         }
 
-        int consumerIndex = 0;
-        for (SegmentInfo segment : sortedSegments) {
-            ConsumerSession consumer = sortedConsumers.get(consumerIndex % sortedConsumers.size());
-            TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
-                    segment.segmentId());
-            assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
-                    segment.segmentId(),
-                    segment.hashRange(),
-                    segmentTopic.toString()
-            ));
-            consumerIndex++;
+        // PIP-486: "segments first, entry-buckets absorb the surplus". While consumers don't outnumber
+        // segments, each whole segment goes to a single consumer for efficient single-active
+        // (Exclusive) dispatch — no per-bucket pending tracking; empty bucketRanges signals the client
+        // to subscribe Exclusive. Only when consumers outnumber segments does the controller fan
+        // segments out by entry-bucket: each owner of a shared segment takes a contiguous slice of its
+        // buckets and subscribes Key_Shared STICKY declaring exactly those ranges. A segment absorbs at
+        // most bucketCount() consumers; consumers beyond the topic's total bucket capacity stay idle.
+        int segmentCount = sortedSegments.size();
+        int consumerCount = sortedConsumers.size();
+        if (consumerCount <= segmentCount) {
+            int consumerIndex = 0;
+            for (SegmentInfo segment : sortedSegments) {
+                TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
+                        segment.segmentId());
+                ConsumerSession consumer = sortedConsumers.get(consumerIndex % sortedConsumers.size());
+                assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
+                        segment.segmentId(), segment.hashRange(), segmentTopic.toString(), List.of()));
+                consumerIndex++;
+            }
+        } else {
+            // Per-segment owner counts: one each, then hand the surplus to segments that still have
+            // bucket capacity, round-robin in segment order.
+            int[] owners = new int[segmentCount];
+            Arrays.fill(owners, 1);
+            int surplus = consumerCount - segmentCount;
+            boolean anyCapacityLeft = true;
+            while (surplus > 0 && anyCapacityLeft) {
+                anyCapacityLeft = false;
+                for (int i = 0; i < segmentCount && surplus > 0; i++) {
+                    if (owners[i] < sortedSegments.get(i).bucketCount()) {
+                        owners[i]++;
+                        surplus--;
+                        anyCapacityLeft = true;
+                    }
+                }
+            }
+            int consumerIndex = 0;
+            for (int i = 0; i < segmentCount; i++) {
+                SegmentInfo segment = sortedSegments.get(i);
+                TopicName segmentTopic = SegmentTopicName.fromParent(topicName, segment.hashRange(),
+                        segment.segmentId());
+                int k = owners[i];
+                if (k == 1) {
+                    ConsumerSession consumer = sortedConsumers.get(consumerIndex++);
+                    assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
+                            segment.segmentId(), segment.hashRange(), segmentTopic.toString(), List.of()));
+                } else {
+                    // Shared segment: every attached consumer subscribes Key_Shared declaring the
+                    // segment's full (immutable) bucket boundary list — WHO owns WHICH bucket is
+                    // decided broker-side by the segment dispatcher's deterministic spread, and
+                    // bucket handoffs on membership changes drain broker-side too. The controller
+                    // only directs membership.
+                    List<HashRange> boundaries = EntryBucketSplits.ranges(segment.entryBucketSplits());
+                    for (int c = 0; c < k; c++) {
+                        ConsumerSession consumer = sortedConsumers.get(consumerIndex++);
+                        assignmentLists.get(consumer).add(new ConsumerAssignment.AssignedSegment(
+                                segment.segmentId(), segment.hashRange(), segmentTopic.toString(),
+                                boundaries));
+                    }
+                }
+            }
+            // Consumers past consumerIndex found no segment with spare bucket capacity: they keep an
+            // empty assignment (idle) until the layout or the group changes.
         }
 
         Map<ConsumerSession, ConsumerAssignment> result = new LinkedHashMap<>();

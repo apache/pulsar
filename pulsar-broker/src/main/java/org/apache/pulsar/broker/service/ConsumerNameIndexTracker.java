@@ -22,7 +22,8 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.roaringbitmap.RoaringBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmaps;
 
 /**
  * Tracks the used consumer name indexes for each consumer name.
@@ -56,18 +57,18 @@ class ConsumerNameIndexTracker {
     }
 
     /*
-     * Tracks the used indexes for a consumer name using a RoaringBitmap.
+     * Tracks the used indexes for a consumer name using a LongBitmap.
      * A specific index slot is used when the bit is set.
      * When all bits are cleared, the customer name can be removed from tracking.
      */
     static class ConsumerNameIndexSlots {
-        private RoaringBitmap indexSlots = new RoaringBitmap();
+        private LongBitmap indexSlots = LongBitmaps.create();
 
         public int allocateIndexSlot() {
             // find the first index that is not set, if there is no such index, add a new one
             int index = (int) indexSlots.nextAbsentValue(0);
             if (index == -1) {
-                index = indexSlots.getCardinality();
+                index = (int) indexSlots.cardinality();
             }
             indexSlots.add(index);
             return index;

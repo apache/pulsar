@@ -23,6 +23,8 @@ plugins {
 
 dependencies {
     api(project(":pulsar-client-api-v5"))
+    implementation(project(":pulsar-tls-factory-api"))
+    implementation(project(":pulsar-http-client-api"))
     implementation(project(":pulsar-client-original"))
     implementation(project(":pulsar-common"))
     implementation(libs.slf4j.api)

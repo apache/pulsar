@@ -325,6 +325,26 @@ public interface ScalableTopics {
     CompletableFuture<Void> splitSegmentAsync(String topic, long segmentId);
 
     /**
+     * Rebucket a segment: roll it over to a same-range successor segment with the given
+     * entry-bucket count (PIP-486). The sealed predecessor drains under its old buckets while
+     * the successor takes new writes under the new ones.
+     *
+     * @param topic       Topic name in the format "tenant/namespace/topic"
+     * @param segmentId   ID of the segment to rebucket
+     * @param bucketCount entry-bucket count for the successor segment
+     */
+    void rebucketSegment(String topic, long segmentId, int bucketCount) throws PulsarAdminException;
+
+    /**
+     * Rebucket a segment asynchronously.
+     *
+     * @param topic       Topic name in the format "tenant/namespace/topic"
+     * @param segmentId   ID of the segment to rebucket
+     * @param bucketCount entry-bucket count for the successor segment
+     */
+    CompletableFuture<Void> rebucketSegmentAsync(String topic, long segmentId, int bucketCount);
+
+    /**
      * Merge two adjacent segments into one.
      *
      * @param topic      Topic name in the format "tenant/namespace/topic"

@@ -1025,7 +1025,7 @@ public class ModularLoadManagerImplTest {
 
         // get the bundleData of the first bundle range.
         // The default value of the bundleData be the same as resourceQuota because the resourceQuota is present.
-        BundleData defaultBundleData = lm.getBundleDataOrDefault(namespaceBundle.toString());
+        BundleData defaultBundleData = lm.getBundleDataOrDefaultAsync(namespaceBundle.toString()).join();
 
         TimeAverageMessageData shortTermData = defaultBundleData.getShortTermData();
         TimeAverageMessageData longTermData = defaultBundleData.getLongTermData();

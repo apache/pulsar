@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver.BLOCKING_CALL_TIMEOUT;
 import com.google.common.base.Joiner;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +38,8 @@ import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -65,6 +68,7 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.metadata.impl.oxia.OxiaMetadataStore;
 import org.apache.zookeeper.KeeperException;
 
 @CustomLog
@@ -115,6 +119,11 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
             new ArrayList<>();
     private final List<BookkeeperInternalCallbacks.GenericCallback<Void>> lostBookieRecoveryDelayCallbacks =
             new ArrayList<>();
+
+    // Registered callbacks can perform synchronous metadata-store reads, so run them on a dedicated
+    // single-threaded executor instead of the metadata-store notification thread (and outside the lock).
+    private final ExecutorService notificationCallbackExecutor =
+            Executors.newSingleThreadExecutor(new DefaultThreadFactory("pulsar-underreplication-notification"));
 
     private static class PulsarUnderreplicatedLedger extends UnderreplicatedLedger {
         PulsarUnderreplicatedLedger(long ledgerId) {
@@ -246,13 +255,15 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                         callbackList = new ArrayList<>(lostBookieRecoveryDelayCallbacks);
                         lostBookieRecoveryDelayCallbacks.clear();
                     }
-                    for (BookkeeperInternalCallbacks.GenericCallback<Void> callback : callbackList) {
-                        try {
-                            callback.operationComplete(0, null);
-                        } catch (Exception e) {
-                            log.warn().exception(e).log("lostBookieRecoveryDelayCallbacks handle error");
+                    notificationCallbackExecutor.execute(() -> {
+                        for (BookkeeperInternalCallbacks.GenericCallback<Void> callback : callbackList) {
+                            try {
+                                callback.operationComplete(0, null);
+                            } catch (Exception e) {
+                                log.warn().exception(e).log("lostBookieRecoveryDelayCallbacks handle error");
+                            }
                         }
-                    }
+                    });
                     return;
                 }
                 if (replicationDisablePath.equals(n.getPath()) && n.getType() == NotificationType.Deleted) {
@@ -263,13 +274,15 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                         callbackList = new ArrayList<>(replicationEnabledCallbacks);
                         replicationEnabledCallbacks.clear();
                     }
-                    for (BookkeeperInternalCallbacks.GenericCallback<Void> callback : callbackList) {
-                        try {
-                            callback.operationComplete(0, null);
-                        } catch (Exception e) {
-                            log.warn().exception(e).log("replicationEnabledCallbacks handle error");
+                    notificationCallbackExecutor.execute(() -> {
+                        for (BookkeeperInternalCallbacks.GenericCallback<Void> callback : callbackList) {
+                            try {
+                                callback.operationComplete(0, null);
+                            } catch (Exception e) {
+                                log.warn().exception(e).log("replicationEnabledCallbacks handle error");
+                            }
                         }
-                    }
+                    });
                 }
             }
         }
@@ -422,7 +435,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                 store.delete(getUrLedgerPath(ledgerId), Optional.of(l.getLedgerNodeVersion()))
                         .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
                 if (store instanceof ZKMetadataStore
-                        || store instanceof DualMetadataStore) {
+                        || store instanceof DualMetadataStore
+                        || store instanceof OxiaMetadataStore) {
                     try {
                         // clean up the hierarchy
                         String[] parts = getUrLedgerPath(ledgerId).split("/");
@@ -440,10 +454,14 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
                         // It's safe to ignore, it simply means another
                         // ledger in the same hierarchy has been marked as
                         // underreplicated.
-                        if (ee.getCause() instanceof MetadataStoreException && ee.getCause().getCause()
-                                instanceof KeeperException.NotEmptyException) {
-                            //do nothing.
-                        } else {
+                        // Oxia raises NotEmptyException directly; ZK wraps
+                        // KeeperException.NotEmptyException inside a MetadataStoreException.
+                        boolean isNotEmpty =
+                                ee.getCause() instanceof MetadataStoreException.NotEmptyException
+                                || (ee.getCause() instanceof MetadataStoreException
+                                        && ee.getCause().getCause()
+                                                instanceof KeeperException.NotEmptyException);
+                        if (!isNotEmpty) {
                             log.warn().exception(ee).log("Error deleting underreplicated ledger parent node");
                         }
                     }
@@ -670,6 +688,7 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     @Override
     public void close() throws ReplicationException.UnavailableException {
         log.debug("close()");
+        notificationCallbackExecutor.shutdownNow();
         try {
             for (Map.Entry<Long, Lock> e : heldLocks.entrySet()) {
                 store.delete(e.getValue().getLockPath(), Optional.empty())

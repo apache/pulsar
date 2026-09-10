@@ -57,6 +57,10 @@ jobs:
             echo docs_only=false >> $GITHUB_OUTPUT
           fi
 
+      - name: Check if the PR is ready for running CI
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/check-pr-ready-to-test
+
   check-style:
     needs: preconditions
     if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
@@ -64,7 +68,7 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        go-version: ['1.24']
+        go-version: ['1.25']
 
     steps:
       - name: Check out code into the Go module directory
@@ -82,7 +86,7 @@ jobs:
       - name: InstallTool
         run: |
           cd pulsar-function-go
-          wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v2.0.2
+          wget -O - -q https://raw.githubusercontent.com/golangci/golangci-lint/main/install.sh| sh -s v2.12.2
           ./bin/golangci-lint --version
 
       - name: Build

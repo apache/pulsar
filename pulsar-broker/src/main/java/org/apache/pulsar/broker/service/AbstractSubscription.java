@@ -73,6 +73,15 @@ public abstract class AbstractSubscription implements Subscription {
                                         + "is different than the connecting consumer's key_shared mode '%s'.",
                                 dispatcherKsm.getKeySharedMode(), consumerKsm.getKeySharedMode()))));
             }
+            if (dispatcherKsm.isEntryBucketDispatch() != consumerKsm.isEntryBucketDispatch()) {
+                return Optional.of(FutureUtil.failedFuture(new BrokerServiceException.SubscriptionBusyException(
+                        String.format("Subscription is of different type. %s",
+                                dispatcherKsm.isEntryBucketDispatch()
+                                        ? "Active subscription dispatches by entry-bucket while the connecting "
+                                        + "consumer does not." :
+                                        "Active subscription does not dispatch by entry-bucket while the connecting "
+                                                + "consumer requests it."))));
+            }
             if (dispatcherKsm.isAllowOutOfOrderDelivery() != consumerKsm.isAllowOutOfOrderDelivery()) {
                 return Optional.of(FutureUtil.failedFuture(new BrokerServiceException.SubscriptionBusyException(
                         String.format("Subscription is of different type. %s",

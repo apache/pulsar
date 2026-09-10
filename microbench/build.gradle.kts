@@ -29,6 +29,7 @@ dependencies {
     implementation(project(":pulsar-common"))
     api(project(":pulsar-broker"))
     implementation(libs.bookkeeper.server)
+    implementation(libs.fastutil)
     api(libs.guava)
     api("org.openjdk.jmh:jmh-core:1.37")
     annotationProcessor("org.openjdk.jmh:jmh-generator-annprocess:1.37")
@@ -43,6 +44,13 @@ tasks.shadowJar {
     archiveClassifier.set("benchmarks")
     isZip64 = true
     mergeServiceFiles()
+    // See pulsar.shadow-conventions: the default EXCLUDE strategy drops duplicates of
+    // transformer-owned paths before the transformers can merge them.
+    val transformedPaths = listOf("META-INF/services/**", "META-INF/*.kotlin_module")
+    filesMatching(transformedPaths) {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    inputs.property("transformedPathsDuplicatesStrategy", "$transformedPaths=INCLUDE")
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
     manifest {
         attributes("Main-Class" to "org.openjdk.jmh.Main")
