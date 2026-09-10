@@ -534,6 +534,9 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
             if (dlqProducerFuture == null) {
                 dlqProducerFuture = client.newProducer(Schema.bytes())
                         .topic(dlqTopic)
+                        // Forwarding runs on the client's own threads, which must not block on the
+                        // memory limit: a rejected send is retried on the next redelivery instead.
+                        .blockIfQueueFull(false)
                         .createAsync();
             }
             return dlqProducerFuture;

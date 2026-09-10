@@ -19,23 +19,39 @@
 package org.apache.pulsar.client.impl.v5;
 
 import io.github.merlimat.slog.Logger;
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.EventExecutor;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
+import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.ProducerAccessMode;
+import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.api.v5.MessageBuilder;
 import org.apache.pulsar.client.api.v5.MessageId;
 import org.apache.pulsar.client.api.v5.Producer;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
+import org.apache.pulsar.client.api.v5.Transaction;
 import org.apache.pulsar.client.api.v5.async.AsyncProducer;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.EntryBucketBatcherBuilder;
+import org.apache.pulsar.client.impl.MemoryLimitController;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.TypedMessageBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 
@@ -45,6 +61,15 @@ import org.apache.pulsar.common.scalable.ScalableTopicConstants;
  * <p>Maintains a per-segment v4 ProducerImpl and routes messages by hashing
  * the message key to find the target segment. When the layout changes (split/merge),
  * segment producers are created/closed accordingly.
+ *
+ * <p>Backpressure: the client memory limit is the only bound on what a V5 producer holds, and it is
+ * applied here, on the caller's thread, before a message is queued anywhere. Each send is charged its
+ * payload plus {@link #PER_MESSAGE_OVERHEAD_BYTES} up front ({@link #admit}), blocking or failing
+ * fast per {@code blockIfQueueFull}; a send from one of the client's IO threads, which is where the
+ * send futures complete, never blocks and fails fast at the limit instead. The per-segment v4
+ * producers only account for the payload once a message reaches them and never block on the limit
+ * themselves ({@link ProducerConfigurationData#isMemoryLimitAdmittedUpstream()}), so nothing on the
+ * dispatch chain, whose links may run on an IO thread, ever waits for memory.
  */
 final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.LayoutChangeListener {
 
@@ -56,6 +81,15 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     /** Cap on the per-attempt backoff while waiting for the new layout. */
     private static final long SEND_RETRY_MAX_BACKOFF_MS = 500L;
 
+    /**
+     * Memory charged for each pending message on top of its payload, covering the per-message
+     * bookkeeping the client retains until the send completes: message metadata, the v4 send op and
+     * its callbacks, the dispatch-chain link and the futures carrying the result. An estimate, whose
+     * job is to make the client memory limit bound the number of pending messages as well as their
+     * bytes, so that a flood of small messages cannot exhaust the heap while staying under the limit.
+     */
+    static final int PER_MESSAGE_OVERHEAD_BYTES = 1024;
+
     private final Logger log;
 
     private final PulsarClientV5 client;
@@ -65,6 +99,19 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private final DagWatchClient dagWatch;
     private final SegmentRouter router;
     private final String topicName;
+    private final MemoryLimitController memoryLimit;
+
+    /**
+     * Runs the dispatch-chain heads, so that the burst of links queued while a segment producer was
+     * being created does not run on the IO thread that completes the creation.
+     */
+    private final ExecutorService dispatchExecutor;
+
+    /**
+     * The client's IO threads. They deliver the acknowledgements that free memory, so a send issued
+     * on one of them must never wait for memory (see {@link #admit}).
+     */
+    private final EventLoopGroup eventLoopGroup;
 
     /**
      * Per-segment v4 producers. Stored as futures so concurrent send-on-cold-segment
@@ -125,6 +172,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         this.router = new SegmentRouter();
         this.topicName = dagWatch.topicName().toString();
         this.log = LOG.with().attr("topic", topicName).build();
+        this.memoryLimit = client.v4Client().getMemoryLimitController();
+        this.dispatchExecutor = client.v4Client().getInternalExecutorService();
+        this.eventLoopGroup = client.v4Client().eventLoopGroup();
         this.asyncView = new AsyncProducerV5<>(this);
 
         // Register for layout changes
@@ -187,55 +237,215 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     }
 
     /**
+     * One message on its way to a segment producer, together with what the client memory limit
+     * was charged for it. The payload share is charged from admission until the message is handed
+     * to the v4 producer, which accounts for the payload from then on; the
+     * {@link #PER_MESSAGE_OVERHEAD_BYTES} share is charged until the send completes.
+     */
+    private static final class PendingSend<V> {
+        final String key;
+        final V value;
+        /** The value encoded on the caller's thread; null when the v4 producer must encode it. */
+        final EncodeData encoded;
+        final int payloadSize;
+        final Map<String, String> properties;
+        final Instant eventTime;
+        final Long sequenceId;
+        final Duration deliverAfter;
+        final Instant deliverAt;
+        final List<String> replicationClusters;
+        final Transaction txn;
+        /** The caller's future; null for a synchronous send. */
+        final CompletableFuture<MessageId> userFuture;
+        /** Whether this layer currently holds the payload share of the reservation. */
+        final AtomicBoolean payloadHeld = new AtomicBoolean(true);
+
+        PendingSend(String key, V value, EncodeData encoded, int payloadSize,
+                    Map<String, String> properties, Instant eventTime, Long sequenceId,
+                    Duration deliverAfter, Instant deliverAt, List<String> replicationClusters,
+                    Transaction txn, CompletableFuture<MessageId> userFuture) {
+            this.key = key;
+            this.value = value;
+            this.encoded = encoded;
+            this.payloadSize = payloadSize;
+            this.properties = properties;
+            this.eventTime = eventTime;
+            this.sequenceId = sequenceId;
+            this.deliverAfter = deliverAfter;
+            this.deliverAt = deliverAt;
+            this.replicationClusters = replicationClusters;
+            this.txn = txn;
+            this.userFuture = userFuture;
+        }
+    }
+
+    /**
+     * Encode the value on the caller's thread, so that the memory limit can be charged the exact
+     * payload size before the message is queued, and the schema's CPU work stays off the dispatch
+     * thread. Left to the v4 producer for the schemas that cannot encode ahead of it: an
+     * {@code AUTO_PRODUCE_BYTES} schema only learns the topic schema once the producer is connected,
+     * and a key/value schema splits the value between the key and the payload. Their payload is
+     * charged by the byte length when it is known.
+     */
+    private PendingSend<T> newPendingSend(String key, T value, Map<String, String> properties,
+                                          Instant eventTime, Long sequenceId, Duration deliverAfter,
+                                          Instant deliverAt, List<String> replicationClusters,
+                                          Transaction txn, CompletableFuture<MessageId> userFuture) {
+        EncodeData encoded = null;
+        int payloadSize = 0;
+        if (value != null) {
+            if (v4Schema instanceof AutoProduceBytesSchema || v4Schema instanceof KeyValueSchema) {
+                payloadSize = value instanceof byte[] bytes ? bytes.length : 0;
+            } else {
+                encoded = new EncodeData(v4Schema.encode(value));
+                payloadSize = encoded.data().length;
+            }
+        }
+        return new PendingSend<>(key, value, encoded, payloadSize, properties, eventTime, sequenceId,
+                deliverAfter, deliverAt, replicationClusters, txn, userFuture);
+    }
+
+    /**
+     * Charge the client memory limit for a send, on the caller's thread and before the message is
+     * queued anywhere: this is the producer's backpressure. Blocks until there is room, or fails
+     * right away with {@link PulsarClientException.MemoryBufferIsFullException} when
+     * {@code blockIfQueueFull} is off.
+     *
+     * <p>Never parks one of the client's IO threads, whatever the setting: they deliver the
+     * acknowledgements that free the memory, so a wait there could last forever. The user-visible
+     * futures complete on the IO thread that received the broker's response, which is where a send
+     * chained on a send lands; at the limit it fails fast instead. That check only runs once a
+     * reservation has failed, so the usual path is a single reservation.
+     */
+    private void admit(PendingSend<T> send) throws PulsarClientException {
+        long bytes = (long) send.payloadSize + PER_MESSAGE_OVERHEAD_BYTES;
+        if (memoryLimit.tryReserveMemory(bytes)) {
+            return;
+        }
+        if (!producerConf.isBlockIfQueueFull()) {
+            throw new PulsarClientException.MemoryBufferIsFullException("Client memory buffer is full");
+        }
+        if (isEventLoopThread()) {
+            throw new PulsarClientException.MemoryBufferIsFullException(
+                    "Client memory buffer is full, and a send from a Pulsar IO thread cannot wait for it");
+        }
+        try {
+            memoryLimit.reserveMemory(bytes);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException("Interrupted while waiting for client memory", e);
+        }
+    }
+
+    private boolean isEventLoopThread() {
+        for (EventExecutor eventLoop : eventLoopGroup) {
+            if (eventLoop.inEventLoop()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** The v4 producer accounts for the payload from now on: drop this layer's share of it. */
+    private void releasePayloadShare(PendingSend<T> send) {
+        if (send.payloadHeld.compareAndSet(true, false)) {
+            memoryLimit.releaseMemory(send.payloadSize);
+        }
+    }
+
+    /**
+     * Charge the payload again for a message this layer keeps for another attempt, after the v4
+     * producer gave it back. Without blocking: the message was admitted once already.
+     */
+    private void reholdPayloadShare(PendingSend<T> send) {
+        if (send.payloadHeld.compareAndSet(false, true)) {
+            memoryLimit.forceReserveMemory(send.payloadSize);
+        }
+    }
+
+    /** The send is over, one way or the other: release whatever this layer still holds for it. */
+    private void releaseAll(PendingSend<T> send) {
+        releasePayloadShare(send);
+        memoryLimit.releaseMemory(PER_MESSAGE_OVERHEAD_BYTES);
+    }
+
+    /**
      * Send a message synchronously with routing. Called by MessageBuilderV5.
      * Returns a MessageIdV5 that includes the segment ID for ack routing.
      */
     MessageIdV5 sendInternal(
-            String key, T value, java.util.Map<String, String> properties,
-            java.time.Instant eventTime, Long sequenceId,
-            java.time.Duration deliverAfter, java.time.Instant deliverAt,
-            java.util.List<String> replicationClusters,
-            org.apache.pulsar.client.api.v5.Transaction txn) throws PulsarClientException {
+            String key, T value, Map<String, String> properties,
+            Instant eventTime, Long sequenceId,
+            Duration deliverAfter, Instant deliverAt,
+            List<String> replicationClusters,
+            Transaction txn) throws PulsarClientException {
 
-        PulsarClientException lastError = null;
-        for (int attempt = 0; attempt < SEND_RETRY_MAX_ATTEMPTS; attempt++) {
-            long segmentId = routeMessage(key);
-            try {
-                var producer = getOrCreateSegmentProducer(segmentId);
-                var v4MsgId = buildV4Message(producer, key, value, properties,
-                        eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, txn)
-                        .send();
-                return new MessageIdV5(v4MsgId, segmentId);
-            } catch (PulsarClientException e) {
-                // Thrown while (re)creating the per-segment producer — already a V5 exception
-                // (it may wrap a v4 TopicTerminated/AlreadyClosed cause).
-                if (!isSegmentGoneError(e)) {
-                    throw e;
+        PendingSend<T> send = newPendingSend(key, value, properties, eventTime, sequenceId,
+                deliverAfter, deliverAt, replicationClusters, txn, null);
+        admit(send);
+        try {
+            PulsarClientException lastError = null;
+            for (int attempt = 0; attempt < SEND_RETRY_MAX_ATTEMPTS; attempt++) {
+                long segmentId = routeMessage(key);
+                try {
+                    var producer = getOrCreateSegmentProducer(segmentId);
+                    var v4MsgId = sendV4(producer, send);
+                    return new MessageIdV5(v4MsgId, segmentId);
+                } catch (PulsarClientException e) {
+                    // Thrown while (re)creating the per-segment producer — already a V5 exception
+                    // (it may wrap a v4 TopicTerminated/AlreadyClosed cause).
+                    if (!isSegmentGoneError(e)) {
+                        throw e;
+                    }
+                    lastError = e;
+                } catch (org.apache.pulsar.client.api.PulsarClientException e) {
+                    // Thrown by the v4 producer's send().
+                    if (!isSegmentGoneError(e)) {
+                        throw new PulsarClientException(e.getMessage(), e);
+                    }
+                    lastError = new PulsarClientException(e.getMessage(), e);
                 }
-                lastError = e;
-            } catch (org.apache.pulsar.client.api.PulsarClientException e) {
-                // Thrown by the v4 producer's send().
-                if (!isSegmentGoneError(e)) {
-                    throw new PulsarClientException(e.getMessage(), e);
+                // The target segment is gone: sealed by a split/merge, or terminated by a
+                // regular-to-scalable migration. Drop the stale per-segment producer and wait
+                // for the DAG watch to deliver the new layout; routeMessage on the next attempt
+                // lands on an active child.
+                log.info().attr("segmentId", segmentId).attr("attempt", attempt + 1)
+                        .log("Target segment gone, waiting for layout update");
+                segmentProducers.remove(segmentId);
+                // The message stays with this layer while it waits for the new layout.
+                reholdPayloadShare(send);
+                try {
+                    Thread.sleep(Math.min(100L * (attempt + 1), SEND_RETRY_MAX_BACKOFF_MS));
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw new PulsarClientException("Interrupted while waiting for layout update", ie);
                 }
-                lastError = new PulsarClientException(e.getMessage(), e);
             }
-            // The target segment is gone: sealed by a split/merge, or terminated by a
-            // regular-to-scalable migration. Drop the stale per-segment producer and wait
-            // for the DAG watch to deliver the new layout; routeMessage on the next attempt
-            // lands on an active child.
-            log.info().attr("segmentId", segmentId).attr("attempt", attempt + 1)
-                    .log("Target segment gone, waiting for layout update");
-            segmentProducers.remove(segmentId);
-            try {
-                Thread.sleep(Math.min(100L * (attempt + 1), SEND_RETRY_MAX_BACKOFF_MS));
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                throw new PulsarClientException("Interrupted while waiting for layout update", ie);
-            }
+            throw lastError != null ? lastError
+                    : new PulsarClientException("Failed to send after segment termination retries");
+        } finally {
+            releaseAll(send);
         }
-        throw lastError != null ? lastError
-                : new PulsarClientException("Failed to send after segment termination retries");
+    }
+
+    /**
+     * The v4 {@code send()} with the payload accounting handed over in between its steps: enqueue,
+     * drop this layer's share of the payload, flush so that a batched message does not wait out the
+     * batching delay, then wait for the acknowledgement.
+     */
+    private org.apache.pulsar.client.api.MessageId sendV4(org.apache.pulsar.client.api.Producer<T> producer,
+                                                          PendingSend<T> send)
+            throws org.apache.pulsar.client.api.PulsarClientException {
+        try {
+            var ackFuture = buildV4Message(producer, send).sendAsync();
+            if (!ackFuture.isDone()) {
+                releasePayloadShare(send);
+                producer.flushAsync();
+            }
+            return ackFuture.get();
+        } catch (Exception e) {
+            throw org.apache.pulsar.client.api.PulsarClientException.unwrap(e);
+        }
     }
 
     /**
@@ -270,38 +480,46 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * Send a message asynchronously with routing. Called by AsyncMessageBuilderV5.
      * Returns a future of MessageIdV5 that includes the segment ID.
      *
+     * <p>The message is admitted against the client memory limit here, on the caller's thread
+     * (see {@link #admit}), before it is queued on the dispatch chain.
+     *
      * <p>The returned future is handed to the caller as-is — no identity {@code thenApply}
      * stage in between — so that {@link #flushAsync()} awaits exactly the futures the caller
      * observes. See {@link #inFlightSends}.
      */
     CompletableFuture<MessageId> sendInternalAsync(
-            String key, T value, java.util.Map<String, String> properties,
-            java.time.Instant eventTime, Long sequenceId,
-            java.time.Duration deliverAfter, java.time.Instant deliverAt,
-            java.util.List<String> replicationClusters,
-            org.apache.pulsar.client.api.v5.Transaction txn) {
+            String key, T value, Map<String, String> properties,
+            Instant eventTime, Long sequenceId,
+            Duration deliverAfter, Instant deliverAt,
+            List<String> replicationClusters,
+            Transaction txn) {
 
         CompletableFuture<MessageId> userFuture = new CompletableFuture<>();
+        PendingSend<T> send;
+        try {
+            send = newPendingSend(key, value, properties, eventTime, sequenceId,
+                    deliverAfter, deliverAt, replicationClusters, txn, userFuture);
+            admit(send);
+        } catch (Exception e) {
+            // Nothing was charged or queued: fail right here, on the caller's thread.
+            userFuture.completeExceptionally(e);
+            return userFuture;
+        }
         inFlightSends.add(userFuture);
-        userFuture.whenComplete((__, ___) -> inFlightSends.remove(userFuture));
-        dispatchSendAttempt(userFuture, key, value, properties, eventTime, sequenceId,
-                deliverAfter, deliverAt, replicationClusters, txn, 0);
+        userFuture.whenComplete((__, ___) -> {
+            inFlightSends.remove(userFuture);
+            releaseAll(send);
+        });
+        dispatchSendAttempt(send, 0);
         return userFuture;
     }
 
-    private void dispatchSendAttempt(
-            CompletableFuture<MessageId> userFuture,
-            String key, T value, java.util.Map<String, String> properties,
-            java.time.Instant eventTime, Long sequenceId,
-            java.time.Duration deliverAfter, java.time.Instant deliverAt,
-            java.util.List<String> replicationClusters,
-            org.apache.pulsar.client.api.v5.Transaction txn, int attempt) {
-
+    private void dispatchSendAttempt(PendingSend<T> send, int attempt) {
         long segmentId;
         try {
-            segmentId = routeMessage(key);
+            segmentId = routeMessage(send.key);
         } catch (Exception e) {
-            userFuture.completeExceptionally(e);
+            send.userFuture.completeExceptionally(e);
             return;
         }
         final long routedSegmentId = segmentId;
@@ -313,31 +531,41 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         Runnable retry = () -> {
             segmentProducers.remove(routedSegmentId);
             dispatchChains.remove(routedSegmentId);
+            // The message stays with this layer while it waits for the new layout.
+            reholdPayloadShare(send);
             CompletableFuture.delayedExecutor(
                             Math.min(100L * (attempt + 1), SEND_RETRY_MAX_BACKOFF_MS),
-                            java.util.concurrent.TimeUnit.MILLISECONDS)
-                    .execute(() -> dispatchSendAttempt(userFuture, key, value, properties,
-                            eventTime, sequenceId, deliverAfter, deliverAt,
-                            replicationClusters, txn, attempt + 1));
+                            TimeUnit.MILLISECONDS)
+                    .execute(() -> dispatchSendAttempt(send, attempt + 1));
         };
 
         appendToDispatchChain(routedSegmentId,
                 producer -> {
-                    var ackFuture = buildV4Message(producer, key, value, properties,
-                            eventTime, sequenceId, deliverAfter, deliverAt, replicationClusters, txn)
-                            .sendAsync();
+                    CompletableFuture<org.apache.pulsar.client.api.MessageId> ackFuture;
+                    try {
+                        ackFuture = buildV4Message(producer, send).sendAsync();
+                    } catch (Exception e) {
+                        // Only this send fails; the chain stays healthy for the sends behind it.
+                        send.userFuture.completeExceptionally(e);
+                        return;
+                    }
+                    if (!ackFuture.isDone()) {
+                        // Handed over: the v4 producer accounts for the payload from here on. A send
+                        // that already failed inside sendAsync keeps its share until its result is in.
+                        releasePayloadShare(send);
+                    }
                     ackFuture.whenComplete((v4MsgId, ex) -> {
                         if (ex == null) {
-                            userFuture.complete(new MessageIdV5(v4MsgId, routedSegmentId));
+                            send.userFuture.complete(new MessageIdV5(v4MsgId, routedSegmentId));
                         } else {
                             // Failure from the v4 send (e.g. the segment sealed mid-flight).
-                            handleAsyncSegmentFailure(userFuture, routedSegmentId, attempt, ex, retry);
+                            handleAsyncSegmentFailure(send, routedSegmentId, attempt, ex, retry);
                         }
                     });
                 },
                 // Failure while (re)creating the per-segment producer — e.g. the partition was
                 // terminated by a migration between routing and creation.
-                createEx -> handleAsyncSegmentFailure(userFuture, routedSegmentId, attempt, createEx, retry));
+                createEx -> handleAsyncSegmentFailure(send, routedSegmentId, attempt, createEx, retry));
     }
 
     /**
@@ -346,15 +574,15 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * run {@code retry}; otherwise fail the user-visible future. Covers both the v4 send
      * failure and the per-segment producer-creation failure.
      */
-    private void handleAsyncSegmentFailure(CompletableFuture<MessageId> userFuture, long segmentId,
+    private void handleAsyncSegmentFailure(PendingSend<T> send, long segmentId,
                                            int attempt, Throwable ex, Runnable retry) {
-        Throwable cause = ex instanceof java.util.concurrent.CompletionException ? ex.getCause() : ex;
+        Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
         if (isSegmentGoneError(cause) && attempt < SEND_RETRY_MAX_ATTEMPTS) {
             log.info().attr("segmentId", segmentId).attr("attempt", attempt + 1)
                     .log("Target segment gone, retrying async send after layout update");
             retry.run();
         } else {
-            userFuture.completeExceptionally(ex);
+            send.userFuture.completeExceptionally(ex);
         }
     }
 
@@ -371,8 +599,11 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                                        Consumer<org.apache.pulsar.client.api.Producer<T>> dispatchOp,
                                        Consumer<Throwable> onCreateFailure) {
         synchronized (dispatchLock) {
+            // The head completes on the IO thread that finishes creating the segment producer, and
+            // every link queued behind it would run there in one burst: hop off it first.
             var prev = dispatchChains.computeIfAbsent(segmentId,
-                    id -> getOrCreateSegmentProducerAsync(id));
+                    id -> getOrCreateSegmentProducerAsync(id)
+                            .thenApplyAsync(Function.identity(), dispatchExecutor));
             var next = prev.thenApply(producer -> {
                 dispatchOp.accept(producer);
                 return producer;
@@ -387,37 +618,36 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     }
 
     private org.apache.pulsar.client.api.TypedMessageBuilder<T> buildV4Message(
-            org.apache.pulsar.client.api.Producer<T> producer,
-            String key, T value, java.util.Map<String, String> properties,
-            java.time.Instant eventTime, Long sequenceId,
-            java.time.Duration deliverAfter, java.time.Instant deliverAt,
-            java.util.List<String> replicationClusters,
-            org.apache.pulsar.client.api.v5.Transaction txn) {
+            org.apache.pulsar.client.api.Producer<T> producer, PendingSend<T> send) {
 
-        org.apache.pulsar.client.api.transaction.Transaction v4Txn = TransactionV5.unwrap(txn);
-        var msgBuilder = (v4Txn != null ? producer.newMessage(v4Txn) : producer.newMessage())
-                .value(value);
+        org.apache.pulsar.client.api.transaction.Transaction v4Txn = TransactionV5.unwrap(send.txn);
+        var msgBuilder = v4Txn != null ? producer.newMessage(v4Txn) : producer.newMessage();
+        if (send.encoded != null) {
+            ((TypedMessageBuilderImpl<T>) msgBuilder).encodedValue(send.encoded);
+        } else {
+            msgBuilder.value(send.value);
+        }
 
-        if (key != null) {
-            msgBuilder.key(key);
+        if (send.key != null) {
+            msgBuilder.key(send.key);
         }
-        if (properties != null && !properties.isEmpty()) {
-            msgBuilder.properties(properties);
+        if (send.properties != null && !send.properties.isEmpty()) {
+            msgBuilder.properties(send.properties);
         }
-        if (eventTime != null) {
-            msgBuilder.eventTime(eventTime.toEpochMilli());
+        if (send.eventTime != null) {
+            msgBuilder.eventTime(send.eventTime.toEpochMilli());
         }
-        if (sequenceId != null) {
-            msgBuilder.sequenceId(sequenceId);
+        if (send.sequenceId != null) {
+            msgBuilder.sequenceId(send.sequenceId);
         }
-        if (deliverAfter != null) {
-            msgBuilder.deliverAfter(deliverAfter.toMillis(), java.util.concurrent.TimeUnit.MILLISECONDS);
+        if (send.deliverAfter != null) {
+            msgBuilder.deliverAfter(send.deliverAfter.toMillis(), TimeUnit.MILLISECONDS);
         }
-        if (deliverAt != null) {
-            msgBuilder.deliverAt(deliverAt.toEpochMilli());
+        if (send.deliverAt != null) {
+            msgBuilder.deliverAt(send.deliverAt.toEpochMilli());
         }
-        if (replicationClusters != null) {
-            msgBuilder.replicationClusters(replicationClusters);
+        if (send.replicationClusters != null) {
+            msgBuilder.replicationClusters(send.replicationClusters);
         }
 
         return msgBuilder;
@@ -527,7 +757,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                 try {
                     getOrCreateSegmentProducer(seg.segmentId());
                 } catch (PulsarClientException e) {
-                    throw new java.util.concurrent.CompletionException(e);
+                    throw new CompletionException(e);
                 }
             }
         }, client.v4Client().getInternalExecutorService());
@@ -584,6 +814,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             // fields explicitly carried over.
             var segConf = producerConf.clone();
             segConf.setTopicName(segment.attachTopicName());
+            // Sends are admitted against the client memory limit before they reach the segment
+            // producer (see admit): it must only account for their bytes, never block on them.
+            segConf.setMemoryLimitAdmittedUpstream(true);
             // Only legacy segments wrap a persistent:// topic that the regular-to-scalable
             // migration pre-check (PIP-475) inspects, so mark just those connections as
             // V5-managed — connections to real segment:// topics are never examined.

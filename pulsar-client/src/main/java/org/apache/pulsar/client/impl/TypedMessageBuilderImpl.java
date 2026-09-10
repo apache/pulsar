@@ -56,6 +56,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     private transient ByteBuffer content;
     private final transient TransactionImpl txn;
     private transient T value;
+    private transient EncodeData encodedValue;
 
     public TypedMessageBuilderImpl(ProducerBase<?> producer, Schema<T> schema) {
         this(producer, schema, null);
@@ -71,7 +72,12 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     }
 
     private long beforeSend() {
-        if (value == null) {
+        if (encodedValue != null) {
+            content = ByteBuffer.wrap(encodedValue.data());
+            if (encodedValue.hasSchemaId()) {
+                msgMetadata.setSchemaId(SchemaIdUtil.addMagicHeader(encodedValue.schemaId(), false));
+            }
+        } else if (value == null) {
             msgMetadata.setNullValue(true);
         } else {
             AtomicBoolean isKeyValueSchema = new AtomicBoolean(false);
@@ -169,6 +175,19 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     @Override
     public TypedMessageBuilder<T> value(T value) {
         this.value = value;
+        return this;
+    }
+
+    /**
+     * Supply the value already encoded with this builder's schema, so that the message uses it as its
+     * payload instead of encoding the value itself. Lets a caller encode on its own thread ahead of the
+     * send: the V5 client encodes before a message enters its per-segment dispatch chain, so that it can
+     * charge the client memory limit the exact payload size up front. Not for key/value schemas, whose
+     * key half is carried separately from the payload.
+     */
+    public TypedMessageBuilderImpl<T> encodedValue(EncodeData encodedValue) {
+        checkArgument(getKeyValueSchema().isEmpty(), "encodedValue is not supported for key/value schemas");
+        this.encodedValue = encodedValue;
         return this;
     }
 
