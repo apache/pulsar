@@ -73,19 +73,22 @@ class RangeCache {
             if (!value.matchesPosition(key)) {
                 throw new IllegalArgumentException("Value '" + value + "' does not match key '" + key + "'");
             }
-            boolean added = RangeCacheEntryWrapper.withNewInstance(this, key, value, entryLength, newWrapper -> {
-                if (entries.putIfAbsent(key, newWrapper) == null && removalQueue.addEntry(newWrapper)) {
-                    this.size.addAndGet(entryLength);
-                    return true;
-                } else {
-                    // recycle the new wrapper as it was not used
-                    newWrapper.recycle();
-                    return false;
-                }
-            });
-            return added;
+            return RangeCacheEntryWrapper.withNewInstance(this, key, value, entryLength, RangeCache::addEntry);
         } finally {
             value.release();
+        }
+    }
+
+    private static boolean addEntry(RangeCacheEntryWrapper newWrapper) {
+        // withNewInstance holds the wrapper's write lock while these initialized fields are used.
+        RangeCache cache = newWrapper.rangeCache;
+        if (cache.entries.putIfAbsent(newWrapper.key, newWrapper) == null && cache.removalQueue.addEntry(newWrapper)) {
+            cache.size.addAndGet(newWrapper.size);
+            return true;
+        } else {
+            // recycle the new wrapper as it was not used
+            newWrapper.recycle();
+            return false;
         }
     }
 
