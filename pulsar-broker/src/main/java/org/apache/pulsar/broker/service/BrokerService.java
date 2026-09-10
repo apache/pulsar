@@ -4176,6 +4176,11 @@ public class BrokerService implements Closeable {
         return topicOrderedExecutor.chooseThread(baseTopicName);
     }
 
+    @VisibleForTesting
+    long getTotalUnackedMessages() {
+        return totalUnackedMessages.sum();
+    }
+
     /**
      * If per-broker unacked message reached to limit then it blocks dispatcher if its unacked message limit has been
      * reached to {@link #maxUnackedMsgsPerDispatcher}.
