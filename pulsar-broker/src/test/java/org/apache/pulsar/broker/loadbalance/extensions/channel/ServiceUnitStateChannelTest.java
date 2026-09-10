@@ -42,6 +42,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
@@ -2226,6 +2227,129 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testCleanupDrainsAssignmentsAndRejectsNewOnes() throws Exception {
+        var channel = (ServiceUnitStateChannelImpl) channel1;
+        var tableView = channel.getTableView();
+        var delayedTableView = spy(tableView);
+        String serviceUnit = namespaceName + "/0x00000000_0xffffffff";
+        String lateServiceUnit = namespaceName2 + "/0x00000000_0xffffffff";
+        var pendingAssignment = new CompletableFuture<ServiceUnitStateData>();
+        var published = new CompletableFuture<Void>();
+        var disabled = new CompletableFuture<Void>();
+        doReturn(CompletableFuture.completedFuture(Optional.empty()))
+                .when(loadManager).selectAsync(any(), any(), any());
+        doAnswer(invocation -> {
+            ServiceUnitStateData data = invocation.getArgument(1);
+            if (data.state() == Assigning && !data.force()) {
+                pendingAssignment.complete(data);
+                return published;
+            }
+            return tableView.put(serviceUnit, data);
+        }).when(delayedTableView).put(eq(serviceUnit), any(ServiceUnitStateData.class));
+        doAnswer(invocation -> {
+            invocation.callRealMethod();
+            disabled.complete(null);
+            return null;
+        }).when(channel).disable();
+        channel.setTableView(delayedTableView);
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Void> cleanup = null;
+        try {
+            channel.publishAssignEventAsync(serviceUnit, brokerId1);
+            var assignment = pendingAssignment.get(10, TimeUnit.SECONDS);
+            cleanup = CompletableFuture.runAsync(channel::cleanOwnerships, executor);
+            disabled.get(10, TimeUnit.SECONDS);
+            assertFalse(cleanup.isDone(), "Cleanup must wait for the accepted assignment write");
+            var rejected = expectThrows(ExecutionException.class,
+                    () -> channel.publishAssignEventAsync(lateServiceUnit, brokerId1).get(10, TimeUnit.SECONDS));
+            assertTrue(rejected.getCause() instanceof IllegalStateException);
+            assertNull(tableView.get(lateServiceUnit));
+            tableView.put(serviceUnit, assignment).get(10, TimeUnit.SECONDS);
+            published.complete(null);
+            cleanup.get(10, TimeUnit.SECONDS);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                var remaining = tableView.get(serviceUnit);
+                assertTrue(remaining == null || remaining.state() == Free,
+                        "An accepted assignment must be included in cleanup: " + remaining);
+            });
+        } finally {
+            published.complete(null);
+            if (cleanup != null) {
+                cleanup.get(10, TimeUnit.SECONDS);
+            }
+            doCallRealMethod().when(channel).disable();
+            channel.setTableView(tableView);
+            channel.enable();
+            tableView.delete(serviceUnit).get(10, TimeUnit.SECONDS);
+            tableView.delete(lateServiceUnit).get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    @DataProvider
+    public Object[][] cleanupDestination() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(dataProvider = "cleanupDestination")
+    public void testCleanupRetriesConcurrentAssignment(boolean hasDestinationBroker) throws Exception {
+        var channel = (ServiceUnitStateChannelImpl) channel1;
+        var tableView = channel.getTableView();
+        var delayedTableView = spy(tableView);
+        String serviceUnit = namespaceName + "/0x00000000_0xffffffff";
+        var pendingOwned = new CompletableFuture<ServiceUnitStateData>();
+        var ownedPublished = new CompletableFuture<Void>();
+        var conflictingOverride = new CompletableFuture<ServiceUnitStateData>();
+        doReturn(CompletableFuture.completedFuture(
+                hasDestinationBroker ? Optional.of(brokerId2) : Optional.empty()))
+                .when(loadManager).selectAsync(any(), any(), any());
+        doAnswer(invocation -> {
+            ServiceUnitStateData data = invocation.getArgument(1);
+            if (data.state() == Owned && !data.force()) {
+                pendingOwned.complete(data);
+                return ownedPublished;
+            }
+            var owned = pendingOwned.getNow(null);
+            if (data.force() && owned != null && data.versionId() == owned.versionId()) {
+                // Publish the delayed Owned update before the cleanup's same-version override. Both writes
+                // succeed, but the real conflict resolver discards the stale cleanup update.
+                return tableView.put(serviceUnit, owned).thenCompose(__ -> {
+                    ownedPublished.complete(null);
+                    conflictingOverride.complete(data);
+                    return tableView.put(serviceUnit, data);
+                });
+            }
+            return tableView.put(serviceUnit, data);
+        }).when(delayedTableView).put(eq(serviceUnit), any(ServiceUnitStateData.class));
+        channel.setTableView(delayedTableView);
+        try {
+            var assignment = channel.publishAssignEventAsync(serviceUnit, brokerId1);
+            var owned = pendingOwned.get(10, TimeUnit.SECONDS);
+            assertEquals(2L, owned.versionId());
+            channel.cleanOwnerships();
+            assertEquals(owned.versionId(), conflictingOverride.get(10, TimeUnit.SECONDS).versionId());
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+                var remaining = tableView.get(serviceUnit);
+                if (hasDestinationBroker) {
+                    assertNotNull(remaining);
+                    assertEquals(Owned, remaining.state());
+                    assertEquals(brokerId2, remaining.dstBroker());
+                } else {
+                    assertTrue(remaining == null || remaining.state() == Free,
+                            "Cleanup must not leave the concurrently assigned bundle owned by the stopped broker: "
+                                    + remaining);
+                }
+            });
+            assertTrue(assignment.isDone());
+        } finally {
+            ownedPublished.complete(null);
+            channel.setTableView(tableView);
+            channel.enable();
+            tableView.delete(serviceUnit).get(10, TimeUnit.SECONDS);
+        }
+    }
+
     private static ConcurrentHashMap<String, CompletableFuture<String>> getOwnerRequests(
             ServiceUnitStateChannel channel) throws IllegalAccessException {
         return (ConcurrentHashMap<String, CompletableFuture<String>>)
@@ -2298,14 +2422,13 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     private static ServiceUnitStateTableView getTableView(ServiceUnitStateChannel channel)
             throws IllegalAccessException {
-        return (ServiceUnitStateTableView)
-                FieldUtils.readField(channel, "tableview", true);
+        return ((ServiceUnitStateChannelImpl) channel).getTableView();
     }
 
     private static void setTableView(ServiceUnitStateChannel channel,
                                      ServiceUnitStateTableView tableView)
             throws IllegalAccessException {
-        FieldUtils.writeField(channel, "tableview", tableView, true);
+        ((ServiceUnitStateChannelImpl) channel).setTableView(tableView);
     }
 
     private static void waitUntilState(ServiceUnitStateChannel channel, String key)
