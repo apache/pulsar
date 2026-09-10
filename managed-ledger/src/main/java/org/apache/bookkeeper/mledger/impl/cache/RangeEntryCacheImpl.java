@@ -26,13 +26,12 @@ import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 import org.apache.bookkeeper.client.api.BKException;
@@ -398,39 +397,29 @@ public class RangeEntryCacheImpl implements EntryCache {
     void doAsyncReadEntriesByPosition(ReadHandle lh, Position firstPosition, Position lastPosition, int numberOfEntries,
                                       IntSupplier expectedReadCount, final ReadEntriesCallback callback,
                                       Object ctx) {
-        Collection<ReferenceCountedEntry> cachedEntries;
+        CachedEntries cachedEntries = new CachedEntries(firstPosition.getEntryId(), numberOfEntries);
         if (firstPosition.compareTo(lastPosition) == 0) {
             ReferenceCountedEntry cachedEntry = entries.get(firstPosition);
-            if (cachedEntry == null) {
-                cachedEntries = Collections.emptyList();
-            } else {
-                cachedEntries = Collections.singleton(cachedEntry);
+            if (cachedEntry != null) {
+                try {
+                    cachedEntries.accept(cachedEntry);
+                } finally {
+                    cachedEntry.release();
+                }
             }
         } else {
-            cachedEntries = entries.getRange(firstPosition, lastPosition);
+            entries.forEachInRange(firstPosition, lastPosition, cachedEntries);
         }
 
-        if (cachedEntries.size() > 0) {
-            long totalCachedSize = 0;
-            final List<Entry> entriesToReturn = new ArrayList<>(numberOfEntries);
-            for (int i = 0; i < numberOfEntries; i++) {
-                entriesToReturn.add(null); // Initialize with nulls
-            }
-
-            for (Entry entry : cachedEntries) {
-                int index = (int) (entry.getPosition().getEntryId() - firstPosition.getEntryId());
-                entriesToReturn.set(index, EntryImpl.create(entry));
-                totalCachedSize += entry.getLength();
-                entry.release();
-            }
-
-            manager.getMlFactoryMBean().recordCacheHits(cachedEntries.size(), totalCachedSize);
+        if (cachedEntries.count > 0) {
+            final List<Entry> entriesToReturn = cachedEntries.entries;
+            manager.getMlFactoryMBean().recordCacheHits(cachedEntries.count, cachedEntries.totalSize);
             log.debug().attr("numberOfEntries", numberOfEntries)
                     .attr("firstPosition", firstPosition)
                     .attr("lastPosition", lastPosition)
                     .log("Cache hit for entries");
 
-            if (cachedEntries.size() == numberOfEntries) {
+            if (cachedEntries.count == numberOfEntries) {
                 callback.readEntriesComplete(entriesToReturn, ctx);
             } else {
                 // read missing ranges
@@ -505,6 +494,34 @@ public class RangeEntryCacheImpl implements EntryCache {
             // Read all the entries from bookkeeper
             pendingReadsManager.readEntries(lh, firstPosition.getEntryId(), lastPosition.getEntryId(),
                     expectedReadCount, callback, ctx);
+        }
+    }
+
+    /** Builds the final sparse result directly, allocating its list only after the first cache hit. */
+    static final class CachedEntries implements Consumer<ReferenceCountedEntry> {
+        private final long firstEntryId;
+        private final int numberOfEntries;
+        List<Entry> entries;
+        private int count;
+        private long totalSize;
+
+        CachedEntries(long firstEntryId, int numberOfEntries) {
+            this.firstEntryId = firstEntryId;
+            this.numberOfEntries = numberOfEntries;
+        }
+
+        @Override
+        public void accept(ReferenceCountedEntry entry) {
+            if (entries == null) {
+                entries = new ArrayList<>(numberOfEntries);
+                for (int i = 0; i < numberOfEntries; i++) {
+                    entries.add(null);
+                }
+            }
+            int index = (int) (entry.getPosition().getEntryId() - firstEntryId);
+            entries.set(index, EntryImpl.create(entry));
+            count++;
+            totalSize += entry.getLength();
         }
     }
 

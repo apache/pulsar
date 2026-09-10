@@ -39,7 +39,9 @@ import io.netty.util.concurrent.GenericFutureListener;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -237,6 +239,33 @@ public class AcknowledgementsGroupingTrackerTest {
         // Since we were connected, the ack went out immediately
         assertFalse(tracker.isDuplicate(msg2));
         tracker.close();
+    }
+
+    @Test
+    public void testIndividualAckPropertiesAreCheckedAfterInterceptor() {
+        ConsumerImpl<?> disconnectedConsumer = mock(ConsumerImpl.class);
+        doReturn(new ConsumerStatsRecorderImpl()).when(disconnectedConsumer).getStats();
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(disconnectedConsumer).getUnAckedMessageTracker();
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(disconnectedConsumer, conf, eventLoopGroup);
+        MessageIdImpl messageId = new MessageIdImpl(5, 1, 0);
+        Map<String, Long> properties = new HashMap<>();
+        doAnswer(invocation -> {
+            properties.put("interceptor-property", 1L);
+            return null;
+        }).when(disconnectedConsumer).onAcknowledge(messageId, null);
+        try {
+            // Adding properties in the interceptor must force the immediate path. With no connection it fails,
+            // whereas incorrectly checking the initially empty map would queue a successful grouped ACK.
+            CompletableFuture<Void> result = tracker.addAcknowledgment(messageId, AckType.Individual, properties);
+            assertTrue(result.isCompletedExceptionally());
+            assertEquals(tracker.getPendingIndividualAcksSize(), 0);
+        } finally {
+            tracker.close();
+        }
     }
 
     @Test(dataProvider = "isNeedReceipt")
