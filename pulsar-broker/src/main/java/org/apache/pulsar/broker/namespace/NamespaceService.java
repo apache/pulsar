@@ -25,6 +25,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.api.PulsarClientException.FailedFeatureCheck.SupportsGetPartitionedMetadataWithoutAutoCreation;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.Hashing;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -32,6 +33,7 @@ import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.prometheus.client.Counter;
 import java.net.URI;
 import java.net.URL;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -134,7 +136,10 @@ public class NamespaceService implements AutoCloseable {
     private final ServiceConfiguration config;
     private final AtomicReference<LoadManager> loadManager;
     private final PulsarService pulsar;
-    private final OwnershipCache ownershipCache;
+    // Not final so that tests in this package can install a spy through setOwnershipCache(); volatile keeps
+    // the safe-publication guarantee that the final field used to provide, since this is read from the
+    // lookup path on many threads.
+    private volatile OwnershipCache ownershipCache;
     private final MetadataCache<LocalBrokerData> localBrokerDataCache;
     private final NamespaceBundleFactory bundleFactory;
     private final String host;
@@ -1087,12 +1092,42 @@ public class NamespaceService implements AutoCloseable {
                 // success updateNamespaceBundles
                 // disable old bundle in memory
                 getOwnershipCache().updateBundleState(bundle, false)
-                        .thenRun(() -> {
+                        .thenCompose(__ -> {
                             // update bundled_topic cache for load-report-generation
                             pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
                             loadManager.get().setLoadReportForceUpdateFlag();
-                            // release old bundle from ownership cache
-                            pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
+                            // Release old bundle from ownership cache. Compose on the returned future instead of
+                            // discarding it, so a delayed or failed release is observed here rather than letting
+                            // completionFuture complete while the release may still be in flight; a release
+                            // failure is logged and does not fail the split, which has already succeeded.
+                            // The wait is bounded: the release is queued behind any in-flight acquire of the same
+                            // bundle, and an acquire stuck on an unreachable metadata store has no timeout of its
+                            // own, so an unbounded wait here could hold the split's completion hostage. On timeout
+                            // the release keeps running in the background and the split completes.
+                            CompletableFuture<Void> release =
+                                    pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle);
+                            CompletableFuture<Void> boundedRelease = new CompletableFuture<>();
+                            release.whenComplete((released, releaseEx) -> {
+                                if (releaseEx != null) {
+                                    boundedRelease.completeExceptionally(releaseEx);
+                                } else {
+                                    boundedRelease.complete(released);
+                                }
+                            });
+                            FutureUtil.addTimeoutHandling(boundedRelease,
+                                    Duration.ofSeconds(config.getMetadataStoreOperationTimeoutSeconds()),
+                                    pulsar.getExecutor(),
+                                    () -> FutureUtil.createTimeoutException(
+                                            "Timed out waiting for the ownership of the old bundle " + bundle
+                                                    + " to be released after split",
+                                            NamespaceService.class, "splitAndOwnBundleOnceAndRetry"));
+                            return boundedRelease.exceptionally(ex1 -> {
+                                LOG.warn("[{}] Failed to release ownership of the old bundle after split",
+                                        bundle.toString(), ex1);
+                                return null;
+                            });
+                        })
+                        .thenRun(() -> {
                             completionFuture.complete(null);
                             if (unload) {
                                 // Unload new split bundles, in background. This will not
@@ -1104,7 +1139,7 @@ public class NamespaceService implements AutoCloseable {
                         .exceptionally(e -> {
                             String msg1 = format(
                                     "failed to disable bundle %s under namespace [%s] with error %s",
-                                    bundle.getNamespaceObject().toString(), bundle, ex.getMessage());
+                                    bundle.getNamespaceObject().toString(), bundle, e.getMessage());
                             LOG.warn(msg1, e);
                             completionFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
                             return null;
@@ -1221,6 +1256,11 @@ public class NamespaceService implements AutoCloseable {
 
         return pulsar.getPulsarResources().getLocalPolicies()
                 .setLocalPoliciesWithVersion(nsname, localPolicies, nsBundles.getVersion());
+    }
+
+    @VisibleForTesting
+    void setOwnershipCache(OwnershipCache ownershipCache) {
+        this.ownershipCache = ownershipCache;
     }
 
     public OwnershipCache getOwnershipCache() {
