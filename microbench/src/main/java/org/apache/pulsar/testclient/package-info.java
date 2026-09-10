@@ -16,5 +16,5 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/** Microbenchmarks for org.apache.pulsar.client.impl. */
-package org.apache.pulsar.client.impl;
+/** Microbenchmarks for performance-tool overhead. */
+package org.apache.pulsar.testclient;

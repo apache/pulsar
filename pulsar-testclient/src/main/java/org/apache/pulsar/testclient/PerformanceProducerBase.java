@@ -27,6 +27,7 @@ import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAU
 import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
 import com.google.common.util.concurrent.RateLimiter;
 import io.github.merlimat.slog.Logger;
@@ -42,6 +43,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -527,6 +529,63 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
         }
     }
 
+    // The returned stage is only awaited for transactions; it must not be cancelled before accounting runs.
+    CompletableFuture<Void> trackSendCompletion(CompletableFuture<?> sendFuture, byte[] payloadData,
+                                                AtomicLong totalSent, long sendTime, long warmupEndTime) {
+        return sendFuture.handle((messageId, sendError) -> {
+            if (sendError != null) {
+                recordSendFailure(sendError);
+            } else {
+                try {
+                    recordSendSuccess(payloadData, totalSent, sendTime, warmupEndTime);
+                } catch (Throwable accountingError) {
+                    // The former thenRun/exceptionally chain also handled failures from accounting.
+                    recordSendFailure(accountingError);
+                }
+            }
+            return null;
+        });
+    }
+
+    private void recordSendSuccess(byte[] payloadData, AtomicLong totalSent, long sendTime, long warmupEndTime) {
+        bytesSent.add(payloadData.length);
+        messagesSent.increment();
+        totalSent.incrementAndGet();
+        totalMessagesSent.increment();
+        totalBytesSent.add(payloadData.length);
+
+        long now = System.nanoTime();
+        if (now > warmupEndTime) {
+            long latencyMicros = Math.min(NANOSECONDS.toMicros(now - sendTime), MAX_LATENCY_MICROS);
+            recorder.recordValue(latencyMicros);
+            cumulativeRecorder.recordValue(latencyMicros);
+        }
+    }
+
+    private void recordSendFailure(Throwable error) {
+        // Preserve the exception shape formerly relayed through thenRun to exceptionally.
+        Throwable ex = error instanceof CompletionException ? error : new CompletionException(error);
+        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+        // Ignore the exception when the producer is closed
+        if (isAlreadyClosedException(cause)) {
+            return;
+        }
+        if (PerfClientUtils.hasInterruptedException(ex)) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+        log.warn().exception(ex).log("Write message error with exception");
+        messagesFailed.increment();
+        if (this.exitOnFailure) {
+            PerfClientUtils.exit(1);
+        }
+    }
+
+    @VisibleForTesting
+    long getMessagesFailed() {
+        return messagesFailed.sum();
+    }
+
     private void runProducer(int producerId,
                              long numMessages,
                              int msgRate,
@@ -589,7 +648,8 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
                 if (produceEnough) {
                     break;
                 }
-                for (ProducerT producer : producers) {
+                for (int producerIndex = 0; producerIndex < producers.size(); producerIndex++) {
+                    ProducerT producer = producers.get(producerIndex);
                     if (this.testTime > 0) {
                         if (System.nanoTime() > testEndTime) {
                             log.info()
@@ -646,39 +706,9 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
                     } else if (msgKeyMode == MessageKeyGenerationMode.autoIncrement) {
                         messageKey = String.valueOf(totalSent.get());
                     }
-                    CompletableFuture<?> sendFuture =
-                            sendMessage(producer, payloadData, transaction, messageKey, deliverAfterSeconds)
-                            .thenRun(() -> {
-                                bytesSent.add(payloadData.length);
-                                messagesSent.increment();
-                                totalSent.incrementAndGet();
-                                totalMessagesSent.increment();
-                                totalBytesSent.add(payloadData.length);
-
-                                long now = System.nanoTime();
-                                if (now > warmupEndTime) {
-                                    long latencyMicros =
-                                            Math.min(NANOSECONDS.toMicros(now - sendTime), MAX_LATENCY_MICROS);
-                                    recorder.recordValue(latencyMicros);
-                                    cumulativeRecorder.recordValue(latencyMicros);
-                                }
-                            }).exceptionally(ex -> {
-                                Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                                // Ignore the exception when the producer is closed
-                                if (isAlreadyClosedException(cause)) {
-                                    return null;
-                                }
-                                if (PerfClientUtils.hasInterruptedException(ex)) {
-                                    Thread.currentThread().interrupt();
-                                    return null;
-                                }
-                                log.warn().exception(ex).log("Write message error with exception");
-                                messagesFailed.increment();
-                                if (this.exitOnFailure) {
-                                    PerfClientUtils.exit(1);
-                                }
-                                return null;
-                            });
+                    CompletableFuture<?> sendFuture = trackSendCompletion(
+                            sendMessage(producer, payloadData, transaction, messageKey, deliverAfterSeconds),
+                            payloadData, totalSent, sendTime, warmupEndTime);
                     if (this.isEnableTransaction) {
                         pendingTxnSends.add(sendFuture);
                     }
