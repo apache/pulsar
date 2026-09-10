@@ -27,6 +27,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
@@ -42,6 +43,57 @@ import org.apache.pulsar.broker.ServiceConfiguration;
  */
 @CustomLog
 public class PulsarConfigurationLoader {
+
+    /**
+     * PIP-337 TLS-factory configuration keys removed outright in Pulsar 5.0 (PIP-478). A stale value left in a
+     * config file (broker.conf / proxy.conf) is rejected loudly at load with an actionable migration message —
+     * preserving the fail-loud detection the removed {@code @Deprecated} fields used to provide, without
+     * retaining a functional PIP-337 field.
+     */
+    static final List<String> REMOVED_PIP337_TLS_FACTORY_KEYS = List.of(
+            "sslFactoryPlugin", "sslFactoryPluginParams",
+            "brokerClientSslFactoryPlugin", "brokerClientSslFactoryPluginParams",
+            // broker.conf / proxy.conf pass a brokerClient_<clientKey> property through to the internal client
+            // (PropertiesUtils.filterAndMapProperties strips the "brokerClient_" prefix), where a stale client
+            // sslFactoryPlugin would otherwise be silently dropped by ClientConfigurationData ignoreUnknown.
+            // Reject that prefixed form too so the removed client key cannot bypass the fail-loud detection.
+            "brokerClient_sslFactoryPlugin", "brokerClient_sslFactoryPluginParams");
+
+    /**
+     * The old PIP-337 default {@code sslFactoryPlugin} implementation FQCN. Its class is deleted in Pulsar 5.0
+     * (PIP-478), so this is a plain string literal. A {@code *Plugin} key still carrying this default value is
+     * equivalent to "unset" (no custom factory), so it is tolerated — only a non-default (custom) factory needs
+     * migration.
+     */
+    static final String DEFAULT_PIP337_SSL_FACTORY_CLASS = "org.apache.pulsar.common.util.DefaultPulsarSslFactory";
+
+    /**
+     * Reject a stale, non-default PIP-337 TLS-factory configuration key (removed in Pulsar 5.0, PIP-478) left
+     * in a config file. A key that is absent or blank is tolerated (the default); a {@code *Plugin} key still
+     * naming the old default factory FQCN ({@link #DEFAULT_PIP337_SSL_FACTORY_CLASS}) is also tolerated (it is
+     * equivalent to unset); any other non-blank value fails the load with an actionable migration message
+     * pointing to the {@code tlsFactoryClassName} successor.
+     *
+     * @param properties the loaded configuration properties
+     * @throws IllegalArgumentException if a removed PIP-337 key is present with a non-default value
+     */
+    static void rejectRemovedPip337TlsFactoryKeys(Properties properties) {
+        for (String key : REMOVED_PIP337_TLS_FACTORY_KEYS) {
+            String value = properties.getProperty(key);
+            if (StringUtils.isBlank(value)) {
+                continue;
+            }
+            // A *Plugin key still set to the old default factory FQCN means no custom factory — tolerate it as
+            // if unset. The *PluginParams keys carry no default value, so any non-blank value is rejected.
+            if (key.endsWith("Plugin") && DEFAULT_PIP337_SSL_FACTORY_CLASS.equals(value.trim())) {
+                continue;
+            }
+            throw new IllegalArgumentException("The PIP-337 '" + key + "' configuration key is removed in "
+                    + "Pulsar 5.0 (PIP-478). Migrate the custom SSL factory to a PulsarTlsFactory selected by "
+                    + "tlsFactoryClassName / tlsFactoryConfig (or brokerClientTlsFactoryClassName / "
+                    + "brokerClientTlsFactoryConfig) and remove '" + key + "' from the configuration.");
+        }
+    }
 
     /**
      * Creates PulsarConfiguration and loads it with populated attribute values loaded from provided property file.
@@ -93,6 +145,8 @@ public class PulsarConfigurationLoader {
     public static <T extends PulsarConfiguration> T create(Properties properties,
             Class<? extends PulsarConfiguration> clazz) throws IOException, IllegalArgumentException {
         requireNonNull(properties);
+        // PIP-478: reject a stale, removed PIP-337 sslFactoryPlugin key rather than silently ignoring it.
+        rejectRemovedPip337TlsFactoryKeys(properties);
         T configuration;
         try {
             configuration = (T) clazz.getDeclaredConstructor().newInstance();

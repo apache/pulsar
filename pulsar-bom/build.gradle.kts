@@ -37,6 +37,10 @@ dependencies {
         api(project(":pulsar-client-api"))
         api(project(":pulsar-client-admin-api"))
 
+        // Focused SPI modules (PIP-478): TLS factory SPI + HTTP client SPI
+        api(project(":pulsar-tls-factory-api"))
+        api(project(":pulsar-http-client-api"))
+
         // Shaded clients (the published artifacts users depend on)
         api(project(":pulsar-client-shaded"))
         api(project(":pulsar-client-admin-shaded"))

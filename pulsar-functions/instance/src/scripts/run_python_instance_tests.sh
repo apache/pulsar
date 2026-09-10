@@ -18,14 +18,54 @@
 # under the License.
 #
 
-
-# Make sure dependencies are installed
-pip3 install mock --user
-pip3 install protobuf==6.31.1 --user
-pip3 install fastavro --user
+set -o errexit
+set -o nounset
+set -o pipefail
 
 CUR_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 PULSAR_HOME="$( cd "$CUR_DIR/../../../../" >/dev/null && pwd )"
 
-# run instance tests
-PULSAR_HOME=${PULSAR_HOME} PYTHONPATH=${PULSAR_HOME}/pulsar-functions/instance/src/main/python python3 -m unittest discover -v -s ${PULSAR_HOME}/pulsar-functions/instance/src/test/python
+PYTHON_BIN=${PYTHON_BIN:-python3}
+
+# Keep these aligned with the Python dependencies installed in docker/pulsar/Dockerfile: the tests
+# should run against the same versions the Python instance runs with in production. pulsar-client's
+# "all" extra brings in apache-bookkeeper-client, fastavro, prometheus_client and ratelimit, which
+# the instance imports.
+PULSAR_CLIENT_PYTHON_VERSION=${PULSAR_CLIENT_PYTHON_VERSION:-3.13.0}
+PYTHON_GRPCIO_VERSION=${PYTHON_GRPCIO_VERSION:-1.78.0}
+PYTHON_PROTOBUF_VERSION=${PYTHON_PROTOBUF_VERSION:-6.33.6}
+
+# Set SKIP_PYTHON_DEPS=true to run against an environment you have prepared yourself. Otherwise the
+# dependencies are installed into whatever ${PYTHON_BIN} resolves to, so run this inside a
+# virtualenv unless you want them on your system interpreter.
+if [[ "${SKIP_PYTHON_DEPS:-false}" != "true" ]]; then
+  ${PYTHON_BIN} -m pip install \
+    mock \
+    "pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION}" \
+    "grpcio==${PYTHON_GRPCIO_VERSION}" \
+    "protobuf==${PYTHON_PROTOBUF_VERSION}"
+fi
+
+TEST_DIR="${PULSAR_HOME}/pulsar-functions/instance/src/test/python"
+export PULSAR_HOME
+export PYTHONPATH="${PULSAR_HOME}/pulsar-functions/instance/src/main/python"
+
+# Each test module runs in its own interpreter. They cannot share one: test_python_instance replaces
+# prometheus_client with a mock in sys.modules, which breaks test_python_instance_main when it later
+# imports the real one, and the two modules also register the same Prometheus metrics, so a shared
+# registry rejects the duplicates.
+failed_modules=()
+for test_file in "${TEST_DIR}"/test_*.py; do
+  module_name="$(basename "${test_file}" .py)"
+  echo "=== Running ${module_name} ==="
+  if ! (cd "${TEST_DIR}" && ${PYTHON_BIN} -m unittest -v "${module_name}"); then
+    failed_modules+=("${module_name}")
+  fi
+done
+
+if [[ ${#failed_modules[@]} -gt 0 ]]; then
+  echo "Failed test modules: ${failed_modules[*]}" >&2
+  exit 1
+fi
+
+echo "All Python instance test modules passed"

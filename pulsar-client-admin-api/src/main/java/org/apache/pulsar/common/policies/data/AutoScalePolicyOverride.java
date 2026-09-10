@@ -61,6 +61,15 @@ public final class AutoScalePolicyOverride {
     /** Minimum seconds between automatic merges. */
     private Long mergeCooldownSeconds;
 
+    /**
+     * PIP-486 segments-vs-buckets floor: on consumer-driven scale-up, split only if the busiest
+     * segment's inbound msg/s is at or above this; below it, grow entry-buckets instead.
+     */
+    private Double splitVsRebucketMinMsgRateInThreshold;
+
+    /** Minimum seconds between automatic entry-bucket rollovers (rebuckets). */
+    private Long rebucketCooldownSeconds;
+
     /** Seconds a segment pair must stay cold before becoming merge-eligible. */
     private Long mergeWindowSeconds;
 

@@ -1727,6 +1727,19 @@ public class NamespaceService implements AutoCloseable {
                 .thenApply(GetTopicsResult::getTopics);
     }
 
+    /**
+     * The peer-cluster lookup client used to list a peer cluster's non-persistent topics. Only the service URL
+     * comes from the cluster entry: the TLS configuration is broker-level throughout — the material from the
+     * broker's own {@code brokerClient*} settings here, and the {@code PulsarTlsFactory} from the broker-level
+     * {@code brokerClientTlsFactoryClassName} via {@link PulsarService#createClientImpl}, since nothing sets
+     * {@code tlsFactoryClassName} on this configuration. So {@code ClusterData.brokerClientTls*} does not reach
+     * this leg — as in 4.x, where it read the broker-level {@code brokerClientSslFactoryPlugin} rather than the
+     * per-cluster one. The two legs the per-cluster fields do drive (replication and the cross-cluster admin)
+     * build their configuration from {@code ClusterData} in {@code BrokerService}.
+     *
+     * @param cluster the peer cluster to reach
+     * @return the shared client for that cluster
+     */
     @SuppressWarnings("deprecation")
     public PulsarClientImpl getNamespaceClient(ClusterDataImpl cluster) {
         PulsarClientImpl client = namespaceClients.get(cluster);
@@ -1761,9 +1774,24 @@ public class NamespaceService implements AutoCloseable {
                         .enableTls(true)
                         .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
                         .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection())
-                        .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled())
-                        .sslFactoryPlugin(pulsar.getConfiguration().getBrokerClientSslFactoryPlugin())
-                        .sslFactoryPluginParams(pulsar.getConfiguration().getBrokerClientSslFactoryPluginParams());
+                        .enableTlsHostnameVerification(pulsar.getConfiguration().isTlsHostnameVerificationEnabled());
+                    // PIP-478: this peer-cluster lookup client is an outbound leg like the others, so it
+                    // carries the same three broker-client provider pins. Only the engine axis has a builder
+                    // setter; the other two are written onto the underlying configuration, as
+                    // BrokerService.configTlsSettings does. Set only when configured, so the brokerClient_*
+                    // loadConf escape hatch applied above is not clobbered.
+                    ServiceConfiguration brokerConf = pulsar.getConfiguration();
+                    if (isNotBlank(brokerConf.getBrokerClientSslProvider())) {
+                        clientBuilder.sslProvider(brokerConf.getBrokerClientSslProvider());
+                    }
+                    ClientConfigurationData peerConf =
+                            ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+                    if (isNotBlank(brokerConf.getBrokerClientJsseProvider())) {
+                        peerConf.setJsseProvider(brokerConf.getBrokerClientJsseProvider());
+                    }
+                    if (isNotBlank(brokerConf.getBrokerClientJcaProvider())) {
+                        peerConf.setJcaProvider(brokerConf.getBrokerClientJcaProvider());
+                    }
                 } else {
                     clientBuilder.serviceUrl(isNotBlank(cluster.getBrokerServiceUrl())
                         ? cluster.getBrokerServiceUrl() : cluster.getServiceUrl());
