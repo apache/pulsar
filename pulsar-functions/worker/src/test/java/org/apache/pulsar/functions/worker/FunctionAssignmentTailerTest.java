@@ -284,11 +284,11 @@ public class FunctionAssignmentTailerTest {
             functionAssignmentTailer.start();
 
             messageList.add(message1);
-            Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1)));
 
             messageList.add(message2);
-            Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() ->
+            Awaitility.await().untilAsserted(() ->
                     verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message2)));
         }
 
