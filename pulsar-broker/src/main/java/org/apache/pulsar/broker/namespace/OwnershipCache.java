@@ -119,8 +119,19 @@ public class OwnershipCache {
                         OwnedBundle ownedBundle = new OwnedBundle(namespaceBundle, rl);
                         rl.getLockExpiredFuture()
                                 .thenRun(() -> {
-                                    log.info("Resource lock for {} has expired", rl.getPath());
-                                    locallyAcquiredLocks.remove(namespaceBundle, rl);
+                                    // ResourceLockImpl completes the expiry future on a deliberate release()
+                                    // as well, and both removeOwnership overloads take the lock out of
+                                    // locallyAcquiredLocks before releasing it. So the lock is still registered
+                                    // here only when it died on its own — a lost metadata session or a failed
+                                    // revalidation — which is the case worth an INFO line. A deliberate release,
+                                    // or a stale listener whose generation has already been replaced, is routine
+                                    // and would otherwise report one false expiry per unload.
+                                    if (locallyAcquiredLocks.remove(namespaceBundle, rl)) {
+                                        log.info("Resource lock for {} has expired", rl.getPath());
+                                    } else if (log.isDebugEnabled()) {
+                                        log.debug("Resource lock for {} was released; running the expiry listener",
+                                                rl.getPath());
+                                    }
                                     // Only unload the generation this listener belongs to.
                                     // unloadNamespaceBundle resolves the owner by bundle name, so a listener
                                     // that runs late (the load already failed the publication check below and
