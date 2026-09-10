@@ -59,7 +59,7 @@ public class PositionAckSetUtil {
     }
 
     public static boolean isAckSetEmpty(long[] ackSet) {
-        return LongArrayAckSets.cardinality(ackSet) == 0;
+        return LongArrayAckSets.isEmpty(ackSet);
     }
 
     //This method is compare two position which position is bigger than another one.

@@ -60,6 +60,28 @@ public class LongArrayAckSetsTest {
         Assert.assertEquals(LongArrayAckSets.cardinality(new long[]{0b1111L, 0b1010L}), 6);
     }
 
+    // ---- isEmpty ----
+
+    @Test
+    public void testIsEmptyEmptyArray() {
+        Assert.assertTrue(LongArrayAckSets.isEmpty(new long[0]));
+    }
+
+    @Test
+    public void testIsEmptyAllZero() {
+        Assert.assertTrue(LongArrayAckSets.isEmpty(new long[]{0L, 0L, 0L}));
+    }
+
+    @Test
+    public void testIsEmptyNonZeroFirstWord() {
+        Assert.assertFalse(LongArrayAckSets.isEmpty(new long[]{1L, 0L}));
+    }
+
+    @Test
+    public void testIsEmptyNonZeroLastWord() {
+        Assert.assertFalse(LongArrayAckSets.isEmpty(new long[]{0L, 0L, Long.MIN_VALUE}));
+    }
+
     // ---- cardinalityOfIntersection ----
 
     @Test
@@ -120,6 +142,66 @@ public class LongArrayAckSetsTest {
         Assert.assertEquals(LongArrayAckSets.cardinalityOfIntersection(
                 new long[]{0b1111L, -1L},
                 new long[]{0b1010L, 0b0011L}), 4);
+    }
+
+    // ---- cardinalityOfDifference ----
+
+    @Test
+    public void testDifferenceCardinalityBothEmpty() {
+        Assert.assertEquals(LongArrayAckSets.cardinalityOfDifference(new long[0], new long[0]), 0);
+    }
+
+    @Test
+    public void testDifferenceCardinalityFirstEmpty() {
+        Assert.assertEquals(LongArrayAckSets.cardinalityOfDifference(new long[0], new long[]{Long.MAX_VALUE}), 0);
+    }
+
+    @Test
+    public void testDifferenceCardinalitySecondEmpty() {
+        // Nothing to subtract: result equals cardinality(ackSet1)
+        Assert.assertEquals(LongArrayAckSets.cardinalityOfDifference(new long[]{Long.MAX_VALUE}, new long[0]), 63);
+    }
+
+    @Test
+    public void testDifferenceCardinalityNoOverlap() {
+        // 0b1010 & ~0b0101 == 0b1010 → 2 bits
+        Assert.assertEquals(LongArrayAckSets.cardinalityOfDifference(new long[]{0b1010L}, new long[]{0b0101L}), 2);
+    }
+
+    @Test
+    public void testDifferenceCardinalityFullOverlap() {
+        // -1L & ~-1L == 0
+        Assert.assertEquals(LongArrayAckSets.cardinalityOfDifference(new long[]{-1L}, new long[]{-1L}), 0);
+    }
+
+    @Test
+    public void testDifferenceCardinalityPartialOverlap() {
+        // 0b1111 & ~0b1010 == 0b0101 → 2 bits
+        Assert.assertEquals(LongArrayAckSets.cardinalityOfDifference(new long[]{0b1111L}, new long[]{0b1010L}), 2);
+    }
+
+    @Test
+    public void testDifferenceCardinalitySecondShorter() {
+        // Missing words in ackSet2 are treated as zero, so the extra word in ackSet1 contributes its full count.
+        // word 0: 0b1111 & ~0b1010 == 0b0101 -> 2 bits; word 1 (no counterpart in ackSet2): Long.MAX_VALUE -> 63 bits
+        Assert.assertEquals(LongArrayAckSets.cardinalityOfDifference(
+                new long[]{0b1111L, Long.MAX_VALUE}, new long[]{0b1010L}), 65);
+    }
+
+    @Test
+    public void testDifferenceCardinalitySecondLonger() {
+        // Extra words in ackSet2 beyond ackSet1's length have no effect
+        Assert.assertEquals(LongArrayAckSets.cardinalityOfDifference(
+                new long[]{0b1111L}, new long[]{0b1010L, Long.MAX_VALUE}), 2);
+    }
+
+    @Test
+    public void testDifferenceCardinalityMatchesCardinalityMinusIntersection() {
+        long[] ackSet1 = {0b1111L, -1L, 0b1010L};
+        long[] ackSet2 = {0b1010L, 0b0011L};
+        int expected = LongArrayAckSets.cardinality(ackSet1)
+                - LongArrayAckSets.cardinalityOfIntersection(ackSet1, ackSet2);
+        Assert.assertEquals(LongArrayAckSets.cardinalityOfDifference(ackSet1, ackSet2), expected);
     }
 
     // ---- intersect ----

@@ -805,9 +805,7 @@ public class Consumer {
         if (cursorAckSet == null) {
             return batchSize - LongArrayAckSets.cardinality(ackSets);
         }
-        int lastCardinality = LongArrayAckSets.cardinality(cursorAckSet);
-        int currentCardinality = LongArrayAckSets.cardinalityOfIntersection(cursorAckSet, ackSets);
-        return lastCardinality - currentCardinality;
+        return LongArrayAckSets.cardinalityOfDifference(cursorAckSet, ackSets);
     }
 
     private long getAckedCountForTransactionAck(int batchSize, long[] ackSets) {
