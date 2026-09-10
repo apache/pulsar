@@ -30,6 +30,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
@@ -116,16 +117,15 @@ public class UnloadManager implements StateChangeListener {
             LatencyMetric.ASSIGN.endMeasurement(serviceUnit);
         }
 
-        inFlightUnloadRequest.computeIfPresent(serviceUnit, (__, future) -> {
-            if (!future.isDone()) {
-                if (ex != null) {
-                    future.completeExceptionally(ex);
-                } else {
-                    future.complete(null);
-                }
-            }
-            return null;
-        });
+        CompletableFuture<Void> future = inFlightUnloadRequest.remove(serviceUnit);
+        if (future == null || future.isDone()) {
+            return;
+        }
+        if (ex != null) {
+            future.completeExceptionally(ex);
+        } else {
+            future.complete(null);
+        }
     }
 
     public CompletableFuture<Void> waitAsync(CompletableFuture<Void> eventPubFuture,
@@ -133,19 +133,20 @@ public class UnloadManager implements StateChangeListener {
                                              UnloadDecision decision,
                                              long timeout,
                                              TimeUnit timeoutUnit) {
-        return eventPubFuture.thenCompose(__ -> inFlightUnloadRequest.computeIfAbsent(bundle, ignore -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Handle unload bundle: {}, timeout: {} {}", bundle, timeout, timeoutUnit);
-            }
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            future.orTimeout(timeout, timeoutUnit).whenComplete((v, ex) -> {
-                if (ex != null) {
-                    inFlightUnloadRequest.remove(bundle);
+        return eventPubFuture.thenCompose(__ -> {
+            CompletableFuture<Void> future = inFlightUnloadRequest.computeIfAbsent(bundle, ignore -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("Handle unload bundle: {}, timeout: {} {}", bundle, timeout, timeoutUnit);
+                }
+                return new CompletableFuture<Void>().orTimeout(timeout, timeoutUnit);
+            });
+            // Return the dependent stage so callers cannot observe completion before timeout cleanup finishes.
+            return future.whenComplete((v, ex) -> {
+                if (ex instanceof TimeoutException && inFlightUnloadRequest.remove(bundle, future)) {
                     log.warn("Failed to wait unload for serviceUnit: {}", bundle, ex);
                 }
             });
-            return future;
-        })).whenComplete((__, ex) -> {
+        }).whenComplete((__, ex) -> {
             if (ex != null) {
                 counter.update(Failure, Unknown);
                 log.warn("Failed to unload bundle: {}", bundle, ex);
@@ -213,12 +214,16 @@ public class UnloadManager implements StateChangeListener {
 
     public void close() {
         inFlightUnloadRequest.forEach((bundle, future) -> {
-            if (!future.isDone()) {
+            if (inFlightUnloadRequest.remove(bundle, future) && !future.isDone()) {
                 String msg = String.format("Unloading bundle: %s, but the unload manager already closed.", bundle);
                 log.warn(msg);
                 future.completeExceptionally(new IllegalStateException(msg));
             }
         });
-        inFlightUnloadRequest.clear();
+    }
+
+    @VisibleForTesting
+    int getInFlightUnloadRequestCount() {
+        return inFlightUnloadRequest.size();
     }
 }
