@@ -2383,6 +2383,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         this.transactionBufferProvider = transactionBufferProvider;
     }
 
+    @VisibleForTesting
+    public void setTopicPoliciesService(TopicPoliciesService topicPoliciesService) {
+        this.topicPoliciesService = topicPoliciesService;
+    }
+
     private CompactionServiceFactory loadCompactionServiceFactory() {
         String compactionServiceFactoryClassName = config.getCompactionServiceFactoryClassName();
         var compactionServiceFactory =
