@@ -47,6 +47,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -1130,6 +1131,42 @@ public class Commands {
             if (requestId >= 0) {
                 cmd.getAck().setRequestId(requestId);
             }
+        return serializeWithSize(cmd);
+    }
+
+    /**
+     * Serialize existing message IDs without allocating a tuple and boxed coordinates for each acknowledgement.
+     * Individual IDs are written first, followed by batch-index IDs with their supplied acknowledgement masks.
+     * Both lists and the masks are read synchronously and are not retained by the returned command.
+     */
+    public static ByteBuf newMultiMessageAck(long consumerId,
+                                            List<? extends MessageIdAdv> individualAcks,
+                                            List<? extends Map.Entry<? extends MessageIdAdv, ConcurrentBitSet>>
+                                                    batchIndexAcks,
+                                            long requestId) {
+        BaseCommand cmd = localCmd(Type.ACK);
+        CommandAck ack = cmd.setAck()
+                .setConsumerId(consumerId)
+                .setAckType(AckType.Individual);
+        for (int i = 0; i < individualAcks.size(); i++) {
+            MessageIdAdv id = individualAcks.get(i);
+            ack.addMessageId().setLedgerId(id.getLedgerId()).setEntryId(id.getEntryId());
+        }
+        for (int i = 0; i < batchIndexAcks.size(); i++) {
+            Map.Entry<? extends MessageIdAdv, ConcurrentBitSet> entry = batchIndexAcks.get(i);
+            MessageIdAdv id = entry.getKey();
+            MessageIdData msgId = ack.addMessageId().setLedgerId(id.getLedgerId()).setEntryId(id.getEntryId());
+            ConcurrentBitSet bitSet = entry.getValue();
+            if (bitSet != null) {
+                long[] ackSet = bitSet.toLongArray();
+                for (int j = 0; j < ackSet.length; j++) {
+                    msgId.addAckSet(ackSet[j]);
+                }
+            }
+        }
+        if (requestId >= 0) {
+            ack.setRequestId(requestId);
+        }
         return serializeWithSize(cmd);
     }
 

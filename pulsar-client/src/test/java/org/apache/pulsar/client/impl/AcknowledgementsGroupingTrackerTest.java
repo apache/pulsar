@@ -50,6 +50,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.testng.annotations.AfterClass;
@@ -386,6 +387,72 @@ public class AcknowledgementsGroupingTrackerTest {
         assertFalse(tracker.isDuplicate(msg1));
         assertEquals(tracker.getPendingIndividualAcksSize(), 0);
         tracker.close();
+    }
+
+    @Test
+    public void testMixedChunkAndBatchAcksRestoreAfterWriteFailure() {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        boolean wasConnected = returnCnx.getAndSet(true);
+        boolean receiptEnabled = consumer.isAckReceiptEnabled();
+        int protocolVersion = cnx.getRemoteEndpointProtocolVersion();
+        doReturn(false).when(consumer).isAckReceiptEnabled();
+        doReturn(ProtocolVersion.v12_VALUE).when(cnx).getRemoteEndpointProtocolVersion();
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        MessageIdImpl individual = new MessageIdImpl(5, 1, 0);
+        MessageIdImpl firstChunk = new MessageIdImpl(5, 2, 0);
+        MessageIdImpl lastChunk = new MessageIdImpl(5, 3, 0);
+        ChunkMessageIdImpl chunked = new ChunkMessageIdImpl(firstChunk, lastChunk);
+        MessageIdImpl[] chunks = {firstChunk, null, lastChunk};
+        MessageIdImpl batchPosition = new MessageIdImpl(5, 4, 0);
+        List<BaseCommand> written = new ArrayList<>();
+        ChannelHandlerContext failed = createFailedChannelHandlerContext();
+        ChannelHandlerContext capturing = mock(ChannelHandlerContext.class);
+        doAnswer(invocation -> {
+            ByteBuf command = invocation.getArgument(0);
+            ByteBuf view = command.duplicate();
+            view.skipBytes(4);
+            int commandSize = view.readInt();
+            BaseCommand parsed = new BaseCommand();
+            parsed.parseFrom(view, commandSize);
+            parsed.materialize();
+            written.add(parsed);
+            return failed.writeAndFlush(command);
+        }).when(capturing).writeAndFlush(any());
+        try {
+            consumer.unAckedChunkedMessageIdSequenceMap.put(chunked, chunks);
+            tracker.addAcknowledgment(individual, AckType.Individual, Collections.emptyMap());
+            tracker.addAcknowledgment(chunked, AckType.Individual, Collections.emptyMap());
+            tracker.doIndividualBatchAckAsync(new BatchMessageIdImpl(5, 4, 0, 3, 10, null));
+            doReturn(capturing).when(cnx).ctx();
+            tracker.flush();
+
+            assertEquals(written.size(), 1);
+            var ack = written.get(0).getAck();
+            assertEquals(ack.getMessageIdsCount(), 4);
+            for (int i = 0; i < 4; i++) {
+                assertEquals(ack.getMessageIdAt(i).getLedgerId(), 5L);
+                assertEquals(ack.getMessageIdAt(i).getEntryId(), i + 1L);
+            }
+            assertEquals(ack.getMessageIdAt(3).getAckSetAt(0), 1015L);
+            assertEquals(tracker.getPendingIndividualAcksSize(), 2);
+            assertEquals(consumer.unAckedChunkedMessageIdSequenceMap.get(chunked), chunks);
+            assertFalse(tracker.pendingIndividualBatchIndexAcks.get(batchPosition).get(3));
+
+            doReturn(successCtx).when(cnx).ctx();
+            tracker.flush();
+            assertEquals(tracker.getPendingIndividualAcksSize(), 0);
+            assertFalse(consumer.unAckedChunkedMessageIdSequenceMap.containsKey(chunked));
+            assertTrue(tracker.pendingIndividualBatchIndexAcks.isEmpty());
+        } finally {
+            doReturn(successCtx).when(cnx).ctx();
+            tracker.close();
+            consumer.unAckedChunkedMessageIdSequenceMap.remove(chunked);
+            returnCnx.set(wasConnected);
+            doReturn(receiptEnabled).when(consumer).isAckReceiptEnabled();
+            doReturn(protocolVersion).when(cnx).getRemoteEndpointProtocolVersion();
+        }
     }
 
     @Test
