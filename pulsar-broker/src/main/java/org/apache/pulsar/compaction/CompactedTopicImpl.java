@@ -41,9 +41,11 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.util.Errors;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -69,12 +71,33 @@ public class CompactedTopicImpl implements CompactedTopic {
     public CompletableFuture<CompactedTopicContext> newCompactedLedger(Position p, long compactedLedgerId) {
         synchronized (this) {
             CompletableFuture<CompactedTopicContext> previousContext = compactedTopicContext;
-            compactedTopicContext = openCompactedLedger(bk, compactedLedgerId);
+            CompletableFuture<CompactedTopicContext> newCompactedLedger = openCompactedLedger(bk, compactedLedgerId);
+            compactedTopicContext = newCompactedLedger;
 
             compactionHorizon = p;
 
+            // The compacted ledger may no longer exist: for example, a cursor recovery rolled the cursor
+            // properties back to a metadata-store snapshot that still referenced a ledger a newer
+            // compaction has already deleted. Reads at or before the compaction horizon would then fail
+            // on the failed open instead of reading the original topic data. Unregister the stale
+            // reference so that readCompacted falls back to the original data.
+            newCompactedLedger.whenComplete((context, exception) -> {
+                if (exception != null && isNoSuchLedgerExists(exception)) {
+                    synchronized (CompactedTopicImpl.this) {
+                        if (compactedTopicContext == newCompactedLedger) {
+                            log.warn()
+                                    .attr("compactedLedgerId", compactedLedgerId)
+                                    .attr("compactionHorizon", p)
+                                    .log("Compacted ledger no longer exists, falling back to reading"
+                                            + " uncompacted data until the next compaction");
+                            reset();
+                        }
+                    }
+                }
+            });
+
             // delete the ledger from the old context once the new one is open
-            return compactedTopicContext.thenCompose(ctx -> {
+            return newCompactedLedger.thenCompose(ctx -> {
                 if (previousContext != null) {
                     previousContext.thenAccept(previousCtx -> {
                         // Print an error log here, which is not expected.
@@ -190,6 +213,12 @@ public class CompactedTopicImpl implements CompactedTopic {
                                          ledger, createCache(ledger, DEFAULT_MAX_CACHE_SIZE)));
     }
 
+    private static boolean isNoSuchLedgerExists(Throwable exception) {
+        Throwable cause = FutureUtil.unwrapCompletionException(exception);
+        return cause instanceof BKException
+                && Errors.isNoSuchLedgerExistsException(((BKException) cause).getCode());
+    }
+
     private static CompletableFuture<Void> tryDeleteCompactedLedger(BookKeeper bk, long id) {
         CompletableFuture<Void> promise = new CompletableFuture<>();
         bk.asyncDeleteLedger(id,
@@ -247,7 +276,9 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     @Override
     public CompletableFuture<Entry> readLastEntryOfCompactedLedger() {
-        if (compactionHorizon == null) {
+        // The context can briefly be null while the horizon is not, while a stale compacted ledger
+        // is being unregistered after its open failed; there is no compacted ledger to read then.
+        if (compactionHorizon == null || compactedTopicContext == null) {
             return CompletableFuture.completedFuture(null);
         }
         return compactedTopicContext.thenCompose(context -> {

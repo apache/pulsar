@@ -44,6 +44,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -59,6 +60,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -72,7 +74,11 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.MetaStore;
+import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
+import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -114,6 +120,7 @@ import org.apache.pulsar.common.policies.data.SubscribeRate;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Markers;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
@@ -2849,5 +2856,181 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         final var emptyLedgerId = persistentTopic.getManagedLedger().getLedgersInfo().lastEntry().getKey();
         assertEquals(persistentTopic.getTopicCompactionService().getLastCompactedPosition().get(),
                 PositionFactory.create(emptyLedgerId, -1L));
+    }
+
+    private ManagedCursorInfo readCursorInfo(String ledgerName, String cursorName) throws InterruptedException {
+        MetaStore metaStore =
+                ((ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory()).getMetaStore();
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<ManagedCursorInfo> infoRef = new AtomicReference<>();
+        AtomicReference<Throwable> failureRef = new AtomicReference<>();
+        metaStore.asyncGetCursorInfo(ledgerName, cursorName, new MetaStoreCallback<ManagedCursorInfo>() {
+            @Override
+            public void operationComplete(ManagedCursorInfo result, Stat stat) {
+                infoRef.set(result);
+                latch.countDown();
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException.MetaStoreException e) {
+                failureRef.set(e);
+                latch.countDown();
+            }
+        });
+        latch.await();
+        if (failureRef.get() != null) {
+            throw new IllegalStateException("asyncGetCursorInfo failed", failureRef.get());
+        }
+        return infoRef.get();
+    }
+
+    private void overwriteCursorInfo(String ledgerName, String cursorName, ManagedCursorInfo info) {
+        MetaStore metaStore =
+                ((ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory()).getMetaStore();
+        Awaitility.await().untilAsserted(() -> {
+            CountDownLatch readLatch = new CountDownLatch(1);
+            AtomicReference<Stat> statRef = new AtomicReference<>();
+            metaStore.asyncGetCursorInfo(ledgerName, cursorName, new MetaStoreCallback<ManagedCursorInfo>() {
+                @Override
+                public void operationComplete(ManagedCursorInfo result, Stat stat) {
+                    statRef.set(stat);
+                    readLatch.countDown();
+                }
+
+                @Override
+                public void operationFailed(ManagedLedgerException.MetaStoreException e) {
+                    readLatch.countDown();
+                }
+            });
+            readLatch.await();
+            assertNotNull(statRef.get(), "cursor info not found for " + cursorName);
+
+            CountDownLatch updateLatch = new CountDownLatch(1);
+            AtomicBoolean updated = new AtomicBoolean(false);
+            metaStore.asyncUpdateCursorInfo(ledgerName, cursorName, info, statRef.get(),
+                    new MetaStoreCallback<Void>() {
+                        @Override
+                        public void operationComplete(Void result, Stat stat) {
+                            updated.set(true);
+                            updateLatch.countDown();
+                        }
+
+                        @Override
+                        public void operationFailed(ManagedLedgerException.MetaStoreException e) {
+                            updateLatch.countDown();
+                        }
+                    });
+            updateLatch.await();
+            assertTrue(updated.get(), "failed to overwrite cursor info for " + cursorName);
+        });
+    }
+
+    /**
+     * A cursor-ledger recovery failure rolls the cursor properties back to the metadata-store
+     * snapshot, which may still reference a compacted ledger that a newer compaction has already
+     * deleted (the snapshot only advances on rollover or graceful close, while the previous
+     * compacted ledger is deleted as soon as the compactor subscription's mark-delete is persisted
+     * in the cursor ledger). readCompacted reads must then fall back to the original topic data
+     * instead of failing at or before the stale compaction horizon.
+     */
+    @Test
+    public void testReadCompactedAfterRecoveryRestoredDeletedCompactedLedger() throws Exception {
+        String topic = "persistent://my-tenant/my-ns/read-compacted-after-cursor-recovery";
+        String mlName = TopicName.get(topic).getPersistenceNamingEncoding();
+
+        // Roll the cursor ledger over on every persist, so the metadata-store snapshot carries the
+        // compactor subscription's mark-delete position and properties. The infinite retention
+        // keeps the consumed data ledgers around: their entries are the fallback data for the
+        // readCompacted reads after the recovery below.
+        PersistentTopic setupTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopic(topic, true).get().orElseThrow();
+        setupTopic.getManagedLedger().getConfig()
+                .setRetentionTime(-1, TimeUnit.MINUTES)
+                .setRetentionSizeInMB(-1)
+                .setMetadataMaxEntriesPerLedger(1);
+
+        try (Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic).enableBatching(false).create()) {
+            producer.newMessage().key("k1").value("v1a".getBytes()).send();
+            producer.newMessage().key("k2").value("v2a".getBytes()).send();
+        }
+        long compactedLedger1 = compact(topic);
+
+        // Durable state after the first compaction: a snapshot at P1 referencing L1. The second
+        // compaction below deletes L1 while its own snapshot is only in the cursor ledger, so this
+        // snapshot becomes stale.
+        AtomicReference<ManagedCursorInfo> snapshotRef = new AtomicReference<>();
+        Awaitility.await().untilAsserted(() -> {
+            snapshotRef.set(readCursorInfo(mlName, COMPACTION_SUBSCRIPTION));
+            assertEquals(snapshotRef.get().getPropertiesCount(), 1);
+            assertEquals(snapshotRef.get().getPropertyAt(0).getName(),
+                    Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
+            assertEquals(snapshotRef.get().getPropertyAt(0).getValue(), compactedLedger1);
+        });
+        ManagedCursorInfo staleSnapshot = snapshotRef.get();
+        assertNotEquals(staleSnapshot.getCursorsLedgerId(), -1L);
+        Position staleMarkDeletePosition = PositionFactory.create(staleSnapshot.getMarkDeleteLedgerId(),
+                staleSnapshot.getMarkDeleteEntryId());
+
+        try (Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic).enableBatching(false).create()) {
+            producer.newMessage().key("k1").value("v1b".getBytes()).send();
+            producer.newMessage().key("k2").value("v2b".getBytes()).send();
+        }
+        long compactedLedger2 = compact(topic);
+        assertNotEquals(compactedLedger2, compactedLedger1);
+        // the acknowledged second compaction deleted the ledger the stale snapshot references
+        Awaitility.await().until(() ->
+                !pulsarTestContext.getMockBookKeeper().getLedgerMap().containsKey(compactedLedger1));
+
+        // Recreate the recovery preconditions: the metadata-store snapshot has not advanced beyond
+        // P1/L1 and the cursor ledger it references cannot be opened anymore. No client may hold
+        // the topic open here, otherwise its reconnect would reload the topic before the snapshot
+        // is put back in place.
+        admin.topics().unload(topic);
+        Awaitility.await().until(() -> pulsar.getBrokerService().getTopicReference(topic).isEmpty());
+        pulsarTestContext.getMockBookKeeper().getLedgerMap().remove(staleSnapshot.getCursorsLedgerId());
+        overwriteCursorInfo(mlName, COMPACTION_SUBSCRIPTION, staleSnapshot);
+
+        // Reloading the topic recovers the cursor from the stale snapshot: the position and the
+        // compacted-ledger pointer are rolled back to P1/L1 although L1 no longer exists.
+        PersistentTopic persistentTopic = (PersistentTopic)
+                pulsar.getBrokerService().getTopic(topic, true).get().orElseThrow();
+        PersistentSubscription compactionSubscription =
+                persistentTopic.getSubscription(COMPACTION_SUBSCRIPTION);
+        ManagedCursor compactionCursor = compactionSubscription.getCursor();
+        assertEquals(compactionCursor.getMarkDeletedPosition(), staleMarkDeletePosition);
+        assertEquals(compactionCursor.getProperties().get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY),
+                (Long) compactedLedger1);
+
+        // The stale compacted ledger must not stay registered: no compaction horizon is served
+        // and readCompacted falls back to reading the original entries instead of failing.
+        Awaitility.await().until(() ->
+                persistentTopic.getTopicCompactionService().getLastCompactedPosition().get() == null);
+        try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(true)
+                .startMessageId(MessageId.earliest).create()) {
+            List<String> received = new ArrayList<>();
+            while (reader.hasMessageAvailable()) {
+                Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
+                received.add(m.getKey() + "=" + new String(m.getData()));
+            }
+            assertEquals(received, List.of("k1=v1a", "k2=v2a", "k1=v1b", "k2=v2b"));
+        }
+
+        // a new compaction restores the compacted view
+        try (Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic).enableBatching(false).create()) {
+            producer.newMessage().key("k3").value("v3".getBytes()).send();
+        }
+        compact(topic);
+        try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic).readCompacted(true)
+                .startMessageId(MessageId.earliest).create()) {
+            Set<String> compacted = new HashSet<>();
+            while (reader.hasMessageAvailable()) {
+                Message<byte[]> m = reader.readNext(2, TimeUnit.SECONDS);
+                compacted.add(m.getKey() + "=" + new String(m.getData()));
+            }
+            assertEquals(compacted, Set.of("k1=v1b", "k2=v2b", "k3=v3"));
+        }
     }
 }

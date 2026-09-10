@@ -1924,11 +1924,16 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.markDelete(p2, properties);
 
         // Wait until the rollover has snapshotted position and properties into the metadata store.
+        // The snapshot must be pinned to the p2 mark-delete: the conditions would otherwise also
+        // match the earlier p1 snapshot, because the p2 rollover's metadata-store update completes
+        // asynchronously after the mark-delete itself.
         AtomicReference<ManagedCursorInfo> snapshotRef = new AtomicReference<>();
         Awaitility.await().untilAsserted(() -> {
             snapshotRef.set(readCursorInfo(ml, "c1"));
             assertEquals(snapshotRef.get().getPropertiesCount(), 1);
             assertNotEquals(snapshotRef.get().getCursorsLedgerId(), -1L);
+            assertEquals(snapshotRef.get().getMarkDeleteLedgerId(), p2.getLedgerId());
+            assertEquals(snapshotRef.get().getMarkDeleteEntryId(), p2.getEntryId());
         });
         ManagedCursorInfo snapshot = snapshotRef.get();
         assertEquals(snapshot.getPropertyAt(0).getName(), "CompactedTopicLedger");
@@ -2031,15 +2036,18 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.markDelete(p1, properties);
         c1.markDelete(p2, properties);
 
+        // Pin the snapshot to the p2 mark-delete inside the retry loop: the conditions would
+        // otherwise also match the earlier p1 snapshot, since the p2 rollover's metadata-store
+        // update completes asynchronously after the mark-delete itself.
         AtomicReference<ManagedCursorInfo> snapshotRef = new AtomicReference<>();
         Awaitility.await().untilAsserted(() -> {
             snapshotRef.set(readCursorInfo(ledger, "c1"));
             assertEquals(snapshotRef.get().getPropertiesCount(), 1);
             assertNotEquals(snapshotRef.get().getCursorsLedgerId(), -1L);
+            assertEquals(snapshotRef.get().getMarkDeleteLedgerId(), p2.getLedgerId());
+            assertEquals(snapshotRef.get().getMarkDeleteEntryId(), p2.getEntryId());
         });
         ManagedCursorInfo info = snapshotRef.get();
-        assertEquals(info.getMarkDeleteLedgerId(), p2.getLedgerId());
-        assertEquals(info.getMarkDeleteEntryId(), p2.getEntryId());
 
         // The next BookKeeper operation (opening the cursor ledger) succeeds, the one after
         // (reading its last entry) fails with a non-recoverable error.
@@ -2126,12 +2134,16 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         c1.markDelete(p1);
         c1.markDelete(p2);
 
-        // Wait until the rollover has snapshotted the (property-less) state into the metadata store.
+        // Wait until the rollover has snapshotted the (property-less) state into the metadata store,
+        // pinned to the p2 mark-delete so the wait cannot match the earlier p1 snapshot and the
+        // ledger deleted below is the one referenced by the final snapshot.
         AtomicReference<ManagedCursorInfo> snapshotRef = new AtomicReference<>();
         Awaitility.await().untilAsserted(() -> {
             snapshotRef.set(readCursorInfo(ml, "c1"));
             assertNotEquals(snapshotRef.get().getCursorsLedgerId(), -1L);
             assertEquals(snapshotRef.get().getPropertiesCount(), 0);
+            assertEquals(snapshotRef.get().getMarkDeleteLedgerId(), p2.getLedgerId());
+            assertEquals(snapshotRef.get().getMarkDeleteEntryId(), p2.getEntryId());
         });
 
         // Delete the cursor ledger so that reopening falls back to the metadata-store snapshot.
