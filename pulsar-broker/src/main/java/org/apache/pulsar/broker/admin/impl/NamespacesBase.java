@@ -1855,12 +1855,10 @@ public abstract class NamespacesBase extends AdminResource {
         return pulsar().getNamespaceService().getOwnedPersistentTopicListForNamespaceBundle(bundle)
                 .thenCompose(topicsInBundle -> {
                     List<CompletableFuture<Void>> futures = new ArrayList<>();
-                    String effectiveSubscription = subscription;
-                    if (effectiveSubscription != null
-                            && effectiveSubscription.startsWith(pulsar().getConfiguration().getReplicatorPrefix())) {
-                        effectiveSubscription = PersistentReplicator.getRemoteCluster(effectiveSubscription);
-                    }
-                    final String finalSubscription = effectiveSubscription;
+                    final String replicatorPrefix = pulsar().getConfiguration().getReplicatorPrefix();
+                    final String finalSubscription = subscription == null ? null
+                            : PersistentReplicator.getRemoteCluster(replicatorPrefix, subscription)
+                                    .orElse(subscription);
 
                     for (String topic : topicsInBundle) {
                         TopicName topicName = TopicName.get(topic);
