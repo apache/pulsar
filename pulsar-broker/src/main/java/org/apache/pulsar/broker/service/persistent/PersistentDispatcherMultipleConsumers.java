@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAG
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
+import io.netty.channel.EventLoopGroup;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -34,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -245,10 +247,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         notifyAddedToReplay.setTrue();
                     }
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
+                // Restore the invariant that the dispatcher total equals the sum of the removal balances of the
+                // remaining consumers. Exclude Flow permits that have not updated the dispatcher total yet.
+                int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
+                totalAvailablePermits -= availablePermits;
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Decreased totalAvailablePermits by {} in PersistentDispatcherMultipleConsumers. "
-                                    + "New dispatcher permit count is {}", name, consumer.getAvailablePermits(),
+                                    + "New dispatcher permit count is {}", name, availablePermits,
                             totalAvailablePermits);
                 }
                 if (notifyAddedToReplay.booleanValue()) {
@@ -288,13 +293,22 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().executor().execute(() -> {
-            internalConsumerFlow(consumer, additionalNumberOfMessages);
-        });
+        EventLoopGroup flowExecutor = topic.getBrokerService().executor();
+        try {
+            flowExecutor.execute(() -> internalConsumerFlow(consumer, additionalNumberOfMessages));
+        } catch (RejectedExecutionException e) {
+            // Leave the permits pending so removal excludes this unapplied Flow during broker shutdown.
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Unable to schedule flow control update for consumer {}, executorShutdown={}",
+                        name, consumer, flowExecutor.isShuttingDown(), e);
+            }
+        }
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        if (!consumerSet.contains(consumer)) {
+        // The queued Flow task is no longer pending, even if the consumer was removed while the task was waiting.
+        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
+        if (!containsConsumerInstance(consumer)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Ignoring flow control from disconnected consumer {}", name, consumer);
             }
