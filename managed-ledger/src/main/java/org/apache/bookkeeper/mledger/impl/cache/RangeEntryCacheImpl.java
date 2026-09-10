@@ -365,12 +365,13 @@ public class RangeEntryCacheImpl implements EntryCache {
                 if (!entries.isEmpty()) {
                     // release permits only when entries have been handled
                     AtomicInteger remainingCount = new AtomicInteger(entries.size());
+                    Runnable releasePermits = () -> {
+                        if (remainingCount.decrementAndGet() <= 0) {
+                            pendingReadsLimiter.release(handle);
+                        }
+                    };
                     for (Entry entry : entries) {
-                        ((EntryImpl) entry).onDeallocate(() -> {
-                            if (remainingCount.decrementAndGet() <= 0) {
-                                pendingReadsLimiter.release(handle);
-                            }
-                        });
+                        ((EntryImpl) entry).onDeallocate(releasePermits);
                     }
                 } else {
                     pendingReadsLimiter.release(handle);
