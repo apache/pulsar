@@ -23,7 +23,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -49,11 +48,11 @@ import org.testng.annotations.Test;
  * within a single topic load, so a stale-read window that spans the whole load leaves the wrong retention in place
  * for the life of the topic instance while the policy store keeps reporting the right one.
  *
- * <p>The window is opened by {@link StaleCacheGenerationInjectingTopicPoliciesService}, which interleaves
- * namespace-bundle bounces (production calls only) into the thread hop inside
- * {@link SystemTopicBasedTopicPoliciesService#getTopicPoliciesAsync}. The two retention values are synthetic
- * (namespace 30 min, topic 300 min) and their magnitudes do not matter: what is asserted is which of the two is live
- * on the managed ledger.
+ * <p>The window is opened by {@link StaleCacheGenerationInjectingTopicPoliciesService}: a namespace-bundle bounce
+ * (production calls only) installs a replacement policy-cache generation whose reader is gated, the reads of the
+ * load are let go only once that is in place, and the gate is released only once each of them has reached its
+ * decision. The two retention values are synthetic (namespace 30 min, topic 300 min) and their magnitudes do not
+ * matter: what is asserted is which of the two is live on the managed ledger.
  *
  * <p>This test closes and replaces the broker's {@code topicPoliciesService}, which would leak into every other class
  * sharing a runtime, so it runs its own broker instead of extending {@code SharedPulsarBaseTest}.
@@ -67,8 +66,15 @@ public class TopicPoliciesStaleCacheGenerationRetentionTest extends MockedPulsar
     private static final int NAMESPACE_RETENTION_MINUTES = 30;
     /** Synthetic topic-level retention: the value the topic must keep. */
     private static final int TOPIC_RETENTION_MINUTES = 300;
-    /** Capped so a broker that retries out of the stale read converges instead of being perturbed for ever. */
-    private static final int BOUNCE_BUDGET = 8;
+    /**
+     * Capped so a broker that retries its way out of the stale read converges instead of being perturbed for ever,
+     * and at least as large as the number of policy reads one topic load performs -- seven: one in
+     * {@code BrokerService#getTopic}, two pairs in {@code BrokerService#getManagedLedgerConfig} and one pair in
+     * {@code AbstractTopic#initTopicPolicy} -- so that the budget lasts until the last of them even if no concurrent
+     * sibling joins a window: windows are consumed in load order, and it is the final {@code initTopicPolicy}
+     * {@code LOCAL_ONLY} read that would repair the retention if it saw a settled generation.
+     */
+    private static final int STALE_WINDOW_BUDGET = 8;
 
     private StaleCacheGenerationInjectingTopicPoliciesService injectingService;
 
@@ -85,6 +91,10 @@ public class TopicPoliciesStaleCacheGenerationRetentionTest extends MockedPulsar
         conf.setDefaultNumberOfNamespaceBundles(1);
         conf.setDefaultRetentionTimeInMinutes(0);
         conf.setDefaultRetentionSizeInMB(0);
+        // A default too, and the test depends on it just as much: replaying cached policies to the topic-policy
+        // listeners once a generation finishes loading would push the topic retention onto the live managed ledger
+        // out of band, repairing the very symptom this test looks for.
+        conf.setTopicPolicyListenerReplayEnabled(false);
         super.internalSetup();
 
         admin.clusters().createCluster("test",
@@ -92,11 +102,11 @@ public class TopicPoliciesStaleCacheGenerationRetentionTest extends MockedPulsar
         admin.tenants().createTenant(TENANT, new TenantInfoImpl(Set.of("role1"), Set.of("test")));
         admin.namespaces().createNamespace(NAMESPACE, Set.of("test"));
 
-        // Substitute the topic-policies service the way PulsarService installs it, so the bundle bounce can be
-        // interleaved into the policy reads a topic load performs.
+        // Substitute the topic-policies service the way PulsarService installs it, so the stale-read window can be
+        // opened around the policy reads a topic load performs.
         pulsar.getTopicPoliciesService().close();
         injectingService = new StaleCacheGenerationInjectingTopicPoliciesService(pulsar);
-        FieldUtils.writeField(pulsar, "topicPoliciesService", injectingService, true);
+        pulsar.setTopicPoliciesService(injectingService);
         // Started as PulsarService starts the original, so the replacement receives the bundle-ownership callbacks.
         injectingService.start(pulsar);
     }
@@ -126,8 +136,8 @@ public class TopicPoliciesStaleCacheGenerationRetentionTest extends MockedPulsar
         // finish loading the policy before anything is armed.
         injectingService.awaitGenerationLoaded(namespace, topicName);
 
-        // Control: the same service, bounce disarmed, must reach the correct outcome -- otherwise the assertion at
-        // the end of this test would be red by construction.
+        // Control: the same service, disarmed, must reach the correct outcome -- otherwise the assertion at the end
+        // of this test would be red by construction.
         final PersistentTopic control = reloadTopic(topic);
         Assertions.assertThat(liveRetentionMillis(control))
                 .describedAs("a normally loaded topic must enforce its own topic-level retention of %d minutes",
@@ -136,7 +146,7 @@ public class TopicPoliciesStaleCacheGenerationRetentionTest extends MockedPulsar
 
         unload(topic);
 
-        injectingService.arm(namespace, BOUNCE_BUDGET);
+        injectingService.arm(namespace, STALE_WINDOW_BUDGET);
         final PersistentTopic reloaded;
         try {
             reloaded = loadTopic(topic);
@@ -144,9 +154,9 @@ public class TopicPoliciesStaleCacheGenerationRetentionTest extends MockedPulsar
             injectingService.disarm();
         }
 
-        Assertions.assertThat(injectingService.staleInjectionCount())
-                .describedAs("no bounce handed a policy read back a still-loading replacement generation, so no"
-                        + " stale-read window was ever opened and the assertions below would hold vacuously")
+        Assertions.assertThat(injectingService.staleWindowCount())
+                .describedAs("no stale-read window was opened around the reads of this load, so the interleaving"
+                        + " under test never happened and the assertions below would hold vacuously")
                 .isPositive();
         // ManagedLedgerFactoryImpl caches managed ledgers by name and silently discards the config passed on a cache
         // hit, so a load that reused either instance would be asserting on the control leg's config.
@@ -164,7 +174,7 @@ public class TopicPoliciesStaleCacheGenerationRetentionTest extends MockedPulsar
         // Bounded, so a broker that repairs the retention out of band still turns this green.
         Awaitility.await().atMost(Duration.ofSeconds(10)).pollInterval(Duration.ofMillis(200)).untilAsserted(() ->
                 Assertions.assertThat(liveRetentionMillis(reloaded))
-                        .describedAs("the topic-policy reads made stale by the namespace-bundle bounces returned"
+                        .describedAs("the topic-policy reads that resumed inside a stale-read window returned"
                                 + " Optional.empty(), so the topic silently fell back to namespace retention: the"
                                 + " live ManagedLedgerConfig enforces the namespace value of %d minutes instead of"
                                 + " the topic value of %d minutes",
