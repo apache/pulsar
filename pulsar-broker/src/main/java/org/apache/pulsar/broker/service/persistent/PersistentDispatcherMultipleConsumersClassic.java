@@ -266,8 +266,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
              * are not mismatch with {@link #consumerSet}. See more detail: https://github.com/apache/pulsar/pull/22270.
              */
             log.error().attr("consumer", consumer).log("Trying to remove a non-connected consumer");
-            // No un-acked debit here: reaching this branch means the consumer already left
-            // consumerSet, so the removal that unregistered it has debited its messages.
+            // The debit belongs to the removal that unregisters the consumer; do not repeat it here.
             consumerList.removeIf(c -> consumer.equals(c));
             if (consumerList.isEmpty()) {
                 clearComponentsAfterRemovedAllConsumers();
