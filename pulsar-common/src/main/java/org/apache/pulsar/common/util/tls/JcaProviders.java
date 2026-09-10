@@ -28,7 +28,6 @@ import java.util.Optional;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 
@@ -296,17 +295,21 @@ public final class JcaProviders {
         }
 
         // Unlike the PIP-337 loader this one installs NO custom hostname verifier, so Conscrypt keeps its
-        // built-in default: standard RFC 2818 (SAN-based) verification, matching PIP-478's removal of the
-        // deprecated CN-based matching. The bug-1015 workaround in processConscryptTrustManager propagates
-        // whatever Conscrypt's DEFAULT verifier is onto each TrustManager.
+        // built-in default: SAN-only verification, with no fallback to the CN. That is stricter than the
+        // fallback RFC 2818 section 3.1 mandates when a hostname is matched against a certificate carrying
+        // no dNSName SAN, and stricter than the last-resort CN-ID check RFC 6125 section 6.4.4 permitted —
+        // but it is what RFC 9525 (which obsoletes RFC 6125) now requires: "The Common Name RDN MUST NOT be
+        // used to identify a service". So it is the default engines that are lenient, not Conscrypt that is
+        // eccentric. (Neither fallback ever applied to an IP literal, which is matched against iPAddress
+        // SANs only, so pinning Conscrypt changes nothing there.) Since Conscrypt 2.6.0 a
+        // TrustManagerImpl falls back to the default verifier on its own
+        // (https://github.com/google/conscrypt/pull/1060 fixing issue 1015), so nothing has to be
+        // propagated onto the individual trust managers.
         //
-        // CAVEAT while both TLS stacks coexist: Conscrypt.setDefaultHostnameVerifier is process-global, and
-        // SecurityUtility's static initializer (still the wired PIP-337 path) sets it to the CN-tolerant
-        // TlsHostnameVerifier. Whenever that class has been loaded, the "default" propagated above is that
-        // relaxed verifier, not Conscrypt's own. Nothing routes through this class yet so no deployment is
-        // affected today; the PR that turns SAN-only hostname verification on by default must neutralize that
-        // global (or land together with SecurityUtility's removal) for the SAN-only guarantee to hold on a
-        // Conscrypt-pinned deployment.
+        // Nothing overrides that default any more: the CN-tolerant TlsHostnameVerifier that SecurityUtility
+        // used to install process-wide was removed with it. So a Conscrypt-pinned client rejects a CN-only
+        // server certificate that the JDK and OpenSSL engines still accept — the one deployment-visible
+        // change from removing Pulsar's own CN-matching verifier.
 
         Security.addProvider(provider);
         log.debug().attr("provider", provider.getName()).attr("class", CONSCRYPT_PROVIDER_CLASS)
@@ -452,44 +455,4 @@ public final class JcaProviders {
         return provider;
     }
 
-    /**
-     * Ensures each Conscrypt {@link TrustManager} performs standard SAN-based (RFC 2818) hostname verification by
-     * propagating Conscrypt's default {@code ConscryptHostnameVerifier} onto the trust manager instance. This is a
-     * workaround for https://github.com/google/conscrypt/issues/1015, where a Conscrypt {@code TrustManagerImpl}
-     * obtained through the standard JSSE {@link javax.net.ssl.TrustManagerFactory} does not automatically pick up
-     * the default hostname verifier, when Conscrypt / OpenSSL is used as the TLS security provider.
-     *
-     * @param trustManagers the array of TrustManager instances to process.
-     * @return same instance passed as parameter
-     */
-    static TrustManager[] processConscryptTrustManagers(TrustManager[] trustManagers) {
-        for (TrustManager trustManager : trustManagers) {
-            processConscryptTrustManager(trustManager);
-        }
-        return trustManagers;
-    }
-
-    // workaround https://github.com/google/conscrypt/issues/1015
-    private static void processConscryptTrustManager(TrustManager trustManager) {
-        if (trustManager.getClass().getName().equals("org.conscrypt.TrustManagerImpl")) {
-            try {
-                Class<?> conscryptClazz = Class.forName("org.conscrypt.Conscrypt");
-                Object hostnameVerifier = conscryptClazz.getMethod("getHostnameVerifier",
-                        new Class<?>[]{TrustManager.class}).invoke(null, trustManager);
-                if (hostnameVerifier == null) {
-                    Object defaultHostnameVerifier = conscryptClazz.getMethod("getDefaultHostnameVerifier",
-                            new Class<?>[]{TrustManager.class}).invoke(null, trustManager);
-                    if (defaultHostnameVerifier != null) {
-                        conscryptClazz.getMethod("setHostnameVerifier", new Class<?>[]{
-                                TrustManager.class,
-                                Class.forName("org.conscrypt.ConscryptHostnameVerifier")
-                        }).invoke(null, trustManager, defaultHostnameVerifier);
-                    }
-                }
-            } catch (ReflectiveOperationException e) {
-                log.warn().exception(e)
-                        .log("Unable to set hostname verifier for Conscrypt TrustManager implementation");
-            }
-        }
-    }
 }

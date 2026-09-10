@@ -174,7 +174,15 @@ public interface ProducerBuilder<T> extends Cloneable {
      * the client application. Until the producer gets a successful acknowledgment back from the broker,
      * it will keep in memory (direct memory pool) all the messages in the pending queue.
      *
-     * <p>Default is 0, which disables the pending messages check.
+     * <p>Default is 0, which disables the pending messages check. Disabling it only removes the
+     * message-count limit; the memory the pending queue may hold is then bounded by the client
+     * memory limit ({@link ClientBuilder#memoryLimit(long, SizeUnit)}) instead.
+     *
+     * <p>On a client whose memory limit is disabled there would be no backpressure left at all, so a
+     * producer that does not configure this setting falls back to a default queue size of 1000 rather
+     * than buffering without limit. Calling this method always wins over that default, so passing 0
+     * explicitly is how an application asks for a producer with no message-count limit, on a
+     * partitioned topic as well.
      *
      * @param maxPendingMessages
      *            the max size of the pending messages queue for the producer
@@ -190,7 +198,10 @@ public interface ProducerBuilder<T> extends Cloneable {
      * The purpose of this setting is to have an upper-limit on the number
      * of pending messages when publishing on a partitioned topic.
      *
-     * <p>Default is 0, which disables the pending messages across partitions check.
+     * <p>Default is 0, which disables the pending messages across partitions check. As with
+     * {@link #maxPendingMessages(int)}, a producer that does not configure this setting on a client
+     * whose memory limit is disabled falls back to a default budget of 50000 instead, since no
+     * backpressure would otherwise be left, and calling this method always wins over that default.
      *
      * <p>If publishing at a high rate over a topic with many partitions (especially when publishing messages without a
      * partitioning key), it might be beneficial to increase this parameter to allow for more pipelining within the

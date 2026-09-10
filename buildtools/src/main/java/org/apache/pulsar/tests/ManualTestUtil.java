@@ -23,10 +23,24 @@ import org.testng.SkipException;
 
 public class ManualTestUtil {
 
+    /**
+     * System property equivalent of the {@code ENABLE_MANUAL_TEST} environment variable. The build
+     * sets it whenever a test task runs under a profiler, since the manual tests are usually the
+     * ones worth profiling, and a system property travels with the test JVM's command line where an
+     * environment variable depends on how the task was launched.
+     */
+    public static final String ENABLE_MANUAL_TEST_PROPERTY = "pulsar.test.enableManualTest";
+
     public static void skipManualTestIfNotEnabled() {
-        if (!BooleanUtils.toBoolean(System.getenv("ENABLE_MANUAL_TEST")) && !isRunningInIntelliJ()) {
-            throw new SkipException("This test requires setting ENABLE_MANUAL_TEST=true environment variable.");
+        if (!isManualTestEnabled() && !isRunningInIntelliJ()) {
+            throw new SkipException("This test requires setting the " + ENABLE_MANUAL_TEST_PROPERTY
+                    + " system property or the ENABLE_MANUAL_TEST=true environment variable.");
         }
+    }
+
+    public static boolean isManualTestEnabled() {
+        return BooleanUtils.toBoolean(System.getProperty(ENABLE_MANUAL_TEST_PROPERTY))
+                || BooleanUtils.toBoolean(System.getenv("ENABLE_MANUAL_TEST"));
     }
 
     public static boolean isRunningInIntelliJ() {

@@ -32,6 +32,14 @@ import java.util.concurrent.ScheduledExecutorService;
  * client side; the broker / proxy / websocket / functions-worker service on the server side — and
  * {@code initialize(...)} completes before the first {@code createInstance} call. The framework owns
  * and closes these shared services; the factory may retain references for its lifetime.
+ *
+ * <p><b>{@link #scheduler()} and {@link #blockingExecutor()} may be the same executor.</b> Every wiring
+ * in this repository passes one general-purpose scheduled pool for both roles, and a third-party
+ * component is free to do the same. The two accessors therefore describe <i>roles</i>, not necessarily
+ * distinct pools, and a factory must not assume it can block one without affecting the other: work
+ * triggered on a scheduler thread has to be dispatched to {@code blockingExecutor()} rather than run in
+ * place, which is what keeps a shared pool's timing guarantees intact. Neither is ever a consumer event
+ * loop, so an occasional blocking material load is tolerable on either.
  */
 public interface TlsFactoryInitContext {
 
@@ -44,13 +52,19 @@ public interface TlsFactoryInitContext {
     Map<String, String> params();
 
     /**
-     * @return a framework-owned scheduler for file-watch polling and rotation work; never a consumer
-     *         event loop
+     * A scheduler for file-watch polling and rotation work. Only <i>triggers</i> work: anything that can
+     * block belongs on {@link #blockingExecutor()}, which may well be this same executor.
+     *
+     * @return a framework-owned scheduler; never a consumer event loop
      */
     ScheduledExecutorService scheduler();
 
     /**
-     * @return an executor for potentially-blocking material loading; never a consumer event loop
+     * The executor for potentially-blocking material loading — reading and parsing PEM or keystore
+     * files, and calling into an authentication plugin for in-memory material.
+     *
+     * @return an executor that tolerates a blocking call; never a consumer event loop, and possibly the
+     *         same instance as {@link #scheduler()}
      */
     Executor blockingExecutor();
 

@@ -72,10 +72,12 @@ public class PersistentTopicInitializeDelayTest extends BrokerTestBase {
         admin.topicPolicies().setMaxConsumers(topicName, 10);
         Awaitility.await().untilAsserted(() -> assertEquals(admin.topicPolicies().getMaxConsumers(topicName), 10));
         admin.topics().unload(topicName);
+        MyPersistentTopic.checkReplicationInvocationCount.set(0);
         CompletableFuture<Optional<Topic>> optionalFuture = pulsar.getBrokerService().getTopic(topicName, true);
 
         Optional<Topic> topic = optionalFuture.get(15, TimeUnit.SECONDS);
         assertTrue(topic.isPresent());
+        assertEquals(MyPersistentTopic.checkReplicationInvocationCount.get(), 1);
     }
 
     public static class MyTopicFactory implements TopicFactory {

@@ -658,6 +658,36 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 Response.Status.PRECONDITION_FAILED.getStatusCode());
     }
 
+    @Test
+    public void testCreateTopicWithSurroundingWhitespaceIsRejected() {
+        // Clients trim topic names, so a topic created with surrounding whitespace could never be reached.
+        final String topicName = "topic-with-trailing-whitespace ";
+
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(),
+                Response.Status.PRECONDITION_FAILED.getStatusCode());
+        Assert.assertTrue(errCaptor.getValue().getMessage().contains("must not have leading or trailing whitespace"));
+
+        response = mock(AsyncResponse.class);
+        errCaptor = ArgumentCaptor.forClass(RestException.class);
+        nonPersistentTopic.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(),
+                Response.Status.PRECONDITION_FAILED.getStatusCode());
+
+        response = mock(AsyncResponse.class);
+        errCaptor = ArgumentCaptor.forClass(RestException.class);
+        try {
+            persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
+            Assert.fail("Should have thrown a RestException");
+        } catch (RestException e) {
+            Assert.assertEquals(e.getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+        }
+    }
+
     @SuppressWarnings("deprecation")
     @Test
     public void testCreatePartitionedTopicHavingNonPartitionTopicWithPartitionSuffix()
@@ -1990,6 +2020,20 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(cursor.getCursorProperties().size(), 1);
         assertEquals(cursor.getCursorProperties().get("foo"), "bar");
+    }
+
+    @Test
+    public void testNonPersistentNonPartitionedTopicWithTransactionSuffixIsNotRejected() {
+        // NonPersistentTopics inherits createNonPartitionedTopic from PersistentTopics, so this guards the
+        // non-partitioned non-persistent path against the transaction-internal-name check. If validateCreateTopic
+        // wrongly rejected the transaction-internal suffix here, the async response would resume with an error
+        // status rather than NO_CONTENT.
+        AsyncResponse response = mock(AsyncResponse.class);
+        nonPersistentTopic.createNonPartitionedTopic(response, testTenant, testNamespace,
+                "foo__transaction_pending_ack", true, null);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
     }
 
     @Test

@@ -97,7 +97,8 @@ public class WebSocketProxyConfigurationTest {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         // Use non-default values for testing
         config.setTlsAllowInsecureConnection(true);
-        Assert.assertFalse(config.isTlsHostnameVerificationEnabled(), "Update me when default changes.");
+        // Enabled by default since Pulsar 5.0 (PIP-478).
+        Assert.assertTrue(config.isTlsHostnameVerificationEnabled(), "Update me when default changes.");
         config.setTlsHostnameVerificationEnabled(true);
         ServiceConfiguration brokerConf = PulsarConfigurationLoader.convertFrom(config);
         Assert.assertTrue(brokerConf.isTlsAllowInsecureConnection(),

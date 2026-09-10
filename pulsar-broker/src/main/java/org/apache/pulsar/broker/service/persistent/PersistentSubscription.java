@@ -1514,6 +1514,8 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
+        subStats.oldestBacklogMessageAgeSeconds =
+                topic.getBestEffortOldestUnacknowledgedMessageAgeSeconds(subName);
         if (getStatsOptions.isSubscriptionBacklogSize()) {
             subStats.backlogSize = topic.getManagedLedger()
                     .getEstimatedBacklogSize(cursor.getMarkDeletedPosition());

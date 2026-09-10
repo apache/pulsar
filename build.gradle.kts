@@ -165,6 +165,53 @@ tasks.register("sanityCheck") {
 }
 
 // ── Parent POM publication ──────────────────────────────────────────────────
+// ── Flame graphs from JFR recordings ────────────────────────────────────────
+// Converts the recordings produced by -PtestAsyncProfiler or by
+// :tests:integration:profilingIntegrationTest into flame graphs. See CONTRIBUTING.md.
+//   ./gradlew jfrFlamegraphs                       # every recording in build/test-profiles
+//   ./gradlew jfrFlamegraphs -Pjfr=<file-or-dir>   # a specific recording, or another directory
+tasks.register<JfrFlamegraphsTask>("jfrFlamegraphs") {
+    group = "verification"
+    description = "Convert JFR recordings into flame graphs next to them, in a <name>-flamegraphs " +
+        "directory. Pass -Pjfr=<file-or-directory> to pick what to convert."
+
+    val jfrInput = providers.gradleProperty("jfr")
+        .map { rootProject.file(it) }
+        .getOrElse(layout.buildDirectory.dir("test-profiles").get().asFile)
+    // A directory is wired in as a file tree rather than listed here: the listing has to happen when
+    // the task runs, or a reused configuration cache entry would convert the recordings of the
+    // previous profiling run and miss the one just made. The tree is searched recursively because
+    // JMH's async-profiler integration writes its recording into a directory per benchmark.
+    jfrFiles.from(if (jfrInput.isFile) jfrInput else fileTree(jfrInput) { include("**/*.jfr") })
+
+    // async-profiler's converter, looked up the same way as the profiler library itself:
+    // -Pjfrconv wins, then the bin/ directory of the async-profiler install that
+    // LIBASYNCPROFILER_PATH points into, then the copy that Amazon Corretto ships in the JDK that
+    // runs Gradle.
+    jfrconvExecutable.set(
+        providers.gradleProperty("jfrconv")
+            .orElse(providers.environmentVariable("LIBASYNCPROFILER_PATH")
+                .map { File(File(it).parentFile.parentFile, "bin/jfrconv").absolutePath })
+            .orElse(providers.systemProperty("java.home").map { File(it, "bin/jfrconv").absolutePath })
+            .map {
+                if (!File(it).canExecute()) {
+                    throw GradleException("async-profiler's jfrconv was not found at '$it'. Set " +
+                        "-Pjfrconv=<path>, or LIBASYNCPROFILER_PATH to the profiler library of an " +
+                        "async-profiler install. Amazon Corretto ships jfrconv in the JDK's bin " +
+                        "directory.")
+                }
+                it
+            })
+
+    // A recording collects several events; render every one that is present in it.
+    profileTypes.set(providers.gradleProperty("jfr.types")
+        .map { it.split(",").map(String::trim).filter(String::isNotEmpty) }
+        .getOrElse(listOf("cpu", "wall", "alloc", "lock")))
+
+    // Converting is cheap, and the recordings change on every profiling run.
+    outputs.upToDateWhen { false }
+}
+
 // Publishes org.apache.pulsar:pulsar as a POM-only parent artifact.
 // Child modules reference this via <parent> in their POMs, inheriting
 // shared ASF metadata (license, SCM, organization, etc.).
