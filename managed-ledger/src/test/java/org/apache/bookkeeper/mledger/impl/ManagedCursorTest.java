@@ -1992,6 +1992,55 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    void testGroupedDeleteAcrossLedgerBoundaries() throws Exception {
+        ManagedLedger ledger = factory.open("grouped_delete_boundaries",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
+        ManagedCursor cursor = ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 9; i++) {
+            positions.add(ledger.addEntry(new byte[] {(byte) i}));
+        }
+        assertEquals(positions.get(3).getEntryId(), 0L);
+        assertEquals(positions.get(6).getEntryId(), 0L);
+        Position initialMarkDelete = cursor.getMarkDeletedPosition();
+        cursor.delete(initialMarkDelete);
+        cursor.delete(List.of(positions.get(3), positions.get(7), positions.get(1)));
+        assertEquals(cursor.getMarkDeletedPosition(), initialMarkDelete);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 6L);
+
+        cursor.delete(List.of(positions.get(8), positions.get(0), positions.get(2), positions.get(4),
+                positions.get(5), positions.get(6), positions.get(3)));
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(8));
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 0L);
+        cursor.close();
+        cursor = ledger.openCursor("c1");
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(8));
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 0L);
+    }
+
+    @Test(timeOut = 20000)
+    void testIndividualDeleteNegativeEntryAcrossLedgers() throws Exception {
+        ManagedLedger ledger = factory.open("delete_negative_entry",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
+        ManagedCursor cursor = ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            positions.add(ledger.addEntry(new byte[] {(byte) i}));
+        }
+        assertEquals(positions.get(3).getEntryId(), 0L);
+        Position initialMarkDelete = cursor.getMarkDeletedPosition();
+        Position beforeSecondLedger = PositionFactory.create(positions.get(3).getLedgerId(), -1);
+        cursor.delete(beforeSecondLedger);
+        // A negative entry marker must not delete the real entries on either side of the boundary.
+        assertFalse(cursor.isMessageDeleted(positions.get(2)));
+        assertFalse(cursor.isMessageDeleted(positions.get(3)));
+        assertEquals(cursor.getMarkDeletedPosition(), initialMarkDelete);
+
+        cursor.close();
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
     void testFilteringReadEntries() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
         ManagedCursor cursor = ledger.openCursor("c1");
