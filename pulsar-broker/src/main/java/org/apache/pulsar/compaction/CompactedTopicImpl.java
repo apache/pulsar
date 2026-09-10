@@ -270,23 +270,25 @@ public class CompactedTopicImpl implements CompactedTopic {
      */
     public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException,
             TimeoutException {
-        return compactedTopicContext == null ? Optional.empty() :
-                Optional.of(compactedTopicContext.get(30, TimeUnit.SECONDS));
+        CompletableFuture<CompactedTopicContext> context = compactedTopicContext;
+        return context == null ? Optional.empty() : Optional.of(context.get(30, TimeUnit.SECONDS));
     }
 
     @Override
     public CompletableFuture<Entry> readLastEntryOfCompactedLedger() {
-        // The context can briefly be null while the horizon is not, while a stale compacted ledger
-        // is being unregistered after its open failed; there is no compacted ledger to read then.
-        if (compactionHorizon == null || compactedTopicContext == null) {
+        // Capture the context once: the missing-ledger callback may clear the field between a null
+        // check and the composition below, which would dereference null a second time and throw a
+        // synchronous NullPointerException instead of failing through the returned future.
+        CompletableFuture<CompactedTopicContext> context = compactedTopicContext;
+        if (compactionHorizon == null || context == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return compactedTopicContext.thenCompose(context -> {
-            if (context.ledger.getLastAddConfirmed() == -1) {
+        return context.thenCompose(ctx -> {
+            if (ctx.ledger.getLastAddConfirmed() == -1) {
                 return CompletableFuture.completedFuture(null);
             }
             return readEntries(
-                    context.ledger, context.ledger.getLastAddConfirmed(), context.ledger.getLastAddConfirmed())
+                    ctx.ledger, ctx.ledger.getLastAddConfirmed(), ctx.ledger.getLastAddConfirmed())
                     .thenCompose(entries -> entries.size() > 0
                             ? CompletableFuture.completedFuture(entries.get(0))
                             : CompletableFuture.completedFuture(null));

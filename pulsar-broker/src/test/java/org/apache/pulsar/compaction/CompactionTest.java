@@ -69,6 +69,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
@@ -3032,5 +3033,43 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             }
             assertEquals(compacted, Set.of("k1=v1b", "k2=v2b", "k3=v3"));
         }
+    }
+
+    /**
+     * A read overlapping the missing-ledger reset must complete through the returned future instead
+     * of throwing a synchronous NullPointerException from a torn null check of the context field:
+     * the last-entry read passes the check while the open is still pending, and the missing-ledger
+     * callback clears the field before the composition dereferences it again.
+     */
+    @Test
+    public void testReadLastEntryOverlappingMissingCompactedLedgerReset() throws Exception {
+        CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
+        long missingLedgerId = 1234567890L;
+        // Hold the failed open so the last-entry read below overlaps the reset callback.
+        pulsarTestContext.getMockBookKeeper().delay(300);
+
+        CompletableFuture<CompactedTopicContext> registration =
+                compactedTopic.newCompactedLedger(PositionFactory.create(1, 1), missingLedgerId);
+
+        // The read must return a future rather than throw while the open is still pending, and it
+        // must complete through that future (exceptionally here) instead of hanging or throwing.
+        CompletableFuture<Entry> lastEntry = compactedTopic.readLastEntryOfCompactedLedger();
+        assertNotNull(lastEntry);
+        try {
+            assertNull(lastEntry.get(5, TimeUnit.SECONDS));
+        } catch (ExecutionException e) {
+            // acceptable: the read observed the failed open
+        }
+
+        // the registration failed with the missing ledger and the state was reset
+        try {
+            registration.get(5, TimeUnit.SECONDS);
+            fail("registration of a missing compacted ledger should have failed");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof BKException);
+        }
+        assertTrue(compactedTopic.getCompactionHorizon().isEmpty());
+        // after the reset, reads answer "no compacted data" again
+        assertNull(compactedTopic.readLastEntryOfCompactedLedger().get(5, TimeUnit.SECONDS));
     }
 }
