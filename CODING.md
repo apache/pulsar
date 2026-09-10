@@ -17,8 +17,10 @@ for the agent-specific guardrails on top of it.
   Both run on sources only (no compilation): `./gradlew quickCheck` runs the license-header and
   checkstyle checks across all modules, and `./gradlew sanityCheck` also compiles main + test — see
   [`CONTRIBUTING.md`](CONTRIBUTING.md#building).
-- Prefer imports over fully qualified class names in code. Use a fully qualified class name only when
-  needed to disambiguate a name collision that imports cannot resolve.
+- **Must use imports, not fully qualified class names, in code.** Reference every type through an
+  `import` statement (or the same package); never write a fully qualified class name in a statement or
+  expression. The only exception is a simple-name collision that imports cannot resolve — then fully
+  qualify the conflicting type and note why.
 
 ## Logging
 
