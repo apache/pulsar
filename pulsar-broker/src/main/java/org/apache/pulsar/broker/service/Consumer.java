@@ -609,9 +609,10 @@ public class Consumer {
         List<Pair<Consumer, MutablePair<Position, Integer>>> txnPositions =
                 hasTxn ? new ArrayList<>() : null;
         // Non-txn path needs plain positions for acknowledgeMessageAsync.
-        List<Position> nonTxnPositions = hasTxn ? null : new ArrayList<>();
+        List<Position> nonTxnPositions = hasTxn ? null : new ArrayList<>(ack.getMessageIdsCount());
         // Deferred completions for non-txn (applied after persistence).
-        List<PendingAckCompletion> pendingAckCompletions = new ArrayList<>();
+        List<PendingAckCompletion> pendingAckCompletions =
+                hasTxn ? null : new ArrayList<>(ack.getMessageIdsCount());
         long totalAckCount = 0;
 
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
@@ -682,7 +683,9 @@ public class Consumer {
                 totalAckCount += ackedCount;
             }
 
-            checkAckValidationError(ack, getAckPosition(hasTxn, msgId));
+            if (ack.hasValidationError()) {
+                checkAckValidationError(ack, getAckPosition(hasTxn, msgId));
+            }
         }
 
         final long finalTotalAckCount = totalAckCount;
