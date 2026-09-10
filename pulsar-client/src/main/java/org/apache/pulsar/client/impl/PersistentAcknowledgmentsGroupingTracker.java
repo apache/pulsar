@@ -39,7 +39,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Function;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Triple;
@@ -179,13 +178,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             if (MessageIdAdvUtils.isBatch(messageIdAdv)) {
                 addIndividualAcknowledgment(MessageIdAdvUtils.discardBatch(messageIdAdv),
                         messageIdAdv,
-                        this::doIndividualAckAsync,
-                        this::doIndividualBatchAckAsync);
+                        null, true);
             } else {
                 addIndividualAcknowledgment(messageIdAdv,
                         null,
-                        this::doIndividualAckAsync,
-                        this::doIndividualBatchAckAsync);
+                        null, true);
             }
         }
     }
@@ -204,8 +201,8 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     private CompletableFuture<Void> addIndividualAcknowledgment(
             MessageIdAdv msgId,
             @Nullable MessageIdAdv batchMessageId,
-            Function<MessageIdAdv, CompletableFuture<Void>> individualAckFunction,
-            Function<MessageIdAdv, CompletableFuture<Void>> batchAckFunction) {
+            Map<String, Long> properties,
+            boolean groupedByCaller) {
         if (batchMessageId != null) {
             consumer.onAcknowledge(batchMessageId, null);
         } else {
@@ -217,9 +214,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             if (consumer.getPossibleSendToDeadLetterTopicMessages() != null) {
                 consumer.getPossibleSendToDeadLetterTopicMessages().remove(msgId);
             }
-            return individualAckFunction.apply(msgId);
+            // List acknowledgments already hold the grouping lock and flush after processing the list.
+            return groupedByCaller ? doIndividualAckAsync(msgId) : doIndividualAck(msgId, properties);
         } else if (batchIndexAckEnabled) {
-            return batchAckFunction.apply(batchMessageId);
+            return groupedByCaller ? doIndividualBatchAckAsync(batchMessageId)
+                    : doIndividualBatchAck(batchMessageId, properties);
         } else {
             return CompletableFuture.completedFuture(null);
         }
@@ -233,8 +232,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             case Individual:
                 return addIndividualAcknowledgment(msgId,
                         batchMessageId,
-                        __ -> doIndividualAck(__, properties),
-                        __ -> doIndividualBatchAck(__, properties));
+                        properties, false);
             case Cumulative:
                 if (batchMessageId != null) {
                     consumer.onAcknowledgeCumulative(batchMessageId, null);
