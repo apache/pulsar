@@ -286,6 +286,20 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
+    @Override
+    public void rebucketSegment(String topic, long segmentId, int bucketCount)
+            throws PulsarAdminException {
+        sync(() -> rebucketSegmentAsync(topic, segmentId, bucketCount));
+    }
+
+    @Override
+    public CompletableFuture<Void> rebucketSegmentAsync(String topic, long segmentId, int bucketCount) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("rebucket").path(String.valueOf(segmentId))
+                .queryParam("bucketCount", bucketCount);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
     // --- Merge ---
 
     @Override

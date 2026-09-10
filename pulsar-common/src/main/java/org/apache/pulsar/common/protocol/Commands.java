@@ -138,6 +138,13 @@ public class Commands {
     public static final short magicCrc32c = 0x0e01;
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicBrokerEntryMetadata = 0x0e02;
+
+    /**
+     * Payloads up to this size are copied into a single buffer when broker entry metadata is prepended; larger ones
+     * are wrapped in a composite instead. Matches the size below which the BookKeeper client copies entries anyway.
+     */
+    @VisibleForTesting
+    static final int BROKER_ENTRY_METADATA_COPY_THRESHOLD = 16 * 1024;
     private static final int checksumSize = 4;
 
     @VisibleForTesting
@@ -1805,6 +1812,19 @@ public class Commands {
     }
 
     /**
+     * Client -> Broker: a scalable consumer is cleanly leaving its subscription; the
+     * controller unregisters it and rebalances immediately instead of waiting out the
+     * disconnect grace period. Acknowledged with {@code CommandSuccess}.
+     */
+    public static ByteBuf newScalableTopicUnsubscribe(long requestId, long consumerId) {
+        BaseCommand cmd = localCmd(Type.SCALABLE_TOPIC_UNSUBSCRIBE);
+        cmd.setScalableTopicUnsubscribe()
+                .setRequestId(requestId)
+                .setConsumerId(consumerId);
+        return serializeWithSize(cmd);
+    }
+
+    /**
      * Broker -> Client: response to a scalable-topic subscribe request. On success the
      * caller must populate the nested {@link ScalableConsumerAssignment} via
      * {@code response.setAssignment()} before serializing; on failure the error and
@@ -2073,6 +2093,24 @@ public class Commands {
         }
 
         int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
+        int payloadSize = headerAndPayload.readableBytes();
+
+        if (payloadSize <= BROKER_ENTRY_METADATA_COPY_THRESHOLD) {
+            // For small payloads, produce a single contiguous buffer. A composite reaching the socket goes through
+            // nioBuffers(), which allocates two NIO views per component on every flush (BK write and each consumer
+            // dispatch), and makes every metadata parse walk the components. At this size the copy is cheaper than
+            // that, and it happens once at publish while the entry is written and parsed many more times.
+            int totalSize = 6 + brokerMetaSize + payloadSize;
+            ByteBuf entry = PulsarByteBufAllocator.DEFAULT.buffer(totalSize, totalSize);
+            entry.writeShort(Commands.magicBrokerEntryMetadata);
+            entry.writeInt(brokerMetaSize);
+            brokerEntryMetadata.writeTo(entry);
+            entry.writeBytes(headerAndPayload, headerAndPayload.readerIndex(), payloadSize);
+            headerAndPayload.release();
+            return entry;
+        }
+
+        // For large payloads the copy would cost more than the per-flush view allocations it saves.
         ByteBuf brokerMeta =
                 PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
         brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);

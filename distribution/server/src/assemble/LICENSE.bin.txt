@@ -293,37 +293,37 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-lang3-3.20.0.jar
     - org.apache.commons-commons-text-1.15.0.jar
  * Netty
-    - io.netty-netty-buffer-4.2.17.Final.jar
-    - io.netty-netty-codec-base-4.2.17.Final.jar
-    - io.netty-netty-codec-compression-4.2.17.Final.jar
-    - io.netty-netty-codec-dns-4.2.17.Final.jar
-    - io.netty-netty-codec-http-4.2.17.Final.jar
-    - io.netty-netty-codec-http2-4.2.17.Final.jar
-    - io.netty-netty-codec-socks-4.2.17.Final.jar
-    - io.netty-netty-codec-haproxy-4.2.17.Final.jar
-    - io.netty-netty-common-4.2.17.Final.jar
-    - io.netty-netty-handler-4.2.17.Final.jar
-    - io.netty-netty-handler-proxy-4.2.17.Final.jar
-    - io.netty-netty-resolver-4.2.17.Final.jar
-    - io.netty-netty-resolver-dns-4.2.17.Final.jar
-    - io.netty-netty-resolver-dns-classes-macos-4.2.17.Final.jar
-    - io.netty-netty-resolver-dns-native-macos-4.2.17.Final-osx-aarch_64.jar
-    - io.netty-netty-resolver-dns-native-macos-4.2.17.Final-osx-x86_64.jar
-    - io.netty-netty-transport-4.2.17.Final.jar
-    - io.netty-netty-transport-classes-epoll-4.2.17.Final.jar
-    - io.netty-netty-transport-native-epoll-4.2.17.Final-linux-aarch_64.jar
-    - io.netty-netty-transport-native-epoll-4.2.17.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-unix-common-4.2.17.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.81.Final.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.81.Final-linux-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.81.Final-linux-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.81.Final-osx-aarch_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.81.Final-osx-x86_64.jar
-    - io.netty-netty-tcnative-boringssl-static-2.0.81.Final-windows-x86_64.jar
-    - io.netty-netty-tcnative-classes-2.0.81.Final.jar
-    - io.netty-netty-transport-classes-io_uring-4.2.17.Final.jar
-    - io.netty-netty-transport-native-io_uring-4.2.17.Final-linux-x86_64.jar
-    - io.netty-netty-transport-native-io_uring-4.2.17.Final-linux-aarch_64.jar
+    - io.netty-netty-buffer-4.2.18.Final.jar
+    - io.netty-netty-codec-base-4.2.18.Final.jar
+    - io.netty-netty-codec-compression-4.2.18.Final.jar
+    - io.netty-netty-codec-dns-4.2.18.Final.jar
+    - io.netty-netty-codec-http-4.2.18.Final.jar
+    - io.netty-netty-codec-http2-4.2.18.Final.jar
+    - io.netty-netty-codec-socks-4.2.18.Final.jar
+    - io.netty-netty-codec-haproxy-4.2.18.Final.jar
+    - io.netty-netty-common-4.2.18.Final.jar
+    - io.netty-netty-handler-4.2.18.Final.jar
+    - io.netty-netty-handler-proxy-4.2.18.Final.jar
+    - io.netty-netty-resolver-4.2.18.Final.jar
+    - io.netty-netty-resolver-dns-4.2.18.Final.jar
+    - io.netty-netty-resolver-dns-classes-macos-4.2.18.Final.jar
+    - io.netty-netty-resolver-dns-native-macos-4.2.18.Final-osx-aarch_64.jar
+    - io.netty-netty-resolver-dns-native-macos-4.2.18.Final-osx-x86_64.jar
+    - io.netty-netty-transport-4.2.18.Final.jar
+    - io.netty-netty-transport-classes-epoll-4.2.18.Final.jar
+    - io.netty-netty-transport-native-epoll-4.2.18.Final-linux-aarch_64.jar
+    - io.netty-netty-transport-native-epoll-4.2.18.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-unix-common-4.2.18.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.84.Final.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.84.Final-linux-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.84.Final-linux-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.84.Final-osx-aarch_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.84.Final-osx-x86_64.jar
+    - io.netty-netty-tcnative-boringssl-static-2.0.84.Final-windows-x86_64.jar
+    - io.netty-netty-tcnative-classes-2.0.84.Final.jar
+    - io.netty-netty-transport-classes-io_uring-4.2.18.Final.jar
+    - io.netty-netty-transport-native-io_uring-4.2.18.Final-linux-x86_64.jar
+    - io.netty-netty-transport-native-io_uring-4.2.18.Final-linux-aarch_64.jar
  * Prometheus client
     - io.prometheus.jmx-collector-0.16.1.jar
     - io.prometheus-simpleclient-0.16.0.jar
@@ -384,6 +384,8 @@ The Apache Software License, Version 2.0
     - org.apache.bookkeeper-native-io-4.18.0.jar
     - org.apache.bookkeeper-native-library-common-4.18.0.jar
     - at.yawk.lz4-lz4-java-1.11.2.jar
+  * Apache Felix HTTP Wrappers
+    - org.apache.felix-org.apache.felix.http.wrappers-1.1.10.jar
   * Apache HTTP Client
     - org.apache.httpcomponents-httpclient-4.5.14.jar
     - org.apache.httpcomponents-httpcore-4.4.16.jar

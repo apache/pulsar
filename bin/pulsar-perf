@@ -27,6 +27,13 @@ PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 DEFAULT_CLIENT_CONF=${PULSAR_CLIENT_CONF:-"$PULSAR_HOME/conf/client.conf"}
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
 
+# Remember whether the caller set these, since conf/pulsar_env.sh below fills them in with the
+# broker's defaults. pulsar-perf has never applied those defaults, and a load generator that
+# suddenly reserved the broker's 2g heap could fail to start where it used to run, so only a value
+# the caller passed in is applied. See where OPTS is assembled below.
+PULSAR_MEM_FROM_CALLER=${PULSAR_MEM:+true}
+PULSAR_GC_FROM_CALLER=${PULSAR_GC:+true}
+
 # Check bookkeeper env and load bkenv.sh
 if [ -f "$PULSAR_HOME/conf/bkenv.sh" ]
 then
@@ -149,6 +156,19 @@ OPTS="-XX:+ExitOnOutOfMemoryError -Dpulsar.allocator.exit_on_oom=true $OPTS"
 OPTS="-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 $OPTS"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
+# Apply PULSAR_MEM and PULSAR_GC when the caller set them. Unlike conf/pulsar_tools_env.sh, which
+# folds them into PULSAR_EXTRA_OPTS itself, conf/pulsar_env.sh only defines them, so a script that
+# sources it has to add them here or they are silently dropped — which is what used to happen.
+# Only caller-supplied values are used, so that the broker defaults conf/pulsar_env.sh fills in are
+# not imposed on a tool that has never had them; setting them by editing that file therefore does
+# not affect pulsar-perf, export them instead. PULSAR_GC_LOG is left out for the same reason:
+# pulsar_env.sh always gives it a value, so including it would make every run write GC logs.
+if [ -n "$PULSAR_MEM_FROM_CALLER" ]; then
+  OPTS="$OPTS $PULSAR_MEM"
+fi
+if [ -n "$PULSAR_GC_FROM_CALLER" ]; then
+  OPTS="$OPTS $PULSAR_GC"
+fi
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 
 # log directory & file

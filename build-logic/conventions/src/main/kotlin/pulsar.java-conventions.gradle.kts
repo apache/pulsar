@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import java.io.File
+
 plugins {
     `java-library`
     id("pulsar.code-quality-conventions")
@@ -276,6 +278,111 @@ tasks.withType<Test>().configureEach {
         // every test JVM that touches a Netty native transport prints a multi-line warning to
         // stderr, which is noise in test output and breaks assertions on empty stderr.
         jvmArgs("--enable-native-access=ALL-UNNAMED")
+    }
+}
+
+// Run tests under async-profiler, enabled with the single property `-PtestAsyncProfiler`
+// (see CONTRIBUTING.md). The `test.asyncprofiler.*` properties below only tune the defaults and keep
+// the names of the `testAsyncProfiler` Maven profile that the 4.x branches use. This is a second
+// `configureEach` block so that it overrides the settings above, and so that the environment
+// variable and JDK lookups it does stay out of the configuration cache inputs when profiling is off.
+val asyncProfilerEnabled = providers.gradleProperty("testAsyncProfiler")
+    .map { it.isBlank() || it.toBoolean() }
+    .getOrElse(false)
+if (asyncProfilerEnabled) {
+    // Locate the agent library: an explicit -Ptest.asyncprofiler.libpath wins, then the
+    // LIBASYNCPROFILER_PATH environment variable (the variable microbench/README.md already uses for
+    // profiling JMH benchmarks), and finally the copy that Amazon Corretto ships inside the JDK that
+    // runs the tests.
+    val testJvmHome = testJavaVersion
+        .flatMap { version ->
+            javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(version)) }
+                .map { it.metadata.installationPath.asFile.absolutePath }
+        }
+        .orElse(providers.systemProperty("java.home"))
+    val libraryPath = providers.gradleProperty("test.asyncprofiler.libpath")
+        .orElse(providers.environmentVariable("LIBASYNCPROFILER_PATH"))
+        .orElse(testJvmHome.map { jvmHome ->
+            sequenceOf("libasyncProfiler.so", "libasyncProfiler.dylib")
+                .map { File(jvmHome, "lib/$it") }
+                .firstOrNull(File::isFile)
+                ?.absolutePath
+        })
+        .orNull
+    if (libraryPath == null || !File(libraryPath).isFile) {
+        throw GradleException(
+            "-PtestAsyncProfiler is set but the async-profiler agent library "
+                + (libraryPath?.let { "'$it' does not exist" } ?: "could not be located")
+                + ". Set the LIBASYNCPROFILER_PATH environment variable (or "
+                + "-Ptest.asyncprofiler.libpath) to the full path of libasyncProfiler.so (Linux) or "
+                + "libasyncProfiler.dylib (macOS). Amazon Corretto ships one in \$JAVA_HOME/lib; "
+                + "otherwise install async-profiler from "
+                + "https://github.com/async-profiler/async-profiler/releases."
+        )
+    }
+    // itimer is the only CPU sampling engine available outside Linux; on Linux the perf_events based
+    // "cpu" engine produces the most accurate method profile.
+    // https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md
+    val defaultEvent =
+        if (providers.systemProperty("os.name").get().startsWith("Linux")) "cpu" else "itimer"
+    val event = providers.gradleProperty("test.asyncprofiler.event").getOrElse(defaultEvent)
+    // "all" (async-profiler 4.1+) adds wall clock, allocation, lock and native profiling on top of
+    // the CPU engine that `event` selects.
+    val profilerOptions = providers.gradleProperty("test.asyncprofiler.opts")
+        .getOrElse("event=$event,all,alloc=2m,jfrsync=profile")
+    // async-profiler derives the output format from the file name extension (jfr, html, collapsed,
+    // folded), but only when nothing in `opts` already selects one — and the default `jfrsync` does.
+    // Changing this to html therefore also means overriding test.asyncprofiler.opts, otherwise the
+    // file is a JFR recording with an .html name.
+    val outputFormat = providers.gradleProperty("test.asyncprofiler.outputformat").getOrElse("jfr")
+    val outputDir = providers.gradleProperty("test.asyncprofiler.dir")
+        .map { rootProject.file(it) }
+        .getOrElse(rootProject.layout.buildDirectory.dir("test-profiles").get().asFile)
+
+    tasks.withType<Test>().configureEach {
+        val taskPath = path
+        // async-profiler expands %t (start timestamp) and %p (pid) itself, which keeps the profiles
+        // of separate runs, and of separate forks of one run, apart.
+        val baseName = "test_profile_" + taskPath.removePrefix(":").replace(':', '-')
+        val profileFile = File(outputDir, "${baseName}_%t_%p.$outputFormat")
+        val logFile = File(outputDir, "$baseName.log")
+
+        jvmArgs(
+            // DebugNonSafepoints is a diagnostic option. It makes the profiler's stack traces of
+            // JIT compiled frames accurate.
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-agentpath:$libraryPath=start,$profilerOptions,quiet,file=$profileFile",
+        )
+        // Logging to the console distorts the profile, so send log4j2 output to a file next to it.
+        systemProperty("pulsar.test.logging.appender", "FILE")
+        systemProperty("pulsar.test.logging.file", logFile.absolutePath)
+        // The tests worth profiling are often the manual ones — long-running, load-generating cases
+        // that ManualTestUtil skips unless this is set. Profiling one is exactly the situation they
+        // exist for, so asking for a profile enables them. See ManualTestUtil.
+        systemProperty("pulsar.test.enableManualTest", "true")
+        // One test JVM at a time and no retries, so that a run produces a single comparable profile.
+        maxParallelForks = 1
+        systemProperty("testRetryCount", "0")
+        // A profiling run has to actually run the tests, even when the task is up-to-date. Don't
+        // "fix" this by declaring inputs: the point is to re-run, not to track a missing input. The
+        // profiler settings are not task inputs, so a profiling run would otherwise also store a
+        // build cache entry under the same key as an ordinary run.
+        outputs.upToDateWhen { false }
+        outputs.cacheIf("test runs under async-profiler are never cached") { false }
+        doFirst {
+            // async-profiler does not create the directory it writes the profile into.
+            outputDir.mkdirs()
+            val test = this as Test
+            // Pre-touch a fixed size heap so that heap growth and GC resizing don't distort the
+            // profile. This is read at execution time because a module may change maxHeapSize after
+            // this convention has run, and because Gradle folds a jvmArgs("-Xmx...") into it.
+            if (test.minHeapSize == null) {
+                test.minHeapSize = test.maxHeapSize
+                test.jvmArgs("-XX:+AlwaysPreTouch")
+            }
+            test.logger.lifecycle("Profiling {} with async-profiler into {}", taskPath, profileFile)
+        }
     }
 }
 

@@ -39,6 +39,7 @@ on:
         options:
           - '25'
           - '21'
+          - '26'
         default: '25'
       trace_test_resource_cleanup:
         description: 'Collect thread & heap information before exiting a test JVM. When set to "on", thread dump and heap histogram will be collected. When set to "full", a heap dump will also be collected.'
