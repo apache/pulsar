@@ -296,7 +296,7 @@ flexible messaging model and an intuitive client API.</description>
     <apache-http-client.version>4.5.14</apache-http-client.version>
     <apache-httpcomponents.version>4.4.16</apache-httpcomponents.version>
     <jetcd.version>0.7.7</jetcd.version>
-    <oxia.version>0.9.4</oxia.version>
+    <oxia.version>0.9.5</oxia.version>
     <oxia-testcontainers.version>0.7.4</oxia-testcontainers.version>
     <slog.version>0.10.0</slog.version>
     <snakeyaml.version>2.0</snakeyaml.version>
