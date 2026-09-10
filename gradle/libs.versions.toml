@@ -169,7 +169,7 @@ javax-servlet = "4.0.1"
 jakarta-servlet = "6.0.0"
 felix-http-wrappers = "1.1.10"
 # Oxia / etcd
-oxia = "0.9.4"
+oxia = "0.9.5"
 oxia-testcontainers = "0.7.4"
 # Build plugins
 lightproto = "0.8.1"
