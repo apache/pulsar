@@ -33,10 +33,62 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ProducerImplTest {
+    @DataProvider
+    public Object[][] completionErrors() {
+        return new Object[][] {{null}, {new PulsarClientException.TimeoutException("send timed out", 41)}};
+    }
+
+    @Test(dataProvider = "completionErrors")
+    public void testCustomCompletionStatsSurviveOperationRecycle(Exception error) {
+        MessageImpl<byte[]> message = MessageImpl.create(new MessageMetadata(),
+                ByteBuffer.wrap(new byte[128]), Schema.BYTES, "test-topic");
+        SendCallback callback = mock(SendCallback.class);
+        ProducerImpl.OpSendMsg operation = ProducerImpl.OpSendMsg.create(
+                LatencyHistogram.NOOP, message, null, 41, callback);
+        OpSendMsgStats snapshot;
+        Throwable completionError;
+        try {
+            operation.updateSentTimestamp();
+            operation.retryCount = 2;
+            operation.batchSizeByte = 1024;
+            operation.numMessagesInBatch = 5;
+            operation.highestSequenceId = 45;
+            operation.totalChunks = 2;
+            operation.chunkId = 1;
+            operation.sendComplete(error);
+            ArgumentCaptor<OpSendMsgStats> statsCaptor = ArgumentCaptor.forClass(OpSendMsgStats.class);
+            ArgumentCaptor<Throwable> errorCaptor = ArgumentCaptor.forClass(Throwable.class);
+            verify(callback).sendComplete(errorCaptor.capture(), statsCaptor.capture());
+            snapshot = statsCaptor.getValue();
+            completionError = errorCaptor.getValue();
+        } finally {
+            operation.recycle();
+            message.getDataBuffer().release();
+            message.recycle();
+        }
+        assertEquals(snapshot.getUncompressedSize(), 128L);
+        assertEquals(snapshot.getSequenceId(), 41L);
+        assertEquals(snapshot.getRetryCount(), 2);
+        assertEquals(snapshot.getBatchSizeByte(), 1024L);
+        assertEquals(snapshot.getNumMessagesInBatch(), 5);
+        assertEquals(snapshot.getHighestSequenceId(), 45L);
+        assertEquals(snapshot.getTotalChunks(), 2);
+        assertEquals(snapshot.getChunkId(), 1);
+        if (error == null) {
+            assertNull(completionError);
+        } else {
+            assertTrue(completionError instanceof PulsarClientException.TimeoutException);
+            assertEquals(((PulsarClientException.TimeoutException) completionError).getSequenceId(), 41L);
+            assertTrue(completionError.getMessage().contains("retryCount 2"));
+        }
+    }
+
     @Test
     public void testChunkedMessageCtxDeallocate() {
         int totalChunks = 3;

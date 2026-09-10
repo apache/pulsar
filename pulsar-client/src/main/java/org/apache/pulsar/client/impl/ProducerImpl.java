@@ -445,6 +445,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         @Override
         public void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats) {
+            sendComplete(e);
+        }
+
+        private void sendComplete(Throwable e) {
             SendCallback loopingCallback = this;
             MessageImpl<?> loopingMsg = currentMsg;
             while (loopingCallback != null) {
@@ -1708,17 +1712,22 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     rpcLatencyHistogram.recordFailure(now - this.lastSentAt);
                 }
 
-                OpSendMsgStats opSendMsgStats = OpSendMsgStatsImpl.builder()
-                        .uncompressedSize(uncompressedSize)
-                        .sequenceId(sequenceId)
-                        .retryCount(retryCount)
-                        .batchSizeByte(batchSizeByte)
-                        .numMessagesInBatch(numMessagesInBatch)
-                        .highestSequenceId(highestSequenceId)
-                        .totalChunks(totalChunks)
-                        .chunkId(chunkId)
-                        .build();
-                callback.sendComplete(finalEx, opSendMsgStats);
+                if (callback instanceof ProducerImpl<?>.DefaultSendMessageCallback defaultCallback) {
+                    // The client's default callback does not use the per-operation snapshot.
+                    defaultCallback.sendComplete(finalEx);
+                } else {
+                    OpSendMsgStats opSendMsgStats = OpSendMsgStatsImpl.builder()
+                            .uncompressedSize(uncompressedSize)
+                            .sequenceId(sequenceId)
+                            .retryCount(retryCount)
+                            .batchSizeByte(batchSizeByte)
+                            .numMessagesInBatch(numMessagesInBatch)
+                            .highestSequenceId(highestSequenceId)
+                            .totalChunks(totalChunks)
+                            .chunkId(chunkId)
+                            .build();
+                    callback.sendComplete(finalEx, opSendMsgStats);
+                }
             }
         }
 
