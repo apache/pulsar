@@ -107,6 +107,45 @@ public class RangeEntryCacheImplTest {
         expectedReadCount = () -> 1;
     }
 
+    @Test
+    public void testReadPermitsReleasedOnlyAfterLastEntryReference() {
+        InflightReadsLimiter limiter = mockEntryCacheManager.getInflightReadsLimiter();
+        InflightReadsLimiter.Handle handle = new InflightReadsLimiter.Handle(300, 0, true);
+        CompletableFuture<List<Entry>> result = new CompletableFuture<>();
+        rangeEntryCache.doAsyncReadEntriesWithAcquiredPermits(lh,
+                PositionFactory.create(1, 0), PositionFactory.create(1, 2), 3, expectedReadCount,
+                new AsyncCallbacks.ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        result.complete(entries);
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        result.completeExceptionally(exception);
+                    }
+                }, null, handle, 300);
+        assertThat(result).isCompleted();
+        List<Entry> entries = result.getNow(null);
+        try {
+            assertThat(entries).hasSize(3);
+            ((ReferenceCountedEntry) entries.get(0)).retain();
+            entries.get(2).release();
+            entries.get(0).release();
+            entries.get(1).release();
+            verify(limiter, never()).release(any());
+            entries.get(0).release();
+            verify(limiter, times(1)).release(handle);
+        } finally {
+            for (Entry entry : entries) {
+                ReferenceCountedEntry referenceCountedEntry = (ReferenceCountedEntry) entry;
+                if (referenceCountedEntry.refCnt() > 0) {
+                    referenceCountedEntry.release(referenceCountedEntry.refCnt());
+                }
+            }
+        }
+    }
+
     private RangeEntryCacheImpl createRangeEntryCache(boolean copyEntries) {
         return new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, copyEntries,
                 mockRangeCacheRemovalQueue, EntryLengthFunction.DEFAULT, pendingReadsManager);
