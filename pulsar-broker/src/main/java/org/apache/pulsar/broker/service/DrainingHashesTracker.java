@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
+import com.google.common.annotations.VisibleForTesting;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +50,7 @@ public class DrainingHashesTracker {
     private final UnblockingHandler unblockingHandler;
     // optimize the memory consumption of the map by using primitive int keys
     private final Int2ObjectOpenHashMap<DrainingHashEntry> drainingHashes = new Int2ObjectOpenHashMap<>();
-    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
+    private final ReentrantReadWriteLock lock;
     int batchLevel;
     boolean unblockedWhileBatching;
     private final Map<ConsumerIdentityWrapper, ConsumerDrainingHashesStats> consumerDrainingHashesStatsMap =
@@ -104,6 +105,22 @@ public class DrainingHashesTracker {
          */
         boolean decrementRefCount() {
             return REF_COUNT_UPDATER.decrementAndGet(this) == 0;
+        }
+
+        /**
+         * Decrements the reference count only when doing so cannot remove the entry.
+         *
+         * @return true if the reference count was decremented, false if the last reference must be handled separately
+         */
+        boolean decrementRefCountIfGreaterThanOne() {
+            int current = refCount;
+            while (current > 1) {
+                if (REF_COUNT_UPDATER.compareAndSet(this, current, current - 1)) {
+                    return true;
+                }
+                current = refCount;
+            }
+            return false;
         }
 
         /**
@@ -220,8 +237,14 @@ public class DrainingHashesTracker {
     }
 
     public DrainingHashesTracker(String dispatcherName, UnblockingHandler unblockingHandler) {
+        this(dispatcherName, unblockingHandler, new ReentrantReadWriteLock());
+    }
+
+    @VisibleForTesting
+    DrainingHashesTracker(String dispatcherName, UnblockingHandler unblockingHandler, ReentrantReadWriteLock lock) {
         this.dispatcherName = dispatcherName;
         this.unblockingHandler = unblockingHandler;
+        this.lock = lock;
     }
 
     /**
@@ -261,11 +284,11 @@ public class DrainingHashesTracker {
                             stickyHash, entry.getRefCount() + 1, consumer.consumerId(), consumer.consumerName());
                 }
             }
+            // Publish the entry and increment its reference count atomically with respect to removal.
+            entry.incrementRefCount();
         } finally {
             lock.writeLock().unlock();
         }
-        // increment the reference count of the entry (applies to both new and existing entries)
-        entry.incrementRefCount();
 
         // perform side-effects outside of the lock to reduce chances for deadlocks
         if (addedStatsForNewEntry != null) {
@@ -323,32 +346,43 @@ public class DrainingHashesTracker {
         if (entry == null) {
             return;
         }
-        if (entry.getConsumer() != consumer) {
-            throw new IllegalStateException(
-                    "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
-                            + " in dispatcher " + dispatcherName + ". Same hash being used for consumer " + consumer
-                            + ".");
-        }
-        if (entry.decrementRefCount()) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Draining hash {} removing consumer id:{} name:{}", dispatcherName, stickyHash,
-                        consumer.consumerId(), consumer.consumerName());
-            }
-
-            DrainingHashEntry removed;
-            boolean notifyUnblocking = false;
+        boolean removed = false;
+        boolean notifyUnblocking = false;
+        // A non-final ACK can update the captured entry without serializing on the tracker write lock.
+        // If another path removes the entry concurrently, changing the detached old object is harmless.
+        if (entry.getConsumer() != consumer || !entry.decrementRefCountIfGreaterThanOne()) {
             lock.writeLock().lock();
             try {
-                removed = drainingHashes.remove(stickyHash);
-                if (!closing && removed.isBlocking()) {
-                    if (batchLevel > 0) {
-                        unblockedWhileBatching = true;
-                    } else {
-                        notifyUnblocking = true;
+                // Serialize the final decrement with removal and verify that this is still the mapped generation.
+                if (drainingHashes.get(stickyHash) != entry) {
+                    return;
+                }
+                if (entry.getConsumer() != consumer) {
+                    throw new IllegalStateException(
+                            "Consumer " + entry.getConsumer() + " is already draining hash " + stickyHash
+                                    + " in dispatcher " + dispatcherName + ". Same hash being used for consumer "
+                                    + consumer + ".");
+                }
+                removed = entry.decrementRefCount();
+                if (removed) {
+                    drainingHashes.remove(stickyHash);
+                    if (!closing && entry.isBlocking()) {
+                        if (batchLevel > 0) {
+                            unblockedWhileBatching = true;
+                        } else {
+                            notifyUnblocking = true;
+                        }
                     }
                 }
             } finally {
                 lock.writeLock().unlock();
+            }
+        }
+
+        if (removed) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Draining hash {} removing consumer id:{} name:{}", dispatcherName, stickyHash,
+                        consumer.consumerId(), consumer.consumerName());
             }
 
             // perform side-effects outside of the lock to reduce chances for deadlocks
@@ -394,11 +428,16 @@ public class DrainingHashesTracker {
         if (entry.getConsumer() == consumer) {
             log.info("[{}] Hash {} has been reassigned consumer {}. The draining hash entry with refCount={} will "
                     + "be removed.", dispatcherName, stickyKeyHash, entry.getConsumer(), entry.getRefCount());
+            boolean removed;
             lock.writeLock().lock();
             try {
-                drainingHashes.remove(stickyKeyHash, entry);
+                removed = drainingHashes.remove(stickyKeyHash, entry);
             } finally {
                 lock.writeLock().unlock();
+            }
+            if (!removed) {
+                // Only the thread that removed this entry is responsible for clearing its stats.
+                return false;
             }
 
             // update the consumer specific stats
