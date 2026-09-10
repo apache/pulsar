@@ -16,5 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/** Microbenchmarks for client message construction and processing. */
+/**
+ * Benchmarks for client implementation paths.
+ */
 package org.apache.pulsar.client.impl;

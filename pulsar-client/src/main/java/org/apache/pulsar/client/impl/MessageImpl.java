@@ -97,8 +97,12 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
             String topic) {
         @SuppressWarnings("unchecked")
         MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
+        // copyFrom copies present fields and appends repeated fields without clearing the destination.
         msg.msgMetadata.clear();
-        msg.msgMetadata.copyFrom(msgMetadata);
+        // A plain typed builder has no metadata until a metadata field is set or accessed.
+        if (msgMetadata != null) {
+            msg.msgMetadata.copyFrom(msgMetadata);
+        }
         msg.messageId = null;
         msg.topic = topic;
         msg.cnx = null;
