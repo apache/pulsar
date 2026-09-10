@@ -669,12 +669,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
         final Multimap<String, String> bundlesToUnload = loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
 
+        boolean leadershipLost = false;
         for (Map.Entry<String, Collection<String>> entry : bundlesToUnload.asMap().entrySet()) {
             String broker = entry.getKey();
             boolean unloadBundleForBroker = false;
             for (String bundle : entry.getValue()) {
                 if (!isLeader()) {
-                    return;
+                    leadershipLost = true;
+                    break;
                 }
                 final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                 final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
@@ -708,7 +710,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
                 try {
                     if (!isLeader()) {
-                        return;
+                        leadershipLost = true;
+                        break;
                     }
                     log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
                             .attr("bundle", bundle).attr("sourceBroker", broker).attr("destBroker", destBroker.get())
@@ -724,6 +727,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             }
             if (unloadBundleForBroker) {
                 unloadBrokerCount++;
+            }
+            if (leadershipLost) {
+                break;
             }
         }
 

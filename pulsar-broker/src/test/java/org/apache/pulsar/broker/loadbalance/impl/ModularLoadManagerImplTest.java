@@ -92,6 +92,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -345,6 +346,45 @@ public class ModularLoadManagerImplTest {
         verify(loadManagerSpy, Mockito.times(1)).selectBroker(any());
         verify(loadManagerSpy, Mockito.never()).unloadNamespaceBundle(
                 Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+    }
+
+    @Test
+    public void testLoadSheddingPublishesMetricsWhenLeadershipChangesAfterUnload() throws Exception {
+        Awaitility.await().until(() -> primaryLoadManager.getAvailableBrokers().size() > 1);
+
+        String firstBundle = mockBundleName(1);
+        String secondBundle = mockBundleName(2);
+        AtomicBoolean leader = new AtomicBoolean(true);
+        ModularLoadManagerImpl loadManagerSpy = spy(primaryLoadManager);
+        doAnswer(invocation -> leader.get()).when(loadManagerSpy).isLeader();
+
+        LoadSheddingStrategy loadSheddingStrategy = Mockito.mock(LoadSheddingStrategy.class);
+        loadManagerSpy.setLoadSheddingStrategy(loadSheddingStrategy);
+        when(loadSheddingStrategy.findBundlesForUnloading(any(), any()))
+                .thenReturn(ImmutableMultimap.of(primaryBrokerId, firstBundle, primaryBrokerId, secondBundle));
+        doAnswer(invocation -> true).when(loadManagerSpy).shouldNamespacePoliciesUnload(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        doAnswer(invocation -> true).when(loadManagerSpy).shouldAntiAffinityNamespaceUnload(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        doAnswer(invocation -> Optional.of(secondaryBrokerId)).when(loadManagerSpy).selectBroker(any());
+        doAnswer(invocation -> {
+            leader.set(false);
+            return null;
+        }).when(loadManagerSpy).unloadNamespaceBundle(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+
+        loadManagerSpy.doLoadShedding();
+
+        verify(loadManagerSpy, Mockito.times(1)).unloadNamespaceBundle(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        assertTrue(loadManagerSpy.getLoadData().getRecentlyUnloadedBundles().containsKey(firstBundle));
+        assertFalse(loadManagerSpy.getLoadData().getRecentlyUnloadedBundles().containsKey(secondBundle));
+        Metrics unloadMetrics = loadManagerSpy.getLoadBalancingMetrics().stream()
+                .filter(metric -> "bundleUnloading".equals(metric.getDimension("metric")))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(unloadMetrics.getMetrics().get("brk_lb_unload_broker_total"), 1L);
+        assertEquals(unloadMetrics.getMetrics().get("brk_lb_unload_bundle_total"), 1L);
     }
 
     @Test
