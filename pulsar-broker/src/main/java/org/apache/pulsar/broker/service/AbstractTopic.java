@@ -1386,6 +1386,10 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return topicPolicies.getInactiveTopicPolicies().get().isDeleteWhileInactive();
     }
 
+    public boolean isCloseWhileInactive() {
+        return brokerService.pulsar().getConfiguration().isBrokerCloseInactiveTopicsEnabled();
+    }
+
     public boolean deletePartitionedTopicMetadataWhileInactive() {
         return brokerService.pulsar().getConfiguration().isBrokerDeleteInactivePartitionedTopicMetadataEnabled();
     }

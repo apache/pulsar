@@ -85,7 +85,7 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
      * the multi-topic wrapper overrides this to forward directly into its shared
      * multiplexed queue, so no per-topic pump thread is needed.
      */
-    private final java.util.function.Consumer<MessageV5<T>> messageSink;
+    private final MessageSink<T> messageSink;
 
     /**
      * V5-layer DLQ. Owned at the V5 consumer (not per-segment) so a single producer
@@ -115,7 +115,7 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
                                   Schema<T> v5Schema,
                                   ConsumerConfigurationData<T> consumerConf,
                                   DagWatchClient dagWatch,
-                                  java.util.function.Consumer<MessageV5<T>> messageSink,
+                                  MessageSink<T> messageSink,
                                   DeadLetterPolicy dlqPolicy) {
         this.client = client;
         this.v5Schema = v5Schema;
@@ -130,7 +130,8 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
         // Multi-topic mode passes a sink that forwards into the shared mux instead — no
         // per-topic pump thread needed.
         this.receiveQueue = new V5ReceiveQueue<>(
-                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer());
+                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer(),
+                consumerConf.getReceiverQueueSize());
         this.messageSink = messageSink != null ? messageSink : receiveQueue::offer;
         this.log = LOG.with().attr("topic", topicName).attr("subscription", subscriptionName).build();
         this.asyncView = new AsyncQueueConsumerV5<>(this);
@@ -179,7 +180,7 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
             ConsumerConfigurationData<T> consumerConf,
             DagWatchClient dagWatch,
             ClientSegmentLayout initialLayout,
-            java.util.function.Consumer<MessageV5<T>> messageSink,
+            MessageSink<T> messageSink,
             DeadLetterPolicy dlqPolicy) {
         ScalableQueueConsumer<T> consumer = new ScalableQueueConsumer<>(
                 client, v5Schema, consumerConf, dagWatch, messageSink, dlqPolicy);
@@ -433,14 +434,21 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
 
     private void startReceiveLoop(org.apache.pulsar.client.api.Consumer<T> v4Consumer, long segmentId) {
         v4Consumer.receiveAsync().thenAccept(v4Msg -> {
+            CompletableFuture<Void> ready;
             if (shouldGoToDlq(v4Msg)) {
                 forwardToDlq(v4Msg, v4Consumer);
+                // DLQ-forwarded messages never enter the receive buffer — nothing to wait on.
+                ready = CompletableFuture.completedFuture(null);
             } else {
-                messageSink.accept(new MessageV5<>(v4Msg, segmentId));
+                ready = messageSink.accept(new MessageV5<>(v4Msg, segmentId));
             }
-            if (!closed) {
-                startReceiveLoop(v4Consumer, segmentId);
-            }
+            // Re-arm only once the sink has room, so a slow consumer pauses this segment's
+            // receive loop (and the v4 flow-control permits) instead of buffering unboundedly.
+            ready.thenRun(() -> {
+                if (!closed) {
+                    startReceiveLoop(v4Consumer, segmentId);
+                }
+            });
         }).exceptionally(ex -> {
             Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null ? ce.getCause() : ex;
             if (closed

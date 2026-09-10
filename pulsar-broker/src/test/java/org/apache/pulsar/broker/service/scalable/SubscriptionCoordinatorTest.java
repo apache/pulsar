@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.HashRange;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -128,7 +129,7 @@ public class SubscriptionCoordinatorTest {
         coordinator.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
 
         Map<ConsumerSession, ConsumerAssignment> result =
-                coordinator.unregisterConsumer("consumer-2").get();
+                coordinator.unregisterConsumer("consumer-2", 2L).get();
 
         assertEquals(result.size(), 1);
         assertEquals(findByName(result, "consumer-1").assignedSegments().size(), 4);
@@ -184,14 +185,18 @@ public class SubscriptionCoordinatorTest {
             assertFalse(assigned.contains(4L), "child of un-drained parent must be blocked");
             assertFalse(assigned.contains(5L), "child of un-drained parent must be blocked");
 
-            // Mark the parent drained — the next poll should pick it up and the children
-            // must end up assigned.
+            // Mark the parent drained — the next poll should pick it up: the children
+            // become assigned and the drained parent retires from the assignment (keeping
+            // it would pin consumers to a dead segment).
             drained.add(0L);
             Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
                 Set<Long> nowAssigned = new HashSet<>(segmentIds(
                         findByName(orderedCoordinator.currentAssignment(), "consumer-1")));
-                assertTrue(nowAssigned.containsAll(Set.of(0L, 1L, 2L, 3L, 4L, 5L)),
-                        "after parent drain, all 6 segments must be assigned, got " + nowAssigned);
+                assertTrue(nowAssigned.containsAll(Set.of(1L, 2L, 3L, 4L, 5L)),
+                        "after parent drain, children + active segments must be assigned, got "
+                                + nowAssigned);
+                assertFalse(nowAssigned.contains(0L),
+                        "the drained parent must retire from the assignment");
             });
         } finally {
             orderedCoordinator.close();
@@ -331,7 +336,7 @@ public class SubscriptionCoordinatorTest {
     public void testEmptyAfterAllConsumersRemoved() throws Exception {
         coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
         Map<ConsumerSession, ConsumerAssignment> result =
-                coordinator.unregisterConsumer("consumer-1").get();
+                coordinator.unregisterConsumer("consumer-1", 1L).get();
 
         assertTrue(result.isEmpty());
         assertTrue(coordinator.getConsumers().isEmpty());
@@ -444,30 +449,162 @@ public class SubscriptionCoordinatorTest {
     }
 
     @Test
-    public void testBucketedSegmentIsAssignedWholeToOneConsumer() throws Exception {
-        // One segment with N=4 entry-buckets (budget 4 / 1 segment). Even with several consumers, the
-        // controller assigns the whole segment to a single consumer with empty bucketRanges (efficient
-        // single-active / Exclusive dispatch); fanning it out into per-bucket Key_Shared ownership is a
-        // separate controller-driven scale-up action.
-        SubscriptionCoordinator c = new SubscriptionCoordinator("test-sub", topicName,
-                SegmentLayout.fromMetadata(ScalableTopicController.createInitialMetadata(1, 4, Map.of())),
-                resources, scheduler, Duration.ofMillis(200));
+    public void testLoneConsumerOwnsBucketedSegmentWhole() throws Exception {
+        // One segment with N=4 entry-buckets, one consumer: no surplus, so the segment stays whole
+        // (empty bucketRanges -> Exclusive single-active dispatch).
+        SubscriptionCoordinator c = bucketedCoordinator();
+        Map<ConsumerSession, ConsumerAssignment> result =
+                c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
+
+        ConsumerAssignment assignment = findByName(result, "consumer-1");
+        assertEquals(assignment.assignedSegments().size(), 1);
+        assertTrue(assignment.assignedSegments().get(0).bucketRanges().isEmpty());
+    }
+
+    @Test
+    public void testSurplusConsumersFanOutBucketedSegment() throws Exception {
+        // One segment with N=4 entry-buckets, two consumers: the surplus consumer shares the
+        // segment. Every sharer carries the segment's FULL bucket boundary list (identical for
+        // all) — which buckets each consumer owns is decided broker-side by the segment
+        // dispatcher, and handoffs drain broker-side.
+        SubscriptionCoordinator c = bucketedCoordinator();
         c.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
         Map<ConsumerSession, ConsumerAssignment> result =
                 c.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
 
-        int owners = 0;
+        assertEquals(result.size(), 2);
         for (ConsumerAssignment assignment : result.values()) {
-            for (ConsumerAssignment.AssignedSegment seg : assignment.assignedSegments()) {
-                assertEquals(seg.segmentId(), 0);
-                assertTrue(seg.bucketRanges().isEmpty());
-                owners++;
-            }
+            assertEquals(assignment.assignedSegments().size(), 1);
+            ConsumerAssignment.AssignedSegment seg = assignment.assignedSegments().get(0);
+            assertEquals(seg.segmentId(), 0);
+            assertEquals(seg.bucketRanges(), List.of(
+                HashRange.of(0x0000, 0x3FFF), HashRange.of(0x4000, 0x7FFF),
+                HashRange.of(0x8000, 0xBFFF), HashRange.of(0xC000, 0xFFFF)));
         }
-        assertEquals(owners, 1);
+    }
+
+    @Test
+    public void testFanOutCapsAtBucketCountAndLeavesRestIdle() throws Exception {
+        // One segment with N=4 entry-buckets, five consumers: four sharers (each carrying the full
+        // boundary list); the fifth exceeds the segment's bucket capacity and stays idle.
+        SubscriptionCoordinator c = bucketedCoordinator();
+        for (int i = 1; i <= 4; i++) {
+            c.registerConsumer("consumer-" + i, i, mock(TransportCnx.class)).get();
+        }
+        Map<ConsumerSession, ConsumerAssignment> result =
+                c.registerConsumer("consumer-5", 5L, mock(TransportCnx.class)).get();
+
+        assertEquals(result.size(), 5);
+        int idle = 0;
+        int sharers = 0;
+        for (ConsumerAssignment assignment : result.values()) {
+            if (assignment.assignedSegments().isEmpty()) {
+                idle++;
+                continue;
+            }
+            sharers++;
+            assertEquals(assignment.assignedSegments().get(0).bucketRanges(), List.of(
+                HashRange.of(0x0000, 0x3FFF), HashRange.of(0x4000, 0x7FFF),
+                HashRange.of(0x8000, 0xBFFF), HashRange.of(0xC000, 0xFFFF)));
+        }
+        assertEquals(idle, 1);
+        assertEquals(sharers, 4);
+    }
+
+    private SubscriptionCoordinator bucketedCoordinator() {
+        // One segment carrying the whole default budget: N = 4 entry-buckets.
+        return new SubscriptionCoordinator("test-sub", topicName,
+                SegmentLayout.fromMetadata(ScalableTopicController.createInitialMetadata(1, 4, Map.of())),
+                resources, scheduler, Duration.ofMillis(200));
     }
 
     // --- Helpers ---
+
+    /**
+     * PIP-486 review: a sealed parent must retire from the assignable set once drained.
+     * Rollover topology (parent sealed with 4 buckets, same-range successor with 8), five
+     * consumers: before the drain the parent's buckets cap the group at 4 owners (successor
+     * gated, one consumer idle); after the drain every consumer moves to the successor and
+     * none stays pinned to the dead parent.
+     */
+    @Test
+    public void testDrainedParentRetiresFromAssignment() throws Exception {
+        Set<Long> drained = ConcurrentHashMap.newKeySet();
+        SegmentDrainChecker checker = (segment, sub) ->
+                CompletableFuture.completedFuture(drained.contains(segment.segmentId()));
+        SegmentLayout base = SegmentLayout.fromMetadata(
+                ScalableTopicController.createInitialMetadata(1, 4, Map.of()));
+        SegmentLayout rolled = base.rebucketSegment(0, EntryBucketSplits.equalWidth(8), 0L);
+        SubscriptionCoordinator coordinator = new SubscriptionCoordinator("test-sub",
+                topicName, base, resources, scheduler, Duration.ofMillis(200),
+                checker, Duration.ofMillis(50), Duration.ofSeconds(5));
+        try {
+            for (int i = 1; i <= 5; i++) {
+                coordinator.registerConsumer("consumer-" + i, i, mock(TransportCnx.class)).get();
+            }
+            Map<ConsumerSession, ConsumerAssignment> before = coordinator.onLayoutChange(rolled).get();
+            assertEquals(countAssignedTo(before, 0L), 4,
+                    "undrained parent caps the group at its 4 buckets");
+            assertEquals(countAssignedTo(before, 1L), 0,
+                    "successor must be gated while the parent is undrained");
+            assertEquals(countIdle(before), 1, "one consumer beyond the parent's capacity idles");
+
+            drained.add(0L);
+            coordinator.markSegmentsDrained(Set.of(0L));
+            Map<ConsumerSession, ConsumerAssignment> after = coordinator.onLayoutChange(rolled).get();
+            assertEquals(countAssignedTo(after, 0L), 0,
+                    "a drained parent must not be assigned to anyone");
+            assertEquals(countAssignedTo(after, 1L), 5,
+                    "every consumer moves to the successor");
+            assertEquals(countIdle(after), 0);
+        } finally {
+            coordinator.close();
+        }
+    }
+
+    private static int countAssignedTo(Map<ConsumerSession, ConsumerAssignment> m, long segmentId) {
+        int count = 0;
+        for (ConsumerAssignment a : m.values()) {
+            for (var seg : a.assignedSegments()) {
+                if (seg.segmentId() == segmentId) {
+                    count++;
+                    break;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static int countIdle(Map<ConsumerSession, ConsumerAssignment> m) {
+        int count = 0;
+        for (ConsumerAssignment a : m.values()) {
+            if (a.assignedSegments().isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * PIP-486 review: the identity guard on explicit unregister. A same-name rejoin attaches
+     * a new consumer id to the session; a leave carrying the OLD id (the departed consumer's)
+     * must not remove the rejoined session, while a leave with the current id must.
+     */
+    @Test
+    public void testUnregisterWithStaleConsumerIdKeepsRejoinedSession() throws Exception {
+        coordinator.registerConsumer("c1", 1L, mock(TransportCnx.class)).get();
+        // Same-name rejoin: the reconnect branch attaches the new id to the existing session.
+        coordinator.registerConsumer("c1", 2L, mock(TransportCnx.class)).get();
+
+        // The departed consumer's leave (id 1) arrives after the rejoin: no-op.
+        coordinator.unregisterConsumer("c1", 1L).get();
+        assertEquals(coordinator.getConsumers().size(), 1,
+                "a stale-id leave must not remove the rejoined session");
+
+        // A leave with the live id removes it.
+        coordinator.unregisterConsumer("c1", 2L).get();
+        assertEquals(coordinator.getConsumers().size(), 0);
+    }
 
     private static ConsumerAssignment findByName(Map<ConsumerSession, ConsumerAssignment> m, String name) {
         return m.entrySet().stream()

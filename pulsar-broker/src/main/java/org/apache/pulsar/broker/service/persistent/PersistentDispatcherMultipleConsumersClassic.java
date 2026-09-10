@@ -96,7 +96,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     protected final MessageRedeliveryController redeliveryMessages;
     protected final RedeliveryTracker redeliveryTracker;
 
-    private Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
+    private volatile Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
 
     protected volatile boolean havePendingRead = false;
     protected volatile boolean havePendingReplayRead = false;
@@ -1209,12 +1209,12 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         return true;
     }
 
-    protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
-        return delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().shouldPauseAllDeliveries();
+    protected boolean shouldPauseDeliveryForDelayTracker() {
+        return delayedDeliveryTracker.map(DelayedDeliveryTracker::shouldPauseAllDeliveries).orElse(false);
     }
 
     @Override
-    public synchronized long getNumberOfDelayedMessages() {
+    public long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
     }
 
@@ -1292,21 +1292,15 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         return topic;
     }
 
-
-    public synchronized long getDelayedTrackerMemoryUsage() {
+    public long getDelayedTrackerMemoryUsage() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getBufferMemoryUsage).orElse(0L);
     }
 
-    public synchronized Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
-        if (delayedDeliveryTracker.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        if (delayedDeliveryTracker.get() instanceof BucketDelayedDeliveryTracker) {
-            return ((BucketDelayedDeliveryTracker) delayedDeliveryTracker.get()).genTopicMetricMap();
-        }
-
-        return Collections.emptyMap();
+    public Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
+        return delayedDeliveryTracker
+                .filter(BucketDelayedDeliveryTracker.class::isInstance)
+                .map(tracker -> ((BucketDelayedDeliveryTracker) tracker).genTopicMetricMap())
+                .orElse(Collections.emptyMap());
     }
 
     @Override

@@ -26,25 +26,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegmentMetadata;
-import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.LongBitmap;
 import org.apache.pulsar.common.util.collections.LongBitmaps;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 
 @CustomLog
-class MutableBucket extends Bucket implements AutoCloseable {
+class MutableBucket implements AutoCloseable {
+
+    private final BucketContext ctx;
 
     private final TripleLongPriorityQueue priorityQueue;
 
-    MutableBucket(String dispatcherName, ManagedCursor cursor, FutureUtil.Sequencer<Void> sequencer,
-                  BucketSnapshotStorage bucketSnapshotStorage) {
-        super(dispatcherName, cursor, sequencer, bucketSnapshotStorage, -1L, -1L);
+    long startLedgerId = -1L;
+    long endLedgerId = -1L;
+
+    MutableBucket(BucketContext ctx) {
+        this.ctx = ctx;
         this.priorityQueue = new TripleLongPriorityQueue();
     }
 
@@ -62,7 +64,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
             TripleLongPriorityQueue sharedQueue, DelayedIndexQueue delayedIndexQueue, final long startLedgerId,
             final long endLedgerId) {
             log.debug()
-                    .attr("dispatcher", dispatcherName)
+                    .attr("dispatcher", ctx.dispatcherName())
                     .attr("startLedgerId", startLedgerId)
                     .attr("endLedgerId", endLedgerId)
                     .log("Creating bucket snapshot");
@@ -96,8 +98,6 @@ class MutableBucket extends Bucket implements AutoCloseable {
             final long ledgerId = delayedIndex.getLedgerId();
             final long entryId = delayedIndex.getEntryId();
 
-            removeIndexBit(ledgerId, entryId);
-
             checkArgument(ledgerId >= startLedgerId && ledgerId <= endLedgerId);
 
             // Move first segment of bucket snapshot to sharedBucketPriorityQueue
@@ -105,7 +105,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
                 sharedQueue.add(timestamp, ledgerId, entryId);
             }
 
-            bitMap.computeIfAbsent(ledgerId, k -> LongBitmaps.create()).add(entryId, entryId + 1);
+            bitMap.computeIfAbsent(ledgerId, k -> LongBitmaps.create()).add(entryId);
 
             numMessages++;
 
@@ -147,8 +147,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
         final int lastSegmentEntryId = segmentMetadataList.size();
 
-        ImmutableBucket bucket = new ImmutableBucket(dispatcherName, cursor, sequencer, bucketSnapshotStorage,
-                startLedgerId, endLedgerId);
+        ImmutableBucket bucket = new ImmutableBucket(ctx, startLedgerId, endLedgerId);
         bucket.setCurrentSegmentEntryId(1);
         bucket.setNumberBucketDelayedMessages(numMessages);
         bucket.setLastSegmentEntryId(lastSegmentEntryId);
@@ -165,7 +164,7 @@ class MutableBucket extends Bucket implements AutoCloseable {
         DelayedIndex lastDelayedIndex = firstSnapshotSegment.getIndexeAt(firstSnapshotSegment.getIndexesCount() - 1);
         Pair<ImmutableBucket, DelayedIndex> result = Pair.of(bucket, lastDelayedIndex);
 
-        CompletableFuture<Long> future = asyncSaveBucketSnapshot(bucket,
+        CompletableFuture<Long> future = bucket.asyncSaveBucketSnapshot(
                 bucketSnapshotMetadata, bucketSnapshotSegments);
         bucket.setSnapshotCreateFuture(future);
 
@@ -194,7 +193,6 @@ class MutableBucket extends Bucket implements AutoCloseable {
 
     void clear() {
         this.resetLastMutableBucketRange();
-        this.delayedIndexBitMap.clear();
         this.priorityQueue.clear();
     }
 
@@ -224,6 +222,5 @@ class MutableBucket extends Bucket implements AutoCloseable {
             this.startLedgerId = ledgerId;
         }
         this.endLedgerId = ledgerId;
-        putIndexBit(ledgerId, entryId);
     }
 }

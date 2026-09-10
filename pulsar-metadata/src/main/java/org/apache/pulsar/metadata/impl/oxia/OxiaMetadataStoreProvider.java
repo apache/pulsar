@@ -20,8 +20,6 @@ package org.apache.pulsar.metadata.impl.oxia;
 
 import io.oxia.client.api.AsyncOxiaClient;
 import io.oxia.client.api.OxiaClientBuilder;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import lombok.NonNull;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -82,7 +80,6 @@ public class OxiaMetadataStoreProvider implements MetadataStoreProvider {
         try {
             return OxiaClientBuilder.create(pair.getLeft())
                     .namespace(pair.getRight())
-                    .batchLinger(Duration.of(100, ChronoUnit.MILLIS))
                     .asyncClient().get();
         } catch (Exception e) {
             throw new MetadataStoreException(e);

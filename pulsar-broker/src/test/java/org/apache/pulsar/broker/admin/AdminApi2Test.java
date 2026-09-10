@@ -28,6 +28,7 @@ import static org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnl
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -44,7 +45,6 @@ import com.google.common.collect.Sets;
 import io.grpc.netty.shaded.io.netty.util.concurrent.FastThreadLocal;
 import jakarta.ws.rs.NotAcceptableException;
 import jakarta.ws.rs.core.Response.Status;
-import java.lang.reflect.Field;
 import java.net.URI;
 import java.net.URL;
 import java.net.http.HttpClient;
@@ -72,7 +72,6 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Data;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -3493,41 +3492,49 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String namespace = newUniqueName(defaultTenant + "/ns");
         admin.namespaces().createNamespace(namespace, Set.of("test"));
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
-        pulsarClient.newProducer().topic(topic).create().close();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        producer.send("message".getBytes());
         TopicName topicName = TopicName.get(topic);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(topic).get().get();
         PersistentTopic mockTopic = spy(persistentTopic);
+        doReturn(CompletableFuture.completedFuture(null))
+                .when(mockTopic).triggerCompactionWithCheckHasMoreMessages();
         mockTopic.checkCompaction();
         // Disabled by default
-        verify(mockTopic, times(0)).triggerCompaction();
+        verify(mockTopic, times(0)).triggerCompactionWithCheckHasMoreMessages();
         // Set namespace-level policy
         admin.namespaces().setCompactionThreshold(namespace, 1);
         Awaitility.await().untilAsserted(() ->
                 assertNotNull(admin.namespaces().getCompactionThreshold(namespace)));
-        ManagedLedger managedLedger = persistentTopic.getManagedLedger();
-        Field field = managedLedger.getClass().getDeclaredField("totalSize");
-        field.setAccessible(true);
-        field.setLong(managedLedger, 1000L);
+        Awaitility.await().untilAsserted(() -> assertTrue(persistentTopic.isCompactionEnabled()));
 
-        mockTopic.checkCompaction();
-        verify(mockTopic, times(1)).triggerCompaction();
+        Awaitility.await().untilAsserted(() -> {
+            mockTopic.checkCompaction();
+            verify(mockTopic, times(1)).triggerCompactionWithCheckHasMoreMessages();
+        });
         //Set topic-level policy
         admin.topics().setCompactionThreshold(topic, 0);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getCompactionThreshold(topic)));
+        Awaitility.await().untilAsserted(() -> assertFalse(persistentTopic.isCompactionEnabled()));
         mockTopic.checkCompaction();
-        verify(mockTopic, times(1)).triggerCompaction();
+        verify(mockTopic, times(1)).triggerCompactionWithCheckHasMoreMessages();
         // Remove topic-level policy
         admin.topics().removeCompactionThreshold(topic);
         Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getCompactionThreshold(topic)));
-        mockTopic.checkCompaction();
-        verify(mockTopic, times(2)).triggerCompaction();
+        Awaitility.await().untilAsserted(() -> assertTrue(persistentTopic.isCompactionEnabled()));
+        Awaitility.await().untilAsserted(() -> {
+            mockTopic.checkCompaction();
+            verify(mockTopic, times(2)).triggerCompactionWithCheckHasMoreMessages();
+        });
         // Remove namespace-level policy
         admin.namespaces().removeCompactionThreshold(namespace);
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin.namespaces().getCompactionThreshold(namespace)));
+        Awaitility.await().untilAsserted(() -> assertFalse(persistentTopic.isCompactionEnabled()));
         mockTopic.checkCompaction();
-        verify(mockTopic, times(2)).triggerCompaction();
+        verify(mockTopic, times(2)).triggerCompactionWithCheckHasMoreMessages();
     }
 
     @Test

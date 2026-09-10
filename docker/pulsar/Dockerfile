@@ -17,7 +17,7 @@
 # under the License.
 #
 
-ARG ALPINE_VERSION=3.23
+ARG ALPINE_VERSION=3.24
 ARG IMAGE_JDK_MAJOR_VERSION=25
 
 # First create a stage with just the Pulsar tarball and scripts

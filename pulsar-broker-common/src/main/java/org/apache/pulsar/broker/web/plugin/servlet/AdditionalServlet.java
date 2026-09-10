@@ -29,10 +29,13 @@ public interface AdditionalServlet extends AutoCloseable {
     /**
      * The servlet implementation type enum.
      * <p>
-     * {@link AdditionalServletType#JAVAX_SERVLET} servlets implement {@code javax.servlet.Servlet} and are
-     * routed to Jetty's ee8 environment (legacy compatibility path). {@link AdditionalServletType#JAKARTA_SERVLET}
-     * servlets implement {@code jakarta.servlet.Servlet} and are routed to Jetty's ee10 environment (the preferred
-     * path going forward). Both styles can coexist within a single broker/proxy. See PIP-472.
+     * {@link AdditionalServletType#JAKARTA_SERVLET} servlets implement {@code jakarta.servlet.Servlet}, the
+     * servlet API of the Jetty environment the broker and the proxy run, and are the preferred style going
+     * forward. {@link AdditionalServletType#JAVAX_SERVLET} servlets implement the legacy
+     * {@code javax.servlet.Servlet} interface and are adapted to {@code jakarta.servlet.Servlet} before they are
+     * registered, so that plugins built against the {@code javax.servlet} API keep working without
+     * recompilation. Both styles can coexist within a single broker/proxy and both go through the same filter
+     * chain. See PIP-472.
      */
     enum AdditionalServletType {
         JAVAX_SERVLET,

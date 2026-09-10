@@ -75,9 +75,9 @@ public class NarUnpacker {
                 throw new IOException("Cannot create " + parentDirectory);
             }
         }
-        String md5Sum = Base64.getUrlEncoder().withoutPadding().encodeToString(FileUtils.calculateMd5sum(nar));
+        String checksum = Base64.getUrlEncoder().withoutPadding().encodeToString(FileUtils.calculateSha256sum(nar));
         // ensure that one process can extract the files
-        File lockFile = new File(parentDirectory, "." + md5Sum + ".lock");
+        File lockFile = new File(parentDirectory, "." + checksum + ".lock");
         // prevent OverlappingFileLockException by ensuring that one thread tries to create a lock in this JVM
         Object localLock = CURRENT_JVM_FILE_LOCKS.computeIfAbsent(lockFile.getAbsolutePath(), key -> new Object());
         synchronized (localLock) {
@@ -85,9 +85,9 @@ public class NarUnpacker {
             // using the same lock file don't execute concurrently
             try (FileChannel channel = new RandomAccessFile(lockFile, "rw").getChannel();
                  FileLock lock = channel.lock()) {
-                File narWorkingDirectory = new File(parentDirectory, md5Sum);
+                File narWorkingDirectory = new File(parentDirectory, checksum);
                 if (!narWorkingDirectory.exists()) {
-                    File narExtractionTempDirectory = new File(parentDirectory, md5Sum + ".tmp");
+                    File narExtractionTempDirectory = new File(parentDirectory, checksum + ".tmp");
                     if (narExtractionTempDirectory.exists()) {
                         FileUtils.deleteFile(narExtractionTempDirectory, true);
                     }

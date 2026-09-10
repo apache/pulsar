@@ -103,7 +103,8 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
         this.subscriptionName = consumerConf.getSubscriptionName();
         this.watcher = watcher;
         this.mux = new V5ReceiveQueue<>(
-                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer());
+                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer(),
+                consumerConf.getReceiverQueueSize());
         this.log = LOG.with()
                 .attr("namespace", namespace)
                 .attr("subscription", subscriptionName)
@@ -169,10 +170,11 @@ final class MultiTopicQueueConsumer<T> implements QueueConsumerImpl<T> {
         // Per-topic message sink: tag each delivered message with the parent scalable
         // topic for ack routing + display, and forward into the shared mux. No pump
         // thread; per-segment v4 receive loops fire this sink directly.
-        java.util.function.Consumer<MessageV5<T>> sink = msg -> {
-            if (!closed) {
-                mux.offer(msg.withTopicOverride(topicName));
+        MessageSink<T> sink = msg -> {
+            if (closed) {
+                return CompletableFuture.completedFuture(null);
             }
+            return mux.offer(msg.withTopicOverride(topicName));
         };
         return dagWatch.start()
                 .thenCompose(layout -> ScalableQueueConsumer.createAsyncImpl(

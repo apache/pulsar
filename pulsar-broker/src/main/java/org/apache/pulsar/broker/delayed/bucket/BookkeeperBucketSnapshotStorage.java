@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
@@ -37,6 +38,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegmentMetadata;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.NonNull;
@@ -134,12 +136,17 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         return FutureUtil.waitForAll(addFutures);
     }
 
-    private SnapshotMetadata parseSnapshotMetadataEntry(LedgerEntry ledgerEntry) {
+    @VisibleForTesting
+    public SnapshotMetadata parseSnapshotMetadataEntry(LedgerEntry ledgerEntry) {
         ByteBuf entryBuffer = null;
         try {
             entryBuffer = ledgerEntry.getEntryBuffer();
             SnapshotMetadata metadata = new SnapshotMetadata();
             metadata.parseFrom(entryBuffer, entryBuffer.readableBytes());
+            for (int i = 0; i < metadata.getMetadataListCount(); i++) {
+                SnapshotSegmentMetadata segment = metadata.getMetadataAt(i);
+                segment.forEachDelayedIndexBitMap(segment::putDelayedIndexBitMap);
+            }
             return metadata;
         } finally {
             if (entryBuffer != null) {
