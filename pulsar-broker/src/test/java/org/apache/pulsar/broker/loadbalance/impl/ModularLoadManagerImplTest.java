@@ -68,6 +68,7 @@ import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.BundleSplitStrategy;
 import org.apache.pulsar.broker.loadbalance.LoadBalancerTestingUtils;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -410,6 +411,46 @@ public class ModularLoadManagerImplTest {
                 .orElseThrow();
         assertEquals(unloadMetrics.getMetrics().get("brk_lb_unload_broker_total"), 1L);
         assertEquals(unloadMetrics.getMetrics().get("brk_lb_unload_bundle_total"), 1L);
+    }
+
+    @Test
+    public void testBundleSplitDoesNotCleanUpWhenLeadershipIsLostBeforeSplit() throws Exception {
+        Awaitility.await().until(() -> primaryLoadManager.getAvailableBrokers().size() > 1);
+        pulsar1.getConfiguration().setLoadBalancerAutoBundleSplitEnabled(true);
+        pulsar1.getConfiguration().setLoadBalancerAutoUnloadSplitBundlesEnabled(true);
+        primaryLoadManager.updateAll();
+
+        String tenant = "split-leadership-loss";
+        String namespace = "test";
+        admin1.clusters().createCluster("use", ClusterData.builder()
+                .serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.tenants().createTenant(tenant,
+                new TenantInfoImpl(Set.of("appid1"), Set.of("use")));
+        admin1.namespaces().createNamespace(tenant + "/" + namespace);
+
+        String topic = "persistent://" + tenant + "/" + namespace + "/topic";
+        String bundle = pulsar1.getNamespaceService().getBundle(TopicName.get(topic)).toString();
+        BundleData bundleData = new BundleData(10, 1000);
+        primaryLoadManager.getLoadData().getBundleData().put(bundle, bundleData);
+        String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundle);
+        MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
+        metadataCache.create(bundleDataPath, bundleData).join();
+
+        ModularLoadManagerImpl loadManagerSpy = spy(primaryLoadManager);
+        BundleSplitStrategy splitStrategy = (__, ___) -> Map.of(bundle, primaryBrokerId);
+        loadManagerSpy.setBundleSplitStrategy(splitStrategy);
+        AtomicBoolean leader = new AtomicBoolean(true);
+        doAnswer(invocation -> leader.get()).when(loadManagerSpy).isLeader();
+        doAnswer(invocation -> {
+            leader.set(false);
+            return true;
+        }).when(loadManagerSpy).shouldNamespacePoliciesUnload(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+
+        loadManagerSpy.checkNamespaceBundleSplit();
+
+        assertTrue(loadManagerSpy.getLoadData().getBundleData().containsKey(bundle));
+        assertTrue(metadataCache.get(bundleDataPath).join().isPresent());
     }
 
     @Test

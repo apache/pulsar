@@ -339,6 +339,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     @VisibleForTesting
+    void setBundleSplitStrategy(BundleSplitStrategy bundleSplitStrategy) {
+        this.bundleSplitStrategy = bundleSplitStrategy;
+    }
+
+    @VisibleForTesting
     LoadData getLoadData() {
         return loadData;
     }
@@ -842,9 +847,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             NamespaceBundleFactory namespaceBundleFactory = pulsar.getNamespaceService().getNamespaceBundleFactory();
             int splitCount = 0;
             for (String bundleName : bundlesToBeSplit.keySet()) {
-                if (!isLeader()) {
-                    break;
-                }
                 try {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundleName);
@@ -859,18 +861,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         continue;
                     }
 
-                    if (!isLeader()) {
-                        break;
-                    }
-
-                    // Make sure the same bundle is not selected again.
-                    loadData.getBundleData().remove(bundleName);
-                    localData.getLastStats().remove(bundleName);
-                    // Clear namespace bundle-cache
-                    this.pulsar.getNamespaceService().getNamespaceBundleFactory()
-                            .invalidateBundleCache(NamespaceName.get(namespaceName));
-                    deleteBundleDataFromMetadataStore(bundleName);
-
                     // Check NamespacePolicies and AntiAffinityNamespace support unload bundle.
                     boolean isUnload = false;
                     String broker = bundlesToBeSplit.get(bundleName);
@@ -879,13 +869,21 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                             && shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
                         isUnload = true;
                     }
-                    log.info().attr("bundle", bundleName).attr("unloading", isUnload)
-                            .log("Load-manager splitting bundle and unloading");
                     if (!isLeader()) {
                         break;
                     }
+                    log.info().attr("bundle", bundleName).attr("unloading", isUnload)
+                            .log("Load-manager splitting bundle and unloading");
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
                             isUnload, null);
+
+                    // The split succeeded, so the old bundle must not be selected again.
+                    loadData.getBundleData().remove(bundleName);
+                    localData.getLastStats().remove(bundleName);
+                    // Clear namespace bundle-cache
+                    this.pulsar.getNamespaceService().getNamespaceBundleFactory()
+                            .invalidateBundleCache(NamespaceName.get(namespaceName));
+                    deleteBundleDataFromMetadataStore(bundleName);
 
                     splitCount++;
                     log.info().attr("bundle", bundleName).log("Successfully split namespace bundle");
