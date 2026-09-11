@@ -32,6 +32,7 @@ import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletException;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
@@ -144,6 +145,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.broker.web.RestProducerContext;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletUtils;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithPulsarService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
@@ -169,6 +171,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -900,6 +903,22 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         config.getDefaultRetentionTimeInMinutes() * 60));
             }
 
+            if (config.isBrokerDeleteInactiveTopicsEnabled() && config.isBrokerCloseInactiveTopicsEnabled()) {
+                throw new IllegalArgumentException(
+                        "brokerDeleteInactiveTopicsEnabled and brokerCloseInactiveTopicsEnabled are mutually "
+                                + "exclusive. Enable at most one of them.");
+            }
+
+            if (config.isBrokerCloseInactiveTopicsEnabled()
+                    && config.getBrokerDeleteInactiveTopicsMode()
+                            != InactiveTopicDeleteMode.delete_when_no_subscriptions) {
+                throw new IllegalArgumentException(
+                        "brokerCloseInactiveTopicsEnabled only supports brokerDeleteInactiveTopicsMode="
+                                + "delete_when_no_subscriptions. Under delete_when_subscriptions_caught_up a topic "
+                                + "whose subscriptions are caught up is inactive even while consumers are still "
+                                + "connected, so closing it would repeatedly unload and reload the topic.");
+            }
+
             openTelemetryTopicStats = new OpenTelemetryTopicStats(this);
             openTelemetryConsumerStats = new OpenTelemetryConsumerStats(this);
             openTelemetryProducerStats = new OpenTelemetryProducerStats(this);
@@ -1285,80 +1304,31 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 if (additionalServlet instanceof AdditionalServletWithPulsarService) {
                     ((AdditionalServletWithPulsarService) additionalServlet).setPulsarService(this);
                 }
-                switch (servletWithClassLoader.getServletType()) {
-                    case JAVAX_SERVLET -> {
-                        // Legacy javax.servlet handlers are routed to Jetty's ee8 environment (PIP-472).
-                        Object servletInstance = servletWithClassLoader.getServletInstance();
-                        if (!(servletInstance instanceof javax.servlet.Servlet)) {
-                            log.error()
-                                    .attr("servlet", servletWithClassLoader)
-                                    .attr("type", servletInstance.getClass().getName())
-                                    .attr("match", servletWithClassLoader.getServletType())
-                                    .log("AdditionalServletWithClassLoader has invalid servlet instance type which"
-                                            + " doesn't match . Skipping.");
-                            try {
-                                servletWithClassLoader.close();
-                            } catch (Exception e) {
-                                log.error()
-                                        .attr("servlet", servletWithClassLoader)
-                                        .exception(e)
-                                        .log("Failed to close servlet .");
-                            }
-                            continue;
-                        }
-                        org.eclipse.jetty.ee8.servlet.ServletHolder servletHolder =
-                                new org.eclipse.jetty.ee8.servlet.ServletHolder(
-                                        (javax.servlet.Servlet) servletInstance);
-                        webService.addServletEe8(servletWithClassLoader.getBasePath(), servletHolder,
-                                config.isAuthenticationEnabled(), attributeMap);
-                        log.info()
-                                .attr("basePath", servletWithClassLoader.getBasePath())
-                                .log("Broker add additional servlet basePath");
-                    }
-                    case JAKARTA_SERVLET -> {
-                        // jakarta.servlet handlers are routed to Jetty's ee10 environment (PIP-472).
-                        Object servletInstance = servletWithClassLoader.getServletInstance();
-                        if (!(servletInstance instanceof jakarta.servlet.Servlet)) {
-                            log.error()
-                                    .attr("servlet", servletWithClassLoader)
-                                    .attr("type", servletInstance.getClass().getName())
-                                    .attr("match", servletWithClassLoader.getServletType())
-                                    .log("AdditionalServletWithClassLoader has invalid servlet instance type which"
-                                            + " doesn't match . Skipping.");
-                            try {
-                                servletWithClassLoader.close();
-                            } catch (Exception e) {
-                                log.error()
-                                        .attr("servlet", servletWithClassLoader)
-                                        .exception(e)
-                                        .log("Failed to close servlet .");
-                            }
-                            continue;
-                        }
-                        ServletHolder servletHolder =
-                                new ServletHolder((jakarta.servlet.Servlet) servletInstance);
-                        webService.addServlet(servletWithClassLoader.getBasePath(), servletHolder,
-                                config.isAuthenticationEnabled(), attributeMap);
-                        log.info()
-                                .attr("basePath", servletWithClassLoader.getBasePath())
-                                .log("Broker add additional servlet basePath");
-                    }
-                    default -> {
+                // Legacy javax.servlet handlers are adapted to jakarta.servlet so that every additional servlet
+                // is registered in the same Jetty environment and goes through the broker filter chain (PIP-472).
+                Servlet servlet;
+                try {
+                    servlet = AdditionalServletUtils.toJakartaServlet(servletWithClassLoader);
+                } catch (IllegalArgumentException e) {
+                    log.error()
+                            .attr("servlet", servletWithClassLoader)
+                            .exception(e)
+                            .log("AdditionalServletWithClassLoader has an unusable servlet instance. Skipping.");
+                    try {
+                        servletWithClassLoader.close();
+                    } catch (Exception closeException) {
                         log.error()
                                 .attr("servlet", servletWithClassLoader)
-                                .attr("type", servletWithClassLoader.getServletType())
-                                .log("AdditionalServletWithClassLoader has unsupported servlet type . Skipping.");
-                        try {
-                            servletWithClassLoader.close();
-                        } catch (Exception e) {
-                            log.error()
-                                    .attr("servlet", servletWithClassLoader)
-                                    .exception(e)
-                                    .log("Failed to close servlet .");
-                        }
-                        continue;
+                                .exception(closeException)
+                                .log("Failed to close servlet .");
                     }
+                    continue;
                 }
+                webService.addServlet(servletWithClassLoader.getBasePath(), new ServletHolder(servlet),
+                        config.isAuthenticationEnabled(), attributeMap);
+                log.info()
+                        .attr("basePath", servletWithClassLoader.getBasePath())
+                        .log("Broker add additional servlet basePath");
             }
         }
     }
@@ -2008,12 +1978,21 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         if (tlsEnabled) {
             conf.setTlsCiphers(this.getConfiguration().getBrokerClientTlsCiphers());
             conf.setTlsProtocols(this.getConfiguration().getBrokerClientTlsProtocols());
-            // PIP-478: propagate the broker-client TLS engine (sslProvider) and JSSE (SSLContext) provider
-            // (jsseProvider) onto the internal client config so the broker's own outbound client honors them —
-            // both are documented as "used by the internal client" but were otherwise dropped here (never
-            // copied into ClientConfigurationData), silently defaulting the engine/provider.
-            conf.setSslProvider(this.getConfiguration().getBrokerClientSslProvider());
-            conf.setJsseProvider(this.getConfiguration().getBrokerClientJsseProvider());
+            // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+            // (jsseProvider) and JCA (crypto) provider (jcaProvider) onto the internal client config so the
+            // broker's own outbound client honors them — all three are documented as "used by the internal
+            // client" but were otherwise dropped here (never copied into ClientConfigurationData), silently
+            // defaulting the engine/provider. The client conf field is the only route: the policy this client
+            // builds comes from ClientTlsFactorySupport.clientDefaultPolicy, which reads it.
+            if (isNotBlank(this.getConfiguration().getBrokerClientSslProvider())) {
+                conf.setSslProvider(this.getConfiguration().getBrokerClientSslProvider());
+            }
+            if (isNotBlank(this.getConfiguration().getBrokerClientJsseProvider())) {
+                conf.setJsseProvider(this.getConfiguration().getBrokerClientJsseProvider());
+            }
+            if (isNotBlank(this.getConfiguration().getBrokerClientJcaProvider())) {
+                conf.setJcaProvider(this.getConfiguration().getBrokerClientJcaProvider());
+            }
             conf.setTlsAllowInsecureConnection(this.getConfiguration().isTlsAllowInsecureConnection());
             conf.setTlsHostnameVerificationEnable(this.getConfiguration().isTlsHostnameVerificationEnabled());
             if (this.getConfiguration().isBrokerClientTlsEnabledWithKeyStore()) {
@@ -2104,6 +2083,24 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
             builder.allowTlsInsecureConnection(conf.isTlsAllowInsecureConnection())
                     .enableTlsHostnameVerification(conf.isTlsHostnameVerificationEnabled());
+            // PIP-478: the broker's own admin client is an outbound leg like the others, so it carries the same
+            // three broker-client provider pins. It reached none of them: the whole brokerClient* TLS material
+            // family is mapped above, but the provider axes were not, and the ClientConfigurationData is their
+            // only route (the admin transport composes its policy through
+            // ClientTlsFactorySupport.clientDefaultPolicy). Pinning BCJSSE/BCFIPS in broker.conf therefore left
+            // this leg building its SSLContext on the JVM default and parsing key material on the search order.
+            // Set only when configured, so the brokerClient_* loadConf escape hatch above is not clobbered.
+            if (isNotBlank(conf.getBrokerClientSslProvider())) {
+                builder.sslProvider(conf.getBrokerClientSslProvider());
+            }
+            if (builder instanceof PulsarAdminBuilderImpl adminBuilder) {
+                if (isNotBlank(conf.getBrokerClientJsseProvider())) {
+                    adminBuilder.getConf().setJsseProvider(conf.getBrokerClientJsseProvider());
+                }
+                if (isNotBlank(conf.getBrokerClientJcaProvider())) {
+                    adminBuilder.getConf().setJcaProvider(conf.getBrokerClientJcaProvider());
+                }
+            }
         }
 
         // most of the admin request requires to make zk-call so, keep the max read-timeout based on
@@ -2312,6 +2309,28 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         workerConfig.setTlsEnableHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
         workerConfig.setBrokerClientTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath());
         workerConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsTrustCertsFilePath());
+        // PIP-478: an embedded worker inherits the broker's TLS provider pins — the outbound (broker-client)
+        // axes for its own worker-to-broker connections, and the web-listener axes for its web server — unless
+        // its own configuration file sets them. Without this a FIPS deployment that pins BCJSSE in broker.conf
+        // gets an embedded worker silently running on the default provider.
+        if (isBlank(workerConfig.getBrokerClientSslProvider())) {
+            workerConfig.setBrokerClientSslProvider(brokerConfig.getBrokerClientSslProvider());
+        }
+        if (isBlank(workerConfig.getBrokerClientJsseProvider())) {
+            workerConfig.setBrokerClientJsseProvider(brokerConfig.getBrokerClientJsseProvider());
+        }
+        if (isBlank(workerConfig.getTlsProvider())) {
+            workerConfig.setTlsProvider(brokerConfig.getWebServiceTlsProvider());
+        }
+        if (isBlank(workerConfig.getJsseProvider())) {
+            workerConfig.setJsseProvider(brokerConfig.getJsseProvider());
+        }
+        if (isBlank(workerConfig.getBrokerClientJcaProvider())) {
+            workerConfig.setBrokerClientJcaProvider(brokerConfig.getBrokerClientJcaProvider());
+        }
+        if (isBlank(workerConfig.getJcaProvider())) {
+            workerConfig.setJcaProvider(brokerConfig.getJcaProvider());
+        }
 
         // client in worker will use this config to authenticate with broker
         workerConfig.setBrokerClientAuthenticationPlugin(brokerConfig.getBrokerClientAuthenticationPlugin());
@@ -2362,6 +2381,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     @VisibleForTesting
     public void setTransactionBufferProvider(TransactionBufferProvider transactionBufferProvider) {
         this.transactionBufferProvider = transactionBufferProvider;
+    }
+
+    @VisibleForTesting
+    public void setTopicPoliciesService(TopicPoliciesService topicPoliciesService) {
+        this.topicPoliciesService = topicPoliciesService;
     }
 
     private CompactionServiceFactory loadCompactionServiceFactory() {

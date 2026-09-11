@@ -45,9 +45,9 @@ import org.apache.pulsar.tls.TlsFactoryInitContext;
  * replaces the PIP-337 {@code PulsarSslFactory} path (removed at the end of the PIP-478 series, leaving
  * this SPI the only server TLS path). Server components (broker,
  * proxy, websocket, functions-worker) call these helpers to instantiate and initialize the factory and parse
- * its parameters. A stale PIP-337 {@code sslFactoryPlugin} configuration key is still accepted at this
- * point in the series; the removed-key validation that rejects it at config-file load arrives with the
- * server-side migration.
+ * its parameters. A stale PIP-337 {@code sslFactoryPlugin} configuration key is rejected at config-file
+ * load by {@code PulsarConfigurationLoader.rejectRemovedPip337TlsFactoryKeys}, so it never reaches these
+ * helpers.
  *
  * <p>The helper deliberately does not touch Netty's {@code SslContext} itself — that subscribe pattern stays
  * inline in the binary-listener components — so it stays usable by every component, including the websocket
@@ -293,7 +293,7 @@ public final class TlsFactorySupport {
      * is conditional, because a default that breaks a supported platform is not a usable default.
      *
      * <p>This applies to server listeners only. Client-side hostname verification is unaffected: a server
-     * does not verify hostnames, so pinning Conscrypt here cannot interact with the SAN-only verification
+     * does not verify hostnames, so pinning Conscrypt here cannot interact with the hostname verification
      * PIP-478 turns on.
      *
      * @param explicitJsseProvider the configured {@code jsseProvider} (may be null/blank)

@@ -125,8 +125,9 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      * 1. Client tries to connect to broker with hostname="localhost"
      * 2. Broker sends an x509 certificate whose SubjectAltName does not match "localhost"
      *    (in fact it has no SAN at all, only CN=broker.pulsar.apache.org)
-     * 3. Client performs SAN-based (RFC 2818) host-name verification, closes the connection
-     *    and fails consumer creation
+     * 3. Client performs host-name verification: there is no SAN to match, and the CN the default
+     *    engines fall back to is "broker.pulsar.apache.org", so it closes the connection and fails
+     *    consumer creation
      * </pre>
      *
      * @throws Exception
@@ -140,7 +141,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         this.hostnameVerificationEnabled = hostnameVerificationEnabled;
         clientTrustCertFilePath = TLS_MIM_TRUST_CERT_FILE_PATH;
         // setup broker cert which has no SAN matching the broker's hostname="localhost"
-        // (CN=broker.pulsar.apache.org, no subjectAltName): CN-based matching is no longer supported (PIP-478).
+        // (CN=broker.pulsar.apache.org, no subjectAltName), so it matches neither by SAN nor by CN fallback.
         // The broker itself uses this deliberately-mismatched cert, so its own internal client (e.g. the
         // system-topic reader for topic policies) cannot verify "localhost" against it; disable hostname
         // verification for the broker's outbound client here. This test exercises the end-user client's
@@ -179,7 +180,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
      * <pre>
      * 1. Client tries to connect to broker with hostname="localhost"
      * 2. Broker sends an x509 certificate whose SubjectAltName includes DNS:localhost
-     * 3. Client performs SAN-based (RFC 2818) host-name verification and continues
+     * 3. Client performs host-name verification, matches DNS:localhost in the SAN, and continues
      * </pre>
      *
      * @throws Exception

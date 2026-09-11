@@ -204,6 +204,16 @@ public class SegmentLayout {
      * @return a new SegmentLayout with the merge applied
      */
     public SegmentLayout mergeSegments(long segmentId1, long segmentId2, long nowMs) {
+        return mergeSegments(segmentId1, segmentId2, nowMs, EntryBucketSplits.MAX_BUCKETS);
+    }
+
+    /**
+     * As {@link #mergeSegments(long, long, long)}, clamping the merged segment's entry-bucket
+     * count to {@code maxBucketsPerSegment} (the configured per-segment ceiling): the merged
+     * segment recovers the parents' buckets, but never past the hard ceiling.
+     */
+    public SegmentLayout mergeSegments(long segmentId1, long segmentId2, long nowMs,
+                                       int maxBucketsPerSegment) {
         SegmentInfo seg1 = allSegments.get(segmentId1);
         SegmentInfo seg2 = allSegments.get(segmentId2);
         if (seg1 == null || seg2 == null) {
@@ -223,8 +233,8 @@ public class SegmentLayout {
 
         // PIP-486: a merge is the inverse of a split — the merged segment recovers both parents' buckets
         // (N1 + N2), so the topic's total entry-bucket count stays ≈ the budget as segments coalesce.
-        List<Integer> mergedEntryBucketSplits =
-                EntryBucketSplits.equalWidth(seg1.bucketCount() + seg2.bucketCount());
+        List<Integer> mergedEntryBucketSplits = EntryBucketSplits.equalWidth(
+                Math.min(seg1.bucketCount() + seg2.bucketCount(), maxBucketsPerSegment));
         SegmentInfo sealed1 = seg1.sealed(newEpoch, nowMs, List.of(mergedId));
         SegmentInfo sealed2 = seg2.sealed(newEpoch, nowMs, List.of(mergedId));
         SegmentInfo merged = SegmentInfo.active(mergedId, mergedRange,
@@ -235,6 +245,47 @@ public class SegmentLayout {
         newSegments.put(segmentId1, sealed1);
         newSegments.put(segmentId2, sealed2);
         newSegments.put(mergedId, merged);
+
+        return new SegmentLayout(newEpoch, nextSegmentId + 1, newSegments);
+    }
+
+    /**
+     * Produce a new layout by rebucketing a segment: seal it and create a single successor
+     * with the <b>same hash range</b> but a new entry-bucket boundary list (PIP-486 "rebucket
+     * rollover"). A segment's bucketing is immutable for its life, so changing N is a layout
+     * operation: the sealed predecessor drains under its old buckets while the successor takes
+     * new writes under the new ones — the ordinary seal → successor flow, so per-key order
+     * across the change is preserved by the existing machinery.
+     *
+     * @param segmentId the active segment to rebucket
+     * @param newSplits the successor's entry-bucket split points (ascending start hashes of
+     *                  buckets {@code 1..N-1}; empty = a single bucket spanning the ring)
+     * @param nowMs     wall-clock millis used as the parent's seal time and the successor's
+     *                  create time
+     * @return a new SegmentLayout with the rollover applied
+     */
+    public SegmentLayout rebucketSegment(long segmentId, List<Integer> newSplits, long nowMs) {
+        SegmentInfo segment = allSegments.get(segmentId);
+        if (segment == null) {
+            throw new IllegalArgumentException("Segment not found: " + segmentId);
+        }
+        if (!segment.isActive()) {
+            throw new IllegalArgumentException("Cannot rebucket non-active segment: " + segmentId);
+        }
+        if (newSplits.equals(segment.entryBucketSplits())) {
+            throw new IllegalArgumentException(
+                    "Segment " + segmentId + " already has the requested entry-bucket splits");
+        }
+
+        long newEpoch = epoch + 1;
+        long successorId = nextSegmentId;
+        SegmentInfo sealedParent = segment.sealed(newEpoch, nowMs, List.of(successorId));
+        SegmentInfo successor = SegmentInfo.active(successorId, segment.hashRange(),
+                List.of(segmentId), newEpoch, nowMs).withEntryBucketSplits(newSplits);
+
+        Map<Long, SegmentInfo> newSegments = new LinkedHashMap<>(allSegments);
+        newSegments.put(segmentId, sealedParent);
+        newSegments.put(successorId, successor);
 
         return new SegmentLayout(newEpoch, nextSegmentId + 1, newSegments);
     }

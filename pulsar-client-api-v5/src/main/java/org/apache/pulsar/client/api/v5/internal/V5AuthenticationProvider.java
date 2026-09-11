@@ -26,10 +26,9 @@ import org.apache.pulsar.client.api.v5.auth.Authentication;
  *
  * <p>The client drives the v5 authentication model natively: it resolves exactly one v5
  * {@link Authentication} per client and drives every transport from it. A v4 plugin therefore has to be
- * turned into a v5 one, and there are two ways to do that. The built-in shims that already <em>have</em> a
- * v5-native body — token, basic and OAuth2, where the v4 class is a thin compatibility surface over it —
- * hand that body over through this interface. Everything else, including the built-in Athenz and SASL
- * plugins, whose credential machinery has no v5-native body today, is wrapped by
+ * turned into a v5 one, and there are two ways to do that. The built-in shims already <em>have</em> a
+ * v5-native body — the v4 class is a thin compatibility surface over it — so they hand that body over
+ * through this interface. Everything else is wrapped by
  * {@code LegacyV4AuthenticationAdapter}, which re-expresses the v4 surface as v5 capabilities and
  * off-loads every v4 call to the client's blocking executor.
  *

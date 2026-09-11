@@ -149,7 +149,7 @@ public class PulsarCluster {
                     .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"));
             metadataStoreUrl = appendClusterName(ZKContainer.NAME);
             configurationMetadataStoreUrl = CSContainer.NAME + ":" + CS_PORT;
-            zkContainer.setEnableAsyncProfiler(spec.profileZookeeper);
+            configureProfiling(zkContainer, spec.profileZookeeper);
         }
 
         this.csContainer = csContainer;
@@ -164,7 +164,7 @@ public class PulsarCluster {
                 .withEnv("metadataStoreUrl", metadataStoreUrl)
                 .withEnv("configurationMetadataStoreUrl", configurationMetadataStoreUrl)
                 .withEnv("clusterName", clusterName);
-        proxyContainer.setEnableAsyncProfiler(spec.profileProxy);
+        configureProfiling(proxyContainer, spec.profileProxy);
 
         // enable mTLS
         if (spec.enableTls) {
@@ -231,7 +231,7 @@ public class PulsarCluster {
                     if (spec.bookieAdditionalPorts != null) {
                         spec.bookieAdditionalPorts.forEach(bookieContainer::addExposedPort);
                     }
-                    bookieContainer.setEnableAsyncProfiler(spec.profileBookie);
+                    configureProfiling(bookieContainer, spec.profileBookie);
                     return bookieContainer;
                 })
         );
@@ -280,7 +280,7 @@ public class PulsarCluster {
                             if (spec.brokerAdditionalPorts() != null) {
                                 spec.brokerAdditionalPorts().forEach(brokerContainer::addExposedPort);
                             }
-                            brokerContainer.setEnableAsyncProfiler(spec.profileBroker);
+                            configureProfiling(brokerContainer, spec.profileBroker);
                             return brokerContainer;
                         }
                 ));
@@ -575,8 +575,20 @@ public class PulsarCluster {
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv(functionWorkerEnvs)
                 .withExposedPorts(functionWorkerAdditionalPorts.toArray(new Integer[0]));
-        workerContainer.setEnableAsyncProfiler(spec.profileFunctionWorker);
+        configureProfiling(workerContainer, spec.profileFunctionWorker);
         return workerContainer;
+    }
+
+    /**
+     * Applies the spec's profiling settings to a container. The output directory is set alongside
+     * the enable flag rather than at each call site, so that the two cannot drift apart.
+     *
+     * @param container the container to configure
+     * @param enabled whether this component is profiled
+     */
+    private void configureProfiling(PulsarContainer<?> container, boolean enabled) {
+        container.setEnableAsyncProfiler(enabled);
+        container.setProfileDirectory(spec.profileDirectory);
     }
 
     private void startFunctionWorkersWithThreadContainerFactory(String suffix, int numFunctionWorkers) {

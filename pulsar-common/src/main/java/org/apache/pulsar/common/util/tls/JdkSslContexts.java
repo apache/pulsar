@@ -273,8 +273,7 @@ public final class JdkSslContexts {
     /**
      * Build the {@link TrustManager}s for a set of trust anchors, honoring both provider axes: the carrier
      * keystore holding the anchors comes from the pinned JCA provider and the {@code TrustManagerFactory} from
-     * the pinned JSSE provider (algorithm-negotiated as on the key side). Also applies the Conscrypt
-     * hostname-verifier propagation workaround.
+     * the pinned JSSE provider (algorithm-negotiated as on the key side).
      *
      * <p>Exposed for the same reason as {@link #createKeyManagerFactory(PrivateKey, Certificate[], Provider,
      * Provider)}: {@code SslContextBuilder.trustManager(X509Certificate...)} would have Netty build the
@@ -294,8 +293,9 @@ public final class JdkSslContexts {
             return InsecureTrustManagerFactory.INSTANCE.getTrustManagers();
         }
         // Same algorithm negotiation as the key-manager side: prefer the pinned provider's
-        // TrustManagerFactory (BCJSSE registers PKIX, the platform default), fall back to the platform
-        // factory for a provider that offers none (e.g. Conscrypt).
+        // TrustManagerFactory, falling back to the platform factory for a provider that registers none.
+        // Both providers Pulsar can pin do register one — BCJSSE and Conscrypt each offer PKIX — so the
+        // fallback exists for a third-party provider, not for either of them.
         TrustManagerFactory tmf;
         if (provider != null) {
             String algorithm = supportedAlgorithm(provider, "TrustManagerFactory",

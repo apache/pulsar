@@ -56,6 +56,7 @@ import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
+import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
@@ -100,6 +101,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
 
 @SuppressWarnings("deprecation")
 @CustomLog
@@ -330,6 +332,12 @@ public class TopicsImpl extends BaseResource implements Topics {
     @Override
     public CompletableFuture<Void> createNonPartitionedTopicAsync(String topic, Map<String, String> properties){
         TopicName tn = validateTopic(topic);
+        try {
+            TopicName.validateTopicNameForCreation(tn);
+        } catch (IllegalArgumentException e) {
+            return FutureUtil.failedFuture(
+                    new PreconditionFailedException(e, e.getMessage(), Status.PRECONDITION_FAILED.getStatusCode()));
+        }
         WebTarget path = topicPath(tn);
         properties = properties == null ? new HashMap<>() : properties;
         return asyncPutRequest(path, Entity.entity(properties, MediaType.APPLICATION_JSON));
@@ -346,6 +354,12 @@ public class TopicsImpl extends BaseResource implements Topics {
             String topic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
         checkArgument(numPartitions > 0, "Number of partitions should be more than 0");
         TopicName tn = validateTopic(topic);
+        try {
+            TopicName.validateTopicNameForCreation(tn);
+        } catch (IllegalArgumentException e) {
+            return FutureUtil.failedFuture(
+                    new PreconditionFailedException(e, e.getMessage(), Status.PRECONDITION_FAILED.getStatusCode()));
+        }
         WebTarget path = topicPath(tn, "partitions")
                 .queryParam("createLocalTopicOnly", Boolean.toString(createLocalTopicOnly));
         Entity entity;

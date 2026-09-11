@@ -95,7 +95,7 @@ public class SslContextFallbackSynthesisTest extends MockedPulsarServiceBaseTest
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
         // Advertise over loopback so the client->proxy service URL host (localhost) matches the proxy server
         // certificate's SubjectAltName (proxy.cert.pem carries DNS:localhost, IP:127.0.0.1). The client
-        // verifies hostnames (on by default, PIP-478 SAN-only) and the default advertised address resolves
+        // verifies hostnames (on by default, PIP-478) and the default advertised address resolves
         // to the machine's canonical hostname/IP, which is not in the cert SAN.
         proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setTlsAllowInsecureConnection(true);

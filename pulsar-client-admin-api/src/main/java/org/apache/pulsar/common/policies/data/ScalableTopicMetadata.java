@@ -83,6 +83,14 @@ public class ScalableTopicMetadata {
          */
         private String legacyTopicName;
 
+        /**
+         * PIP-486 entry-bucket split points: the ascending start hashes of buckets
+         * {@code 1..N-1} within the segment's 16-bit entry-bucket ring (empty = a single
+         * bucket). The segment has {@code entryBucketSplits.size() + 1} entry-buckets;
+         * a segment's bucketing is immutable — a rebucket rolls over to a successor.
+         */
+        private List<Integer> entryBucketSplits;
+
         public boolean isActive() {
             return "ACTIVE".equals(state);
         }

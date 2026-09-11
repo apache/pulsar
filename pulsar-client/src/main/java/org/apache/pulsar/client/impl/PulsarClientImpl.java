@@ -47,8 +47,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -77,6 +77,7 @@ import org.apache.pulsar.client.api.TableViewBuilder;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.api.transaction.TransactionBuilder;
+import org.apache.pulsar.client.api.v5.auth.BinaryAuthDataProvider;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServices;
 import org.apache.pulsar.client.api.v5.internal.ClientAuthenticationServicesAware;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
@@ -154,6 +155,11 @@ public class PulsarClientImpl implements PulsarClient {
     // connections keep their contexts alive via their own refcount), so they are not closed eagerly.
     private final Object tlsFactoryRebuildLock = new Object();
     private volatile boolean clientTlsFactoryRebuildable;
+    private volatile boolean clientComposedTlsFactory;
+    // PIP-478: whether setupClientTlsFactory() got as far as putting a resolved factory in the slot, which is
+    // what makes it this client's to close on shutdown. See the assignment for why a failed resolution must
+    // not count.
+    private volatile boolean ownsTlsFactory;
     private final List<PulsarTlsFactory> supersededTlsFactories = new CopyOnWriteArrayList<>();
 
     // PIP-478: a stable id for the owning client (logging correlation), plus a small bounded,
@@ -427,7 +433,7 @@ public class PulsarClientImpl implements PulsarClient {
      * already-started variant because the v4 instance stays in {@code conf} and this client both started it
      * above and closes it in {@link #shutdown()} — the adapter must not run that lifecycle a second time.
      */
-    private void resolveV5Authentication() {
+    private void resolveV5Authentication() throws PulsarClientException {
         // The v5 slot holds only what was explicitly configured through the v5 builder. A body derived from
         // the v4 slot is deliberately NOT written back: build() hands this client the builder's own
         // configuration object, so a derived body stored here would outlive the build and be reused by the
@@ -435,10 +441,45 @@ public class PulsarClientImpl implements PulsarClient {
         // again, would drive the previous credential while conf.getAuthentication() showed the new one.
         // Deriving on every resolution keeps the answer a function of the current configuration.
         org.apache.pulsar.client.api.v5.auth.Authentication v5 = conf.getV5Authentication();
+        boolean configuredDirectly = v5 != null;
         if (v5 == null) {
             v5 = V5AuthenticationLoader.forStartedV4Plugin(conf.getAuthentication());
         }
-        conf.setV5AuthenticationDriver(new V5BinaryAuthenticationDriver(v5, authServices));
+        V5BinaryAuthenticationDriver driver = new V5BinaryAuthenticationDriver(v5, authServices);
+        if (configuredDirectly) {
+            // A plugin configured through the v5 builder is initialized here, on the application thread, so a
+            // misconfiguration fails the build (PIP-478). The plugins the client derives from the v4 slot
+            // stay lazy: initializing a bridged plugin runs v4 code, which the v4 client does not do at
+            // build time either.
+            requireUsableForBinaryTransport(v5, driver);
+        }
+        conf.setV5AuthenticationDriver(driver);
+    }
+
+    /**
+     * Fail the client build when the configured authentication cannot authenticate a binary connection.
+     *
+     * <p>The binary transport requires {@code BinaryAuthDataProvider} (PIP-478 binary routing rule 1). Without
+     * this check the plugin builds fine and every connection attempt fails the same way for the client's
+     * lifetime, with the reason buried in a connection failure rather than stated where the mistake was made.
+     * Capabilities are only meaningful once the plugin has initialized, so the check follows initialization
+     * rather than preceding it.
+     */
+    private void requireUsableForBinaryTransport(org.apache.pulsar.client.api.v5.auth.Authentication v5,
+            V5BinaryAuthenticationDriver driver) throws PulsarClientException {
+        try {
+            driver.initializedAsync().get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+        if (v5.capability(BinaryAuthDataProvider.class).isEmpty()) {
+            throw new PulsarClientException.UnsupportedAuthenticationException(
+                    "authentication plugin " + v5.getClass().getName() + " does not expose "
+                            + "BinaryAuthDataProvider; the Pulsar binary transport requires it (PIP-478)");
+        }
     }
 
     /**
@@ -459,6 +500,10 @@ public class PulsarClientImpl implements PulsarClient {
         // when no factory is composed now, so a later updateAuthentication that introduces OAuth2 IdP TLS
         // material (a failover swap from a non-OAuth2 cluster) can still build one.
         this.clientTlsFactoryRebuildable = conf.getTlsFactory() == null && conf.getTlsPolicyMap() == null;
+        // Whether the factory in the slot is one this client composed, as opposed to one the application
+        // adopted through the v5 builder. Only a composed factory may be cleared from the configuration on
+        // shutdown — see the note there.
+        this.clientComposedTlsFactory = conf.getTlsFactory() == null;
         if (!needsClientTlsFactory()) {
             return;
         }
@@ -467,6 +512,14 @@ public class PulsarClientImpl implements PulsarClient {
             var factory = ClientTlsFactorySupport.resolveClientTlsFactory(conf, executor, executor,
                     conf.getOpenTelemetry() != null ? conf.getOpenTelemetry() : OpenTelemetry.noop());
             conf.setTlsFactory(factory);
+            // Only now is the factory in the slot this client's to close. Resolution that throws has already
+            // closed whatever it initialized (its own failure handler, covering initialization and the
+            // fail-fast probe alike), and for an ADOPTED factory the slot still holds that instance — so
+            // without this the constructor's failure path would reach
+            // shutdown() and close the caller's factory a second time, which PulsarTlsFactory.close()
+            // forbids ("called at most once"). The composed path is unaffected either way: the slot is
+            // assigned above, after resolution returned.
+            this.ownsTlsFactory = true;
         } catch (Exception e) {
             throw new PulsarClientException.InvalidConfigurationException(e);
         }
@@ -491,7 +544,12 @@ public class PulsarClientImpl implements PulsarClient {
      * @return whether the client TLS factory must be composed
      */
     private boolean needsClientTlsFactory() {
-        return conf.isUseTls() || hasExplicitTlsPolicies() || hasOAuth2IdpTlsMaterial();
+        // An adopted factory counts too. Resolution is what initializes it and puts it under this client's
+        // ownership, so skipping it would leave a factory the client still closes on shutdown but never
+        // initialized — and would serve an uninitialized factory to anything that asked. The admin path
+        // applies the same rule (AsyncHttpConnector.needsTlsFactory), and pip-478.md states it for both.
+        return conf.isUseTls() || hasExplicitTlsPolicies() || hasOAuth2IdpTlsMaterial()
+                || conf.getTlsFactory() != null;
     }
 
     /**
@@ -562,6 +620,10 @@ public class PulsarClientImpl implements PulsarClient {
                 return;
             }
             conf.setTlsFactory(rebuilt);
+            // This client composed it, so it closes it — including on the arm where construction needed no
+            // factory at all (a plaintext client whose failover target introduces OAuth2 IdP material) and
+            // setupClientTlsFactory never set this.
+            this.ownsTlsFactory = true;
             cnxPool.updateClientTlsFactory(rebuilt);
             if (previous != null) {
                 supersededTlsFactories.add(previous);
@@ -579,9 +641,15 @@ public class PulsarClientImpl implements PulsarClient {
      */
     private synchronized Executor blockingAuthExecutor() {
         if (blockingAuthExecutor == null) {
-            blockingAuthExecutor = new ThreadPoolExecutor(0, AUTH_BLOCKING_MAX_THREADS, 60L, TimeUnit.SECONDS,
-                    new SynchronousQueue<>(),
+            // Queue rather than reject. Every caller is a connection attempt or an authenticated request, so
+            // a saturated pool must slow them down, not fail them: a SynchronousQueue with the default abort
+            // policy turns a reconnect storm against a slow identity provider into failed connections. Core
+            // threads are allowed to time out, so an unused pool still costs nothing.
+            ThreadPoolExecutor executor = new ThreadPoolExecutor(AUTH_BLOCKING_MAX_THREADS,
+                    AUTH_BLOCKING_MAX_THREADS, 60L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
                     new ExecutorProvider.ExtendedThreadFactory("pulsar-client-auth-blocking", true));
+            executor.allowCoreThreadTimeOut(true);
+            blockingAuthExecutor = executor;
         }
         return blockingAuthExecutor;
     }
@@ -609,17 +677,9 @@ public class PulsarClientImpl implements PulsarClient {
         return new ProducerBuilderImpl<>(this, Schema.BYTES);
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public <T> ProducerBuilder<T> newProducer(Schema<T> schema) {
-        ProducerBuilderImpl<T> producerBuilder = new ProducerBuilderImpl<>(this, schema);
-        if (!memoryLimitController.isMemoryLimited()) {
-            // set default limits for producers when memory limit controller is disabled
-            producerBuilder.maxPendingMessages(NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES);
-            producerBuilder.maxPendingMessagesAcrossPartitions(
-                    NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
-        }
-        return producerBuilder;
+        return new ProducerBuilderImpl<>(this, schema);
     }
 
     @Override
@@ -712,6 +772,85 @@ public class PulsarClientImpl implements PulsarClient {
             return createProducerAsync(topic, conf, schema, interceptors);
         }
 
+    }
+
+    /**
+     * Apply the default pending-message limits a producer gets when this client has no memory limit.
+     *
+     * <p>The client memory limit is a producer's primary backpressure: it bounds the memory held by
+     * messages that have been queued but not yet acknowledged by the broker. When it is disabled
+     * there is nothing left to bound that queue, so producers fall back to the pre-PIP-120
+     * message-count defaults rather than buffering without any limit at all.
+     *
+     * <p>These are defaults, not a floor. A limit the application configured is always kept — including
+     * an explicit {@code 0}, which is how an application asks for no message-count limit at all. Only a
+     * limit that was never configured is filled in, which is why this reads the markers the
+     * configuration carries rather than inferring it from the values: {@code 0} is both the unset value
+     * and a meaningful explicit one.
+     *
+     * <p>What is filled in here stays marked as unconfigured, so on a partitioned topic
+     * {@link PartitionedProducerImpl} divides only a budget the application actually asked for. A
+     * filled-in budget never lowers a per-producer limit that was asked for.
+     *
+     * <p>Called by {@link ProducerBuilderImpl}. The V5 client builds its segment producers through
+     * {@link #createSegmentProducerAsync} instead, and deliberately gets no defaults here: it exposes
+     * no pending-message setting at all, so its client memory limit is the only backpressure it has and
+     * the only thing an application can turn off.
+     *
+     * @param conf the requested producer configuration, carrying the markers that say which limits the
+     *             application configured
+     * @return the configuration to create the producer with; a resolved copy when a default applies,
+     *         otherwise {@code conf} unchanged
+     */
+    public ProducerConfigurationData applyNoMemoryLimitProducerDefaults(ProducerConfigurationData conf) {
+        // A limit that is already positive was configured by definition, whichever way the
+        // configuration was populated. The markers only tell an explicit 0 apart from an unset one.
+        boolean maxPendingMessagesConfigured =
+                conf.isMaxPendingMessagesConfigured() || conf.getMaxPendingMessages() > 0;
+        boolean maxPendingMessagesAcrossPartitionsConfigured =
+                conf.isMaxPendingMessagesAcrossPartitionsConfigured()
+                        || conf.getMaxPendingMessagesAcrossPartitions() > 0;
+        if ((maxPendingMessagesConfigured && maxPendingMessagesAcrossPartitionsConfigured)
+                || memoryLimitController.isMemoryLimited()) {
+            return conf;
+        }
+        int maxPendingMessages = maxPendingMessagesConfigured
+                ? conf.getMaxPendingMessages()
+                : NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES;
+        final int maxPendingMessagesAcrossPartitions;
+        if (maxPendingMessagesAcrossPartitionsConfigured) {
+            maxPendingMessagesAcrossPartitions = conf.getMaxPendingMessagesAcrossPartitions();
+        } else if (maxPendingMessages == 0) {
+            // The application asked for no per-producer limit at all, so there is no queue for a
+            // budget to bound. Leaving it unset keeps the resolved configuration honest about that.
+            maxPendingMessagesAcrossPartitions = 0;
+        } else {
+            maxPendingMessagesAcrossPartitions =
+                    Math.max(maxPendingMessages, NO_MEMORY_LIMIT_DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
+        }
+        if (maxPendingMessagesAcrossPartitions > 0) {
+            // The across-partitions limit is a budget shared by every partition, so a single producer's
+            // queue can never exceed it. A configured 0 means there is no such budget and is left
+            // alone, rather than capping every producer at zero.
+            maxPendingMessages = Math.min(maxPendingMessages, maxPendingMessagesAcrossPartitions);
+        }
+
+        // Resolve on a copy: the builder hands over its own configuration instance, so filling in a
+        // limit here would otherwise leak into the next producer built from the same builder.
+        ProducerConfigurationData resolved = conf.clone();
+        resolved.setMaxPendingMessages(maxPendingMessages);
+        resolved.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
+        // The setters mark whatever they are given as configured, so restore the markers: what is
+        // filled in here is a default, and a partitioned producer still has to be able to tell it apart
+        // from a limit the application asked for, so that a budget it did ask for is the one that gets
+        // divided.
+        resolved.setMaxPendingMessagesConfigured(maxPendingMessagesConfigured);
+        resolved.setMaxPendingMessagesAcrossPartitionsConfigured(maxPendingMessagesAcrossPartitionsConfigured);
+        log.debug().attr("topic", conf.getTopicName())
+                .attr("maxPendingMessages", maxPendingMessages)
+                .attr("maxPendingMessagesAcrossPartitions", maxPendingMessagesAcrossPartitions)
+                .log("Client memory limit is disabled, applying default producer pending message limits");
+        return resolved;
     }
 
     @SuppressWarnings("unchecked")
@@ -1439,13 +1578,40 @@ public class PulsarClientImpl implements PulsarClient {
             if (blockingAuthExecutor != null) {
                 blockingAuthExecutor.shutdownNow();
             }
-            // PIP-478: close the client-owned (or adopted) TLS factory on the new path.
-            if (conf != null && conf.getTlsFactory() != null) {
+            // PIP-478: close the TLS factory this client owns — on both arms, because adoption is a
+            // hand-over: PulsarTlsFactory.close() says a factory supplied to the v5 builder "is adopted and
+            // closed with the client", and tlsFactory(...) says the same on the public builder. The
+            // ownsTlsFactory condition does not narrow that; it only excludes the window before this client
+            // took ownership, since resolveClientTlsFactory closes what it initialized when initialization or
+            // the fail-fast probe fails, and for an adopted instance the slot still holds that same factory
+            // afterwards — so a constructor that failed there would otherwise close it a second time.
+            if (conf != null && conf.getTlsFactory() != null && ownsTlsFactory) {
                 try {
                     conf.getTlsFactory().close();
                 } catch (Throwable t) {
                     log.warn().exception(t).log("Failed to close TLS factory");
                     throwable = t;
+                } finally {
+                    // Only a factory this client composed is cleared, because only that one is this client's
+                    // own artefact written into a configuration the caller may still hold. Both builders now
+                    // hand over a copy, so the one configuration that outlives its client is the one passed
+                    // to PulsarService.createClientImpl directly: the broker's own internal client, and the
+                    // per-cluster replication / peer-lookup clients that hand it a ClientBuilderImpl's
+                    // configuration. There the client composes the factory itself unless
+                    // brokerClientTlsFactoryClassName put one in the slot first, and a composed factory left
+                    // behind would be mistaken for an adopted one on the next construction from that
+                    // configuration, re-initialized while closed, and fail that build.
+                    //
+                    // An adopted factory stays in the slot on purpose. The slot is then the caller's own
+                    // statement of which factory this configuration uses, so clearing it would silently
+                    // reroute the next client built from that configuration onto a factory composed from the
+                    // tls* fields — different trust material, no error. Leaving the closed instance means
+                    // such a reuse hits a closed factory instead. No second live client can get there: the
+                    // v5 builder, the only one with a tlsFactory(...) seam, refuses to hand an instance it
+                    // has already handed to a client to another one.
+                    if (clientComposedTlsFactory) {
+                        conf.setTlsFactory(null);
+                    }
                 }
             }
             // PIP-478: close any TLS factories superseded by an AutoClusterFailover rebuild; they were kept

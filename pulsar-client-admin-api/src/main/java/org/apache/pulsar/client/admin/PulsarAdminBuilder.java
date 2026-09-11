@@ -35,6 +35,12 @@ public interface PulsarAdminBuilder {
 
     /**
      * @return the new {@link PulsarAdmin} instance
+     * @throws PulsarClientException if the admin client cannot be created
+     * @throws IllegalStateException if a {@code PulsarTlsFactory} set on this builder's configuration was
+     *         already taken by an earlier {@code build()} — taking it initializes it, so it belongs to that
+     *         build and cannot be handed over twice. Deliberately unchecked: it reports a programming error
+     *         in how the builder is used, not a failure to reach or configure a cluster, so it is not
+     *         something a caller catching {@link PulsarClientException} should be made to handle
      */
     PulsarAdmin build() throws PulsarClientException;
 
@@ -204,6 +210,11 @@ public interface PulsarAdminBuilder {
      * It allows to validate hostname verification when client connects to broker over TLS. It validates incoming x509
      * certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1.
      * Server Identity hostname verification.
+     *
+     * <p>The CN is only a fallback, and only on the default engines: it is consulted when the client connects by
+     * hostname and the certificate carries no {@code dNSName} SAN, and ignored once any is present. A client that
+     * pins Conscrypt as its JSSE provider verifies against the SAN alone and never falls back to the CN (Pulsar
+     * 5.0, PIP-478). A connection to an IP literal is matched against {@code iPAddress} SANs, never the CN.
      *
      * @see <a href="https://tools.ietf.org/html/rfc2818">rfc2818</a>
      *

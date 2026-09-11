@@ -69,7 +69,8 @@ import org.testng.annotations.Test;
 public class AdminOAuth2IdpTlsEndToEndTest {
 
     // broker.cert.pem carries SAN:localhost and chains to ca.cert.pem, so both trust and hostname verification
-    // pass against the WireMock server (the shared broker.keystore.jks has no SAN).
+    // pass against the WireMock server (the shared broker.keystore.jks carries the same SAN but is self-signed,
+    // so it fails trust verification rather than hostname verification).
     private static final String BROKER_CERT = resource("certificate-authority/server-keys/broker.cert.pem");
     private static final String BROKER_KEY = resource("certificate-authority/server-keys/broker.key-pk8.pem");
     private static final String CA_CERT = resource("certificate-authority/certs/ca.cert.pem");

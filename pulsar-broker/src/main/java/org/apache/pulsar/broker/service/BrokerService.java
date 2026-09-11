@@ -26,6 +26,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.client.util.RetryMessageUtil.DLQ_GROUP_TOPIC_SUFFIX;
 import static org.apache.pulsar.client.util.RetryMessageUtil.RETRY_GROUP_TOPIC_SUFFIX;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionInternalName;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Queues;
 import com.google.common.util.concurrent.RateLimiter;
@@ -130,6 +131,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
+import org.apache.pulsar.broker.service.TopicLoadingContext.TopicLoadingStage;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentSystemTopic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
@@ -140,6 +142,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.SystemTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProvider;
 import org.apache.pulsar.broker.service.scalable.SegmentLoadReporter;
+import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
@@ -264,6 +267,7 @@ public class BrokerService implements Closeable {
 
     @Getter
     private final SingleThreadNonConcurrentFixedRateScheduler backlogQuotaChecker;
+    private final SingleThreadNonConcurrentFixedRateScheduler subscriptionBacklogAgeChecker;
 
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     @Getter
@@ -409,6 +413,8 @@ public class BrokerService implements Closeable {
                 new SingleThreadNonConcurrentFixedRateScheduler("pulsar-consumed-ledgers-monitor");
         this.backlogQuotaManager = new BacklogQuotaManager(pulsar);
         this.backlogQuotaChecker = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-backlog-quota-checker");
+        this.subscriptionBacklogAgeChecker =
+                new SingleThreadNonConcurrentFixedRateScheduler("pulsar-subscription-backlog-age-checker");
         this.authenticationService = new AuthenticationService(pulsar.getConfiguration(),
                 pulsar.getOpenTelemetry().getOpenTelemetry());
         this.topicFactory = createPersistentTopicFactory();
@@ -701,6 +707,7 @@ public class BrokerService implements Closeable {
         this.startCompactionMonitor();
         this.startConsumedLedgersMonitor();
         this.startBacklogQuotaChecker();
+        this.startSubscriptionBacklogAgeChecker();
         this.updateBrokerPublisherThrottlingMaxRate();
         this.updateBrokerDispatchThrottlingMaxRate();
         this.startCheckReplicationPolicies();
@@ -820,8 +827,9 @@ public class BrokerService implements Closeable {
     }
 
     protected void startInactivityMonitor() {
-        if (pulsar().getConfiguration().isBrokerDeleteInactiveTopicsEnabled()) {
-            int interval = pulsar().getConfiguration().getBrokerDeleteInactiveTopicsFrequencySeconds();
+        ServiceConfiguration config = pulsar().getConfiguration();
+        if (config.isBrokerDeleteInactiveTopicsEnabled() || config.isBrokerCloseInactiveTopicsEnabled()) {
+            int interval = config.getBrokerDeleteInactiveTopicsFrequencySeconds();
             inactivityMonitor.scheduleAtFixedRateNonConcurrently(() -> checkGC(), interval, interval,
                     TimeUnit.SECONDS);
             if (pulsar().getConfig().getBrokerReplicationInactiveThresholdSeconds() > 0) {
@@ -897,6 +905,20 @@ public class BrokerService implements Closeable {
             log.info("Backlog quota check monitoring is disabled");
         }
 
+    }
+
+    protected void startSubscriptionBacklogAgeChecker() {
+        if (pulsar().getConfiguration().isExposeSubscriptionBacklogAgeInPrometheus()) {
+            final int interval = pulsar().getConfiguration().getBacklogQuotaCheckIntervalInSeconds();
+            log.info()
+                    .attr("intervalSeconds", interval)
+                    .log("Scheduling a thread to refresh subscription backlog age in background");
+            subscriptionBacklogAgeChecker.scheduleAtFixedRateNonConcurrently(
+                    catchingAndLoggingThrowables(() -> refreshSubscriptionBacklogAge().join()), interval, interval,
+                    TimeUnit.SECONDS);
+        } else {
+            log.info("Subscription backlog age monitoring is disabled");
+        }
     }
 
     public void close() throws IOException {
@@ -1055,6 +1077,7 @@ public class BrokerService implements Closeable {
                                                 compactionMonitor,
                                                 consumedLedgersMonitor,
                                                 backlogQuotaChecker,
+                                                subscriptionBacklogAgeChecker,
                                                 topicOrderedExecutor,
                                                 deduplicationSnapshotMonitor,
                                                 segmentLoadReporterMonitor)
@@ -1332,7 +1355,8 @@ public class BrokerService implements Closeable {
                 }
                 topicFuture.exceptionally(t -> {
                     final var latency = context.traceAndGetLatency("fail").description();
-                    if (FutureUtil.unwrapCompletionException(t) instanceof TimeoutException) {
+                    final var unwrapped = FutureUtil.unwrapCompletionException(t);
+                    if (unwrapped instanceof TimeoutException) {
                         log.warn()
                                 .attr("topic", topicName)
                                 .attr("latency", latency)
@@ -1344,7 +1368,7 @@ public class BrokerService implements Closeable {
                                 .exception(t)
                                 .log("Failed to load topic");
                     }
-                    pulsarStats.recordTopicLoadFailed();
+                    recordTopicLoadFailure(context, unwrapped);
                     return Optional.empty();
                 });
                 context.trace("topic exists", checkNonPartitionedTopicExists(topicName)).thenAccept(exists -> {
@@ -1354,7 +1378,7 @@ public class BrokerService implements Closeable {
                     }
                     // The topic level policies are not needed now, but the meaning of calling
                     // "getTopicPoliciesBypassSystemTopic" will wait for system topic policies initialization.
-                    final var systemTopicLoadFuture = context.trace("system topic",
+                    final var systemTopicLoadFuture = context.trace(TopicLoadingStage.TOPIC_POLICIES,
                             getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY));
                     systemTopicLoadFuture.thenRun(() -> {
                         final var inserted = new MutableBoolean(false);
@@ -1381,10 +1405,12 @@ public class BrokerService implements Closeable {
                     }).exceptionally(e -> {
                         log.warn().attr("topic", topicName).log("Topic creation encountered an exception"
                                 + " by initialize topic policies service");
+                        context.setTopicLoadFailureReason(TopicLoadFailureReason.FAILED_LOAD_TOPIC_POLICIES);
                         failTopicFuture(topicName.toString(), topicFuture, e);
                         return null;
                     });
                 }).exceptionally(e -> {
+                    context.setTopicLoadFailureReason(TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE);
                     failTopicFuture(topicName.toString(), topicFuture, e);
                     return null;
                 });
@@ -1446,12 +1472,53 @@ public class BrokerService implements Closeable {
         topicFuture.completeExceptionally(rc);
     }
 
+    private void recordTopicLoadFailure(TopicLoadingContext context, Throwable throwable) {
+        if (throwable instanceof TopicMigratedException) {
+            return;
+        }
+        if (throwable instanceof TimeoutException) {
+            pulsarStats.recordTopicLoadFailed(context.getTopicLoadTimeoutReason());
+        } else if (throwable instanceof ServiceUnitNotReadyException) {
+            pulsarStats.recordTopicLoadFailed(TopicLoadFailureReason.BUNDLE_UNLOADING);
+        } else {
+            TopicLoadFailureReason reason = context.getTopicLoadFailureReason();
+            pulsarStats.recordTopicLoadFailed(reason != null ? reason : TopicLoadFailureReason.OTHERS);
+        }
+    }
+
     private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@NonNull TopicName topicName,
                                                                                  TopicPoliciesService.GetType type) {
         if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
         return pulsar.getTopicPoliciesService().getTopicPoliciesAsync(topicName, type);
+    }
+
+    private <T> CompletableFuture<T> trackTopicLoadFailure(TopicLoadingContext context,
+                                                            TopicLoadingStage stage,
+                                                            TopicLoadFailureReason reason,
+                                                            CompletableFuture<T> future) {
+        if (context == null) {
+            return future;
+        }
+        return context.trace(stage, future).whenComplete((__, throwable) -> {
+            if (throwable != null) {
+                context.setTopicLoadFailureReason(reason);
+            }
+        });
+    }
+
+    private <T> CompletableFuture<T> trackTopicLoadFailure(TopicLoadingContext context,
+                                                            TopicLoadFailureReason reason,
+                                                            CompletableFuture<T> future) {
+        if (context == null) {
+            return future;
+        }
+        return future.whenComplete((__, throwable) -> {
+            if (throwable != null) {
+                context.setTopicLoadFailureReason(reason);
+            }
+        });
     }
 
     public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete) {
@@ -1597,7 +1664,7 @@ public class BrokerService implements Closeable {
     private CompletableFuture<Optional<Topic>> createNonPersistentTopic(String topic) {
         CompletableFuture<Optional<Topic>> topicFuture = new CompletableFuture<>();
         topicFuture.exceptionally(t -> {
-            pulsarStats.recordTopicLoadFailed();
+            pulsarStats.recordTopicLoadFailed(TopicLoadFailureReason.OTHERS);
             pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             return null;
         });
@@ -1747,22 +1814,6 @@ public class BrokerService implements Closeable {
     }
 
     /**
-     * Resolve the {@code PulsarTlsFactory} class name for outbound connections to a remote cluster: the
-     * cluster's own {@code brokerClientTlsFactoryClassName} when set, else the broker-level one (PIP-478).
-     *
-     * <p>Unlike the TLS <em>material</em> in a {@link ClusterData} entry — which is taken wholesale, so a
-     * cluster that enables broker-client TLS supplies all of its own certificates — the factory falls back.
-     * The factory selects the <em>mechanism</em> that loads material rather than the material itself, and a
-     * deployment that configured a custom broker-client factory (an HSM-backed one, say) must not silently
-     * revert to the default file-based factory just because a cluster entry did not repeat the setting.
-     * That is the same reasoning that makes {@code brokerClientSslProvider} / {@code brokerClientJsseProvider}
-     * broker-level in these helpers: a silent downgrade of the TLS mechanism is a security regression.
-     *
-     * @param clusterValue the cluster's value, possibly blank
-     * @param brokerValue  the broker-level value
-     * @return the cluster value when non-blank, else the broker-level value
-     */
-    /**
      * Log the stale PIP-337 per-cluster factory selection, once per cluster (PIP-478). This is the single
      * removed PIP-337 key whose stale value cannot fail loud — rejecting it on a metadata read would make the
      * cluster unloadable — so a WARN naming the cluster is the whole remediation signal, and both
@@ -1780,10 +1831,14 @@ public class BrokerService implements Closeable {
         if (!stalePip337ClusterFactoryWarned.add(cluster)) {
             return;
         }
+        // The params value is deliberately NOT logged: PIP-337 defined it as an opaque string interpreted by
+        // the custom plugin, so it routinely carries keystore passwords or KMS credentials. Report only
+        // whether it was set — enough for the operator to find it, without copying a secret into the log.
         log.warn()
                 .attr("cluster", cluster)
                 .attr("brokerClientSslFactoryPlugin", data.getBrokerClientSslFactoryPlugin())
-                .attr("brokerClientSslFactoryPluginParams", data.getBrokerClientSslFactoryPluginParams())
+                .attr("hasBrokerClientSslFactoryPluginParams",
+                        StringUtils.isNotBlank(data.getBrokerClientSslFactoryPluginParams()))
                 .log("Ignoring the PIP-337 per-cluster SSL factory settings: it was removed in Pulsar 5.0 "
                         + "(PIP-478). Set ClusterData.brokerClientTlsFactoryClassName (per cluster) or the "
                         + "broker-level brokerClientTlsFactoryClassName instead");
@@ -1859,15 +1914,25 @@ public class BrokerService implements Closeable {
                 .allowTlsInsecureConnection(isTlsAllowInsecureConnection)
                 .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled)
                 .tlsFactoryClassName(tlsFactoryClassName)
-                .tlsFactoryConfig(tlsFactoryConfig)
-                // PIP-478: propagate the broker-client TLS engine (sslProvider) and JSSE (SSLContext) provider
-                // (jsseProvider) so geo-replication clients honor them, mirroring
-                // PulsarService.createClientConfigurationData. Without this the replication client silently
-                // builds TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade).
-                .sslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
-        // jsseProvider has no ClientBuilder setter; set it on the underlying config like sslProvider above.
-        ((ClientBuilderImpl) clientBuilder).getClientConfigurationData()
-                .setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
+                .tlsFactoryConfig(tlsFactoryConfig);
+        // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+        // (jsseProvider) and JCA (crypto) provider (jcaProvider) so geo-replication clients honor them,
+        // mirroring PulsarService.createClientConfigurationData. Without this the replication client silently
+        // builds TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade), and pinning only
+        // the JSSE half is FIPS-shaped rather than FIPS-compliant. None of the three has a ClientBuilder
+        // setter that reaches the underlying config safely here, so all three are set on it directly — each
+        // only when configured, so the brokerClient_* loadConf overrides applied earlier are not clobbered by
+        // an unset first-class key.
+        ClientConfigurationData replicationConf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientSslProvider())) {
+            replicationConf.setSslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJsseProvider())) {
+            replicationConf.setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJcaProvider())) {
+            replicationConf.setJcaProvider(pulsar.getConfiguration().getBrokerClientJcaProvider());
+        }
         if (brokerClientTlsEnabledWithKeyStore) {
             clientBuilder.useKeyStoreTls(true)
                     .tlsTrustStoreType(brokerClientTlsTrustStoreType)
@@ -1911,15 +1976,24 @@ public class BrokerService implements Closeable {
                     .tlsCertificateFilePath(brokerClientCertificateFilePath);
         }
         adminBuilder.allowTlsInsecureConnection(isTlsAllowInsecureConnection)
-                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled)
-                // PIP-478: propagate the broker-client TLS engine (sslProvider) and JSSE (SSLContext) provider
-                // (jsseProvider) so cross-cluster admin clients honor them, mirroring
-                // PulsarService.createClientConfigurationData. Without this the cluster admin silently builds
-                // TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade).
-                .sslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
-        // jsseProvider has no PulsarAdminBuilder setter; set it on the underlying config like sslProvider.
-        ((PulsarAdminBuilderImpl) adminBuilder).getConf()
-                .setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
+                .enableTlsHostnameVerification(isTlsHostnameVerificationEnabled);
+        // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+        // (jsseProvider) and JCA (crypto) provider (jcaProvider) so cross-cluster admin clients honor them,
+        // mirroring PulsarService.createClientConfigurationData. Without this the cluster admin silently
+        // builds TLS with the default JDK provider (e.g. a FIPS/OpenSSL provider downgrade), and pinning only
+        // the JSSE half is FIPS-shaped rather than FIPS-compliant. Set on the underlying config, each only
+        // when configured, so the brokerClient_* loadConf overrides applied earlier are not clobbered by an
+        // unset first-class key.
+        ClientConfigurationData adminConf = ((PulsarAdminBuilderImpl) adminBuilder).getConf();
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientSslProvider())) {
+            adminConf.setSslProvider(pulsar.getConfiguration().getBrokerClientSslProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJsseProvider())) {
+            adminConf.setJsseProvider(pulsar.getConfiguration().getBrokerClientJsseProvider());
+        }
+        if (StringUtils.isNotBlank(pulsar.getConfiguration().getBrokerClientJcaProvider())) {
+            adminConf.setJcaProvider(pulsar.getConfiguration().getBrokerClientJcaProvider());
+        }
     }
 
     public PulsarAdmin getClusterPulsarAdmin(String cluster, Optional<ClusterData> clusterDataOp) {
@@ -2021,7 +2095,9 @@ public class BrokerService implements Closeable {
     protected CompletableFuture<Optional<Topic>> loadOrCreatePersistentTopic(TopicLoadingContext context) {
         final var topic = context.getTopicName().toString();
         final var topicFuture = context.getTopicFuture();
-        context.trace("ownership", checkTopicNsOwnership(topic))
+        // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
+        trackTopicLoadFailure(context, TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP,
+                context.trace("ownership", checkTopicNsOwnership(topic)))
                 .thenRun(() -> {
                     final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
@@ -2084,7 +2160,9 @@ public class BrokerService implements Closeable {
         TopicName topicName = context.getTopicName();
         final var topic = topicName.toString();
         final var topicFuture = context.getTopicFuture();
-        context.trace("2nd ownership", checkTopicNsOwnership(topic)).thenRun(() -> {
+        // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
+        trackTopicLoadFailure(context, TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP,
+                context.trace("2nd ownership", checkTopicNsOwnership(topic))).thenRun(() -> {
             CompletableFuture<Map<String, String>> propertiesFuture;
             if (context.getProperties() == null) {
                 //Read properties from storage when loading topic.
@@ -2097,6 +2175,7 @@ public class BrokerService implements Closeable {
                 //TODO add topicName in properties?
                 createPersistentTopic0(context);
             }).exceptionally(throwable -> {
+                context.setTopicLoadFailureReason(TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE);
                 failTopicFuture(topic, topicFuture, throwable);
                 return null;
             });
@@ -2126,8 +2205,9 @@ public class BrokerService implements Closeable {
         CompletableFuture<Void> isTopicAlreadyMigrated = checkTopicAlreadyMigrated(topicName);
         maxTopicsCheck.thenCompose(partitionedTopicMetadata -> validateTopicConsistency(topicName))
                 .thenCompose(__ -> isTopicAlreadyMigrated)
-                .thenCompose(__ -> getManagedLedgerConfig(topicName))
-                .thenCombine(pulsar().getNamespaceService().checkTopicExistsAsync(topicName).thenApply(n -> {
+                .thenCompose(__ -> getManagedLedgerConfig(topicName, context))
+                .thenCombine(trackTopicLoadFailure(context, TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE,
+                        pulsar().getNamespaceService().checkTopicExistsAsync(topicName)).thenApply(n -> {
                             boolean found = n.isExists();
                             n.recycle();
                             return found;
@@ -2189,22 +2269,23 @@ public class BrokerService implements Closeable {
                 loggerContextBuilder.attr("topic", topicName.toString());
             }
             managedLedgerConfig.setLoggerContext(loggerContextBuilder.build());
+            context.start(TopicLoadingStage.OPEN_ML);
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
                     new OpenLedgerCallback() {
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                             try {
-                                context.trace("open-ml");
+                                context.finish(TopicLoadingStage.OPEN_ML);
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : newTopic(topic, ledger, BrokerService.this, PersistentTopic.class);
                                 persistentTopic.setCreateFuture(topicFuture);
-                                context.trace("init", persistentTopic.initialize())
-                                        .thenCompose(__ -> context.trace("pre-create compacted sub",
+                                context.trace(TopicLoadingStage.INITIALIZE, persistentTopic.initialize(context))
+                                        .thenCompose(__ -> context.trace(TopicLoadingStage.PRE_CREATE_COMPACTED_SUB,
                                                 persistentTopic.preCreateSubscriptionForCompactionIfNeeded()))
-                                        .thenCompose(__ -> context.trace("replication",
+                                        .thenCompose(__ -> context.trace(TopicLoadingStage.REPLICATION,
                                                 persistentTopic.initializeCheckReplication()))
-                                        .thenCompose(v -> context.trace("deduplication",
+                                        .thenCompose(v -> context.trace(TopicLoadingStage.DEDUPLICATION,
                                                 persistentTopic.checkDeduplicationStatus()))
                                         .thenRun(() -> {
                                             final var latency = context.traceAndGetLatency("done");
@@ -2259,6 +2340,8 @@ public class BrokerService implements Closeable {
                                                                 .attr("topic", topic)
                                                                 .log("Get an error when closing topic.");
                                                     }
+                                                    context.setTopicLoadFailureReason(
+                                                            TopicLoadFailureReason.FAILED_INIT);
                                                     topicFuture.completeExceptionally(ex);
                                                 });
                                             });
@@ -2271,12 +2354,14 @@ public class BrokerService implements Closeable {
 
                         @Override
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                            context.finish(TopicLoadingStage.OPEN_ML);
                             if (!createIfMissing && exception instanceof ManagedLedgerNotFoundException) {
                                 // We were just trying to load a topic and the topic doesn't exist
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 loadFuture.completeExceptionally(exception);
                                 topicFuture.complete(Optional.empty());
                             } else {
+                                context.setTopicLoadFailureReason(TopicLoadFailureReason.FAILED_LOAD_ML);
                                 failTopicFuture(topic, topicFuture, new PersistenceException(exception));
                             }
                         }
@@ -2314,6 +2399,11 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(@NonNull TopicName topicName) {
+        return getManagedLedgerConfig(topicName, null);
+    }
+
+    private CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(
+            @NonNull TopicName topicName, @Nullable TopicLoadingContext context) {
         if (topicName == null) {
             return FutureUtil.failedFuture(new NullPointerException("topicName"));
         }
@@ -2323,11 +2413,19 @@ public class BrokerService implements Closeable {
         NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
         LocalPoliciesResources lpr = pulsar.getPulsarResources().getLocalPolicies();
         final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
-                getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY);
+                trackTopicLoadFailure(context, TopicLoadingStage.TOPIC_POLICIES,
+                        TopicLoadFailureReason.FAILED_LOAD_TOPIC_POLICIES,
+                        getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY));
         final CompletableFuture<Optional<TopicPolicies>> globalTopicPoliciesFuture =
-                getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.GLOBAL_ONLY);
-        final CompletableFuture<Optional<Policies>> nsPolicies = nsr.getPoliciesAsync(namespace);
-        final CompletableFuture<Optional<LocalPolicies>> lcPolicies = lpr.getLocalPoliciesAsync(namespace);
+                trackTopicLoadFailure(context, TopicLoadingStage.TOPIC_POLICIES,
+                        TopicLoadFailureReason.FAILED_LOAD_TOPIC_POLICIES,
+                        getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.GLOBAL_ONLY));
+        final CompletableFuture<Optional<Policies>> nsPolicies = trackTopicLoadFailure(context,
+                TopicLoadingStage.NAMESPACE_POLICIES, TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES,
+                nsr.getPoliciesAsync(namespace));
+        final CompletableFuture<Optional<LocalPolicies>> lcPolicies = trackTopicLoadFailure(context,
+                TopicLoadingStage.NAMESPACE_POLICIES, TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES,
+                lpr.getLocalPoliciesAsync(namespace));
         return topicPoliciesFuture.thenCombine(globalTopicPoliciesFuture, (topicP, globalTopicP) -> {
             return new ImmutablePair<>(topicP, globalTopicP);
         }).thenCombine(nsPolicies, (topicPoliciesPair, np) -> {
@@ -2734,6 +2832,21 @@ public class BrokerService implements Closeable {
         });
     }
 
+    public CompletableFuture<Void> refreshSubscriptionBacklogAge() {
+        if (!pulsar.getConfiguration().isExposeSubscriptionBacklogAgeInPrometheus()) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        forEachPersistentTopic(topic -> futures.add(topic.updateSubscriptionOldPositionInfo()));
+        return FutureUtil.waitForAll(futures).exceptionally(throwable -> {
+            log.warn()
+                    .exception(throwable)
+                    .log("Error when refreshSubscriptionBacklogAge()");
+            return null;
+        });
+    }
+
     public CompletableFuture<Boolean> isTopicNsOwnedByBrokerAsync(TopicName topicName) {
         return pulsar.getNamespaceService().isServiceUnitOwnedAsync(topicName)
                 .handle((hasOwnership, t) -> {
@@ -2769,8 +2882,24 @@ public class BrokerService implements Closeable {
     public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
             boolean disconnectClients,
             boolean closeWithoutWaitingClientDisconnect, long timeout, TimeUnit unit) {
+        return unloadServiceUnit(serviceUnit, disconnectClients, closeWithoutWaitingClientDisconnect, timeout, unit,
+                getTopicFuturesInBundle(serviceUnit));
+    }
+
+    /**
+     * Same as {@link #unloadServiceUnit(NamespaceBundle, boolean, boolean, long, TimeUnit)}, but takes the topic
+     * futures to unload as given, instead of scanning {@link #topics} again. Callers that also need to run
+     * {@link #cleanUnloadedTopicFromCache(NamespaceBundle, Map)} afterward should capture the snapshot once via
+     * {@link #getTopicFuturesInBundle(NamespaceBundle)} and pass the very same map to both calls: reusing one
+     * snapshot guarantees the cleanup step can neither miss a topic this call targeted, nor evict one it never
+     * observed (for example one installed by a newer ownership generation while this call was still running).
+     */
+    public CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
+            boolean disconnectClients,
+            boolean closeWithoutWaitingClientDisconnect, long timeout, TimeUnit unit,
+            Map<String, CompletableFuture<Optional<Topic>>> topicFutures) {
         CompletableFuture<Integer> future = unloadServiceUnit(
-                serviceUnit, disconnectClients, closeWithoutWaitingClientDisconnect);
+                serviceUnit, disconnectClients, closeWithoutWaitingClientDisconnect, topicFutures);
         ScheduledFuture<?> taskTimeout = executor().schedule(() -> {
             if (!future.isDone()) {
                 log.warn().attr("serviceUnit", serviceUnit).log("Unloading of has timed out");
@@ -2794,50 +2923,50 @@ public class BrokerService implements Closeable {
      */
     private CompletableFuture<Integer> unloadServiceUnit(NamespaceBundle serviceUnit,
                                                          boolean disconnectClients,
-                                                         boolean closeWithoutWaitingClientDisconnect) {
+                                                         boolean closeWithoutWaitingClientDisconnect,
+                                                         Map<String, CompletableFuture<Optional<Topic>>>
+                                                                 topicFutures) {
         List<CompletableFuture<Void>> closeFutures = new ArrayList<>();
-        topics.forEach((name, topicFuture) -> {
+        topicFutures.forEach((name, topicFuture) -> {
             TopicName topicName = TopicName.get(name);
-            if (serviceUnit.includes(topicName)) {
-                if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)
-                        && ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
-                    if (ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log)) {
-                        log.info()
-                                .attr("topic", topicName)
-                                .log("Skip unloading ExtensibleLoadManager internal topics. Such internal topic "
-                                        + "should be closed when shutting down the broker.");
-                    }
-                    return;
+            if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)
+                    && ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
+                if (ExtensibleLoadManagerImpl.debug(pulsar.getConfiguration(), log)) {
+                    log.info()
+                            .attr("topic", topicName)
+                            .log("Skip unloading ExtensibleLoadManager internal topics. Such internal topic "
+                                    + "should be closed when shutting down the broker.");
                 }
-
-                // Topic needs to be unloaded
-                log.info().attr("topic", topicName).log("Unloading topic");
-                if (topicFuture.isCompletedExceptionally()) {
-                    try {
-                        topicFuture.get();
-                    } catch (InterruptedException | ExecutionException ex) {
-                        if (ex.getCause() instanceof ServiceUnitNotReadyException) {
-                            // Topic was already unloaded
-                            log.debug().attr("topic", topicName).log("Topic was already unloaded");
-                            return;
-                        } else {
-                            log.warn().attr("topic", topicName).exception(ex).log("Got exception when closing topic");
-                        }
-                    }
-                }
-                closeFutures.add(topicFuture
-                        .thenCompose(t -> t.isPresent() ? t.get().close(
-                                disconnectClients, closeWithoutWaitingClientDisconnect)
-                                : CompletableFuture.completedFuture(null))
-                        .exceptionally(e -> {
-                            if (e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException
-                                    && e.getMessage().contains("Please redo the lookup")) {
-                                log.warn().attr("topic", topicName).log("Topic ownership check failed. Skipping it");
-                                return null;
-                            }
-                            throw FutureUtil.wrapToCompletionException(e);
-                        }));
+                return;
             }
+
+            // Topic needs to be unloaded
+            log.info().attr("topic", topicName).log("Unloading topic");
+            if (topicFuture.isCompletedExceptionally()) {
+                try {
+                    topicFuture.get();
+                } catch (InterruptedException | ExecutionException ex) {
+                    if (ex.getCause() instanceof ServiceUnitNotReadyException) {
+                        // Topic was already unloaded
+                        log.debug().attr("topic", topicName).log("Topic was already unloaded");
+                        return;
+                    } else {
+                        log.warn().attr("topic", topicName).exception(ex).log("Got exception when closing topic");
+                    }
+                }
+            }
+            closeFutures.add(topicFuture
+                    .thenCompose(t -> t.isPresent() ? t.get().close(
+                            disconnectClients, closeWithoutWaitingClientDisconnect)
+                            : CompletableFuture.completedFuture(null))
+                    .exceptionally(e -> {
+                        if (e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException
+                                && e.getMessage().contains("Please redo the lookup")) {
+                            log.warn().attr("topic", topicName).log("Topic ownership check failed. Skipping it");
+                            return null;
+                        }
+                        throw FutureUtil.wrapToCompletionException(e);
+                    }));
         });
 
         if (getPulsar().getConfig().isTransactionCoordinatorEnabled()
@@ -2855,17 +2984,52 @@ public class BrokerService implements Closeable {
         return FutureUtil.waitForAll(closeFutures).thenApply(v -> closeFutures.size());
     }
 
+    /**
+     * Captures the topic futures currently cached for the given bundle. Call this before starting an unload so
+     * that a later {@link #cleanUnloadedTopicFromCache(NamespaceBundle, Map)} call can remove only the exact
+     * futures this unload observed, and never a newer ownership generation's entry installed afterward for the
+     * same bundle.
+     */
+    public Map<String, CompletableFuture<Optional<Topic>>> getTopicFuturesInBundle(NamespaceBundle serviceUnit) {
+        Map<String, CompletableFuture<Optional<Topic>>> topicFutures = new HashMap<>();
+        topics.forEach((name, topicFuture) -> {
+            if (serviceUnit.includes(TopicName.get(name))) {
+                topicFutures.put(name, topicFuture);
+            }
+        });
+        return topicFutures;
+    }
+
+    /**
+     * Cleans up topics that failed to unload from the broker's topic cache, using a snapshot captured at call
+     * time.
+     *
+     * @deprecated use {@link #cleanUnloadedTopicFromCache(NamespaceBundle, Map)} with the snapshot captured via
+     * {@link #getTopicFuturesInBundle(NamespaceBundle)} before the unload started, so that a stale cleanup can
+     * never evict a topic installed by a newer ownership generation while the unload was still running.
+     */
+    @Deprecated
     public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit) {
-        topics.forEach((topic, topicFuture) -> {
-            TopicName topicName = TopicName.get(topic);
+        cleanUnloadedTopicFromCache(serviceUnit, getTopicFuturesInBundle(serviceUnit));
+    }
+
+    /**
+     * Cleans up topics that failed to unload from the broker's topic cache. Only removes a topic if its
+     * currently-cached future is exactly the one captured in {@code topicFutures} (see
+     * {@link #getTopicFuturesInBundle(NamespaceBundle)}), so a stale call for an old ownership generation can
+     * never evict a newer generation's topic.
+     */
+    public void cleanUnloadedTopicFromCache(NamespaceBundle serviceUnit,
+            Map<String, CompletableFuture<Optional<Topic>>> topicFutures) {
+        topicFutures.forEach((topic, topicFuture) -> {
             Optional<Topic> topicRef = extractTopic(topicFuture);
             // The bundle cleanup should only remove topics already fenced by close/unload.
-            if (serviceUnit.includes(topicName) && topicRef.isPresent() && isTopicBeingUnloaded(topicRef.get())) {
+            if (topicRef.isPresent() && isTopicBeingUnloaded(topicRef.get())) {
                 log.info()
                         .attr("value", serviceUnit.toString())
                         .attr("topic", topic)
                         .log("Clean unloaded topic from cache.");
-                removeTopicFromCache(topicName.toString(), serviceUnit, topicFuture);
+                removeTopicFromCache(topic, serviceUnit, topicFuture);
             }
         });
     }
@@ -3745,7 +3909,9 @@ public class BrokerService implements Closeable {
 
         pendingTopic.trace("queued");
         final String topic = pendingTopic.getTopicName().toString();
-        pendingTopic.trace("ownership", checkTopicNsOwnership(topic)).thenRun(() -> {
+        // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
+        trackTopicLoadFailure(pendingTopic, TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP,
+                pendingTopic.trace("ownership", checkTopicNsOwnership(topic))).thenRun(() -> {
             CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getTopicFuture();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
@@ -4010,6 +4176,11 @@ public class BrokerService implements Closeable {
         return topicOrderedExecutor.chooseThread(baseTopicName);
     }
 
+    @VisibleForTesting
+    long getTotalUnackedMessages() {
+        return totalUnackedMessages.sum();
+    }
+
     /**
      * If per-broker unacked message reached to limit then it blocks dispatcher if its unacked message limit has been
      * reached to {@link #maxUnackedMsgsPerDispatcher}.
@@ -4210,6 +4381,17 @@ public class BrokerService implements Closeable {
             log.info()
                     .attr("namespaceObject", topicName.getNamespaceObject())
                     .log("Preventing AutoTopicCreation on a namespace that is being deleted");
+            return CompletableFuture.completedFuture(false);
+        }
+
+        // A topic whose name has surrounding whitespace could never be used: Pulsar clients trim topic names, so
+        // producing to or consuming from it would target the trimmed name instead. Refuse to auto-create it, which
+        // also covers clients that do not trim the name themselves.
+        // Note that topics which already have such a name are unaffected: they are loaded, not created here.
+        if (!TopicName.isValidForCreation(topicName)) {
+            log.warn()
+                    .attr("topic", topicName)
+                    .log("Preventing AutoTopicCreation of a topic whose name has surrounding whitespace");
             return CompletableFuture.completedFuture(false);
         }
 
