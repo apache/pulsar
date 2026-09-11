@@ -4533,7 +4533,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public void setConfig(ManagedLedgerConfig config) {
         this.config = config;
         this.maximumRolloverTimeMs = getMaximumRolloverTimeMs(config);
-        this.cursors.forEach(c -> c.setThrottleMarkDelete(config.getThrottleMarkDelete()));
+        this.cursors.forEach(c -> {
+            if (c instanceof ManagedCursorImpl cursor) {
+                cursor.updateRolloverThresholds(config);
+            }
+            c.setThrottleMarkDelete(config.getThrottleMarkDelete());
+        });
     }
 
     private static long getMaximumRolloverTimeMs(ManagedLedgerConfig config) {

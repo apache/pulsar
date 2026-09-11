@@ -50,6 +50,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -311,6 +312,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     @SuppressWarnings("unused")
     private volatile int pendingMarkDeletedSubmittedCount = 0;
     private volatile long lastLedgerSwitchTimestamp;
+    private volatile long maximumLedgerRolloverTimeMs;
+    private volatile long maximumLedgerRolloverEntries;
     private final Clock clock;
 
     // The last active time (Unix time, milliseconds) of the cursor
@@ -386,6 +389,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.clock = getConfig().getClock();
         this.lastActive = this.clock.millis();
         this.lastLedgerSwitchTimestamp = this.clock.millis();
+        updateRolloverThresholds(getConfig());
 
         if (getConfig().getThrottleMarkDelete() > 0.0) {
             markDeleteLimiter = RateLimiter.create(getConfig().getThrottleMarkDelete());
@@ -3613,8 +3617,8 @@ public class ManagedCursorImpl implements ManagedCursor {
     boolean shouldCloseLedger(LedgerHandle lh) {
         long now = clock.millis();
         if (ledger.getFactory().isMetadataServiceAvailable()
-                && (lh.getLastAddConfirmed() >= getConfig().getMetadataMaxEntriesPerLedger()
-                || lastLedgerSwitchTimestamp < (now - getConfig().getLedgerRolloverTimeout() * 1000))
+                && (lh.getLastAddConfirmed() >= maximumLedgerRolloverEntries
+                || lastLedgerSwitchTimestamp < (now - maximumLedgerRolloverTimeMs))
                 && !state.isClosed()) {
             // It's safe to modify the timestamp since this method will be only called from a callback, implying that
             // calls will be serialized on one single thread
@@ -4020,6 +4024,25 @@ public class ManagedCursorImpl implements ManagedCursor {
             // Disable mark-delete rate limiter
             markDeleteLimiter = null;
         }
+    }
+
+    /**
+     * Recalculate cached cursor-ledger rollover thresholds from {@code config}.
+     * Adds up to 5% jitter so multiple cursors do not rollover at the same time.
+     */
+    void updateRolloverThresholds(ManagedLedgerConfig config) {
+        this.maximumLedgerRolloverTimeMs = getMaximumRolloverTimeMs(config);
+        this.maximumLedgerRolloverEntries = getMaximumRolloverEntries(config);
+    }
+
+    private static long getMaximumRolloverTimeMs(ManagedLedgerConfig config) {
+        return (long) (config.getLedgerRolloverTimeout() * 1000L
+                * (1 + ThreadLocalRandom.current().nextDouble() * 0.05));
+    }
+
+    private static long getMaximumRolloverEntries(ManagedLedgerConfig config) {
+        return (long) (config.getMetadataMaxEntriesPerLedger()
+                * (1 + ThreadLocalRandom.current().nextDouble() * 0.05));
     }
 
     @Override
