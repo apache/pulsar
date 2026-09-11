@@ -23,32 +23,33 @@ plugins {
     id("pulsar.java-conventions")
 }
 
-// Use the shadow JAR which contains relocated netty/jackson/etc classes.
-// In Maven, pulsar-client-admin-shaded produces the "pulsar-client-admin" artifact,
-// so the Maven shade test depends on the shaded JAR, not the original.
-
 dependencies {
-    implementation(libs.slog)
+    testImplementation(project(":pulsar-client-v5"))
+    // Select the published shaded variant, without the original implementation dependencies
+    // exposed by the local Java component. Otherwise a project test can hide packaging bugs.
     testImplementation(project(":pulsar-client-admin-shaded")) {
         attributes {
             attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.SHADOWED))
         }
     }
-    // API modules and messagecrypto are not bundled in the shaded JAR
-    testImplementation(project(":pulsar-client-admin-api"))
-    testImplementation(project(":buildtools"))
-    testImplementation(libs.bcprov.jdk18on)
     testImplementation(libs.testcontainers)
-    // Runtime deps needed by the client that are not bundled in the shaded JARs.
-    // The admin shaded JAR includes JSONSchema (from pulsar-client) which references
-    // Avro, but unlike the client shaded JAR, admin doesn't bundle/relocate Avro.
-    testRuntimeOnly(libs.opentelemetry.api)
-    testRuntimeOnly(libs.opentelemetry.api.incubator)
-    testRuntimeOnly(libs.avro)
 }
 
+// Run fresh JVMs in both orders: neither artifact may supply the other's implementation.
+val testClasspath = sourceSets.test.get().runtimeClasspath
+val testClasses = sourceSets.test.get().output.classesDirs
 tasks.named<Test>("test") {
-    useTestNG {
-        suiteXmlFiles = listOf(file("src/test/resources/pulsar.xml"))
-    }
+    classpath = files(testClasspath.elements.map { entries ->
+        entries.sortedBy { it.asFile.name }
+    })
+}
+val testReversedClasspath by tasks.registering(Test::class) {
+    description = "Tests the v5 client and shaded admin jar in reverse classpath order."
+    testClassesDirs = testClasses
+    classpath = files(testClasspath.elements.map { entries ->
+        entries.sortedByDescending { it.asFile.name }
+    })
+}
+tasks.named("check") {
+    dependsOn(testReversedClasspath)
 }

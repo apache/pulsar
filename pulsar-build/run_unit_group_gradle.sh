@@ -138,6 +138,7 @@ function test_group_other() {
     -x :pulsar-io:pulsar-io-batch-data-generator:test \
     -x :pulsar-io:pulsar-io-batch-discovery-triggerers:test \
     -x :tests:pulsar-client-admin-shade-test:test \
+    -x :tests:pulsar-client-admin-v5-test:test \
     -x :tests:pulsar-client-all-shade-test:test \
     -x :tests:pulsar-client-shade-test:test \
     -x :tests:pulsar-client-native-image:test \
