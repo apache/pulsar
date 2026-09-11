@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
@@ -35,6 +37,7 @@ import lombok.Cleanup;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.authorization.MultiRolesTokenAuthorizationProvider;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
@@ -62,6 +65,8 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
@@ -74,10 +79,27 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     private static final String CLIENT_ROLE = "client";
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
-    private static final String ADMIN_TOKEN = Jwts.builder().setSubject(ADMIN_ROLE).signWith(SECRET_KEY).compact();
-    private static final String PROXY_TOKEN = Jwts.builder().setSubject(PROXY_ROLE).signWith(SECRET_KEY).compact();
-    private static final String BROKER_TOKEN = Jwts.builder().setSubject(BROKER_ROLE).signWith(SECRET_KEY).compact();
-    private static final String CLIENT_TOKEN = Jwts.builder().setSubject(CLIENT_ROLE).signWith(SECRET_KEY).compact();
+    private final String adminToken;
+    private final String proxyToken;
+    private final String brokerToken;
+    private final String clientToken;
+    private final boolean multiRoles;
+    private final String roleClaim;
+
+    @Factory(dataProvider = "authorizationModes")
+    public ProxyWithJwtAuthorizationTest(boolean multiRoles, String roleClaim) {
+        this.multiRoles = multiRoles;
+        this.roleClaim = roleClaim;
+        adminToken = Jwts.builder().claim(roleClaim, ADMIN_ROLE).signWith(SECRET_KEY).compact();
+        proxyToken = Jwts.builder().claim(roleClaim, PROXY_ROLE).signWith(SECRET_KEY).compact();
+        brokerToken = Jwts.builder().claim(roleClaim, BROKER_ROLE).signWith(SECRET_KEY).compact();
+        clientToken = Jwts.builder().claim(roleClaim, CLIENT_ROLE).signWith(SECRET_KEY).compact();
+    }
+
+    @DataProvider
+    public static Object[][] authorizationModes() {
+        return new Object[][]{{false, "sub"}, {false, "roles"}, {true, "roles"}};
+    }
 
     private ProxyService proxyService;
     private WebServer webServer;
@@ -90,6 +112,12 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         // enable auth&auth and use JWT at broker
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
+        if (multiRoles) {
+            conf.setAuthorizationProvider(MultiRolesTokenAuthorizationProvider.class.getName());
+        }
+        if (!"sub".equals(roleClaim)) {
+            conf.getProperties().setProperty("tokenAuthClaim", roleClaim);
+        }
         conf.getProperties().setProperty("tokenSecretKey", "data:;base64,"
                 + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
 
@@ -101,7 +129,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         conf.setProxyRoles(Collections.singleton(PROXY_ROLE));
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        conf.setBrokerClientAuthenticationParameters(BROKER_TOKEN);
+        conf.setBrokerClientAuthenticationParameters(brokerToken);
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
@@ -114,6 +142,9 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(false);
+        if (!"sub".equals(roleClaim)) {
+            proxyConfig.getProperties().setProperty("tokenAuthClaim", roleClaim);
+        }
         proxyConfig.getProperties().setProperty("tokenSecretKey", "data:;base64,"
                 + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
@@ -126,7 +157,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         // enable auth&auth and use JWT at proxy
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        proxyConfig.setBrokerClientAuthenticationParameters(PROXY_TOKEN);
+        proxyConfig.setBrokerClientAuthenticationParameters(proxyToken);
         proxyConfig.setAuthenticationProviders(providers);
         proxyConfig.setStatusFilePath("./src/test/resources/vip_status.html");
 
@@ -154,6 +185,52 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyService.start();
         ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService, null, proxyClientAuthentication);
         webServer.start();
+    }
+
+    @Test
+    public void testMultiRoleClientPermissionsWithSuperUserProxy() throws Exception {
+        assertThat(conf.isAuthenticateOriginalAuthData()).isTrue();
+        assertThat(proxyConfig.isForwardAuthorizationCredentials()).isTrue();
+        startProxy();
+        createAdminClient();
+        admin.clusters().createCluster(CLUSTER_NAME,
+                ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("multi-role",
+                new TenantInfoImpl(Set.of(ADMIN_ROLE), Set.of(CLUSTER_NAME)));
+        admin.namespaces().createNamespace("multi-role/ns");
+        String allowedTopic = "persistent://multi-role/ns/allowed";
+        String deniedTopic = "persistent://multi-role/ns/denied";
+        admin.topics().createNonPartitionedTopic(allowedTopic);
+        admin.topics().createNonPartitionedTopic(deniedTopic);
+        admin.topics().grantPermission(allowedTopic, CLIENT_ROLE, Set.of(AuthAction.produce, AuthAction.consume));
+        admin.topics().grantPermission(deniedTopic, "other-client", Set.of(AuthAction.produce, AuthAction.consume));
+
+        String token = Jwts.builder()
+                .claim(roleClaim, multiRoles ? new String[]{"unprivileged", CLIENT_ROLE} : CLIENT_ROLE)
+                .signWith(SECRET_KEY).compact();
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+                .authentication(AuthenticationFactory.token(token)).operationTimeout(5, TimeUnit.SECONDS).build();
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer().topic(allowedTopic).subscriptionName("sub").subscribe();
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer().topic(allowedTopic).create();
+        producer.send(new byte[]{1});
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        assertThat(message).isNotNull();
+        assertThat(message.getData()).containsExactly((byte) 1);
+
+        assertThatThrownBy(() -> {
+            try (Producer<byte[]> ignored = client.newProducer().topic(deniedTopic).create()) {
+                // Creation should be rejected.
+            }
+        }).isInstanceOf(PulsarClientException.AuthorizationException.class);
+        assertThatThrownBy(() -> {
+            try (Consumer<byte[]> ignored = client.newConsumer().topic(deniedTopic)
+                    .subscriptionName("sub").subscribe()) {
+                // Subscription should be rejected.
+            }
+        }).isInstanceOf(PulsarClientException.AuthorizationException.class);
     }
 
     /**
@@ -487,13 +564,13 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     private void createAdminClient() throws Exception {
         closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(webServer.getServiceUri().toString())
-                .authentication(AuthenticationFactory.token(ADMIN_TOKEN)).build());
+                .authentication(AuthenticationFactory.token(adminToken)).build());
     }
 
     private PulsarClient createPulsarClient(String proxyServiceUrl, ClientBuilder clientBuilder)
             throws PulsarClientException {
         return clientBuilder.serviceUrl(proxyServiceUrl).statsInterval(0, TimeUnit.SECONDS)
-                .authentication(AuthenticationFactory.token(CLIENT_TOKEN))
+                .authentication(AuthenticationFactory.token(clientToken))
                 .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
     }
 }

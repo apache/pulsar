@@ -246,7 +246,7 @@ public class ProxyService implements Closeable {
             pulsarResources = new PulsarResources(localMetadataStore, configMetadataStore);
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, pulsarResources);
             authorizationService = new AuthorizationService(PulsarConfigurationLoader.convertFrom(proxyConfig),
-                    pulsarResources);
+                    pulsarResources, authenticationService);
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();

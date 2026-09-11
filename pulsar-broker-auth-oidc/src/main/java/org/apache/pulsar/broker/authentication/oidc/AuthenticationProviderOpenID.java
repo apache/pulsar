@@ -56,10 +56,11 @@ import okhttp3.OkHttpClient;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.authentication.TokenAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
+import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -69,7 +70,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An {@link AuthenticationProvider} implementation that supports the usage of a JSON Web Token (JWT)
+ * A {@link TokenAuthenticationProvider} implementation that supports the usage of a JSON Web Token (JWT)
  * for client authentication. This implementation retrieves the PublicKey from the JWT issuer (assuming the
  * issuer is in the configured allowed list) and then uses that Public Key to verify the validity of the JWT's
  * signature.
@@ -85,11 +86,10 @@ import org.slf4j.LoggerFactory;
  * Supported algorithms are: RS256, RS384, RS512, ES256, ES384, ES512 where the naming conventions follow
  * this RFC: https://datatracker.ietf.org/doc/html/rfc7518#section-3.1.
  */
-public class AuthenticationProviderOpenID implements AuthenticationProvider {
+public class AuthenticationProviderOpenID implements TokenAuthenticationProvider {
     private static final Logger log = LoggerFactory.getLogger(AuthenticationProviderOpenID.class);
 
     // Must match the value used by the OAuth2 Client Plugin.
-    private static final String AUTH_METHOD_NAME = "token";
 
     // This is backed by an ObjectMapper, which is thread safe. It is an optimization
     // to share this for decoding JWTs for all connections to this broker.
@@ -202,6 +202,17 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     @Override
     public void incrementFailureMetric(Enum<?> errorCode) {
         authenticationMetrics.recordFailure(errorCode);
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> authenticateRolesAsync(AuthenticationDataSource authData, String roleClaim) {
+        try {
+            return authenticateTokenAsync(authData)
+                    .thenApply(jwt -> AuthTokenUtils.rolesFromClaim(
+                            jwt.getClaim(roleClaim).as(Object.class)));
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**

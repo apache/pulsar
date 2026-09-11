@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -50,6 +51,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
@@ -61,11 +63,37 @@ import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToke
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.mockito.Mockito;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class AuthenticationProviderTokenTest {
 
     private static final String SUBJECT = "my-test-subject";
+
+    @DataProvider
+    public Object[][] roleClaims() {
+        return new Object[][]{
+                {"writer", Set.of("writer")},
+                {List.of("reader", "writer", "reader"), Set.of("reader", "writer")},
+                {List.of(), Set.of()},
+                {null, Set.of()},
+                {123, Set.of()},
+                {List.of("writer", 123), Set.of()}
+        };
+    }
+
+    @Test(dataProvider = "roleClaims")
+    public void testAuthenticateRolesFromValidatedClaims(Object claim, Set<String> expectedRoles) throws Exception {
+        SecretKey key = Jwts.SIG.HS256.key().build();
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.getProperties().setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(key));
+        @Cleanup
+        TokenAuthenticationProvider provider = new AuthenticationProviderToken();
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
+        String token = Jwts.builder().subject(SUBJECT).claim("permissions", claim).signWith(key).compact();
+        assertThat(provider.authenticateRolesAsync(new AuthenticationDataCommand(token), "permissions").get())
+                .isEqualTo(expectedRoles);
+    }
 
     @Test
     public void testInvalidInitialize() throws Exception {

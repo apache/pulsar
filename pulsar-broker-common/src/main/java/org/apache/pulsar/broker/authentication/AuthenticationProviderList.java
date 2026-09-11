@@ -22,7 +22,9 @@ import java.io.IOException;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
@@ -36,7 +38,8 @@ import org.apache.pulsar.common.api.AuthData;
  * An authentication provider wraps a list of auth providers.
  */
 @Slf4j
-public class AuthenticationProviderList implements AuthenticationProvider {
+@SuppressWarnings("deprecation")
+public class AuthenticationProviderList implements TokenAuthenticationProvider {
 
     private AuthenticationMetrics authenticationMetrics;
 
@@ -253,15 +256,30 @@ public class AuthenticationProviderList implements AuthenticationProvider {
 
     @Override
     public CompletableFuture<String> authenticateAsync(AuthenticationDataSource authData) {
-        CompletableFuture<String> roleFuture = new CompletableFuture<>();
-        authenticateRemainingAuthProviders(roleFuture, authData, null, providers.isEmpty() ? -1 : 0);
-        return roleFuture;
+        return authenticateAsync(provider -> provider.authenticateAsync(authData));
     }
 
-    private void authenticateRemainingAuthProviders(CompletableFuture<String> roleFuture,
-                                                    AuthenticationDataSource authData,
-                                                    Throwable previousException,
-                                                    int index) {
+    @Override
+    public CompletableFuture<Set<String>> authenticateRolesAsync(AuthenticationDataSource authData, String roleClaim) {
+        return authenticateAsync(provider -> {
+            if (provider instanceof TokenAuthenticationProvider tokenProvider) {
+                return tokenProvider.authenticateRolesAsync(authData, roleClaim);
+            }
+            return CompletableFuture.failedFuture(
+                    new AuthenticationException("Authentication provider does not support token roles"));
+        });
+    }
+
+    private <T> CompletableFuture<T> authenticateAsync(
+            Function<AuthenticationProvider, CompletableFuture<T>> authenticate) {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        authenticateRemainingAuthProviders(result, authenticate, null, providers.isEmpty() ? -1 : 0);
+        return result;
+    }
+
+    private <T> void authenticateRemainingAuthProviders(CompletableFuture<T> roleFuture,
+            Function<AuthenticationProvider, CompletableFuture<T>> authenticate,
+            Throwable previousException, int index) {
         if (index < 0 || index >= providers.size()) {
             if (previousException == null) {
                 previousException = new AuthenticationException("Authentication required");
@@ -272,18 +290,23 @@ public class AuthenticationProviderList implements AuthenticationProvider {
             return;
         }
         AuthenticationProvider provider = providers.get(index);
-        provider.authenticateAsync(authData)
-                .whenComplete((role, ex) -> {
-                    if (ex == null) {
-                        roleFuture.complete(role);
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ex);
-                        }
-                        authenticateRemainingAuthProviders(roleFuture, authData, ex, index + 1);
-                    }
-                });
+        CompletableFuture<T> authentication;
+        try {
+            authentication = authenticate.apply(provider);
+        } catch (Exception e) {
+            authentication = CompletableFuture.failedFuture(e);
         }
+        authentication.whenComplete((role, ex) -> {
+            if (ex == null) {
+                roleFuture.complete(role);
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug("Authentication failed for auth provider " + provider.getClass() + ": ", ex);
+                }
+                authenticateRemainingAuthProviders(roleFuture, authenticate, ex, index + 1);
+            }
+        });
+    }
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
