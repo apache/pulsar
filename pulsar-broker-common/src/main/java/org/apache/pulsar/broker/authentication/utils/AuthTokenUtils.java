@@ -34,9 +34,12 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import javax.crypto.SecretKey;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.codec.binary.Base64;
@@ -45,6 +48,27 @@ import org.apache.pulsar.client.api.url.URL;
 
 @UtilityClass
 public class AuthTokenUtils {
+
+    /**
+     * Interpret a role claim as a string or a collection of strings.
+     * Missing claims and other value types do not supply any roles.
+     */
+    public static Set<String> rolesFromClaim(Object claim) {
+        if (claim instanceof String role) {
+            return Set.of(role);
+        }
+        if (claim instanceof Collection<?> values) {
+            Set<String> roles = new HashSet<>();
+            for (Object value : values) {
+                if (!(value instanceof String role)) {
+                    return Set.of();
+                }
+                roles.add(role);
+            }
+            return Set.copyOf(roles);
+        }
+        return Set.of();
+    }
 
     public static SecretKey createSecretKey(SignatureAlgorithm signatureAlgorithm) {
         return Keys.secretKeyFor(signatureAlgorithm);

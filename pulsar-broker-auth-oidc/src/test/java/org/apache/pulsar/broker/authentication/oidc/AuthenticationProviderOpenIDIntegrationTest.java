@@ -23,6 +23,11 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -31,6 +36,7 @@ import static org.testng.Assert.fail;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import com.google.common.io.Resources;
+import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.io.Decoders;
@@ -44,23 +50,35 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderList;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.authentication.TokenAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.authorization.AuthorizationProvider;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.authorization.MultiRolesTokenAuthorizationProvider;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.api.AuthData;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -273,6 +291,113 @@ public class AuthenticationProviderOpenIDIntegrationTest {
     public void beforeMethod() {
         // Scenarios are stateful. Start each test with the correct state.
         server.resetScenarios();
+    }
+
+    @DataProvider
+    public Object[][] roleClaims() {
+        return new Object[][]{
+                {"writer", Set.of("writer")},
+                {List.of("reader", "writer", "reader"), Set.of("reader", "writer")},
+                {List.of(), Set.of()},
+                {null, Set.of()},
+                {123, Set.of()},
+                {List.of("writer", 123), Set.of()}
+        };
+    }
+
+    @Test(dataProvider = "roleClaims")
+    public void testAuthenticateRolesFromValidatedClaims(Object claim, Set<String> expectedRoles) throws Exception {
+        HashMap<String, Object> claims = new HashMap<>();
+        claims.put("permissions", claim);
+        String token = generateToken(validJwk, issuer, "user", "allowed-audience", 0L, 0L, 10000L, claims);
+        assertThat(provider.authenticateRolesAsync(new AuthenticationDataCommand(token), "permissions").get())
+                .isEqualTo(expectedRoles);
+    }
+
+    @DataProvider
+    public Object[][] multiRoleProviders() {
+        return new Object[][]{{false, false}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "multiRoleProviders")
+    public void testMultiRoleAuthorizationWithOpenID(boolean includeTokenProvider, boolean tokenFirst)
+            throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setAuthenticationEnabled(true);
+        List<String> providerClasses = includeTokenProvider
+                ? (tokenFirst
+                    ? List.of(AuthenticationProviderToken.class.getName(),
+                            AuthenticationProviderOpenID.class.getName())
+                    : List.of(AuthenticationProviderOpenID.class.getName(),
+                            AuthenticationProviderToken.class.getName()))
+                : List.of(AuthenticationProviderOpenID.class.getName());
+        conf.setAuthenticationProviders(new LinkedHashSet<>(providerClasses));
+        conf.setAuthorizationProvider(MultiRolesTokenAuthorizationProvider.class.getName());
+        conf.getProperties().setProperty("tokenAuthClaim", "roles");
+        conf.setSuperUserRoles(Set.of("admin"));
+        conf.getProperties().setProperty(AuthenticationProviderOpenID.ISSUER_TRUST_CERTS_FILE_PATH, caCert);
+        conf.getProperties().setProperty(AuthenticationProviderOpenID.ALLOWED_AUDIENCES, "allowed-audience");
+        conf.getProperties().setProperty(AuthenticationProviderOpenID.ALLOWED_TOKEN_ISSUERS, issuer);
+        SecretKey tokenKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+        if (includeTokenProvider) {
+            conf.getProperties().setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(tokenKey));
+        }
+        @Cleanup
+        AuthenticationService authenticationService = spy(new AuthenticationService(conf));
+        PulsarResources resources = mock(PulsarResources.class);
+        AuthorizationService authorizationService = new AuthorizationService(conf, resources, authenticationService);
+        verify(authenticationService).getAuthenticationProvider("token");
+        if (includeTokenProvider) {
+            AuthenticationProvider sharedProvider = authenticationService.getAuthenticationProvider("token");
+            assertThat(sharedProvider).isInstanceOf(AuthenticationProviderList.class);
+            AuthenticationProviderList providerList = (AuthenticationProviderList) sharedProvider;
+            assertThat(providerList.getAuthMethodName()).isEqualTo(TokenAuthenticationProvider.AUTH_METHOD_NAME);
+            assertThat(providerList.getProviders()).extracting(p -> p.getClass().getName())
+                    .containsExactlyElementsOf(providerClasses);
+        }
+
+        HashMap<String, Object> roles = new HashMap<>(Map.of("roles", List.of("user", "admin")));
+        String valid = generateToken(validJwk, issuer, "user", "allowed-audience", 0L, 0L, 10000L, roles);
+        assertThat(authorizationService.isSuperUser("user", new AuthenticationDataCommand(valid)).get()).isTrue();
+        for (String invalid : List.of(
+                generateToken(invalidJwk, issuer, "user", "allowed-audience", 0L, 0L, 10000L, roles),
+                generateToken(validJwk, issuer, "user", "another-audience", 0L, 0L, 10000L, roles),
+                generateToken(validJwk, issuerThatFails, "user", "allowed-audience", 0L, 0L, 10000L, roles),
+                generateToken(validJwk, issuer, "user", "allowed-audience", -120000L, -120000L, -60000L, roles))) {
+            assertThat(authorizationService.isSuperUser("user", new AuthenticationDataCommand(invalid)).get())
+                    .isFalse();
+        }
+
+        @Cleanup
+        MultiRolesTokenAuthorizationProvider multiRoles = new MultiRolesTokenAuthorizationProvider();
+        multiRoles.initialize(new AuthorizationProvider.InitialContext(conf, resources, authenticationService));
+        String normal = generateToken(validJwk, issuer, "user", "allowed-audience", 0L, 0L, 10000L,
+                new HashMap<>(Map.of("roles", List.of("user", "writer"))));
+        assertThat(multiRoles.authorize("user", new AuthenticationDataCommand(normal),
+                role -> CompletableFuture.completedFuture(role.equals("writer"))).get()).isTrue();
+        assertThat(multiRoles.authorize("user", new AuthenticationDataCommand(normal),
+                role -> CompletableFuture.completedFuture(role.equals("other-user"))).get()).isFalse();
+        if (includeTokenProvider) {
+            String staticToken = Jwts.builder().setSubject("user").claim("roles", List.of("user", "writer"))
+                    .signWith(tokenKey).compact();
+            AuthenticationProviderList providerList =
+                    (AuthenticationProviderList) authenticationService.getAuthenticationProvider("token");
+            for (String token : List.of(normal, staticToken)) {
+                AuthenticationDataCommand authData = new AuthenticationDataCommand(token);
+                assertThat(providerList.authenticateAsync(authData).get()).isEqualTo("user");
+                assertThat(providerList.authenticateRolesAsync(authData, "roles").get())
+                        .containsExactlyInAnyOrder("user", "writer");
+                assertThat(multiRoles.authorize("user", authData,
+                        role -> CompletableFuture.completedFuture(role.equals("writer"))).get()).isTrue();
+                assertThat(multiRoles.authorize("user", authData,
+                        role -> CompletableFuture.completedFuture(role.equals("other-user"))).get()).isFalse();
+            }
+        }
+        multiRoles.close();
+        verify(authenticationService, never()).close();
+        // The same initialized provider remains usable after authorization closes.
+        assertThat(authenticationService.getAuthenticationProvider("token")
+                .authenticateAsync(new AuthenticationDataCommand(normal)).get()).isEqualTo("user");
     }
 
     @Test

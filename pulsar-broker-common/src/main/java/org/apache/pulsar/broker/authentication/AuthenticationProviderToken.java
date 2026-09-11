@@ -35,6 +35,8 @@ import java.net.SocketAddress;
 import java.security.Key;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import javax.servlet.http.HttpServletRequest;
@@ -45,7 +47,8 @@ import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToke
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 
-public class AuthenticationProviderToken implements AuthenticationProvider {
+@SuppressWarnings({"deprecation", "unchecked"})
+public class AuthenticationProviderToken implements TokenAuthenticationProvider {
 
     static final String HTTP_HEADER_NAME = "Authorization";
     static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
@@ -74,7 +77,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     // token validation.
     static final String CONF_TOKEN_ALLOWED_CLOCK_SKEW_SECONDS = "tokenAllowedClockSkewSeconds";
 
-    static final String TOKEN = "token";
+    static final String TOKEN = AUTH_METHOD_NAME;
 
     private Key validationKey;
     private String roleClaim;
@@ -150,7 +153,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public String getAuthMethodName() {
-        return TOKEN;
+        return AUTH_METHOD_NAME;
     }
 
     @Override
@@ -160,6 +163,24 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+        String role = getPrincipal(authenticateClaims(authData));
+        authenticationMetricsToken.recordSuccess();
+        return role;
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> authenticateRolesAsync(AuthenticationDataSource authData, String roleClaim) {
+        try {
+            Set<String> roles = AuthTokenUtils.rolesFromClaim(
+                    authenticateClaims(authData).getBody().get(roleClaim));
+            authenticationMetricsToken.recordSuccess();
+            return CompletableFuture.completedFuture(roles);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private Jwt<?, Claims> authenticateClaims(AuthenticationDataSource authData) throws AuthenticationException {
         String token;
         try {
             // Get Token
@@ -168,10 +189,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             incrementFailureMetric(ErrorCode.INVALID_AUTH_DATA);
             throw exception;
         }
-        // Parse Token by validating
-        String role = getPrincipal(authenticateToken(token));
-        authenticationMetricsToken.recordSuccess();
-        return role;
+        return authenticateToken(token);
     }
 
     @Override

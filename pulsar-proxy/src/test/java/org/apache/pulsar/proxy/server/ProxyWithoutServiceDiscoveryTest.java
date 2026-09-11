@@ -64,6 +64,8 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
 
         // enable tls and auth&auth at broker
         conf.setAuthenticationEnabled(true);
+        // TLS client certificates are authenticated by the proxy, which forwards the original principal.
+        conf.setAuthenticateOriginalAuthData(false);
         conf.setAuthorizationEnabled(true);
 
         conf.setBrokerServicePortTls(Optional.of(0));

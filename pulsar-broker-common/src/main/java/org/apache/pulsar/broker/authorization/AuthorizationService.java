@@ -32,6 +32,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
@@ -65,13 +66,22 @@ public class AuthorizationService {
 
     public AuthorizationService(ServiceConfiguration conf, PulsarResources pulsarResources)
             throws PulsarServerException {
+        this(conf, pulsarResources, null);
+    }
+
+    public AuthorizationService(ServiceConfiguration conf, PulsarResources pulsarResources,
+                                AuthenticationService authenticationService) throws PulsarServerException {
         this.conf = conf;
         try {
             final String providerClassname = conf.getAuthorizationProvider();
             if (StringUtils.isNotBlank(providerClassname)) {
                 provider = (AuthorizationProvider) Class.forName(providerClassname)
                         .getDeclaredConstructor().newInstance();
-                provider.initialize(conf, pulsarResources);
+                provider.initialize(AuthorizationProvider.InitialContext.builder()
+                        .config(conf)
+                        .pulsarResources(pulsarResources)
+                        .authenticationService(authenticationService)
+                        .build());
                 this.resources = pulsarResources;
                 log.info("{} has been loaded.", providerClassname);
             } else {
