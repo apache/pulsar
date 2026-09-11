@@ -48,6 +48,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -657,10 +658,23 @@ public class BatchMessageContainerImplTest {
      * unconditionally, and without compression or encryption that payload is the container's own batch buffer,
      * which discard() then released a second time. The orphan-aware release (skip when the container still
      * owns the buffer — discard() performs the single release) must hold here too.
+     *
+     * <p>The ZLIB variant pins the other arm of that release: with compression the payload has already left
+     * the container, so the oversized check itself must release the compressed buffer (dropping the orphan
+     * release would leak it — its ref-count stays at 1).
      */
-    @Test
-    public void oversizedBatchReleasesTheBatchBufferExactlyOnce() throws Exception {
-        ProducerImpl<?> producer = createTestProducer(CompressionType.NONE);
+    @Test(dataProvider = "compressionTypes")
+    public void oversizedBatchReleasesThePayloadExactlyOnce(CompressionType compressionType) throws Exception {
+        ProducerImpl<?> producer = createTestProducer(compressionType);
+        AtomicReference<ByteBuf> compressedRef = new AtomicReference<>();
+        doAnswer(invocation -> {
+            ByteBuf source = invocation.getArgument(0);
+            ByteBuf compressed = PulsarByteBufAllocator.DEFAULT.buffer(source.readableBytes());
+            compressed.writeBytes(source);
+            source.release();
+            compressedRef.set(compressed);
+            return compressed;
+        }).when(producer).applyCompression(any());
 
         List<ReleaseCountingByteBuf> containerBuffers = new ArrayList<>();
         ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
@@ -674,10 +688,12 @@ public class BatchMessageContainerImplTest {
         BatchMessageContainerImpl container = new BatchMessageContainerImpl(recordingAllocator);
         container.setProducer(producer);
 
-        // Two messages whose combined payload exceeds the 5MB limit, checked before any command is built.
-        int halfLimit = Commands.DEFAULT_MAX_MESSAGE_SIZE / 2;
-        MessageImpl<?> first = createMessage(0, halfLimit + 1024);
-        MessageImpl<?> second = createMessage(1, halfLimit + 1024);
+        // Incompressible payload, so the compressed size still exceeds the 5MB limit in the ZLIB variant.
+        byte[] incompressible = new byte[Commands.DEFAULT_MAX_MESSAGE_SIZE + 2048];
+        new Random(42).nextBytes(incompressible);
+        int half = incompressible.length / 2;
+        MessageImpl<?> first = createMessage(0, incompressible, 0, half);
+        MessageImpl<?> second = createMessage(1, incompressible, half, incompressible.length - half);
         try {
             container.add(first, null);
             container.add(second, null);
@@ -687,8 +703,12 @@ public class BatchMessageContainerImplTest {
             ReleaseCountingByteBuf batchBuffer = containerBuffers.get(0);
             assertEquals(batchBuffer.refCnt(), 0, "the batch buffer must be freed");
             assertEquals(batchBuffer.releases(), 1,
-                    "the batch buffer must be released exactly once: discard() owns the release of a buffer "
-                            + "the container never handed off");
+                    "the batch buffer must be released exactly once: either by the compression handoff or "
+                            + "by discard(), never both");
+            if (compressionType != CompressionType.NONE) {
+                assertEquals(compressedRef.get().refCnt(), 0,
+                        "the compressed payload has left the container, so the oversized check must release it");
+            }
         } finally {
             ReferenceCountUtil.safeRelease(first);
             ReferenceCountUtil.safeRelease(second);
@@ -696,11 +716,15 @@ public class BatchMessageContainerImplTest {
     }
 
     private MessageImpl<?> createMessage(long sequenceId, int payloadSize) {
+        return createMessage(sequenceId, new byte[payloadSize], 0, payloadSize);
+    }
+
+    private MessageImpl<?> createMessage(long sequenceId, byte[] payloadArray, int offset, int length) {
         MessageMetadata messageMetadata = new MessageMetadata();
         messageMetadata.setSequenceId(sequenceId);
         messageMetadata.setProducerName("producer");
         messageMetadata.setPublishTime(System.currentTimeMillis());
-        ByteBuffer payload = ByteBuffer.wrap(new byte[payloadSize]);
+        ByteBuffer payload = ByteBuffer.wrap(payloadArray, offset, length);
         return MessageImpl.create(messageMetadata, payload, Schema.BYTES, null);
     }
 
