@@ -399,6 +399,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             this.acknowledgmentsGroupingTracker =
                     NonPersistentAcknowledgmentGroupingTracker.of();
+            if (conf.getAckTimeoutMillis() > 0) {
+                log.warn().attr("topic", topic).attr("ackTimeoutMillis", conf.getAckTimeoutMillis())
+                        .log("Ignoring the configured ack timeout: a non-persistent topic keeps nothing to"
+                                + " replay, so unacknowledged messages can never be redelivered");
+            }
         }
 
         if (conf.getDeadLetterPolicy() != null) {
@@ -1916,8 +1921,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             trackMessage(messageId, 0);
     }
 
+    /**
+     * Never track on a non-persistent topic. The broker stores nothing to replay there, so an ack timeout can
+     * never produce a redelivery, and an ack does not clear the tracker either: the consumer installs
+     * {@link NonPersistentAcknowledgmentGroupingTracker}, whose {@code addAcknowledgment} is a no-op, while the
+     * tracker is only cleared from the persistent one. Tracking would therefore fill up even for an application
+     * that acks everything, and the resulting timeout clears the receive queue, destroying messages for good.
+     */
+    @Override
+    protected boolean isAckTimeoutTrackingEnabled() {
+        return super.isAckTimeoutTrackingEnabled() && topicName.isPersistent();
+    }
+
     protected void trackMessage(MessageId messageId, int redeliveryCount) {
-        if (conf.getAckTimeoutMillis() > 0 && messageId instanceof MessageIdImpl) {
+        if (isAckTimeoutTrackingEnabled() && messageId instanceof MessageIdImpl) {
             MessageId id = MessageIdAdvUtils.discardBatch(messageId);
             if (hasParentConsumer) {
                 //TODO: check parent consumer here
@@ -2101,7 +2118,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         .log("Message delivery failed since unable to decrypt incoming message");
             }
             MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
-            unAckedMessageTracker.add(m, redeliveryCount);
+            if (isAckTimeoutTrackingEnabled()) {
+                unAckedMessageTracker.add(m, redeliveryCount);
+            }
             return DecryptResult.discard();
         default:
             log.warn("Invalid crypto failure state found, continue message consumption.");
