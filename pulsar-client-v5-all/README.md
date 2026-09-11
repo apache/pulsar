@@ -63,6 +63,8 @@ Maven (`pulsar.version` is your Pulsar release version):
 
 ## Shaded dependency
 
+### Gradle
+
 Gradle consumers should select the shaded variant. Gradle Module Metadata selects
 both the `all` jar and the matching external dependencies, without pulling in the
 unshaded implementation graph. Prefer this to selecting a classifier directly.
@@ -78,6 +80,12 @@ dependencies {
     }
 }
 ```
+
+### Maven
+
+Add the following dependency to the `<dependencies>` section of your `pom.xml`,
+with `pulsar.version` set to your Pulsar release version. The `all` classifier
+selects the shaded jar.
 
 Maven classifiers share one POM. Consequently, selecting `all` alone still brings
 in the ordinary artifact's unshaded implementation dependencies. Exclude the three
