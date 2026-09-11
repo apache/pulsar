@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
 import java.io.Closeable;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +63,7 @@ public class PulsarStats implements Closeable {
     private final boolean exposePublisherStats;
 
     private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
+    private final Clock clock;
 
     @Getter
     private long updatedAt;
@@ -82,7 +84,7 @@ public class PulsarStats implements Closeable {
 
         this.exposePublisherStats = pulsar.getConfiguration().isExposePublisherStats();
         this.updatedAt = 0;
-
+        this.clock = pulsar.getClock();
     }
 
     @Override
@@ -231,7 +233,7 @@ public class PulsarStats implements Closeable {
         } finally {
             bufferLock.writeLock().unlock();
         }
-        updatedAt = System.currentTimeMillis();
+        updatedAt = this.clock.millis();
     }
 
     public synchronized NamespaceBundleStats invalidBundleStats(String bundleName) {
