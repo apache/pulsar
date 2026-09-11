@@ -397,8 +397,11 @@ public class BrokerService implements Closeable {
         this.workerGroup = eventLoopGroup;
 
         this.statsUpdater = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-stats-updater");
+        this.authenticationService = new AuthenticationService(pulsar.getConfiguration(),
+                pulsar.getOpenTelemetry().getOpenTelemetry());
         this.authorizationService = new AuthorizationService(
-                pulsar.getConfiguration(), pulsar().getPulsarResources());
+                pulsar.getConfiguration(), pulsar().getPulsarResources(),
+                authenticationService);
         this.entryFilterProvider = new EntryFilterProvider(pulsar.getConfiguration());
 
         pulsar.getLocalMetadataStore().registerListener(this::handleMetadataChanges);
@@ -415,8 +418,6 @@ public class BrokerService implements Closeable {
         this.backlogQuotaChecker = new SingleThreadNonConcurrentFixedRateScheduler("pulsar-backlog-quota-checker");
         this.subscriptionBacklogAgeChecker =
                 new SingleThreadNonConcurrentFixedRateScheduler("pulsar-subscription-backlog-age-checker");
-        this.authenticationService = new AuthenticationService(pulsar.getConfiguration(),
-                pulsar.getOpenTelemetry().getOpenTelemetry());
         this.topicFactory = createPersistentTopicFactory();
         // update dynamic configuration and register-listener
         updateConfigurationAndRegisterListeners();

@@ -413,7 +413,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
             + "Authentication must be enabled via configuring `authenticationEnabled` to be true for this"
             + "to take effect"
     )
-    private boolean forwardAuthorizationCredentials = false;
+    private boolean forwardAuthorizationCredentials = true;
 
     @FieldContext(
             category = CATEGORY_AUTHENTICATION,
