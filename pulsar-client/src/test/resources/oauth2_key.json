@@ -1,0 +1,7 @@
+{
+  "type": "type",
+  "client_id": "client-id",
+  "client_secret": "client-secret",
+  "client_email": "client-email",
+  "issuer_url": "https://issuer-url/"
+}
