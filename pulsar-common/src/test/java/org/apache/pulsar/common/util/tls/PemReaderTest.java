@@ -19,15 +19,23 @@
 package org.apache.pulsar.common.util.tls;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import com.google.common.io.Resources;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.security.KeyFactory;
+import java.security.KeyManagementException;
+import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
+import java.security.Provider;
+import java.security.interfaces.ECPrivateKey;
+import java.security.spec.ECGenParameterSpec;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
+import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -43,9 +51,6 @@ import org.testng.annotations.Test;
  */
 public class PemReaderTest {
 
-    private static final String KEY = Resources.getResource(
-            "certificate-authority/server-keys/broker.key-pk8.pem").getPath();
-
     private Path dir;
 
     @BeforeMethod
@@ -60,45 +65,201 @@ public class PemReaderTest {
         }
     }
 
-    @DataProvider(name = "preambleLineCounts")
-    public static Object[][] preambleLineCounts() {
-        // Both parities matter: pre-fix, even counts parsed and odd counts failed.
-        return new Object[][]{{0}, {1}, {2}, {3}, {4}};
+    @DataProvider(name = "privateKeyFormats")
+    public static Object[][] privateKeyFormats() throws Exception {
+        List<Object[]> cases = new ArrayList<>();
+        for (String algorithm : List.of("RSA", "EC")) {
+            for (int keySize : "RSA".equals(algorithm) ? new int[]{2048, 3072, 4096} : new int[]{256}) {
+                KeyPairGenerator generator = KeyPairGenerator.getInstance(algorithm);
+                generator.initialize(keySize);
+                PrivateKey key = generator.generateKeyPair().getPrivate();
+                Provider provider = KeyFactory.getInstance(algorithm).getProvider();
+                for (boolean pkcs1 : new boolean[]{false, true}) {
+                    if (pkcs1 && !"RSA".equals(algorithm)) {
+                        continue;
+                    }
+                    byte[] encoded = pkcs1
+                            ? PrivateKeyInfo.getInstance(key.getEncoded()).parsePrivateKey()
+                                .toASN1Primitive().getEncoded()
+                            : key.getEncoded();
+                    String pem = toPem(pkcs1 ? "RSA PRIVATE KEY" : "PRIVATE KEY", encoded);
+                    for (int preambleLines = 0; preambleLines <= 4; preambleLines++) {
+                        for (Provider pinned : new Provider[]{null, provider}) {
+                            cases.add(new Object[]{pem, key, preambleLines, pinned});
+                        }
+                    }
+                }
+            }
+        }
+        return cases.toArray(new Object[0][]);
     }
 
-    @Test(dataProvider = "preambleLineCounts")
-    public void loadsPrivateKeyRegardlessOfPreambleLineCount(int preambleLines) throws Exception {
-        Path keyFile = writeKeyWithPreamble(preambleLines);
+    @Test(dataProvider = "privateKeyFormats")
+    public void loadsPrivateKeyRegardlessOfFormatAndPreamble(String pem, PrivateKey expected, int preambleLines,
+                                                            Provider provider) throws Exception {
+        Path keyFile = writeKeyWithPreamble(preambleLines, pem);
 
-        PrivateKey key = PemReader.loadPrivateKeyFromPemFile(keyFile.toString());
+        PrivateKey key = PemReader.loadPrivateKeyFromPemFile(keyFile.toString(), provider);
 
-        assertThat(key).as("key with %s preamble line(s) parses", preambleLines).isNotNull();
-        assertThat(key.getAlgorithm()).isEqualTo("RSA");
+        assertThat(key.getAlgorithm()).isEqualTo(expected.getAlgorithm());
+        assertThat(key.getEncoded()).as("key with %s preamble line(s) parses", preambleLines)
+                .isEqualTo(expected.getEncoded());
+    }
+
+    @DataProvider(name = "pemWhitespace")
+    public static Object[][] pemWhitespace() throws Exception {
+        List<Object[]> cases = new ArrayList<>();
+        for (Object[] format : privateKeyFormats()) {
+            if ((int) format[2] != 0 || format[3] != null) {
+                continue;
+            }
+            for (String newline : List.of("\n", "\r\n", "\r")) {
+                for (int whitespace = 0; whitespace < 4; whitespace++) {
+                    StringBuilder pem = new StringBuilder();
+                    for (String line : ((String) format[0]).lines().toList()) {
+                        if (whitespace == 1) {
+                            line = " \t" + line + "\t ";
+                        } else if (whitespace == 2) {
+                            pem.append(" \t").append(newline).append(newline);
+                        } else if (whitespace == 3 && !line.startsWith("-----")) {
+                            line = line.substring(0, 4) + " \t\f\u000b" + line.substring(4);
+                        }
+                        pem.append(line).append(newline);
+                    }
+                    cases.add(new Object[]{pem.toString(), format[1]});
+                }
+            }
+        }
+        return cases.toArray(new Object[0][]);
+    }
+
+    @Test(dataProvider = "pemWhitespace")
+    public void loadsPrivateKeyWithWhitespace(String pem, PrivateKey expected) throws Exception {
+        PrivateKey key = PemReader.loadPrivateKeyFromPemStream(
+                new ByteArrayInputStream(pem.getBytes(StandardCharsets.UTF_8)));
+        assertThat(key.getEncoded()).isEqualTo(expected.getEncoded());
     }
 
     @Test
     public void loadsPrivateKeyFromAnOpenSslBagAttributesPreamble() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        PrivateKey expected = generator.generateKeyPair().getPrivate();
+        byte[] pkcs1 = PrivateKeyInfo.getInstance(expected.getEncoded())
+                .parsePrivateKey().toASN1Primitive().getEncoded();
         List<String> lines = new ArrayList<>();
         lines.add("Bag Attributes");
         lines.add("    friendlyName: broker");
         lines.add("    localKeyID: 54 69 6D 65 20 31 32 33");
         lines.add("Key Attributes: <No Attributes>");
-        Path keyFile = writeKeyWithPreamble(lines);
+        Path keyFile = writeKeyWithPreamble(lines, toPem("RSA PRIVATE KEY", pkcs1));
 
-        assertThat(PemReader.loadPrivateKeyFromPemFile(keyFile.toString())).isNotNull();
+        assertThat(PemReader.loadPrivateKeyFromPemFile(keyFile.toString()).getEncoded())
+                .isEqualTo(expected.getEncoded());
     }
 
-    private Path writeKeyWithPreamble(int preambleLines) throws Exception {
+    @Test
+    public void rejectsMalformedPkcs1Key() {
+        String pem = toPem("RSA PRIVATE KEY", new byte[]{0x30, 0x00});
+        assertThatThrownBy(() -> PemReader.loadPrivateKeyFromPemStream(
+                new ByteArrayInputStream(pem.getBytes(StandardCharsets.UTF_8))))
+                .isInstanceOf(KeyManagementException.class);
+    }
+
+    @Test
+    public void doesNotFallBackFromPinnedProviderForPkcs1Key() throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
+        generator.initialize(2048);
+        byte[] pkcs1 = PrivateKeyInfo.getInstance(generator.generateKeyPair().getPrivate().getEncoded())
+                .parsePrivateKey().toASN1Primitive().getEncoded();
+        String pem = toPem("RSA PRIVATE KEY", pkcs1);
+        Provider emptyProvider = new Provider("NoKeyFactories", "1.0", "No key factories for testing") { };
+        assertThatThrownBy(() -> PemReader.loadPrivateKeyFromPemStream(
+                new ByteArrayInputStream(pem.getBytes(StandardCharsets.UTF_8)), emptyProvider))
+                .isInstanceOf(KeyManagementException.class);
+    }
+
+    @DataProvider(name = "ecCurves")
+    public static Object[][] ecCurves() {
+        return new Object[][]{{"secp256r1"}, {"secp384r1"}, {"secp521r1"}};
+    }
+
+    @Test(dataProvider = "ecCurves")
+    public void loadsTraditionalEcPrivateKey(String curve) throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
+        generator.initialize(new ECGenParameterSpec(curve));
+        ECPrivateKey expected = (ECPrivateKey) generator.generateKeyPair().getPrivate();
+        PrivateKeyInfo info = PrivateKeyInfo.getInstance(expected.getEncoded());
+        // The ASN.1 and JCA types share a simple name; keep the less-used ASN.1 type qualified.
+        byte[] sec1 = new org.bouncycastle.asn1.sec.ECPrivateKey(expected.getParams().getOrder().bitLength(),
+                expected.getS(), info.getPrivateKeyAlgorithm().getParameters()).getEncoded();
+        String pem = toPem("EC PRIVATE KEY", sec1);
+        for (Provider provider : new Provider[]{null, KeyFactory.getInstance("EC").getProvider()}) {
+            Path file = writeKeyWithPreamble(3, pem);
+            ECPrivateKey actual = (ECPrivateKey) PemReader.loadPrivateKeyFromPemFile(file.toString(), provider);
+            assertThat(actual.getS()).isEqualTo(expected.getS());
+            assertThat(actual.getParams().getOrder()).isEqualTo(expected.getParams().getOrder());
+            String whitespacePem = pem.replace("\n", " \t\r\n");
+            assertThat(((ECPrivateKey) PemReader.loadPrivateKeyFromPemStream(new ByteArrayInputStream(
+                    whitespacePem.getBytes(StandardCharsets.UTF_8)), provider)).getS()).isEqualTo(expected.getS());
+        }
+        Provider emptyProvider = new Provider("NoKeyFactories", "1.0", "No key factories for testing") { };
+        assertThatThrownBy(() -> PemReader.loadPrivateKeyFromPemStream(
+                new ByteArrayInputStream(pem.getBytes(StandardCharsets.UTF_8)), emptyProvider))
+                .isInstanceOf(KeyManagementException.class)
+                .hasMessageContaining("algorithm is not supported");
+    }
+
+    @Test
+    public void explainsMissingBcpkixForTraditionalEcKey() {
+        ClassLoader withoutBcpkix = new ClassLoader(PemReader.class.getClassLoader()) {
+            @Override
+            protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+                if (name.startsWith("org.bouncycastle.openssl.")) {
+                    throw new ClassNotFoundException(name);
+                }
+                return super.loadClass(name, resolve);
+            }
+        };
+        assertThatThrownBy(() -> PemReader.convertEcPrivateKey("MAA=", withoutBcpkix))
+                .isInstanceOf(KeyManagementException.class)
+                .hasMessageContaining("bcpkix")
+                .hasMessageContaining("class path")
+                .hasMessageContaining("BEGIN EC PRIVATE KEY")
+                .hasMessageContaining("convert the key to PKCS#8")
+                .hasCauseInstanceOf(ClassNotFoundException.class);
+    }
+
+    @DataProvider(name = "malformedEcKeys")
+    public static Object[][] malformedEcKeys() {
+        return new Object[][]{{new byte[]{0x30, 0x00}}, {new byte[]{0x30, 0x7f}}};
+    }
+
+    @Test(dataProvider = "malformedEcKeys")
+    public void rejectsMalformedTraditionalEcKey(byte[] encoded) {
+        String pem = toPem("EC PRIVATE KEY", encoded);
+        assertThatThrownBy(() -> PemReader.loadPrivateKeyFromPemStream(
+                new ByteArrayInputStream(pem.getBytes(StandardCharsets.UTF_8))))
+                .isInstanceOf(KeyManagementException.class);
+    }
+
+    private static String toPem(String label, byte[] encoded) {
+        return "-----BEGIN " + label + "-----\n"
+                + Base64.getMimeEncoder(64, new byte[]{'\n'}).encodeToString(encoded)
+                + "\n-----END " + label + "-----\n";
+    }
+
+    private Path writeKeyWithPreamble(int preambleLines, String pem) throws Exception {
         List<String> preamble = new ArrayList<>();
         for (int i = 0; i < preambleLines; i++) {
             preamble.add("# preamble line " + i);
         }
-        return writeKeyWithPreamble(preamble);
+        return writeKeyWithPreamble(preamble, pem);
     }
 
-    private Path writeKeyWithPreamble(List<String> preamble) throws Exception {
+    private Path writeKeyWithPreamble(List<String> preamble, String pem) throws Exception {
         List<String> lines = new ArrayList<>(preamble);
-        lines.addAll(Files.readAllLines(Paths.get(KEY), StandardCharsets.UTF_8));
+        lines.addAll(pem.lines().toList());
         Path keyFile = dir.resolve("key-" + lines.size() + ".pem");
         Files.write(keyFile, lines, StandardCharsets.UTF_8);
         return keyFile;

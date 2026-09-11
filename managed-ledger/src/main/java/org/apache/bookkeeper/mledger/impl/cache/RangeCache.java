@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
@@ -72,19 +73,22 @@ class RangeCache {
             if (!value.matchesPosition(key)) {
                 throw new IllegalArgumentException("Value '" + value + "' does not match key '" + key + "'");
             }
-            boolean added = RangeCacheEntryWrapper.withNewInstance(this, key, value, entryLength, newWrapper -> {
-                if (entries.putIfAbsent(key, newWrapper) == null && removalQueue.addEntry(newWrapper)) {
-                    this.size.addAndGet(entryLength);
-                    return true;
-                } else {
-                    // recycle the new wrapper as it was not used
-                    newWrapper.recycle();
-                    return false;
-                }
-            });
-            return added;
+            return RangeCacheEntryWrapper.withNewInstance(this, key, value, entryLength, RangeCache::addEntry);
         } finally {
             value.release();
+        }
+    }
+
+    private static boolean addEntry(RangeCacheEntryWrapper newWrapper) {
+        // withNewInstance holds the wrapper's write lock while these initialized fields are used.
+        RangeCache cache = newWrapper.rangeCache;
+        if (cache.entries.putIfAbsent(newWrapper.key, newWrapper) == null && cache.removalQueue.addEntry(newWrapper)) {
+            cache.size.addAndGet(newWrapper.size);
+            return true;
+        } else {
+            // recycle the new wrapper as it was not used
+            newWrapper.recycle();
+            return false;
         }
     }
 
@@ -178,6 +182,24 @@ class RangeCache {
         }
 
         return values;
+    }
+
+    /**
+     * Visits matching entries in order without collecting them. Each entry is retained during the callback and
+     * released afterwards, including when the callback throws. The visitor must retain entries it needs to keep.
+     */
+    public void forEachInRange(Position first, Position last, Consumer<ReferenceCountedEntry> visitor) {
+        for (Map.Entry<Position, RangeCacheEntryWrapper> entry : entries.subMap(first, true, last, true)
+                .entrySet()) {
+            ReferenceCountedEntry value = getValueMatchingEntry(entry);
+            if (value != null) {
+                try {
+                    visitor.accept(value);
+                } finally {
+                    value.release();
+                }
+            }
+        }
     }
 
     /**
