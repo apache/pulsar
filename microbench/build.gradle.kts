@@ -27,6 +27,7 @@ plugins {
 dependencies {
     api(project(":managed-ledger"))
     implementation(project(":pulsar-common"))
+    implementation(project(":pulsar-testclient"))
     api(project(":pulsar-broker"))
     implementation(libs.bookkeeper.server)
     implementation(libs.fastutil)

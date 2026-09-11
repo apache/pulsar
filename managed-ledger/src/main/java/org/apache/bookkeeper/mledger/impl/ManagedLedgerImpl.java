@@ -470,10 +470,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 if (State.Terminated.equals(state)) {
                                     currentLedger = lh;
                                 }
-                                LedgerInfo info = new LedgerInfo().setLedgerId(id)
-                                        .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
-                                        .setTimestamp(clock.millis());
-                                ledgers.put(id, info);
+                                ledgers.compute(id, (ledgerId, oldInfo) -> {
+                                    LedgerInfo info = new LedgerInfo();
+                                    if (oldInfo != null) {
+                                        info.copyFrom(oldInfo);
+                                    } else {
+                                        info.setLedgerId(ledgerId);
+                                    }
+                                    return info.setEntries(lh.getLastAddConfirmed() + 1)
+                                            .setSize(lh.getLength()).setTimestamp(clock.millis());
+                                });
                                 if (managedLedgerInterceptor != null) {
                                     managedLedgerInterceptor
                                             .onManagedLedgerLastLedgerInitialize(name, createLastEntryHandle(lh))

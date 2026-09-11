@@ -148,7 +148,9 @@ public class EntryCacheDisabled implements EntryCache {
                         for (LedgerEntry e : ledgerEntries) {
                             // Insert the entries at the end of the list (they will be unsorted for now)
                             EntryImpl entry = EntryImpl.create(e, interceptor, 0);
-                            entry.initializeMessageMetadataIfNeeded(ml.getName());
+                            if (ml.getConfig().isPulsarMessageEntries()) {
+                                entry.initializeMessageMetadataIfNeeded(ml.getName());
+                            }
                             entries.add(entry);
                             totalSize += entry.getLength();
                         }

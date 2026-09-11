@@ -76,6 +76,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -1971,10 +1972,11 @@ public class PersistentTopicsBase extends AdminResource {
                                     .log("Cleared backlog");
                         }
                     };
-                    if (subName.startsWith(topic.getReplicatorPrefix())) {
-                        String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                    Optional<String> remoteCluster =
+                            AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                    if (remoteCluster.isPresent()) {
                         PersistentReplicator repl =
-                            (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                            (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                         if (repl == null) {
                             asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                     getSubNotFoundErrorMessage(topicName.toString(), subName)));
@@ -2026,10 +2028,11 @@ public class PersistentTopicsBase extends AdminResource {
                      throw new RestException(new RestException(Status.NOT_FOUND,
                              getTopicNotFoundErrorMessage(topicName.toString())));
                  }
-                 if (subName.startsWith(topic.getReplicatorPrefix())) {
-                     String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                 Optional<String> remoteCluster =
+                         AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                 if (remoteCluster.isPresent()) {
                      PersistentReplicator repl =
-                             (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                             (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                      if (repl == null) {
                          return FutureUtil.failedFuture(
                                  new RestException(Status.NOT_FOUND, "Replicator not found"));
@@ -3791,9 +3794,23 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Boolean> internalGetDispatcherPauseOnAckStatePersistent(boolean applied,
                                                                                         boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-            .thenApply(op -> op.map(TopicPolicies::getDispatcherPauseOnAckStatePersistentEnabled)
-                .orElse(false));
-}
+            .thenCompose(op -> {
+                Boolean topicPolicy = op.map(TopicPolicies::getDispatcherPauseOnAckStatePersistentEnabled)
+                        .orElse(null);
+                if (topicPolicy != null) {
+                    return CompletableFuture.completedFuture(topicPolicy);
+                }
+                if (!applied) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return getNamespacePoliciesAsync(namespaceName).thenApply(namespacePolicies -> {
+                    Boolean namespacePolicy = namespacePolicies.dispatcherPauseOnAckStatePersistentEnabled;
+                    return namespacePolicy == null
+                            ? config().isDispatcherPauseOnAckStatePersistentEnabled()
+                            : namespacePolicy;
+                });
+            });
+    }
 
     @SuppressWarnings("deprecation")
     protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied, boolean isGlobal) {
@@ -4204,14 +4221,15 @@ public class PersistentTopicsBase extends AdminResource {
                 PersistentTopic topic = (PersistentTopic) t;
 
                 final MessageExpirer messageExpirer;
-                if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                Optional<String> remoteCluster =
+                        AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                if (remoteCluster.isPresent()) {
+                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                 } else {
                     messageExpirer = topic.getSubscription(subName);
                 }
                 if (messageExpirer == null) {
-                    final String message = subName.startsWith(topic.getReplicatorPrefix())
+                    final String message = remoteCluster.isPresent()
                             ? "Replicator not found" : getSubNotFoundErrorMessage(topicName.toString(), subName);
                     resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, message));
                     return;
@@ -4320,14 +4338,15 @@ public class PersistentTopicsBase extends AdminResource {
             }
             try {
                 final MessageExpirer messageExpirer;
-                if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                Optional<String> remoteCluster =
+                        AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                if (remoteCluster.isPresent()) {
+                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                 } else {
                     messageExpirer = topic.getSubscription(subName);
                 }
                 if (messageExpirer == null) {
-                    final String message = (subName.startsWith(topic.getReplicatorPrefix()))
+                    final String message = remoteCluster.isPresent()
                             ? "Replicator not found" : getSubNotFoundErrorMessage(topicName.toString(), subName);
                     asyncResponse.resume(new RestException(Status.NOT_FOUND, message));
                     return;
@@ -4759,7 +4778,8 @@ public class PersistentTopicsBase extends AdminResource {
      */
     private PersistentReplicator getReplicatorReference(String replName, PersistentTopic topic) {
         try {
-            String remoteCluster = PersistentReplicator.getRemoteCluster(replName);
+            String remoteCluster = AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), replName)
+                    .orElseThrow();
             PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
             return checkNotNull(repl);
         } catch (Exception e) {
@@ -5570,17 +5590,20 @@ public class PersistentTopicsBase extends AdminResource {
                         });
     }
 
-    @SuppressWarnings("deprecation")
     protected CompletableFuture<Boolean> internalGetSchemaValidationEnforced(boolean applied) {
-        // Schema validation enforced is typically a local policy
         return getTopicPoliciesAsyncWithRetry(topicName)
-                .thenApply(op -> op.map(TopicPolicies::getSchemaValidationEnforced).orElseGet(() -> {
-                    if (applied) {
-                        boolean namespacePolicy = getNamespacePolicies(namespaceName).schema_validation_enforced;
-                        return namespacePolicy || pulsar().getConfiguration().isSchemaValidationEnforced();
+                .thenCompose(op -> {
+                    Boolean topicPolicy = op.map(TopicPolicies::getSchemaValidationEnforced).orElse(null);
+                    boolean brokerPolicy = pulsar().getConfiguration().isSchemaValidationEnforced();
+                    if (topicPolicy != null) {
+                        return CompletableFuture.completedFuture(applied ? topicPolicy || brokerPolicy : topicPolicy);
                     }
-                    return false; // Default if not set and not applied
-                }));
+                    if (!applied) {
+                        return CompletableFuture.completedFuture(false);
+                    }
+                    return getNamespacePoliciesAsync(namespaceName)
+                            .thenApply(policies -> policies.schema_validation_enforced || brokerPolicy);
+                });
     }
 
     protected CompletableFuture<Void> internalSetSchemaValidationEnforced(boolean schemaValidationEnforcedToSet) {

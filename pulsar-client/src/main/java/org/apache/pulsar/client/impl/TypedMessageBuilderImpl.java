@@ -51,7 +51,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     private static final ByteBuffer EMPTY_CONTENT = ByteBuffer.allocate(0);
 
     private final transient ProducerBase<?> producer;
-    private final transient MessageMetadata msgMetadata = new MessageMetadata();
+    // Plain payloads need no builder metadata; emitted messages still own their metadata copy.
+    private transient MessageMetadata msgMetadata;
     private final transient Schema<T> schema;
     private transient ByteBuffer content;
     private final transient TransactionImpl txn;
@@ -72,7 +73,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     private long beforeSend() {
         if (value == null) {
-            msgMetadata.setNullValue(true);
+            getOrCreateMetadata().setNullValue(true);
         } else {
             AtomicBoolean isKeyValueSchema = new AtomicBoolean(false);
             getKeyValueSchema().map(keyValueSchema -> {
@@ -87,7 +88,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 EncodeData encodeData = schema.encode(getTopic(), value);
                 content = ByteBuffer.wrap(encodeData.data());
                 if (encodeData.hasSchemaId()) {
-                    msgMetadata.setSchemaId(SchemaIdUtil.addMagicHeader(encodeData.schemaId(), isKeyValueSchema.get()));
+                    getOrCreateMetadata().setSchemaId(
+                            SchemaIdUtil.addMagicHeader(encodeData.schemaId(), isKeyValueSchema.get()));
                 }
                 return this;
             });
@@ -96,8 +98,8 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         if (txn == null) {
             return -1L;
         }
-        msgMetadata.setTxnidLeastBits(txn.getTxnIdLeastBits());
-        msgMetadata.setTxnidMostBits(txn.getTxnIdMostBits());
+        getOrCreateMetadata().setTxnidLeastBits(txn.getTxnIdLeastBits());
+        getOrCreateMetadata().setTxnidMostBits(txn.getTxnIdMostBits());
         return -1L;
     }
 
@@ -138,11 +140,11 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
                 "This method is not allowed to set keys when in encoding type is SEPARATED"));
         if (key == null) {
-            msgMetadata.setNullPartitionKey(true);
+            getOrCreateMetadata().setNullPartitionKey(true);
             return this;
         }
-        msgMetadata.setPartitionKey(key);
-        msgMetadata.setPartitionKeyB64Encoded(false);
+        getOrCreateMetadata().setPartitionKey(key);
+        getOrCreateMetadata().setPartitionKeyB64Encoded(false);
         return this;
     }
 
@@ -152,17 +154,17 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
                 keyValueSchema.getKeyValueEncodingType() != KeyValueEncodingType.SEPARATED,
                 "This method is not allowed to set keys when in encoding type is SEPARATED"));
         if (key == null) {
-            msgMetadata.setNullPartitionKey(true);
+            getOrCreateMetadata().setNullPartitionKey(true);
             return this;
         }
-        msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(key));
-        msgMetadata.setPartitionKeyB64Encoded(true);
+        getOrCreateMetadata().setPartitionKey(Base64.getEncoder().encodeToString(key));
+        getOrCreateMetadata().setPartitionKeyB64Encoded(true);
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> orderingKey(byte[] orderingKey) {
-        msgMetadata.setOrderingKey(orderingKey);
+        getOrCreateMetadata().setOrderingKey(orderingKey);
         return this;
     }
 
@@ -176,7 +178,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     public TypedMessageBuilder<T> property(String name, String value) {
         checkArgument(name != null, "Need Non-Null name");
         checkArgument(value != null, "Need Non-Null value for name: " + name);
-        msgMetadata.addProperty()
+        getOrCreateMetadata().addProperty()
                     .setKey(name)
                     .setValue(value);
         return this;
@@ -187,7 +189,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         for (Map.Entry<String, String> entry : properties.entrySet()) {
             checkArgument(entry.getKey() != null, "Need Non-Null key");
             checkArgument(entry.getValue() != null, "Need Non-Null value for key: " + entry.getKey());
-            msgMetadata.addProperty()
+            getOrCreateMetadata().addProperty()
                     .setKey(entry.getKey())
                     .setValue(entry.getValue());
         }
@@ -197,29 +199,29 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> eventTime(long timestamp) {
-        msgMetadata.setEventTime(timestamp);
+        getOrCreateMetadata().setEventTime(timestamp);
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> sequenceId(long sequenceId) {
         checkArgument(sequenceId >= 0);
-        msgMetadata.setSequenceId(sequenceId);
+        getOrCreateMetadata().setSequenceId(sequenceId);
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> replicationClusters(List<String> clusters) {
         Objects.requireNonNull(clusters);
-        msgMetadata.clearReplicateTo();
-        msgMetadata.addAllReplicateTos(clusters);
+        getOrCreateMetadata().clearReplicateTo();
+        getOrCreateMetadata().addAllReplicateTos(clusters);
         return this;
     }
 
     @Override
     public TypedMessageBuilder<T> disableReplication() {
-        msgMetadata.clearReplicateTo();
-        msgMetadata.addReplicateTo("__local__");
+        getOrCreateMetadata().clearReplicateTo();
+        getOrCreateMetadata().addReplicateTo("__local__");
         return this;
     }
 
@@ -230,7 +232,7 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
 
     @Override
     public TypedMessageBuilder<T> deliverAt(long timestamp) {
-        msgMetadata.setDeliverAtTime(timestamp);
+        getOrCreateMetadata().setDeliverAtTime(timestamp);
         return this;
     }
 
@@ -274,6 +276,13 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     }
 
     public MessageMetadata getMetadataBuilder() {
+        return getOrCreateMetadata();
+    }
+
+    private MessageMetadata getOrCreateMetadata() {
+        if (msgMetadata == null) {
+            msgMetadata = new MessageMetadata();
+        }
         return msgMetadata;
     }
 
@@ -283,15 +292,15 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
     }
 
     public long getPublishTime() {
-        return msgMetadata.getPublishTime();
+        return getOrCreateMetadata().getPublishTime();
     }
 
     public boolean hasKey() {
-        return msgMetadata.hasPartitionKey();
+        return getOrCreateMetadata().hasPartitionKey();
     }
 
     public String getKey() {
-        return msgMetadata.getPartitionKey();
+        return getOrCreateMetadata().getPartitionKey();
     }
 
     public ByteBuffer getContent() {
@@ -319,10 +328,10 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
         // set key as the message key
         if (keyValue.getKey() != null) {
             keyEncoded = keyValueSchema.getKeySchema().encode(getTopic(), keyValue.getKey());
-            msgMetadata.setPartitionKey(Base64.getEncoder().encodeToString(keyEncoded.data()));
-            msgMetadata.setPartitionKeyB64Encoded(true);
+            getOrCreateMetadata().setPartitionKey(Base64.getEncoder().encodeToString(keyEncoded.data()));
+            getOrCreateMetadata().setPartitionKeyB64Encoded(true);
         } else {
-            msgMetadata.setNullPartitionKey(true);
+            getOrCreateMetadata().setNullPartitionKey(true);
         }
 
         EncodeData valueEncoded = null;
@@ -331,14 +340,14 @@ public class TypedMessageBuilderImpl<T> implements TypedMessageBuilder<T> {
             valueEncoded = keyValueSchema.getValueSchema().encode(getTopic(), keyValue.getValue());
             content = ByteBuffer.wrap(valueEncoded.data());
         } else {
-            msgMetadata.setNullValue(true);
+            getOrCreateMetadata().setNullValue(true);
         }
 
         byte[] schemaId = KeyValue.generateKVSchemaId(
                 keyEncoded != null && keyEncoded.hasSchemaId() ? keyEncoded.schemaId() : null,
                 valueEncoded != null && valueEncoded.hasSchemaId() ? valueEncoded.schemaId() : null);
         if (isValidSchemaId(schemaId)) {
-            msgMetadata.setSchemaId(SchemaIdUtil.addMagicHeader(schemaId, true));
+            getOrCreateMetadata().setSchemaId(SchemaIdUtil.addMagicHeader(schemaId, true));
         }
     }
 

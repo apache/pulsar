@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
+import io.netty.channel.EventLoopGroup;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -229,9 +231,11 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
-        // decrement unack-message count for removed consumer
-        addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
+            // decrement unack-message count for removed consumer. Only the removal that actually
+            // unregisters the consumer may debit it, otherwise removing an already-removed consumer
+            // debits the same messages again and drives the subscription counter negative.
+            addUnAckedMessages(-consumer.getUnackedMessages());
             consumerList.remove(consumer);
             log.info()
                     .attr("consumer", consumer)
@@ -244,9 +248,12 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     addMessageToReplay(ledgerId, entryId, stickyKeyHash);
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
+                // Restore the invariant that the dispatcher total equals the sum of the removal balances of the
+                // remaining consumers. Exclude Flow permits that have not updated the dispatcher total yet.
+                int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
+                totalAvailablePermits -= availablePermits;
                 log.debug()
-                        .attr("availablePermits", consumer.getAvailablePermits())
+                        .attr("availablePermits", availablePermits)
                         .attr("totalAvailablePermits", totalAvailablePermits)
                         .log("Decreased totalAvailablePermits by in PersistentDispatcherMultipleConsumers. "
                                 + "New dispatcher permit count is");
@@ -259,6 +266,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
              * are not mismatch with {@link #consumerSet}. See more detail: https://github.com/apache/pulsar/pull/22270.
              */
             log.error().attr("consumer", consumer).log("Trying to remove a non-connected consumer");
+            // The debit belongs to the removal that unregisters the consumer; do not repeat it here.
             consumerList.removeIf(c -> consumer.equals(c));
             if (consumerList.isEmpty()) {
                 clearComponentsAfterRemovedAllConsumers();
@@ -280,13 +288,23 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().executor().execute(() -> {
-            internalConsumerFlow(consumer, additionalNumberOfMessages);
-        });
+        EventLoopGroup flowExecutor = topic.getBrokerService().executor();
+        try {
+            flowExecutor.execute(() -> internalConsumerFlow(consumer, additionalNumberOfMessages));
+        } catch (RejectedExecutionException e) {
+            // Leave the permits pending so removal excludes this unapplied Flow during broker shutdown.
+            log.debug()
+                    .attr("consumer", consumer)
+                    .attr("executorShutdown", flowExecutor.isShuttingDown())
+                    .exception(e)
+                    .log("Unable to schedule flow control update");
+        }
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        if (!consumerSet.contains(consumer)) {
+        // The queued Flow task is no longer pending, even if the consumer was removed while the task was waiting.
+        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
+        if (!containsConsumerInstance(consumer)) {
             log.debug()
                     .attr("consumer", consumer)
                     .log("Ignoring flow control from disconnected consumer");

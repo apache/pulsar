@@ -1876,6 +1876,290 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), p2);
     }
 
+    private ManagedCursorInfo readCursorInfo(ManagedLedgerImpl ledger, String cursorName)
+            throws InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        AtomicReference<ManagedCursorInfo> infoRef = new AtomicReference<>();
+        ledger.getStore().asyncGetCursorInfo(ledger.getName(), cursorName, new MetaStoreCallback<ManagedCursorInfo>() {
+            @Override
+            public void operationComplete(ManagedCursorInfo result, Stat stat) {
+                infoRef.set(result);
+                latch.countDown();
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                latch.countDown();
+            }
+        });
+        latch.await();
+        return infoRef.get();
+    }
+
+    /**
+     * Regression test for https://github.com/apache/pulsar/issues/26483 : when the cursor ledger
+     * cannot be opened with a non-recoverable BookKeeper error, the cursor is rebuilt from the
+     * metadata-store snapshot. The properties saved in that snapshot (e.g. the compacted-topic
+     * ledger pointer or the replicated-subscription marker) must survive the rollback instead
+     * of being durably overwritten with an empty map.
+     */
+    @Test(timeOut = 20000)
+    void recoverCursorPropertiesWhenCursorLedgerCannotBeOpened() throws Exception {
+        String ledgerName = "recover_cursor_properties_open_failure";
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        // Force a cursor-ledger rollover on the second persist, so that the metadata-store
+        // snapshot ends up carrying the cursor properties together with a live cursor ledger id.
+        config.setMetadataMaxEntriesPerLedger(1);
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        ManagedCursor c1 = ml.openCursor("c1");
+        Position p1 = ml.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ml.addEntry("entry-2".getBytes(Encoding));
+        // Leave the last entry unacknowledged, so the data ledger is not fully consumed after the
+        // rollback and does not get trimmed (which would advance the mark-delete position).
+        ml.addEntry("entry-3".getBytes(Encoding));
+
+        Map<String, Long> properties = Map.of("CompactedTopicLedger", 5L);
+        c1.markDelete(p1, properties);
+        c1.markDelete(p2, properties);
+
+        // Wait until the rollover has snapshotted position and properties into the metadata store.
+        // The snapshot must be pinned to the p2 mark-delete: the conditions would otherwise also
+        // match the earlier p1 snapshot, because the p2 rollover's metadata-store update completes
+        // asynchronously after the mark-delete itself.
+        AtomicReference<ManagedCursorInfo> snapshotRef = new AtomicReference<>();
+        Awaitility.await().untilAsserted(() -> {
+            snapshotRef.set(readCursorInfo(ml, "c1"));
+            assertEquals(snapshotRef.get().getPropertiesCount(), 1);
+            assertNotEquals(snapshotRef.get().getCursorsLedgerId(), -1L);
+            assertEquals(snapshotRef.get().getMarkDeleteLedgerId(), p2.getLedgerId());
+            assertEquals(snapshotRef.get().getMarkDeleteEntryId(), p2.getEntryId());
+        });
+        ManagedCursorInfo snapshot = snapshotRef.get();
+        assertEquals(snapshot.getPropertyAt(0).getName(), "CompactedTopicLedger");
+        assertEquals(snapshot.getPropertyAt(0).getValue(), 5L);
+
+        // Delete the cursor ledger out from under the broker: reopening the cursor will fail to
+        // open it with a non-recoverable error and must fall back to the metadata-store snapshot.
+        bkc.getLedgerMap().remove(snapshot.getCursorsLedgerId());
+
+        // Reopen
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory2.open(ledgerName, config);
+        c1 = reopened.openCursor("c1");
+
+        // The cursor was rolled back to the snapshotted position...
+        assertEquals(c1.getMarkDeletedPosition(), p2);
+        // ... and the properties were preserved instead of being wiped out
+        assertEquals(c1.getProperties().get("CompactedTopicLedger"), 5L);
+
+        // The recovery re-persisted the cursor info: the properties must still be there durably
+        ManagedCursorInfo recoveredInfo = readCursorInfo(reopened, "c1");
+        assertEquals(recoveredInfo.getPropertiesCount(), 1);
+        assertEquals(recoveredInfo.getPropertyAt(0).getName(), "CompactedTopicLedger");
+        assertEquals(recoveredInfo.getPropertyAt(0).getValue(), 5L);
+    }
+
+    /**
+     * Same regression as {@link #recoverCursorPropertiesWhenCursorLedgerCannotBeOpened()}, for the
+     * empty-cursor-ledger recovery path: the properties snapshotted in the metadata store must be
+     * restored when the cursor ledger turns out to have no entries.
+     */
+    @Test(timeOut = 20000)
+    void recoverCursorPropertiesWhenCursorLedgerIsEmpty() throws Exception {
+        String ledgerName = "recover_cursor_properties_empty_ledger";
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName);
+        ManagedCursor cursor = ml.openCursor("cursor");
+
+        ml.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ml.addEntry("entry-2".getBytes(Encoding));
+        Position p3 = ml.addEntry("entry-3".getBytes(Encoding));
+
+        Map<String, Long> properties = Map.of("CompactedTopicLedger", 5L);
+        cursor.markDelete(p2, properties);
+        // Do graceful close so the snapshot (with the properties) is forced
+        ml.close();
+
+        // Re-open
+        ManagedLedgerImpl mlReopened = (ManagedLedgerImpl) factory.open(ledgerName);
+        cursor = mlReopened.openCursor("cursor");
+        cursor.markDelete(p3, properties);
+
+        // Wait until the new cursor ledger is recorded in the metadata-store snapshot.
+        Awaitility.await().untilAsserted(() ->
+                assertNotEquals(readCursorInfo(mlReopened, "cursor").getCursorsLedgerId(), -1L));
+
+        // Force-reopen so the recovery will be forced to read from the (empty) ledger
+        bkc.returnEmptyLedgerAfter(1);
+        ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
+        ManagedLedgerImpl mlAfterFailure = (ManagedLedgerImpl) factory2.open(ledgerName);
+        cursor = mlAfterFailure.openCursor("cursor");
+
+        // Cursor was rolled back to p2 because of the ledger recovery failure
+        assertEquals(cursor.getMarkDeletedPosition(), p2);
+        // ... and the properties were preserved instead of being wiped out
+        assertEquals(cursor.getProperties().get("CompactedTopicLedger"), 5L);
+        // the recovery re-persisted them into the metadata store as well
+        ManagedCursorInfo recoveredInfo = readCursorInfo(mlAfterFailure, "cursor");
+        assertEquals(recoveredInfo.getPropertiesCount(), 1);
+        assertEquals(recoveredInfo.getPropertyAt(0).getName(), "CompactedTopicLedger");
+        assertEquals(recoveredInfo.getPropertyAt(0).getValue(), 5L);
+    }
+
+    /**
+     * Same regression as {@link #recoverCursorPropertiesWhenCursorLedgerCannotBeOpened()}, for the
+     * path where the cursor ledger can be opened but reading its last entry fails with a
+     * non-recoverable BookKeeper error.
+     */
+    @Test(timeOut = 20000)
+    void recoverCursorPropertiesWhenCursorLedgerReadFails() throws Exception {
+        String ledgerName = "recover_cursor_properties_read_failure";
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        // Force a cursor-ledger rollover on the second persist, so that the metadata-store
+        // snapshot ends up carrying the cursor properties together with a live cursor ledger id.
+        config.setMetadataMaxEntriesPerLedger(1);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ledger.addEntry("entry-2".getBytes(Encoding));
+        // Leave the last entry unacknowledged, so the data ledger is not fully consumed after the
+        // rollback and does not get trimmed (which would advance the mark-delete position).
+        ledger.addEntry("entry-3".getBytes(Encoding));
+
+        Map<String, Long> properties = Map.of("CompactedTopicLedger", 5L);
+        c1.markDelete(p1, properties);
+        c1.markDelete(p2, properties);
+
+        // Pin the snapshot to the p2 mark-delete inside the retry loop: the conditions would
+        // otherwise also match the earlier p1 snapshot, since the p2 rollover's metadata-store
+        // update completes asynchronously after the mark-delete itself.
+        AtomicReference<ManagedCursorInfo> snapshotRef = new AtomicReference<>();
+        Awaitility.await().untilAsserted(() -> {
+            snapshotRef.set(readCursorInfo(ledger, "c1"));
+            assertEquals(snapshotRef.get().getPropertiesCount(), 1);
+            assertNotEquals(snapshotRef.get().getCursorsLedgerId(), -1L);
+            assertEquals(snapshotRef.get().getMarkDeleteLedgerId(), p2.getLedgerId());
+            assertEquals(snapshotRef.get().getMarkDeleteEntryId(), p2.getEntryId());
+        });
+        ManagedCursorInfo info = snapshotRef.get();
+
+        // The next BookKeeper operation (opening the cursor ledger) succeeds, the one after
+        // (reading its last entry) fails with a non-recoverable error.
+        bkc.failAfter(1, BKException.Code.ReadException);
+
+        MutableBoolean recovered = new MutableBoolean(false);
+        CountDownLatch latch = new CountDownLatch(1);
+        c1.recoverFromLedger(info, new VoidCallback() {
+            @Override
+            public void operationComplete() {
+                recovered.setValue(true);
+                latch.countDown();
+            }
+
+            @Override
+            public void operationFailed(ManagedLedgerException exception) {
+                latch.countDown();
+            }
+        });
+        latch.await();
+        assertTrue(recovered.booleanValue());
+
+        // The cursor was rolled back to the snapshotted position with the properties preserved
+        assertEquals(c1.getMarkDeletedPosition(), p2);
+        assertEquals(c1.getProperties().get("CompactedTopicLedger"), 5L);
+        // the recovery re-persisted them into the metadata store as well
+        ManagedCursorInfo recoveredInfo = readCursorInfo(ledger, "c1");
+        assertEquals(recoveredInfo.getPropertiesCount(), 1);
+        assertEquals(recoveredInfo.getPropertyAt(0).getName(), "CompactedTopicLedger");
+        assertEquals(recoveredInfo.getPropertyAt(0).getValue(), 5L);
+    }
+
+    /**
+     * Guards the sibling recovery branch that already worked before the #26483 fix: a cursor
+     * recovered from a gracefully-closed snapshot ({@code cursorsLedgerId == -1}) must restore
+     * the properties persisted in the snapshot. Since the fix, this branch and the error paths
+     * share the recoverProperties() decode, so this also protects that shared code.
+     */
+    @Test(timeOut = 20000)
+    void recoverCursorPropertiesFromClosedSnapshot() throws Exception {
+        String ledgerName = "recover_cursor_properties_closed_snapshot";
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName);
+        ManagedCursor cursor = ml.openCursor("c1");
+        Position p1 = ml.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ml.addEntry("entry-2".getBytes(Encoding));
+        // Leave the last entry unacknowledged, so the data ledger is not fully consumed and does
+        // not get trimmed (which would advance the mark-delete position).
+        ml.addEntry("entry-3".getBytes(Encoding));
+
+        Map<String, Long> properties = Map.of("CompactedTopicLedger", 5L);
+        cursor.markDelete(p1, properties);
+        cursor.markDelete(p2, properties);
+        // Graceful close: the snapshot is persisted in the cursorsLedgerId == -1 form
+        ml.close();
+
+        // Re-open: the cursor is recovered from the closed snapshot in the metadata store
+        ManagedLedgerImpl mlReopened = (ManagedLedgerImpl) factory.open(ledgerName);
+        cursor = mlReopened.openCursor("c1");
+
+        assertEquals(cursor.getMarkDeletedPosition(), p2);
+        assertEquals(cursor.getProperties().get("CompactedTopicLedger"), 5L);
+    }
+
+    /**
+     * Backward-compatibility guard for the #26483 fix: when the metadata-store snapshot carries no
+     * properties, a failed cursor-ledger recovery must not invent any, neither in memory nor in the
+     * re-persisted cursor info.
+     */
+    @Test(timeOut = 20000)
+    void recoverNoCursorPropertiesWhenSnapshotHasNone() throws Exception {
+        String ledgerName = "recover_no_cursor_properties";
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataMaxEntriesPerLedger(1);
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        ManagedCursor c1 = ml.openCursor("c1");
+        Position p1 = ml.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ml.addEntry("entry-2".getBytes(Encoding));
+        // Leave the last entry unacknowledged, so the data ledger is not fully consumed after the
+        // rollback and does not get trimmed (which would advance the mark-delete position).
+        ml.addEntry("entry-3".getBytes(Encoding));
+
+        // No properties on any mark-delete.
+        c1.markDelete(p1);
+        c1.markDelete(p2);
+
+        // Wait until the rollover has snapshotted the (property-less) state into the metadata store,
+        // pinned to the p2 mark-delete so the wait cannot match the earlier p1 snapshot and the
+        // ledger deleted below is the one referenced by the final snapshot.
+        AtomicReference<ManagedCursorInfo> snapshotRef = new AtomicReference<>();
+        Awaitility.await().untilAsserted(() -> {
+            snapshotRef.set(readCursorInfo(ml, "c1"));
+            assertNotEquals(snapshotRef.get().getCursorsLedgerId(), -1L);
+            assertEquals(snapshotRef.get().getPropertiesCount(), 0);
+            assertEquals(snapshotRef.get().getMarkDeleteLedgerId(), p2.getLedgerId());
+            assertEquals(snapshotRef.get().getMarkDeleteEntryId(), p2.getEntryId());
+        });
+
+        // Delete the cursor ledger so that reopening falls back to the metadata-store snapshot.
+        bkc.getLedgerMap().remove(snapshotRef.get().getCursorsLedgerId());
+
+        // Reopen
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl reopened = (ManagedLedgerImpl) factory2.open(ledgerName, config);
+        c1 = reopened.openCursor("c1");
+
+        assertEquals(c1.getMarkDeletedPosition(), p2);
+        assertTrue(c1.getProperties().isEmpty());
+        assertEquals(readCursorInfo(reopened, "c1").getPropertiesCount(), 0);
+    }
+
     @Test(timeOut = 20000)
     void errorRecoveringCursor() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger");
@@ -1989,6 +2273,55 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         } catch (ManagedLedgerException e) {
             // Ok
         }
+    }
+
+    @Test(timeOut = 20000)
+    void testGroupedDeleteAcrossLedgerBoundaries() throws Exception {
+        ManagedLedger ledger = factory.open("grouped_delete_boundaries",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
+        ManagedCursor cursor = ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 9; i++) {
+            positions.add(ledger.addEntry(new byte[] {(byte) i}));
+        }
+        assertEquals(positions.get(3).getEntryId(), 0L);
+        assertEquals(positions.get(6).getEntryId(), 0L);
+        Position initialMarkDelete = cursor.getMarkDeletedPosition();
+        cursor.delete(initialMarkDelete);
+        cursor.delete(List.of(positions.get(3), positions.get(7), positions.get(1)));
+        assertEquals(cursor.getMarkDeletedPosition(), initialMarkDelete);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 6L);
+
+        cursor.delete(List.of(positions.get(8), positions.get(0), positions.get(2), positions.get(4),
+                positions.get(5), positions.get(6), positions.get(3)));
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(8));
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 0L);
+        cursor.close();
+        cursor = ledger.openCursor("c1");
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(8));
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 0L);
+    }
+
+    @Test(timeOut = 20000)
+    void testIndividualDeleteNegativeEntryAcrossLedgers() throws Exception {
+        ManagedLedger ledger = factory.open("delete_negative_entry",
+                new ManagedLedgerConfig().setMaxEntriesPerLedger(3));
+        ManagedCursor cursor = ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            positions.add(ledger.addEntry(new byte[] {(byte) i}));
+        }
+        assertEquals(positions.get(3).getEntryId(), 0L);
+        Position initialMarkDelete = cursor.getMarkDeletedPosition();
+        Position beforeSecondLedger = PositionFactory.create(positions.get(3).getLedgerId(), -1);
+        cursor.delete(beforeSecondLedger);
+        // A negative entry marker must not delete the real entries on either side of the boundary.
+        assertFalse(cursor.isMessageDeleted(positions.get(2)));
+        assertFalse(cursor.isMessageDeleted(positions.get(3)));
+        assertEquals(cursor.getMarkDeletedPosition(), initialMarkDelete);
+
+        cursor.close();
+        ledger.close();
     }
 
     @Test(timeOut = 20000)
@@ -4640,6 +4973,53 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testBatchIndexLookupByIdsPreservesSubclassOverride() {
+        ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getLogger()).thenReturn(log);
+        long[] expected = {7};
+        ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c1") {
+            @Override
+            public long[] getDeletedBatchIndexesAsLongArray(Position position) {
+                assertEquals(position.getLedgerId(), 12L);
+                assertEquals(position.getEntryId(), 34L);
+                return expected;
+            }
+        };
+        assertEquals(cursor.getDeletedBatchIndexesAsLongArray(12, 34), expected);
+    }
+
+    @Test
+    public void testBatchIndexLookupByIdsDefaultImplementation() {
+        ManagedCursor cursor = mock(ManagedCursor.class, Mockito.CALLS_REAL_METHODS);
+        Position position = PositionFactory.create(12, 34);
+        long[] expected = {7};
+        when(cursor.getDeletedBatchIndexesAsLongArray(position)).thenReturn(expected);
+        assertEquals(cursor.getDeletedBatchIndexesAsLongArray(12, 34), expected);
+        verify(cursor).getDeletedBatchIndexesAsLongArray(position);
+    }
+
+    @Test
+    public void testBatchIndexLookupByLedgerAndEntryIds() throws Exception {
+        ManagedLedger ledger = factory.open("batch_index_lookup_ids");
+        ManagedCursor cursor = ledger.openCursor("c1");
+        Position position = ledger.addEntry("entry".getBytes(Encoding));
+        long ledgerId = position.getLedgerId();
+        long entryId = position.getEntryId();
+        assertNull(cursor.getDeletedBatchIndexesAsLongArray(ledgerId, entryId));
+
+        deleteBatchIndex(cursor, position, 10, Lists.newArrayList(new IntRange().setStart(2).setEnd(4)));
+        long[] snapshot = cursor.getDeletedBatchIndexesAsLongArray(ledgerId, entryId);
+        assertEquals(snapshot, cursor.getDeletedBatchIndexesAsLongArray(position));
+        assertNull(cursor.getDeletedBatchIndexesAsLongArray(ledgerId, entryId + 1));
+        snapshot[0] = 0;
+        assertNotEquals(cursor.getDeletedBatchIndexesAsLongArray(ledgerId, entryId)[0], 0L);
+
+        cursor.delete(position);
+        assertNull(cursor.getDeletedBatchIndexesAsLongArray(ledgerId, entryId));
+    }
+
+    @Test
     public void testBatchIndexDelete() throws ManagedLedgerException, InterruptedException {
         ManagedLedger ledger = factory.open("test_batch_index_delete");
         ManagedCursor cursor = ledger.openCursor("c1");
@@ -5485,6 +5865,134 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         cursor.close();
         ledger.close();
+    }
+
+    @Test
+    public void testFilterReadEntriesSkipsFilteringForGapBetweenIndividualAcks() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testFilterReadEntriesSkipsFilteringForGapBetweenIndividualAcks");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c");
+
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i <= 100; i++) {
+            positions.add(ledger.addEntry(new byte[]{1}));
+        }
+        cursor.delete(Set.of(positions.get(1), positions.get(100)));
+
+        List<Entry> entries = new ArrayList<>();
+        for (int i = 40; i < 50; i++) {
+            Position position = positions.get(i);
+            Entry entry = mock(Entry.class);
+            when(entry.getPosition()).thenReturn(position);
+            when(entry.getLedgerId()).thenReturn(position.getLedgerId());
+            when(entry.getEntryId()).thenReturn(position.getEntryId());
+            entries.add(entry);
+        }
+
+        Range<Position> entriesRange = Range.closed(entries.get(0).getPosition(),
+                entries.get(entries.size() - 1).getPosition());
+        assertThat(entriesRange.isConnected(cursor.getIndividuallyDeletedMessagesSet().span())).isTrue();
+        for (Entry entry : entries) {
+            assertThat(cursor.getIndividuallyDeletedMessagesSet()
+                    .contains(entry.getLedgerId(), entry.getEntryId())).isFalse();
+        }
+
+        List<Entry> filteredEntries = cursor.filterReadEntries(entries);
+
+        assertThat(filteredEntries).isSameAs(entries);
+        for (Entry entry : entries) {
+            verify(entry, never()).release();
+        }
+    }
+
+    @Test
+    public void testFilterReadEntriesFallsBackForCrossLedgerBatch() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testFilterReadEntriesFallsBackForCrossLedgerBatch");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c");
+
+        // Production read paths currently return ordered batches from a single ledger, so this cross-ledger batch
+        // is not expected in normal operation. If one is ever passed in, the conservative fallback must inspect
+        // every entry, remove and release the acknowledged entry, and retain the unacknowledged entries.
+        Position firstPosition = PositionFactory.create(1, 0);
+        Position deletedPosition = PositionFactory.create(2, 0);
+        Position lastPosition = PositionFactory.create(2, 1);
+        cursor.lock.writeLock().lock();
+        try {
+            cursor.getIndividuallyDeletedMessagesSet().addOpenClosed(
+                    deletedPosition.getLedgerId(), deletedPosition.getEntryId() - 1,
+                    deletedPosition.getLedgerId(), deletedPosition.getEntryId());
+        } finally {
+            cursor.lock.writeLock().unlock();
+        }
+
+        Entry firstEntry = mock(Entry.class);
+        when(firstEntry.getPosition()).thenReturn(firstPosition);
+        when(firstEntry.getLedgerId()).thenReturn(firstPosition.getLedgerId());
+        when(firstEntry.getEntryId()).thenReturn(firstPosition.getEntryId());
+        Entry deletedEntry = mock(Entry.class);
+        when(deletedEntry.getPosition()).thenReturn(deletedPosition);
+        when(deletedEntry.getLedgerId()).thenReturn(deletedPosition.getLedgerId());
+        when(deletedEntry.getEntryId()).thenReturn(deletedPosition.getEntryId());
+        Entry lastEntry = mock(Entry.class);
+        when(lastEntry.getPosition()).thenReturn(lastPosition);
+        when(lastEntry.getLedgerId()).thenReturn(lastPosition.getLedgerId());
+        when(lastEntry.getEntryId()).thenReturn(lastPosition.getEntryId());
+
+        List<Entry> filteredEntries = cursor.filterReadEntries(List.of(firstEntry, deletedEntry, lastEntry));
+
+        assertThat(filteredEntries).containsExactly(firstEntry, lastEntry);
+        verify(firstEntry, never()).release();
+        verify(deletedEntry).release();
+        verify(lastEntry, never()).release();
+    }
+
+    @Test
+    public void testFilterReadEntriesFallsBackForDescendingBatch() throws Exception {
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testFilterReadEntriesFallsBackForDescendingBatch");
+        @Cleanup
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c");
+
+        // Production read paths currently return ordered batches, so this descending batch is not expected in
+        // normal operation. If one is ever passed in, the conservative fallback must inspect every entry, remove
+        // and release the acknowledged entry, and retain the unacknowledged entries.
+        Position firstPosition = PositionFactory.create(1, 10);
+        Position deletedPosition = PositionFactory.create(1, 5);
+        Position lastPosition = PositionFactory.create(1, 1);
+        cursor.lock.writeLock().lock();
+        try {
+            cursor.getIndividuallyDeletedMessagesSet().addOpenClosed(
+                    deletedPosition.getLedgerId(), deletedPosition.getEntryId() - 1,
+                    deletedPosition.getLedgerId(), deletedPosition.getEntryId());
+        } finally {
+            cursor.lock.writeLock().unlock();
+        }
+
+        Entry firstEntry = mock(Entry.class);
+        when(firstEntry.getPosition()).thenReturn(firstPosition);
+        when(firstEntry.getLedgerId()).thenReturn(firstPosition.getLedgerId());
+        when(firstEntry.getEntryId()).thenReturn(firstPosition.getEntryId());
+        Entry deletedEntry = mock(Entry.class);
+        when(deletedEntry.getPosition()).thenReturn(deletedPosition);
+        when(deletedEntry.getLedgerId()).thenReturn(deletedPosition.getLedgerId());
+        when(deletedEntry.getEntryId()).thenReturn(deletedPosition.getEntryId());
+        Entry lastEntry = mock(Entry.class);
+        when(lastEntry.getPosition()).thenReturn(lastPosition);
+        when(lastEntry.getLedgerId()).thenReturn(lastPosition.getLedgerId());
+        when(lastEntry.getEntryId()).thenReturn(lastPosition.getEntryId());
+
+        List<Entry> filteredEntries = cursor.filterReadEntries(List.of(firstEntry, deletedEntry, lastEntry));
+
+        assertThat(filteredEntries).containsExactly(firstEntry, lastEntry);
+        verify(firstEntry, never()).release();
+        verify(deletedEntry).release();
+        verify(lastEntry, never()).release();
     }
 
     @Test
