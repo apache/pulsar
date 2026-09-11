@@ -153,6 +153,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         assertTrue(offloaderStats.getOffloadBytes(topicName) > 0);
         assertTrue(offloaderStats.getReadLedgerLatency(topicName).count > 0);
         assertTrue(offloaderStats.getWriteStorageError(topicName) == 0);
+        assertTrue(offloaderStats.getOffloadDataLatency(topicName).count > 0);
 
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
