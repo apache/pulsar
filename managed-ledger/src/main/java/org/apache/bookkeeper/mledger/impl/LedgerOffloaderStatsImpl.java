@@ -44,6 +44,8 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     private static final String STATUS = "status";
     private static final String SUCCEED = "succeed";
     private static final String FAILED = "failed";
+    private static final String HIT = "hit";
+    private static final String MISS = "miss";
 
     private final boolean exposeTopicLevelMetrics;
     private final int interval;
@@ -58,13 +60,15 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     private final Gauge readOffloadRate;
     private final Summary readOffloadIndexLatency;
     private final Summary readOffloadDataLatency;
+    private final Counter readOffloadCacheOps;
+    private final Counter readOffloadCacheBytes;
 
     private final Map<String, Long> topicAccess;
     private final Map<String, Pair<LongAdder, LongAdder>> offloadAndReadOffloadBytesMap;
 
     final AtomicBoolean closed = new AtomicBoolean(false);
 
-     private LedgerOffloaderStatsImpl(boolean exposeTopicLevelMetrics,
+    private LedgerOffloaderStatsImpl(boolean exposeTopicLevelMetrics,
                                      ScheduledExecutorService scheduler, int interval) {
         this.interval = interval;
         this.exposeTopicLevelMetrics = exposeTopicLevelMetrics;
@@ -116,6 +120,13 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
                 ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL, STATUS} : new String[]{NAMESPACE_LABEL, STATUS};
         this.deleteOffloadOps = Counter.build("brk_ledgeroffloader_delete_offload_ops", "-")
                 .labelNames(deleteOpsLabels).create().register();
+
+        String[] cacheLabels = exposeTopicLevelMetrics
+                ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL, STATUS} : new String[]{NAMESPACE_LABEL, STATUS};
+        this.readOffloadCacheOps = Counter.build("brk_ledgeroffloader_read_offload_cache_ops", "-")
+                .labelNames(cacheLabels).create().register();
+        this.readOffloadCacheBytes = Counter.build("brk_ledgeroffloader_read_offload_cache_bytes", "-")
+                .labelNames(cacheLabels).create().register();
     }
 
 
@@ -174,6 +185,23 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         pair.getRight().add(size);
         String[] labelValues = this.labelValues(topic);
         this.readOffloadBytes.labels(labelValues).inc(size);
+        this.addOrUpdateTopicAccess(topic);
+    }
+
+    @Override
+    public void recordReadOffloadCacheHit(String topic, long size) {
+        recordReadOffloadCacheOperation(topic, size, HIT);
+    }
+
+    @Override
+    public void recordReadOffloadCacheMiss(String topic, long size) {
+        recordReadOffloadCacheOperation(topic, size, MISS);
+    }
+
+    private void recordReadOffloadCacheOperation(String topic, long size, String status) {
+        String[] labelValues = this.labelValues(topic, status);
+        this.readOffloadCacheOps.labels(labelValues).inc();
+        this.readOffloadCacheBytes.labels(labelValues).inc(size);
         this.addOrUpdateTopicAccess(topic);
     }
 
@@ -252,6 +280,12 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
                 this.deleteOffloadOps.remove(labelValues);
                 labelValues = this.labelValues(topic, FAILED);
                 this.deleteOffloadOps.remove(labelValues);
+                labelValues = this.labelValues(topic, HIT);
+                this.readOffloadCacheOps.remove(labelValues);
+                this.readOffloadCacheBytes.remove(labelValues);
+                labelValues = this.labelValues(topic, MISS);
+                this.readOffloadCacheOps.remove(labelValues);
+                this.readOffloadCacheBytes.remove(labelValues);
 
                 return true;
             }
@@ -288,6 +322,8 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadIndexLatency);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadDataLatency);
             CollectorRegistry.defaultRegistry.unregister(this.deleteOffloadOps);
+            CollectorRegistry.defaultRegistry.unregister(this.readOffloadCacheOps);
+            CollectorRegistry.defaultRegistry.unregister(this.readOffloadCacheBytes);
             instance = null;
         }
     }
@@ -344,6 +380,18 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
             totalBytes += this.offloadAndReadOffloadBytesMap.get(key).getRight().sum();
         }
         return totalBytes;
+    }
+
+    @VisibleForTesting
+    public long getReadOffloadCacheOps(String topic, boolean hit) {
+        String[] labels = this.labelValues(topic, hit ? HIT : MISS);
+        return (long) this.readOffloadCacheOps.labels(labels).get();
+    }
+
+    @VisibleForTesting
+    public long getReadOffloadCacheBytes(String topic, boolean hit) {
+        String[] labels = this.labelValues(topic, hit ? HIT : MISS);
+        return (long) this.readOffloadCacheBytes.labels(labels).get();
     }
 
     @VisibleForTesting
