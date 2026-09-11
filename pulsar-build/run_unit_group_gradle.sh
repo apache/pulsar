@@ -140,6 +140,8 @@ function test_group_other() {
     -x :tests:pulsar-client-admin-shade-test:test \
     -x :tests:pulsar-client-admin-v5-test:test \
     -x :tests:pulsar-client-all-shade-test:test \
+    -x :tests:pulsar-client-v5-shade-test:test \
+    -x :tests:pulsar-client-v5-all-test:test \
     -x :tests:pulsar-client-shade-test:test \
     -x :tests:pulsar-client-native-image:test \
     test
