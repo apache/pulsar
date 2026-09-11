@@ -64,6 +64,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -99,6 +100,7 @@ import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
@@ -108,6 +110,7 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.apache.pulsar.utils.ResourceUtils;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -318,6 +321,28 @@ public class ModularLoadManagerImplTest {
     }
 
     @Test
+    public void testMetadataSessionDisconnectionInvalidatesLeadershipAndLogsOnce() throws Exception {
+        Awaitility.await().until(() -> pulsar1.getLeaderElectionService().isLeader()
+                || pulsar2.getLeaderElectionService().isLeader());
+
+        ModularLoadManagerImpl leaderLoadManager = spy(pulsar1.getLeaderElectionService().isLeader()
+                ? primaryLoadManager : secondaryLoadManager);
+        assertTrue(leaderLoadManager.isLeader());
+
+        try (TestLogAppender appender = TestLogAppender.create(ModularLoadManagerImpl.class)) {
+            leaderLoadManager.handleMetadataSessionEvent(SessionEvent.ConnectionLost);
+            leaderLoadManager.handleMetadataSessionEvent(SessionEvent.SessionLost);
+
+            assertFalse(leaderLoadManager.isLeader());
+            assertEquals(appender.getEvents().stream()
+                    .filter(event -> event.getLevel() == Level.WARN)
+                    .filter(event -> event.getMessage().getFormattedMessage()
+                            .contains("leader-only operations will be skipped"))
+                    .count(), 1L);
+        }
+    }
+
+    @Test
     public void testLoadSheddingStopsWhenLeadershipChangesBeforeUnload() throws Exception {
         Awaitility.await().until(() -> primaryLoadManager.getAvailableBrokers().size() > 1);
 
@@ -408,6 +433,27 @@ public class ModularLoadManagerImplTest {
         loadManagerSpy.writeBundleDataOnZooKeeper();
 
         assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 0);
+    }
+
+    @Test
+    public void testBundleDataAggregationDoesNotDeleteAfterLeadershipLoss() throws Exception {
+        String bundle = mockBundleName(100);
+        BundleData bundleData = new BundleData(10, 1000);
+        String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundle);
+        MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
+        metadataCache.create(bundleDataPath, bundleData).join();
+
+        Awaitility.await().until(() -> primaryLoadManager.getLoadData().getBrokerData().containsKey(primaryBrokerId));
+        AtomicInteger leaderChecks = new AtomicInteger();
+        ModularLoadManagerImpl loadManagerSpy = spy(primaryLoadManager);
+        LoadData loadData = loadManagerSpy.getLoadData();
+        loadData.getBundleData().clear();
+        loadData.getBundleData().put(bundle, bundleData);
+        doAnswer(invocation -> leaderChecks.getAndIncrement() == 0).when(loadManagerSpy).isLeader();
+
+        loadManagerSpy.writeBundleDataOnZooKeeper();
+
+        assertTrue(metadataCache.get(bundleDataPath).join().isPresent());
     }
 
     // Test disabled since it's depending on CPU usage in the machine

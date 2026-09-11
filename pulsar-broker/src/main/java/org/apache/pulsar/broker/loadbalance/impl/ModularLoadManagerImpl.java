@@ -168,7 +168,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private Map<String, String> brokerToFailureDomainMap;
 
-    private SessionEvent lastMetadataSessionEvent = SessionEvent.Reconnected;
+    private volatile SessionEvent lastMetadataSessionEvent = SessionEvent.Reconnected;
 
     // record load balancing metrics
     private AtomicReference<List<Metrics>> loadBalancingMetrics = new AtomicReference<>();
@@ -296,13 +296,36 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
     }
 
-    private void handleMetadataSessionEvent(SessionEvent e) {
+    @VisibleForTesting
+    void handleMetadataSessionEvent(SessionEvent e) {
+        boolean wasConnected = isMetadataSessionConnected();
         lastMetadataSessionEvent = e;
+        if (wasConnected && !e.isConnected()
+                && pulsar.getLeaderElectionService() != null
+                && pulsar.getLeaderElectionService().isLeader()) {
+            log.warn()
+                    .attr("metadataSessionEvent", e)
+                    .log("Metadata session disconnected while this broker is the load manager leader;"
+                            + " leader-only operations will be skipped");
+        }
     }
 
+    /**
+     * Best-effort guard for leader-only operations in the modular load manager. The metadata session listener and
+     * load-manager tasks run on different threads, so the session event must be visible here. Requiring a connected
+     * session prevents this manager from acting on a leader-election state that can remain stale while disconnected.
+     * This local check does not change the shared leader-election semantics or fence a leadership change that happens
+     * after the check.
+     */
     @VisibleForTesting
     boolean isLeader() {
-        return pulsar.getLeaderElectionService() != null && pulsar.getLeaderElectionService().isLeader();
+        return isMetadataSessionConnected()
+                && pulsar.getLeaderElectionService() != null
+                && pulsar.getLeaderElectionService().isLeader();
+    }
+
+    private boolean isMetadataSessionConnected() {
+        return lastMetadataSessionEvent != null && lastMetadataSessionEvent.isConnected();
     }
 
     private LoadSheddingStrategy createLoadSheddingStrategy() {
@@ -512,9 +535,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokers, activeBrokers);
         this.knownBrokers.clear();
         this.knownBrokers.addAll(activeBrokers);
-        if (pulsar.getLeaderElectionService() != null
-                && pulsar.getLeaderElectionService().isLeader()) {
-            deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
+        if (isLeader()) {
+            for (String deadBroker : deadBrokers) {
+                if (!isLeader()) {
+                    break;
+                }
+                deleteTimeAverageDataFromMetadataStoreAsync(deadBroker);
+            }
+            if (!isLeader()) {
+                return;
+            }
             loadSheddingStrategy.onActiveBrokersChange(activeBrokers);
             placementStrategy.onActiveBrokersChange(activeBrokers);
         }
@@ -615,7 +645,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         for (String bundle : bundleData.keySet()) {
             if (!activeBundles.contains(bundle)){
                 bundleData.remove(bundle);
-                if (pulsar.getLeaderElectionService() != null && pulsar.getLeaderElectionService().isLeader()){
+                if (isLeader()) {
                     deleteBundleDataFromMetadataStore(bundle);
                 }
             }
@@ -650,7 +680,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public synchronized void doLoadShedding() {
         if (!isLeader()) {
-            log.debug().log("Skipping load shedding because this broker is not the leader");
             return;
         }
         if (!LoadManagerShared.isLoadSheddingEnabled(pulsar)) {
@@ -804,8 +833,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public void checkNamespaceBundleSplit() {
 
-        if (!conf.isLoadBalancerAutoBundleSplitEnabled() || pulsar.getLeaderElectionService() == null
-                || !pulsar.getLeaderElectionService().isLeader() || knownBrokers.size() <= 1) {
+        if (!conf.isLoadBalancerAutoBundleSplitEnabled() || !isLeader() || knownBrokers.size() <= 1) {
             return;
         }
         final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
@@ -814,6 +842,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             NamespaceBundleFactory namespaceBundleFactory = pulsar.getNamespaceService().getNamespaceBundleFactory();
             int splitCount = 0;
             for (String bundleName : bundlesToBeSplit.keySet()) {
+                if (!isLeader()) {
+                    break;
+                }
                 try {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundleName);
@@ -826,6 +857,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     if (!checkBundleDataExistInNamespaceBundles(bundles, bundle)) {
                         log.warn().attr("bundle", bundleName).log("Bundle has been removed, skip split this bundle");
                         continue;
+                    }
+
+                    if (!isLeader()) {
+                        break;
                     }
 
                     // Make sure the same bundle is not selected again.
@@ -846,6 +881,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     }
                     log.info().attr("bundle", bundleName).attr("unloading", isUnload)
                             .log("Load-manager splitting bundle and unloading");
+                    if (!isLeader()) {
+                        break;
+                    }
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
                             isUnload, null);
 
@@ -1241,7 +1279,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public void writeBundleDataOnZooKeeper() {
         if (!isLeader()) {
-            log.debug().log("Skipping bundle data write because this broker is not the leader");
             return;
         }
         updateBundleData();
@@ -1250,12 +1287,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
         // Write the bundle data to metadata store.
         List<CompletableFuture<Void>> futures = new ArrayList<>();
+        boolean leadershipLost = false;
 
         // use synchronized to protect bundleArr.
         synchronized (bundleArr) {
             int updateBundleCount = selectTopKBundle();
             for (Map.Entry<String, ? extends Comparable> entry : bundleArr.subList(0, updateBundleCount)) {
                 if (!isLeader()) {
+                    leadershipLost = true;
                     break;
                 }
                 futures.add(pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(
@@ -1264,16 +1303,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
 
         // Write the time average broker data to metadata store.
-        for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
-            if (!isLeader()) {
-                break;
+        if (!leadershipLost) {
+            for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
+                if (!isLeader()) {
+                    break;
+                }
+                final String broker = entry.getKey();
+                final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
+                futures.add(pulsarResources.getLoadBalanceResources()
+                        .getBrokerTimeAverageDataResources().updateTimeAverageBrokerData(broker, data));
             }
-            final String broker = entry.getKey();
-            final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
-            futures.add(pulsarResources.getLoadBalanceResources()
-                    .getBrokerTimeAverageDataResources().updateTimeAverageBrokerData(broker, data));
         }
-
         try {
             FutureUtil.waitForAll(futures).join();
         } catch (Exception e) {
