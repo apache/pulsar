@@ -367,6 +367,42 @@ public class TransactionBufferClientTest extends TransactionTestBase {
     }
 
     @Test
+    public void testTransactionBufferConnectionClosedBeforeHandshake() throws PulsarServerException {
+        PulsarService pulsarService = pulsarServiceList.get(0);
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(mockClient.getCnxPool()).thenReturn(connectionPool);
+        // Simulate ClientCnx#channelInactive completing the connection future with
+        // ConnectException("Connection already closed") before the handshake finishes.
+        when(mockClient.getConnection(anyString(), anyInt())).thenReturn(
+                CompletableFuture.failedFuture(
+                        new PulsarClientException.ConnectException("Connection already closed")));
+        when(pulsarService.getClient()).thenAnswer(new Answer<PulsarClient>(){
+
+            @Override
+            public PulsarClient answer(InvocationOnMock invocation) throws Throwable {
+                return mockClient;
+            }
+        });
+
+        @Cleanup("stop")
+        HashedWheelTimer hashedWheelTimer = new HashedWheelTimer();
+        TransactionBufferHandlerImpl transactionBufferHandler =
+                new TransactionBufferHandlerImpl(pulsarServiceList.get(0), hashedWheelTimer, 1000, 3000);
+        try {
+            transactionBufferHandler.endTxnOnTopic("test", 1, 1, TxnAction.ABORT, 1).get();
+            fail();
+        } catch (Exception e) {
+            // The connection-close failure must surface as LookupException so that
+            // TransactionMetadataStoreService#isRetryableException keeps retrying the
+            // end-txn instead of leaving the transaction stuck in COMMITTING/ABORTING.
+            assertTrue(e.getCause() instanceof PulsarClientException.LookupException,
+                    "expected LookupException but was " + e.getCause());
+            assertTrue(e.getCause().getMessage().equals("Connection already closed"));
+        }
+    }
+
+    @Test
     public void testTransactionBufferLookUp() throws Exception {
         String topic = "persistent://" + namespace + "/testTransactionBufferLookUp";
         String subName = "test";
