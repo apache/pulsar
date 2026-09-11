@@ -91,8 +91,11 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         if (!conf.isAuthenticationEnabled()) {
             throw new IOException("MultiRolesTokenAuthorizationProvider requires authenticationEnabled=true");
         }
+        // Token and OpenID share the "token" method; the service returns their AuthenticationProviderList
+        // when both are configured.
         AuthenticationProvider sharedProvider = context.authenticationService() == null ? null
-                : context.authenticationService().getAuthenticationProvider("token");
+                : context.authenticationService()
+                        .getAuthenticationProvider(TokenAuthenticationProvider.AUTH_METHOD_NAME);
         if (!(sharedProvider instanceof TokenAuthenticationProvider tokenProvider)) {
             throw new IOException("MultiRolesTokenAuthorizationProvider requires an initialized token authentication "
                     + "provider in AuthorizationProvider.InitialContext");

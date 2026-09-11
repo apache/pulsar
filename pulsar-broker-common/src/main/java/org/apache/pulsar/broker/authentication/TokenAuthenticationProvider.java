@@ -26,6 +26,8 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface TokenAuthenticationProvider extends AuthenticationProvider {
 
+    String AUTH_METHOD_NAME = "token";
+
     /**
      * Validate the token and extract the requested role claim from the same parsed token.
      * Implementations use their configured signature, issuer, audience and time checks.

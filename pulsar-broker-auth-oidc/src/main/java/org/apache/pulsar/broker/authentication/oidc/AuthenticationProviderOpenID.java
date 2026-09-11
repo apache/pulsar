@@ -89,7 +89,6 @@ import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 @CustomLog
 public class AuthenticationProviderOpenID implements TokenAuthenticationProvider {
     // Must match the value used by the OAuth2 Client Plugin.
-    private static final String AUTH_METHOD_NAME = "token";
 
     // This is backed by an ObjectMapper, which is thread safe. It is an optimization
     // to share this for decoding JWTs for all connections to this broker.

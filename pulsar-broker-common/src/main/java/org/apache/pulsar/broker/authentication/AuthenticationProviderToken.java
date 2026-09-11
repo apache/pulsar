@@ -78,7 +78,7 @@ public class AuthenticationProviderToken implements TokenAuthenticationProvider 
     // token validation.
     static final String CONF_TOKEN_ALLOWED_CLOCK_SKEW_SECONDS = "tokenAllowedClockSkewSeconds";
 
-    static final String TOKEN = "token";
+    static final String TOKEN = AUTH_METHOD_NAME;
 
     private Key validationKey;
     private String roleClaim;
@@ -154,7 +154,7 @@ public class AuthenticationProviderToken implements TokenAuthenticationProvider 
 
     @Override
     public String getAuthMethodName() {
-        return TOKEN;
+        return AUTH_METHOD_NAME;
     }
 
     @Override
