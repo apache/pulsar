@@ -25,8 +25,8 @@ import org.apache.pulsar.client.api.v5.MessageMetadata;
 /**
  * Asynchronous message builder, obtained from {@link AsyncProducer#newMessage()}.
  *
- * <p>Inherits all metadata setters from {@link MessageMetadata} and adds a
- * non-blocking {@link #send()} terminal operation.
+ * <p>Inherits all metadata setters from {@link MessageMetadata} and adds an
+ * asynchronous {@link #send()} terminal operation.
  *
  * @param <T> the type of the message value
  */
@@ -34,6 +34,18 @@ public interface AsyncMessageBuilder<T> extends MessageMetadata<T, AsyncMessageB
 
     /**
      * Send the message asynchronously.
+     *
+     * <p>The message is charged against the client memory limit before this method returns. When
+     * the limit is reached, the call blocks until pending messages have been acknowledged and there
+     * is room again, or, with {@link org.apache.pulsar.client.api.v5.ProducerBuilder#blockIfQueueFull(boolean)}
+     * set to {@code false}, the returned future fails right away with
+     * {@link org.apache.pulsar.client.api.v5.PulsarClientException.MemoryBufferIsFullException}.
+     * Once accepted, the message is queued and the future completes when the broker acknowledges it.
+     *
+     * <p>The future completes on one of the client's threads: for an acknowledged message, the IO
+     * thread that received the acknowledgement. Code chained on it must not block. A send issued
+     * from a continuation running on an IO thread never waits for room under the memory limit: at
+     * the limit it fails with the same exception, whatever the {@code blockIfQueueFull} setting.
      *
      * @return a {@link CompletableFuture} that completes with the {@link MessageId} assigned
      *         to the published message by the broker
