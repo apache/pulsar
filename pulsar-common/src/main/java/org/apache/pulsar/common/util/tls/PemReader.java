@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util.tls;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,16 +45,12 @@ import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * Parses PEM-encoded X.509 certificates and PKCS#8 private keys from files and streams. This is the single
- * shared PEM-parsing primitive extracted from the {@code SecurityUtility} grab-bag (PIP-478): it holds
- * no TLS-context assembly or security-provider concerns, only the file/stream-to-material parsing that several
- * callers (the file-based TLS material sources and {@code AuthenticationDataTls}) reuse.
+ * Parses PEM-encoded X.509 certificates and PKCS#8 or PKCS#1 RSA private keys from files and streams.
  *
- * <p>Every entry point has an overload taking a pinned JCA {@link Provider} (the PIP-478 {@code jcaProvider}):
- * with {@code null} — and in the no-provider overloads — the JVM provider search order is used, exactly as
- * before; with a provider the {@code CertificateFactory}/{@code KeyFactory} engines that manufacture the
- * {@code X509Certificate}/{@code PrivateKey} objects come from that provider, so a FIPS deployment parses its
- * material inside the validated module.
+ * <p>Every entry point has an overload taking a pinned JCA {@link Provider}. With {@code null}, or in the
+ * no-provider overloads, the JVM provider search order is used. With a provider, the
+ * {@code CertificateFactory} and {@code KeyFactory} engines that create the certificates and private keys
+ * come from that provider.
  */
 @CustomLog
 public final class PemReader {
@@ -128,7 +125,7 @@ public final class PemReader {
     }
 
     /**
-     * Load a PKCS#8 PEM private key, manufacturing the key object with a pinned JCA provider.
+     * Load a PKCS#8 or PKCS#1 RSA PEM private key, manufacturing the key object with a pinned JCA provider.
      *
      * @param keyFilePath the PEM file path
      * @param jcaProvider the pinned JCA provider, or {@code null} for the JVM provider search order
@@ -157,7 +154,8 @@ public final class PemReader {
     }
 
     /**
-     * Load a PKCS#8 PEM private key from a stream, manufacturing the key object with a pinned JCA provider.
+     * Load a PKCS#8 or PKCS#1 RSA PEM private key from a stream, manufacturing the key object
+     * with a pinned JCA provider.
      *
      * <p>The existing per-algorithm loop degrades naturally: an algorithm the pinned provider does not supply
      * is skipped like an algorithm that does not match the key, and the same loud "algorithm is not supported"
@@ -174,8 +172,6 @@ public final class PemReader {
             return null;
         }
 
-        PrivateKey privateKey;
-
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(inStream, StandardCharsets.UTF_8))) {
             if (inStream.markSupported()) {
                 inStream.reset();
@@ -183,20 +179,33 @@ public final class PemReader {
             StringBuilder sb = new StringBuilder();
             String currentLine = null;
 
-            // Jump to the first line after -----BEGIN [RSA] PRIVATE KEY-----.
-            // One line is consumed per iteration: the extracted-from version discarded a second line in the
-            // loop body, so a file whose BEGIN line sat at an ODD offset (one leading comment, blank line, or
-            // openssl "Bag Attributes" header) had that BEGIN line swallowed, ran the scan to EOF, and failed
-            // with the misleading "private key algorithm is not supported" below.
-            while ((currentLine = reader.readLine()) != null && !currentLine.startsWith("-----BEGIN")) {
-                // skip preamble
+            // Skip preamble lines and allow whitespace around PEM boundaries.
+            while ((currentLine = reader.readLine()) != null) {
+                currentLine = currentLine.strip();
+                if (currentLine.startsWith("-----BEGIN")) {
+                    break;
+                }
             }
 
-            // Stop (and skip) at the last line that has, say, -----END [RSA] PRIVATE KEY-----
-            while ((currentLine = reader.readLine()) != null && !currentLine.startsWith("-----END")) {
-                sb.append(currentLine);
+            boolean pkcs1Rsa = "-----BEGIN RSA PRIVATE KEY-----".equals(currentLine);
+
+            // BufferedReader handles LF, CRLF and CR. Ignore whitespace in the Base64 body (RFC 7468 section 2).
+            while ((currentLine = reader.readLine()) != null) {
+                if (currentLine.strip().startsWith("-----END")) {
+                    break;
+                }
+                for (int i = 0; i < currentLine.length(); i++) {
+                    char c = currentLine.charAt(i);
+                    if (c != ' ' && (c < '\t' || c > '\r')) {
+                        sb.append(c);
+                    }
+                }
             }
-            final KeySpec keySpec = new PKCS8EncodedKeySpec(Base64.getDecoder().decode(sb.toString()));
+            byte[] encodedKey = Base64.getDecoder().decode(sb.toString());
+            if (pkcs1Rsa) {
+                encodedKey = wrapRsaPkcs1Key(encodedKey);
+            }
+            final KeySpec keySpec = new PKCS8EncodedKeySpec(encodedKey);
             final List<String> failedAlgorithm = new ArrayList<>(KEY_FACTORY_ALGORITHMS.size());
             for (String algorithm : KEY_FACTORY_ALGORITHMS) {
                 try {
@@ -216,5 +225,39 @@ public final class PemReader {
             throw new KeyManagementException("Private key loading error", e);
         }
 
+    }
+
+    /**
+     * PKCS#8 PrivateKeyInfo contains a version, an AlgorithmIdentifier and the PKCS#1 key in an OCTET STRING.
+     * Only add the envelope here; key parsing and validation remain with the selected JCA provider.
+     *
+     * @see <a href="https://www.rfc-editor.org/rfc/rfc5208.html#section-5">RFC 5208 section 5: PrivateKeyInfo</a>
+     * @see <a href="https://www.rfc-editor.org/rfc/rfc8017.html#appendix-A.1">RFC 8017 appendix A.1:
+     *      rsaEncryption identifier and NULL parameters</a>
+     */
+    private static byte[] wrapRsaPkcs1Key(byte[] pkcs1Key) {
+        ByteArrayOutputStream content = new ByteArrayOutputStream();
+        content.writeBytes(new byte[]{0x02, 0x01, 0x00}); // version 0
+        // rsaEncryption (1.2.840.113549.1.1.1), with NULL parameters.
+        content.writeBytes(new byte[]{0x30, 0x0d, 0x06, 0x09, 0x2a, (byte) 0x86, 0x48,
+                (byte) 0x86, (byte) 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00});
+        content.writeBytes(encodeDerValue(0x04, pkcs1Key));
+        return encodeDerValue(0x30, content.toByteArray());
+    }
+
+    private static byte[] encodeDerValue(int tag, byte[] value) {
+        ByteArrayOutputStream encoded = new ByteArrayOutputStream();
+        encoded.write(tag);
+        if (value.length < 128) {
+            encoded.write(value.length);
+        } else {
+            int lengthBytes = (Integer.SIZE - Integer.numberOfLeadingZeros(value.length) + 7) / 8;
+            encoded.write(0x80 | lengthBytes);
+            for (int shift = (lengthBytes - 1) * 8; shift >= 0; shift -= 8) {
+                encoded.write(value.length >>> shift);
+            }
+        }
+        encoded.writeBytes(value);
+        return encoded.toByteArray();
     }
 }
