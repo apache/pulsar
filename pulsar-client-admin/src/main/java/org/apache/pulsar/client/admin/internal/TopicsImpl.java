@@ -2061,7 +2061,7 @@ public class TopicsImpl extends BaseResource implements Topics {
     public CompletableFuture<Void> setOffloadPoliciesAsync(String topic, OffloadPolicies offloadPolicies) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "offloadPolicies");
-        return asyncPostRequest(path, Entity.entity((OffloadPoliciesImpl) offloadPolicies, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity(offloadPolicies, MediaType.APPLICATION_JSON));
     }
 
     @Override
