@@ -143,7 +143,7 @@ test_group_shade_run() {
     :tests:pulsar-client-admin-v5-test:test \
     :tests:pulsar-client-admin-v5-test:testReversedClasspath \
     :tests:pulsar-client-all-shade-test:test \
-    :tests:pulsar-client-v5-all-shade-test:test \
+    :tests:pulsar-client-v5-shade-test:test \
     :tests:pulsar-client-v5-all-test:test \
     "$@"
   echo "::endgroup::"

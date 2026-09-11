@@ -27,12 +27,12 @@ import org.gradle.api.tasks.PathSensitivity
 import java.util.zip.ZipFile
 
 // Convention plugin for Pulsar client shaded modules (pulsar-client-shaded,
-// pulsar-client-admin-shaded, pulsar-client-all, pulsar-client-v5-all). Configures the shadow jar
+// pulsar-client-admin-shaded, pulsar-client-all, pulsar-client-v5-shaded). Configures the shadow jar
 // with the shared dependency includes, file excludes, relocations, and
 // filesMatching blocks. Modules only need to define their project dependencies.
 
 plugins {
-    id("pulsar.shadow-base-conventions")
+    id("pulsar.shadow-conventions")
 }
 
 val shadePrefix = "org.apache.pulsar.shade"

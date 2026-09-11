@@ -46,8 +46,9 @@ dependencies {
         api(project(":pulsar-client-shaded"))
         api(project(":pulsar-client-admin-shaded"))
         api(project(":pulsar-client-all"))
+        api(project(":pulsar-client-v5-shaded"))
 
-        // Combined v4/v5 client and admin, with an optional shaded classifier
+        // Combined unshaded v4/v5 client and admin
         api(project(":pulsar-client-v5-all"))
 
         // Original (unshaded) clients

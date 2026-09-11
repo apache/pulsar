@@ -25,7 +25,7 @@ plugins {
 
 dependencies {
     // Exercise the published shaded variant without original implementation dependencies.
-    testImplementation(project(":pulsar-client-v5-all")) {
+    testImplementation(project(":pulsar-client-v5-shaded")) {
         attributes {
             attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.SHADOWED))
         }

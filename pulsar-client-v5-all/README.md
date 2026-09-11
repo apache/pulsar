@@ -17,31 +17,25 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Combined Java client and admin dependency
+# Combined Java client and admin dependencies
 
-Use `org.apache.pulsar:pulsar-client-v5-all` for applications using the Pulsar Java
-client, the admin API, or both. It includes the **v4 and v5 client implementations**
-as well as the admin implementation. Applications using the v4 API can migrate
-this dependency before migrating their source code to the v5 API.
+Use one combined dependency for applications using the Pulsar Java client,
+the admin API, or both. **Both choices include the v4 client, v5 client, and admin
+implementation.** Applications using the v4 API can migrate their dependency before
+migrating source code to the v5 API.
 
-Choose one of these forms:
+| Artifact | Dependency graph |
+| --- | --- |
+| `pulsar-client-v5-all` | Unshaded aggregate; resolves the client/admin implementations transitively |
+| `pulsar-client-v5-shaded` | One jar containing relocated client/admin implementations and third-party dependencies |
 
-| Form | Contents | Dependency selection |
-| --- | --- | --- |
-| Ordinary artifact | Unshaded aggregate depending on the v5 client and unshaded admin implementation | No classifier |
-| Shaded artifact | One jar bundling the v4/v5 clients, admin implementation, and relocated third-party dependencies | Gradle shaded variant; Maven `all` classifier |
-
-Both forms keep `pulsar-client-api`, `pulsar-client-api-v5`,
+The shaded artifact keeps `pulsar-client-api`, `pulsar-client-api-v5`,
 `pulsar-client-admin-api`, `pulsar-tls-factory-api`, and `pulsar-http-client-api`
-unshaded as external dependencies. Logging, BouncyCastle, and the other
-non-bundled dependencies remain external too. Applications using protobuf schemas
-must also provide `protobuf-java`.
+unshaded as external dependencies. Logging, BouncyCastle, and other intentionally
+non-bundled libraries remain external too. Applications using protobuf schemas must
+also provide `protobuf-java`.
 
-## Ordinary dependency
-
-The default artifact resolves the unshaded implementations transitively. Examples
-and applications need only the aggregate dependency, without naming the individual
-implementation artifacts.
+## Unshaded dependency
 
 Gradle Kotlin DSL (`pulsarVersion` is your Pulsar release version):
 
@@ -63,70 +57,55 @@ Maven (`pulsar.version` is your Pulsar release version):
 
 ## Shaded dependency
 
+Use `pulsar-client-v5-shaded` as an ordinary dependency, with no classifier,
+variant attributes, or implementation exclusions required on this dependency.
+Despite its name, it includes the admin implementation and v4 client too.
+
 ### Gradle
 
-Gradle consumers should select the shaded variant. Gradle Module Metadata selects
-both the `all` jar and the matching external dependencies, without pulling in the
-unshaded implementation graph. Prefer this to selecting a classifier directly.
-
 ```kotlin
-import org.gradle.api.attributes.Bundling
-
 dependencies {
-    implementation("org.apache.pulsar:pulsar-client-v5-all:$pulsarVersion") {
-        attributes {
-            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.SHADOWED))
-        }
-    }
+    implementation("org.apache.pulsar:pulsar-client-v5-shaded:$pulsarVersion")
 }
 ```
 
 ### Maven
 
-Add the following dependency to the `<dependencies>` section of your `pom.xml`,
-with `pulsar.version` set to your Pulsar release version. The `all` classifier
-selects the shaded jar.
-
-Maven classifiers share one POM. Consequently, selecting `all` alone still brings
-in the ordinary artifact's unshaded implementation dependencies. Exclude the three
-bundled implementation roots below; the API modules and non-bundled dependencies
-remain available through direct dependencies in the shared POM.
+Add this to the `<dependencies>` section of your `pom.xml`:
 
 ```xml
 <dependency>
   <groupId>org.apache.pulsar</groupId>
-  <artifactId>pulsar-client-v5-all</artifactId>
+  <artifactId>pulsar-client-v5-shaded</artifactId>
   <version>${pulsar.version}</version>
-  <classifier>all</classifier>
-  <exclusions>
-    <exclusion>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-client-v5</artifactId>
-    </exclusion>
-    <exclusion>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-client-admin-original</artifactId>
-    </exclusion>
-    <exclusion>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-client-messagecrypto-bc</artifactId>
-    </exclusion>
-  </exclusions>
 </dependency>
 ```
 
+### Why a separate artifact instead of a classifier?
+
+[Maven classifiers](https://maven.apache.org/pom.html) share the main artifact's
+POM and dependency list. Selecting a
+shaded classifier on an unshaded aggregate still pulls in the unshaded client/admin
+implementations and their transitive dependencies. The classifier changes the jar
+selected, not its dependency graph.
+
+`pulsar-client-v5-shaded` has its own dependency-reduced POM, containing only the
+external APIs and intentionally non-bundled libraries. Both Maven and Gradle can
+therefore select it with one ordinary dependency declaration. No shaded classifier
+is published for `pulsar-client-v5-all`.
+
 ## Migrating existing applications
 
-Migrate applications, including those still using the v4 client API, to
-`pulsar-client-v5-all` in its ordinary or shaded form. Replace separate
-`pulsar-client` and `pulsar-client-admin` dependencies, and replace the older
-`pulsar-client-all` aggregate where present. The admin Java artifact is named
-`pulsar-client-admin`; `pulsar-admin` is the CLI name.
+Migrate applications, including those still using the v4 client API, to either
+`pulsar-client-v5-all` or `pulsar-client-v5-shaded`. Replace separate `pulsar-client`
+and `pulsar-client-admin` dependencies, and replace the older `pulsar-client-all`
+aggregate where present. The admin Java artifact is named `pulsar-client-admin`;
+`pulsar-admin` is the CLI name.
 
 Also exclude `pulsar-client` and `pulsar-client-admin` from dependencies that pull
-them in transitively. Keeping those shaded jars alongside the aggregate duplicates
-client/admin implementations and bundled libraries on the classpath. For the
-shaded choice, also remove any separately declared unshaded implementations.
+them in transitively. Keeping those shaded jars alongside the combined dependency
+duplicates client/admin implementations and bundled libraries on the classpath.
+For the shaded choice, also remove separately declared unshaded implementations.
 
 For example, apply these exclusions to Gradle application configurations:
 
@@ -155,4 +134,4 @@ legacy artifacts; Maven exclusions apply to a dependency's subtree, not globally
 
 Inspect the resolved runtime dependency graph to verify that the legacy artifacts
 are gone. Code that directly imports relocated implementation or third-party
-classes must migrate to the public APIs or use the ordinary unshaded form.
+classes must migrate to the public APIs or use the unshaded aggregate.

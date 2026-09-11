@@ -29,6 +29,6 @@ dependencies {
 // Exercise the same public API scenario with the ordinary, unshaded dependency graph.
 sourceSets.test {
     java.srcDir("../pulsar-client-admin-v5-test/src/test/java")
-    java.srcDir("../pulsar-client-v5-all-shade-test/src/test/java")
+    java.srcDir("../pulsar-client-v5-shade-test/src/test/java")
     java.include("**/AdminV5MessagingTest.java", "**/PulsarContainer.java", "**/ClientClasspathTest.java")
 }
