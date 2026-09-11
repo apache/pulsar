@@ -29,6 +29,8 @@ import java.security.KeyManagementException;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.interfaces.ECPrivateKey;
+import java.security.spec.ECGenParameterSpec;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -171,6 +173,70 @@ public class PemReaderTest {
         Provider emptyProvider = new Provider("NoKeyFactories", "1.0", "No key factories for testing") { };
         assertThatThrownBy(() -> PemReader.loadPrivateKeyFromPemStream(
                 new ByteArrayInputStream(pem.getBytes(StandardCharsets.UTF_8)), emptyProvider))
+                .isInstanceOf(KeyManagementException.class);
+    }
+
+    @DataProvider(name = "ecCurves")
+    public static Object[][] ecCurves() {
+        return new Object[][]{{"secp256r1"}, {"secp384r1"}, {"secp521r1"}};
+    }
+
+    @Test(dataProvider = "ecCurves")
+    public void loadsTraditionalEcPrivateKey(String curve) throws Exception {
+        KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
+        generator.initialize(new ECGenParameterSpec(curve));
+        ECPrivateKey expected = (ECPrivateKey) generator.generateKeyPair().getPrivate();
+        PrivateKeyInfo info = PrivateKeyInfo.getInstance(expected.getEncoded());
+        // The ASN.1 and JCA types share a simple name; keep the less-used ASN.1 type qualified.
+        byte[] sec1 = new org.bouncycastle.asn1.sec.ECPrivateKey(expected.getParams().getOrder().bitLength(),
+                expected.getS(), info.getPrivateKeyAlgorithm().getParameters()).getEncoded();
+        String pem = toPem("EC PRIVATE KEY", sec1);
+        for (Provider provider : new Provider[]{null, KeyFactory.getInstance("EC").getProvider()}) {
+            Path file = writeKeyWithPreamble(3, pem);
+            ECPrivateKey actual = (ECPrivateKey) PemReader.loadPrivateKeyFromPemFile(file.toString(), provider);
+            assertThat(actual.getS()).isEqualTo(expected.getS());
+            assertThat(actual.getParams().getOrder()).isEqualTo(expected.getParams().getOrder());
+            String whitespacePem = pem.replace("\n", " \t\r\n");
+            assertThat(((ECPrivateKey) PemReader.loadPrivateKeyFromPemStream(new ByteArrayInputStream(
+                    whitespacePem.getBytes(StandardCharsets.UTF_8)), provider)).getS()).isEqualTo(expected.getS());
+        }
+        Provider emptyProvider = new Provider("NoKeyFactories", "1.0", "No key factories for testing") { };
+        assertThatThrownBy(() -> PemReader.loadPrivateKeyFromPemStream(
+                new ByteArrayInputStream(pem.getBytes(StandardCharsets.UTF_8)), emptyProvider))
+                .isInstanceOf(KeyManagementException.class)
+                .hasMessageContaining("algorithm is not supported");
+    }
+
+    @Test
+    public void explainsMissingBcpkixForTraditionalEcKey() {
+        ClassLoader withoutBcpkix = new ClassLoader(PemReader.class.getClassLoader()) {
+            @Override
+            protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+                if (name.startsWith("org.bouncycastle.openssl.")) {
+                    throw new ClassNotFoundException(name);
+                }
+                return super.loadClass(name, resolve);
+            }
+        };
+        assertThatThrownBy(() -> PemReader.convertEcPrivateKey("MAA=", withoutBcpkix))
+                .isInstanceOf(KeyManagementException.class)
+                .hasMessageContaining("bcpkix")
+                .hasMessageContaining("class path")
+                .hasMessageContaining("BEGIN EC PRIVATE KEY")
+                .hasMessageContaining("convert the key to PKCS#8")
+                .hasCauseInstanceOf(ClassNotFoundException.class);
+    }
+
+    @DataProvider(name = "malformedEcKeys")
+    public static Object[][] malformedEcKeys() {
+        return new Object[][]{{new byte[]{0x30, 0x00}}, {new byte[]{0x30, 0x7f}}};
+    }
+
+    @Test(dataProvider = "malformedEcKeys")
+    public void rejectsMalformedTraditionalEcKey(byte[] encoded) {
+        String pem = toPem("EC PRIVATE KEY", encoded);
+        assertThatThrownBy(() -> PemReader.loadPrivateKeyFromPemStream(
+                new ByteArrayInputStream(pem.getBytes(StandardCharsets.UTF_8))))
                 .isInstanceOf(KeyManagementException.class);
     }
 

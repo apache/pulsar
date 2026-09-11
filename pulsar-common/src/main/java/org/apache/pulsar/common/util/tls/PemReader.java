@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.common.util.tls;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
+import java.io.StringReader;
+import java.lang.reflect.InvocationTargetException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -45,7 +49,9 @@ import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 
 /**
- * Parses PEM-encoded X.509 certificates and PKCS#8 or PKCS#1 RSA private keys from files and streams.
+ * Parses PEM-encoded X.509 certificates and PKCS#8, PKCS#1 RSA or SEC1 EC private keys from files and streams.
+ *
+ * <p>SEC1 EC keys require Bouncy Castle bcpkix and its matching dependencies on the class path.
  *
  * <p>Every entry point has an overload taking a pinned JCA {@link Provider}. With {@code null}, or in the
  * no-provider overloads, the JVM provider search order is used. With a provider, the
@@ -125,7 +131,7 @@ public final class PemReader {
     }
 
     /**
-     * Load a PKCS#8 or PKCS#1 RSA PEM private key, manufacturing the key object with a pinned JCA provider.
+     * Load a PKCS#8, PKCS#1 RSA or SEC1 EC PEM private key, manufacturing the key object with a pinned JCA provider.
      *
      * @param keyFilePath the PEM file path
      * @param jcaProvider the pinned JCA provider, or {@code null} for the JVM provider search order
@@ -154,7 +160,7 @@ public final class PemReader {
     }
 
     /**
-     * Load a PKCS#8 or PKCS#1 RSA PEM private key from a stream, manufacturing the key object
+     * Load a PKCS#8, PKCS#1 RSA or SEC1 EC PEM private key from a stream, manufacturing the key object
      * with a pinned JCA provider.
      *
      * <p>The existing per-algorithm loop degrades naturally: an algorithm the pinned provider does not supply
@@ -187,6 +193,7 @@ public final class PemReader {
                 }
             }
 
+            boolean sec1Ec = "-----BEGIN EC PRIVATE KEY-----".equals(currentLine);
             boolean pkcs1Rsa = "-----BEGIN RSA PRIVATE KEY-----".equals(currentLine);
 
             // BufferedReader handles LF, CRLF and CR. Ignore whitespace in the Base64 body (RFC 7468 section 2).
@@ -201,9 +208,14 @@ public final class PemReader {
                     }
                 }
             }
-            byte[] encodedKey = Base64.getDecoder().decode(sb.toString());
-            if (pkcs1Rsa) {
-                encodedKey = wrapRsaPkcs1Key(encodedKey);
+            byte[] encodedKey;
+            if (sec1Ec) {
+                encodedKey = convertEcPrivateKey(sb.toString(), PemReader.class.getClassLoader());
+            } else {
+                encodedKey = Base64.getDecoder().decode(sb.toString());
+                if (pkcs1Rsa) {
+                    encodedKey = wrapRsaPkcs1Key(encodedKey);
+                }
             }
             final KeySpec keySpec = new PKCS8EncodedKeySpec(encodedKey);
             final List<String> failedAlgorithm = new ArrayList<>(KEY_FACTORY_ALGORITHMS.size());
@@ -225,6 +237,35 @@ public final class PemReader {
             throw new KeyManagementException("Private key loading error", e);
         }
 
+    }
+
+    /**
+     * Use optional Bouncy Castle PKIX classes only for SEC1 decoding. The resulting PKCS#8 bytes still
+     * pass through the selected JCA provider; parsing does not register or select a BC provider.
+     */
+    @VisibleForTesting
+    static byte[] convertEcPrivateKey(String base64, ClassLoader classLoader) throws KeyManagementException {
+        try {
+            Class<?> parserClass = Class.forName("org.bouncycastle.openssl.PEMParser", true, classLoader);
+            Class<?> keyPairClass = Class.forName("org.bouncycastle.openssl.PEMKeyPair", true, classLoader);
+            Class<?> keyInfoClass = Class.forName("org.bouncycastle.asn1.pkcs.PrivateKeyInfo", true, classLoader);
+            String pem = "-----BEGIN EC PRIVATE KEY-----\n" + base64 + "\n-----END EC PRIVATE KEY-----\n";
+            try (Reader parser = (Reader) parserClass.getConstructor(Reader.class).newInstance(new StringReader(pem))) {
+                Object keyPair = parserClass.getMethod("readObject").invoke(parser);
+                if (!keyPairClass.isInstance(keyPair)) {
+                    throw new KeyManagementException("Invalid BEGIN EC PRIVATE KEY file: expected an EC key pair");
+                }
+                Object keyInfo = keyPairClass.getMethod("getPrivateKeyInfo").invoke(keyPair);
+                return (byte[]) keyInfoClass.getMethod("getEncoded").invoke(keyInfo);
+            }
+        } catch (ClassNotFoundException | LinkageError e) {
+            throw new KeyManagementException("Bouncy Castle bcpkix and its matching dependencies must be on the "
+                    + "class path to parse BEGIN EC PRIVATE KEY files, or convert the key to PKCS#8", e);
+        } catch (InvocationTargetException e) {
+            throw new KeyManagementException("Failed to parse BEGIN EC PRIVATE KEY file", e.getCause());
+        } catch (ReflectiveOperationException | IOException e) {
+            throw new KeyManagementException("Failed to parse BEGIN EC PRIVATE KEY file", e);
+        }
     }
 
     /**
