@@ -267,6 +267,7 @@ project(":tests:integration").projectDir = file("tests/integration")
 
 include("tests:pulsar-client-shade-test")
 project(":tests:pulsar-client-shade-test").projectDir = file("tests/pulsar-client-shade-test")
+include("tests:pulsar-client-admin-v5-test")
 include("tests:pulsar-client-admin-shade-test")
 project(":tests:pulsar-client-admin-shade-test").projectDir = file("tests/pulsar-client-admin-shade-test")
 include("tests:pulsar-client-all-shade-test")

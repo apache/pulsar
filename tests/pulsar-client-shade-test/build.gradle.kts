@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import org.gradle.api.attributes.Bundling
+
 plugins {
     id("pulsar.java-conventions")
 }
@@ -28,8 +30,16 @@ plugins {
 
 dependencies {
     implementation(libs.slog)
-    testImplementation(project(":pulsar-client-shaded"))
-    testImplementation(project(":pulsar-client-admin-shaded"))
+    testImplementation(project(":pulsar-client-shaded")) {
+        attributes {
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.SHADOWED))
+        }
+    }
+    testImplementation(project(":pulsar-client-admin-shaded")) {
+        attributes {
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.SHADOWED))
+        }
+    }
     // API modules are not bundled in the shaded JARs
     testImplementation(project(":pulsar-client-api"))
     testImplementation(project(":pulsar-client-admin-api"))

@@ -140,6 +140,8 @@ test_group_shade_run() {
   ./gradlew --no-configuration-cache \
     :tests:pulsar-client-shade-test:test \
     :tests:pulsar-client-admin-shade-test:test \
+    :tests:pulsar-client-admin-v5-test:test \
+    :tests:pulsar-client-admin-v5-test:testReversedClasspath \
     :tests:pulsar-client-all-shade-test:test \
     "$@"
   echo "::endgroup::"
