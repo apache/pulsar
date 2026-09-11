@@ -38,6 +38,8 @@ import java.security.Key;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import org.apache.commons.lang3.StringUtils;
@@ -47,7 +49,7 @@ import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 
 @SuppressWarnings({"deprecation", "unchecked"})
-public class AuthenticationProviderToken implements AuthenticationProvider {
+public class AuthenticationProviderToken implements TokenAuthenticationProvider {
 
     static final String HTTP_HEADER_NAME = "Authorization";
     static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
@@ -162,6 +164,24 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+        String role = getPrincipal(authenticateClaims(authData));
+        authenticationMetricsToken.recordSuccess();
+        return role;
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> authenticateRolesAsync(AuthenticationDataSource authData, String roleClaim) {
+        try {
+            Set<String> roles = AuthTokenUtils.rolesFromClaim(
+                    authenticateClaims(authData).getPayload().get(roleClaim));
+            authenticationMetricsToken.recordSuccess();
+            return CompletableFuture.completedFuture(roles);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    private Jws<Claims> authenticateClaims(AuthenticationDataSource authData) throws AuthenticationException {
         String token;
         try {
             // Get Token
@@ -170,10 +190,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
             incrementFailureMetric(ErrorCode.INVALID_AUTH_DATA);
             throw exception;
         }
-        // Parse Token by validating
-        String role = getPrincipal(authenticateToken(token));
-        authenticationMetricsToken.recordSuccess();
-        return role;
+        return authenticateToken(token);
     }
 
     @Override

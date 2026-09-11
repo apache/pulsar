@@ -2219,8 +2219,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "If this flag is set then the broker authenticates the original Auth data"
-            + " else it just accepts the originalPrincipal and authorizes it (if required)")
-    private boolean authenticateOriginalAuthData = false;
+            + " else it just accepts the originalPrincipal and authorizes it (if required)."
+            + " Set false for TLS client-certificate authentication through a proxy, since the broker"
+            + " receives the proxy certificate rather than the client certificate.")
+    private boolean authenticateOriginalAuthData = true;
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,

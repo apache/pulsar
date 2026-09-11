@@ -18,19 +18,10 @@
  */
 package org.apache.pulsar.broker.authorization;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.jsonwebtoken.JwtParser;
-import io.jsonwebtoken.Jwts;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -41,6 +32,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
+import org.apache.pulsar.broker.authentication.AuthenticationProvider;
+import org.apache.pulsar.broker.authentication.TokenAuthenticationProvider;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -55,11 +48,15 @@ import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 
+/**
+ * Authorizes roles in JWTs authenticated by a {@link TokenAuthenticationProvider}.
+ *
+ * <p>Authorization obtains roles asynchronously from the existing authentication provider's validated
+ * token, using its configured keys, issuer, audience and clock-skew handling. Proxies must forward
+ * the original credentials and brokers must authenticate them.
+ */
 @CustomLog
 public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationProvider {
-
-    static final String HTTP_HEADER_NAME = "Authorization";
-    static final String HTTP_HEADER_VALUE_PREFIX = "Bearer ";
 
     // When symmetric key is configured
     static final String CONF_TOKEN_SETTING_PREFIX = "tokenSettingPrefix";
@@ -69,18 +66,18 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
 
     static final String DEFAULT_ROLE_CLAIM = "roles";
 
-    private static final ObjectMapper mapper = new ObjectMapper();
+    private String roleClaim = DEFAULT_ROLE_CLAIM;
+    private TokenAuthenticationProvider authenticationProvider;
 
-    private final JwtParser parser;
-    private String roleClaim;
-
-    public MultiRolesTokenAuthorizationProvider() {
-        this.roleClaim = DEFAULT_ROLE_CLAIM;
-        this.parser = Jwts.parser().unsecured().build();
+    @Deprecated
+    @Override
+    public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
+        initialize(new InitialContext(conf, pulsarResources, null));
     }
 
     @Override
-    public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
+    public void initialize(InitialContext context) throws IOException {
+        ServiceConfiguration conf = context.config();
         String prefix = (String) conf.getProperty(CONF_TOKEN_SETTING_PREFIX);
         if (null == prefix) {
             prefix = "";
@@ -91,7 +88,18 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
             this.roleClaim = (String) tokenAuthClaim;
         }
 
-        super.initialize(conf, pulsarResources);
+        if (!conf.isAuthenticationEnabled()) {
+            throw new IOException("MultiRolesTokenAuthorizationProvider requires authenticationEnabled=true");
+        }
+        AuthenticationProvider sharedProvider = context.authenticationService() == null ? null
+                : context.authenticationService().getAuthenticationProvider("token");
+        if (!(sharedProvider instanceof TokenAuthenticationProvider tokenProvider)) {
+            throw new IOException("MultiRolesTokenAuthorizationProvider requires an initialized token authentication "
+                    + "provider in AuthorizationProvider.InitialContext");
+        }
+        authenticationProvider = tokenProvider;
+
+        super.initialize(context);
     }
 
     @Override
@@ -105,22 +113,21 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         if (role != null && superUserRoles.contains(role)) {
             return CompletableFuture.completedFuture(true);
         }
-        Set<String> roles = getRoles(role, authenticationData);
-        if (roles.isEmpty()) {
-            return CompletableFuture.completedFuture(false);
-        }
-        return CompletableFuture.completedFuture(roles.stream().anyMatch(superUserRoles::contains));
+        return getRolesAsync(role, authenticationData)
+                .thenApply(roles -> roles.stream().anyMatch(superUserRoles::contains));
     }
 
     @Override
     public CompletableFuture<Boolean> validateTenantAdminAccess(String tenantName, String role,
                                                                 AuthenticationDataSource authData) {
-        return isSuperUser(role, authData, conf)
-                .thenCompose(isSuperUser -> {
-                    if (isSuperUser) {
+        if (role != null && conf.getSuperUserRoles().contains(role)) {
+            return CompletableFuture.completedFuture(true);
+        }
+        return getRolesAsync(role, authData)
+                .thenCompose(roles -> {
+                    if (roles.stream().anyMatch(conf.getSuperUserRoles()::contains)) {
                         return CompletableFuture.completedFuture(true);
                     }
-                    Set<String> roles = getRoles(role, authData);
                     if (roles.isEmpty()) {
                         return CompletableFuture.completedFuture(false);
                     }
@@ -159,72 +166,33 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                 });
     }
 
-    @SuppressWarnings({"deprecation", "unchecked"})
-    private Set<String> getRoles(String role, AuthenticationDataSource authData) {
-        if (authData == null || (authData instanceof AuthenticationDataSubscription
-                && ((AuthenticationDataSubscription) authData).getAuthData() == null)) {
-            return Collections.singleton(role);
+    private CompletableFuture<Set<String>> getRolesAsync(String role, AuthenticationDataSource authData) {
+        if (authData == null || (authData instanceof AuthenticationDataSubscription subscription
+                && subscription.getAuthData() == null)) {
+            return CompletableFuture.completedFuture(
+                    role == null ? Collections.emptySet() : Collections.singleton(role));
         }
-
-        String token = null;
-
-        if (authData.hasDataFromCommand()) {
-            // Authenticate Pulsar binary connection
-            token = authData.getCommandData();
-            if (StringUtils.isBlank(token)) {
-                return Collections.emptySet();
-            }
-        } else if (authData.hasDataFromHttp()) {
-            // The format here should be compliant to RFC-6750
-            // (https://tools.ietf.org/html/rfc6750#section-2.1). Eg: Authorization: Bearer xxxxxxxxxxxxx
-            String httpHeaderValue = authData.getHttpHeader(HTTP_HEADER_NAME);
-            if (httpHeaderValue == null || !httpHeaderValue.startsWith(HTTP_HEADER_VALUE_PREFIX)) {
-                return Collections.emptySet();
-            }
-
-            // Remove prefix
-            token = httpHeaderValue.substring(HTTP_HEADER_VALUE_PREFIX.length());
-        }
-
-        if (token == null) {
-            return Collections.emptySet();
-        }
-
-        String[] splitToken = token.split("\\.");
-        if (splitToken.length < 2) {
-            log.warn("Unable to extract additional roles from JWT token");
-            return Collections.emptySet();
-        }
-        String unsignedToken = replaceAlgWithNoneInHeader(splitToken[0]) + "." + splitToken[1] + ".";
-        Object jwtRole = parser.parseUnsecuredClaims(unsignedToken).getBody().get(roleClaim);
-        if (jwtRole instanceof String) {
-            return new HashSet<String>(Collections.singletonList((String) jwtRole));
-        } else if (jwtRole instanceof Collection) {
-            return new HashSet<>((Collection<String>) jwtRole);
-        } else {
-            return Collections.emptySet();
-        }
-    }
-
-    // replace alg with none in header so that it can be parsed in unsecured mode
-    private static String replaceAlgWithNoneInHeader(String header) {
         try {
-            JsonNode jsonNode = mapper.readTree(Base64.getDecoder().decode(header));
-            ((ObjectNode) jsonNode).put("alg", "none");
-            return Base64.getEncoder().withoutPadding().encodeToString(mapper.writeValueAsBytes(jsonNode));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
+            return authenticationProvider.authenticateRolesAsync(authData, roleClaim)
+                    .exceptionally(error -> {
+                        log.debug().log("Unable to extract additional roles from JWT token");
+                        return Collections.emptySet();
+                    });
+        } catch (RuntimeException e) {
+            return CompletableFuture.completedFuture(Collections.emptySet());
         }
     }
 
     public CompletableFuture<Boolean> authorize(String role, AuthenticationDataSource authenticationData,
                                                 Function<String, CompletableFuture<Boolean>> authorizeFunc) {
-        return isSuperUser(role, authenticationData, conf)
-                .thenCompose(superUser -> {
-                    if (superUser) {
+        if (role != null && conf.getSuperUserRoles().contains(role)) {
+            return CompletableFuture.completedFuture(true);
+        }
+        return getRolesAsync(role, authenticationData)
+                .thenCompose(roles -> {
+                    if (roles.stream().anyMatch(conf.getSuperUserRoles()::contains)) {
                         return CompletableFuture.completedFuture(true);
                     }
-                    Set<String> roles = getRoles(role, authenticationData);
                     if (roles.isEmpty()) {
                         return CompletableFuture.completedFuture(false);
                     }

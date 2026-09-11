@@ -58,10 +58,11 @@ import okhttp3.OkHttpClient;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.authentication.TokenAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
+import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -69,7 +70,7 @@ import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 
 /**
- * An {@link AuthenticationProvider} implementation that supports the usage of a JSON Web Token (JWT)
+ * A {@link TokenAuthenticationProvider} implementation that supports the usage of a JSON Web Token (JWT)
  * for client authentication. This implementation retrieves the PublicKey from the JWT issuer (assuming the
  * issuer is in the configured allowed list) and then uses that Public Key to verify the validity of the JWT's
  * signature.
@@ -86,7 +87,7 @@ import org.asynchttpclient.DefaultAsyncHttpClientConfig;
  * this RFC: https://datatracker.ietf.org/doc/html/rfc7518#section-3.1.
  */
 @CustomLog
-public class AuthenticationProviderOpenID implements AuthenticationProvider {
+public class AuthenticationProviderOpenID implements TokenAuthenticationProvider {
     // Must match the value used by the OAuth2 Client Plugin.
     private static final String AUTH_METHOD_NAME = "token";
 
@@ -202,6 +203,17 @@ public class AuthenticationProviderOpenID implements AuthenticationProvider {
     @Override
     public void incrementFailureMetric(Enum<?> errorCode) {
         authenticationMetrics.recordFailure(errorCode);
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> authenticateRolesAsync(AuthenticationDataSource authData, String roleClaim) {
+        try {
+            return authenticateTokenAsync(authData)
+                    .thenApply(jwt -> AuthTokenUtils.rolesFromClaim(
+                            jwt.getClaim(roleClaim).as(Object.class)));
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     /**
