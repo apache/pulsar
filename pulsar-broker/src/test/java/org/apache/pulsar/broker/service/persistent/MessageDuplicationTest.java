@@ -605,6 +605,23 @@ public class MessageDuplicationTest extends BrokerTestBase {
         assertEquals(messageDeduplication.highestSequencedPersisted.get("app-producer").longValue(), 9L);
         assertTrue(messageDeduplication.highestReplPositionPushed.isEmpty());
         assertTrue(messageDeduplication.highestReplPositionPersisted.isEmpty());
+
+        Topic.PublishContext replayContext = mock(Topic.PublishContext.class);
+        doReturn(pulsar.getConfiguration().getReplicatorPrefix() + ".c1-->c2")
+                .when(replayContext).getProducerName();
+        doReturn(7L).when(replayContext).getSequenceId();
+        doReturn(9L).when(replayContext).getHighestSequenceId();
+        doReturn("app-producer").when(replayContext).getOriginalProducerName();
+        doReturn(7L).when(replayContext).getOriginalSequenceId();
+        doReturn(9L).when(replayContext).getOriginalHighestSequenceId();
+        ByteBuf replayedEntry = serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, metadata, Unpooled.EMPTY_BUFFER);
+        try {
+            assertEquals(messageDeduplication.isDuplicate(replayContext, replayedEntry),
+                    MessageDeduplication.MessageDupStatus.Dup);
+        } finally {
+            replayedEntry.release();
+        }
     }
 
     @Test
