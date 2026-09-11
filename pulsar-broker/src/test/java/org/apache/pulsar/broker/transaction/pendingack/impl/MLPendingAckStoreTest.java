@@ -185,6 +185,21 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         closePendingAckStoreWithRetry(store);
     }
 
+    @Test
+    public void testReplayFailurePreservesClosedHandle() throws Exception {
+        PendingAckHandleImpl handle = new PendingAckHandleImpl(persistentSubscriptionMock);
+        handle.pendingAckHandleFuture().get(10, TimeUnit.SECONDS);
+        handle.closeAsync().get(10, TimeUnit.SECONDS);
+
+        // Multiple late failures must not turn Close into Error and then enable a retry from Error.
+        for (int i = 0; i < 2; i++) {
+            handle.exceptionHandleFuture(new ManagedLedgerException.CursorAlreadyClosedException("closed"));
+            Assert.assertEquals(handle.getState(), PendingAckHandleState.State.Close);
+            Assert.assertFalse(handle.changeToNoneStateIfNotClosed());
+            Assert.assertFalse(handle.changeToInitializingState());
+        }
+    }
+
     /**
      * Builds a store whose replay loop starts in the state described by the parameters, without going
      * through the provider: the replay guard compares {@code lastConfirmedEntry} (a snapshot of the

@@ -983,11 +983,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     public void exceptionHandleFuture(Throwable t) {
-        // Never retry once the handle is closing or closed. The retry path below resets the state to
-        // None before scheduling init(), which would defeat the checkIfClose() guard in
-        // initPendingAckStore() and reopen the pending ack store of a subscription that is going away.
-        if (isRetryableException(t) && !checkIfClose()) {
-            this.state = State.None;
+        // Preserve Close atomically: closeAsync() changes the state outside the handle monitor.
+        // Resetting it after a separate close check could allow initPendingAckStore() to reopen the store.
+        if (isRetryableException(t) && changeToNoneStateIfNotClosed()) {
             long retryTime = backoff.next().toMillis();
             log.warn()
                     .attr("name", persistentSubscription.getTopic().getName())
