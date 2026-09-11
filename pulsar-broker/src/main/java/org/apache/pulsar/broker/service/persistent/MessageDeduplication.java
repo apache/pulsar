@@ -282,9 +282,35 @@ public class MessageDeduplication {
         highestReplPositionPersisted.clear();
         inactiveProducers.clear();
         // Load the sequence ids from the snapshot in the cursor properties
+        recoverDeduplicationStateFromSnapshot(managedCursor.getProperties());
+        // Replay all the entries and apply all the sequence ids updates
+        log.info()
+                .attr("numberOfEntries", managedCursor.getNumberOfEntries())
+                .log("Replaying entries for deduplication");
+        return replayTask.replay(cursor, (__, buffer) -> {
+            final var metadata = Commands.parseMessageMetadata(buffer);
+            recoverDeduplicationStateFromMetadata(metadata);
+        }).thenCompose(optPosition -> {
+            if (optPosition.isEmpty()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            snapshotCounter = replayTask.getNumEntriesProcessed();
+            if (snapshotCounter >= snapshotInterval) {
+                return takeSnapshot(optPosition.get());
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        }).thenRun(() -> {
+            status = Status.Enabled;
+            log.info("Enabled deduplication");
+        });
+    }
+
+    @VisibleForTesting
+    void recoverDeduplicationStateFromSnapshot(Map<String, Long> snapshot) {
         Map<String, Long> replLedgerIds = new HashMap<>();
         Map<String, Long> replEntryIds = new HashMap<>();
-        managedCursor.getProperties().forEach((k, v) -> {
+        snapshot.forEach((k, v) -> {
             // Geo-replication V2 keys are source-position watermarks, not producer lifecycle state.
             if (isReplSequenceKey(k)) {
                 String baseProducerName = getBaseProducerName(k);
@@ -313,32 +339,6 @@ public class MessageDeduplication {
             if (!replLedgerIds.containsKey(producerName)) {
                 logIncompleteReplSourcePositionSnapshot(producerName, null, entryId);
             }
-        });
-        // Replay all the entries and apply all the sequence ids updates
-        log.info()
-                .attr("numberOfEntries", managedCursor.getNumberOfEntries())
-                .log("Replaying entries for deduplication");
-        return replayTask.replay(cursor, (__, buffer) -> {
-            final var metadata = Commands.parseMessageMetadata(buffer);
-            if (metadata.hasMarkerType() || getReplProducerName(metadata) == null) {
-                recoverProducerSequenceIdFromMetadata(metadata);
-            } else {
-                // Rebuild replication watermarks from entries written after the last dedup snapshot.
-                recoverReplWatermarkFromMetadata(metadata);
-            }
-        }).thenCompose(optPosition -> {
-            if (optPosition.isEmpty()) {
-                return CompletableFuture.completedFuture(null);
-            }
-            snapshotCounter = replayTask.getNumEntriesProcessed();
-            if (snapshotCounter >= snapshotInterval) {
-                return takeSnapshot(optPosition.get());
-            } else {
-                return CompletableFuture.completedFuture(null);
-            }
-        }).thenRun(() -> {
-            status = Status.Enabled;
-            log.info("Enabled deduplication");
         });
     }
 
@@ -454,17 +454,22 @@ public class MessageDeduplication {
 
     private void recoverReplWatermark(String producerName, long ledgerId, long entryId) {
         ReplSourcePosition replSourcePosition = new ReplSourcePosition(ledgerId, entryId);
-        highestReplPositionPushed.put(producerName, replSourcePosition);
-        highestReplPositionPersisted.put(producerName, replSourcePosition);
+        highestReplPositionPushed.merge(producerName, replSourcePosition, this::maxReplPosition);
+        highestReplPositionPersisted.merge(producerName, replSourcePosition, this::maxReplPosition);
     }
 
     private void recordReplWatermarkPersisted(String producerName, long ledgerId, long entryId) {
-        highestReplPositionPersisted.put(producerName, new ReplSourcePosition(ledgerId, entryId));
+        highestReplPositionPersisted.merge(producerName, new ReplSourcePosition(ledgerId, entryId),
+                this::maxReplPosition);
     }
 
     private boolean isReplPositionAtOrBefore(long ledgerId, long entryId, ReplSourcePosition watermark) {
         return ledgerId < watermark.ledgerId()
                 || (ledgerId == watermark.ledgerId() && entryId <= watermark.entryId());
+    }
+
+    private ReplSourcePosition maxReplPosition(ReplSourcePosition current, ReplSourcePosition candidate) {
+        return isReplPositionAtOrBefore(candidate.ledgerId(), candidate.entryId(), current) ? current : candidate;
     }
 
     private void logUnexpectedReplSourcePosition(String producerName, String value) {
@@ -486,23 +491,34 @@ public class MessageDeduplication {
     private void recoverProducerSequenceIdFromMetadata(MessageMetadata md) {
         final var producerName = md.getProducerName();
         final var sequenceId = Math.max(md.getHighestSequenceId(), md.getSequenceId());
-        highestSequencedPushed.put(producerName, sequenceId);
-        highestSequencedPersisted.put(producerName, sequenceId);
+        highestSequencedPushed.merge(producerName, sequenceId, Math::max);
+        highestSequencedPersisted.merge(producerName, sequenceId, Math::max);
         producerRemoved(producerName);
     }
 
     @VisibleForTesting
-    void recoverReplWatermarkFromMetadata(MessageMetadata md) {
+    void recoverDeduplicationStateFromMetadata(MessageMetadata md) {
+        // Markers keep using their sequence id. Legacy V1 replicated entries do not have a valid source-position
+        // property, so they must also retain the original producer sequence state during replay.
+        if (md.hasMarkerType() || !recoverReplWatermarkFromMetadata(md)) {
+            recoverProducerSequenceIdFromMetadata(md);
+        }
+    }
+
+    @VisibleForTesting
+    boolean recoverReplWatermarkFromMetadata(MessageMetadata md) {
         if (md.hasMarkerType()) {
-            return;
+            return false;
         }
         String replProducerName = getReplProducerName(md);
         if (replProducerName != null) {
             long[] replSourcePosition = getReplSourcePosition(md, replProducerName);
             if (replSourcePosition != null) {
                 recoverReplWatermark(replProducerName, replSourcePosition[0], replSourcePosition[1]);
+                return true;
             }
         }
+        return false;
     }
 
     @VisibleForTesting
@@ -657,7 +673,7 @@ public class MessageDeduplication {
         }
         Boolean isLastChunk = (Boolean) publishContext.getProperty(IS_LAST_CHUNK);
         if (isLastChunk == null || isLastChunk) {
-            highestSequencedPersisted.put(producerName, Math.max(highestSequenceId, sequenceId));
+            highestSequencedPersisted.merge(producerName, Math.max(highestSequenceId, sequenceId), Math::max);
         }
         increaseSnapshotCounterAndTakeSnapshotIfNeeded(position);
     }
@@ -698,21 +714,27 @@ public class MessageDeduplication {
         }
 
         Map<String, Long> snapshot = new TreeMap<>();
-        highestReplPositionPersisted.forEach((producerName, replSourcePosition) -> {
+        int producerCount = 0;
+        for (Map.Entry<String, ReplSourcePosition> entry : highestReplPositionPersisted.entrySet()) {
+            if (producerCount >= maxNumberOfProducers) {
+                break;
+            }
+            String producerName = entry.getKey();
+            ReplSourcePosition replSourcePosition = entry.getValue();
             snapshot.put(producerName + REPL_LEDGER_ID_SUFFIX, replSourcePosition.ledgerId());
             snapshot.put(producerName + REPL_ENTRY_ID_SUFFIX, replSourcePosition.entryId());
-        });
-        int normalProducerCount = 0;
+            producerCount++;
+        }
         for (Map.Entry<String, Long> entry : highestSequencedPersisted.entrySet()) {
             String producerName = entry.getKey();
             if (isReplSequenceKey(producerName)) {
                 continue;
             }
-            if (normalProducerCount >= maxNumberOfProducers) {
+            if (producerCount >= maxNumberOfProducers) {
                 break;
             }
             snapshot.put(producerName, entry.getValue());
-            normalProducerCount++;
+            producerCount++;
         }
 
         final var cursor = managedCursor;

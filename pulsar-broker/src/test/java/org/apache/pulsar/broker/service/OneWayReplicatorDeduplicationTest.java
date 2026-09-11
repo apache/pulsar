@@ -295,9 +295,14 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             admin1.topics().createNonPartitionedTopic(topicName);
             admin2.topics().createNonPartitionedTopic(topicName);
             admin2.topics().createSubscription(topicName, subscription, MessageId.earliest);
+            // This test exercises replay after the dedup cursor snapshot, so prevent the periodic snapshot task from
+            // advancing the cursor before the target is unloaded.
+            admin2.topicPolicies().setDeduplicationSnapshotInterval(topicName, 0);
 
             PersistentTopic persistentTopic2 =
                     (PersistentTopic) pulsar2.getBrokerService().getTopic(topicName, false).join().get();
+            Awaitility.await().untilAsserted(() -> assertEquals(persistentTopic2.getHierarchyTopicPolicies()
+                    .getDeduplicationSnapshotIntervalSeconds().get().intValue(), 0));
             admin2.topicPolicies().setDeduplicationStatus(topicName, true);
             Awaitility.await().untilAsserted(() -> {
                 MessageDeduplication messageDeduplication2 = persistentTopic2.getMessageDeduplication();
@@ -316,6 +321,11 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
             Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
                 assertEquals(admin2.topics().getStats(topicName).getMsgInCounter(), messageCount);
             });
+            ManagedCursor dedupCursor = ((ManagedLedgerImpl) persistentTopic2.getManagedLedger()).getCursors()
+                    .get(PersistentTopic.DEDUPLICATION_CURSOR_NAME);
+            assertNotNull(dedupCursor);
+            Awaitility.await().untilAsserted(() -> assertEquals(dedupCursor.getNumberOfEntries(),
+                    (long) messageCount));
 
             AtomicReference<ClientCnx> replicatorClientCnx = new AtomicReference<>();
             Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
@@ -325,6 +335,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                         (GeoPersistentReplicator) currentSourceTopic.getReplicators().get(cluster2);
                 assertNotNull(currentReplicator);
                 assertNotNull(currentReplicator.producer);
+                assertTrue(currentReplicator.getCursor().getNumberOfEntriesInBacklog(true) >= messageCount);
                 ClientCnx clientCnx = currentReplicator.producer.getClientCnx();
                 assertNotNull(clientCnx);
                 replicatorClientCnx.set(clientCnx);
