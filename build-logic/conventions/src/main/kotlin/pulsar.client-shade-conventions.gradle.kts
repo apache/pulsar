@@ -38,19 +38,6 @@ plugins {
 val shadePrefix = "org.apache.pulsar.shade"
 extra["shadePrefix"] = shadePrefix
 
-// Keep the types owned by the API modules at their public names. All bundled Pulsar
-// implementations must be relocated too: rewriting only their Netty/Jackson dependencies
-// leaves incompatible classes with identical names beside pulsar-client-v5.
-val publicPulsarTypes = listOf(
-    "pulsar-client-api", "pulsar-client-admin-api", "pulsar-client-api-v5",
-    "pulsar-tls-factory-api", "pulsar-http-client-api",
-).flatMap { module ->
-    val sourceRoot = rootProject.file("$module/src/main/java")
-    fileTree(sourceRoot) { include("**/*.java") }.files.map { source ->
-        source.relativeTo(sourceRoot).invariantSeparatorsPath.removeSuffix(".java")
-    }
-}.toSet()
-
 // ---- Published dependency scopes for non-bundled dependencies ----
 // The Shadow plugin publishes the `shadow` configuration's dependencies as the dependency-reduced
 // POM/Gradle Module Metadata of the shaded artifact, mapping ALL of them to Maven `runtime` scope
@@ -234,9 +221,24 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
     relocateWithPrefix(shadePrefix, "org.roaringbitmap")
     relocateWithPrefix(shadePrefix, "org.tukaani")
     relocateWithPrefix(shadePrefix, "org.yaml")
-    relocate(PulsarImplementationRelocator::class.java) {
-        publicApiPaths = publicPulsarTypes
+    // Keep the types owned by the API modules at their public names. All bundled Pulsar
+    // implementations must be relocated too: rewriting only their Netty/Jackson dependencies
+    // leaves incompatible classes with identical names beside pulsar-client-v5.
+    val publicPulsarTypes = objects.setProperty<String>()
+    listOf(
+        "pulsar-client-api", "pulsar-client-admin-api", "pulsar-client-api-v5",
+        "pulsar-tls-factory-api", "pulsar-http-client-api",
+    ).forEach { module ->
+        val sourceRoot = rootProject.file("$module/src/main/java")
+        publicPulsarTypes.addAll(fileTree(sourceRoot) { include("**/*.java") }.elements.map { sources ->
+            sources.map { source ->
+                source.asFile.relativeTo(sourceRoot).invariantSeparatorsPath.removeSuffix(".java")
+            }
+        })
     }
+    // Resolve once when the task inputs are queried, retaining a set lookup per class reference.
+    publicPulsarTypes.finalizeValueOnRead()
+    relocate(PulsarImplementationRelocator(publicPulsarTypes))
     // NOTE: Do NOT shade log4j, otherwise logging won't work
 
     // ---- File content transformations ----

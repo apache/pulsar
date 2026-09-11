@@ -43,7 +43,8 @@ tasks.named<Test>("test") {
         entries.sortedBy { it.asFile.name }
     })
 }
-val testReversedClasspath by tasks.registering(Test::class) {
+val testReversedClasspath = tasks.register<Test>("testReversedClasspath") {
+    group = "verification"
     description = "Tests the v5 client and shaded admin jar in reverse classpath order."
     testClassesDirs = testClasses
     classpath = files(testClasspath.elements.map { entries ->

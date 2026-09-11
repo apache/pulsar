@@ -19,16 +19,16 @@
 
 import com.github.jengelman.gradle.plugins.shadow.relocation.CacheableRelocator
 import com.github.jengelman.gradle.plugins.shadow.relocation.SimpleRelocator
+import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.Input
 
 /** Isolate bundled Pulsar implementations while preserving the classes owned by API modules. */
 @CacheableRelocator
-class PulsarImplementationRelocator : SimpleRelocator(
+class PulsarImplementationRelocator(
+    @get:Input val publicApiPaths: SetProperty<String>,
+) : SimpleRelocator(
     "org.apache.pulsar", "org.apache.pulsar.shade.org.apache.pulsar"
 ) {
-    @get:Input
-    var publicApiPaths: Set<String> = emptySet()
-
     override fun canRelocatePath(path: String): Boolean {
         val normalized = path.removePrefix("/").removeSuffix(".class")
         if (!normalized.startsWith("org/apache/pulsar/")
@@ -37,6 +37,6 @@ class PulsarImplementationRelocator : SimpleRelocator(
         }
         // A set lookup also covers nested API classes, without testing hundreds of Ant
         // exclusion patterns for every constant-pool entry in the shaded dependencies.
-        return normalized.substringBefore('$') !in publicApiPaths && super.canRelocatePath(path)
+        return normalized.substringBefore('$') !in publicApiPaths.get() && super.canRelocatePath(path)
     }
 }
