@@ -1228,7 +1228,15 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                     // internal pinned executor thread while the message processing happens
                     final Message<T> finalMsg = msg;
                     MESSAGE_LISTENER_QUEUE_SIZE_UPDATER.incrementAndGet(this);
-                    messageListenerExecutor.execute(msg, () -> callMessageListener(finalMsg));
+                    try {
+                        messageListenerExecutor.execute(msg, () -> callMessageListener(finalMsg));
+                    } catch (RuntimeException | Error error) {
+                        // A failed submission has dequeued a message, but may leave more messages to drain.
+                        // Preserve a later turn even when earlier failures consumed the coalesced notification.
+                        // Retrying here makes progress; retrying a failed dequeue could loop indefinitely.
+                        listenerTaskScheduler.trigger();
+                        throw error;
+                    }
                 } else {
                     log.debug("Message has been cleared from the queue");
                 }
