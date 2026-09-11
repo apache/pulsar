@@ -118,6 +118,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     // Producer id, used to identify a producer within a single connection
     protected final long producerId;
+    // A non-persistent topic cannot carry chunked messages, see the chunk computation in sendAsync
+    private final boolean persistentTopic;
 
     // Variable is updated in a synchronized block
     private volatile long msgIdGenerator;
@@ -207,6 +209,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         ProducerInterceptors interceptors, Optional<String> overrideProducerName) {
         super(client, topic, conf, producerCreatedFuture, schema, interceptors);
         this.producerId = client.newProducerId();
+        this.persistentTopic = TopicName.get(topic).isPersistent();
         this.producerName = conf.getProducerName();
         this.userProvidedProducerName = StringUtils.isNotBlank(producerName);
         this.partitionIndex = partitionIndex;
@@ -636,7 +639,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // send in chunks
         int totalChunks;
         int payloadChunkSize;
-        if (canAddToBatch(msg) || !conf.isChunkingEnabled()) {
+        // A non-persistent topic never chunks: the slicing below is skipped for it, so computing more than one
+        // chunk here would only make the send loop publish the whole payload once per chunk.
+        if (canAddToBatch(msg) || !conf.isChunkingEnabled() || !persistentTopic) {
             totalChunks = 1;
             payloadChunkSize = getMaxMessageSize();
         } else {
@@ -780,7 +785,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                          MessageId messageId) throws IOException {
         ByteBuf chunkPayload = compressedPayload;
         MessageMetadata msgMetadata = msg.getMessageBuilder();
-        if (totalChunks > 1 && TopicName.get(topic).isPersistent()) {
+        if (totalChunks > 1) {
             chunkPayload = compressedPayload.slice(readStartIndex,
                     Math.min(chunkMaxSizeInBytes, chunkPayload.readableBytes() - readStartIndex));
             // don't retain last chunk payload and builder as it will be not needed for next chunk-iteration and it will
