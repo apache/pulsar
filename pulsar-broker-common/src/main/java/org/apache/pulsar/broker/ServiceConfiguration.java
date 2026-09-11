@@ -2909,9 +2909,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_STORAGE_ML,
             doc = "Read entries timeout when broker tries to read messages from bookkeeper "
-                    + "(0 to disable it)"
+                    + "(0 to disable it). It is recommended to keep this enabled to prevent stuck read operations "
+                    + "from blocking managed cursor operations such as reset cursor."
         )
-    private long managedLedgerReadEntryTimeoutSeconds = 0;
+    private long managedLedgerReadEntryTimeoutSeconds = 120;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Add entry timeout when broker tries to publish message to bookkeeper.(0 to disable it)")

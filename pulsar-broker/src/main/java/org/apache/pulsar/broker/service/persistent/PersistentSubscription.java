@@ -32,6 +32,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -74,6 +75,7 @@ import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
+import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -97,6 +99,16 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class PersistentSubscription extends AbstractSubscription {
 
     private static final Logger LOG = Logger.get(PersistentSubscription.class);
+    private static final String RESET_CURSOR_RESULT_SUCCESS = "success";
+    private static final String RESET_CURSOR_RESULT_FAILURE = "failure";
+    private static final Summary RESET_CURSOR_LATENCY = Summary
+            .build("pulsar_subscription_reset_cursor_latency_ms", "-")
+            .labelNames("topic", "subscription", "result")
+            .quantile(0.5)
+            .quantile(0.95)
+            .quantile(0.99)
+            .quantile(0.999)
+            .register();
     protected final Logger log;
 
     protected final PersistentTopic topic;
@@ -897,7 +909,9 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
+        long startTimeNs = System.nanoTime();
         if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+            recordResetCursorLatency(startTimeNs, RESET_CURSOR_RESULT_FAILURE);
             return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
         }
 
@@ -955,13 +969,24 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         });
 
+        future.whenComplete((__, ex) -> recordResetCursorLatency(startTimeNs,
+                ex == null ? RESET_CURSOR_RESULT_SUCCESS : RESET_CURSOR_RESULT_FAILURE));
         return future;
     }
 
     @Override
     public CompletableFuture<Void> resetCursor(Position finalPosition) {
+        long startTimeNs = System.nanoTime();
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        return resetCursorInternal(finalPosition, future, false);
+        CompletableFuture<Void> resetCursorFuture = resetCursorInternal(finalPosition, future, false);
+        resetCursorFuture.whenComplete((__, ex) -> recordResetCursorLatency(startTimeNs,
+                ex == null ? RESET_CURSOR_RESULT_SUCCESS : RESET_CURSOR_RESULT_FAILURE));
+        return resetCursorFuture;
+    }
+
+    private void recordResetCursorLatency(long startTimeNs, String result) {
+        RESET_CURSOR_LATENCY.labels(topicName, subName, result)
+                .observe(System.nanoTime() - startTimeNs, TimeUnit.NANOSECONDS);
     }
 
     private CompletableFuture<Void> resetCursorInternal(Position finalPosition, CompletableFuture<Void> future,
