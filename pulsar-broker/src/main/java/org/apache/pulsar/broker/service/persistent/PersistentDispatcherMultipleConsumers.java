@@ -345,7 +345,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
     }
 
-    public synchronized void readMoreEntries() {
+    @Override
+    protected synchronized void internalReadMoreEntries() {
         if (cursor.isClosed()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Cursor is already closed, skipping read more entries.", cursor.getName());
@@ -373,7 +374,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return;
         }
 
-        // increment the counter for readMoreEntries calls, to track the number of times readMoreEntries is called
+        // Count executed passes, not conflated requests, for pending-read rescheduling.
         readMoreEntriesCallCount++;
 
         // totalAvailablePermits may be updated by other threads
