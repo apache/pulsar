@@ -654,56 +654,61 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
 
         Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
-        final Multimap<String, String> bundlesToUnload = loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
+        try {
+            final Multimap<String, String> bundlesToUnload =
+                    loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
 
-        bundlesToUnload.asMap().forEach((broker, bundles) -> {
-            AtomicBoolean unloadBundleForBroker = new AtomicBoolean(false);
-            bundles.forEach(bundle -> {
-                final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
-                final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-                if (sheddingExcludedNamespaces.contains(namespaceName)) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Skipping load shedding for namespace {}",
-                                loadSheddingStrategy.getClass().getSimpleName(), namespaceName);
+            bundlesToUnload.asMap().forEach((broker, bundles) -> {
+                AtomicBoolean unloadBundleForBroker = new AtomicBoolean(false);
+                bundles.forEach(bundle -> {
+                    final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
+                    final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+                    if (sheddingExcludedNamespaces.contains(namespaceName)) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}] Skipping load shedding for namespace {}",
+                                    loadSheddingStrategy.getClass().getSimpleName(), namespaceName);
+                        }
+                        return;
                     }
-                    return;
-                }
-                if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
-                    return;
-                }
+                    if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
+                        return;
+                    }
 
-                if (!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
-                    return;
-                }
-                NamespaceBundle bundleToUnload = LoadManagerShared.getNamespaceBundle(pulsar, bundle);
-                Optional<String> destBroker = this.selectBroker(bundleToUnload);
-                if (!destBroker.isPresent()) {
-                    log.info("[{}] No broker available to unload bundle {} from broker {}",
-                            loadSheddingStrategy.getClass().getSimpleName(), bundle, broker);
-                    return;
-                }
-                if (destBroker.get().equals(broker)) {
-                    log.warn("[{}] The destination broker {} is the same as the current owner broker for Bundle {}",
-                            loadSheddingStrategy.getClass().getSimpleName(), destBroker.get(), bundle);
-                    return;
-                }
+                    if (!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
+                        return;
+                    }
+                    NamespaceBundle bundleToUnload = LoadManagerShared.getNamespaceBundle(pulsar, bundle);
+                    Optional<String> destBroker = this.selectBroker(bundleToUnload);
+                    if (!destBroker.isPresent()) {
+                        log.info("[{}] No broker available to unload bundle {} from broker {}",
+                                loadSheddingStrategy.getClass().getSimpleName(), bundle, broker);
+                        return;
+                    }
+                    if (destBroker.get().equals(broker)) {
+                        log.warn("[{}] The destination broker {} is the same as the current owner broker for Bundle {}",
+                                loadSheddingStrategy.getClass().getSimpleName(), destBroker.get(), bundle);
+                        return;
+                    }
 
-                log.info("[{}] Unloading bundle: {} from broker {} to dest broker {}",
-                        loadSheddingStrategy.getClass().getSimpleName(), bundle, broker, destBroker.get());
-                try {
-                    pulsar.getAdminClient().namespaces()
-                            .unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
-                    loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
-                    unloadBundleCount++;
-                    unloadBundleForBroker.set(true);
-                } catch (PulsarServerException | PulsarAdminException e) {
-                    log.warn("Error when trying to perform load shedding on {} for broker {}", bundle, broker, e);
+                    log.info("[{}] Unloading bundle: {} from broker {} to dest broker {}",
+                            loadSheddingStrategy.getClass().getSimpleName(), bundle, broker, destBroker.get());
+                    try {
+                        pulsar.getAdminClient().namespaces()
+                                .unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
+                        loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
+                        unloadBundleCount++;
+                        unloadBundleForBroker.set(true);
+                    } catch (PulsarServerException | PulsarAdminException e) {
+                        log.warn("Error when trying to perform load shedding on {} for broker {}", bundle, broker, e);
+                    }
+                });
+                if (unloadBundleForBroker.get()) {
+                    unloadBrokerCount++;
                 }
             });
-            if (unloadBundleForBroker.get()) {
-                unloadBrokerCount++;
-            }
-        });
+        } finally {
+            loadSheddingStrategy.onUnloadAttemptCompleted();
+        }
 
         updateBundleUnloadingMetrics();
     }
@@ -962,10 +967,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     log.debug("Use round robin broker selector for {}", bundle);
                 }
                 broker = sheddingExcludedNamespaceSelectionStrategy
-                        .selectBroker(brokerCandidateCache, data, loadData, conf);
+                        .selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
             } else {
                 // Choose a broker among the potentially smaller filtered list, when possible
-                broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                broker = placementStrategy.selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
             }
             if (log.isDebugEnabled()) {
                 log.debug("Selected broker {} from candidate brokers {}", broker, brokerCandidateCache);
@@ -985,13 +990,23 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         getAvailableBrokers(),
                         brokerTopicLoadingPredicate);
                 Optional<String> brokerTmp =
-                        placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                        placementStrategy.selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
                 if (brokerTmp.isPresent()) {
                     broker = brokerTmp;
                 }
             }
             return broker;
         }
+    }
+
+    @VisibleForTesting
+    LoadData getLoadData() {
+        return loadData;
+    }
+
+    @VisibleForTesting
+    void setPlacementStrategy(ModularLoadManagerStrategy placementStrategy) {
+        this.placementStrategy = placementStrategy;
     }
 
     /**
