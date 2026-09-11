@@ -140,8 +140,9 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
      *
      * <p>Set by the V5 client on its per-segment producers: it applies {@link #blockIfQueueFull} on the
      * caller's thread before a message enters its per-segment dispatch chain, whose links may run on an
-     * IO thread where blocking is not an option. Presumes no {@link #maxPendingMessages} limit, which
-     * the V5 client never configures. Internal, not application-configurable.
+     * IO thread where blocking is not an option. Incompatible with a {@link #maxPendingMessages}
+     * limit, whose permit would be released without ever being taken; {@code ProducerImpl} rejects
+     * the combination. Internal, not application-configurable.
      */
     @JsonIgnore
     private boolean memoryLimitAdmittedUpstream;

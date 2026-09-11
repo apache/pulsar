@@ -104,9 +104,9 @@ public interface ProducerBuilder<T> {
      *
      * <p>A send issued from one of the client's IO threads never blocks, whatever this setting: at
      * the limit it fails with {@link PulsarClientException.MemoryBufferIsFullException}, since
-     * waiting there would hold up the acknowledgements that free the memory. Code chained on a send
-     * future runs on the IO thread that delivered the result, so a send issued from such a
-     * continuation is one of these.
+     * waiting there would hold up the acknowledgements that free the memory. Code chained on the
+     * future of an acknowledged send runs on the IO thread that received the acknowledgement, so a
+     * send issued from such a continuation is one of these.
      *
      * @param blockIfQueueFull {@code true} to block, {@code false} to fail immediately
      * @return this builder instance for chaining

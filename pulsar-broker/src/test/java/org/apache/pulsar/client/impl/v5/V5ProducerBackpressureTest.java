@@ -19,10 +19,13 @@
 package org.apache.pulsar.client.impl.v5;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
@@ -98,10 +101,12 @@ public class V5ProducerBackpressureTest extends V5ClientBaseTest {
             // the caller's thread they would all queue up here, unbounded.
             maxOutstanding = Math.max(maxOutstanding, i + 1 - completed.get());
         }
-        // At most limit / payload messages fit under the limit (fewer once the per-message overhead
-        // is charged), plus the one send the limiter lets go over it.
-        long maxAdmitted = MEMORY_LIMIT_BYTES / PAYLOAD_BYTES + 1;
-        assertTrue(maxOutstanding <= maxAdmitted,
+        // Each send is charged its payload plus the per-message overhead, and the limiter lets one
+        // send go over the limit. One more may be admitted while the previous one still counts as
+        // outstanding, since a send's reservation is given back just before its future completes.
+        long maxAdmitted = MEMORY_LIMIT_BYTES
+                / (PAYLOAD_BYTES + ScalableTopicProducer.PER_MESSAGE_OVERHEAD_BYTES) + 1;
+        assertTrue(maxOutstanding <= maxAdmitted + 1,
                 "outstanding sends reached " + maxOutstanding + " but the limit admits " + maxAdmitted);
 
         CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(60, TimeUnit.SECONDS);
@@ -214,11 +219,105 @@ public class V5ProducerBackpressureTest extends V5ClientBaseTest {
                 .topic(topic)
                 .batchingPolicy(BatchingPolicy.ofDisabled())
                 .create();
-        // Above the broker's maximum message size, so the v4 producer rejects it at enqueue time. It
-        // is admitted as the one send the limiter lets go over the limit.
+        // Above the broker's maximum message size, so the v4 producer rejects it at enqueue time,
+        // on the dispatch thread of this cold segment. It is admitted as the one send the limiter
+        // lets go over the limit.
         byte[] tooLarge = new byte[6 * 1024 * 1024];
-        CompletableFuture<MessageId> future = producer.async().newMessage().value(tooLarge).send();
-        assertNotNull(failureOf(future), "an oversized message must fail");
+        byte[] payload = new byte[PAYLOAD_BYTES];
+        AtomicReference<String> continuationThread = new AtomicReference<>();
+        // The reservation must be given back before the failure reaches the caller, and the caller's
+        // continuation must not run on the dispatch thread: a blocking send issued from it would
+        // otherwise park that thread behind its own release, queued as the next link.
+        CompletableFuture<MessageId> chained = producer.async().newMessage().value(tooLarge).send()
+                .exceptionally(ex -> {
+                    continuationThread.set(Thread.currentThread().getName());
+                    return null;
+                })
+                .thenCompose(__ -> producer.async().newMessage().value(payload).send());
+        assertNotNull(chained.get(30, TimeUnit.SECONDS), "the send issued from the continuation must complete");
+        assertFalse(continuationThread.get().startsWith("pulsar-client-internal"),
+                "the failure was delivered on the dispatch thread: " + continuationThread.get());
         assertMemoryReleased(client);
+    }
+
+    /**
+     * The reservation follows the send, not the caller's future: cancelling the future neither hands
+     * the budget back while the message is still queued, nor loses it once the send is dropped.
+     */
+    @Test(timeOut = 60_000)
+    public void cancelledSendsGiveTheirReservationBackOnceDropped() throws Exception {
+        PulsarClient client = newClientWithMemoryLimit();
+        String topic = newScalableTopic(1);
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer(Schema.bytes())
+                .topic(topic)
+                .batchingPolicy(BatchingPolicy.ofDisabled())
+                .create();
+        byte[] payload = new byte[PAYLOAD_BYTES];
+
+        // Cold segment: these queue up behind the creation of the segment producer.
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
+        for (int i = 0; i < 100; i++) {
+            futures.add(producer.async().newMessage().value(payload).send());
+        }
+        futures.forEach(future -> future.cancel(true));
+        assertTrue(memoryLimit(client).currentUsage() > 0,
+                "cancelling must not hand the budget back while the sends are still queued");
+
+        // Dropped before dispatch or acknowledged after it, each send gives its budget back once.
+        assertNotNull(producer.newMessage().value(payload).send());
+        assertMemoryReleased(client);
+    }
+
+    /**
+     * A send whose segment gets sealed by a split is retried on a child. Between the attempts the
+     * message stays with this layer, which takes its payload share again; the retries must leave
+     * the accounting balanced.
+     */
+    @Test(timeOut = 120_000)
+    public void retriesAcrossASegmentSplitKeepTheAccountingBalanced() throws Exception {
+        PulsarClient client = newClientWithMemoryLimit();
+        String topic = newScalableTopic(1);
+        long parent = singleActiveSegmentId(topic);
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer(Schema.bytes())
+                .topic(topic)
+                .batchingPolicy(BatchingPolicy.ofDisabled())
+                .create();
+        byte[] payload = new byte[PAYLOAD_BYTES];
+        int numMessages = 50_000;
+
+        AtomicInteger completed = new AtomicInteger();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(numMessages);
+        Thread sender = new Thread(() -> {
+            for (int i = 0; i < numMessages; i++) {
+                CompletableFuture<MessageId> future = producer.async().newMessage().value(payload).send();
+                future.whenComplete((__, ___) -> completed.incrementAndGet());
+                futures.add(future);
+            }
+        }, "sender");
+        sender.start();
+        // Seal the parent while sends are in flight and more are waiting at the memory limit.
+        Awaitility.await().pollInterval(10, TimeUnit.MILLISECONDS).until(() -> completed.get() > 500);
+        admin.scalableTopics().splitSegment(topic, parent);
+        sender.join();
+
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get(60, TimeUnit.SECONDS);
+        assertEquals(completed.get(), numMessages);
+        Set<Long> segments = new HashSet<>();
+        for (CompletableFuture<MessageId> future : futures) {
+            segments.add(((MessageIdV5) future.join()).segmentId());
+        }
+        assertTrue(segments.size() > 1, "expected sends on the parent and on its children, got " + segments);
+        assertMemoryReleased(client);
+    }
+
+    private long singleActiveSegmentId(String topic) throws Exception {
+        for (var segment : admin.scalableTopics().getMetadata(topic).getSegments().values()) {
+            if (segment.isActive()) {
+                return segment.getSegmentId();
+            }
+        }
+        throw new AssertionError("no active segment for " + topic);
     }
 }

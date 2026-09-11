@@ -32,6 +32,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
@@ -114,6 +115,14 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private final EventLoopGroup eventLoopGroup;
 
     /**
+     * Where the caller's future is completed when a send fails somewhere other than on an IO
+     * thread: the dispatch executor, the timer, the thread closing the producer. Code chained on the
+     * future may block, and a send from it may wait for memory, which none of those threads can
+     * afford to do (see {@link #finish}). Successes arrive on an IO thread and complete in place.
+     */
+    private final ExecutorService failureCompletionExecutor;
+
+    /**
      * Per-segment v4 producers. Stored as futures so concurrent send-on-cold-segment
      * calls share a single creation attempt without blocking, and so callers running
      * on a netty IO thread can chain on the future asynchronously instead of forcing
@@ -175,6 +184,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         this.memoryLimit = client.v4Client().getMemoryLimitController();
         this.dispatchExecutor = client.v4Client().getInternalExecutorService();
         this.eventLoopGroup = client.v4Client().eventLoopGroup();
+        this.failureCompletionExecutor = client.v4Client().externalExecutorProvider().getExecutor();
         this.asyncView = new AsyncProducerV5<>(this);
 
         // Register for layout changes
@@ -259,6 +269,8 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         final CompletableFuture<MessageId> userFuture;
         /** Whether this layer currently holds the payload share of the reservation. */
         final AtomicBoolean payloadHeld = new AtomicBoolean(true);
+        /** Whether the send has reached its terminal event and given its reservation back. */
+        final AtomicBoolean finished = new AtomicBoolean();
 
         PendingSend(String key, V value, EncodeData encoded, int payloadSize,
                     Map<String, String> properties, Instant eventTime, Long sequenceId,
@@ -481,7 +493,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * Returns a future of MessageIdV5 that includes the segment ID.
      *
      * <p>The message is admitted against the client memory limit here, on the caller's thread
-     * (see {@link #admit}), before it is queued on the dispatch chain.
+     * (see {@link #admit}), before it is queued on the dispatch chain. The reservation follows the
+     * send's own lifecycle, not the returned future: it is given back by {@link #finish} when the
+     * send is acknowledged, fails, or is abandoned, whatever the caller did with the future.
      *
      * <p>The returned future is handed to the caller as-is — no identity {@code thenApply}
      * stage in between — so that {@link #flushAsync()} awaits exactly the futures the caller
@@ -506,20 +520,19 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             return userFuture;
         }
         inFlightSends.add(userFuture);
-        userFuture.whenComplete((__, ___) -> {
-            inFlightSends.remove(userFuture);
-            releaseAll(send);
-        });
         dispatchSendAttempt(send, 0);
         return userFuture;
     }
 
     private void dispatchSendAttempt(PendingSend<T> send, int attempt) {
+        if (abandonIfDone(send)) {
+            return;
+        }
         long segmentId;
         try {
             segmentId = routeMessage(send.key);
         } catch (Exception e) {
-            send.userFuture.completeExceptionally(e);
+            finish(send, null, e);
             return;
         }
         final long routedSegmentId = segmentId;
@@ -531,6 +544,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         Runnable retry = () -> {
             segmentProducers.remove(routedSegmentId);
             dispatchChains.remove(routedSegmentId);
+            if (abandonIfDone(send)) {
+                return;
+            }
             // The message stays with this layer while it waits for the new layout.
             reholdPayloadShare(send);
             CompletableFuture.delayedExecutor(
@@ -541,12 +557,15 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
 
         appendToDispatchChain(routedSegmentId,
                 producer -> {
+                    if (abandonIfDone(send)) {
+                        return;
+                    }
                     CompletableFuture<org.apache.pulsar.client.api.MessageId> ackFuture;
                     try {
                         ackFuture = buildV4Message(producer, send).sendAsync();
                     } catch (Exception e) {
                         // Only this send fails; the chain stays healthy for the sends behind it.
-                        send.userFuture.completeExceptionally(e);
+                        finish(send, null, e);
                         return;
                     }
                     if (!ackFuture.isDone()) {
@@ -556,7 +575,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     }
                     ackFuture.whenComplete((v4MsgId, ex) -> {
                         if (ex == null) {
-                            send.userFuture.complete(new MessageIdV5(v4MsgId, routedSegmentId));
+                            finish(send, new MessageIdV5(v4MsgId, routedSegmentId), null);
                         } else {
                             // Failure from the v4 send (e.g. the segment sealed mid-flight).
                             handleAsyncSegmentFailure(send, routedSegmentId, attempt, ex, retry);
@@ -582,8 +601,55 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     .log("Target segment gone, retrying async send after layout update");
             retry.run();
         } else {
-            send.userFuture.completeExceptionally(ex);
+            finish(send, null, ex);
         }
+    }
+
+    /**
+     * This layer's terminal event for an async send, whatever the caller did with its future in
+     * the meantime: give the reservation back first, then complete the caller's future last, so
+     * that the budget is already available to whatever the caller chained on it.
+     *
+     * <p>A success completes in place: it arrives on the IO thread that received the
+     * acknowledgement, where a send from a continuation fails fast rather than waits (see
+     * {@link #admit}). A failure that did not arrive on an IO thread came from one of the client's
+     * own threads, which a continuation must not hold up, so it completes on
+     * {@link #failureCompletionExecutor}.
+     */
+    private void finish(PendingSend<T> send, MessageId messageId, Throwable failure) {
+        if (!send.finished.compareAndSet(false, true)) {
+            return;
+        }
+        releaseAll(send);
+        inFlightSends.remove(send.userFuture);
+        if (send.userFuture.isDone()) {
+            // Completed by the caller (cancelled, timed out): nothing left to deliver.
+            return;
+        }
+        if (failure == null) {
+            send.userFuture.complete(messageId);
+        } else if (isEventLoopThread()) {
+            send.userFuture.completeExceptionally(failure);
+        } else {
+            try {
+                failureCompletionExecutor.execute(() -> send.userFuture.completeExceptionally(failure));
+            } catch (RejectedExecutionException e) {
+                // The client is shutting down and its executors are gone: complete in place.
+                send.userFuture.completeExceptionally(failure);
+            }
+        }
+    }
+
+    /**
+     * A caller that completed the future on its own (cancelled it, or timed it out) is no longer
+     * waiting for the send: drop it, and give the reservation back.
+     */
+    private boolean abandonIfDone(PendingSend<T> send) {
+        if (!send.userFuture.isDone()) {
+            return false;
+        }
+        finish(send, null, null);
+        return true;
     }
 
     /**
