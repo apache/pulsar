@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter.BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER;
+import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter.BATCHED_ENTRY_DATA_PREFIX_VERSION;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -28,6 +30,8 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.util.Timer;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -37,6 +41,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,11 +55,14 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
 import org.apache.pulsar.broker.transaction.util.LogIndexLagBackoff;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -197,6 +205,76 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
             Assert.assertEquals(handle.getState(), PendingAckHandleState.State.Close);
             Assert.assertFalse(handle.changeToNoneStateIfNotClosed());
             Assert.assertFalse(handle.changeToInitializingState());
+        }
+    }
+
+    @Test
+    public void testReplayFailureDoesNotHideStoreFromConcurrentClose() throws Exception {
+        // Create the log so the handle opens a real store during initialization.
+        closePendingAckStoreWithRetry(createPendingAckStore(new TxnLogBufferedWriterConfig()));
+        PendingAckHandleImpl handle = new PendingAckHandleImpl(persistentSubscriptionMock);
+        handle.pendingAckHandleFuture().get(10, TimeUnit.SECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) handle.getStoreManageLedger().get(10, TimeUnit.SECONDS);
+        ExecutorService closeExecutor = Executors.newSingleThreadExecutor(
+                new DefaultThreadFactory("pending-ack-close"));
+        try {
+            Future<CompletableFuture<Void>> closeResult;
+            synchronized (handle) {
+                closeResult = closeExecutor.submit(handle::closeAsync);
+                // closeAsync publishes Close before taking this monitor. Hold it as replayFailed does,
+                // ensuring the failure runs before closeAsync can retrieve the store future.
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).until(handle::checkIfClose);
+                handle.exceptionHandleFuture(new ManagedLedgerException.CursorAlreadyClosedException("closed"));
+            }
+            closeResult.get(10, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS);
+            Assert.assertEquals(ledger.getState(), ManagedLedgerImpl.State.Closed,
+                    "The store must still be closed after a late replay failure");
+        } finally {
+            closeExecutor.shutdownNow();
+            ledger.close();
+        }
+    }
+
+    @DataProvider(name = "replayEntryPayloads")
+    public Object[][] replayEntryPayloads() {
+        return new Object[][] {
+                {new byte[] {0}, true}, // Too short to decode the entry prefix.
+                {ByteBuffer.allocate(4).putShort(BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER)
+                        .putShort(BATCHED_ENTRY_DATA_PREFIX_VERSION).array(), false} // Empty batch.
+        };
+    }
+
+    @Test(dataProvider = "replayEntryPayloads")
+    public void testReplayReleasesPolledAndQueuedEntries(byte[] payload, boolean expectFailure) {
+        ManagedCursor cursor = createReplayCursorMock();
+        when(cursor.hasMoreEntries()).thenReturn(true);
+        EntryImpl first = EntryImpl.create(5, 10, payload);
+        EntryImpl second = EntryImpl.create(5, 11, payload);
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            callback.readEntriesComplete(List.of(first, second), null);
+            return null;
+        }).when(cursor).asyncReadEntries(anyInt(), any(), any(), any());
+        try {
+            MLPendingAckStore store = createPendingAckStoreForReplay(cursor);
+            PendingAckReplyCallBack callback = mock(PendingAckReplyCallBack.class);
+            store.new PendingAckReplay(callback).run();
+            if (expectFailure) {
+                verify(callback).replayFailed(any(IndexOutOfBoundsException.class));
+                verify(callback, never()).replayComplete();
+            } else {
+                verify(callback).replayComplete();
+                verify(callback, never()).replayFailed(any());
+            }
+            Assert.assertEquals(first.refCnt(), 0, "The polled entry must be released");
+            Assert.assertEquals(second.refCnt(), 0, "The queued entry must be released");
+        } finally {
+            if (first.refCnt() > 0) {
+                first.release();
+            }
+            if (second.refCnt() > 0) {
+                second.release();
+            }
         }
     }
 

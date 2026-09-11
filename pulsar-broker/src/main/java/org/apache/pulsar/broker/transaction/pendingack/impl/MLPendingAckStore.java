@@ -413,25 +413,30 @@ public class MLPendingAckStore implements PendingAckStore {
                 while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0 && fillEntryQueueCallback.fillQueue()) {
                     Entry entry = entryQueue.poll();
                     if (entry != null) {
-                        currentLoadPosition = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
-                        List<PendingAckMetadataEntry> logs = deserializeEntry(entry);
-                        if (logs.isEmpty()){
-                            continue;
-                        } else if (logs.size() == 1){
-                            currentIndexLag.incrementAndGet();
-                            PendingAckMetadataEntry log = logs.get(0);
-                            handleMetadataEntry(PositionFactory.create(entry.getLedgerId(), entry.getEntryId()), log);
-                            pendingAckReplyCallBack.handleMetadataEntry(log);
-                        } else {
-                            int batchSize = logs.size();
-                            for (int batchIndex = 0; batchIndex < batchSize; batchIndex++){
-                                PendingAckMetadataEntry log = logs.get(batchIndex);
+                        try {
+                            currentLoadPosition = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
+                            List<PendingAckMetadataEntry> logs = deserializeEntry(entry);
+                            if (logs.isEmpty()){
+                                continue;
+                            } else if (logs.size() == 1){
+                                currentIndexLag.incrementAndGet();
+                                PendingAckMetadataEntry log = logs.get(0);
+                                handleMetadataEntry(PositionFactory.create(entry.getLedgerId(), entry.getEntryId()),
+                                        log);
                                 pendingAckReplyCallBack.handleMetadataEntry(log);
+                            } else {
+                                int batchSize = logs.size();
+                                for (int batchIndex = 0; batchIndex < batchSize; batchIndex++){
+                                    PendingAckMetadataEntry log = logs.get(batchIndex);
+                                    pendingAckReplyCallBack.handleMetadataEntry(log);
+                                }
+                                currentIndexLag.addAndGet(batchSize);
+                                handleMetadataEntry(PositionFactory.create(entry.getLedgerId(), entry.getEntryId()),
+                                        logs);
                             }
-                            currentIndexLag.addAndGet(batchSize);
-                            handleMetadataEntry(PositionFactory.create(entry.getLedgerId(), entry.getEntryId()), logs);
+                        } finally {
+                            entry.release();
                         }
-                        entry.release();
                         clearUselessLogData();
                     } else {
                         // Covers a read that was issued but whose callback never arrives: no failure is

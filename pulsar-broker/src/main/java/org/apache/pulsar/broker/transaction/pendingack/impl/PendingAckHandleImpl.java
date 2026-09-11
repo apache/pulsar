@@ -985,7 +985,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     public void exceptionHandleFuture(Throwable t) {
         // Preserve Close atomically: closeAsync() changes the state outside the handle monitor.
         // Resetting it after a separate close check could allow initPendingAckStore() to reopen the store.
-        if (isRetryableException(t) && changeToNoneStateIfNotClosed()) {
+        boolean retryable = isRetryableException(t);
+        if (retryable && changeToNoneStateIfNotClosed()) {
             long retryTime = backoff.next().toMillis();
             log.warn()
                     .attr("name", persistentSubscription.getTopic().getName())
@@ -1002,8 +1003,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         changeToErrorState();
         // ToDo: Add a new serverError `TransactionComponentLoadFailedException`
         //  and before that a `Unknown` will be returned first.
-        this.pendingAckStoreFuture = FutureUtil.failedFuture(new BrokerServiceException(
-                        String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
+        // A retryable failure reaches here only when the atomic reset observed Close. Keep the
+        // original store future so closeAsync(), which may be waiting for this monitor, can close it.
+        if (!retryable) {
+            this.pendingAckStoreFuture = FutureUtil.failedFuture(new BrokerServiceException(
+                    String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
+        }
         final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(
                 new BrokerServiceException(
                 String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
