@@ -649,59 +649,63 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
 
         Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
-        final Multimap<String, String> bundlesToUnload = loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
+        try {
+            final Multimap<String, String> bundlesToUnload =
+                    loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
+            bundlesToUnload.asMap().forEach((broker, bundles) -> {
+                AtomicBoolean unloadBundleForBroker = new AtomicBoolean(false);
+                bundles.forEach(bundle -> {
+                    final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
+                    final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+                    if (sheddingExcludedNamespaces.contains(namespaceName)) {
+                        log.debug().attr("class", loadSheddingStrategy.getClass().getSimpleName())
+                                .attr("namespace", namespaceName)
+                                .log("Skipping load shedding for namespace");
+                        return;
+                    }
+                    if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
+                        return;
+                    }
 
-        bundlesToUnload.asMap().forEach((broker, bundles) -> {
-            AtomicBoolean unloadBundleForBroker = new AtomicBoolean(false);
-            bundles.forEach(bundle -> {
-                final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
-                final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-                if (sheddingExcludedNamespaces.contains(namespaceName)) {
-                    log.debug().attr("class", loadSheddingStrategy.getClass().getSimpleName())
-                            .attr("namespace", namespaceName)
-                            .log("Skipping load shedding for namespace");
-                    return;
-                }
-                if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
-                    return;
-                }
+                    if (!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
+                        return;
+                    }
+                    NamespaceBundle bundleToUnload = LoadManagerShared.getNamespaceBundle(pulsar, bundle);
+                    Optional<String> destBroker = this.selectBroker(bundleToUnload);
+                    if (!destBroker.isPresent()) {
+                        log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
+                                .attr("bundle", bundle).attr("broker", broker)
+                                .log("No broker available to unload bundle from broker");
+                        return;
+                    }
+                    if (destBroker.get().equals(broker)) {
+                        log.warn().attr("class", loadSheddingStrategy.getClass().getSimpleName())
+                                .attr("broker", destBroker.get()).attr("bundle", bundle)
+                                .log("The destination broker is the same as the current owner broker for bundle");
+                        return;
+                    }
 
-                if (!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
-                    return;
-                }
-                NamespaceBundle bundleToUnload = LoadManagerShared.getNamespaceBundle(pulsar, bundle);
-                Optional<String> destBroker = this.selectBroker(bundleToUnload);
-                if (!destBroker.isPresent()) {
                     log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
-                            .attr("bundle", bundle).attr("broker", broker)
-                            .log("No broker available to unload bundle from broker");
-                    return;
-                }
-                if (destBroker.get().equals(broker)) {
-                    log.warn().attr("class", loadSheddingStrategy.getClass().getSimpleName())
-                            .attr("broker", destBroker.get()).attr("bundle", bundle)
-                            .log("The destination broker is the same as the current owner broker for bundle");
-                    return;
-                }
-
-                log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
-                        .attr("bundle", bundle).attr("sourceBroker", broker).attr("destBroker", destBroker.get())
-                        .log("Unloading bundle from source broker to dest broker");
-                try {
-                    pulsar.getAdminClient().namespaces()
-                            .unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
-                    loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
-                    unloadBundleCount++;
-                    unloadBundleForBroker.set(true);
-                } catch (PulsarServerException | PulsarAdminException e) {
-                    log.warn().attr("bundle", bundle).attr("broker", broker).exception(e)
-                            .log("Error when trying to perform load shedding on for broker");
+                            .attr("bundle", bundle).attr("sourceBroker", broker).attr("destBroker", destBroker.get())
+                            .log("Unloading bundle from source broker to dest broker");
+                    try {
+                        pulsar.getAdminClient().namespaces()
+                                .unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
+                        loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
+                        unloadBundleCount++;
+                        unloadBundleForBroker.set(true);
+                    } catch (PulsarServerException | PulsarAdminException e) {
+                        log.warn().attr("bundle", bundle).attr("broker", broker).exception(e)
+                                .log("Error when trying to perform load shedding on for broker");
+                    }
+                });
+                if (unloadBundleForBroker.get()) {
+                    unloadBrokerCount++;
                 }
             });
-            if (unloadBundleForBroker.get()) {
-                unloadBrokerCount++;
-            }
-        });
+        } finally {
+            loadSheddingStrategy.onUnloadAttemptCompleted();
+        }
 
         updateBundleUnloadingMetrics();
     }
@@ -959,10 +963,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             if (sheddingExcludedNamespaces.contains(namespaceNameFromBundleName)) {
                 log.debug().attr("bundle", bundle).log("Use round robin broker selector for bundle");
                 broker = sheddingExcludedNamespaceSelectionStrategy
-                        .selectBroker(brokerCandidateCache, data, loadData, conf);
+                        .selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
             } else {
                 // Choose a broker among the potentially smaller filtered list, when possible
-                broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                broker = placementStrategy.selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
             }
             log.debug().attr("selectedBroker", broker).attr("candidates", brokerCandidateCache)
                     .log("Selected broker from candidate brokers");
@@ -981,13 +985,23 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         getAvailableBrokers(),
                         brokerTopicLoadingPredicate);
                 Optional<String> brokerTmp =
-                        placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                        placementStrategy.selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
                 if (brokerTmp.isPresent()) {
                     broker = brokerTmp;
                 }
             }
             return broker;
         }
+    }
+
+    @VisibleForTesting
+    LoadData getLoadData() {
+        return loadData;
+    }
+
+    @VisibleForTesting
+    void setPlacementStrategy(ModularLoadManagerStrategy placementStrategy) {
+        this.placementStrategy = placementStrategy;
     }
 
     /**
