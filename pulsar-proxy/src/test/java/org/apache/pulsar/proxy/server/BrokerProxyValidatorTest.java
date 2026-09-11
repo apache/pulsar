@@ -58,8 +58,8 @@ public class BrokerProxyValidatorTest {
         brokerProxyValidator.resolveAndCheckTargetAddress("myhost:6650").get();
     }
 
-    @Test(expectedExceptions = ExecutionException.class,
-            expectedExceptionsMessageRegExp = ".* The IP address of the given host and port 'myhost:6650' isn't allowed.")
+    @Test(expectedExceptions = ExecutionException.class, expectedExceptionsMessageRegExp =
+            ".* The IP address of the given host and port 'myhost:6650' isn't allowed.")
     public void shouldPreventInvalidIPAddress() throws Exception {
         BrokerProxyValidator brokerProxyValidator = new BrokerProxyValidator(
                 createMockedAddressResolver("1.2.3.4"),
@@ -109,6 +109,7 @@ public class BrokerProxyValidatorTest {
         brokerProxyValidator.resolveAndCheckTargetAddress("fd4d:801b:73fa:abcd:0000:0000:0000:0001:6650").get();
     }
 
+    @SuppressWarnings("unchecked")
     private AddressResolver<InetSocketAddress> createMockedAddressResolver(String ipAddressResult) {
         AddressResolver<InetSocketAddress> inetSocketAddressResolver = mock(AddressResolver.class);
         when(inetSocketAddressResolver.resolve(any())).then(invocationOnMock -> {

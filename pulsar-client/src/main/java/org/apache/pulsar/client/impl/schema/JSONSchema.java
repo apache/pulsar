@@ -28,7 +28,7 @@ import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
@@ -41,7 +41,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 /**
  * A schema implementation to deal with json data.
  */
-@Slf4j
+@CustomLog
 public class JSONSchema<T> extends AvroBaseStructSchema<T> {
     private static final AtomicReference<ObjectMapper> JSON_MAPPER = new AtomicReference<>(createObjectMapper());
 
@@ -50,7 +50,7 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         // keep backwards compatibility, don't accept unknown enum values
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, false);
-        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        mapper.setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
         return mapper;
     }
 
@@ -111,7 +111,6 @@ public class JSONSchema<T> extends AvroBaseStructSchema<T> {
 
     /**
      * Clears the caches tied to the ObjectMapper instances and replaces the singleton ObjectMapper instance.
-     *
      * This can be used in tests to ensure that classloaders and class references don't leak across tests.
      */
     public static void clearCaches() {

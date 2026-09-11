@@ -22,18 +22,18 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.Base64;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.crypto.SecretKey;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
@@ -64,10 +64,14 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     private final String testTenant = "my-tenant";
     private final String testNamespace = "my-namespace";
     private final String testTopicName = "my-topic";
+@SuppressWarnings("deprecation")
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    @SuppressWarnings("deprecation")
     private static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
+    @SuppressWarnings("deprecation")
     private static final String PRODUCE_TOKEN = Jwts.builder().setSubject("producer").signWith(SECRET_KEY).compact();
+    @SuppressWarnings("deprecation")
     private static final String CONSUME_TOKEN = Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
 
     @Override
@@ -142,12 +146,12 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     private void innerTestProduce(String createTopicName, boolean isPersistent, boolean isPartition,
                                   String token, int status) throws Exception {
         String topicPrefix = null;
-        if (isPersistent == true) {
+        if (isPersistent) {
             topicPrefix = "persistent";
         } else {
             topicPrefix = "non-persistent";
         }
-        if (isPartition == true) {
+        if (isPartition) {
             admin.topics().createPartitionedTopic(topicPrefix + "://" + testTenant + "/"
                     + testNamespace + "/" + createTopicName, 5);
         } else {
@@ -160,14 +164,14 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
                 writeValueAsString(schema.getSchemaInfo()));
         producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
         producerMessages.setMessages(createMessages(message));
 
         WebTarget root = buildWebClient();
         String requestPath = null;
-        if (isPartition == true) {
+        if (isPartition) {
             requestPath = "/topics/" + topicPrefix + "/" + testTenant + "/" + testNamespace + "/"
                     + createTopicName + "/partitions/2";
         } else {
@@ -193,7 +197,7 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
 
-        javax.ws.rs.client.ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig);
+        jakarta.ws.rs.client.ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig);
         Client client = clientBuilder.build();
         return client.target(brokerUrl.toString());
     }

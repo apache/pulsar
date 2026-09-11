@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.broker.systopic;
 
-import static org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService.getEventKey;
+import static org.apache.pulsar.broker.service.TopicPoliciesService.getEventKey;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -44,17 +47,14 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@CustomLog
 public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(NamespaceEventsSystemTopicServiceTest.class);
 
     private static final String NAMESPACE1 = "system-topic/namespace-1";
     private static final String NAMESPACE2 = "system-topic/namespace-2";
@@ -99,12 +99,15 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
         String topicName = systemTopicClientForNamespace1.getTopicName().toString();
-        SystemTopic topic = new SystemTopic(topicName, mock(ManagedLedger.class), pulsar.getBrokerService());
+        final var mockManagedLedger = mock(ManagedLedger.class);
+        when(mockManagedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        SystemTopic topic = new SystemTopic(topicName, mockManagedLedger, pulsar.getBrokerService());
 
         Assert.assertEquals(SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE, topic.getSchemaCompatibilityStrategy());
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSendAndReceiveNamespaceEvents() throws Exception {
         TopicPoliciesSystemTopicClient systemTopicClientForNamespace1 = systemTopicFactory
                 .createTopicPoliciesSystemTopicClient(NamespaceName.get(NAMESPACE1));
@@ -122,10 +125,11 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
                 .policies(policies)
                 .build())
             .build();
-        systemTopicClientForNamespace1.newWriter().write(getEventKey(event), event);
+        systemTopicClientForNamespace1.newWriter().write(getEventKey(event, false), event);
         SystemTopicClient.Reader reader = systemTopicClientForNamespace1.newReader();
+        @Cleanup("release")
         Message<PulsarEvent> received = reader.readNext();
-        log.info("Receive pulsar event from system topic : {}", received.getValue());
+        log.info().attr("systemTopic", received.getValue()).log("Receive pulsar event from system topic");
 
         // test event send and receive
         Assert.assertEquals(received.getValue(), event);
@@ -134,8 +138,9 @@ public class NamespaceEventsSystemTopicServiceTest extends MockedPulsarServiceBa
 
         // test new reader read
         SystemTopicClient.Reader reader1 = systemTopicClientForNamespace1.newReader();
+        @Cleanup("release")
         Message<PulsarEvent> received1 = reader1.readNext();
-        log.info("Receive pulsar event from system topic : {}", received1.getValue());
+        log.info().attr("systemTopic", received1.getValue()).log("Receive pulsar event from system topic");
         Assert.assertEquals(received1.getValue(), event);
 
         // test writers and readers

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkState;
 import java.util.Optional;
+import lombok.Setter;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -31,18 +32,28 @@ import org.apache.pulsar.common.schema.SchemaType;
  */
 public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
-    private boolean requireSchemaValidation = true;
-    private Schema<T> schema;
+    @Setter
+    private volatile boolean requireSchemaValidation = true;
+    private volatile Schema<T> schema;
+    private final boolean userProvidedSchema;
 
     public AutoProduceBytesSchema() {
+        this.userProvidedSchema = false;
     }
 
     public AutoProduceBytesSchema(Schema<T> schema) {
         this.schema = schema;
+        this.userProvidedSchema = true;
         SchemaInfo schemaInfo = schema.getSchemaInfo();
         this.requireSchemaValidation = schemaInfo != null
                                        && schemaInfo.getType() != SchemaType.BYTES
                                        && schemaInfo.getType() != SchemaType.NONE;
+    }
+
+    private AutoProduceBytesSchema(AutoProduceBytesSchema<T> other) {
+        this.schema = other.schema != null ? other.schema.clone() : null;
+        this.userProvidedSchema = other.userProvidedSchema;
+        this.requireSchemaValidation = other.requireSchemaValidation;
     }
 
     public void setSchema(Schema<T> schema) {
@@ -60,6 +71,10 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
         return schema != null;
     }
 
+    public boolean hasUserProvidedSchema() {
+        return userProvidedSchema;
+    }
+
     @Override
     public void validate(byte[] message) {
         ensureSchemaInitialized();
@@ -73,11 +88,12 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
         if (requireSchemaValidation) {
             // verify if the message can be decoded by the underlying schema
-            if (schema instanceof KeyValueSchema
-                    && ((KeyValueSchema) schema).getKeyValueEncodingType().equals(KeyValueEncodingType.SEPARATED)) {
-                ((KeyValueSchema) schema).getValueSchema().validate(message);
+            Schema<T> localSchema = schema;
+            if (localSchema instanceof KeyValueSchema && ((KeyValueSchema) localSchema).getKeyValueEncodingType()
+                    .equals(KeyValueEncodingType.SEPARATED)) {
+                ((KeyValueSchema) localSchema).getValueSchema().validate(message);
             } else {
-                schema.validate(message);
+                localSchema.validate(message);
             }
         }
 
@@ -113,6 +129,6 @@ public class AutoProduceBytesSchema<T> implements Schema<byte[]> {
 
     @Override
     public Schema<byte[]> clone() {
-        return new AutoProduceBytesSchema<>(schema.clone());
+        return new AutoProduceBytesSchema<>(this);
     }
 }

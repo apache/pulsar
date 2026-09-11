@@ -19,12 +19,11 @@
 package org.apache.pulsar.broker.service;
 
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -34,7 +33,8 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageId;
@@ -47,16 +47,13 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@CustomLog
 public class MessageTTLTest extends BrokerTestBase {
-
-    private static final Logger log = LoggerFactory.getLogger(MessageTTLTest.class);
 
     @BeforeClass
     @Override
@@ -106,9 +103,9 @@ public class MessageTTLTest extends BrokerTestBase {
 
         PersistentTopicInternalStats internalStatsBeforeExpire = admin.topics().getInternalStats(topicName);
         CursorStats statsBeforeExpire = internalStatsBeforeExpire.cursors.get(subscriptionName);
-        log.info("markDeletePosition before expire {}", statsBeforeExpire.markDeletePosition);
+        log.info().attr("beforeExpire", statsBeforeExpire.markDeletePosition).log("markDeletePosition before expire");
         assertEquals(statsBeforeExpire.markDeletePosition,
-                PositionImpl.get(firstMessageId.getLedgerId(), -1).toString());
+                PositionFactory.create(firstMessageId.getLedgerId(), -1).toString());
 
         Awaitility.await().timeout(30, TimeUnit.SECONDS)
                 .pollDelay(3, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -117,9 +114,9 @@ public class MessageTTLTest extends BrokerTestBase {
             // verify that the markDeletePosition was moved forward, and exacly to the last message
             PersistentTopicInternalStats internalStatsAfterExpire = admin.topics().getInternalStats(topicName);
             CursorStats statsAfterExpire = internalStatsAfterExpire.cursors.get(subscriptionName);
-            log.info("markDeletePosition after expire {}", statsAfterExpire.markDeletePosition);
-            assertEquals(statsAfterExpire.markDeletePosition, PositionImpl.get(lastMessageId.getLedgerId(),
-                    lastMessageId.getEntryId() ).toString());
+            log.info().attr("afterExpire", statsAfterExpire.markDeletePosition).log("markDeletePosition after expire");
+            assertEquals(statsAfterExpire.markDeletePosition, PositionFactory.create(lastMessageId.getLedgerId(),
+                    lastMessageId.getEntryId()).toString());
         });
     }
 
@@ -139,12 +136,13 @@ public class MessageTTLTest extends BrokerTestBase {
         Policies policies = admin.namespaces().getPolicies(namespace);
         policies.message_ttl_in_seconds = 10;
         topicRefMock.onPoliciesUpdate(policies);
-        verify(topicRefMock, times(1)).checkMessageExpiry();
+        // checkMessageExpiry now runs asynchronously on the messageExpiryMonitor thread, so wait for it.
+        verify(topicRefMock, timeout(5000).times(1)).checkMessageExpiry();
 
         TopicPolicies topicPolicies = new TopicPolicies();
         topicPolicies.setMessageTTLInSeconds(5);
         topicRefMock.onUpdate(topicPolicies);
-        verify(topicRefMock, times(2)).checkMessageExpiry();
+        verify(topicRefMock, timeout(5000).times(2)).checkMessageExpiry();
     }
 
     @Test

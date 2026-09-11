@@ -18,26 +18,25 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.client.api.Range;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import org.apache.pulsar.client.api.Range;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
 
     @Test
     public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
-        HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5);
+        HashRangeAutoSplitStickyKeyConsumerSelector selector =
+                new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5, false);
         List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3", "consumer4");
         List<Consumer> consumers = new ArrayList<>();
         for (String s : consumerName) {
@@ -61,7 +60,8 @@ public class HashRangeAutoSplitStickyKeyConsumerSelectorTest {
 
     @Test
     public void testGetConsumerKeyHashRangesWithSameConsumerName() throws Exception {
-        HashRangeAutoSplitStickyKeyConsumerSelector selector = new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5);
+        HashRangeAutoSplitStickyKeyConsumerSelector selector =
+                new HashRangeAutoSplitStickyKeyConsumerSelector(2 << 5, false);
         final String consumerName = "My-consumer";
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < 3; i++) {

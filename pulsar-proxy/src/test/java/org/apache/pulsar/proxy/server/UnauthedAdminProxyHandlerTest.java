@@ -19,26 +19,25 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
-
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.WebTarget;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
-import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.testng.Assert;
@@ -47,8 +46,9 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
-    private final String STATUS_FILE_PATH = "./src/test/resources/vip_status.html";
+    private static final String STATUS_FILE_PATH = "./src/test/resources/vip_status.html";
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
     private WebServer webServer;
     private BrokerDiscoveryProvider discoveryProvider;
     private AdminProxyWrapper adminProxyHandler;
@@ -77,13 +77,17 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setClusterName(configClusterName);
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         webServer = new WebServer(proxyConfig, new AuthenticationService(
                                           PulsarConfigurationLoader.convertFrom(proxyConfig)));
 
         resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
                 registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
         discoveryProvider = spy(registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)));
-        adminProxyHandler = new AdminProxyWrapper(proxyConfig, discoveryProvider);
+        adminProxyHandler = new AdminProxyWrapper(proxyConfig, discoveryProvider, proxyClientAuthentication);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
         webServer.addServlet("/admin", servletHolder);
         webServer.addServlet("/lookup", servletHolder);
@@ -101,6 +105,9 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         internalCleanup();
         webServer.stop();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     @Test
@@ -128,8 +135,9 @@ public class UnauthedAdminProxyHandlerTest extends MockedPulsarServiceBaseTest {
     static class AdminProxyWrapper extends AdminProxyHandler {
         String rewrittenUrl;
 
-        AdminProxyWrapper(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider) {
-            super(config, discoveryProvider);
+        AdminProxyWrapper(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider, Authentication
+                proxyClientAuthentication) {
+            super(config, discoveryProvider, proxyClientAuthentication);
         }
 
         @Override

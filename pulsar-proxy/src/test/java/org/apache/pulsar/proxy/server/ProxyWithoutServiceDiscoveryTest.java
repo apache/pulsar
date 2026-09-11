@@ -19,20 +19,19 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
-
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -44,19 +43,18 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
+@CustomLog
 public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyWithoutServiceDiscoveryTest.class);
     private static final String CLUSTER_NAME = "without-service-discovery";
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
 
     @BeforeMethod
@@ -107,6 +105,11 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
+        // Advertise over loopback so the client->proxy service URL host (localhost) matches the proxy server
+        // certificate's SubjectAltName (proxy.cert.pem carries DNS:localhost, IP:127.0.0.1). TLS hostname
+        // verification is on by default (PIP-478), and the default advertised address resolves to
+        // the machine's canonical hostname/IP, which is not in the cert SAN. This keeps verification enabled.
+        proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setTlsEnabledWithBroker(true);
         proxyConfig.setClusterName(CLUSTER_NAME);
 
@@ -122,9 +125,12 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
 
         proxyConfig.setAuthenticationProviders(providers);
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                                                    new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
+        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
 
         proxyService.start();
     }
@@ -134,6 +140,9 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     protected void cleanup() throws Exception {
         super.internalCleanup();
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     /**
@@ -150,9 +159,12 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testDiscoveryService() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
@@ -163,17 +175,18 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         @Cleanup
         PulsarClient proxyClient = createPulsarClient(authTls, proxyService.getServiceUrlTls());
 
-        admin.clusters().createCluster("without-service-discovery", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("without-service-discovery", ClusterData.builder()
+                .serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property", new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
                 Sets.newHashSet("without-service-discovery")));
-        admin.namespaces().createNamespace("my-property/without-service-discovery/my-ns");
+        admin.namespaces().createNamespace("my-property/my-ns");
 
         Consumer<byte[]> consumer = proxyClient.newConsumer()
-                .topic("persistent://my-property/without-service-discovery/my-ns/my-topic1")
+                .topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
         Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES)
-                .topic("persistent://my-property/without-service-discovery/my-ns/my-topic1").create();
+                .topic("persistent://my-property/my-ns/my-topic1").create();
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
             String message = "my-message-" + i;
@@ -186,7 +199,9 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug()
+                    .attr("receivedMessage", receivedMessage)
+                    .log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             count++;
@@ -195,13 +210,16 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         Assert.assertEquals(msgs, count);
         consumer.acknowledgeCumulative(msg);
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
+    @SuppressWarnings("deprecation")
     protected final PulsarClient createPulsarClient(Authentication auth, String lookupUrl) throws Exception {
         closeAdmin();
-        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString()).tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
-                .authentication(auth).build());
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).authentication(auth).build());
         return PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).authentication(auth)
                 .enableTls(true).build();

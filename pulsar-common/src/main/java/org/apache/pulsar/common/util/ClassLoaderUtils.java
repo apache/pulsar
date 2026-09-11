@@ -24,14 +24,12 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * Helper methods wrt Classloading.
  */
-@Slf4j
+@CustomLog
 public class ClassLoaderUtils {
     /**
      * Load a jar.
@@ -42,8 +40,7 @@ public class ClassLoaderUtils {
      */
     public static ClassLoader loadJar(File jar) throws MalformedURLException {
         java.net.URL url = jar.toURI().toURL();
-        return AccessController.doPrivileged(
-            (PrivilegedAction<URLClassLoader>) () -> new URLClassLoader(new URL[]{url}));
+        return new URLClassLoader(new URL[]{url});
     }
 
     public static ClassLoader extractClassLoader(File packageFile) throws Exception {
@@ -86,7 +83,7 @@ public class ClassLoaderUtils {
             try {
                 ((Closeable) classLoader).close();
             } catch (IOException e) {
-                log.error("Error closing classloader {}", classLoader, e);
+                log.error().attr("classLoader", classLoader).exception(e).log("Error closing classloader");
             }
         }
     }

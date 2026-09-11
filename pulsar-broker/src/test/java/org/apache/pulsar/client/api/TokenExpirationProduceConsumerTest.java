@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Calendar;
@@ -33,7 +36,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -49,10 +52,10 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-@Slf4j
+@CustomLog
 public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase {
-    private final String tenant ="my-tenant";
-    private final NamespaceName namespaceName = NamespaceName.get("my-tenant","my-ns");
+    private final String tenant = "my-tenant";
+    private final NamespaceName namespaceName = NamespaceName.get("my-tenant", "my-ns");
 
     @BeforeMethod
     @Override
@@ -82,9 +85,12 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
+    @SuppressWarnings("deprecation")
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    @SuppressWarnings("deprecation")
     public static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
+    @SuppressWarnings("deprecation")
 
     public String getExpireToken(String role, Date date) {
         return Jwts.builder().setSubject(role).signWith(SECRET_KEY)
@@ -107,9 +113,11 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
         conf.setAuthenticationProviders(Sets.newHashSet(AuthenticationProviderToken.class.getName()));
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
+        conf.setBrokerClientTlsEnabled(true);
         conf.getProperties().setProperty("tokenSecretKey", "data:;base64,"
                 + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
     }
+    @SuppressWarnings("deprecation")
 
     private PulsarClient getClient(String token) throws Exception {
         ClientBuilder clientBuilder = PulsarClient.builder()
@@ -118,7 +126,7 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
                 .enableTls(true)
                 .allowTlsInsecureConnection(false)
                 .enableTlsHostnameVerification(true)
-                .authentication(AuthenticationToken.class.getName(),"token:" +token)
+                .authentication(AuthenticationToken.class.getName(), "token:" + token)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         return clientBuilder.build();
     }
@@ -127,9 +135,32 @@ public class TokenExpirationProduceConsumerTest extends TlsProducerConsumerBase 
         PulsarAdminBuilder clientBuilder = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls())
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .allowTlsInsecureConnection(false)
-                .authentication(AuthenticationToken.class.getName(),"token:" +token)
+                .authentication(AuthenticationToken.class.getName(), "token:" + token)
                 .enableTlsHostnameVerification(true);
         return clientBuilder.build();
+    }
+
+    @Test
+    public void testNonPersistentTopic() throws Exception {
+
+        @Cleanup
+        PulsarClient pulsarClient = getClient(ADMIN_TOKEN);
+
+        String topic = "non-persistent://" + namespaceName + "/test-token-non-persistent";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionName("test").subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        byte[] msg = "Hello".getBytes(StandardCharsets.UTF_8);
+        producer.send(msg);
+
+        Message<byte[]> receive = consumer.receive(3, TimeUnit.SECONDS);
+        assertNotNull(receive);
+        assertEquals(receive.getData(), msg);
     }
 
     @Test

@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /**
  * Common data classes used in the Pulsar Client API.
  */

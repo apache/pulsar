@@ -28,7 +28,7 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface KVRecord<K, V> extends Record {
+public interface KVRecord<K, V> extends Record<V> {
 
     Schema<K> getKeySchema();
 

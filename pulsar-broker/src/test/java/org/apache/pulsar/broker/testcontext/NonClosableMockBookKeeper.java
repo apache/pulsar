@@ -28,7 +28,7 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
  *
  * @see PulsarMockBookKeeper
  */
-class NonClosableMockBookKeeper extends PulsarMockBookKeeper {
+public class NonClosableMockBookKeeper extends PulsarMockBookKeeper {
 
     public NonClosableMockBookKeeper(OrderedExecutor executor) throws Exception {
         super(executor);

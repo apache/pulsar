@@ -21,16 +21,15 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.io.ByteArrayInputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.offload.jcloud.DataBlockHeader;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class DataBlockHeaderTest {
 
     @Test
@@ -42,7 +41,7 @@ public class DataBlockHeaderTest {
             firstEntryId);
 
         // verify get methods
-        assertEquals(dataBlockHeader.getBlockMagicWord(), DataBlockHeaderImpl.MAGIC_WORD);
+        assertEquals(DataBlockHeaderImpl.getBlockMagicWord(), DataBlockHeaderImpl.MAGIC_WORD);
         assertEquals(dataBlockHeader.getBlockLength(), blockLength);
         assertEquals(dataBlockHeader.getFirstEntryId(), firstEntryId);
 
@@ -59,7 +58,8 @@ public class DataBlockHeaderTest {
         byte[] streamContent = new byte[DataBlockHeaderImpl.getDataStartOffset()];
 
         // stream with all 0, simulate junk data, should throw exception for header magic not match.
-        try(InputStream stream2 = new ByteArrayInputStream(streamContent, 0, DataBlockHeaderImpl.getDataStartOffset())) {
+        try (InputStream stream2 =
+                    new ByteArrayInputStream(streamContent, 0, DataBlockHeaderImpl.getDataStartOffset())) {
             DataBlockHeader rebuild2 = DataBlockHeaderImpl.fromStream(stream2);
             fail("Should throw IOException");
         } catch (Exception e) {
@@ -69,7 +69,7 @@ public class DataBlockHeaderTest {
 
         // simulate read header too small, throw EOFException.
         stream.read(streamContent);
-        try(InputStream stream3 =
+        try (InputStream stream3 =
                 new ByteArrayInputStream(streamContent, 0, DataBlockHeaderImpl.getDataStartOffset() - 1)) {
             DataBlockHeader rebuild3 = DataBlockHeaderImpl.fromStream(stream3);
             fail("Should throw EOFException");

@@ -42,6 +42,7 @@ public class AuthenticationDisabled implements Authentication, EncodedAuthentica
         return "none";
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         return nullData;

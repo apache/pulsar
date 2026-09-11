@@ -24,11 +24,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import java.util.HashMap;
 import java.util.Map;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;
@@ -64,9 +64,11 @@ public class BrokerInterceptorWithClassLoaderTest {
     @Test
     public void testClassLoaderSwitcher() throws Exception {
         NarClassLoader narLoader = mock(NarClassLoader.class);
+        @SuppressWarnings("deprecation")
         BrokerInterceptor interceptor = new BrokerInterceptor() {
             @Override
-            public void beforeSendMessage(Subscription subscription, Entry entry, long[] ackSet, MessageMetadata msgMetadata) {
+            public void beforeSendMessage(Subscription subscription, Entry entry,
+                                          long[] ackSet, MessageMetadata msgMetadata) {
                 assertEquals(Thread.currentThread().getContextClassLoader(), narLoader);
             }
 
@@ -135,7 +137,7 @@ public class BrokerInterceptorWithClassLoaderTest {
                 new BrokerInterceptorWithClassLoader(interceptor, narLoader);
         ClassLoader curClassLoader = Thread.currentThread().getContextClassLoader();
         // test class loader
-        assertEquals(brokerInterceptorWithClassLoader.getClassLoader(), narLoader);
+        assertEquals(brokerInterceptorWithClassLoader.getNarClassLoader(), narLoader);
         // test initialize
         brokerInterceptorWithClassLoader.initialize(mock(PulsarService.class));
         assertEquals(Thread.currentThread().getContextClassLoader(), curClassLoader);

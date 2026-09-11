@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 import java.io.File;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.util.IOUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.api.Consumer;
@@ -35,7 +35,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class EndToEndMetadataTest extends BaseMetadataStoreTest {
 
     private File tempDir;

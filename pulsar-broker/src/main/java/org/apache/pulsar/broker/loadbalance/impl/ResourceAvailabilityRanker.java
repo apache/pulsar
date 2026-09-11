@@ -20,17 +20,15 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import java.util.Comparator;
 import java.util.Map;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.loadbalance.LoadRanker;
 import org.apache.pulsar.broker.loadbalance.ResourceDescription;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  */
+@CustomLog
 public class ResourceAvailabilityRanker implements LoadRanker, Comparator<ResourceDescription> {
-    private static final Logger log = LoggerFactory.getLogger(ResourceAvailabilityRanker.class);
-
     /*
      * Every resource's percentage availability is calculated and then added up to denote the total availability of a
      * Resource Unit, if any available resource on a Resource unit is less than 5% we take it out, if only 20% of total
@@ -56,8 +54,9 @@ public class ResourceAvailabilityRanker implements LoadRanker, Comparator<Resour
                 Double temp = ((entry.getValue().limit - entry.getValue().usage) / entry.getValue().limit) * 100;
                 percentAvailable = temp.intValue();
             }
-            log.debug("Resource [{}] in Percentage Available - [{}], Actual Usage is - [{}], Actual Limit is [{}]",
-                    entry.getKey(), percentAvailable, entry.getValue().usage, entry.getValue().limit);
+            log.debug().attr("resource", entry.getKey()).attr("percentAvailable", percentAvailable)
+                    .attr("usage", entry.getValue().usage).attr("limit", entry.getValue().limit)
+                    .log("Resource percentage available");
             // give equal weight to each resource
             int resourceWeight = weight * percentAvailable;
             if (percentAvailable < minAvailableRequired) {
@@ -70,7 +69,8 @@ public class ResourceAvailabilityRanker implements LoadRanker, Comparator<Resour
         }
         if (resourcesWithLowAvailability > 0) {
             availabilityRank = availabilityRank / (resourcesWithLowAvailability * 2);
-            log.debug("Total Resource with Low availability - [{}]", resourcesWithLowAvailability);
+            log.debug().attr("resourcesWithLowAvailability", resourcesWithLowAvailability)
+                    .log("Total resource with low availability");
         }
         if (makeNonFunctional) {
             // this will rarely be selected

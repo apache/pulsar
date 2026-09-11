@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import static org.apache.pulsar.broker.admin.impl.BrokersBase.HEALTH_CHECK_TOPIC_SUFFIX;
+import static org.apache.pulsar.broker.service.HealthChecker.HEALTH_CHECK_TOPIC_SUFFIX;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
 import java.lang.reflect.Field;
@@ -32,10 +33,10 @@ import java.util.concurrent.Phaser;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarService;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.HealthChecker;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -44,20 +45,17 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.springframework.util.CollectionUtils;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-@Slf4j
+@CustomLog
 public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
 
     private final ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
@@ -82,60 +80,44 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    @DataProvider(name = "topicVersion")
-    public static Object[][] topicVersions() {
-        return new Object[][] {
-                { null },
-                { TopicVersion.V1 },
-                { TopicVersion.V2 },
-        };
-    }
-
-    @Test(dataProvider = "topicVersion")
-    public void testHealthCheckup(TopicVersion topicVersion) throws Exception {
+    @Test
+    public void testHealthCheckup() throws Exception {
         final int times = 30;
         CompletableFuture<Void> future = new CompletableFuture<>();
         pulsar.getExecutor().execute(() -> {
             try {
                 for (int i = 0; i < times; i++) {
-                    if (topicVersion == null) {
-                        admin.brokers().healthcheck();
-                    } else {
-                        admin.brokers().healthcheck(topicVersion);
-                    }
+                    admin.brokers().healthcheck();
                 }
                 future.complete(null);
-            }catch (PulsarAdminException e) {
+            } catch (PulsarAdminException e) {
                 future.completeExceptionally(e);
             }
         });
         for (int i = 0; i < times; i++) {
-            if (topicVersion == null) {
-                admin.brokers().healthcheck();
-            } else {
-                admin.brokers().healthcheck(topicVersion);
-            }
+            admin.brokers().healthcheck();
         }
         // To ensure we don't have any subscription
         String brokerId = pulsar.getBrokerId();
-        NamespaceName namespaceName = (topicVersion == TopicVersion.V2)
-                ? NamespaceService.getHeartbeatNamespaceV2(brokerId, pulsar.getConfiguration())
-                : NamespaceService.getHeartbeatNamespace(brokerId, pulsar.getConfiguration());
-        final String testHealthCheckTopic = String.format("persistent://%s/%s", namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
+        NamespaceName namespaceName =
+                NamespaceService.getHeartbeatNamespace(brokerId, pulsar.getConfiguration());
+        final String testHealthCheckTopic = String.format("persistent://%s/%s",
+                namespaceName, HEALTH_CHECK_TOPIC_SUFFIX);
         Awaitility.await().untilAsserted(() -> {
             assertFalse(future.isCompletedExceptionally());
         });
         Awaitility.await().untilAsserted(() ->
-                assertTrue(CollectionUtils.isEmpty(admin.topics()
+                assertTrue(admin.topics()
                         .getSubscriptions(testHealthCheckTopic).stream()
                         // All system topics are using compaction, even though is not explicitly set in the policies.
                         .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
                         .collect(Collectors.toList())
-                ))
+                        .isEmpty())
         );
     }
 
-    @Test(expectedExceptions= PulsarAdminException.class, expectedExceptionsMessageRegExp = ".*Deadlocked threads detected.*")
+    @Test(expectedExceptions = PulsarAdminException.class, expectedExceptionsMessageRegExp =
+            ".*Deadlocked threads detected.*")
     public void testHealthCheckupDetectsDeadlock() throws Exception {
         // simulate a deadlock in the Test JVM
         // the broker used in unit tests runs in the test JVM and the
@@ -143,7 +125,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         Lock lock1 = new ReentrantReadWriteLock().writeLock();
         Lock lock2 = new ReentrantReadWriteLock().writeLock();
         final Phaser phaser = new Phaser(3);
-        Thread thread1=new Thread(() -> {
+        Thread thread1 = new Thread(() -> {
             phaser.arriveAndAwaitAdvance();
             try {
                 deadlock(lock1, lock2, 1000L);
@@ -151,7 +133,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
                 phaser.arriveAndDeregister();
             }
         }, "deadlockthread-1");
-        Thread thread2=new Thread(() -> {
+        Thread thread2 = new Thread(() -> {
             phaser.arriveAndAwaitAdvance();
             try {
                 deadlock(lock2, lock1, 2000L);
@@ -165,7 +147,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
         Thread.sleep(5000L);
 
         try {
-            admin.brokers().healthcheck(TopicVersion.V2);
+            admin.brokers().healthcheck();
         } finally {
             // unlock the deadlock
             thread1.interrupt();
@@ -197,7 +179,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 5000L)
     public void testDeadlockDetectionOverhead() {
-        for (int i=0; i < 1000; i++) {
+        for (int i = 0; i < 1000; i++) {
             long[] threadIds = threadBean.findDeadlockedThreads();
             // assert that there's no deadlock
             assertNull(threadIds);
@@ -207,6 +189,7 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
     class DummyProducerBuilder<T> extends ProducerBuilderImpl<T> {
         // This is a dummy producer builder to test the health check timeout
         // the producer constructed by this builder will not send any message
+        @SuppressWarnings({"unchecked", "rawtypes"})
         public DummyProducerBuilder(PulsarClientImpl client, Schema schema) {
             super(client, schema);
         }
@@ -231,29 +214,35 @@ public class AdminApiHealthCheckTest extends MockedPulsarServiceBaseTest {
     public void testHealthCheckTimeOut() throws Exception {
         final String testHealthCheckTopic = String.format("persistent://pulsar/localhost:%s/healthcheck",
                 pulsar.getConfig().getWebServicePort().get());
-        PulsarClient client = pulsar.getClient();
+        HealthChecker healthChecker = pulsar.getHealthChecker();
+        Field clientField = HealthChecker.class.getDeclaredField("client");
+        clientField.setAccessible(true);
+        PulsarClient client = (PulsarClient) clientField.get(healthChecker);
         PulsarClient spyClient = Mockito.spy(client);
         Mockito.doReturn(new DummyProducerBuilder<>((PulsarClientImpl) spyClient, Schema.BYTES))
                 .when(spyClient).newProducer(Schema.STRING);
-        // use reflection to replace the client in the broker
-        Field field = PulsarService.class.getDeclaredField("client");
-        field.setAccessible(true);
-        field.set(pulsar, spyClient);
+        clientField.set(healthChecker, spyClient);
+
+        // change timeout to 1 second to speed up test
+        Field timeoutField = HealthChecker.class.getDeclaredField("timeout");
+        timeoutField.setAccessible(true);
+        timeoutField.set(healthChecker, Duration.ofSeconds(1));
+
         try {
-            admin.brokers().healthcheck(TopicVersion.V2);
-            throw new Exception("Should not reach here");
+            admin.brokers().healthcheck();
+            fail("Should not reach here");
         } catch (PulsarAdminException e) {
-            log.info("Exception caught", e);
+            log.info().exception(e).log("Exception caught");
             assertTrue(e.getMessage().contains("LowOverheadTimeoutException"));
         }
         // To ensure we don't have any subscription, the producers and readers are closed.
         Awaitility.await().untilAsserted(() ->
-                assertTrue(CollectionUtils.isEmpty(admin.topics()
+                assertTrue(admin.topics()
                         .getSubscriptions(testHealthCheckTopic).stream()
                         // All system topics are using compaction, even though is not explicitly set in the policies.
                         .filter(v -> !v.equals(Compactor.COMPACTION_SUBSCRIPTION))
                         .collect(Collectors.toList())
-                ))
+                        .isEmpty())
         );
     }
 

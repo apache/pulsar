@@ -76,6 +76,7 @@ public class RawBatchMessageContainerImplTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public MessageImpl createMessage(String topic, String value, int entryId) {
         MessageMetadata metadata = new MessageMetadata()
                 .setPublishTime(System.currentTimeMillis())
@@ -88,7 +89,7 @@ public class RawBatchMessageContainerImplTest {
             metadata.setCompression(compressionType);
         }
         Optional<EncryptionContext> encryptionContext = null;
-        if(encryptKeys != null) {
+        if (encryptKeys != null) {
             EncryptionContext tmp = new EncryptionContext();
             tmp.setKeys(encryptKeys);
             encryptionContext = Optional.of(tmp);
@@ -96,7 +97,7 @@ public class RawBatchMessageContainerImplTest {
             encryptionContext = Optional.empty();
         }
         ByteBuf payload = Unpooled.copiedBuffer(value.getBytes());
-        return new MessageImpl(topic, id,metadata, payload, encryptionContext, null, Schema.STRING);
+        return new MessageImpl(topic, id, metadata, payload, encryptionContext, null, Schema.STRING);
     }
 
 
@@ -161,6 +162,7 @@ public class RawBatchMessageContainerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testToByteBufWithCompressionAndEncryption() throws IOException {
         setEncryptionAndCompression(true, true);
 

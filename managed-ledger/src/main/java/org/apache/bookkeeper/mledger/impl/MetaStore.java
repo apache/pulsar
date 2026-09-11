@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.pulsar.metadata.api.Stat;
 
 /**

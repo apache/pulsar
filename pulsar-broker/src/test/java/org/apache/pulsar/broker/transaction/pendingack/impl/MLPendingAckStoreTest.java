@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -28,9 +32,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
@@ -40,9 +45,11 @@ import org.apache.pulsar.broker.transaction.util.LogIndexLagBackoff;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
-import static org.mockito.Mockito.*;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
@@ -54,7 +61,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class MLPendingAckStoreTest extends TransactionTestBase {
 
@@ -79,7 +86,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(topic, false).get().get();
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(pendingAckLogIndexMinLag);
-        CompletableFuture<Subscription> subscriptionFuture = persistentTopic .createSubscription("test",
+        CompletableFuture<Subscription> subscriptionFuture = persistentTopic.createSubscription("test",
                 CommandSubscribe.InitialPosition.Earliest, false, null);
         PersistentSubscription subscription = (PersistentSubscription) subscriptionFuture.get();
         ManagedCursor managedCursor = subscription.getCursor();
@@ -108,7 +115,8 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         serviceConfiguration.setTransactionPendingAckBatchedWriteMaxDelayInMillis(
                 defaultConfig.getTransactionPendingAckBatchedWriteMaxDelayInMillis()
         );
-        serviceConfiguration.setTransactionPendingAckBatchedWriteEnabled(defaultConfig.isTransactionPendingAckBatchedWriteEnabled());
+        serviceConfiguration.setTransactionPendingAckBatchedWriteEnabled(defaultConfig
+                .isTransactionPendingAckBatchedWriteEnabled());
         admin.topics().delete("persistent://" + NAMESPACE1 + "/test-txn-topic", true);
     }
 
@@ -133,6 +141,33 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         );
         serviceConfiguration.setTransactionPendingAckBatchedWriteEnabled(txnLogBufferedWriterConfig.isBatchEnabled());
         return (MLPendingAckStore) mlPendingAckStoreProvider.newPendingAckStore(persistentSubscriptionMock).get();
+    }
+
+    @Test
+    public void testPendingAckStoreWithSlashSubscriptionName() throws Exception {
+        String slashSubName = "tenant/namespace/my-function";
+        when(persistentSubscriptionMock.getName()).thenReturn(slashSubName);
+
+        MLPendingAckStoreProvider provider = new MLPendingAckStoreProvider();
+
+        // Should not throw — subscription names containing '/' must be URL-encoded so the
+        // resulting pending-ack topic name is a valid V2 persistent topic name.
+        MLPendingAckStore store = (MLPendingAckStore) provider.newPendingAckStore(persistentSubscriptionMock).get();
+
+        // Verify the managed ledger persistence path encodes the subscription name correctly.
+        // Expected: tenant/namespace/persistent/<encodedLocalName>
+        // where localName = "<topic>-<encodedSubName>__transaction_pending_ack"
+        String originTopicName = persistentSubscriptionMock.getTopic().getName();
+        TopicName origin = TopicName.get(originTopicName);
+        String encodedSubName = Codec.encode(slashSubName);
+        String expectedLocalName = origin.getLocalName() + "-" + encodedSubName
+                + SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
+        // getPersistenceNamingEncoding() = tenant/namespace/persistent/encodedLocalName
+        String expectedMlName = origin.getTenant() + "/" + origin.getNamespacePortion()
+                + "/persistent/" + Codec.encode(expectedLocalName);
+        Assert.assertEquals(store.getManagedLedger().get().getName(), expectedMlName);
+
+        closePendingAckStoreWithRetry(store);
     }
 
     /**
@@ -172,7 +207,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         List<CompletableFuture<Void>> futureList = new ArrayList<>();
         for (int i = 0; i < 20; i++){
             TxnID txnID = new TxnID(i, i);
-            PositionImpl position = PositionImpl.get(i, i);
+            Position position = PositionFactory.create(i, i);
             futureList.add(mlPendingAckStoreForWrite.appendCumulativeAck(txnID, position));
         }
         for (int i = 0; i < 10; i++){
@@ -185,7 +220,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         }
         for (int i = 40; i < 50; i++){
             TxnID txnID = new TxnID(i, i);
-            PositionImpl position = PositionImpl.get(i, i);
+            Position position = PositionFactory.create(i, i);
             futureList.add(mlPendingAckStoreForWrite.appendCumulativeAck(txnID, position));
         }
         FutureUtil.waitForAll(futureList).get();
@@ -210,7 +245,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         LinkedHashSet<Long> expectedPositions = calculatePendingAckIndexes(positionList, skipSet);
         Assert.assertEquals(
                 mlPendingAckStoreForWrite.pendingAckLogIndex.keySet().stream()
-                        .map(PositionImpl::getEntryId).collect(Collectors.toList()),
+                        .map(Position::getEntryId).collect(Collectors.toList()),
                 new ArrayList<>(expectedPositions)
         );
         // Replay.
@@ -225,7 +260,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         when(pendingAckHandle.changeToReadyState()).thenReturn(true);
         // Process controller, mark the replay task already finish.
         final AtomicInteger processController = new AtomicInteger();
-        doAnswer(new Answer() {
+        doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 processController.incrementAndGet();
@@ -237,19 +272,19 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         // Verify build sparse indexes correct after replay.
         Assert.assertEquals(mlPendingAckStoreForRead.pendingAckLogIndex.size(),
                 mlPendingAckStoreForWrite.pendingAckLogIndex.size());
-        Iterator<Map.Entry<PositionImpl, PositionImpl>> iteratorReplay =
+        Iterator<Map.Entry<Position, Position>> iteratorReplay =
                 mlPendingAckStoreForRead.pendingAckLogIndex.entrySet().iterator();
-        Iterator<Map.Entry<PositionImpl, PositionImpl>> iteratorWrite =
+        Iterator<Map.Entry<Position, Position>> iteratorWrite =
                 mlPendingAckStoreForWrite.pendingAckLogIndex.entrySet().iterator();
         while (iteratorReplay.hasNext()){
-            Map.Entry<PositionImpl, PositionImpl> replayEntry = iteratorReplay.next();
-            Map.Entry<PositionImpl, PositionImpl> writeEntry =  iteratorWrite.next();
+            Map.Entry<Position, Position> replayEntry = iteratorReplay.next();
+            Map.Entry<Position, Position> writeEntry =  iteratorWrite.next();
             Assert.assertEquals(replayEntry.getKey(), writeEntry.getKey());
             Assert.assertEquals(replayEntry.getValue().getLedgerId(), writeEntry.getValue().getLedgerId());
             Assert.assertEquals(replayEntry.getValue().getEntryId(), writeEntry.getValue().getEntryId());
         }
         // Verify delete correct.
-        when(managedCursorMock.getPersistentMarkDeletedPosition()).thenReturn(PositionImpl.get(19, 19));
+        when(managedCursorMock.getPersistentMarkDeletedPosition()).thenReturn(PositionFactory.create(19, 19));
         mlPendingAckStoreForWrite.clearUselessLogData();
         mlPendingAckStoreForRead.clearUselessLogData();
         Assert.assertTrue(mlPendingAckStoreForWrite.pendingAckLogIndex.keySet().iterator().next().getEntryId() > 19);
@@ -287,7 +322,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         long recordCountInCurrentLoop = 0;
         LinkedHashSet<Long> indexes = new LinkedHashSet<>();
         for (int i = 0; i < positionList.size(); i++){
-            recordCountInCurrentLoop ++;
+            recordCountInCurrentLoop++;
             long value = positionList.get(i);
             if (skipSet.contains(value)){
                 continue;

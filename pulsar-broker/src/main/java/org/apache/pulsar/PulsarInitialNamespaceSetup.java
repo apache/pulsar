@@ -44,6 +44,11 @@ public class PulsarInitialNamespaceSetup {
                 "--configuration-store" }, description = "Configuration Store connection string", required = true)
         private String configurationStore;
 
+        @Option(names = {"-cmscp",
+                "--configuration-metadata-store-config-path"}, description = "Configuration Metadata Store config path",
+                hidden = false)
+        private String configurationStoreConfigPath;
+
         @Option(names = {
                 "--zookeeper-session-timeout-ms"
         }, description = "Local zookeeper session timeout ms")
@@ -85,8 +90,10 @@ public class PulsarInitialNamespaceSetup {
             return 1;
         }
 
-        try (MetadataStore configStore = PulsarClusterMetadataSetup
-                .initConfigMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+        try (MetadataStore configStore = PulsarClusterMetadataSetup.initConfigMetadataStore(
+                arguments.configurationStore,
+                arguments.configurationStoreConfigPath,
+                arguments.zkSessionTimeoutMillis)) {
             PulsarResources pulsarResources = new PulsarResources(null, configStore);
             for (String namespace : arguments.namespaces) {
                 NamespaceName namespaceName = null;

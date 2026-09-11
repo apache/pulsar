@@ -39,4 +39,10 @@ public class ZKContainer extends PulsarContainer<ZKContainer> {
     protected boolean isCodeCoverageEnabled() {
         return false;
     }
+
+
+    @Override
+    protected boolean isPassNettyLeakDetectionSystemProperties() {
+        return false;
+    }
 }

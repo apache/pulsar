@@ -18,27 +18,37 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.store;
 
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertThrows;
 import static org.testng.AssertJUnit.assertTrue;
-
 import com.google.common.collect.Sets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.apache.commons.lang.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
 
 @Test(groups = "broker")
 public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
@@ -75,8 +85,6 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         LoadDataStore<MyClass> loadDataStore =
                 LoadDataStoreFactory.create(pulsar, topic, MyClass.class);
-        loadDataStore.startProducer();
-        loadDataStore.startTableView();
         MyClass myClass1 = new MyClass("1", 1);
         loadDataStore.pushAsync("key1", myClass1).get();
 
@@ -109,8 +117,6 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         LoadDataStore<Integer> loadDataStore =
                 LoadDataStoreFactory.create(pulsar, topic, Integer.class);
-        loadDataStore.startProducer();
-        loadDataStore.startTableView();
 
         Map<String, Integer> map = new HashMap<>();
         for (int i = 0; i < 10; i++) {
@@ -134,9 +140,6 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
         LoadDataStore<Integer> loadDataStore =
                 LoadDataStoreFactory.create(pulsar, topic, Integer.class);
-        loadDataStore.startProducer();
-
-        loadDataStore.startTableView();
         loadDataStore.pushAsync("1", 1).get();
         Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.size(), 1));
         assertEquals(loadDataStore.get("1").get(), 1);
@@ -148,6 +151,32 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
         loadDataStore.pushAsync("1", 3).get();
         FieldUtils.writeField(loadDataStore, "tableViewLastUpdateTimestamp", 0 , true);
         Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 3));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testProducerRestart() throws Exception {
+        String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
+        var loadDataStore =
+                (TableViewLoadDataStoreImpl) spy(LoadDataStoreFactory.create(pulsar, topic, Integer.class));
+
+        // happy case
+        loadDataStore.pushAsync("1", 1).get();
+        Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.size(), 1));
+        assertEquals(loadDataStore.get("1").get(), 1);
+        verify(loadDataStore, times(1)).startProducer();
+
+        // loadDataStore will restart producer if null.
+        FieldUtils.writeField(loadDataStore, "producer", null, true);
+        loadDataStore.pushAsync("1", 2).get();
+        Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 2));
+        verify(loadDataStore, times(2)).startProducer();
+
+        // loadDataStore will restart producer if too slow.
+        FieldUtils.writeField(loadDataStore, "producerLastPublishTimestamp", 0 , true);
+        loadDataStore.pushAsync("1", 3).get();
+        Awaitility.await().untilAsserted(() -> assertEquals(loadDataStore.get("1").get(), 3));
+        verify(loadDataStore, times(3)).startProducer();
     }
 
     @Test
@@ -163,6 +192,74 @@ public class LoadDataStoreTest extends MockedPulsarServiceBaseTest {
 
         loadDataStore.pushAsync("2", 2).get();
         loadDataStore.removeAsync("2").get();
+    }
+
+    @Test(timeOut = 30_000)
+    @SuppressWarnings("unchecked")
+    public void testShutdownDoesNotDeadlockWithConcurrentStoreAccess() throws Exception {
+        String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
+        var loadDataStore =
+                (TableViewLoadDataStoreImpl<Integer>) LoadDataStoreFactory.create(pulsar, topic, Integer.class);
+        loadDataStore.start();
+        loadDataStore.closeTableView();
+
+        // Replace the table view with a stub whose close future completes only after another thread has
+        // called a synchronized method of the store. This mirrors the production interleaving where the
+        // reader close future completes on the client's internal executor thread while a channel
+        // StateChangeListener on that same thread is blocked in removeAsync() waiting for the store
+        // monitor held by the closing thread.
+        CompletableFuture<Void> closeSignal = new CompletableFuture<>();
+        CountDownLatch closeStarted = new CountDownLatch(1);
+        TableView<Integer> stubTableView = mock(TableView.class);
+        when(stubTableView.closeAsync()).thenAnswer(invocation -> {
+            closeStarted.countDown();
+            return closeSignal;
+        });
+        doAnswer(invocation -> {
+            closeStarted.countDown();
+            closeSignal.get();
+            return null;
+        }).when(stubTableView).close();
+        loadDataStore.setTableView(stubTableView);
+
+        Thread concurrentAccess = new Thread(() -> {
+            try {
+                closeStarted.await();
+                loadDataStore.removeAsync("key");
+                closeSignal.complete(null);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        concurrentAccess.start();
+        try {
+            loadDataStore.shutdown();
+        } finally {
+            concurrentAccess.join(5000);
+        }
+        assertFalse(concurrentAccess.isAlive());
+        assertTrue(closeSignal.isDone());
+    }
+
+    @Test
+    public void testShutdown() throws Exception {
+        String topic = TopicDomain.persistent + "://" + NamespaceName.SYSTEM_NAMESPACE + "/" + UUID.randomUUID();
+        LoadDataStore<Integer> loadDataStore =
+                LoadDataStoreFactory.create(pulsar, topic, Integer.class);
+        loadDataStore.start();
+        loadDataStore.shutdown();
+
+        Assert.assertTrue(loadDataStore.pushAsync("2", 2).isCompletedExceptionally());
+        Assert.assertTrue(loadDataStore.removeAsync("2").isCompletedExceptionally());
+        assertTrue(loadDataStore.get("2").isEmpty());
+        assertThrows(IllegalStateException.class, loadDataStore::size);
+        assertThrows(IllegalStateException.class, loadDataStore::entrySet);
+        assertThrows(IllegalStateException.class, () -> loadDataStore.forEach((k, v) -> {}));
+        assertThrows(IllegalStateException.class, loadDataStore::init);
+        assertThrows(IllegalStateException.class, loadDataStore::start);
+        assertThrows(IllegalStateException.class, loadDataStore::startProducer);
+        assertThrows(IllegalStateException.class, loadDataStore::startTableView);
+        assertThrows(IllegalStateException.class, loadDataStore::closeTableView);
     }
 
 }

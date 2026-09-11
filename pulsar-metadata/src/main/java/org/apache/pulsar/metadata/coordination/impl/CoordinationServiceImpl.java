@@ -32,7 +32,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.metadata.api.MetadataSerde;
@@ -44,7 +44,7 @@ import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-@Slf4j
+@CustomLog
 @SuppressWarnings("unchecked")
 public class CoordinationServiceImpl implements CoordinationService {
 
@@ -125,7 +125,7 @@ public class CoordinationServiceImpl implements CoordinationService {
 
     private void internalGetNextCounterValueWithRetry(String path, CompletableFuture<Long> future, int count) {
         if (count == 0) {
-            log.error("The number of retries has exhausted when get next counter value from path {}", path);
+            log.error().attr("path", path).log("The number of retries has exhausted when get next counter value");
             future.completeExceptionally(new MetadataStoreException("The number of retries has exhausted"));
             return;
         }
@@ -133,11 +133,12 @@ public class CoordinationServiceImpl implements CoordinationService {
                 .thenAccept(future::complete)
                 .exceptionally(ex -> {
                     if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
-                        log.warn("Failed to get next counter value because of bad version. "
-                                + "Retry to get next counter value from path {}", path);
+                        log.warn().attr("path", path)
+                                .log("Failed to get next counter value because of bad version."
+                                        + " Retry to get next counter value");
                         internalGetNextCounterValueWithRetry(path, future, count - 1);
                     } else {
-                        log.error("Failed to get next counter value from path {}", path, ex);
+                        log.error().attr("path", path).exception(ex).log("Failed to get next counter value");
                         future.completeExceptionally(ex);
                     }
                     return null;

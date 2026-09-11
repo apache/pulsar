@@ -28,8 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -49,7 +49,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  * failures. This decouples the transactional operations from non-transactional operations as
  * much as possible.
  */
-@Slf4j
+@CustomLog
 @Getter
 public class TransactionImpl implements Transaction , TimerTask {
 
@@ -106,18 +106,16 @@ public class TransactionImpl implements Transaction , TimerTask {
     public CompletableFuture<Void> registerProducedTopic(String topic) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (checkIfOpen(completableFuture)) {
-            synchronized (TransactionImpl.this) {
-                // we need to issue the request to TC to register the produced topic
-                return registerPartitionMap.compute(topic, (key, future) -> {
-                    if (future != null) {
-                        return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    } else {
-                        return tcClient.addPublishPartitionToTxnAsync(
-                                txnId, Lists.newArrayList(topic))
-                                .thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    }
-                });
-            }
+            // we need to issue the request to TC to register the produced topic
+            return registerPartitionMap.compute(topic, (key, future) -> {
+                if (future != null) {
+                    return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                } else {
+                    return tcClient.addPublishPartitionToTxnAsync(
+                                    txnId, Lists.newArrayList(topic))
+                            .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                }
+            });
         }
         return completableFuture;
     }
@@ -130,8 +128,10 @@ public class TransactionImpl implements Transaction , TimerTask {
         // and then the opFuture will never be replaced.
         newSendFuture.whenComplete((messageId, e) -> {
             if (e != null) {
-                log.error("The transaction [{}:{}] get an exception when send messages.",
-                        txnIdMostBits, txnIdLeastBits, e);
+                log.error().attr("txnIdMostBits", txnIdMostBits)
+                        .attr("txnIdLeastBits", txnIdLeastBits)
+                        .exception(e)
+                        .log("The transaction got an exception when sending messages");
                 if (!hasOpsFailed) {
                     hasOpsFailed = true;
                 }
@@ -147,18 +147,16 @@ public class TransactionImpl implements Transaction , TimerTask {
     public CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (checkIfOpen(completableFuture)) {
-            synchronized (TransactionImpl.this) {
-                // we need to issue the request to TC to register the acked topic
-                return registerSubscriptionMap.compute(Pair.of(topic, subscription), (key, future) -> {
-                    if (future != null) {
-                        return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    } else {
-                        return tcClient.addSubscriptionToTxnAsync(
-                                txnId, topic, subscription)
-                                .thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    }
-                });
-            }
+            // we need to issue the request to TC to register the acked topic
+            return registerSubscriptionMap.compute(Pair.of(topic, subscription), (key, future) -> {
+                if (future != null) {
+                    return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                } else {
+                    return tcClient.addSubscriptionToTxnAsync(
+                                    txnId, topic, subscription)
+                            .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                }
+            });
         }
         return completableFuture;
     }
@@ -171,8 +169,10 @@ public class TransactionImpl implements Transaction , TimerTask {
         // and then the opFuture will never be replaced.
         newAckFuture.whenComplete((ignore, e) -> {
             if (e != null) {
-                log.error("The transaction [{}:{}] get an exception when ack messages.",
-                        txnIdMostBits, txnIdLeastBits, e);
+                log.error().attr("txnIdMostBits", txnIdMostBits)
+                        .attr("txnIdLeastBits", txnIdLeastBits)
+                        .exception(e)
+                        .log("The transaction got an exception when acking messages");
                 if (!hasOpsFailed) {
                     hasOpsFailed = true;
                 }

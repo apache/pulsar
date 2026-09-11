@@ -19,8 +19,11 @@
 package org.apache.pulsar.common.schema;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.pulsar.client.api.EncodeData.isValidSchemaId;
+import static org.apache.pulsar.common.schema.KeyValue.generateKVSchemaId;
+import static org.apache.pulsar.common.schema.KeyValue.getSchemaId;
 import static org.testng.Assert.assertEquals;
-
+import static org.testng.Assert.assertFalse;
 import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
 import java.sql.Time;
@@ -58,6 +61,7 @@ import org.testng.annotations.Test;
 
 public class KeyValueTest {
 
+    @SuppressWarnings({"serial", "rawtypes", "unchecked"})
     private static final Map<Schema, List<Object>> testData = new HashMap() {
 
         private static final long serialVersionUID = -3081991052949960650L;
@@ -67,20 +71,24 @@ public class KeyValueTest {
             put(StringSchema.utf8(), Arrays.asList("my string"));
             put(ByteSchema.of(), Arrays.asList((byte) 32767, (byte) -32768));
             put(ShortSchema.of(), Arrays.asList((short) 32767, (short) -32768));
-            put(IntSchema.of(), Arrays.asList((int) 423412424, (int) -41243432));
+            put(IntSchema.of(), Arrays.asList(423412424, -41243432));
             put(LongSchema.of(), Arrays.asList(922337203685477580L, -922337203685477581L));
             put(FloatSchema.of(), Arrays.asList(5678567.12312f, -5678567.12341f));
             put(DoubleSchema.of(), Arrays.asList(5678567.12312d, -5678567.12341d));
             put(BytesSchema.of(), Arrays.asList("my string".getBytes(UTF_8)));
             put(ByteBufferSchema.of(), Arrays.asList(ByteBuffer.allocate(10).put("my string".getBytes(UTF_8))));
             put(ByteBufSchema.of(), Arrays.asList(Unpooled.wrappedBuffer("my string".getBytes(UTF_8))));
-            put(DateSchema.of(), Arrays.asList(new Date(new java.util.Date().getTime() - 10000), new Date(new java.util.Date().getTime())));
-            put(TimeSchema.of(), Arrays.asList(new Time(new java.util.Date().getTime() - 10000), new Time(new java.util.Date().getTime())));
-            put(TimestampSchema.of(), Arrays.asList(new Timestamp(new java.util.Date().getTime()), new Timestamp(new java.util.Date().getTime())));
-            put(InstantSchema.of(), Arrays.asList(Instant.now(), Instant.now().minusSeconds(60*23L)));
+            put(DateSchema.of(), Arrays.asList(new Date(new java.util.Date().getTime() - 10000),
+                    new Date(new java.util.Date().getTime())));
+            put(TimeSchema.of(), Arrays.asList(new Time(new java.util.Date().getTime() - 10000),
+                    new Time(new java.util.Date().getTime())));
+            put(TimestampSchema.of(), Arrays.asList(new Timestamp(new java.util.Date().getTime()),
+                    new Timestamp(new java.util.Date().getTime())));
+            put(InstantSchema.of(), Arrays.asList(Instant.now(), Instant.now().minusSeconds(60 * 23L)));
             put(LocalDateSchema.of(), Arrays.asList(LocalDate.now(), LocalDate.now().minusDays(2)));
             put(LocalTimeSchema.of(), Arrays.asList(LocalTime.now(), LocalTime.now().minusHours(2)));
-            put(LocalDateTimeSchema.of(), Arrays.asList(LocalDateTime.now(), LocalDateTime.now().minusDays(2), LocalDateTime.now().minusWeeks(10)));
+            put(LocalDateTimeSchema.of(), Arrays.asList(LocalDateTime.now(), LocalDateTime.now().minusDays(2),
+                    LocalDateTime.now().minusWeeks(10)));
         }
     };
 
@@ -92,6 +100,7 @@ public class KeyValueTest {
     }
 
     @Test(dataProvider = "schemas")
+    @SuppressWarnings("unchecked")
     public void testAllSchemas(Map<Schema, List<Object>> schemas) {
         for (Map.Entry<Schema, List<Object>> keyEntry : schemas.entrySet()) {
             for (Map.Entry<Schema, List<Object>> valueEntry : schemas.entrySet()) {
@@ -128,6 +137,31 @@ public class KeyValueTest {
                 assertEquals(kv.getValue(), value);
             }
         }
+    }
+
+    @DataProvider(name = "keyValueSchemaBytes")
+    public Object[][] keyValueSchemaBytes() {
+        return new Object[][] {
+                { null, null },
+                { new byte[0], new byte[0] },
+                { null, new byte[] {4, 5, 6, 7, 8} },
+                { new byte[0], new byte[] {4, 5, 6, 7, 8} },
+                { new byte[] {1, 2, 3}, null },
+                { new byte[] {1, 2, 3}, new byte[0] },
+                { new byte[] {1, 2, 3}, new byte[] {4, 5, 6, 7, 8} },
+        };
+    }
+
+    @Test(dataProvider = "keyValueSchemaBytes")
+    public void testEncodeDecodeSchemaId(byte[] keySchemaId, byte[] valueSchemaId) {
+        byte[] encoded = generateKVSchemaId(keySchemaId, valueSchemaId);
+        if (!isValidSchemaId(keySchemaId) && !isValidSchemaId(valueSchemaId)) {
+            assertFalse(isValidSchemaId(encoded));
+            return;
+        }
+        var decoded = getSchemaId(encoded);
+        assertEquals(keySchemaId == null ? new byte[0] : keySchemaId, decoded.getKey());
+        assertEquals(valueSchemaId == null ? new byte[0] : valueSchemaId, decoded.getValue());
     }
 
 }

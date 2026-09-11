@@ -19,8 +19,7 @@
 package org.apache.bookkeeper.mledger.util;
 
 import java.util.concurrent.Semaphore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  * Mutex object that can be acquired from a thread and released from a different thread.
@@ -28,6 +27,7 @@ import org.slf4j.LoggerFactory;
  * <p/>This is meant to be acquired when calling an asynchronous method and released in its callback which is probably
  * executed in a different thread.
  */
+@CustomLog
 public class CallbackMutex {
 
     private Semaphore semaphore = new Semaphore(1, true);
@@ -38,11 +38,13 @@ public class CallbackMutex {
     public void lock() {
         semaphore.acquireUninterruptibly();
 
-        if (log.isDebugEnabled()) {
-            owner = Thread.currentThread().getName();
-            position = Thread.currentThread().getStackTrace()[2].toString();
-            log.debug("<<< Lock {} acquired at {}", this.hashCode(), position);
-        }
+        log.debug(e -> {
+            this.owner = Thread.currentThread().getName();
+            this.position = Thread.currentThread().getStackTrace()[2].toString();
+            e.attr("lockHash", this.hashCode())
+                    .attr("position", position)
+                    .log("Lock acquired");
+        });
     }
 
     public boolean tryLock() {
@@ -50,24 +52,24 @@ public class CallbackMutex {
             return false;
         }
 
-        if (log.isDebugEnabled()) {
-            owner = Thread.currentThread().getName();
-            position = Thread.currentThread().getStackTrace()[2].toString();
-            log.debug("<<< Lock {} acquired at {}", this.hashCode(), position);
-        }
+        log.debug(e -> {
+            this.owner = Thread.currentThread().getName();
+            this.position = Thread.currentThread().getStackTrace()[2].toString();
+            e.attr("lockHash", this.hashCode())
+                    .attr("position", position)
+                    .log("Lock acquired");
+        });
         return true;
     }
 
     public void unlock() {
-        if (log.isDebugEnabled()) {
-            owner = null;
-            position = null;
-            log.debug(">>> Lock {} released at {}", this.hashCode(),
-                    Thread.currentThread().getStackTrace()[2]);
-        }
+        owner = null;
+        position = null;
+        log.debug(e -> e.attr("lockHash", this.hashCode())
+                .attr("position", Thread.currentThread().getStackTrace()[2])
+                .log("Lock released")
+        );
 
         semaphore.release();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(CallbackMutex.class);
 }

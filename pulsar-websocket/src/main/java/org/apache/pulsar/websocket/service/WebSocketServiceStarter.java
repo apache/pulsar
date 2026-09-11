@@ -19,9 +19,9 @@
 package org.apache.pulsar.websocket.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.websocket.admin.WebSocketWebResource.ADMIN_PATH_V1;
 import static org.apache.pulsar.websocket.admin.WebSocketWebResource.ADMIN_PATH_V2;
 import static org.apache.pulsar.websocket.admin.WebSocketWebResource.ATTRIBUTE_PROXY_SERVICE_NAME;
+import lombok.CustomLog;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.util.ShutdownUtil;
@@ -31,16 +31,14 @@ import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
-import org.apache.pulsar.websocket.admin.v1.WebSocketProxyStatsV1;
 import org.apache.pulsar.websocket.admin.v2.WebSocketProxyStatsV2;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.ScopeType;
 
+@CustomLog
 public class WebSocketServiceStarter {
     @Command(name = "websocket", showDefaultValues = true, scope = ScopeType.INHERIT)
     private static class Arguments {
@@ -83,7 +81,7 @@ public class WebSocketServiceStarter {
             WebSocketService service = new WebSocketService(config);
             start(proxyServer, service);
         } catch (Exception e) {
-            log.error("Failed to start WebSocket service", e);
+            log.error().exception(e).log("Failed to start WebSocket service");
             ShutdownUtil.triggerImmediateForcefulShutdown();
         }
     }
@@ -92,17 +90,9 @@ public class WebSocketServiceStarter {
         proxyServer.addWebSocketServlet(WebSocketProducerServlet.SERVLET_PATH, new WebSocketProducerServlet(service));
         proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH, new WebSocketConsumerServlet(service));
         proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH, new WebSocketReaderServlet(service));
-
-        proxyServer.addWebSocketServlet(WebSocketProducerServlet.SERVLET_PATH_V2,
-                new WebSocketProducerServlet(service));
-        proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
-                new WebSocketConsumerServlet(service));
         proxyServer.addWebSocketServlet(WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
                 new WebSocketMultiTopicConsumerServlet(service));
-        proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
-                new WebSocketReaderServlet(service));
 
-        proxyServer.addRestResource(ADMIN_PATH_V1, ATTRIBUTE_PROXY_SERVICE_NAME, service, WebSocketProxyStatsV1.class);
         proxyServer.addRestResource(ADMIN_PATH_V2, ATTRIBUTE_PROXY_SERVICE_NAME, service, WebSocketProxyStatsV2.class);
         proxyServer.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, service.getConfig().getStatusFilePath(),
                 VipStatus.class);
@@ -111,13 +101,11 @@ public class WebSocketServiceStarter {
     }
 
     private static WebSocketProxyConfiguration loadConfig(String configFile) throws Exception {
-        log.info("Loading configuration from {}", configFile);
+        log.info().attr("configuration", configFile).log("Loading configuration from");
         WebSocketProxyConfiguration config = PulsarConfigurationLoader.create(configFile,
                 WebSocketProxyConfiguration.class);
         PulsarConfigurationLoader.isComplete(config);
         return config;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(WebSocketServiceStarter.class);
 
 }

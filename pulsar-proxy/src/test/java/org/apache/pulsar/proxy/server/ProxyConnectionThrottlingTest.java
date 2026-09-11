@@ -23,10 +23,12 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.limiter.ConnectionController;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -39,18 +41,20 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
 
-    private final int NUM_CONCURRENT_LOOKUP = 3;
-    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 4;
+    private static final int NUM_CONCURRENT_LOOKUP = 3;
+    private static final int NUM_CONCURRENT_INBOUND_CONNECTION = 4;
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
@@ -60,8 +64,11 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
         proxyConfig.setMaxConcurrentInboundConnectionsPerIp(NUM_CONCURRENT_INBOUND_CONNECTION);
         proxyConfig.setClusterName(configClusterName);
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                PulsarConfigurationLoader.convertFrom(proxyConfig))));
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
@@ -74,6 +81,9 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         internalCleanup();
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     @Test
@@ -85,7 +95,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                 .build();
 
         Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/producer-topic-1").create();
+                .topic("persistent://public/default/producer-topic-1").create();
 
         log.info("Creating producer 2");
         PulsarClient client2 = PulsarClient.builder()
@@ -94,7 +104,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                 .build();
 
         Producer<byte[]> producer2 = client2.newProducer(Schema.BYTES)
-                .topic("persistent://sample/test/local/producer-topic-1").create();
+                .topic("persistent://public/default/producer-topic-1").create();
 
         log.info("Creating producer 3");
         @Cleanup
@@ -104,10 +114,10 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
                 .build();
         try {
             Producer<byte[]> producer3 = client3.newProducer(Schema.BYTES)
-                    .topic("persistent://sample/test/local/producer-topic-1").create();
+                    .topic("persistent://public/default/producer-topic-1").create();
             producer3.send("Message 1".getBytes());
-            Assert.fail("Should have failed since max num of connections is 2 and the first" +
-                    " producer used them all up - one for discovery and other for producing.");
+            Assert.fail("Should have failed since max num of connections is 2 and the first"
+                    + " producer used them all up - one for discovery and other for producing.");
         } catch (Exception ex) {
             // OK
         }
@@ -117,7 +127,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
         Set<String> keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
         for (String key : keys) {
-            Assert.assertEquals((int)ConnectionController.DefaultConnectionController
+            Assert.assertEquals((int) ConnectionController.DefaultConnectionController
                     .getConnections().get(key).toInteger(), 4);
         }
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 4.0d);
@@ -130,7 +140,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
         keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
         for (String key : keys) {
-            Assert.assertEquals((int)ConnectionController.DefaultConnectionController
+            Assert.assertEquals((int) ConnectionController.DefaultConnectionController
                     .getConnections().get(key).toInteger(), 2);
         }
         Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 2.0d);

@@ -23,12 +23,17 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import jakarta.ws.rs.ClientErrorException;
+import jakarta.ws.rs.ServerErrorException;
+import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ServerErrorException;
-
 import lombok.Cleanup;
+import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -41,29 +46,21 @@ import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "stats")
-public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
+@CustomLog
+public class PulsarBrokerStatsClientTest extends SharedPulsarBaseTest {
 
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+    private String methodName;
 
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    @BeforeMethod(alwaysRun = true)
+    public void setTestMethodName(Method m) {
+        methodName = m.getName();
     }
 
     @Test
@@ -83,7 +80,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
             // Ok
         }
         try {
-            client.getBrokerResourceAvailability("prop/cluster/ns");
+            client.getBrokerResourceAvailability("prop/ns");
         } catch (PulsarAdminException e) {
             // Ok
         }
@@ -95,14 +92,14 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         assertTrue(client.getApiException(new ServerErrorException(500)) instanceof ServerSideErrorException);
         assertTrue(client.getApiException(new ServerErrorException(503)) instanceof PulsarAdminException);
 
-        log.info("Client: -- {}", client);
+        log.info().attr("client", client).log("Client");
     }
 
     @Test
     public void testTopicInternalStats() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
-        final String topicName = "persistent://my-property/my-ns/my-topic1";
+        final String topicName = newTopicName();
         final String subscriptionName = "my-subscriber-name";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
@@ -122,24 +119,43 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
             }
         }
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic topic = (PersistentTopic) SharedPulsarCluster.get().getPulsarService()
+                .getBrokerService().getOrCreateTopic(topicName).get();
+        ManagedLedger ledger = topic.getManagedLedger();
+        long firstLedgerId = ledger.getLedgersInfo().firstKey();
+        ledger.asyncAddLedgerProperty(firstLedgerId, "foo", "bar").get();
+
         PersistentTopicInternalStats internalStats = topic.getInternalStats(true).get();
         assertNotNull(internalStats.ledgers.get(0).metadata);
         // For the mock test, the default ensembles is ["192.0.2.1:1234","192.0.2.2:1234","192.0.2.3:1234"]
         // The registered bookie ID is 192.168.1.1:5000
         assertTrue(internalStats.ledgers.get(0).underReplicated);
 
+        for (ManagedLedgerInternalStats.LedgerInfo ledgerInfo : internalStats.ledgers) {
+            if (ledgerInfo.ledgerId == firstLedgerId) {
+                Map<String, String> properties = ledgerInfo.properties;
+                assertNotNull(properties);
+                assertEquals(properties.get("foo"), "bar");
+            }
+        }
+
         CursorStats cursor = internalStats.cursors.get(subscriptionName);
+        assertTrue(cursor.active);
+
+        producer.close();
+        // Call close to ensure that all acknowledge requests are executed.
+        consumer.close();
+
+        topic = (PersistentTopic) SharedPulsarCluster.get().getPulsarService()
+                .getBrokerService().getOrCreateTopic(topicName).get();
+        internalStats = topic.getInternalStats(true).get();
+        cursor = internalStats.cursors.get(subscriptionName);
         assertEquals(cursor.numberOfEntriesSinceFirstNotAckedMessage, numberOfMsgs);
         assertTrue(cursor.totalNonContiguousDeletedMessagesRange > 0
                 && (cursor.totalNonContiguousDeletedMessagesRange) < numberOfMsgs / 2);
         assertFalse(cursor.subscriptionHavePendingRead);
         assertFalse(cursor.subscriptionHavePendingReplayRead);
-        assertTrue(cursor.active);
-        producer.close();
-        consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        assertFalse(cursor.active);
+        log.info().attr("method", methodName).log("Exiting test");
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarBrokerStatsClientTest.class);
 }

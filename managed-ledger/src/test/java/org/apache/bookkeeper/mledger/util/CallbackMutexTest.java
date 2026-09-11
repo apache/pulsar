@@ -37,8 +37,9 @@ public class CallbackMutexTest {
         // We will test thread competition in unlock()
         new Thread(() -> {
             cbm.lock();
-            if (salary.value() == 1000)
+            if (salary.value() == 1000) {
                 salary.add(2000);
+            }
             cbm.unlock();
             Assert.assertEquals(salary.value(), 3000);
         }).start();
@@ -99,18 +100,20 @@ public class CallbackMutexTest {
             // Protected Code
             salary.set(0);
             int raise = 0;
-            if (ab.compareAndSet(false, true))
+            if (ab.compareAndSet(false, true)) {
                 raise = 2;
-            else
+            } else {
                 raise = -2; // Due to protection no thread will ever execute this line
+            }
             while (salary.value() < 1000000) {
                 try {
                     Thread.sleep(10);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                if (salary.value() % 2 == 0)
+                if (salary.value() % 2 == 0) {
                     salary.add(raise);
+                }
             }
             Assert.assertEquals(salary.value(), 1000000);
             ab.compareAndSet(true, false);

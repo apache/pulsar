@@ -150,6 +150,44 @@ public class OverloadShedderTest {
     }
 
     @Test
+    public void testBrokerWithResourceWeight() {
+        int numBundles = 10;
+        LoadData loadData = new LoadData();
+        LocalBrokerData broker1 = new LocalBrokerData();
+
+        double brokerThroghput = 0;
+        for (int i = 1; i <= numBundles; i++) {
+            broker1.getBundles().add("bundle-" + i);
+            BundleData bundle = new BundleData();
+            TimeAverageMessageData db = new TimeAverageMessageData();
+            double throughput = i * 1024 * 1024;
+            db.setMsgThroughputIn(throughput);
+            db.setMsgThroughputOut(throughput);
+            bundle.setShortTermData(db);
+            loadData.getBundleData().put("bundle-" + i, bundle);
+            brokerThroghput += throughput;
+        }
+        broker1.setMsgThroughputIn(brokerThroghput);
+        broker1.setMsgThroughputOut(brokerThroghput);
+
+        loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
+
+        // set bandwidth usage to 99.9% so that it is considered overloaded
+        broker1.setBandwidthIn(new ResourceUsage(999, 1000));
+        broker1.setBandwidthOut(new ResourceUsage(999, 1000));
+        assertFalse(os.findBundlesForUnloading(loadData, conf).isEmpty());
+
+        // set bandwidth resource weight to 0 so that it is not considered overloaded
+        conf.setLoadBalancerBandwidthInResourceWeight(0);
+        conf.setLoadBalancerBandwidthOutResourceWeight(0);
+        assertTrue(os.findBundlesForUnloading(loadData, conf).isEmpty());
+
+        // set bandwidth resource weight back to 1, or it will affect other tests
+        conf.setLoadBalancerBandwidthInResourceWeight(1);
+        conf.setLoadBalancerBandwidthOutResourceWeight(1);
+    }
+
+    @Test
     public void testFilterRecentlyUnloaded() {
         int numBundles = 10;
         LoadData loadData = new LoadData();

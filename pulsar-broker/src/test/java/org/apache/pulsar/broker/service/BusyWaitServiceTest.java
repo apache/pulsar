@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -28,9 +30,6 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
 
 @Test(groups = "broker")
 public class BusyWaitServiceTest extends BkEnsemblesTestBase {
@@ -45,6 +44,7 @@ public class BusyWaitServiceTest extends BkEnsemblesTestBase {
         config.setManagedLedgerDefaultAckQuorum(1);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPublishWithBusyWait() throws Exception {
 

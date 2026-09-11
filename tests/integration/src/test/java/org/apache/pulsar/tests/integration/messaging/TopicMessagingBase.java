@@ -22,9 +22,12 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -34,16 +37,12 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
-
-@Slf4j
+@CustomLog
 public class TopicMessagingBase extends MessagingBase {
 
-    protected void nonPartitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    protected void nonPartitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent)
+            throws Exception {
+        log.info().attr("starting", methodName).log("-- Starting test --");
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-exclusive", isPersistent);
         @Cleanup
         final PulsarClient client = PulsarClient.builder()
@@ -78,11 +77,12 @@ public class TopicMessagingBase extends MessagingBase {
         }
         log.info("public messages complete.");
         receiveMessagesCheckOrderAndDuplicate(Collections.singletonList(consumer), messagesToSend);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test --");
     }
 
-    protected void partitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    protected void partitionedTopicSendAndReceiveWithExclusive(String serviceUrl, boolean isPersistent)
+            throws Exception {
+        log.info().attr("starting", methodName).log("-- Starting test --");
         final int partitions = 3;
         String topicName = getPartitionedTopic("test-partitioned-consume-exclusive", isPersistent, partitions);
         @Cleanup
@@ -132,11 +132,12 @@ public class TopicMessagingBase extends MessagingBase {
         }
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend - 3);
         closeConsumers(consumerList);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test --");
     }
 
-    protected void nonPartitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    protected void nonPartitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent)
+            throws Exception {
+        log.info().attr("starting", methodName).log("-- Starting test --");
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-failover", isPersistent);
         @Cleanup
         final PulsarClient client = PulsarClient.builder()
@@ -182,11 +183,12 @@ public class TopicMessagingBase extends MessagingBase {
         }
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test --");
     }
 
-    protected void partitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    protected void partitionedTopicSendAndReceiveWithFailover(String serviceUrl, boolean isPersistent)
+            throws Exception {
+        log.info().attr("starting", methodName).log("-- Starting test --");
         final int partitions = 3;
         String topicName = getPartitionedTopic("test-partitioned-consume-failover", isPersistent, partitions);
         @Cleanup
@@ -234,11 +236,12 @@ public class TopicMessagingBase extends MessagingBase {
         }
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test --");
     }
 
-    protected void nonPartitionedTopicSendAndReceiveWithShared(String serviceUrl, boolean isPersistent) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    protected void nonPartitionedTopicSendAndReceiveWithShared(String serviceUrl, boolean isPersistent)
+            throws Exception {
+        log.info().attr("starting", methodName).log("-- Starting test --");
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-shared", isPersistent);
         @Cleanup
         final PulsarClient client = PulsarClient.builder()
@@ -282,11 +285,11 @@ public class TopicMessagingBase extends MessagingBase {
         }
         receiveMessagesCheckDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test --");
     }
 
     protected void partitionedTopicSendAndReceiveWithShared(String serviceUrl, boolean isPersistent) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test --");
         final int partitions = 3;
         String topicName = getPartitionedTopic("test-partitioned-consume-shared", isPersistent, partitions);
         @Cleanup
@@ -326,11 +329,12 @@ public class TopicMessagingBase extends MessagingBase {
         }
         receiveMessagesCheckDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test --");
     }
 
-    protected void nonPartitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    protected void nonPartitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent)
+            throws Exception {
+        log.info().attr("starting", methodName).log("-- Starting test --");
         final String topicName = getNonPartitionedTopic("test-non-partitioned-consume-key-shared", isPersistent);
         @Cleanup
         final PulsarClient client = PulsarClient.builder()
@@ -381,11 +385,12 @@ public class TopicMessagingBase extends MessagingBase {
         }
         receiveMessagesCheckStickyKeyAndDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test --");
     }
 
-    protected void partitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+    protected void partitionedTopicSendAndReceiveWithKeyShared(String serviceUrl, boolean isPersistent)
+            throws Exception {
+        log.info().attr("starting", methodName).log("-- Starting test --");
         final int partitions = 3;
         String topicName = getPartitionedTopic("test-partitioned-consume-key-shared", isPersistent, partitions);
         @Cleanup
@@ -437,7 +442,7 @@ public class TopicMessagingBase extends MessagingBase {
         }
         receiveMessagesCheckStickyKeyAndDuplicate(consumerList, messagesToSend);
         closeConsumers(consumerList);
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test --");
     }
 
 }

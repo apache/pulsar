@@ -20,37 +20,41 @@ package org.apache.pulsar.metadata.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import io.opentelemetry.api.OpenTelemetry;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-import java.util.EnumSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 
 public class MetadataStoreFactoryImplTest {
-
-    private static Object originalProperty;
+    private static String originalMetadatastoreProvidersPropertyValue;
 
     @BeforeClass
     public void setMetadataStoreProperty() {
-        originalProperty = System.getProperties().get(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
+        originalMetadatastoreProvidersPropertyValue =
+                System.getProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
         System.setProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY,
                 MyMetadataStoreProvider.class.getName());
     }
 
     @AfterClass
     public void resetMetadataStoreProperty() {
-        if (originalProperty != null) {
-            System.getProperties().put(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY, originalProperty);
+        if (originalMetadatastoreProvidersPropertyValue != null) {
+            System.setProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY,
+                    originalMetadatastoreProvidersPropertyValue);
+        } else {
+            System.clearProperty(MetadataStoreFactoryImpl.METADATASTORE_PROVIDERS_PROPERTY);
         }
     }
 
@@ -69,9 +73,9 @@ public class MetadataStoreFactoryImplTest {
     public void testRemoveIdentifierFromMetadataURL() {
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("zk:host:port"), "host:port");
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("rocksdb:/data/dir"), "/data/dir");
-        assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("etcd:host:port"), "host:port");
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("memory:name"), "name");
-        assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("http://unknown/url/scheme"), "http://unknown/url/scheme");
+        assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("http://unknown/url/scheme"),
+                "http://unknown/url/scheme");
         assertEquals(MetadataStoreFactoryImpl.removeIdentifierFromMetadataURL("custom:suffix"), "suffix");
     }
 
@@ -89,34 +93,35 @@ public class MetadataStoreFactoryImplTest {
         }
     }
 
+    @SuppressWarnings("try")
     public static class MyMetadataStore extends AbstractMetadataStore {
         protected MyMetadataStore() {
-            super("custom");
+            super("custom", OpenTelemetry.noop(), null, 1);
         }
 
         @Override
-        protected CompletableFuture<List<String>> getChildrenFromStore(String path) {
+        public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
             return null;
         }
 
         @Override
-        protected CompletableFuture<Boolean> existsFromStore(String path) {
+        protected CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
             return null;
         }
 
         @Override
-        protected CompletableFuture<Optional<GetResult>> storeGet(String path) {
+        protected CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
             return null;
         }
 
         @Override
-        protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion) {
+        protected CompletableFuture<Void> storeDelete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
             return null;
         }
 
         @Override
         protected CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                                   EnumSet<CreateOption> options) {
+                                                   Set<Option> opts) {
             return null;
         }
     }

@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.api.Authentication;
@@ -47,13 +48,11 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 
 public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
-    private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
     private final boolean isGlobal;
 
     protected TopicPoliciesImpl(WebTarget web, Authentication auth, long readTimeoutMs, boolean isGlobal) {
         super(auth, readTimeoutMs);
-        this.adminTopics = web.path("/admin");
         this.adminV2Topics = web.path("/admin/v2");
         this.isGlobal = isGlobal;
     }
@@ -400,6 +399,63 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Void> removeMaxUnackedMessagesOnSubscriptionAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "maxUnackedMessagesOnSubscription");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void setSubscriptionExpirationTime(String topic, int subscriptionExpirationTimeInMinutes)
+            throws PulsarAdminException {
+        try {
+            TopicName topicName = validateTopic(topic);
+            WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
+            request(path.queryParam("subscriptionExpirationTime", subscriptionExpirationTimeInMinutes))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscriptionExpirationTimeAsync(String topic,
+                                                                      int subscriptionExpirationTimeInMinutes) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
+        path = path.queryParam("subscriptionExpirationTime", subscriptionExpirationTimeInMinutes);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Integer getSubscriptionExpirationTime(String topic) throws PulsarAdminException {
+        return getSubscriptionExpirationTime(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String topic) {
+        return getSubscriptionExpirationTimeAsync(topic, false);
+    }
+
+    @Override
+    public Integer getSubscriptionExpirationTime(String topic, boolean applied) throws PulsarAdminException {
+        return sync(() -> getSubscriptionExpirationTimeAsync(topic, applied));
+    }
+
+    @Override
+    public CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String topic, boolean applied) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
+        path = path.queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<Integer>() {});
+    }
+
+    @Override
+    public void removeSubscriptionExpirationTime(String topic) throws PulsarAdminException {
+        sync(() -> removeSubscriptionExpirationTimeAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSubscriptionExpirationTimeAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
         return asyncDeleteRequest(path);
     }
 
@@ -1281,6 +1337,47 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         return asyncGetRequest(path, new FutureCallback<Boolean>(){});
     }
 
+    @Override
+    public CompletableFuture<Void> setReplicationClusters(String topic, List<String> clusterIds) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        return asyncPostRequest(path, Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Set<String> getReplicationClusters(String topic, boolean applied) throws PulsarAdminException {
+        return sync(() -> getReplicationClustersAsync(topic, applied));
+    }
+
+    public CompletableFuture<Set<String>> getReplicationClustersAsync(String topic, boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        path = path.queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<Set<String>>(){});
+    }
+
+    @Override
+    public void removeReplicationClusters(String topic) throws PulsarAdminException {
+        sync(() -> removeReplicationClustersAsync(topic));
+    }
+
+    public CompletableFuture<Void> removeReplicationClustersAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void deleteTopicPolicies(String topic) throws PulsarAdminException {
+        sync(() -> deleteTopicPoliciesAsync(topic));
+    }
+
+    public CompletableFuture<Void> deleteTopicPoliciesAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "policies");
+        return asyncDeleteRequest(path);
+    }
+
     /*
      * returns topic name with encoded Local Name
      */
@@ -1290,8 +1387,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {
-        final WebTarget base = topic.isV2() ? adminV2Topics : adminTopics;
-        WebTarget topicPath = base.path(topic.getRestPath());
+        WebTarget topicPath = adminV2Topics.path(topic.getRestPath());
         topicPath = WebTargets.addParts(topicPath, parts);
         topicPath = addGlobalIfNeeded(topicPath);
         return topicPath;

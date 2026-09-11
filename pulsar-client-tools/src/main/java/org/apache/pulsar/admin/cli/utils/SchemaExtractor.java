@@ -30,6 +30,7 @@ public class SchemaExtractor {
                           StandardCharsets.UTF_8);
     }
 
+    @SuppressWarnings("unchecked")
     public static String getAvroSchemaInfo(SchemaDefinition schemaDefinition) {
 
         return new String(Schema.AVRO(schemaDefinition).getSchemaInfo().getSchema(),

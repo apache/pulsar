@@ -1,0 +1,520 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.compaction;
+
+import com.google.common.annotations.VisibleForTesting;
+import io.netty.buffer.ByteBuf;
+import java.io.IOException;
+import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
+import lombok.CustomLog;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.mledger.impl.LedgerMetadataUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.api.RawReader;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.RawBatchConverter;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.FutureUtil;
+
+/**
+ * Compaction will go through the topic in two passes. The first pass
+ * selects latest offset for each key in the topic. Then the second pass
+ * writes these values to a ledger.
+ *
+ * <p>The two passes are required to avoid holding the payloads of each of
+ * the latest values in memory, as the payload can be many orders of
+ * magnitude larger than a message id.
+ */
+@CustomLog
+public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
+
+  @VisibleForTesting
+  static Runnable injectionAfterSeekInPhaseTwo = () -> {};
+  @VisibleForTesting
+  static BiFunction<RawReader, MessageId, CompletableFuture<Void>> injectionPhaseTwoSeek =
+      RawReader::seekAsync;
+  protected static final int MAX_OUTSTANDING = 500;
+  protected final Duration phaseOneLoopReadTimeout;
+  protected final boolean topicCompactionRetainNullKey;
+
+  public AbstractTwoPhaseCompactor(ServiceConfiguration conf,
+      PulsarClient pulsar,
+      BookKeeper bk,
+      ScheduledExecutorService scheduler) {
+    super(conf, pulsar, bk, scheduler);
+    phaseOneLoopReadTimeout = Duration.ofSeconds(
+        conf.getBrokerServiceCompactionPhaseOneLoopTimeInSeconds());
+    topicCompactionRetainNullKey = conf.isTopicCompactionRetainNullKey();
+  }
+
+  protected abstract Map<String, MessageId> toLatestMessageIdForKey(Map<String, T> latestForKey);
+
+  protected abstract boolean compactMessage(String topic, Map<String, T> latestForKey,
+      RawMessage m, MessageMetadata metadata, MessageId id);
+
+  protected abstract boolean compactBatchMessage(String topic, Map<String, T> latestForKey,
+      RawMessage m,
+      MessageMetadata metadata, MessageId id);
+
+  @SuppressWarnings("unchecked")
+  @Override
+  protected CompletableFuture<Long> doCompaction(RawReader reader, BookKeeper bk) {
+    return reader.hasMessageAvailableAsync()
+        .thenCompose(available -> {
+          if (available) {
+            return phaseOne(reader).thenCompose(
+                (r) -> phaseTwo(reader, r.from, r.to, r.lastReadId, toLatestMessageIdForKey(r.latestForKey), bk));
+          } else {
+            log.info().attr("topic", reader.getTopic()).log("Skip compaction of the empty topic");
+            return CompletableFuture.completedFuture(-1L);
+          }
+        });
+  }
+
+  @SuppressWarnings("unchecked")
+  private CompletableFuture<PhaseOneResult> phaseOne(RawReader reader) {
+    Map<String, T> latestForKey = new HashMap<>();
+    CompletableFuture<PhaseOneResult> loopPromise = new CompletableFuture<>();
+
+    reader.getLastMessageIdAsync()
+        .thenAccept(lastMessageId -> {
+          log.info()
+                  .attr("topic", reader.getTopic())
+                  .attr("lastMessageId", lastMessageId)
+                  .log("Commencing phase one of compaction");
+          // Each entry is processed as a whole, discard the batchIndex part deliberately.
+          MessageIdImpl lastImpl = (MessageIdImpl) lastMessageId;
+          MessageIdImpl lastEntryMessageId = new MessageIdImpl(lastImpl.getLedgerId(),
+              lastImpl.getEntryId(),
+              lastImpl.getPartitionIndex());
+          phaseOneLoop(reader, Optional.empty(), Optional.empty(), lastEntryMessageId, latestForKey,
+              loopPromise);
+        }).exceptionally(ex -> {
+          loopPromise.completeExceptionally(ex);
+          return null;
+        });
+
+    return loopPromise;
+  }
+
+  @SuppressWarnings("unchecked")
+  private void phaseOneLoop(RawReader reader,
+      Optional<MessageId> firstMessageId,
+      Optional<MessageId> toMessageId,
+      MessageId lastMessageId,
+      Map<String, T> latestForKey,
+      CompletableFuture<PhaseOneResult> loopPromise) {
+    if (loopPromise.isDone()) {
+      return;
+    }
+    CompletableFuture<RawMessage> future = reader.readNextAsync();
+    FutureUtil.addTimeoutHandling(future,
+        phaseOneLoopReadTimeout, scheduler,
+        () -> FutureUtil.createTimeoutException("Timeout", getClass(), "phaseOneLoop(...)"));
+
+    future.thenAcceptAsync(m -> {
+      try (m) {
+        MessageId id = m.getMessageId();
+        boolean deletedMessage = false;
+        mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
+        MessageMetadata metadata = Commands.parseMessageMetadata(m.getHeadersAndPayload());
+        if (Markers.isServerOnlyMarker(metadata)) {
+          mxBean.addCompactionRemovedEvent(reader.getTopic());
+          deletedMessage = true;
+        } else if (RawBatchConverter.isReadableBatch(metadata)) {
+          deletedMessage = compactBatchMessage(reader.getTopic(), latestForKey, m, metadata, id);
+        } else {
+          deletedMessage = compactMessage(reader.getTopic(), latestForKey, m, metadata, id);
+        }
+        MessageId first = firstMessageId.orElse(deletedMessage ? null : id);
+        MessageId to = deletedMessage ? toMessageId.orElse(null) : id;
+        if (id.compareTo(lastMessageId) == 0) {
+          loopPromise.complete(new PhaseOneResult(first == null ? id : first, to == null ? id : to,
+              lastMessageId, latestForKey));
+        } else {
+          phaseOneLoop(reader,
+              Optional.ofNullable(first),
+              Optional.ofNullable(to),
+              lastMessageId,
+              latestForKey, loopPromise);
+        }
+      }
+    }, scheduler).exceptionally(ex -> {
+      loopPromise.completeExceptionally(ex);
+      return null;
+    });
+  }
+
+  private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to,
+      MessageId lastReadId,
+      Map<String, MessageId> latestForKey, BookKeeper bk) {
+    Map<String, byte[]> metadata =
+        LedgerMetadataUtils.buildMetadataForCompactedLedger(reader.getTopic(), to.toByteArray());
+    return createLedger(bk, metadata, reader.getTopic()).thenCompose((ledger) -> {
+      log.info()
+              .attr("topic", reader.getTopic())
+              .attr("from", from)
+              .attr("to", to)
+              .attr("compactingCount", latestForKey.size())
+              .attr("ledgerId", ledger.getId())
+              .log("Commencing phase two of compaction");
+      return phaseTwoSeekThenLoop(reader, from, to, lastReadId, latestForKey, bk, ledger);
+    });
+  }
+
+  private CompletableFuture<Long> phaseTwoSeekThenLoop(RawReader reader, MessageId from,
+      MessageId to,
+      MessageId lastReadId, Map<String, MessageId> latestForKey, BookKeeper bk,
+      LedgerHandle ledger) {
+    CompletableFuture<Long> promise = new CompletableFuture<>();
+
+    phaseTwoSeekWithRetry(reader, from).thenCompose((v) -> {
+          injectionAfterSeekInPhaseTwo.run();
+          Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
+          CompletableFuture<Void> loopPromise = new CompletableFuture<>();
+          phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise, MessageId.earliest);
+          return loopPromise;
+        }).thenCompose((v) -> closeLedger(ledger))
+        .thenCompose((v) -> reader.acknowledgeCumulativeAsync(lastReadId,
+            Map.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId())))
+        .whenComplete((res, exception) -> {
+          if (exception != null) {
+            deleteLedger(bk, ledger).whenComplete((res2, exception2) -> {
+              if (exception2 != null) {
+                log.warn().attr("ledger", ledger).exceptionMessage(exception2).log("Cleanup of ledger failed");
+              }
+              // complete with original exception
+              promise.completeExceptionally(exception);
+            });
+          } else {
+            promise.complete(ledger.getId());
+          }
+        });
+    return promise;
+  }
+
+  /**
+   * Seek the compaction subscription to {@code from}, retrying on transient
+   * {@link PulsarClientException.ConnectException}.
+   *
+   * <p>Server-side, {@code PersistentSubscription.resetCursorInternal} disconnects the compaction
+   * consumer before resetting the managed cursor, then sends the success response. This races with
+   * the client: {@code channelInactive} fires on the consumer's {@code ClientCnx} and fails the
+   * in-flight seek future with {@code ConnectException} before the broker's success response
+   * arrives. The seek is idempotent and the cursor is already repositioned server-side, so
+   * retrying after a short backoff lets the client reconnect and the next seek complete normally.
+   * Non-transient failures propagate immediately.
+   */
+  private CompletableFuture<Void> phaseTwoSeekWithRetry(RawReader reader, MessageId from) {
+    CompletableFuture<Void> promise = new CompletableFuture<>();
+    Backoff backoff = Backoff.builder()
+        .initialDelay(Duration.ofMillis(100))
+        .maxBackoff(Duration.ofSeconds(1))
+        .mandatoryStop(Duration.ofSeconds(10))
+        .build();
+    attemptPhaseTwoSeek(reader, from, backoff, promise);
+    return promise;
+  }
+
+  private void attemptPhaseTwoSeek(RawReader reader, MessageId from, Backoff backoff,
+      CompletableFuture<Void> promise) {
+    injectionPhaseTwoSeek.apply(reader, from).whenComplete((v, ex) -> {
+      if (ex == null) {
+        promise.complete(null);
+        return;
+      }
+      Throwable cause = FutureUtil.unwrapCompletionException(ex);
+      if (!(cause instanceof PulsarClientException.ConnectException)) {
+        promise.completeExceptionally(cause);
+        return;
+      }
+      long nextMs = backoff.next().toMillis();
+      if (backoff.isMandatoryStopMade()) {
+        promise.completeExceptionally(cause);
+        return;
+      }
+      log.warn()
+          .attr("topic", reader.getTopic())
+          .attr("from", from)
+          .attr("nextMs", nextMs)
+          .exceptionMessage(cause)
+          .log("Phase two seek failed transiently, will retry");
+      scheduler.schedule(() -> attemptPhaseTwoSeek(reader, from, backoff, promise),
+          nextMs, TimeUnit.MILLISECONDS);
+    });
+  }
+
+  private void phaseTwoLoop(RawReader reader, MessageId to, Map<String, MessageId> latestForKey,
+      LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise,
+      MessageId lastCompactedMessageId) {
+    if (promise.isDone()) {
+      return;
+    }
+    reader.readNextAsync().thenAcceptAsync(m -> {
+      if (promise.isDone()) {
+        m.close();
+        return;
+      }
+
+      if (m.getMessageId().compareTo(lastCompactedMessageId) <= 0) {
+        m.close();
+        phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise, lastCompactedMessageId);
+        return;
+      }
+
+      try {
+        MessageId id = m.getMessageId();
+        Optional<RawMessage> messageToAdd = Optional.empty();
+        mxBean.addCompactionReadOp(reader.getTopic(), m.getHeadersAndPayload().readableBytes());
+        MessageMetadata metadata = Commands.parseMessageMetadata(m.getHeadersAndPayload());
+        if (Markers.isServerOnlyMarker(metadata)) {
+          messageToAdd = Optional.empty();
+        } else if (RawBatchConverter.isReadableBatch(metadata)) {
+          try {
+            messageToAdd = rebatchMessage(reader.getTopic(),
+                m, metadata, (key, subid) -> subid.equals(latestForKey.get(key)),
+                topicCompactionRetainNullKey);
+          } catch (IOException ioe) {
+            log.info()
+                    .attr("message", id)
+                    .exception(ioe)
+                    .log("Error decoding batch for message . Whole batch will be included in output");
+            messageToAdd = Optional.of(m);
+          }
+        } else {
+          Pair<String, Integer> keyAndSize = extractKeyAndSize(m, metadata);
+          MessageId msg;
+          if (keyAndSize == null) {
+            messageToAdd = topicCompactionRetainNullKey ? Optional.of(m) : Optional.empty();
+          } else if ((msg = latestForKey.get(keyAndSize.getLeft())) != null
+              && msg.equals(id)) { // consider message only if present into latestForKey map
+            if (keyAndSize.getRight() <= 0) {
+              promise.completeExceptionally(new IllegalArgumentException(
+                  "Compaction phase found empty record from sorted key-map"));
+            }
+            messageToAdd = Optional.of(m);
+          }
+        }
+
+        if (messageToAdd.isPresent()) {
+          RawMessage message = messageToAdd.get();
+          try {
+            outstanding.acquire();
+            CompletableFuture<Void> addFuture = addToCompactedLedger(lh, message, reader.getTopic())
+                .whenComplete((res, exception2) -> {
+                  outstanding.release();
+                  if (exception2 != null) {
+                    promise.completeExceptionally(exception2);
+                  }
+                });
+            if (to.equals(id)) {
+              // make sure all inflight writes have finished
+              outstanding.acquire(MAX_OUTSTANDING);
+              addFuture.whenComplete((res, exception2) -> {
+                if (exception2 == null) {
+                  promise.complete(null);
+                }
+              });
+              return;
+            }
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            promise.completeExceptionally(ie);
+          } finally {
+            if (message != m) {
+              message.close();
+            }
+          }
+        } else if (to.equals(id)) {
+          // Reached to last-id and phase-one found it deleted-message while iterating on ledger so,
+          // not present under latestForKey. Complete the compaction.
+          try {
+            // make sure all inflight writes have finished
+            outstanding.acquire(MAX_OUTSTANDING);
+            promise.complete(null);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            promise.completeExceptionally(e);
+          }
+          return;
+        }
+        phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise, m.getMessageId());
+      } finally {
+        m.close();
+      }
+    }, scheduler).exceptionally(ex -> {
+      promise.completeExceptionally(ex);
+      return null;
+    });
+  }
+
+  protected CompletableFuture<LedgerHandle> createLedger(BookKeeper bk,
+      Map<String, byte[]> metadata, String topic) {
+    CompletableFuture<LedgerHandle> bkf = new CompletableFuture<>();
+
+    try {
+      bk.newCreateLedgerOp()
+          .withEnsembleSize(conf.getManagedLedgerDefaultEnsembleSize())
+          .withWriteQuorumSize(conf.getManagedLedgerDefaultWriteQuorum())
+          .withAckQuorumSize(conf.getManagedLedgerDefaultAckQuorum())
+          .withDigestType(Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE.toApiDigestType())
+          .withPassword(Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD)
+          .withCustomMetadata(metadata)
+          .withLoggerContext(log.with().attr("topic", topic).build())
+          .execute()
+          .whenComplete((writeHandle, ex) -> {
+            if (ex != null) {
+              bkf.completeExceptionally(BKException.create(BKException.getExceptionCode(ex)));
+            } else {
+              bkf.complete((LedgerHandle) writeHandle);
+            }
+          });
+    } catch (Throwable t) {
+      log.error().exception(t).log("Encountered unexpected error when creating compaction ledger");
+      return FutureUtil.failedFuture(t);
+    }
+    return bkf;
+  }
+
+  protected CompletableFuture<Void> deleteLedger(BookKeeper bk, LedgerHandle lh) {
+    CompletableFuture<Void> bkf = new CompletableFuture<>();
+    try {
+      bk.asyncDeleteLedger(lh.getId(),
+          (rc, ctx) -> {
+            if (rc != BKException.Code.OK) {
+              bkf.completeExceptionally(BKException.create(rc));
+            } else {
+              bkf.complete(null);
+            }
+          }, null);
+    } catch (Throwable t) {
+      return FutureUtil.failedFuture(t);
+    }
+    return bkf;
+  }
+
+  protected CompletableFuture<Void> closeLedger(LedgerHandle lh) {
+    CompletableFuture<Void> bkf = new CompletableFuture<>();
+    try {
+      lh.asyncClose((rc, ledger, ctx) -> {
+        if (rc != BKException.Code.OK) {
+          bkf.completeExceptionally(BKException.create(rc));
+        } else {
+          bkf.complete(null);
+        }
+      }, null);
+    } catch (Throwable t) {
+      return FutureUtil.failedFuture(t);
+    }
+    return bkf;
+  }
+
+  private CompletableFuture<Void> addToCompactedLedger(LedgerHandle lh, RawMessage m,
+      String topic) {
+    CompletableFuture<Void> bkf = new CompletableFuture<>();
+    ByteBuf serialized = m.serialize();
+    try {
+      mxBean.addCompactionWriteOp(topic, m.getHeadersAndPayload().readableBytes());
+      long start = System.nanoTime();
+      lh.asyncAddEntry(serialized,
+          (rc, ledger, eid, ctx) -> {
+            mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
+            if (rc != BKException.Code.OK) {
+              bkf.completeExceptionally(BKException.create(rc));
+            } else {
+              bkf.complete(null);
+            }
+          }, null);
+    } catch (Throwable t) {
+      return FutureUtil.failedFuture(t);
+    }
+    return bkf;
+  }
+
+  /**
+   * Extract the partition key and the payload size for a non-batch message.
+   *
+   * @return a pair of (partitionKey, payloadSize), or null if the message has no partition key.
+   */
+  protected Pair<String, Integer> extractKeyAndSize(RawMessage m, MessageMetadata msgMetadata) {
+    if (msgMetadata.hasPartitionKey()) {
+      int payloadSize;
+      if (msgMetadata.hasNullValue() && msgMetadata.isNullValue()) {
+        payloadSize = 0;
+      } else if (msgMetadata.hasUncompressedSize()) {
+        payloadSize = msgMetadata.getUncompressedSize();
+      } else {
+        ByteBuf headersAndPayload = m.getHeadersAndPayload().duplicate();
+        Commands.skipMessageMetadata(headersAndPayload);
+        payloadSize = headersAndPayload.readableBytes();
+      }
+      return Pair.of(msgMetadata.getPartitionKey(), payloadSize);
+    } else {
+      return null;
+    }
+  }
+
+  protected Optional<RawMessage> rebatchMessage(String topic, RawMessage msg,
+      MessageMetadata metadata,
+      BiPredicate<String, MessageId> filter,
+      boolean retainNullKey)
+      throws IOException {
+      log.debug().attr("message", msg.getMessageId()).attr("topic", topic).log("Rebatching message for topic");
+        return RawBatchConverter.rebatchMessage(msg, metadata, filter, retainNullKey);
+  }
+
+  protected static class PhaseOneResult<T> {
+
+    final MessageId from;
+    final MessageId to; // last undeleted messageId
+    final MessageId lastReadId; // last read messageId
+    final Map<String, T> latestForKey;
+
+    PhaseOneResult(MessageId from, MessageId to, MessageId lastReadId,
+        Map<String, T> latestForKey) {
+      this.from = from;
+      this.to = to;
+      this.lastReadId = lastReadId;
+      this.latestForKey = latestForKey;
+    }
+  }
+
+  public long getPhaseOneLoopReadTimeoutInSeconds() {
+    return phaseOneLoopReadTimeout.getSeconds();
+  }
+}

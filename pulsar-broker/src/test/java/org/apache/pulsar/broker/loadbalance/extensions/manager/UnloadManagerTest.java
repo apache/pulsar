@@ -31,7 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
@@ -41,7 +41,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.UnloadDecision;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class UnloadManagerTest {
 
@@ -122,11 +122,11 @@ public class UnloadManagerTest {
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
         manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Init, null, srcBroker, VERSION_ID_INIT), null);
+                new ServiceUnitStateData(ServiceUnitState.Free, null, srcBroker, true, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
 
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Free, null, srcBroker, VERSION_ID_INIT), null);
+        // Success with Init state.
+        manager.handleEvent(bundle, null, null);
         assertEquals(inFlightUnloadRequestMap.size(), 0);
         future.get();
         assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 1);
@@ -136,17 +136,30 @@ public class UnloadManagerTest {
                 bundle, unloadDecision, 5, TimeUnit.SECONDS);
         inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
-
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, null, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
-
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, srcBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequestMap.size(), 0);
-
         future.get();
         assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 2);
+
+        // Success with Free state.
+        future = manager.waitAsync(CompletableFuture.completedFuture(null),
+                bundle, unloadDecision, 5, TimeUnit.SECONDS);
+        inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
+        assertEquals(inFlightUnloadRequestMap.size(), 1);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, srcBroker, true, VERSION_ID_INIT), null);
+        assertEquals(inFlightUnloadRequestMap.size(), 1);
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, srcBroker, false, VERSION_ID_INIT), null);
+        assertEquals(inFlightUnloadRequestMap.size(), 0);
+        future.get();
+        assertEquals(counter.getBreakdownCounters().get(Success).get(Admin).get(), 3);
+
+
     }
 
     @Test
@@ -186,7 +199,7 @@ public class UnloadManagerTest {
                 new UnloadDecision(new Unload("broker-1", "bundle-1"), Success, Admin);
         CompletableFuture<Void> future =
                 manager.waitAsync(CompletableFuture.completedFuture(null),
-                        "bundle-1", unloadDecision,5, TimeUnit.SECONDS);
+                        "bundle-1", unloadDecision, 5, TimeUnit.SECONDS);
         Map<String, CompletableFuture<Void>> inFlightUnloadRequestMap = getInFlightUnloadRequestMap(manager);
         assertEquals(inFlightUnloadRequestMap.size(), 1);
         manager.close();
@@ -201,6 +214,7 @@ public class UnloadManagerTest {
         assertEquals(counter.getBreakdownCounters().get(Failure).get(Unknown).get(), 1);
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, CompletableFuture<Void>> getInFlightUnloadRequestMap(UnloadManager manager)
             throws IllegalAccessException {
         Map<String, CompletableFuture<Void>> inFlightUnloadRequest =

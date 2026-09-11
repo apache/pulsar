@@ -29,6 +29,9 @@
 # Logs location
 # PULSAR_LOG_DIR=
 
+# Log format: "text" (default) or "json" (flat OpenTelemetry JSON, useful for log aggregators)
+# PULSAR_LOG_FORMAT=json
+
 # Configuration file of settings used in broker server
 # PULSAR_BROKER_CONF=
 
@@ -43,9 +46,6 @@
 
 # Extra options to be passed to the jvm
 PULSAR_MEM=${PULSAR_MEM:-"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=4g"}
-
-# Garbage collection options
-PULSAR_GC=${PULSAR_GC:-"-XX:+UseZGC -XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"}
 
 if [ -z "$JAVA_HOME" ]; then
   JAVA_BIN=java
@@ -67,6 +67,16 @@ for token in $("$JAVA_BIN" -version 2>&1 | grep 'version "'); do
     fi
 done
 
+# Garbage collection options
+if [ -z "$PULSAR_GC" ]; then
+  PULSAR_GC="-XX:+PerfDisableSharedMem -XX:+AlwaysPreTouch"
+  if [[ $JAVA_MAJOR_VERSION -eq 21 || $JAVA_MAJOR_VERSION -eq 22 ]]; then
+    PULSAR_GC="-XX:+UseZGC -XX:+ZGenerational ${PULSAR_GC}"
+  else
+    PULSAR_GC="-XX:+UseZGC ${PULSAR_GC}"
+  fi
+fi
+
 PULSAR_GC_LOG_DIR=${PULSAR_GC_LOG_DIR:-"${PULSAR_LOG_DIR}"}
 
 if [[ -z "$PULSAR_GC_LOG" ]]; then
@@ -81,9 +91,6 @@ if [[ -z "$PULSAR_GC_LOG" ]]; then
     PULSAR_GC_LOG="-Xloggc:${PULSAR_GC_LOG_DIR}/pulsar_gc_%p.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCApplicationStoppedTime -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=20M"
   fi
 fi
-
-# Extra options to be passed to the jvm
-PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS:-" -Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacityPerThread=4096"}"
 
 # Add extra paths to the bookkeeper classpath
 # PULSAR_EXTRA_CLASSPATH=

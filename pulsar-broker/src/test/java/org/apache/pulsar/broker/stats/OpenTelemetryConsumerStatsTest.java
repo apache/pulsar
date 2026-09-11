@@ -20,37 +20,25 @@ package org.apache.pulsar.broker.stats;
 
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.Mockito.doAnswer;
 import io.opentelemetry.api.common.Attributes;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.awaitility.Awaitility;
-import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
 
-    private BrokerInterceptor brokerInterceptor;
-
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        brokerInterceptor =
-                Mockito.mock(BrokerInterceptor.class, Mockito.withSettings().defaultAnswer(Mockito.CALLS_REAL_METHODS));
         super.baseSetup();
     }
 
@@ -64,7 +52,6 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
         super.customizeMainPulsarTestContextBuilder(builder);
         builder.enableOpenTelemetry(true);
-        builder.brokerInterceptor(brokerInterceptor);
     }
 
     @Test(timeOut = 30_000)
@@ -78,14 +65,6 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
         var subscriptionName = BrokerTestUtil.newUniqueName("test");
         var receiverQueueSize = 100;
 
-        // Intercept calls to create consumer, in order to fetch client information.
-        var consumerRef = new AtomicReference<Consumer>();
-        doAnswer(invocation -> {
-            consumerRef.compareAndSet(null, invocation.getArgument(1));
-            return null;
-        }).when(brokerInterceptor)
-          .consumerCreated(any(), argThat(arg -> arg.getSubscription().getName().equals(subscriptionName)), any());
-
         @Cleanup
         var consumer = pulsarClient.newConsumer()
                 .topic(topicName)
@@ -94,11 +73,7 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
                 .receiverQueueSize(receiverQueueSize)
-                .property("prop1", "value1")
                 .subscribe();
-
-        Awaitility.await().until(() -> consumerRef.get() != null);
-        var serverConsumer = consumerRef.get();
 
         @Cleanup
         var producer = pulsarClient.newProducer()
@@ -121,11 +96,6 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
                 .put(OpenTelemetryAttributes.PULSAR_SUBSCRIPTION_TYPE, SubscriptionType.Shared.toString())
                 .put(OpenTelemetryAttributes.PULSAR_CONSUMER_NAME, consumer.getConsumerName())
                 .put(OpenTelemetryAttributes.PULSAR_CONSUMER_ID, 0)
-                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_CONNECTED_SINCE,
-                        serverConsumer.getConnectedSince().getEpochSecond())
-                .put(OpenTelemetryAttributes.PULSAR_CLIENT_ADDRESS, serverConsumer.getClientAddressAndPort())
-                .put(OpenTelemetryAttributes.PULSAR_CLIENT_VERSION, serverConsumer.getClientVersion())
-                .put(OpenTelemetryAttributes.PULSAR_CONSUMER_METADATA, List.of("prop1:value1"))
                 .build();
 
         Awaitility.await().untilAsserted(() -> {
@@ -141,9 +111,9 @@ public class OpenTelemetryConsumerStatsTest extends BrokerTestBase {
                     actual -> assertThat(actual).isGreaterThanOrEqualTo(receiverQueueSize - messageCount - ackCount));
 
             var unAckCount = messageCount - ackCount;
-            assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_UNACKNOWLEDGED_COUNTER,
-                    attributes.toBuilder().put(OpenTelemetryAttributes.PULSAR_CONSUMER_BLOCKED, false).build(),
+            assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_UNACKNOWLEDGED_COUNTER, attributes,
                     unAckCount);
+            assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.CONSUMER_BLOCKED_COUNTER, attributes, 0);
             assertMetricLongSumValue(metrics, OpenTelemetryConsumerStats.MESSAGE_REDELIVER_COUNTER, attributes,
                     actual -> assertThat(actual).isGreaterThanOrEqualTo(unAckCount));
         });

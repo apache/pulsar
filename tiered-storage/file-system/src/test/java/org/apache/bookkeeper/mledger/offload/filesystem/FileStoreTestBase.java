@@ -74,7 +74,7 @@ public abstract class FileStoreTestBase {
         MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
         hdfsCluster = builder.build();
 
-        hdfsURI = "hdfs://localhost:"+ hdfsCluster.getNameNodePort() + "/";
+        hdfsURI = "hdfs://localhost:" + hdfsCluster.getNameNodePort() + "/";
         Properties properties = new Properties();
         scheduledExecutorService = Executors.newScheduledThreadPool(1);
         this.offloaderStats = LedgerOffloaderStats.create(true, true, scheduledExecutorService, 60);
@@ -84,10 +84,14 @@ public abstract class FileStoreTestBase {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() {
+    public void tearDown() throws Exception {
         if (fileSystemManagedLedgerOffloader != null) {
             fileSystemManagedLedgerOffloader.close();
             fileSystemManagedLedgerOffloader = null;
+        }
+        if (offloaderStats != null) {
+            offloaderStats.close();
+            offloaderStats = null;
         }
         if (hdfsCluster != null) {
             hdfsCluster.shutdown(true, true);

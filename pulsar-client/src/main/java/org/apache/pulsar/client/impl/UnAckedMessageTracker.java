@@ -34,16 +34,15 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.Counter;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.Unit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class UnAckedMessageTracker implements Closeable {
-    private static final Logger log = LoggerFactory.getLogger(UnAckedMessageTracker.class);
 
     protected final HashMap<MessageId, HashSet<MessageId>> messageIdPartitionMap;
     protected final ArrayDeque<HashSet<MessageId>> timePartitions;
@@ -152,7 +151,9 @@ public class UnAckedMessageTracker implements Closeable {
                         HashSet<MessageId> headPartition = timePartitions.removeFirst();
                         if (!headPartition.isEmpty()) {
                             consumerAckTimeoutsCounter.add(headPartition.size());
-                            log.info("[{}] {} messages will be re-delivered", consumerBase, headPartition.size());
+                            log.info().attr("consumerBase", consumerBase)
+                                    .attr("count", headPartition.size())
+                                    .log("messages will be re-delivered");
                             headPartition.forEach(messageId -> {
                                 if (messageId instanceof ChunkMessageIdImpl) {
                                     addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);

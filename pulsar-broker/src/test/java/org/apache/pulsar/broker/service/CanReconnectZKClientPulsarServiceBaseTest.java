@@ -19,13 +19,15 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
+import com.google.common.io.Resources;
 import io.netty.channel.Channel;
 import java.net.URL;
 import java.nio.channels.SelectionKey;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -33,18 +35,28 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.apache.zookeeper.ClientCnxn;
 import org.apache.zookeeper.ZooKeeper;
+import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 
-@Slf4j
+@CustomLog
 public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetrySupport {
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
+    private static final String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
+            .getPath();
+    private static final String brokerCertPath =
+            Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
+    private static final String brokerKeyPath =
+            Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
     protected int numberOfBookies = 3;
     protected final String clusterName = "r1";
     protected URL url;
@@ -57,8 +69,10 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
     protected PulsarAdmin admin;
     protected PulsarClient client;
     protected ZooKeeper localZkOfBroker;
+    protected volatile SessionEvent sessionEvent;
     protected Object localMetaDataStoreClientCnx;
-    protected final AtomicBoolean LocalMetadataStoreInReconnectFinishSignal = new AtomicBoolean();
+    protected final AtomicBoolean connectionTerminationThreadKeepRunning = new AtomicBoolean();
+    private volatile Thread connectionTerminationThread;
 
     protected void startZKAndBK() throws Exception {
         // Start ZK.
@@ -66,7 +80,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         brokerConfigZk.start();
 
         // Start BK.
-        bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(numberOfBookies, 0);
         bkEnsemble.start();
     }
 
@@ -76,8 +90,16 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         pulsar = new PulsarService(config);
         pulsar.start();
         broker = pulsar.getBrokerService();
-        ZKMetadataStore zkMetadataStore = (ZKMetadataStore) pulsar.getLocalMetadataStore();
-        localZkOfBroker = zkMetadataStore.getZkClient();
+        MetadataStoreExtended store = pulsar.getLocalMetadataStore();
+        if (store instanceof DualMetadataStore dms) {
+            localZkOfBroker = ((ZKMetadataStore) dms.getSourceStore()).getZkClient();
+        } else if (store instanceof ZKMetadataStore zkStore) {
+            localZkOfBroker = zkStore.getZkClient();
+        }
+        store.registerSessionListener(n -> {
+            log.info().attr("event", n).log("Received session event");
+            sessionEvent = n;
+        });
         ClientCnxn cnxn = WhiteboxImpl.getInternalState(localZkOfBroker, "cnxn");
         Object sendThread = WhiteboxImpl.getInternalState(cnxn, "sendThread");
         localMetaDataStoreClientCnx = WhiteboxImpl.getInternalState(sendThread, "clientCnxnSocket");
@@ -88,54 +110,67 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         client = PulsarClient.builder().serviceUrl(url.toString()).build();
     }
 
-    protected void makeLocalMetadataStoreKeepReconnect() throws Exception {
-        if (!LocalMetadataStoreInReconnectFinishSignal.compareAndSet(false, true)) {
-            throw new RuntimeException("Local metadata store is already keeping reconnect");
+    protected void startLocalMetadataStoreConnectionTermination() throws Exception {
+        if (!connectionTerminationThreadKeepRunning.compareAndSet(false, true)) {
+            throw new RuntimeException("Local metadata store connection is already being terminated");
         }
+        CompletableFuture<Void> future = new CompletableFuture<>();
         if (localMetaDataStoreClientCnx.getClass().getSimpleName().equals("ClientCnxnSocketNIO")) {
-            makeLocalMetadataStoreKeepReconnectNIO();
+            startNIOImplTermination(future);
         } else {
             // ClientCnxnSocketNetty.
-            makeLocalMetadataStoreKeepReconnectNetty();
+            startNettyImplTermination(future);
         }
+        // wait until connection is closed at least once
+        future.get();
     }
 
-    protected void makeLocalMetadataStoreKeepReconnectNIO() {
-        new Thread(() -> {
-            while (LocalMetadataStoreInReconnectFinishSignal.get()) {
+    private void startNIOImplTermination(CompletableFuture<Void> future) {
+        connectionTerminationThread = new Thread(() -> {
+            while (connectionTerminationThreadKeepRunning.get()) {
                 try {
                     SelectionKey sockKey = WhiteboxImpl.getInternalState(localMetaDataStoreClientCnx, "sockKey");
                     if (sockKey != null) {
                         sockKey.channel().close();
+                        future.complete(null);
                     }
                     // Prevents high cpu usage.
                     Thread.sleep(5);
                 } catch (Exception e) {
-                    log.error("Try close the ZK connection of local metadata store failed: {}", e.toString());
+                    log.error().exceptionMessage(e).log("Try close the ZK connection of local metadata store failed");
                 }
             }
-        }).start();
+        });
+        connectionTerminationThread.start();
     }
 
-    protected void makeLocalMetadataStoreKeepReconnectNetty() {
-        new Thread(() -> {
-            while (LocalMetadataStoreInReconnectFinishSignal.get()) {
+    private void startNettyImplTermination(CompletableFuture<Void> future) {
+        connectionTerminationThread = new Thread(() -> {
+            while (connectionTerminationThreadKeepRunning.get()) {
                 try {
                     Channel channel = WhiteboxImpl.getInternalState(localMetaDataStoreClientCnx, "channel");
                     if (channel != null) {
                         channel.close();
+                        future.complete(null);
                     }
                     // Prevents high cpu usage.
                     Thread.sleep(5);
                 } catch (Exception e) {
-                    log.error("Try close the ZK connection of local metadata store failed: {}", e.toString());
+                    log.error().exceptionMessage(e).log("Try close the ZK connection of local metadata store failed");
                 }
             }
-        }).start();
+        });
+        connectionTerminationThread.start();
     }
 
-    protected void stopLocalMetadataStoreAlwaysReconnect() {
-        LocalMetadataStoreInReconnectFinishSignal.set(false);
+    protected void stopLocalMetadataStoreConnectionTermination() throws InterruptedException {
+        connectionTerminationThreadKeepRunning.set(false);
+        if (connectionTerminationThread != null) {
+            // Wait for the reconnect thread to finish.
+            connectionTerminationThread.join();
+            connectionTerminationThread = null;
+        }
+        Awaitility.await().until(() -> SessionEvent.Reconnected.equals(sessionEvent));
     }
 
     protected void createDefaultTenantsAndClustersAndNamespace() throws Exception {
@@ -169,7 +204,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         log.info("--- OneWayReplicatorTestBase::setup completed ---");
     }
 
-    private void setConfigDefaults(ServiceConfiguration config, String clusterName,
+    protected void setConfigDefaults(ServiceConfiguration config, String clusterName,
                                    LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
@@ -188,14 +223,15 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
         config.setEnableReplicatedSubscriptions(true);
         config.setReplicatedSubscriptionsSnapshotFrequencyMillis(1000);
+        config.setTlsTrustCertsFilePath(caCertPath);
+        config.setTlsCertificateFilePath(brokerCertPath);
+        config.setTlsKeyFilePath(brokerKeyPath);
     }
 
     @Override
     protected void cleanup() throws Exception {
         markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
-
-        stopLocalMetadataStoreAlwaysReconnect();
 
         // Stop brokers.
         if (client != null) {

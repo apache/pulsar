@@ -21,42 +21,44 @@ package org.apache.pulsar.client.admin.internal;
 import static org.asynchttpclient.Dsl.post;
 import static org.asynchttpclient.Dsl.put;
 import com.google.gson.Gson;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.io.File;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Sink;
 import org.apache.pulsar.client.admin.Sinks;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpRequestExecutor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.UpdateOptions;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.policies.data.SinkStatus;
-import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.request.body.multipart.FilePart;
 import org.asynchttpclient.request.body.multipart.StringPart;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 
-@Slf4j
+@CustomLog
+@SuppressWarnings("deprecation")
 public class SinksImpl extends ComponentResource implements Sinks, Sink {
 
     private final WebTarget sink;
-    private final AsyncHttpClient asyncHttpClient;
+    private final AsyncHttpRequestExecutor asyncHttpRequestExecutor;
 
-    public SinksImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public SinksImpl(WebTarget web, Authentication auth, AsyncHttpRequestExecutor asyncHttpRequestExecutor,
+                     long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         this.sink = web.path("/admin/v3/sink");
-        this.asyncHttpClient = asyncHttpClient;
+        this.asyncHttpRequestExecutor = asyncHttpRequestExecutor;
     }
 
     @Override
@@ -145,7 +147,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build())
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(sink, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
@@ -233,7 +235,7 @@ public class SinksImpl extends ComponentResource implements Sinks, Sink {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(sink, builder).build())
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(sink, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {

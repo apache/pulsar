@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import io.netty.buffer.ByteBuf;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.EntryReadCountHandler;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.transaction.buffer.TransactionEntry;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -135,5 +136,10 @@ public class TransactionEntryImpl implements TransactionEntry {
     @Override
     public boolean release() {
         return this.entry.release();
+    }
+
+    @Override
+    public EntryReadCountHandler getReadCountHandler() {
+        return entry.getReadCountHandler();
     }
 }

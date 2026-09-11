@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
@@ -28,22 +31,26 @@ import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
 /**
  * @author hezhangjian
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class BundleSplitterTaskTest {
+
+    public static final String CA_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
+    public static final String BROKER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    public static final String BROKER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
 
     private LocalBookkeeperEnsemble bkEnsemble;
 
@@ -52,7 +59,7 @@ public class BundleSplitterTaskTest {
     @BeforeMethod
     void setup() throws Exception {
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
         // Start broker
         ServiceConfiguration config = new ServiceConfiguration();
@@ -67,6 +74,9 @@ public class BundleSplitterTaskTest {
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
+        config.setTlsCertificateFilePath(CA_CERT_FILE_PATH);
+        config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
         pulsar = new PulsarService(config);
         pulsar.start();
     }

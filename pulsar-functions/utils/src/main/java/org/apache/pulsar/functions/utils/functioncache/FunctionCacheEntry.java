@@ -28,8 +28,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 
 /**
@@ -37,7 +37,7 @@ import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
  * the dependencies. Once none reference it any more, the class loaders will
  * be cleaned up.
  */
-@Slf4j
+@CustomLog
 public class FunctionCacheEntry implements AutoCloseable {
 
     public static final String JAVA_INSTANCE_JAR_PROPERTY = "pulsar.functions.java.instance.jar";
@@ -115,8 +115,8 @@ public class FunctionCacheEntry implements AutoCloseable {
         try {
             classLoader.close();
         } catch (IOException e) {
-            log.warn("Failed to release function code class loader for "
-                + Arrays.toString(jarFiles.toArray()));
+            log.warn().attr("jarFiles", Arrays.toString(jarFiles.toArray()))
+                    .log("Failed to release function code class loader");
         }
     }
 }

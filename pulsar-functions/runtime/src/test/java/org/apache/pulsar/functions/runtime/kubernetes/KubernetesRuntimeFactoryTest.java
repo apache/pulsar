@@ -18,11 +18,23 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.fail;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
-import org.apache.commons.lang.StringUtils;
+import java.lang.reflect.Type;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -31,8 +43,7 @@ import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesFunctionAuthProvider;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.DefaultSecretsProviderConfigurator;
@@ -43,18 +54,6 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
-
-import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
 
 /**
  * Unit test of {@link KubernetesRuntimeFactoryTest}.
@@ -84,12 +83,14 @@ public class KubernetesRuntimeFactoryTest {
         }
 
         @Override
-        public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName, FunctionDetails functionDetails) {
+        public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
+                                                              FunctionDetails functionDetails) {
 
         }
 
         @Override
-        public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder, FunctionDetails functionDetails) {
+        public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
+                                                           FunctionDetails functionDetails) {
 
         }
 
@@ -122,6 +123,7 @@ public class KubernetesRuntimeFactoryTest {
     }
 
     @AfterMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void tearDown() {
         if (null != this.factory) {
             this.factory.close();
@@ -136,13 +138,15 @@ public class KubernetesRuntimeFactoryTest {
                 resourceChangeInLockStep, Optional.empty(), Optional.empty());
     }
 
+    @SuppressWarnings("unchecked")
     KubernetesRuntimeFactory createKubernetesRuntimeFactory(String extraDepsDir,
                                                             Resources minResources,
                                                             Resources maxResources,
                                                             Resources resourceGranularities,
                                                             boolean resourceChangeInLockStep,
                                                             Optional<FunctionAuthProvider> functionAuthProvider,
-                                                            Optional<RuntimeCustomizer> manifestCustomizer) throws Exception {
+                                                            Optional<RuntimeCustomizer> manifestCustomizer)
+            throws Exception {
         KubernetesRuntimeFactory factory = spy(new KubernetesRuntimeFactory());
         doNothing().when(factory).setupClient();
 
@@ -172,8 +176,8 @@ public class KubernetesRuntimeFactoryTest {
         kubernetesRuntimeFactoryConfig.setMetricsPort(4344);
 
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper().getObjectMapper()
+                .convertValue(kubernetesRuntimeFactoryConfig, Map.class));
 
         workerConfig.setFunctionInstanceMinResources(minResources);
         workerConfig.setFunctionInstanceMaxResources(maxResources);
@@ -182,19 +186,20 @@ public class KubernetesRuntimeFactoryTest {
         workerConfig.setStateStorageServiceUrl(null);
         workerConfig.setAuthenticationEnabled(false);
 
-        factory.initialize(workerConfig,null, new TestSecretProviderConfigurator(),
-                Mockito.mock(ConnectorsManager.class), Mockito.mock(FunctionsManager.class), functionAuthProvider, manifestCustomizer);
+        factory.initialize(workerConfig, null, new TestSecretProviderConfigurator(),
+                Mockito.mock(ConnectorsManager.class),
+                Mockito.mock(FunctionsManager.class), functionAuthProvider, manifestCustomizer);
         return factory;
     }
 
     FunctionDetails createFunctionDetails() {
-        FunctionDetails.Builder functionDetailsBuilder = FunctionDetails.newBuilder();
-        functionDetailsBuilder.setRuntime(FunctionDetails.Runtime.JAVA);
-        functionDetailsBuilder.setTenant("public");
-        functionDetailsBuilder.setNamespace("default");
-        functionDetailsBuilder.setName("function");
-        functionDetailsBuilder.setSecretsMap("SomeMap");
-        return functionDetailsBuilder.build();
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.setRuntime(FunctionDetails.Runtime.JAVA);
+        functionDetails.setTenant("public");
+        functionDetails.setNamespace("default");
+        functionDetails.setName("function");
+        functionDetails.setSecretsMap("SomeMap");
+        return functionDetails;
     }
 
     @Test
@@ -218,15 +223,24 @@ public class KubernetesRuntimeFactoryTest {
         }
 
         testMinResource(0.2, 2048L, false, null);
-        testMinResource(0.05, 2048L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
-        testMinResource(0.2, 512L, true, "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
-        testMinResource(0.05, 512L, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
-        testMinResource(null, null, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
-        testMinResource(0.2, null, true, "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
+        testMinResource(0.05, 2048L, true,
+                "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinResource(0.2, 512L, true,
+                "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
+        testMinResource(0.05, 512L, true,
+                "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinResource(null, null, true,
+                "Per instance CPU requested is not specified. Must specify CPU requested for function"
+                        + " to be at least 0.1");
+        testMinResource(0.2, null, true,
+                "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
 
-        testMinResource(0.05, null, true, "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
-        testMinResource(null, 2048L, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
-        testMinResource(null, 512L, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
+        testMinResource(0.05, null, true,
+                "Per instance CPU requested, 0.05, for function is less than the minimum required, 0.1");
+        testMinResource(null, 2048L, true,
+                "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
+        testMinResource(null, 512L, true,
+                "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
     }
 
     @Test
@@ -244,14 +258,18 @@ public class KubernetesRuntimeFactoryTest {
 
         testMaxResource(0.2, 2048L, false, null);
         testMaxResource(1.00, 2048L, false, null);
-        testMaxResource(1.01, 512L, true, "Per instance CPU requested, 1.01, for function is greater than the maximum required, 1.0");
-        testMaxResource(1.00, 2049L, true, "Per instance RAM requested, 2049, for function is greater than the maximum required, 2048");
+        testMaxResource(1.01, 512L, true,
+                "Per instance CPU requested, 1.01, for function is greater than the maximum required, 1.0");
+        testMaxResource(1.00, 2049L, true,
+                "Per instance RAM requested, 2049, for function is greater than the maximum required, 2048");
 
         testMaxResource(null, null, false, null);
         testMaxResource(0.2, null, false, null);
         testMaxResource(null, 2048L, false, null);
-        testMaxResource(1.05, null, true, "Per instance CPU requested, 1.05, for function is greater than the maximum required, 1.0");
-        testMaxResource(null, 3072L, true, "Per instance RAM requested, 3072, for function is greater than the maximum required, 2048");
+        testMaxResource(1.05, null, true,
+                "Per instance CPU requested, 1.05, for function is greater than the maximum required, 1.0");
+        testMaxResource(null, 3072L, true,
+                "Per instance RAM requested, 3072, for function is greater than the maximum required, 2048");
     }
 
     @Test
@@ -260,14 +278,21 @@ public class KubernetesRuntimeFactoryTest {
         testMinMaxResource(0.2, 1536L, false, null);
         testMinMaxResource(1.00, 2048L, false, null);
 
-        testMinMaxResource(1.01, 1024L, true, "Per instance CPU requested, 1.01, for function is greater than the maximum required, 1.0");
-        testMinMaxResource(1.00, 2049L, true, "Per instance RAM requested, 2049, for function is greater than the maximum required, 2048");
-        testMinMaxResource(0.05, 2048L, true, "Per instance CPU requested, 0.05, for function is less than the "
+        testMinMaxResource(1.01, 1024L, true,
+                "Per instance CPU requested, 1.01, for function is greater than the maximum required, 1.0");
+        testMinMaxResource(1.00, 2049L, true,
+                "Per instance RAM requested, 2049, for function is greater than the maximum required, 2048");
+        testMinMaxResource(0.05, 2048L, true,
+                "Per instance CPU requested, 0.05, for function is less than the "
                 + "minimum required, 0.1");
-        testMinMaxResource(0.2, 512L, true, "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
+        testMinMaxResource(0.2, 512L, true,
+                "Per instance RAM requested, 512, for function is less than the minimum required, 1024");
 
-        testMinMaxResource(null, null, true, "Per instance CPU requested, 0.0, for function is less than the minimum required, 0.1");
-        testMinMaxResource(0.2, null, true, "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
+        testMinMaxResource(null, null, true,
+                "Per instance CPU requested is not specified. Must specify CPU requested for function"
+                        + " to be at least 0.1");
+        testMinMaxResource(0.2, null, true,
+                "Per instance RAM requested, 0, for function is less than the minimum required, 1024");
     }
 
     @Test
@@ -285,27 +310,37 @@ public class KubernetesRuntimeFactoryTest {
 
         // only accept positive resource values when granularities are set
         testResourceGranularities(null, null, granularities, false, true,
-                "Per instance cpu requested, 0.0, for function should be positive and a multiple of the granularity, 0.1");
+                "Per instance cpu requested, 0.0, for function should be positive and a "
+                        + "multiple of the granularity, 0.1");
         testResourceGranularities(0.1, null, granularities, false, true,
-                "Per instance ram requested, 0, for function should be positive and a multiple of the granularity, 1000");
+                "Per instance ram requested, 0, for function should be positive and a "
+                        + "multiple of the granularity, 1000");
         testResourceGranularities(0.1, 0L, granularities, false, true,
-                "Per instance ram requested, 0, for function should be positive and a multiple of the granularity, 1000");
+                "Per instance ram requested, 0, for function should be positive and a "
+                        + "multiple of the granularity, 1000");
         testResourceGranularities(null, 1000L, granularities, false, true,
-                "Per instance cpu requested, 0.0, for function should be positive and a multiple of the granularity, 0.1");
+                "Per instance cpu requested, 0.0, for function should be positive and a "
+                        + "multiple of the granularity, 0.1");
         testResourceGranularities(0.0, 1000L, granularities, false, true,
-                "Per instance cpu requested, 0.0, for function should be positive and a multiple of the granularity, 0.1");
+                "Per instance cpu requested, 0.0, for function should be positive and a "
+                        + "multiple of the granularity, 0.1");
 
         // requested resources must be multiples of granularities
         testResourceGranularities(0.05, 100L, granularities, false, true,
-                "Per instance cpu requested, 0.05, for function should be positive and a multiple of the granularity, 0.1");
+                "Per instance cpu requested, 0.05, for function should be positive and a "
+                        + "multiple of the granularity, 0.1");
         testResourceGranularities(0.1, 100L, granularities, false, true,
-                "Per instance ram requested, 100, for function should be positive and a multiple of the granularity, 1000");
+                "Per instance ram requested, 100, for function should be positive and a "
+                        + "multiple of the granularity, 1000");
         testResourceGranularities(1.01, 100L, granularities, false, true,
-                "Per instance cpu requested, 1.01, for function should be positive and a multiple of the granularity, 0.1");
+                "Per instance cpu requested, 1.01, for function should be positive and a "
+                        + "multiple of the granularity, 0.1");
         testResourceGranularities(0.999, 100L, granularities, false, true,
-                "Per instance cpu requested, 0.999, for function should be positive and a multiple of the granularity, 0.1");
+                "Per instance cpu requested, 0.999, for function should be positive and a "
+                        + "multiple of the granularity, 0.1");
         testResourceGranularities(1.001, 100L, granularities, false, true,
-                "Per instance cpu requested, 1.001, for function should be positive and a multiple of the granularity, 0.1");
+                "Per instance cpu requested, 1.001, for function should be positive and a "
+                        + "multiple of the granularity, 0.1");
         testResourceGranularities(0.1, 1000L, granularities, false, false, null);
         testResourceGranularities(1.0, 1000L, granularities, false, false, null);
         testResourceGranularities(5.0, 1000L, granularities, false, false, null);
@@ -314,15 +349,18 @@ public class KubernetesRuntimeFactoryTest {
         testResourceGranularities(0.2, 1000L, granularities, false, false, null);
         testResourceGranularities(0.1, 2000L, granularities, false, false, null);
         testResourceGranularities(0.1, 2000L, granularities, true, true,
-                "Per instance cpu requested, 0.1, ram requested, 2000, for function should be positive and the same multiple of the granularity, cpu, 0.1, ram, 1000");
+                "Per instance cpu requested, 0.1, ram requested, 2000, for function should be positive and "
+                        + "the same multiple of the granularity, cpu, 0.1, ram, 1000");
         testResourceGranularities(0.2, 1000L, granularities, true, true,
-                "Per instance cpu requested, 0.2, ram requested, 1000, for function should be positive and the same multiple of the granularity, cpu, 0.1, ram, 1000");
+                "Per instance cpu requested, 0.2, ram requested, 1000, for function should be positive and "
+                        + "the same multiple of the granularity, cpu, 0.1, ram, 1000");
         testResourceGranularities(0.1, 1000L, granularities, true, false, null);
         testResourceGranularities(0.2, 2000L, granularities, true, false, null);
         testResourceGranularities(1.0, 10000L, granularities, true, false, null);
         testResourceGranularities(10.0, 100000L, granularities, true, false, null);
         testResourceGranularities(10.0, null, granularities, true, true,
-                "Per instance ram requested, 0, for function should be positive and a multiple of the granularity, 1000");
+                "Per instance ram requested, 0, for function should be positive and a "
+                        + "multiple of the granularity, 1000");
     }
 
     private void testAuthProvider(Optional<FunctionAuthProvider> authProvider) throws Exception {
@@ -336,7 +374,8 @@ public class KubernetesRuntimeFactoryTest {
         testAuthProvider(Optional.empty());
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp = "Function authentication provider.*.must implement KubernetesFunctionAuthProvider")
+    @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
+            "Function authentication provider.*.must implement KubernetesFunctionAuthProvider")
     public void testAuthProviderWrongInterface() throws Exception {
         testAuthProvider(Optional.of(new FunctionAuthProvider() {
             @Override
@@ -346,20 +385,21 @@ public class KubernetesRuntimeFactoryTest {
             }
 
             @Override
-            public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
-                                                            AuthenticationDataSource authenticationDataSource) throws Exception {
+            public Optional<FunctionAuthData> cacheAuthData(FunctionDetails funcDetails,
+                                                 AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
-                                                             Optional<FunctionAuthData> existingFunctionAuthData,
-                                                             AuthenticationDataSource authenticationDataSource) throws Exception {
+            public Optional<FunctionAuthData> updateAuthData(FunctionDetails funcDetails,
+                                                 Optional<FunctionAuthData> existingFunctionAuthData,
+                                                 AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData) throws Exception {
+            public void cleanUpAuthData(FunctionDetails funcDetails,
+                                        Optional<FunctionAuthData> functionAuthData) throws Exception {
 
             }
         }));
@@ -381,25 +421,27 @@ public class KubernetesRuntimeFactoryTest {
             }
 
             @Override
-            public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
-                                                            AuthenticationDataSource authenticationDataSource) throws Exception {
+            public Optional<FunctionAuthData> cacheAuthData(FunctionDetails funcDetails,
+                                                 AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
-                                                             Optional<FunctionAuthData> existingFunctionAuthData,
-                                                             AuthenticationDataSource authenticationDataSource) throws Exception {
+            public Optional<FunctionAuthData> updateAuthData(FunctionDetails funcDetails,
+                                                 Optional<FunctionAuthData> existingFunctionAuthData,
+                                                 AuthenticationDataSource authenticationDataSource) throws Exception {
                 return Optional.empty();
             }
 
             @Override
-            public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData) throws Exception {
+            public void cleanUpAuthData(FunctionDetails funcDetails,
+                                        Optional<FunctionAuthData> functionAuthData) throws Exception {
 
             }
 
             @Override
-            public void configureAuthDataStatefulSet(V1StatefulSet statefulSet, Optional<FunctionAuthData> functionAuthData) {
+            public void configureAuthDataStatefulSet(V1StatefulSet statefulSet,
+                                                     Optional<FunctionAuthData> functionAuthData) {
 
             }
 
@@ -409,16 +451,19 @@ public class KubernetesRuntimeFactoryTest {
     }
 
     private void testMinResource(Double cpu, Long ram, boolean fail, String failError) throws Exception {
-        testResourceRestrictions(cpu, ram, Resources.builder().cpu(0.1).ram(1024L).build(), null, null, false, fail, failError);
+        testResourceRestrictions(cpu, ram, Resources.builder().cpu(0.1).ram(1024L).build(),
+                null, null, false, fail, failError);
     }
 
     private void testMaxResource(Double cpu, Long ram, boolean fail, String failError) throws Exception {
-        testResourceRestrictions(cpu, ram, null, Resources.builder().cpu(1.0).ram(2048L).build(), null, false, fail, failError);
+        testResourceRestrictions(cpu, ram, null, Resources.builder().cpu(1.0).ram(2048L).build(),
+                null, false, fail, failError);
     }
 
     private void testMinMaxResource(Double cpu, Long ram, boolean fail, String failError) throws Exception {
         testResourceRestrictions(cpu, ram, Resources.builder().cpu(0.1).ram(1024L).build(),
-                Resources.builder().cpu(1.0).ram(2048L).build(), null, false, fail, failError);
+                Resources.builder().cpu(1.0).ram(2048L).build(), null,
+                false, fail, failError);
     }
 
     private void testResourceGranularities(Double cpu, Long ram, Resources granularities, boolean changeInLockStep,
@@ -434,7 +479,7 @@ public class KubernetesRuntimeFactoryTest {
         factory = createKubernetesRuntimeFactory(null, minResources, maxResources, granularities, changeInLockStep);
         FunctionDetails functionDetailsBase = createFunctionDetails();
 
-        Function.Resources.Builder resources = Function.Resources.newBuilder();
+        org.apache.pulsar.functions.proto.Resources resources = new org.apache.pulsar.functions.proto.Resources();
         if (cpu != null) {
             resources.setCpu(cpu);
         }
@@ -443,16 +488,21 @@ public class KubernetesRuntimeFactoryTest {
         }
         FunctionDetails functionDetails;
         if (ram != null || cpu != null) {
-            functionDetails = FunctionDetails.newBuilder(functionDetailsBase).setResources(resources).build();
+            functionDetails = new FunctionDetails().copyFrom(functionDetailsBase);
+            functionDetails.setResources().copyFrom(resources);
         } else {
-            functionDetails = FunctionDetails.newBuilder(functionDetailsBase).build();
+            functionDetails = new FunctionDetails().copyFrom(functionDetailsBase);
         }
 
         try {
             factory.doAdmissionChecks(functionDetails);
-            if (fail) fail();
+            if (fail) {
+                fail();
+            }
         } catch (IllegalArgumentException e) {
-            if (!fail) fail();
+            if (!fail) {
+                fail();
+            }
             if (failError != null) {
                 assertEquals(e.getMessage(), failError);
             }
@@ -468,9 +518,13 @@ public class KubernetesRuntimeFactoryTest {
         KubernetesRuntimeFactory kubernetesRuntimeFactory = getKuberentesRuntimeFactory();
         CoreV1Api coreV1Api = Mockito.mock(CoreV1Api.class);
         V1ConfigMap v1ConfigMap = new V1ConfigMap();
-        Mockito.doReturn(v1ConfigMap).when(coreV1Api).readNamespacedConfigMap(any(), any(), any());
-        KubernetesRuntimeFactory.fetchConfigMap(coreV1Api, changeConfigMap, changeConfigNamespace, kubernetesRuntimeFactory);
-        Mockito.verify(coreV1Api, Mockito.times(1)).readNamespacedConfigMap(eq(changeConfigMap), eq(changeConfigNamespace), eq(null));
+        CoreV1Api.APIreadNamespacedConfigMapRequest request = mock(CoreV1Api.APIreadNamespacedConfigMapRequest.class);
+        Mockito.doReturn(request).when(coreV1Api).readNamespacedConfigMap(any(), any());
+        doReturn(v1ConfigMap).when(request).execute();
+        KubernetesRuntimeFactory.fetchConfigMap(coreV1Api, changeConfigMap,
+                changeConfigNamespace, kubernetesRuntimeFactory);
+        Mockito.verify(coreV1Api, Mockito.times(1)).readNamespacedConfigMap(
+                eq(changeConfigMap), eq(changeConfigNamespace));
         KubernetesRuntimeFactory expected = getKuberentesRuntimeFactory();
         assertEquals(kubernetesRuntimeFactory, expected);
 
@@ -478,13 +532,16 @@ public class KubernetesRuntimeFactoryTest {
         configs.put("pulsarDockerImageName", "test_dockerImage2");
         configs.put("imagePullPolicy", "test_imagePullPolicy2");
         v1ConfigMap.setData(configs);
-        KubernetesRuntimeFactory.fetchConfigMap(coreV1Api, changeConfigMap, changeConfigNamespace, kubernetesRuntimeFactory);
-        Mockito.verify(coreV1Api, Mockito.times(2)).readNamespacedConfigMap(eq(changeConfigMap), eq(changeConfigNamespace), eq(null));
+        KubernetesRuntimeFactory.fetchConfigMap(coreV1Api, changeConfigMap,
+                changeConfigNamespace, kubernetesRuntimeFactory);
+        Mockito.verify(coreV1Api, Mockito.times(2)).readNamespacedConfigMap(
+                eq(changeConfigMap), eq(changeConfigNamespace));
 
        assertEquals(kubernetesRuntimeFactory.getPulsarDockerImageName(), "test_dockerImage2");
        assertEquals(kubernetesRuntimeFactory.getImagePullPolicy(), "test_imagePullPolicy2");
     }
 
+    @SuppressWarnings("unchecked")
     private KubernetesRuntimeFactory getKuberentesRuntimeFactory() {
         KubernetesRuntimeFactory kubernetesRuntimeFactory = new KubernetesRuntimeFactory();
         WorkerConfig workerConfig = new WorkerConfig();
@@ -500,10 +557,12 @@ public class KubernetesRuntimeFactoryTest {
         kubernetesRuntimeFactoryConfig.setFunctionDockerImages(imageNames);
         kubernetesRuntimeFactoryConfig.setImagePullPolicy("test_imagePullPolicy");
         workerConfig.setFunctionRuntimeFactoryClassName(KubernetesRuntimeFactory.class.getName());
-        workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(kubernetesRuntimeFactoryConfig, Map.class));
+        workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper().getObjectMapper()
+                .convertValue(kubernetesRuntimeFactoryConfig, Map.class));
         AuthenticationConfig authenticationConfig = AuthenticationConfig.builder().build();
-        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig, new DefaultSecretsProviderConfigurator(), Mockito.mock(ConnectorsManager.class), Mockito.mock(FunctionsManager.class), Optional.empty(), Optional.empty());
+        kubernetesRuntimeFactory.initialize(workerConfig, authenticationConfig,
+                new DefaultSecretsProviderConfigurator(), Mockito.mock(ConnectorsManager.class),
+                Mockito.mock(FunctionsManager.class), Optional.empty(), Optional.empty());
         return kubernetesRuntimeFactory;
     }
 }

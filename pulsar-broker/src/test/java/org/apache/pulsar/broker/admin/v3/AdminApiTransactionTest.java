@@ -31,13 +31,16 @@ import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.http.HttpStatus;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -49,11 +52,15 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TransactionIsolationLevel;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.common.api.proto.MarkerType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -73,12 +80,15 @@ import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionMetadata;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckInternalStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
+import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -165,7 +175,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
@@ -175,17 +185,19 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).sendTimeout(0, TimeUnit.SECONDS).create();
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS).create();
         MessageId messageId = producer.newMessage(transaction).value("Hello pulsar!".getBytes()).send();
         TransactionInBufferStats transactionInBufferStats = admin.transactions()
                 .getTransactionInBufferStatsAsync(new TxnID(transaction.getTxnIdMostBits(),
                         transaction.getTxnIdLeastBits()), topic).get();
-        PositionImpl position =
-                PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
+        Position position =
+                PositionFactory.create(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId)
+                        .getEntryId());
         assertEquals(transactionInBufferStats.startPosition, position.toString());
         assertFalse(transactionInBufferStats.aborted);
 
@@ -210,7 +222,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
@@ -221,7 +233,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
@@ -249,11 +261,11 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
                         transaction.getTxnIdLeastBits()), topic, subName).get();
 
         assertEquals(transactionInPendingAckStats.cumulativeAckPosition,
-                String.valueOf(batchMessageId.getLedgerId()) +
-                        ':' +
-                        batchMessageId.getEntryId() +
-                        ':' +
-                        batchMessageId.getBatchIndex());
+                String.valueOf(batchMessageId.getLedgerId())
+                        + ':'
+                        + batchMessageId.getEntryId()
+                        + ':'
+                        + batchMessageId.getBatchIndex());
     }
 
     @Test(timeOut = 20000)
@@ -305,10 +317,10 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         Map<String, TransactionInBufferStats> producedPartitions = transactionMetadata.producedPartitions;
         Map<String, Map<String, TransactionInPendingAckStats>> ackedPartitions = transactionMetadata.ackedPartitions;
 
-        PositionImpl position1 = getPositionByMessageId(messageId1);
-        PositionImpl position2 = getPositionByMessageId(messageId2);
-        PositionImpl position3 = getPositionByMessageId(messageId3);
-        PositionImpl position4 = getPositionByMessageId(messageId4);
+        Position position1 = getPositionByMessageId(messageId1);
+        Position position2 = getPositionByMessageId(messageId2);
+        Position position3 = getPositionByMessageId(messageId3);
+        Position position4 = getPositionByMessageId(messageId4);
 
         assertFalse(producedPartitions.get(topic1).aborted);
         assertFalse(producedPartitions.get(topic2).aborted);
@@ -336,7 +348,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
@@ -346,7 +358,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
@@ -370,7 +382,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(transactionBufferStats.state, "Ready");
         assertEquals(transactionBufferStats.maxReadPosition,
-                PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(),
+                PositionFactory.create(((MessageIdImpl) messageId).getLedgerId(),
                         ((MessageIdImpl) messageId).getEntryId() + 1).toString());
         assertTrue(transactionBufferStats.lastSnapshotTimestamps > currentTime);
         assertNull(transactionBufferStats.lowWaterMarks);
@@ -394,7 +406,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
@@ -404,7 +416,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
@@ -504,8 +516,9 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(transactionMetadata.timeoutAt, 60000);
     }
 
-    private static PositionImpl getPositionByMessageId(MessageId messageId) {
-        return PositionImpl.get(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId).getEntryId());
+    private static Position getPositionByMessageId(MessageId messageId) {
+        return PositionFactory.create(((MessageIdImpl) messageId).getLedgerId(), ((MessageIdImpl) messageId)
+                .getEntryId());
     }
 
     @Test(timeOut = 20000)
@@ -543,7 +556,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         try {
@@ -553,7 +566,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
             fail("Should failed here");
         } catch (ExecutionException ex) {
             assertTrue(ex.getCause() instanceof PulsarAdminException.NotFoundException);
-            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException)ex.getCause();
+            PulsarAdminException.NotFoundException cause = (PulsarAdminException.NotFoundException) ex.getCause();
             assertTrue(cause.getMessage().contains("Topic not found"));
         }
         admin.topics().createNonPartitionedTopic(topic);
@@ -620,21 +633,23 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         producer.newMessage(transaction).send();
         transaction.abort().get();
 
-        // Get transaction buffer internal stats and verify single snapshot stats
-        TransactionBufferInternalStats stats = admin.transactions()
-                .getTransactionBufferInternalStatsAsync(topic2, true).get();
-        assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Single.toString());
-        assertNotNull(stats.singleSnapshotSystemTopicInternalStats);
+        Awaitility.await().untilAsserted(() -> {
+            // Get transaction buffer internal stats and verify single snapshot stats
+            TransactionBufferInternalStats stats = admin.transactions()
+                    .getTransactionBufferInternalStatsAsync(topic2, true).get();
+            assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Single.toString());
+            assertNotNull(stats.singleSnapshotSystemTopicInternalStats);
 
-        // Get managed ledger internal stats for the transaction buffer snapshot topic
-        PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(
-                TopicName.get(topic2).getNamespace() + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
-        verifyManagedLedgerInternalStats(stats.singleSnapshotSystemTopicInternalStats.managedLedgerInternalStats,
-                internalStats);
-        assertTrue(stats.singleSnapshotSystemTopicInternalStats.managedLedgerName
-                .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT));
-        assertNull(stats.segmentInternalStats);
-        assertNull(stats.segmentIndexInternalStats);
+            // Get managed ledger internal stats for the transaction buffer snapshot topic
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(
+                    TopicName.get(topic2).getNamespace() + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+            verifyManagedLedgerInternalStats(stats.singleSnapshotSystemTopicInternalStats.managedLedgerInternalStats,
+                    internalStats);
+            assertTrue(stats.singleSnapshotSystemTopicInternalStats.managedLedgerName
+                    .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT));
+            assertNull(stats.segmentInternalStats);
+            assertNull(stats.segmentIndexInternalStats);
+        });
 
         // Configure segmented snapshot and set segment size
         pulsar.getConfig().setTransactionBufferSnapshotSegmentSize(9);
@@ -646,28 +661,31 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         producer.newMessage(transaction).send();
         transaction.abort().get();
 
-        // Get transaction buffer internal stats and verify segmented snapshot stats
-        stats = admin.transactions().getTransactionBufferInternalStatsAsync(topic3, true).get();
-        assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Segment.toString());
-        assertNull(stats.singleSnapshotSystemTopicInternalStats);
-        assertNotNull(stats.segmentInternalStats);
+        Awaitility.await().untilAsserted(() -> {
+            // Get transaction buffer internal stats and verify segmented snapshot stats
+            TransactionBufferInternalStats stats =
+                    admin.transactions().getTransactionBufferInternalStatsAsync(topic3, true).get();
+            assertEquals(stats.snapshotType, AbortedTxnProcessor.SnapshotType.Segment.toString());
+            assertNull(stats.singleSnapshotSystemTopicInternalStats);
+            assertNotNull(stats.segmentInternalStats);
 
-        // Get managed ledger internal stats for the transaction buffer segments topic
-        internalStats = admin.topics().getInternalStats(
-                TopicName.get(topic2).getNamespace() + "/" +
-                        SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
-        verifyManagedLedgerInternalStats(stats.segmentInternalStats.managedLedgerInternalStats, internalStats);
-        assertTrue(stats.segmentInternalStats.managedLedgerName
-                .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
+            // Get managed ledger internal stats for the transaction buffer segments topic
+            PersistentTopicInternalStats internalStats = admin.topics().getInternalStats(
+                    TopicName.get(topic2).getNamespace() + "/"
+                            + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS);
+            verifyManagedLedgerInternalStats(stats.segmentInternalStats.managedLedgerInternalStats, internalStats);
+            assertTrue(stats.segmentInternalStats.managedLedgerName
+                    .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS));
 
-        // Get managed ledger internal stats for the transaction buffer indexes topic
-        assertNotNull(stats.segmentIndexInternalStats);
-        internalStats = admin.topics().getInternalStats(
-                TopicName.get(topic2).getNamespace() + "/" +
-                        SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
-        verifyManagedLedgerInternalStats(stats.segmentIndexInternalStats.managedLedgerInternalStats, internalStats);
-        assertTrue(stats.segmentIndexInternalStats.managedLedgerName
-                .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES));
+            // Get managed ledger internal stats for the transaction buffer indexes topic
+            assertNotNull(stats.segmentIndexInternalStats);
+            internalStats = admin.topics().getInternalStats(
+                    TopicName.get(topic2).getNamespace() + "/"
+                            + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES);
+            verifyManagedLedgerInternalStats(stats.segmentIndexInternalStats.managedLedgerInternalStats, internalStats);
+            assertTrue(stats.segmentIndexInternalStats.managedLedgerName
+                    .contains(SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_INDEXES));
+        });
     }
 
 
@@ -690,6 +708,7 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testUpdateTransactionCoordinatorNumber() throws Exception {
         int coordinatorSize = 3;
         pulsar.getPulsarResources()
@@ -715,8 +734,8 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString()).enableTransaction(true));
         pulsarClient.close();
         pulsarClient = null;
-        Awaitility.await().until(() -> pulsar.getTransactionMetadataStoreService().getStores().size() ==
-                        coordinatorSize * 2);
+        Awaitility.await().until(() -> pulsar.getTransactionMetadataStoreService().getStores().size()
+                        == coordinatorSize * 2);
         pulsar.getConfiguration().setAuthenticationEnabled(true);
         pulsar.getConfiguration().setAuthorizationEnabled(true);
         Set<String> proxyRoles = spy(Set.class);
@@ -848,7 +867,6 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionName(subscriptionName)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .isAckReceiptEnabled(true)
                 .topic(topic)
@@ -917,6 +935,352 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testPeekMessageTxnHeaderAccuracy() throws Exception {
+        initTransaction(1);
+
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/peek_txn_header_accuracy");
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        // Start transaction T1, send a message, keep it uncommitted
+        Transaction txn1 = pulsarClient.newTransaction().build().get();
+        TxnID txnID1 = ((TransactionImpl) txn1).getTxnID();
+        producer.newMessage(txn1).value("msg-uncommitted").send();
+
+        // Start transaction T2, send a message, commit it
+        Transaction txn2 = pulsarClient.newTransaction().build().get();
+        TxnID txnID2 = ((TransactionImpl) txn2).getTxnID();
+        producer.newMessage(txn2).value("msg-committed").send();
+        txn2.commit().get();
+
+        // Send a normal (non-transactional) message
+        producer.newMessage().value("msg-normal").send();
+
+        // Peek all messages with READ_UNCOMMITTED to get both messages regardless of txn state
+        List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", 10,
+                false, TransactionIsolationLevel.READ_UNCOMMITTED);
+
+        boolean foundUncommitted = false;
+        boolean foundCommitted = false;
+        boolean foundNormal = false;
+        for (Message<byte[]> peekMsg : peekMsgs) {
+            String value = new String(peekMsg.getValue());
+            MessageMetadata metadata = ((MessageImpl<?>) peekMsg).getMessageBuilder();
+            if ("msg-uncommitted".equals(value)) {
+                foundUncommitted = true;
+                // T1 is ongoing, so X-Pulsar-txn-uncommitted should be true
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-uncommitted"), "true");
+                // T1 is not aborted
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "T1 is not aborted, X-Pulsar-txn-aborted should be false");
+                // Blocked by itself (uncommitted), so X-Pulsar-txn-consumable should be false
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "false");
+                // TxnID checks
+                assertTrue(metadata.hasTxnidMostBits());
+                assertEquals(metadata.getTxnidMostBits(), txnID1.getMostSigBits());
+                assertTrue(metadata.hasTxnidLeastBits());
+                assertEquals(metadata.getTxnidLeastBits(), txnID1.getLeastSigBits());
+            } else if ("msg-committed".equals(value)) {
+                foundCommitted = true;
+                // T2 is committed, so X-Pulsar-txn-uncommitted should be false (not present in properties)
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"),
+                        "T2 is committed, X-Pulsar-txn-uncommitted should be false");
+                // T2 is not aborted
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "T2 is not aborted, X-Pulsar-txn-aborted should be false");
+                // Blocked by T1 before it, so X-Pulsar-txn-consumable should be false
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "false",
+                        "T2 is blocked by uncommitted T1 before it");
+                // TxnID checks
+                assertTrue(metadata.hasTxnidMostBits());
+                assertEquals(metadata.getTxnidMostBits(), txnID2.getMostSigBits());
+                assertTrue(metadata.hasTxnidLeastBits());
+                assertEquals(metadata.getTxnidLeastBits(), txnID2.getLeastSigBits());
+            } else if ("msg-normal".equals(value)) {
+                foundNormal = true;
+                // Normal message has no txnid, so X-Pulsar-txn-uncommitted should not be set
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"),
+                        "Normal message should not have X-Pulsar-txn-uncommitted");
+                // Normal message has no txnid, so X-Pulsar-txn-aborted should not be set
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "Normal message should not have X-Pulsar-txn-aborted");
+                // Blocked by T1, so X-Pulsar-txn-consumable should be false
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "false",
+                        "Normal message is blocked by uncommitted T1");
+                // Normal message has no txnid
+                assertFalse(metadata.hasTxnidMostBits());
+                assertFalse(metadata.hasTxnidLeastBits());
+            }
+        }
+        assertTrue(foundUncommitted, "Should have found the uncommitted message");
+        assertTrue(foundCommitted, "Should have found the committed message");
+        assertTrue(foundNormal, "Should have found the normal message");
+
+        // Verify READ_COMMITTED filtering: all messages after an uncommitted txn should be filtered
+        List<Message<byte[]>> committedPeek = admin.topics().peekMessages(topic, "t-sub-2", 10,
+                false, TransactionIsolationLevel.READ_COMMITTED);
+        assertEquals(committedPeek.size(), 0,
+                "READ_COMMITTED should filter all messages after an uncommitted transaction");
+
+        // Abort T1 and verify headers update correctly
+        txn1.abort().get();
+
+        List<Message<byte[]>> peekAfterAbort = admin.topics().peekMessages(topic, "t-sub-3", 10,
+                false, TransactionIsolationLevel.READ_UNCOMMITTED);
+
+        boolean foundAborted = false;
+        boolean foundCommittedAfterAbort = false;
+        boolean foundNormalAfterAbort = false;
+        for (Message<byte[]> peekMsg : peekAfterAbort) {
+            String value = new String(peekMsg.getValue());
+            MessageMetadata metadata = ((MessageImpl<?>) peekMsg).getMessageBuilder();
+            if ("msg-uncommitted".equals(value)) {
+                foundAborted = true;
+                // T1 is now aborted, so X-Pulsar-txn-aborted should be true
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "T1 is aborted, X-Pulsar-txn-aborted should be true");
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-aborted"), "true");
+                // T1 is no longer ongoing
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"),
+                        "T1 is aborted, X-Pulsar-txn-uncommitted should be false");
+                // maxReadPosition advanced past T1, so consumable should be true
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "true",
+                        "T1 is resolved, message should be consumable");
+                // TxnID unchanged
+                assertTrue(metadata.hasTxnidMostBits());
+                assertEquals(metadata.getTxnidMostBits(), txnID1.getMostSigBits());
+                assertTrue(metadata.hasTxnidLeastBits());
+                assertEquals(metadata.getTxnidLeastBits(), txnID1.getLeastSigBits());
+            } else if ("msg-committed".equals(value)) {
+                foundCommittedAfterAbort = true;
+                // T2 is still committed, not aborted
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"),
+                        "T2 is committed, X-Pulsar-txn-uncommitted should be false");
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "T2 is not aborted, X-Pulsar-txn-aborted should be false");
+                // maxReadPosition advanced past T1, so consumable should be true
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "true",
+                        "No open txn before T2, message should be consumable");
+                // TxnID unchanged
+                assertTrue(metadata.hasTxnidMostBits());
+                assertEquals(metadata.getTxnidMostBits(), txnID2.getMostSigBits());
+                assertTrue(metadata.hasTxnidLeastBits());
+                assertEquals(metadata.getTxnidLeastBits(), txnID2.getLeastSigBits());
+            } else if ("msg-normal".equals(value)) {
+                foundNormalAfterAbort = true;
+                // Normal message has no txnid, so no txn headers
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-uncommitted"),
+                        "Normal message should not have X-Pulsar-txn-uncommitted");
+                assertFalse(peekMsg.hasProperty("X-Pulsar-txn-aborted"),
+                        "Normal message should not have X-Pulsar-txn-aborted");
+                // No open txn before it, so consumable should be true
+                assertTrue(peekMsg.hasProperty("X-Pulsar-txn-consumable"));
+                assertEquals(peekMsg.getProperty("X-Pulsar-txn-consumable"), "true",
+                        "No open txn, normal message should be consumable");
+                // No txnid
+                assertFalse(metadata.hasTxnidMostBits());
+                assertFalse(metadata.hasTxnidLeastBits());
+            }
+        }
+        assertTrue(foundAborted, "Should have found the aborted message after abort");
+        assertTrue(foundCommittedAfterAbort, "Should have found the committed message after abort");
+        assertTrue(foundNormalAfterAbort, "Should have found the normal message after abort");
+
+        // READ_COMMITTED should show committed + normal message (aborted is filtered out)
+        List<Message<byte[]>> committedPeekAfterAbort = admin.topics().peekMessages(topic, "t-sub-4", 10,
+                false, TransactionIsolationLevel.READ_COMMITTED);
+        assertEquals(committedPeekAfterAbort.size(), 2,
+                "READ_COMMITTED should show committed and normal messages after abort");
+        assertEquals(new String(committedPeekAfterAbort.get(0).getValue()), "msg-committed");
+        assertEquals(new String(committedPeekAfterAbort.get(1).getValue()), "msg-normal");
+    }
+
+    @Test
+    public void testPeekMessageForSkipTxnMarker() throws Exception {
+        initTransaction(1);
+
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/peek_marker");
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        int n = 10;
+        for (int i = 0; i < n; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            producer.newMessage(txn).value("msg").send();
+            txn.commit().get();
+        }
+
+        List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", n,
+                false, TransactionIsolationLevel.READ_UNCOMMITTED);
+        assertEquals(peekMsgs.size(), n);
+        for (Message<byte[]> peekMsg : peekMsgs) {
+            assertEquals(new String(peekMsg.getValue()), "msg");
+        }
+    }
+
+    @Test
+    public void testPeekMessageFoReadCommittedMessages() throws Exception {
+        initTransaction(1);
+
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/peek_txn");
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        int n = 10;
+        // Alternately sends `n` committed transactional messages and `n` abort transactional messages.
+        for (int i = 0; i < 2 * n; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            if (i % 2 == 0) {
+                producer.newMessage(txn).value("msg").send();
+                txn.commit().get();
+            } else {
+                producer.newMessage(txn).value("msg-aborted").send();
+                txn.abort();
+            }
+        }
+        // Then sends 1 uncommitted transactional messages.
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        producer.newMessage(txn).value("msg-uncommitted").send();
+        // Then sends n-1 no transaction messages.
+        for (int i = 0; i < n - 1; i++) {
+            producer.newMessage().value("msg-after-uncommitted").send();
+        }
+
+        // peek n message, all messages value should be "msg"
+        {
+            List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", n,
+                    false, TransactionIsolationLevel.READ_COMMITTED);
+            assertEquals(peekMsgs.size(), n);
+            for (Message<byte[]> peekMsg : peekMsgs) {
+                assertEquals(new String(peekMsg.getValue()), "msg");
+            }
+        }
+
+        // peek 3 * n message, and still get n message, all messages value should be "msg"
+        {
+            List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", 2 * n,
+                    false, TransactionIsolationLevel.READ_COMMITTED);
+            assertEquals(peekMsgs.size(), n);
+            for (Message<byte[]> peekMsg : peekMsgs) {
+                assertEquals(new String(peekMsg.getValue()), "msg");
+            }
+        }
+    }
+
+    @Test
+    public void testPeekMessageForShowAllMessages() throws Exception {
+        initTransaction(1);
+
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/peek_all");
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+        int n = 10;
+        // Alternately sends `n` committed transactional messages and `n` abort transactional messages.
+        for (int i = 0; i < 2 * n; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            if (i % 2 == 0) {
+                producer.newMessage(txn).value("msg").send();
+                txn.commit().get();
+            } else {
+                producer.newMessage(txn).value("msg-aborted").send();
+                txn.abort();
+            }
+        }
+        // Then sends `n` uncommitted transactional messages.
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        for (int i = 0; i < n; i++) {
+            producer.newMessage(txn).value("msg-uncommitted").send();
+        }
+
+        // peek 5 * n message, will get 5 * n msg.
+        List<Message<byte[]>> peekMsgs = admin.topics().peekMessages(topic, "t-sub", 5 * n,
+                true, TransactionIsolationLevel.READ_UNCOMMITTED);
+        assertEquals(peekMsgs.size(), 5 * n);
+
+        for (int i = 0; i < 4 * n; i++) {
+            Message<byte[]> peekMsg = peekMsgs.get(i);
+            MessageImpl<?> peekMsgImpl = (MessageImpl<?>) peekMsg;
+            MessageMetadata metadata = peekMsgImpl.getMessageBuilder();
+            if (metadata.hasMarkerType()) {
+                assertTrue(metadata.getMarkerType() == MarkerType.TXN_COMMIT_VALUE
+                        || metadata.getMarkerType() == MarkerType.TXN_ABORT_VALUE);
+            } else {
+                String value = new String(peekMsg.getValue());
+                assertTrue(value.equals("msg") || value.equals("msg-aborted"));
+            }
+        }
+        for (int i = 4 * n; i < peekMsgs.size(); i++) {
+            Message<byte[]> peekMsg = peekMsgs.get(i);
+            assertEquals(new String(peekMsg.getValue()), "msg-uncommitted");
+        }
+    }
+
+    @Test
+    public void testAnalyzeSubscriptionBacklogWithTransactionMarker() throws Exception {
+        initTransaction(1);
+        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/analyze-subscription-backlog");
+        String transactionSubName = "analyze-subscription-backlog-topic-sub";
+
+        // Init subscription and then close the consumer. If consumer is connected and has available permits,
+        // AbstractBaseDispatcher#filterEntriesForConsumer will auto ack marker messages
+        pulsarClient.newConsumer(Schema.STRING).topic(topic).subscriptionName(transactionSubName).subscribe().close();
+        @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        int numMessages = 10;
+        List<MessageId> committedMsgIds = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            MessageId messageId = producer.newMessage(txn).value("commited-msg" + i).send();
+            committedMsgIds.add(messageId);
+            txn.commit().get();
+        }
+
+        AnalyzeSubscriptionBacklogResult backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
+        assertEquals(backlogResult.getMessages(), numMessages);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages);
+
+        MessageId committedMiddleMsgId = committedMsgIds.get(numMessages / 2);
+        backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.of(committedMiddleMsgId));
+        assertEquals(backlogResult.getMessages(), numMessages / 2);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages / 2);
+
+        List<MessageId> abortedMsgIds = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            Transaction txn = pulsarClient.newTransaction().build().get();
+            MessageId messageId = producer.newMessage(txn).value("aborted-msg" + i).send();
+            abortedMsgIds.add(messageId);
+            txn.abort().get();
+        }
+        backlogResult = admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
+        assertEquals(backlogResult.getMessages(), numMessages * 2);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages * 2);
+
+        MessageId abortedMiddleMsgId = abortedMsgIds.get(numMessages / 2);
+        backlogResult =
+                admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.of(abortedMiddleMsgId));
+        assertEquals(backlogResult.getMessages(), numMessages / 2);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages / 2);
+
+        Transaction txn = pulsarClient.newTransaction().build().get();
+        for (int i = 0; i < numMessages; i++) {
+            producer.newMessage(txn).value("uncommitted-msg-" + i).send();
+        }
+        backlogResult = admin.topics().analyzeSubscriptionBacklog(topic, transactionSubName, Optional.empty());
+        assertEquals(backlogResult.getMessages(), numMessages * 3);
+        assertEquals(backlogResult.getMarkerMessages(), numMessages * 2);
+    }
+
     private static void verifyCoordinatorStats(String state,
                                                long sequenceId, long lowWaterMark) {
         assertEquals(state, "Ready");
@@ -967,12 +1331,41 @@ public class AdminApiTransactionTest extends MockedPulsarServiceBaseTest {
         assertEquals(persistentTopicStats.totalSize, internalStats.totalSize);
         assertEquals(persistentTopicStats.currentLedgerEntries, internalStats.currentLedgerEntries);
         assertEquals(persistentTopicStats.currentLedgerSize, internalStats.currentLedgerSize);
-        assertEquals(persistentTopicStats.lastLedgerCreationFailureTimestamp, internalStats.lastLedgerCreationFailureTimestamp);
+        assertEquals(persistentTopicStats.lastLedgerCreationFailureTimestamp,
+                internalStats.lastLedgerCreationFailureTimestamp);
         assertEquals(persistentTopicStats.waitingCursorsCount, internalStats.waitingCursorsCount);
         assertEquals(persistentTopicStats.pendingAddEntriesCount, internalStats.pendingAddEntriesCount);
         assertEquals(persistentTopicStats.lastConfirmedEntry, internalStats.lastConfirmedEntry);
         assertNotNull(internalStats.ledgers.get(0).metadata);
         assertEquals(persistentTopicStats.ledgers.size(), internalStats.ledgers.size());
         assertEquals(persistentTopicStats.cursors.size(), internalStats.cursors.size());
+    }
+
+    @Test
+    public void testRetryDeleteTopicAfterFailedDeleteLedger() throws Exception {
+        // Create a topic.
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        admin.topics().createNonPartitionedTopic(tpName);
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(tpName).create();
+        producer.send("1");
+        producer.close();
+        // The first deleting should fail, since we injected an error.
+        pulsarTestContext.getMockZooKeeper().failConditional(KeeperException.Code.BADVERSION, (op, path) -> {
+            if ("DELETE".equals(op.toString())
+                    && path.endsWith(TopicName.get(tpName).getPersistenceNamingEncoding())) {
+                return true;
+            }
+            return false;
+        });
+        try {
+            admin.topics().delete(tpName);
+            fail("The deleting should fail because we injected an error");
+        } catch (Throwable ex) {
+            // expected
+            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+            assertTrue(actEx.getMessage().contains("BadVersionException"));
+        }
+        // The second deleting should succeed.
+        admin.topics().delete(tpName);
     }
 }

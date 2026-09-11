@@ -24,7 +24,7 @@ import java.io.IOException;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.utils.functions.FunctionUtils;
 import org.apache.pulsar.functions.utils.io.ConnectorUtils;
 
@@ -45,7 +45,7 @@ public class FunctionRuntimeCommon {
     }
 
     public static ClassLoader getClassLoaderFromPackage(
-            Function.FunctionDetails.ComponentType componentType,
+            FunctionDetails.ComponentType componentType,
             String className,
             File packageFile,
             String narExtractionDirectory) {
@@ -81,9 +81,9 @@ public class FunctionRuntimeCommon {
                             narClassLoaderException);
                 }
                 try {
-                    if (componentType == Function.FunctionDetails.ComponentType.FUNCTION) {
+                    if (componentType == FunctionDetails.ComponentType.FUNCTION) {
                         connectorClassName = FunctionUtils.getFunctionClass(narClassLoader);
-                    } else if (componentType == Function.FunctionDetails.ComponentType.SOURCE) {
+                    } else if (componentType == FunctionDetails.ComponentType.SOURCE) {
                         connectorClassName = ConnectorUtils.getIOSourceClass(narClassLoader);
                     } else {
                         connectorClassName = ConnectorUtils.getIOSinkClass(narClassLoader);

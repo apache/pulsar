@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.receiveMessagesInThreads;
 import com.google.common.collect.Sets;
-
 import java.lang.reflect.Method;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
-
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
@@ -40,7 +41,7 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     protected String methodName;
 
     @BeforeMethod(alwaysRun = true)
-    public void beforeMethod(Method m) throws Exception {
+    public void setTestMethodName(Method m) throws Exception {
         methodName = m.getName();
     }
 
@@ -49,13 +50,13 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns");
-        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"), false);
 
         // so that clients can test short names
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default");
-        admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"), false);
     }
 
     protected <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage,
@@ -71,51 +72,37 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     private static final Random random = new Random();
 
     protected String newTopicName() {
-        return "my-property/my-ns/topic-" + Long.toHexString(random.nextLong());
+        return TopicName.get("my-property/my-ns/topic-" + Long.toHexString(random.nextLong())).toString();
     }
 
+    @SuppressWarnings("unchecked")
     protected <T> ReceivedMessages<T> receiveAndAckMessages(
             BiFunction<MessageId, T, Boolean> ackPredicate,
             Consumer<T>...consumers) throws Exception {
-        ReceivedMessages receivedMessages = new ReceivedMessages();
-        while (true) {
-            int receivedMsgCount = 0;
-            for (int i = 0; i < consumers.length; i++) {
-                Consumer<T> consumer = consumers[i];
-                while (true) {
-                    Message<T> msg = consumer.receive(2, TimeUnit.SECONDS);
-                    if (msg != null) {
-                        receivedMsgCount++;
-                        T v = msg.getValue();
-                        MessageId messageId = msg.getMessageId();
-                        receivedMessages.messagesReceived.add(Pair.of(msg.getMessageId(), v));
-                        if (ackPredicate.apply(messageId, v)) {
-                            consumer.acknowledge(msg);
-                            receivedMessages.messagesAcked.add(Pair.of(msg.getMessageId(), v));
-                        }
-                    } else {
-                        break;
-                    }
-                }
+        ReceivedMessages<T> receivedMessages = new ReceivedMessages<>();
+        receiveMessagesInThreads((consumer, msg) -> {
+            T v = msg.getValue();
+            MessageId messageId = msg.getMessageId();
+            receivedMessages.messagesReceived.add(Pair.of(msg.getMessageId(), v));
+            if (ackPredicate.apply(messageId, v)) {
+                consumer.acknowledgeAsync(msg);
+                receivedMessages.messagesAcked.add(Pair.of(msg.getMessageId(), v));
             }
-            // Because of the possibility of consumers getting stuck with each other, only jump out of the loop if all
-            // consumers could not receive messages.
-            if (receivedMsgCount == 0) {
-                break;
-            }
-        }
+            return true;
+        }, Duration.ofSeconds(2), consumers);
         return receivedMessages;
     }
 
+    @SuppressWarnings("unchecked")
     protected <T> ReceivedMessages<T> ackAllMessages(Consumer<T>...consumers) throws Exception {
         return receiveAndAckMessages((msgId, msgV) -> true, consumers);
     }
 
     protected static class ReceivedMessages<T> {
 
-        List<Pair<MessageId, T>> messagesReceived = new ArrayList<>();
+        List<Pair<MessageId, T>> messagesReceived = Collections.synchronizedList(new ArrayList<>());
 
-        List<Pair<MessageId, T>> messagesAcked = new ArrayList<>();
+        List<Pair<MessageId, T>> messagesAcked = Collections.synchronizedList(new ArrayList<>());
 
         public boolean hasReceivedMessage(T v) {
             for (Pair<MessageId, T> pair : messagesReceived) {

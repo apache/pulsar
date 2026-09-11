@@ -21,10 +21,12 @@ package org.apache.pulsar.admin.cli;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import java.util.Properties;
+import lombok.Getter;
 import picocli.CommandLine.PropertiesDefaultProvider;
 
 class PulsarAdminPropertiesProvider extends PropertiesDefaultProvider {
     private static final String webServiceUrlKey = "webServiceUrl";
+    @Getter
     private final Properties properties;
 
     private PulsarAdminPropertiesProvider(Properties properties) {

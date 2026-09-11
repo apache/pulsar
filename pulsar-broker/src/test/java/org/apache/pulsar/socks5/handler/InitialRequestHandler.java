@@ -24,10 +24,10 @@ import io.netty.handler.codec.socksx.SocksVersion;
 import io.netty.handler.codec.socksx.v5.DefaultSocks5InitialRequest;
 import io.netty.handler.codec.socksx.v5.DefaultSocks5InitialResponse;
 import io.netty.handler.codec.socksx.v5.Socks5AuthMethod;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.socks5.config.Socks5Config;
 
-@Slf4j
+@CustomLog
 public class InitialRequestHandler extends SimpleChannelInboundHandler<DefaultSocks5InitialRequest> {
 
     private final Socks5Config socks5Config;
@@ -40,7 +40,7 @@ public class InitialRequestHandler extends SimpleChannelInboundHandler<DefaultSo
     protected void channelRead0(ChannelHandlerContext ctx, DefaultSocks5InitialRequest msg) throws Exception {
         if (SocksVersion.SOCKS5.equals(msg.version())) {
             if (msg.decoderResult().isFailure()) {
-                log.warn("decode failure : {}", msg.decoderResult());
+                log.warn().attr("failure", msg.decoderResult()).log("decode failure");
                 ctx.fireChannelRead(msg);
             } else {
                 if (socks5Config.isEnableAuth()) {

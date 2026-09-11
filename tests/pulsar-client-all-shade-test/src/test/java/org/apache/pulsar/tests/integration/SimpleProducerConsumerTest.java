@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
@@ -61,15 +62,13 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
 import org.apache.pulsar.tests.TestRetrySupport;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class SimpleProducerConsumerTest extends TestRetrySupport {
-    private static final Logger log = LoggerFactory.getLogger(SimpleProducerConsumerTest.class);
 
     private PulsarContainer pulsarContainer;
     private URI lookupUrl;
@@ -95,7 +94,9 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
                         .allowedClusters(Collections.singleton("standalone"))
                         .build());
         admin.namespaces().createNamespace("my-property/my-ns");
-        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Collections.singleton("standalone"));
+        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns",
+                Collections.singleton("standalone"), false);
+        admin.namespaces().createNamespace("my-property/myenc-ns", Collections.singleton("standalone"));
     }
 
     @Override
@@ -128,32 +129,32 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
 
             @Override
             public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
@@ -194,7 +195,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
             msg.getEncryptionCtx()
                     .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message: [ ]");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -230,34 +231,34 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         keyInfo.setMetadata(metadata);
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
 
             @Override
             public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         keyInfo.setMetadata(metadata);
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
@@ -279,12 +280,15 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         /*
          * Redelivery functionality guarantees that customer will get a chance to process the message again.
-         * In case of shared subscription eventually every client will get a chance to process the message, till one of them acks it.
+         * In case of shared subscription eventually every client will get a chance to process the message,
+         * till one of them acks it.
          *
-         * For client with Encryption enabled where in cases like a new production rollout or a buggy client configuration, we might have a mismatch of consumers
+         * For client with Encryption enabled where in cases like a new production rollout or a buggy client
+         * configuration, we might have a mismatch of consumers
          * - few which can decrypt, few which can't (due to errors or cryptoReader not configured).
          *
-         * In that case eventually all messages should be acked as long as there is a single consumer who can decrypt the message.
+         * In that case eventually all messages should be acked as long as there is a single consumer
+         * who can decrypt the message.
          *
          * Consumer 1 - Can decrypt message
          * Consumer 2 - Has invalid Reader configured.
@@ -299,21 +303,22 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
                 .cryptoKeyReader(new EncKeyReader()).create();
 
         @Cleanup
-        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> consumer1 = newPulsarClient.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new EncKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
         @Cleanup
-        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> consumer2 = newPulsarClient1.newConsumer().topicsPattern(topicName)
                 .subscriptionName("my-subscriber-name").cryptoKeyReader(new InvalidKeyReader())
                 .subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
         @Cleanup
-        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0);// Creates new client connection
+        PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
         Consumer<byte[]> consumer3 = newPulsarClient2.newConsumer().topicsPattern(topicName)
-                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).ackTimeout(1, TimeUnit.SECONDS).subscribe();
+                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(1, TimeUnit.SECONDS).subscribe();
 
         int numberOfMessages = 100;
         String message = "my-message";
@@ -362,13 +367,13 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        log.error("Failed to read certificate from {}", CERT_FILE_PATH);
+                        log.error().attr("from", certFilePath).log("Failed to read certificate from");
                     }
                 }
                 return null;
@@ -376,13 +381,13 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
             @Override
             public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        log.error("Failed to read certificate from {}", CERT_FILE_PATH);
+                        log.error().attr("from", certFilePath).log("Failed to read certificate from");
                     }
                 }
                 return null;
@@ -394,12 +399,12 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         MessageImpl<byte[]> msg = null;
         Set<String> messageSet = new HashSet<>();
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/use/myenc-ns/myenc-topic1").subscriptionName("my-subscriber-name")
+                .topic("persistent://my-property/myenc-ns/myenc-topic1").subscriptionName("my-subscriber-name")
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         // 1. Invalid key name
         try {
-            pulsarClient.newProducer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+            pulsarClient.newProducer().topic("persistent://my-property/myenc-ns/myenc-topic1")
                     .addEncryptionKey("client-non-existant-rsa.pem").cryptoKeyReader(new EncKeyReader()).create();
             Assert.fail("Producer creation should not suceed if failing to read key");
         } catch (Exception e) {
@@ -408,7 +413,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         // 2. Producer with valid key name
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+                .topic("persistent://my-property/myenc-ns/myenc-topic1")
                 .addEncryptionKey("client-rsa.pem")
                 .cryptoKeyReader(new EncKeyReader())
                 .enableBatching(false)
@@ -427,7 +432,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         // 4. Set consumer config to consume even if decryption fails
         consumer.close();
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+        consumer = pulsarClient.newConsumer().topic("persistent://my-property/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
@@ -448,7 +453,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         // 5. Set keyreader and failure action
         consumer.close();
         // Set keyreader
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+        consumer = pulsarClient.newConsumer().topic("persistent://my-property/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.FAIL)
                 .cryptoKeyReader(new EncKeyReader()).acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
@@ -458,7 +463,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
             msg.getEncryptionCtx()
                     .orElseThrow(() -> new IllegalStateException("encryption-ctx not present for encrypted message"));
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message: [ ]");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -468,7 +473,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
         // 6. Set consumer config to discard if decryption fails
         consumer.close();
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
+        consumer = pulsarClient.newConsumer().topic("persistent://my-property/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
@@ -489,34 +494,34 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         keyInfo.setMetadata(metadata);
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
 
             @Override
             public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         keyInfo.setMetadata(metadata);
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
@@ -526,7 +531,8 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
                 .addEncryptionKey(encryptionKeyName).compressionType(CompressionType.LZ4)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/myrsa-topic3")
+        Consumer<byte[]> consumer =
+                pulsarClient.newConsumer().topicsPattern("persistent://my-property/my-ns/myrsa-topic3")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .subscribe();
 

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -26,7 +26,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 /**
  * A generic avro schema.
  */
-@Slf4j
+@CustomLog
 public class GenericAvroSchema extends GenericSchemaImpl {
 
     public static final String OFFSET_PROP = "__AVRO_READ_OFFSET__";

@@ -80,6 +80,7 @@ public class DefaultMessageFormatter implements IMessageFormatter {
         return f;
     }
 
+    @SuppressWarnings("deprecation")
     private String getStringValue(float size) {
         return RandomStringUtils.randomAlphabetic((int) size);
     }

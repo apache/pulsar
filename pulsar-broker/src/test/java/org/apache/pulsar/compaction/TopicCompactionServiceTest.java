@@ -21,7 +21,6 @@ package org.apache.pulsar.compaction;
 import static org.apache.pulsar.compaction.Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY;
 import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import static org.testng.Assert.assertEquals;
-import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.fail;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
@@ -35,16 +34,13 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -53,7 +49,7 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
 
     protected ScheduledExecutorService compactionScheduler;
     protected BookKeeper bk;
-    private TwoPhaseCompactor compactor;
+    private PublishingOrderCompactor compactor;
 
     @BeforeMethod
     @Override
@@ -72,8 +68,8 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
-        compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+                this.conf, null, null, Optional.empty(), null).get();
+        compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -138,18 +134,19 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
 
         CompactedTopicImpl compactedTopic = service.getCompactedTopic();
 
-        Long compactedLedger = admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).properties.get(
+        Long compactedLedger =
+                admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).properties.get(
                 COMPACTED_TOPIC_LEDGER_PROPERTY);
         String markDeletePosition =
                 admin.topics().getInternalStats(topic).cursors.get(COMPACTION_SUBSCRIPTION).markDeletePosition;
         String[] split = markDeletePosition.split(":");
-        compactedTopic.newCompactedLedger(PositionImpl.get(Long.valueOf(split[0]), Long.valueOf(split[1])),
+        compactedTopic.newCompactedLedger(PositionFactory.create(Long.valueOf(split[0]), Long.valueOf(split[1])),
                 compactedLedger).join();
 
         Position lastCompactedPosition = service.getLastCompactedPosition().join();
         assertEquals(admin.topics().getInternalStats(topic).lastConfirmedEntry, lastCompactedPosition.toString());
 
-        List<Entry> entries = service.readCompactedEntries(PositionImpl.EARLIEST, 4).join();
+        List<Entry> entries = service.readCompactedEntries(PositionFactory.EARLIEST, 4).join();
         assertEquals(entries.size(), 3);
         entries.stream().map(e -> {
             try {
@@ -170,31 +167,7 @@ public class TopicCompactionServiceTest extends MockedPulsarServiceBaseTest {
             }
         });
 
-        List<Entry> entries2 = service.readCompactedEntries(PositionImpl.EARLIEST, 1).join();
+        List<Entry> entries2 = service.readCompactedEntries(PositionFactory.EARLIEST, 1).join();
         assertEquals(entries2.size(), 1);
-
-        Entry entry = service.findEntryByEntryIndex(0).join();
-        BrokerEntryMetadata brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(entry.getDataBuffer());
-        assertNotNull(brokerEntryMetadata);
-        assertEquals(brokerEntryMetadata.getIndex(), 2);
-        MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-        assertEquals(metadata.getPartitionKey(), "a");
-        entry.release();
-
-        entry = service.findEntryByEntryIndex(3).join();
-        brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(entry.getDataBuffer());
-        assertNotNull(brokerEntryMetadata);
-        assertEquals(brokerEntryMetadata.getIndex(), 4);
-        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-        assertEquals(metadata.getPartitionKey(), "b");
-        entry.release();
-
-        entry = service.findEntryByPublishTime(startTime).join();
-        brokerEntryMetadata = Commands.peekBrokerEntryMetadataIfExist(entry.getDataBuffer());
-        assertNotNull(brokerEntryMetadata);
-        assertEquals(brokerEntryMetadata.getIndex(), 2);
-        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-        assertEquals(metadata.getPartitionKey(), "a");
-        entry.release();
     }
 }

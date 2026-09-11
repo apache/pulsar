@@ -54,6 +54,8 @@ public class AllocatorStatsGenerator {
         stats.numDirectArenas = allocator.metric().numDirectArenas();
         stats.numHeapArenas = allocator.metric().numHeapArenas();
         stats.numThreadLocalCaches = allocator.metric().numThreadLocalCaches();
+        stats.usedHeapMemory = allocator.metric().usedHeapMemory();
+        stats.usedDirectMemory = allocator.metric().usedDirectMemory();
         stats.normalCacheSize = allocator.metric().normalCacheSize();
         stats.smallCacheSize = allocator.metric().smallCacheSize();
         return stats;

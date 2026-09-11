@@ -21,7 +21,7 @@ package org.apache.pulsar.proxy.server;
 public class ProxyDisableZeroCopyTest extends ProxyTest {
 
     @Override
-    protected void initializeProxyConfig() {
+    protected void initializeProxyConfig() throws Exception {
         super.initializeProxyConfig();
         proxyConfig.setProxyZeroCopyModeEnabled(false);
     }

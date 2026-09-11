@@ -56,7 +56,7 @@ public class BitRateUnitTest {
     @Test
     public void testGbps() {
         double gbps = 1231434.12;
-        assertEquals(BitRateUnit.Gigabit.toBit(gbps),gbps * 1000 * 1000 * 1000 );
+        assertEquals(BitRateUnit.Gigabit.toBit(gbps), gbps * 1000 * 1000 * 1000);
         assertEquals(BitRateUnit.Gigabit.toByte(gbps), gbps * 1000 * 1000 * 1000 / 8);
         assertEquals(BitRateUnit.Gigabit.toKilobit(gbps), gbps * 1000 * 1000);
         assertEquals(BitRateUnit.Gigabit.toMegabit(gbps), gbps * 1000);

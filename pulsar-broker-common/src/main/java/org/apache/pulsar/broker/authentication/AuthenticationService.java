@@ -20,41 +20,47 @@ package org.apache.pulsar.broker.authentication;
 
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
+import io.opentelemetry.api.OpenTelemetry;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.common.sasl.SaslConstants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Authentication service.
  *
  */
+@CustomLog
 public class AuthenticationService implements Closeable {
-    private static final Logger LOG = LoggerFactory.getLogger(AuthenticationService.class);
     private final String anonymousUserRole;
+    private final boolean strictAuthMethod;
 
-    private final Map<String, AuthenticationProvider> providers = new HashMap<>();
+    private final Map<String, AuthenticationProvider> providers = new LinkedHashMap<>();
 
     public AuthenticationService(ServiceConfiguration conf) throws PulsarServerException {
+        this(conf, OpenTelemetry.noop());
+    }
+
+    public AuthenticationService(ServiceConfiguration conf, OpenTelemetry openTelemetry)
+            throws PulsarServerException {
         anonymousUserRole = conf.getAnonymousUserRole();
+        strictAuthMethod = conf.isStrictAuthMethod();
         if (conf.isAuthenticationEnabled()) {
             try {
-                Map<String, List<AuthenticationProvider>> providerMap = new HashMap<>();
+                Map<String, List<AuthenticationProvider>> providerMap = new LinkedHashMap<>();
                 for (String className : conf.getAuthenticationProviders()) {
                     if (className.isEmpty()) {
                         continue;
@@ -70,6 +76,10 @@ public class AuthenticationService implements Closeable {
                     providerList.add(provider);
                 }
 
+                var authenticationProviderContext = AuthenticationProvider.Context.builder()
+                        .config(conf)
+                        .openTelemetry(openTelemetry)
+                        .build();
                 for (Map.Entry<String, List<AuthenticationProvider>> entry : providerMap.entrySet()) {
                     AuthenticationProvider provider;
                     if (entry.getValue().size() == 1) {
@@ -77,21 +87,23 @@ public class AuthenticationService implements Closeable {
                     } else {
                         provider = new AuthenticationProviderList(entry.getValue());
                     }
-                    provider.initialize(conf);
+                    provider.initialize(authenticationProviderContext);
                     providers.put(provider.getAuthMethodName(), provider);
-                    LOG.info("[{}] has been loaded.",
-                        entry.getValue().stream().map(
-                            p -> p.getClass().getName()).collect(Collectors.joining(",")));
+                    log.info()
+                            .attr("entry", entry.getValue().stream()
+                                    .map(p -> p.getClass().getName())
+                                    .collect(Collectors.joining(",")))
+                            .log("has been loaded");
                 }
 
                 if (providers.isEmpty()) {
-                    LOG.warn("No authentication providers are loaded.");
+                    log.warn("No authentication providers are loaded.");
                 }
             } catch (Throwable e) {
                 throw new PulsarServerException("Failed to load an authentication provider.", e);
             }
         } else {
-            LOG.info("Authentication is disabled");
+            log.info("Authentication is disabled");
         }
     }
 
@@ -108,6 +120,7 @@ public class AuthenticationService implements Closeable {
         return providerToUse;
     }
 
+    @SuppressWarnings("deprecation")
     public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response)
             throws Exception {
         String authMethodName = getAuthMethodName(request);
@@ -121,22 +134,21 @@ public class AuthenticationService implements Closeable {
             AuthenticationProvider providerToUse = getAuthProvider(authMethodName);
             try {
                 return providerToUse.authenticateHttpRequest(request, response);
-            } catch (AuthenticationException e) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
-                            + e.getMessage(), e);
-                }
+            } catch (Exception e) {
+                log.debug().attr("authMethod", authMethodName).exception(e)
+                        .log("Authentication failed for provider");
                 throw e;
             }
         } else {
+            if (strictAuthMethod) {
+                log.debug("No authentication method provided while one was is required");
+                throw new AuthenticationException("Authentication method missing");
+            }
             for (AuthenticationProvider provider : providers.values()) {
                 try {
                     return provider.authenticateHttpRequest(request, response);
-                } catch (AuthenticationException e) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
-                                + e.getMessage(), e);
-                    }
+                } catch (Exception e) {
+                    log.debug().exception(e).log("Authentication failed for provider :");
                     // Ignore the exception because we don't know which authentication method is expected here.
                 }
             }
@@ -173,29 +185,16 @@ public class AuthenticationService implements Closeable {
                 }
                 // Backward compatible, the authData value was null in the previous implementation
                 return providerToUse.authenticateAsync(authData).get();
-            } catch (AuthenticationException e) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
-                            + e.getMessage(), e);
-                }
-                throw e;
-            } catch (ExecutionException | InterruptedException e) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Authentication failed for provider " + providerToUse.getAuthMethodName() + " : "
-                            + e.getMessage(), e);
-                }
-                throw new RuntimeException(e);
+            } catch (Exception e) {
+                log.debug().exception(e).log("Authentication failed for provider :");
             }
         } else {
             for (AuthenticationProvider provider : providers.values()) {
                 try {
                     AuthenticationState authenticationState = provider.newHttpAuthState(request);
                     return provider.authenticateAsync(authenticationState.getAuthDataSource()).get();
-                } catch (ExecutionException | InterruptedException | AuthenticationException e) {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Authentication failed for provider " + provider.getAuthMethodName() + ": "
-                                + e.getMessage(), e);
-                    }
+                } catch (Exception e) {
+                    log.debug().exception(e).log("Authentication failed for provider :");
                     // Ignore the exception because we don't know which authentication method is expected here.
                 }
             }

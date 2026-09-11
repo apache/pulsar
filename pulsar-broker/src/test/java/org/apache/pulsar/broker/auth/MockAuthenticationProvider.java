@@ -20,18 +20,18 @@ package org.apache.pulsar.broker.auth;
 
 import java.io.IOException;
 import javax.naming.AuthenticationException;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class MockAuthenticationProvider implements AuthenticationProvider {
-    private static final Logger log = LoggerFactory.getLogger(MockAuthenticationProvider.class);
 
     @Override
     public void close() throws IOException {}
 
+    @SuppressWarnings("deprecation")
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {}
 
@@ -41,6 +41,7 @@ public class MockAuthenticationProvider implements AuthenticationProvider {
         return "mock";
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         String principal = "unknown";

@@ -139,16 +139,22 @@ If there is uncertainty for this section, please submit the PIP and request for 
 
 # Backward & Forward Compatibility
 
-## Revert
-
-<!--
-Describe a cookbook detailing the steps required to revert pulsar to previous version *without* this feature.
--->
-
 ## Upgrade
 
 <!--
 Specify the list of instructions, if there are such, needed to perform before/after upgrading to Pulsar version containing this feature.
+-->
+
+## Downgrade / Rollback
+
+<!--
+Describe a cookbook detailing the steps required to rollback Pulsar to previous version *without* this feature.
+-->
+
+## Pulsar Geo-Replication Upgrade & Downgrade/Rollback Considerations
+
+<!--
+Describe what needs to be considered in Pulsar Geo-Replication in the upgrade and possible downgrade/rollback of this feature.
 -->
 
 # Alternatives

@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -32,6 +33,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 /**
  * The assigner to assign entries to the proper {@link Consumer} in the shared subscription.
  */
+@CustomLog
 @RequiredArgsConstructor
 public class SharedConsumerAssignor {
 
@@ -50,6 +52,8 @@ public class SharedConsumerAssignor {
     // Process the unassigned messages, e.g. adding them to the replay queue
     private final java.util.function.Consumer<EntryAndMetadata> unassignedMessageProcessor;
 
+    private final Subscription subscription;
+
     public Map<Consumer, List<EntryAndMetadata>> assign(final List<EntryAndMetadata> entryAndMetadataList,
                                                         final int numConsumers) {
         assert numConsumers >= 0;
@@ -58,7 +62,14 @@ public class SharedConsumerAssignor {
 
         Consumer consumer = getConsumer(numConsumers);
         if (consumer == null) {
-            entryAndMetadataList.forEach(EntryAndMetadata::release);
+            if (subscription != null) {
+                log.info()
+                        .attr("topic", subscription.getTopic().getName())
+                        .attr("subscription", subscription.getName())
+                        .attr("size", entryAndMetadataList.size())
+                        .log("No consumer found to assign, redelivering messages");
+            }
+            entryAndMetadataList.forEach(unassignedMessageProcessor);
             return consumerToEntries;
         }
         // The actual available permits might change, here we use the permits at the moment to assign entries
@@ -81,7 +92,7 @@ public class SharedConsumerAssignor {
             if (metadata == null || !metadata.hasUuid() || !metadata.hasChunkId() || !metadata.hasNumChunksFromMsg()) {
                 consumerToEntries.computeIfAbsent(consumer, __ -> new ArrayList<>()).add(entryAndMetadata);
             } else {
-                final Consumer consumerForUuid = getConsumerForUuid(metadata, consumer, availablePermits);
+                final Consumer consumerForUuid = getConsumerForUuid(metadata, consumer);
                 if (consumerForUuid == null) {
                     unassignedMessageProcessor.accept(entryAndMetadata);
                     continue;
@@ -112,9 +123,7 @@ public class SharedConsumerAssignor {
         return null;
     }
 
-    private Consumer getConsumerForUuid(final MessageMetadata metadata,
-                                        final Consumer defaultConsumer,
-                                        final int currentAvailablePermits) {
+    private Consumer getConsumerForUuid(final MessageMetadata metadata, final Consumer defaultConsumer) {
         final String uuid = metadata.getUuid();
         Consumer consumer = uuidToConsumer.get(uuid);
         if (consumer == null) {
@@ -133,7 +142,9 @@ public class SharedConsumerAssignor {
             // The last chunk is received, we should remove the cache
             uuidToConsumer.remove(uuid);
         }
-        consumerToPermits.put(consumer, currentAvailablePermits - 1);
+        // Decrement target consumer's permits, not the loop's local availablePermits — on a cache
+        // redirect those track different consumers.
+        consumerToPermits.put(consumer, permits - 1);
         return consumer;
     }
 }

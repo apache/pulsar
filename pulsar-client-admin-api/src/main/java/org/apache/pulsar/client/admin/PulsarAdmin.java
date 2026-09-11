@@ -58,13 +58,6 @@ public interface PulsarAdmin extends Closeable {
     ResourceGroups resourcegroups();
 
     /**
-     *
-     * @deprecated since 2.0. See {@link #tenants()}
-     */
-    @Deprecated
-    Properties properties();
-
-    /**
      * @return the namespaces management object
      */
     Namespaces namespaces();
@@ -173,6 +166,13 @@ public interface PulsarAdmin extends Closeable {
      * @return the transactions management object
      */
     Transactions transactions();
+
+    MetadataMigration metadataMigration();
+
+    /**
+     * @return the scalable topics management object
+     */
+    ScalableTopics scalableTopics();
 
     /**
      * Close the PulsarAdminClient and release all the resources.

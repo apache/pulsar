@@ -23,12 +23,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * Utility class to dispatch topic events.
  */
-@Slf4j
+@CustomLog
 public class TopicEventsDispatcher {
     private final List<TopicEventsListener> topicEventListeners = new CopyOnWriteArrayList<>();
 
@@ -129,8 +129,13 @@ public class TopicEventsDispatcher {
         try {
             listener.handleEvent(topic, event, stage, t);
         } catch (Throwable ex) {
-            log.error("TopicEventsListener {} exception while handling {}_{} for topic {}",
-                    listener, event, stage, topic, ex);
+            log.error()
+                    .attr("listener", listener)
+                    .attr("event", event)
+                    .attr("stage", stage)
+                    .attr("topic", topic)
+                    .exception(ex)
+                    .log("TopicEventsListener exception while handling_ for topic");
         }
     }
 

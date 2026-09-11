@@ -23,11 +23,9 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URL;
 import java.util.Locale;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.pulsar.functions.auth.KubernetesSecretsTokenAuthProvider;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.testng.annotations.Test;
@@ -79,11 +77,13 @@ public class WorkerApiV2ResourceConfigTest {
         URL newK8SUrl = getClass().getClassLoader().getResource("test_worker_k8s_config.yml");
         WorkerConfig newK8SWc = WorkerConfig.load(newK8SUrl.toURI().getPath());
         assertEquals(newK8SWc.getFunctionRuntimeFactoryClassName(), KubernetesRuntimeFactory.class.getName());
-        assertEquals(newK8SWc.getFunctionAuthProviderClassName(), KubernetesSecretsTokenAuthProvider.class.getName());
+        assertEquals(newK8SWc.getFunctionAuthProviderClassName(),
+                KubernetesSecretsTokenAuthProvider.class.getName());
 
         URL legacyK8SUrl = getClass().getClassLoader().getResource("test_worker_k8s_legacy_config.yml");
         WorkerConfig legacyK8SWc = WorkerConfig.load(legacyK8SUrl.toURI().getPath());
-        assertEquals(legacyK8SWc.getFunctionAuthProviderClassName(), KubernetesSecretsTokenAuthProvider.class.getName());
+        assertEquals(legacyK8SWc.getFunctionAuthProviderClassName(),
+                KubernetesSecretsTokenAuthProvider.class.getName());
 
         URL overrideK8SUrl = getClass().getClassLoader().getResource("test_worker_k8s_auth_override_config.yml");
         WorkerConfig overrideK8SWc = WorkerConfig.load(overrideK8SUrl.toURI().getPath());
@@ -91,7 +91,7 @@ public class WorkerApiV2ResourceConfigTest {
 
         URL emptyOverrideUrl = getClass().getClassLoader().getResource("test_worker_auth_override_config.yml");
         WorkerConfig emptyOverrideWc = WorkerConfig.load(emptyOverrideUrl.toURI().getPath());
-        assertEquals(emptyOverrideWc.getFunctionAuthProviderClassName(),"org.apache.my.overridden.auth");
+        assertEquals(emptyOverrideWc.getFunctionAuthProviderClassName(), "org.apache.my.overridden.auth");
     }
 
     @Test
@@ -127,7 +127,8 @@ public class WorkerApiV2ResourceConfigTest {
     public void testPasswordsNotLeakedOnToString() throws Exception {
         URL yamlUrl = getClass().getClassLoader().getResource("test_worker_config.yml");
         WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
-        assertFalse(wc.toString().toLowerCase(Locale.ROOT).contains("password"), "Stringified config must not contain password");
+        assertFalse(wc.toString().toLowerCase(Locale.ROOT).contains("password"),
+                "Stringified config must not contain password");
     }
 
     @Test

@@ -20,14 +20,14 @@ package org.apache.pulsar.transaction.coordinator.impl;
 
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.impl.AckSetPositionImpl;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 
 /***
- * The difference with {@link PositionImpl} is that there are two more parameters:
+ * The difference with {@link AckSetPositionImpl} is that there are two more parameters:
  * {@link #batchSize}, {@link #batchIndex}.
  */
-public class TxnBatchedPositionImpl extends PositionImpl {
+public class TxnBatchedPositionImpl extends AckSetPositionImpl {
 
     /** The data length of current batch. **/
     @Getter
@@ -38,7 +38,7 @@ public class TxnBatchedPositionImpl extends PositionImpl {
     private final int batchIndex;
 
     public TxnBatchedPositionImpl(long ledgerId, long entryId, int batchSize, int batchIndex){
-        super(ledgerId, entryId);
+        super(ledgerId, entryId, null);
         this.batchIndex = batchIndex;
         this.batchSize = batchSize;
     }
@@ -48,9 +48,9 @@ public class TxnBatchedPositionImpl extends PositionImpl {
     }
 
     /**
-     * It's exactly the same as {@link PositionImpl}，make sure that when {@link TxnBatchedPositionImpl} used as the key
-     * of map same as {@link PositionImpl}. {@link #batchSize} and {@link #batchIndex} should not be involved in
-     * calculate, just like {@link PositionImpl#ackSet} is not involved in calculate.
+     * It's exactly the same as {@link Position}，make sure that when {@link TxnBatchedPositionImpl} used as the key
+     * of map same as {@link Position}. {@link #batchSize} and {@link #batchIndex} should not be involved in
+     * calculate, just like the included {@link #ackSet} is not involved in calculate.
      * Note: In {@link java.util.concurrent.ConcurrentSkipListMap}, it use the {@link Comparable#compareTo(Object)} to
      *   determine whether the keys are the same. In {@link java.util.HashMap}, it use the
      *   {@link Object#hashCode()} & {@link  Object#equals(Object)} to determine whether the keys are the same.
@@ -58,13 +58,12 @@ public class TxnBatchedPositionImpl extends PositionImpl {
     @Override
     public boolean equals(Object o) {
         return super.equals(o);
-
     }
 
     /**
-     * It's exactly the same as {@link PositionImpl}，make sure that when {@link TxnBatchedPositionImpl} used as the key
-     * of map same as {@link PositionImpl}. {@link #batchSize} and {@link #batchIndex} should not be involved in
-     * calculate, just like {@link PositionImpl#ackSet} is not involved in calculate.
+     * It's exactly the same as {@link Position}，make sure that when {@link TxnBatchedPositionImpl} used as the key
+     * of map same as {@link Position}. {@link #batchSize} and {@link #batchIndex} should not be involved in
+     * calculate, just like the included {@link #ackSet} is not involved in calculate.
      * Note: In {@link java.util.concurrent.ConcurrentSkipListMap}, it use the {@link Comparable#compareTo(Object)} to
      *   determine whether the keys are the same. In {@link java.util.HashMap}, it use the
      *   {@link Object#hashCode()} & {@link  Object#equals(Object)} to determine whether the keys are the same.
@@ -75,14 +74,14 @@ public class TxnBatchedPositionImpl extends PositionImpl {
     }
 
     /**
-     * It's exactly the same as {@link PositionImpl}，to make sure that when compare to the "markDeletePosition", it
-     * looks like {@link PositionImpl}. {@link #batchSize} and {@link #batchIndex} should not be involved in calculate,
-     * just like {@link PositionImpl#ackSet} is not involved in calculate.
+     * It's exactly the same as {@link Position}，to make sure that when compare to the "markDeletePosition", it
+     * looks like {@link Position}. {@link #batchSize} and {@link #batchIndex} should not be involved in calculate,
+     * just like the included {@link #ackSet} is not involved in calculate.
      * Note: In {@link java.util.concurrent.ConcurrentSkipListMap}, it use the {@link Comparable#compareTo(Object)} to
      *    determine whether the keys are the same. In {@link java.util.HashMap}, it use the
      *    {@link Object#hashCode()} & {@link  Object#equals(Object)} to determine whether the keys are the same.
      */
-    public int compareTo(PositionImpl that) {
+    public int compareTo(Position that) {
         return super.compareTo(that);
     }
 

@@ -23,24 +23,22 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @EqualsAndHashCode
 @ToString
+@CustomLog
 public class OwnedBundle {
-    private static final Logger LOG = LoggerFactory.getLogger(OwnedBundle.class);
-
     private final NamespaceBundle bundle;
 
     /**
-     * {@link #nsLock} is used to protect read/write access to {@link #active} flag and the corresponding code section
-     * based on {@link #active} flag.
+     * {@link #nsLock} is used to protect read/write access to {@link #isActive} flag and the corresponding code section
+     * based on {@link #isActive} flag.
      */
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
@@ -104,13 +102,13 @@ public class OwnedBundle {
     public CompletableFuture<Void> handleUnloadRequest(PulsarService pulsar, long timeout, TimeUnit timeoutUnit,
                                                        boolean closeWithoutWaitingClientDisconnect) {
         long unloadBundleStartTime = System.nanoTime();
-        // Need a per namespace RenetrantReadWriteLock
+        // Need a per namespace ReentrantReadWriteLock
         // Here to do a writeLock to set the flag and proceed to check and close connections
         try {
             while (!this.nsLock.writeLock().tryLock(1, TimeUnit.SECONDS)) {
                 // Using tryLock to avoid deadlocks caused by 2 threads trying to acquire 2 readlocks (eg: replicators)
                 // while a handleUnloadRequest happens in the middle
-                LOG.warn("Contention on OwnedBundle rw lock. Retrying to acquire lock write lock");
+                log.warn("Contention on OwnedBundle rw lock. Retrying to acquire lock write lock");
             }
 
             try {
@@ -130,7 +128,7 @@ public class OwnedBundle {
         }
 
         AtomicInteger unloadedTopics = new AtomicInteger();
-        LOG.info("Disabling ownership: {}", this.bundle);
+        log.info().attr("ownership", this.bundle).log("Disabling ownership");
 
         // close topics forcefully
         return pulsar.getNamespaceService().getOwnershipCache()
@@ -140,7 +138,10 @@ public class OwnedBundle {
                 .handle((numUnloadedTopics, ex) -> {
                     if (ex != null) {
                         // ignore topic-close failure to unload bundle
-                        LOG.error("Failed to close topics under namespace {}", bundle.toString(), ex);
+                        log.error()
+                                .attr("namespace", bundle.toString())
+                                .exception(ex)
+                                .log("Failed to close topics under namespace");
                     } else {
                         unloadedTopics.set(numUnloadedTopics);
                     }
@@ -154,8 +155,12 @@ public class OwnedBundle {
                 }).whenComplete((ignored, ex) -> {
                     double unloadBundleTime = TimeUnit.NANOSECONDS
                             .toMillis((System.nanoTime() - unloadBundleStartTime));
-                    LOG.info("Unloading {} namespace-bundle with {} topics completed in {} ms", this.bundle,
-                            unloadedTopics, unloadBundleTime, ex);
+                    log.info()
+                            .attr("bundle", this.bundle)
+                            .attr("unloadedTopics", unloadedTopics)
+                            .attr("unloadBundleTimeMs", unloadBundleTime)
+                            .exception(ex)
+                            .log("Unloading namespace-bundle completed");
                 });
     }
 

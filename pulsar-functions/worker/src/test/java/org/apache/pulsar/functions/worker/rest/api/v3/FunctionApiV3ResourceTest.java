@@ -27,14 +27,15 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.StreamingOutput;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
+import java.util.Map;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
@@ -42,7 +43,10 @@ import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.util.RestException;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerUtils;
@@ -60,7 +64,7 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
     }
 
     protected void registerFunction(String tenant, String namespace, String function, InputStream inputStream,
-                                    FormDataContentDisposition details, String functionPkgUrl, FunctionConfig functionConfig) {
+                      FormDataContentDisposition details, String functionPkgUrl, FunctionConfig functionConfig) {
         resource.registerFunction(
                 tenant,
                 namespace,
@@ -92,7 +96,7 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
     protected File downloadFunction(final String path, final AuthenticationParameters authParams) throws IOException {
         StreamingOutput streamingOutput = resource.downloadFunction(path, authParams);
         File pkgFile = File.createTempFile("testpkg", "nar");
-        try(OutputStream output = new FileOutputStream(pkgFile)) {
+        try (OutputStream output = new FileOutputStream(pkgFile)) {
             streamingOutput.write(output);
         }
         return pkgFile;
@@ -112,9 +116,9 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
 
     protected void deregisterDefaultFunction() {
         resource.deregisterFunction(
-                tenant,
-                namespace,
-                function,
+                TENANT,
+                NAMESPACE,
+                FUNCTION,
                 null);
     }
 
@@ -133,9 +137,9 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
 
     protected FunctionConfig getDefaultFunctionInfo() {
         return resource.getFunctionInfo(
-                tenant,
-                namespace,
-                function,
+                TENANT,
+                NAMESPACE,
+                FUNCTION,
                 null
         );
     }
@@ -153,8 +157,8 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
 
     protected List<String> listDefaultFunctions() {
         return resource.listFunctions(
-                tenant,
-                namespace, null
+                TENANT,
+                NAMESPACE, null
         );
     }
 
@@ -165,19 +169,17 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
                 .setUploadBuiltinSinksSources(false);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
-        Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder()
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("builtin://cassandra"))
-                .setTransformFunctionPackageLocation(
-                        Function.PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setComponentType(Function.FunctionDetails.ComponentType.SINK))
-                .build();
-        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+        FunctionMetaData metaData = new FunctionMetaData();
+        metaData.setPackageLocation().setPackagePath("builtin://data-generator");
+        metaData.setTransformFunctionPackageLocation().setPackagePath("http://invalid");
+        metaData.setFunctionDetails().setComponentType(FunctionDetails.ComponentType.SINK);
+        when(mockedManager.getFunctionMetaData(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(metaData);
 
-        registerBuiltinConnector("cassandra", file);
+        registerBuiltinConnector("data-generator", file);
 
-        StreamingOutput streamOutput = downloadFunction(tenant, namespace, function,
+        StreamingOutput streamOutput = downloadFunction(TENANT, NAMESPACE, FUNCTION,
                 AuthenticationParameters.builder().build(), false);
         File pkgFile = File.createTempFile("testpkg", "nar");
         OutputStream output = new FileOutputStream(pkgFile);
@@ -194,20 +196,17 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
                 .setUploadBuiltinSinksSources(false);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(config);
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
-        Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder()
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("builtin://exclamation"))
-                .setTransformFunctionPackageLocation(
-                        Function.PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
-                .setFunctionDetails(
-                        Function.FunctionDetails.newBuilder().setComponentType(Function.FunctionDetails.ComponentType.FUNCTION))
-                .build();
-        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+        FunctionMetaData metaData = new FunctionMetaData();
+        metaData.setPackageLocation().setPackagePath("builtin://exclamation");
+        metaData.setTransformFunctionPackageLocation().setPackagePath("http://invalid");
+        metaData.setFunctionDetails().setComponentType(FunctionDetails.ComponentType.FUNCTION);
+        when(mockedManager.getFunctionMetaData(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(metaData);
 
         registerBuiltinFunction("exclamation", file);
 
-        StreamingOutput streamOutput = downloadFunction(tenant, namespace, function,
+        StreamingOutput streamOutput = downloadFunction(TENANT, NAMESPACE, FUNCTION,
                 AuthenticationParameters.builder().build(), false);
         File pkgFile = File.createTempFile("testpkg", "nar");
         OutputStream output = new FileOutputStream(pkgFile);
@@ -225,18 +224,16 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
                 .setUploadBuiltinSinksSources(false);
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
-        Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder()
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("http://invalid"))
-                .setTransformFunctionPackageLocation(Function.PackageLocationMetaData.newBuilder()
-                        .setPackagePath("builtin://exclamation"))
-                .build();
-        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+        FunctionMetaData metaData = new FunctionMetaData();
+        metaData.setPackageLocation().setPackagePath("http://invalid");
+        metaData.setTransformFunctionPackageLocation().setPackagePath("builtin://exclamation");
+        when(mockedManager.getFunctionMetaData(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(metaData);
 
         registerBuiltinFunction("exclamation", file);
 
-        StreamingOutput streamOutput = downloadFunction(tenant, namespace, function,
+        StreamingOutput streamOutput = downloadFunction(TENANT, NAMESPACE, FUNCTION,
                 AuthenticationParameters.builder().build(), true);
         File pkgFile = File.createTempFile("testpkg", "nar");
         OutputStream output = new FileOutputStream(pkgFile);
@@ -250,7 +247,7 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
             + " exist")
     public void testGetNotExistedFunction() throws IOException {
         try {
-            when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+            when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
             getDefaultFunctionInfo();
         } catch (RestException re) {
             assertEquals(re.getResponse().getStatusInfo(), Response.Status.NOT_FOUND);
@@ -258,32 +255,32 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testGetFunctionSuccess() throws IOException {
         mockInstanceUtils();
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
 
-        Function.SinkSpec sinkSpec = Function.SinkSpec.newBuilder()
-                .setTopic(outputTopic)
-                .setSerDeClassName(outputSerdeClassName).build();
-        Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder()
-                .setClassName(className)
-                .setSink(sinkSpec)
-                .setAutoAck(true)
-                .setName(function)
-                .setNamespace(namespace)
-                .setProcessingGuarantees(Function.ProcessingGuarantees.ATMOST_ONCE)
-                .setTenant(tenant)
-                .setParallelism(parallelism)
-                .setSource(Function.SourceSpec.newBuilder().setSubscriptionType(subscriptionType)
-                        .putAllTopicsToSerDeClassName(topicsToSerDeClassName)).build();
-        Function.FunctionMetaData metaData = Function.FunctionMetaData.newBuilder()
-                .setCreateTime(System.currentTimeMillis())
-                .setFunctionDetails(functionDetails)
-                .setPackageLocation(Function.PackageLocationMetaData.newBuilder().setPackagePath("/path/to/package"))
-                .setVersion(1234)
-                .build();
-        when(mockedManager.getFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.setClassName(CLASS_NAME);
+        functionDetails.setSink().setTopic(OUTPUT_TOPIC).setSerDeClassName(OUTPUT_SERDE_CLASS_NAME);
+        functionDetails.setAutoAck(true);
+        functionDetails.setName(FUNCTION);
+        functionDetails.setNamespace(NAMESPACE);
+        functionDetails.setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE);
+        functionDetails.setTenant(TENANT);
+        functionDetails.setParallelism(PARALLELISM);
+        SourceSpec sourceSpec = functionDetails.setSource();
+        sourceSpec.setSubscriptionType(subscriptionType);
+        for (Map.Entry<String, String> entry : TOPICS_TO_SER_DE_CLASS_NAME.entrySet()) {
+            sourceSpec.putTopicsToSerDeClassName(entry.getKey(), entry.getValue());
+        }
+        FunctionMetaData metaData = new FunctionMetaData();
+        metaData.setCreateTime(System.currentTimeMillis());
+        metaData.setFunctionDetails().copyFrom(functionDetails);
+        metaData.setPackageLocation().setPackagePath("/path/to/package");
+        metaData.setVersion(1234);
+        when(mockedManager.getFunctionMetaData(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(metaData);
 
         FunctionConfig functionConfig = getDefaultFunctionInfo();
         assertEquals(
@@ -298,18 +295,18 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
 
         File file = getPulsarApiExamplesNar();
         String filePackageUrl = file.toURI().toString();
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
 
         FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(function);
-        functionConfig.setClassName(className);
-        functionConfig.setParallelism(parallelism);
-        functionConfig.setCustomSerdeInputs(topicsToSerDeClassName);
-        functionConfig.setOutput(outputTopic);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        registerFunction(tenant, namespace, function, null, null, filePackageUrl, functionConfig);
+        functionConfig.setTenant(TENANT);
+        functionConfig.setNamespace(NAMESPACE);
+        functionConfig.setName(FUNCTION);
+        functionConfig.setClassName(CLASS_NAME);
+        functionConfig.setParallelism(PARALLELISM);
+        functionConfig.setCustomSerdeInputs(TOPICS_TO_SER_DE_CLASS_NAME);
+        functionConfig.setOutput(OUTPUT_TOPIC);
+        functionConfig.setOutputSerdeClassName(OUTPUT_SERDE_CLASS_NAME);
+        registerFunction(TENANT, NAMESPACE, FUNCTION, null, null, filePackageUrl, functionConfig);
 
     }
 
@@ -317,7 +314,7 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
     public void testUpdateSourceWithNoChange() throws IOException {
         mockWorkerUtils();
 
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(true);
         FunctionConfig funcConfig = createDefaultFunctionConfig();
 
         // config has not changes and don't update auth, should fail
@@ -372,7 +369,7 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
 
     @Test(expectedExceptions = RestException.class, expectedExceptionsMessageRegExp = "Function config is not provided")
     public void testMissingFunctionConfig() throws IOException {
-        registerFunction(tenant, namespace, function, mockedInputStream, mockedFormData, null, null);
+        registerFunction(TENANT, NAMESPACE, FUNCTION, mockedInputStream, mockedFormData, null, null);
     }
 
     /*
@@ -395,12 +392,12 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
 
         registerBuiltinFunction("exclamation", getPulsarApiExamplesNar());
         when(mockedRuntimeFactory.externallyManaged()).thenReturn(true);
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
 
         FunctionConfig functionConfig = createDefaultFunctionConfig();
         functionConfig.setJar("builtin://exclamation");
 
-        registerFunction(tenant, namespace, function, null, mockedFormData, null, functionConfig);
+        registerFunction(TENANT, NAMESPACE, FUNCTION, null, mockedFormData, null, functionConfig);
     }
 
     /*
@@ -424,13 +421,13 @@ public class FunctionApiV3ResourceTest extends AbstractFunctionApiResourceTest {
 
         registerBuiltinFunction("exclamation", getPulsarApiExamplesNar());
         when(mockedRuntimeFactory.externallyManaged()).thenReturn(true);
-        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(TENANT), eq(NAMESPACE), eq(FUNCTION))).thenReturn(false);
 
         FunctionConfig functionConfig = createDefaultFunctionConfig();
         functionConfig.setJar("builtin://exclamation");
 
         try {
-            registerFunction(tenant, namespace, function, null, mockedFormData, null, functionConfig);
+            registerFunction(TENANT, NAMESPACE, FUNCTION, null, mockedFormData, null, functionConfig);
             Assert.fail();
         } catch (RuntimeException e) {
             Assert.assertEquals(e.getMessage(), injectedErrMsg);

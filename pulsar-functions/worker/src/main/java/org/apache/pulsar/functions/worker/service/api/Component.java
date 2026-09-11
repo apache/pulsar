@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.functions.worker.service.api;
 
+import jakarta.ws.rs.core.StreamingOutput;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
-import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;

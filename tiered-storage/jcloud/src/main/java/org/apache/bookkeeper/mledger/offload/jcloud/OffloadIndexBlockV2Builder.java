@@ -23,7 +23,7 @@ import java.io.InputStream;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.OffloadIndexBlockV2BuilderImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 
 /**
  * Interface for builder of index block used for offload a ledger to long term storage.

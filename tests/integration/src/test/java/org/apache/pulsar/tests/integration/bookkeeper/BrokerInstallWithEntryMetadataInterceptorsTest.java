@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.tests.integration.bookkeeper;
 
-import lombok.extern.slf4j.Slf4j;
+import static java.util.stream.Collectors.joining;
+import static org.testng.AssertJUnit.assertEquals;
+import java.util.stream.Stream;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -27,17 +30,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.joining;
-import static org.testng.AssertJUnit.assertEquals;
-
 /***
  * Test that verifies that regression in BookKeeper 4.16.0 is fixed.
  *
  * Anti-regression test for issue https://github.com/apache/pulsar/issues/20091.
  */
-@Slf4j
+@CustomLog
 public class BrokerInstallWithEntryMetadataInterceptorsTest extends PulsarClusterTestBase {
     private static final String PREFIX = "PULSAR_PREFIX_";
 
@@ -50,7 +48,8 @@ public class BrokerInstallWithEntryMetadataInterceptorsTest extends PulsarCluste
                 .filter(s -> !s.isEmpty())
                 .collect(joining("-"));
         brokerEnvs.put(PREFIX + "exposingBrokerEntryMetadataToClientEnabled", "true");
-        brokerEnvs.put(PREFIX + "brokerEntryMetadataInterceptors", "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
+        brokerEnvs.put(PREFIX + "brokerEntryMetadataInterceptors",
+                "org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor");
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .numBookies(2)
                 .numBrokers(1)
@@ -58,13 +57,16 @@ public class BrokerInstallWithEntryMetadataInterceptorsTest extends PulsarCluste
                 .clusterName(clusterName)
                 .build();
 
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+        log.info()
+                .attr("cluster", spec.clusterName())
+                .attr("with", spec.numBookies())
+                .attr("bookies", spec.numBrokers())
+                .log("Setting up cluster with bookies, brokers");
 
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
-        log.info("Cluster {} is setup", spec.clusterName());
+        log.info().attr("cluster", spec.clusterName()).log("Cluster is setup");
     }
 
     @AfterClass(alwaysRun = true)

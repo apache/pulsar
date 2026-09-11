@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.auth;
 
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -28,16 +30,23 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.LinkedHashSet;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import javax.naming.AuthenticationException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
+import org.apache.pulsar.common.api.AuthData;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -45,6 +54,7 @@ public class AuthenticationServiceTest {
 
     private static final String s_authentication_success = "authenticated";
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 10000)
     public void testAuthenticationHttp() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
@@ -61,10 +71,12 @@ public class AuthenticationServiceTest {
         service.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 10000)
     public void testAuthenticationHttpWithMultipleProviders() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
-        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName(), MockAuthenticationProviderWithDifferentName.class.getName());
+        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName(),
+                MockAuthenticationProviderWithDifferentName.class.getName());
         config.setAuthenticationProviders(providersClassNames);
         config.setAuthenticationEnabled(true);
         AuthenticationService service = new AuthenticationService(config);
@@ -85,7 +97,8 @@ public class AuthenticationServiceTest {
         HttpServletRequest requestUnsupportedAuthProvider = mock(HttpServletRequest.class);
         when(requestUnsupportedAuthProvider.getRemoteAddr()).thenReturn("192.168.1.1");
         when(requestUnsupportedAuthProvider.getRemotePort()).thenReturn(8080);
-        when(requestUnsupportedAuthProvider.getHeader("X-Pulsar-Auth-Method-Name")).thenReturn("unsupportedAuthProvider");
+        when(requestUnsupportedAuthProvider.getHeader("X-Pulsar-Auth-Method-Name"))
+                .thenReturn("unsupportedAuthProvider");
         Assert.assertThrows(() -> service.authenticateHttpRequest(requestUnsupportedAuthProvider));
 
         service.close();
@@ -137,7 +150,8 @@ public class AuthenticationServiceTest {
         HttpServletRequest requestUnsupportedAuthProvider = mock(HttpServletRequest.class);
         when(requestUnsupportedAuthProvider.getRemoteAddr()).thenReturn("192.168.1.1");
         when(requestUnsupportedAuthProvider.getRemotePort()).thenReturn(8080);
-        when(requestUnsupportedAuthProvider.getHeader("X-Pulsar-Auth-Method-Name")).thenReturn("unsupportedAuthProvider");
+        when(requestUnsupportedAuthProvider.getHeader("X-Pulsar-Auth-Method-Name"))
+                .thenReturn("unsupportedAuthProvider");
         Assert.assertThrows(() ->
                 service.authenticateHttpRequest(requestUnsupportedAuthProvider, (HttpServletResponse) null));
 
@@ -166,12 +180,167 @@ public class AuthenticationServiceTest {
         service.close();
     }
 
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testHttpRequestWithMultipleProviders() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        Set<String> providersClassNames = new LinkedHashSet<>();
+        providersClassNames.add(MockAuthenticationProviderAlwaysFail.class.getName());
+        providersClassNames.add(MockHttpAuthenticationProvider.class.getName());
+        config.setAuthenticationProviders(providersClassNames);
+        config.setAuthenticationEnabled(true);
+        @Cleanup
+        AuthenticationService service = new AuthenticationService(config);
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+
+        when(request.getParameter("role")).thenReturn("success-role1");
+        assertTrue(service.authenticateHttpRequest(request, (HttpServletResponse) null));
+
+        when(request.getParameter("role")).thenReturn("");
+        assertThatThrownBy(() -> service.authenticateHttpRequest(request, (HttpServletResponse) null))
+                .isInstanceOf(AuthenticationException.class);
+
+        when(request.getParameter("role")).thenReturn("error-role1");
+        assertThatThrownBy(() -> service.authenticateHttpRequest(request, (HttpServletResponse) null))
+                .isInstanceOf(AuthenticationException.class);
+
+        when(request.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME)).thenReturn("http-auth");
+        assertThatThrownBy(() -> service.authenticateHttpRequest(request, (HttpServletResponse) null))
+                .isInstanceOf(RuntimeException.class);
+
+        HttpServletRequest requestForAuthenticationDataSource = mock(HttpServletRequest.class);
+        assertThatThrownBy(() -> service.authenticateHttpRequest(requestForAuthenticationDataSource,
+                (AuthenticationDataSource) null))
+                .isInstanceOf(AuthenticationException.class);
+
+        when(requestForAuthenticationDataSource.getParameter("role")).thenReturn("error-role2");
+        assertThatThrownBy(() -> service.authenticateHttpRequest(requestForAuthenticationDataSource,
+                (AuthenticationDataSource) null))
+                .isInstanceOf(AuthenticationException.class);
+
+        when(requestForAuthenticationDataSource.getParameter("role")).thenReturn("success-role2");
+        assertThat(service.authenticateHttpRequest(requestForAuthenticationDataSource,
+                (AuthenticationDataSource) null)).isEqualTo("role2");
+    }
+
+    @Test(timeOut = 10000)
+    public void testStrictAuthMethodEnforcement() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
+        config.setAuthenticationProviders(providersClassNames);
+        config.setAuthenticationEnabled(true);
+        config.setStrictAuthMethod(true);
+        @Cleanup
+        AuthenticationService service = new AuthenticationService(config);
+
+        // Test: Request without auth method header should fail when strictAuthMethod is enabled
+        HttpServletRequest requestWithoutAuthMethod = mock(HttpServletRequest.class);
+        when(requestWithoutAuthMethod.getRemoteAddr()).thenReturn("192.168.1.1");
+        when(requestWithoutAuthMethod.getRemotePort()).thenReturn(8080);
+        // No X-Pulsar-Auth-Method-Name header set
+
+        assertThatThrownBy(() -> service.authenticateHttpRequest(requestWithoutAuthMethod, (HttpServletResponse) null))
+                .isInstanceOf(AuthenticationException.class)
+                .hasMessage("Authentication method missing");
+
+        // Test: Request with auth method header should still succeed
+        HttpServletRequest requestWithAuthMethod = mock(HttpServletRequest.class);
+        when(requestWithAuthMethod.getRemoteAddr()).thenReturn("192.168.1.1");
+        when(requestWithAuthMethod.getRemotePort()).thenReturn(8080);
+        when(requestWithAuthMethod.getHeader("X-Pulsar-Auth-Method-Name")).thenReturn("auth");
+
+        boolean result = service.authenticateHttpRequest(requestWithAuthMethod, (HttpServletResponse) null);
+        assertTrue(result, "Authentication should succeed when auth method is provided");
+    }
+
+    public static class MockHttpAuthenticationProvider implements AuthenticationProvider {
+        @Override
+        public void close() throws IOException {
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        public void initialize(ServiceConfiguration config) throws IOException {
+        }
+
+        @Override
+        public String getAuthMethodName() {
+            return "http-auth";
+        }
+
+        private String getRole(HttpServletRequest request) {
+            String role = request.getParameter("role");
+            if (role != null) {
+                String[] s = role.split("-");
+                if (s.length == 2 && s[0].equals("success")) {
+                    return s[1];
+                }
+            }
+            return null;
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        public boolean authenticateHttpRequest(HttpServletRequest request, HttpServletResponse response) {
+            String role = getRole(request);
+            if (role != null) {
+                return true;
+            }
+            throw new RuntimeException("test authentication failed");
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+            return authData.getCommandData();
+        }
+
+        @SuppressWarnings("deprecation")
+        @Override
+        public AuthenticationState newHttpAuthState(HttpServletRequest request) throws AuthenticationException {
+            String role = getRole(request);
+            if (role != null) {
+                return new AuthenticationState() {
+                    @Override
+                    public String getAuthRole() throws AuthenticationException {
+                        return role;
+                    }
+
+                    @SuppressWarnings("deprecation")
+                    @Override
+                    public AuthData authenticate(AuthData authData) throws AuthenticationException {
+                        return null;
+                    }
+
+                    @Override
+                    public AuthenticationDataSource getAuthDataSource() {
+                        return new AuthenticationDataCommand(role);
+                    }
+
+                    @SuppressWarnings("deprecation")
+                    @Override
+                    public boolean isComplete() {
+                        return true;
+                    }
+
+                    @Override
+                    public CompletableFuture<AuthData> authenticateAsync(AuthData authData) {
+                        return AuthenticationState.super.authenticateAsync(authData);
+                    }
+                };
+            }
+            throw new RuntimeException("new http auth failed");
+        }
+    }
+
     public static class MockAuthenticationProvider implements AuthenticationProvider {
 
         @Override
         public void close() throws IOException {
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }
@@ -181,6 +350,7 @@ public class AuthenticationServiceTest {
             return "auth";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             return s_authentication_success;
@@ -193,6 +363,7 @@ public class AuthenticationServiceTest {
         public void close() throws IOException {
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }
@@ -202,6 +373,7 @@ public class AuthenticationServiceTest {
             return "customAuthProvider";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             return s_authentication_success;
@@ -214,6 +386,7 @@ public class AuthenticationServiceTest {
         public void close() throws IOException {
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void initialize(ServiceConfiguration config) throws IOException {
         }
@@ -223,6 +396,7 @@ public class AuthenticationServiceTest {
             return "auth";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
             throw new AuthenticationException("I failed");

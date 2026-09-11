@@ -36,24 +36,23 @@ import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.cli.CmdProduce;
 import org.jline.reader.EndOfFileException;
+import org.jline.reader.Parser;
 import org.jline.reader.UserInterruptException;
 import org.jline.reader.impl.LineReaderImpl;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class PulsarShellTest {
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarShellTest.class);
 
     private PulsarAdmin pulsarAdmin;
 
@@ -75,14 +74,14 @@ public class PulsarShellTest {
         @SneakyThrows
         public String readLine() throws UserInterruptException, EndOfFileException {
             final String cmd = commandsQueue.take();
-            log.info("writing command: {}", cmd);
+            log.info().attr("command", cmd).log("Writing command");
             return cmd;
 
         }
 
         @Override
         public List<String> parseLine(String line) {
-            return getParser().parse(line, 0).words();
+            return getParser().parse(line, 0, Parser.ParseContext.SPLIT_LINE).words();
         }
     }
 
@@ -141,6 +140,7 @@ public class PulsarShellTest {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInteractiveMode() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
@@ -149,16 +149,18 @@ public class PulsarShellTest {
         props.setProperty("webServiceUrl", "http://localhost:8080");
         linereader.addCmd("admin topics create my-topic --metadata a=b ");
         linereader.addCmd("client produce -m msg my-topic");
+        linereader.addCmd("client produce -m \"hello pulsar\" my-topic");
         linereader.addCmd("quit");
         final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
         testPulsarShell.run((a) -> linereader, () -> terminal);
         verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
-        verify(testPulsarShell.cmdProduceHolder.get()).call();
+        verify(testPulsarShell.cmdProduceHolder.get(), times(2)).call();
         assertEquals((int) testPulsarShell.exitCode, 0);
 
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testFileMode() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);
@@ -176,6 +178,7 @@ public class PulsarShellTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testFileModeExitOnError() throws Exception {
         Terminal terminal = TerminalBuilder.builder().build();
         final MockLineReader linereader = new MockLineReader(terminal);

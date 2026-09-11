@@ -19,7 +19,7 @@
 syntax = "proto2";
 
 import "pulsar-common/src/main/proto/PulsarApi.proto";
-package pulsar.proto;
+package pulsar.proto.pendingack;
 option java_package = "org.apache.pulsar.broker.transaction.pendingack.proto";
 option optimize_for = LITE_RUNTIME;
 

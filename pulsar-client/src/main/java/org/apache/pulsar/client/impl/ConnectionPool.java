@@ -27,9 +27,6 @@ import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.resolver.AddressResolver;
-import io.netty.resolver.dns.DnsAddressResolverGroup;
-import io.netty.resolver.dns.DnsNameResolverBuilder;
-import io.netty.resolver.dns.SequentialDnsServerAddressStreamProvider;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.ScheduledFuture;
 import io.opentelemetry.api.common.Attributes;
@@ -47,9 +44,13 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.Builder;
+import lombok.CustomLog;
+import lombok.NonNull;
 import lombok.Value;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -60,14 +61,13 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.Unit;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.netty.DnsResolverUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.tls.PulsarTlsFactory;
 
+@CustomLog
 public class ConnectionPool implements AutoCloseable {
 
-    public static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 60;
+    public static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 15;
 
     protected final ConcurrentMap<Key, CompletableFuture<ClientCnx>> pool;
 
@@ -79,6 +79,7 @@ public class ConnectionPool implements AutoCloseable {
     private final boolean isSniProxy;
 
     protected final AddressResolver<InetSocketAddress> addressResolver;
+    private DnsResolverGroupImpl dnsResolverGroup;
     private final boolean shouldCloseDnsResolver;
 
 
@@ -90,7 +91,7 @@ public class ConnectionPool implements AutoCloseable {
     /** Do you want to automatically clean up unused connections. **/
     private boolean autoReleaseIdleConnectionsEnabled;
     /** Async release useless connections task. **/
-    private ScheduledFuture asyncReleaseUselessConnectionsTask;
+    private ScheduledFuture<?> asyncReleaseUselessConnectionsTask;
 
     private final Counter connectionsTcpFailureCounter;
     private final Counter connectionsHandshakeFailureCounter;
@@ -103,26 +104,38 @@ public class ConnectionPool implements AutoCloseable {
     }
 
     public ConnectionPool(InstrumentProvider instrumentProvider,
-                          ClientConfigurationData conf, EventLoopGroup eventLoopGroup) throws PulsarClientException {
-        this(instrumentProvider, conf, eventLoopGroup, () -> new ClientCnx(instrumentProvider, conf, eventLoopGroup));
-    }
-
-    public ConnectionPool(InstrumentProvider instrumentProvider,
                           ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
-                          Supplier<ClientCnx> clientCnxSupplier) throws PulsarClientException {
-        this(instrumentProvider, conf, eventLoopGroup, clientCnxSupplier, Optional.empty());
+                          ScheduledExecutorService scheduledExecutorService) throws PulsarClientException {
+        this(instrumentProvider, conf, eventLoopGroup, null, scheduledExecutorService);
     }
 
     public ConnectionPool(InstrumentProvider instrumentProvider,
                           ClientConfigurationData conf, EventLoopGroup eventLoopGroup,
                           Supplier<ClientCnx> clientCnxSupplier,
-                          Optional<AddressResolver<InetSocketAddress>> addressResolver)
+                          ScheduledExecutorService scheduledExecutorService) throws PulsarClientException {
+        this(instrumentProvider, conf, eventLoopGroup, clientCnxSupplier, Optional.empty(),
+                scheduledExecutorService);
+    }
+
+    @Builder(builderClassName = "ConnectionPoolBuilder")
+    public ConnectionPool(@NonNull InstrumentProvider instrumentProvider,
+                          @NonNull ClientConfigurationData conf, @NonNull EventLoopGroup eventLoopGroup,
+                          Supplier<ClientCnx> clientCnxSupplier,
+                          @NonNull Optional<Supplier<AddressResolver<InetSocketAddress>>> addressResolverSupplier,
+                          ScheduledExecutorService scheduledExecutorService)
             throws PulsarClientException {
+        if (clientCnxSupplier == null) {
+            clientCnxSupplier = () -> new ClientCnx(instrumentProvider, conf, eventLoopGroup);
+        }
         this.eventLoopGroup = eventLoopGroup;
         this.clientConfig = conf;
         this.maxConnectionsPerHosts = conf.getConnectionsPerBroker();
-        this.isSniProxy = clientConfig.isUseTls() && clientConfig.getProxyProtocol() != null
+        boolean sniProxyExpected = clientConfig.getProxyProtocol() != null
                 && StringUtils.isNotBlank(clientConfig.getProxyServiceUrl());
+        this.isSniProxy = clientConfig.isUseTls() && sniProxyExpected;
+        if (!this.isSniProxy && sniProxyExpected) {
+            log.warn("Disabling SNI proxy because tls is not enabled");
+        }
 
         pool = new ConcurrentHashMap<>();
         bootstrap = new Bootstrap();
@@ -134,15 +147,17 @@ public class ConnectionPool implements AutoCloseable {
         bootstrap.option(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
 
         try {
-            channelInitializerHandler = new PulsarChannelInitializer(conf, clientCnxSupplier);
+            channelInitializerHandler = new PulsarChannelInitializer(conf, clientCnxSupplier,
+                    scheduledExecutorService);
             bootstrap.handler(channelInitializerHandler);
         } catch (Exception e) {
             log.error("Failed to create channel initializer");
             throw new PulsarClientException(e);
         }
 
-        this.shouldCloseDnsResolver = !addressResolver.isPresent();
-        this.addressResolver = addressResolver.orElseGet(() -> createAddressResolver(conf, eventLoopGroup));
+        this.shouldCloseDnsResolver = !addressResolverSupplier.isPresent();
+        this.addressResolver =
+                addressResolverSupplier.orElseGet(() -> createAddressResolver(conf, eventLoopGroup)).get();
         // Auto release useless connections. see: https://github.com/apache/pulsar/issues/15516.
         this.connectionMaxIdleSeconds = conf.getConnectionMaxIdleSeconds();
         this.autoReleaseIdleConnectionsEnabled = connectionMaxIdleSeconds > 0;
@@ -160,7 +175,7 @@ public class ConnectionPool implements AutoCloseable {
                 try {
                     doMarkAndReleaseUselessConnections();
                 } catch (Exception e) {
-                    log.error("Auto release useless connections failure.", e);
+                    log.error().exception(e).log("Auto release useless connections failure.");
                 }
             }, idleDetectionIntervalSeconds, idleDetectionIntervalSeconds, TimeUnit.SECONDS);
         }
@@ -174,24 +189,29 @@ public class ConnectionPool implements AutoCloseable {
                 Attributes.builder().put("pulsar.failure.type", "handshake").build());
     }
 
-    private static AddressResolver<InetSocketAddress> createAddressResolver(ClientConfigurationData conf,
-                                                                            EventLoopGroup eventLoopGroup) {
-        DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
-                .traceEnabled(true).channelType(EventLoopUtil.getDatagramChannelClass(eventLoopGroup));
-        if (conf.getDnsLookupBindAddress() != null) {
-            InetSocketAddress addr = new InetSocketAddress(conf.getDnsLookupBindAddress(),
-                    conf.getDnsLookupBindPort());
-            dnsNameResolverBuilder.localAddress(addr);
+    /**
+     * Swap the client TLS factory that NEW connections build their {@code SslContext} from (PIP-478).
+     * AutoClusterFailover rebuilds the factory from the updated {@link ClientConfigurationData} so per-target
+     * trust roots / TLS identity reach connections established after the switch; existing connections keep
+     * their factory.
+     *
+     * @param factory the rebuilt factory
+     */
+    void updateClientTlsFactory(PulsarTlsFactory factory) {
+        channelInitializerHandler.setClientTlsFactory(factory);
+    }
+
+    @VisibleForTesting
+    PulsarChannelInitializer getChannelInitializerHandler() {
+        return channelInitializerHandler;
+    }
+
+    private Supplier<AddressResolver<InetSocketAddress>> createAddressResolver(ClientConfigurationData conf,
+                                                                               EventLoopGroup eventLoopGroup) {
+        if (dnsResolverGroup == null) {
+            dnsResolverGroup = new DnsResolverGroupImpl(conf);
         }
-        List<InetSocketAddress> serverAddresses = conf.getDnsServerAddresses();
-        if (serverAddresses != null && !serverAddresses.isEmpty()) {
-            dnsNameResolverBuilder.nameServerProvider(new SequentialDnsServerAddressStreamProvider(serverAddresses));
-        }
-        DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
-        // use DnsAddressResolverGroup to create the AddressResolver since it contains a solution
-        // to prevent cache stampede / thundering herds problem when a DNS entry expires while the system
-        // is under high load
-        return new DnsAddressResolverGroup(dnsNameResolverBuilder).getResolver(eventLoopGroup.next());
+        return () -> dnsResolverGroup.createAddressResolver(eventLoopGroup);
     }
 
     private static final Random random = new Random();
@@ -201,6 +221,14 @@ public class ConnectionPool implements AutoCloseable {
             return -1;
         }
         return signSafeMod(random.nextInt(), maxConnectionsPerHosts);
+    }
+
+    public CompletableFuture<ClientCnx> getConnection(final ServiceNameResolver serviceNameResolver) {
+        InetSocketAddress address = serviceNameResolver.resolveHost();
+        CompletableFuture<ClientCnx> clientCnxCompletableFuture = getConnection(address);
+        clientCnxCompletableFuture.whenComplete(
+                (__, throwable) -> serviceNameResolver.markHostAvailability(address, throwable == null));
+        return clientCnxCompletableFuture;
     }
 
     public CompletableFuture<ClientCnx> getConnection(final InetSocketAddress address) {
@@ -278,20 +306,17 @@ public class ConnectionPool implements AutoCloseable {
     }
 
     private CompletableFuture<ClientCnx> createConnection(Key key) {
-        if (log.isDebugEnabled()) {
-            log.debug("Connection for {} not found in cache", key.logicalAddress);
-        }
+            log.debug().attr("logicalAddress", key.logicalAddress)
+                    .log("Connection was not found in cache for logical address");
 
         final CompletableFuture<ClientCnx> cnxFuture = new CompletableFuture<>();
         // Trigger async connect to broker
         createConnection(key.logicalAddress, key.physicalAddress).thenAccept(channel -> {
-            log.info("[{}] Connected to server", channel);
+            log.info().attr("channel", channel).log("Connected to server");
 
             channel.closeFuture().addListener(v -> {
                 // Remove connection from pool when it gets closed
-                if (log.isDebugEnabled()) {
-                    log.debug("Removing closed connection from pool: {}", v);
-                }
+                    log.debug().attr("pool", v).log("Removing closed connection from pool");
                 pool.remove(key, cnxFuture);
             });
 
@@ -299,21 +324,20 @@ public class ConnectionPool implements AutoCloseable {
             // complete
             final ClientCnx cnx = (ClientCnx) channel.pipeline().get("handler");
             if (!channel.isActive() || cnx == null) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Connection was already closed by the time we got notified", channel);
-                }
+                    log.debug().attr("channel", channel)
+                            .log("Connection was already closed by the time we got notified");
                 cnxFuture.completeExceptionally(new ChannelException("Connection already closed"));
                 return;
             }
 
             cnx.connectionFuture().thenRun(() -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Connection handshake completed", cnx.channel());
-                }
+                    log.debug().attr("channel", cnx.channel()).log("Connection handshake completed");
                 cnxFuture.complete(cnx);
             }).exceptionally(exception -> {
                 connectionsHandshakeFailureCounter.increment();
-                log.warn("[{}] Connection handshake failed: {}", cnx.channel(), exception.getMessage());
+                log.warn().attr("channel", cnx.channel())
+                        .exceptionMessage(exception)
+                        .log("Connection handshake failed");
                 cnxFuture.completeExceptionally(exception);
                 // this cleanupConnection may happen before that the
                 // CompletableFuture is cached into the "pool" map,
@@ -326,7 +350,9 @@ public class ConnectionPool implements AutoCloseable {
         }).exceptionally(exception -> {
             connectionsTcpFailureCounter.increment();
             eventLoopGroup.execute(() -> {
-                log.warn("Failed to open connection to {} : {}", key.physicalAddress, exception.getMessage());
+                log.warn().attr("physicalAddress", key.physicalAddress)
+                        .exceptionMessage(exception)
+                        .log("Failed to open connection to");
                 pool.remove(key, cnxFuture);
                 cnxFuture.completeExceptionally(new PulsarClientException(exception));
             });
@@ -358,7 +384,7 @@ public class ConnectionPool implements AutoCloseable {
                             isSniProxy ? unresolvedPhysicalAddress : null)
             );
         } catch (URISyntaxException e) {
-            log.error("Invalid Proxy url {}", clientConfig.getProxyServiceUrl(), e);
+            log.error().attr("url", clientConfig.getProxyServiceUrl()).exception(e).log("Invalid Proxy url");
             return FutureUtil
                     .failedFuture(new InvalidServiceURL("Invalid url " + clientConfig.getProxyServiceUrl(), e));
         }
@@ -425,24 +451,26 @@ public class ConnectionPool implements AutoCloseable {
                     .thenCompose(ch ->
                             channelInitializerHandler.initializeClientCnx(ch, logicalAddress,
                                     unresolvedPhysicalAddress))
-                    .thenCompose(channel -> toCompletableFuture(channel.connect(physicalAddress)));
+                    .thenCompose(channel -> connectToPhysicalAddress(channel, physicalAddress));
         } else {
             return toCompletableFuture(bootstrap.register())
                     .thenCompose(channelInitializerHandler::initSocks5IfConfig)
                     .thenCompose(ch ->
                             channelInitializerHandler.initializeClientCnx(ch, logicalAddress,
                                     unresolvedPhysicalAddress))
-                    .thenCompose(channel -> toCompletableFuture(channel.connect(physicalAddress)));
+                    .thenCompose(channel -> connectToPhysicalAddress(channel, physicalAddress));
         }
+    }
+
+    protected CompletableFuture<Channel> connectToPhysicalAddress(Channel channel, InetSocketAddress physicalAddress) {
+        return toCompletableFuture(channel.connect(physicalAddress));
     }
 
     public void releaseConnection(ClientCnx cnx) {
         if (maxConnectionsPerHosts == 0) {
             //Disable pooling
             if (cnx.channel().isActive()) {
-                if (log.isDebugEnabled()) {
                     log.debug("close connection due to pooling disabled.");
-                }
                 cnx.close();
             }
         }
@@ -454,6 +482,9 @@ public class ConnectionPool implements AutoCloseable {
         if (shouldCloseDnsResolver) {
             addressResolver.close();
         }
+        if (dnsResolverGroup != null) {
+            dnsResolverGroup.close();
+        }
         if (asyncReleaseUselessConnectionsTask != null && !asyncReleaseUselessConnectionsTask.isCancelled()) {
             asyncReleaseUselessConnectionsTask.cancel(false);
         }
@@ -463,8 +494,6 @@ public class ConnectionPool implements AutoCloseable {
     int getPoolSize() {
         return pool.size();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ConnectionPool.class);
 
     public void doMarkAndReleaseUselessConnections(){
         if (!autoReleaseIdleConnectionsEnabled){

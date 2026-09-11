@@ -45,6 +45,7 @@ public class HierarchyTopicPolicies {
     final Map<BacklogQuotaType, PolicyHierarchyValue<BacklogQuota>> backLogQuotaMap;
     final PolicyHierarchyValue<Integer> topicMaxMessageSize;
     final PolicyHierarchyValue<Integer> messageTTLInSeconds;
+    final PolicyHierarchyValue<Integer> subscriptionExpirationTimeInMinutes;
     final PolicyHierarchyValue<Long> compactionThreshold;
     final PolicyHierarchyValue<Integer> maxConsumerPerTopic;
     final PolicyHierarchyValue<PublishRate> publishRate;
@@ -81,6 +82,7 @@ public class HierarchyTopicPolicies {
                 .build();
         topicMaxMessageSize = new PolicyHierarchyValue<>();
         messageTTLInSeconds = new PolicyHierarchyValue<>();
+        subscriptionExpirationTimeInMinutes = new PolicyHierarchyValue<>();
         publishRate = new PolicyHierarchyValue<>();
         delayedDeliveryEnabled = new PolicyHierarchyValue<>();
         dispatcherPauseOnAckStatePersistentEnabled = new PolicyHierarchyValue<>();

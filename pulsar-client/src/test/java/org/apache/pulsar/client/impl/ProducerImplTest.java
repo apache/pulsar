@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,9 +27,13 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.nio.ByteBuffer;
+import java.util.Collections;
+import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -57,10 +62,11 @@ public class ProducerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testPopulateMessageSchema() {
         MessageImpl<?> msg = mock(MessageImpl.class);
         when(msg.hasReplicateFrom()).thenReturn(true);
-        when(msg.getSchemaInternal()).thenReturn(mock(Schema.class));
+        doReturn(mock(Schema.class)).when(msg).getSchemaInternal();
         when(msg.getSchemaInfoForReplicator()).thenReturn(null);
         ProducerImpl<?> producer = mock(ProducerImpl.class, withSettings()
                 .defaultAnswer(Mockito.CALLS_REAL_METHODS));
@@ -68,4 +74,123 @@ public class ProducerImplTest {
         verify(msg).setSchemaState(MessageImpl.SchemaState.Ready);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testFailPendingMessagesSyncRetry()
+            throws Exception {
+        ProducerImpl<byte[]> producer =
+                Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
+        // Disable batching
+        Mockito.doReturn(false)
+                .when(producer)
+                .isBatchMessagingEnabled();
+
+        // Stub semaphore release (not under test)
+        Mockito.doNothing()
+                .when(producer)
+                .semaphoreRelease(Mockito.anyInt());
+
+        // Stub client cleanup path (not under test)
+        PulsarClientImpl client = Mockito.mock(PulsarClientImpl.class);
+        Mockito.when(client.getMemoryLimitController())
+                .thenReturn(Mockito.mock(MemoryLimitController.class));
+        FieldUtils.writeField(producer, "client", client, true);
+
+        // Real pending queue
+        ProducerImpl.OpSendMsgQueue pendingQueue = new ProducerImpl.OpSendMsgQueue();
+        FieldUtils.writeField(producer, "pendingMessages", pendingQueue, true);
+
+        // OpSendMsg that retries reentrantly
+        MessageImpl<?> msg = Mockito.mock(MessageImpl.class);
+        Mockito.when(msg.getUncompressedSize()).thenReturn(10);
+        ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(
+                Mockito.mock(LatencyHistogram.class),
+                msg,
+                Mockito.mock(ByteBufPair.class),
+                1L,
+                Mockito.mock(SendCallback.class)
+        );
+        op.totalChunks = 1;
+        op.chunkId = 0;
+        op.numMessagesInBatch = 1;
+
+        MessageImpl<?> retryMsg = Mockito.mock(MessageImpl.class);
+        Mockito.when(retryMsg.getUncompressedSize()).thenReturn(10);
+
+        // Override sendComplete to Reentrant retry via spy
+        ProducerImpl.OpSendMsg firstSpy = Mockito.spy(op);
+        Mockito.doAnswer(invocation -> {
+            // Reentrant retry during callback
+            ProducerImpl.OpSendMsg retryOp = ProducerImpl.OpSendMsg.create(
+                    Mockito.mock(LatencyHistogram.class),
+                    retryMsg,
+                    Mockito.mock(ByteBufPair.class),
+                    2L,
+                    Mockito.mock(SendCallback.class)
+            );
+            retryOp.totalChunks = 1;
+            retryOp.chunkId = 0;
+            retryOp.numMessagesInBatch = 1;
+            pendingQueue.add(retryOp);
+            return null;
+        }).when(firstSpy).sendComplete(Mockito.any());
+        Mockito.doNothing()
+                .when(firstSpy)
+                .recycle();
+
+        // Seed initial pending message
+        pendingQueue.add(firstSpy);
+
+        // Invoke failPendingMessages(null, ex)
+        producer.failPendingMessages(null, new PulsarClientException.TimeoutException("timeout"));
+        assertEquals(producer.getPendingQueueSize(), 1,
+                "Retry Op should exist in the pending Queue");
+        assertEquals(pendingQueue.peek().sequenceId, 2L,
+                "Retry Op SequenceId should match with the one in pendingQueue");
+    }
+
+    /**
+     * When the producer is in a terminal state, {@link ProducerImpl#processOpSendMsg} fails the message right away.
+     * The memory reserved for that message must be given back to the {@link MemoryLimitController} exactly once:
+     * releasing it twice makes {@code currentUsage} drift below zero and permanently disables the client memory
+     * limit.
+     */
+    @Test
+    public void testProcessOpSendMsgInTerminalStateReleasesMemoryOnce() throws Exception {
+        for (ProducerImpl.State state : new ProducerImpl.State[] {
+                ProducerImpl.State.Terminated, ProducerImpl.State.Closed, ProducerImpl.State.ProducerFenced}) {
+            @SuppressWarnings("unchecked")
+            ProducerImpl<byte[]> producer = Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
+            // Disable batching, so that releaseSemaphoreForSendOp() releases a single permit
+            Mockito.doReturn(false).when(producer).isBatchMessagingEnabled();
+            // The semaphore is not under test
+            Mockito.doNothing().when(producer).semaphoreRelease(Mockito.anyInt());
+
+            MemoryLimitController memoryLimitController = new MemoryLimitController(1024 * 1024);
+            PulsarClientImpl client = Mockito.mock(PulsarClientImpl.class);
+            Mockito.when(client.getMemoryLimitController()).thenReturn(memoryLimitController);
+            FieldUtils.writeField(producer, "client", client, true);
+
+            int uncompressedSize = 128;
+            MessageImpl<?> msg = Mockito.mock(MessageImpl.class);
+            Mockito.when(msg.getUncompressedSize()).thenReturn(uncompressedSize);
+            // Build the op through the batch factory so that op.msg is null and the message size check is skipped
+            ProducerImpl.OpSendMsg op = ProducerImpl.OpSendMsg.create(
+                    Mockito.mock(LatencyHistogram.class),
+                    Collections.<MessageImpl<?>>singletonList(msg),
+                    Mockito.mock(ByteBufPair.class),
+                    1L,
+                    Mockito.mock(SendCallback.class),
+                    0);
+
+            memoryLimitController.forceReserveMemory(op.uncompressedSize);
+            assertEquals(memoryLimitController.currentUsage(), uncompressedSize);
+
+            producer.setState(state);
+            producer.processOpSendMsg(op);
+
+            assertEquals(memoryLimitController.currentUsage(), 0,
+                    "The memory reserved for the message must be released exactly once in state " + state);
+        }
+    }
 }

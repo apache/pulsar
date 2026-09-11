@@ -29,6 +29,8 @@ public class AllocatorStats {
     public int numThreadLocalCaches;
     public int normalCacheSize;
     public int smallCacheSize;
+    public long usedDirectMemory;
+    public long usedHeapMemory;
 
     public List<PoolArenaStats> directArenas;
     public List<PoolArenaStats> heapArenas;

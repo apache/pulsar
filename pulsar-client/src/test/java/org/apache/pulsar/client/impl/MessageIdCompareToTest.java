@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +29,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.testng.annotations.Test;
 
 /**
- * Test compareTo method in MessageIdImpl and BatchMessageIdImpl
+ * Test compareTo method in MessageIdImpl and BatchMessageIdImpl.
  */
 public class MessageIdCompareToTest  {
 
@@ -181,9 +180,10 @@ public class MessageIdCompareToTest  {
         assertTrue(topicMessageId1.compareTo(messageIdImpl1) < 0, "Expected to be less than");
         assertTrue(topicMessageId2.compareTo(messageIdImpl1) < 0, "Expected to be less than");
         assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
-        assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
+        assertEquals(topicMessageId2.compareTo(messageIdImpl3), 0, "Expected to be equal");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiMessageIdEqual() {
         // null
@@ -260,6 +260,7 @@ public class MessageIdCompareToTest  {
         assertNotEquals(item7, item5);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiMessageIdCompareto() {
         // null

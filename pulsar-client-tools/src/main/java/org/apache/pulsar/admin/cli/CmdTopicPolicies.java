@@ -21,6 +21,7 @@ package org.apache.pulsar.admin.cli;
 import static org.apache.pulsar.admin.cli.utils.CmdUtils.maxValueCheck;
 import static org.apache.pulsar.admin.cli.utils.CmdUtils.positiveCheck;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -29,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.cli.converters.picocli.ByteUnitToIntegerConverter;
 import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.cli.converters.picocli.TimeUnitToMillisConverter;
 import org.apache.pulsar.cli.converters.picocli.TimeUnitToSecondsConverter;
@@ -60,10 +60,13 @@ public class CmdTopicPolicies extends CmdBase {
 
     public CmdTopicPolicies(Supplier<PulsarAdmin> admin) {
         super("topicPolicies", admin);
-
+        addCommand("delete", new DeletePolicies());
         addCommand("get-message-ttl", new GetMessageTTL());
         addCommand("set-message-ttl", new SetMessageTTL());
         addCommand("remove-message-ttl", new RemoveMessageTTL());
+        addCommand("get-subscription-expiration-time", new GetSubscriptionExpirationTime());
+        addCommand("set-subscription-expiration-time", new SetSubscriptionExpirationTime());
+        addCommand("remove-subscription-expiration-time", new RemoveSubscriptionExpirationTime());
 
         addCommand("get-max-unacked-messages-per-consumer", new GetMaxUnackedMessagesPerConsumer());
         addCommand("set-max-unacked-messages-per-consumer", new SetMaxUnackedMessagesPerConsumer());
@@ -169,6 +172,10 @@ public class CmdTopicPolicies extends CmdBase {
                 new GetDispatcherPauseOnAckStatePersistent());
         addCommand("remove-dispatcher-pause-on-ack-state-persistent",
                 new RemoveDispatcherPauseOnAckStatePersistent());
+
+        addCommand("get-replication-clusters", new GetReplicationClusters());
+        addCommand("set-replication-clusters", new SetReplicationClusters());
+        addCommand("remove-replication-clusters", new RemoveReplicationClusters());
     }
 
     @Command(description = "Get entry filters for a topic")
@@ -391,6 +398,61 @@ public class CmdTopicPolicies extends CmdBase {
         }
     }
 
+    @Command(description = "Get subscription expiration time in minutes for a topic")
+    private class GetSubscriptionExpirationTime extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic")
+        private boolean applied = false;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            print(getTopicPolicies(isGlobal).getSubscriptionExpirationTime(persistentTopic, applied));
+        }
+    }
+
+    @Command(description = "Set subscription expiration time in minutes for a topic")
+    private class SetSubscriptionExpirationTime extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "-t", "--time" }, description = "Subscription expiration time in minutes", required = true)
+        private int subscriptionExpirationTimeInMinutes;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            getTopicPolicies(isGlobal)
+                    .setSubscriptionExpirationTime(persistentTopic, subscriptionExpirationTimeInMinutes);
+        }
+    }
+
+    @Command(description = "Remove subscription expiration time for a topic")
+    private class RemoveSubscriptionExpirationTime extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to remove this policy globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            getTopicPolicies(isGlobal).removeSubscriptionExpirationTime(persistentTopic);
+        }
+    }
+
     @Command(description = "Set subscription types enabled for a topic")
     private class SetSubscriptionTypesEnabled extends CliCommand {
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
@@ -546,8 +608,8 @@ public class CmdTopicPolicies extends CmdBase {
                 + "For example, 4096, 10M, 16G, 3T.  The size unit suffix character can be k/K, m/M, g/G, or t/T.  "
                 + "If the size unit suffix is not specified, the default unit is bytes. "
                 + "0 or less than 1MB means no retention and -1 means infinite size retention", required = true,
-                converter = ByteUnitToIntegerConverter.class)
-        private Integer sizeLimit;
+                converter = ByteUnitToLongConverter.class)
+        private Long sizeLimit;
 
         @Option(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy is replicated to other clusters asynchronously, "
@@ -560,8 +622,8 @@ public class CmdTopicPolicies extends CmdBase {
             final int retentionTimeInMin = retentionTimeInSec != -1
                     ? (int) TimeUnit.SECONDS.toMinutes(retentionTimeInSec)
                     : retentionTimeInSec.intValue();
-            final int retentionSizeInMB = sizeLimit != -1
-                    ? (int) (sizeLimit / (1024 * 1024))
+            final long retentionSizeInMB = sizeLimit != -1
+                    ? (sizeLimit / (1024 * 1024))
                     : sizeLimit;
             getTopicPolicies(isGlobal).setRetention(persistentTopic,
                     new RetentionPolicies(retentionTimeInMin, retentionSizeInMB));
@@ -1189,13 +1251,21 @@ public class CmdTopicPolicies extends CmdBase {
                 description = "Number of acks (guaranteed copies) to wait for each entry")
         private int bookkeeperAckQuorum = 2;
 
-        @Option(names = { "-r", "--ml-mark-delete-max-rate" },
-                description = "Throttling rate of mark-delete operation (0 means no throttle)")
-        private double managedLedgerMaxMarkDeleteRate = 0;
+        @Option(names = { "-r",
+                "--ml-mark-delete-max-rate" },
+                description = "Throttling rate of mark-delete operation "
+                        + "(0 means no throttle, -1 means unset which will use "
+                        + "the configuration from namespace or broker)")
+        private double managedLedgerMaxMarkDeleteRate = -1;
 
         @Option(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
                 + "If set to true, the policy will be replicate to other clusters asynchronously", arity = "0")
         private boolean isGlobal = false;
+
+        @Option(names = { "-c",
+                "--ml-storage-class" },
+                description = "Managed ledger storage class name")
+        private String managedLedgerStorageClassName;
 
         @Override
         void run() throws PulsarAdminException {
@@ -1204,11 +1274,9 @@ public class CmdTopicPolicies extends CmdBase {
                 throw new ParameterException("[--bookkeeper-ensemble], [--bookkeeper-write-quorum] "
                         + "and [--bookkeeper-ack-quorum] must greater than 0.");
             }
-            if (managedLedgerMaxMarkDeleteRate < 0) {
-                throw new ParameterException("[--ml-mark-delete-max-rate] cannot less than 0.");
-            }
             getTopicPolicies(isGlobal).setPersistence(persistentTopic, new PersistencePolicies(bookkeeperEnsemble,
-                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate));
+                    bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate,
+                    managedLedgerStorageClassName));
         }
     }
 
@@ -1949,7 +2017,7 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            getTopicPolicies(isGlobal).setDispatcherPauseOnAckStatePersistent(persistentTopic);
+            sync(() -> getTopicPolicies(isGlobal).setDispatcherPauseOnAckStatePersistent(persistentTopic));
         }
     }
 
@@ -1968,7 +2036,8 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            print(getTopicPolicies(isGlobal).getDispatcherPauseOnAckStatePersistent(persistentTopic, applied));
+            print(sync(() ->
+                    (getTopicPolicies(isGlobal).getDispatcherPauseOnAckStatePersistent(persistentTopic, applied))));
         }
     }
 
@@ -1984,7 +2053,84 @@ public class CmdTopicPolicies extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            getTopicPolicies(isGlobal).removeDispatcherPauseOnAckStatePersistent(persistentTopic);
+            sync(() -> getTopicPolicies(isGlobal).removeDispatcherPauseOnAckStatePersistent(persistentTopic));
+        }
+    }
+
+    @Command(description = "Set the replication clusters for a topic, global policy will be copied to the remote"
+            + " cluster if you enabled namespace level replication. "
+            + "When removing a cluster: "
+            + "with shared configuration store, topic data will be deleted from the removed cluster; "
+            + "with separate configuration store, only replication stops but topic data is preserved.")
+    private class SetReplicationClusters extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--clusters",
+                "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
+        private String clusterIds;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to set this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            List<String> clusters = Lists.newArrayList(clusterIds.split(","));
+            sync(() -> getTopicPolicies(isGlobal).setReplicationClusters(persistentTopic, clusters));
+        }
+    }
+
+    @Command(description = "Get the replication clusters for a topic")
+    private class GetReplicationClusters extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "-ap", "--applied" }, description = "Get the applied policy of the topic. If set to true,"
+                + " the param \"--global\" will be ignored. ")
+        private boolean applied = false;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set \"--applied\" to true, the current param will be ignored. ")
+        private boolean isGlobal = false;
+
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            print(getTopicPolicies(isGlobal).getReplicationClusters(persistentTopic, applied));
+        }
+    }
+
+    @Command(description = "Remove the replication clusters for a topic, it will not remove the policy from the remote"
+            + "cluster")
+    private class RemoveReplicationClusters extends CliCommand {
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to get this policy globally. "
+                + "If set to true, the policy will be replicate to other clusters asynchronously")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            getTopicPolicies(isGlobal).removeReplicationClusters(persistentTopic);
+        }
+    }
+
+    @Command(description = "Remove the all policies for a topic, it will not remove policies from the remote"
+            + "cluster")
+    private class DeletePolicies extends CliCommand {
+
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            getTopicPolicies(false).deleteTopicPolicies(persistentTopic);
         }
     }
 

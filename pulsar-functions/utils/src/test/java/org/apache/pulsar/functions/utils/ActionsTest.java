@@ -18,11 +18,6 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import org.apache.pulsar.functions.utils.Actions;
-import org.testng.annotations.Test;
-
-import java.util.function.Supplier;
-
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -30,10 +25,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import java.util.function.Supplier;
+import org.testng.annotations.Test;
 
 public class ActionsTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testActionsSuccess() throws InterruptedException {
 
         // Test for success
@@ -79,6 +77,7 @@ public class ActionsTest {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testActionsOneAction() throws InterruptedException {
         // test only run 1 action
         Supplier<Actions.ActionResult> supplier1 = mock(Supplier.class);
@@ -123,6 +122,7 @@ public class ActionsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testActionsRetry() throws InterruptedException {
 
       // test retry
@@ -168,6 +168,7 @@ public class ActionsTest {
     }
 
   @Test
+  @SuppressWarnings("unchecked")
   public void testActionsNoContinueOn() throws InterruptedException {
       // No continueOn
       Supplier<Actions.ActionResult>supplier1 = mock(Supplier.class);

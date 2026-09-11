@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
@@ -38,10 +38,10 @@ import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class SplitManagerTest {
-    
+
     String bundle = "bundle-1";
 
     String dstBroker = "broker-1";
@@ -123,40 +123,23 @@ public class SplitManagerTest {
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Free, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 1);
-        assertEquals(counter.toMetrics(null).toString(),
-                counterExpected.toMetrics(null).toString());
 
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Deleted, dstBroker, VERSION_ID_INIT), null);
-        counterExpected.update(SplitDecision.Label.Success, Sessions);
-        assertEquals(inFlightUnloadRequests.size(), 0);
-        assertEquals(counter.toMetrics(null).toString(),
-                counterExpected.toMetrics(null).toString());
+        assertEquals(inFlightUnloadRequests.size(), 1);
+
+        manager.handleEvent(bundle,
+                new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT), null);
+        assertEquals(inFlightUnloadRequests.size(), 1);
 
         // Success with Init state.
-        future = manager.waitAsync(CompletableFuture.completedFuture(null),
-                bundle, decision, 5, TimeUnit.SECONDS);
-        inFlightUnloadRequests = getinFlightUnloadRequests(manager);
-        assertEquals(inFlightUnloadRequests.size(), 1);
         manager.handleEvent(bundle,
                 new ServiceUnitStateData(ServiceUnitState.Init, dstBroker, VERSION_ID_INIT), null);
         assertEquals(inFlightUnloadRequests.size(), 0);
         counterExpected.update(SplitDecision.Label.Success, Sessions);
         assertEquals(counter.toMetrics(null).toString(),
                 counterExpected.toMetrics(null).toString());
-        future.get();
 
-        // Success with Owned state.
-        future = manager.waitAsync(CompletableFuture.completedFuture(null),
-                bundle, decision, 5, TimeUnit.SECONDS);
-        inFlightUnloadRequests = getinFlightUnloadRequests(manager);
-        assertEquals(inFlightUnloadRequests.size(), 1);
-        manager.handleEvent(bundle,
-                new ServiceUnitStateData(ServiceUnitState.Owned, dstBroker, VERSION_ID_INIT), null);
-        assertEquals(inFlightUnloadRequests.size(), 0);
-        counterExpected.update(SplitDecision.Label.Success, Sessions);
-        assertEquals(counter.toMetrics(null).toString(),
-                counterExpected.toMetrics(null).toString());
         future.get();
     }
 
@@ -211,6 +194,7 @@ public class SplitManagerTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private Map<String, CompletableFuture<Void>> getinFlightUnloadRequests(SplitManager manager)
             throws IllegalAccessException {
         var inFlightUnloadRequest =

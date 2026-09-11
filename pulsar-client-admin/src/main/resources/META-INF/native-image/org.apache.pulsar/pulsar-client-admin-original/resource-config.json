@@ -1,0 +1,17 @@
+{
+  "resources": {
+    "includes": [
+      {
+        "comment": "AsyncHttpClient configuration loaded by the admin REST connector.",
+        "pattern": "\\Qorg/asynchttpclient/config/ahc-default.properties\\E"
+      },
+      {
+        "pattern": "\\Qorg/asynchttpclient/config/ahc.properties\\E"
+      },
+      {
+        "comment": "Jersey localization bundles loaded reflectively at runtime.",
+        "pattern": "org/glassfish/jersey/.*\\.properties"
+      }
+    ]
+  }
+}

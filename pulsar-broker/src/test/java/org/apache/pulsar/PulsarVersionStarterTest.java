@@ -34,7 +34,7 @@ public class PulsarVersionStarterTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            Class argumentsClass =
+            Class<?> argumentsClass =
                     Class.forName("org.apache.pulsar.PulsarVersionStarter$Arguments");
 
             PulsarVersionStarter.main(new String[]{"-g"});

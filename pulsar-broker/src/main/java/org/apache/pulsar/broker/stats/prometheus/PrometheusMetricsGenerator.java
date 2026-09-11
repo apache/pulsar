@@ -25,6 +25,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
+import io.netty.util.internal.PlatformDependent;
 import io.prometheus.client.Collector;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -48,15 +49,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.zip.CRC32;
 import java.util.zip.Deflater;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.stats.metrics.ManagedCursorMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerCacheMetrics;
 import org.apache.pulsar.broker.stats.metrics.ManagedLedgerMetrics;
+import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
+import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
@@ -65,7 +69,7 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
  * Format specification can be found at <a
  * href="https://prometheus.io/docs/instrumenting/exposition_formats/">Exposition Formats</a>
  */
-@Slf4j
+@CustomLog
 public class PrometheusMetricsGenerator implements AutoCloseable {
     private static final int DEFAULT_INITIAL_BUFFER_SIZE = 1024 * 1024; // 1MB
     private static final int MINIMUM_FOR_MAX_COMPONENTS = 64;
@@ -136,7 +140,7 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
 
         public synchronized CompletableFuture<ByteBuf> getCompressedBuffer(Executor executor) {
             if (released) {
-                throw new IllegalStateException("Already released!");
+                return FutureUtil.failedFuture(new IllegalStateException("Already released!"));
             }
             if (compressedBuffer == null) {
                 compressedBuffer = new CompletableFuture<>();
@@ -362,19 +366,24 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
         }
     }
 
-    private ByteBuf allocateMultipartCompositeDirectBuffer() {
+    ByteBuf allocateMultipartCompositeDirectBuffer() {
         // use composite buffer with pre-allocated buffers to ensure that the pooled allocator can be used
         // for allocating the buffers
         ByteBufAllocator byteBufAllocator = PulsarByteBufAllocator.DEFAULT;
-        int chunkSize = resolveChunkSize(byteBufAllocator);
-        CompositeByteBuf buf = byteBufAllocator.compositeDirectBuffer(
+        ByteBuf buf;
+        if (PlatformDependent.hasUnsafe()) {
+            int chunkSize = resolveChunkSize(byteBufAllocator);
+            buf = byteBufAllocator.compositeDirectBuffer(
                 Math.max(MINIMUM_FOR_MAX_COMPONENTS, (initialBufferSize / chunkSize) + 1));
-        int totalLen = 0;
-        while (totalLen < initialBufferSize) {
-            totalLen += chunkSize;
-            // increase the capacity in increments of chunkSize to preallocate the buffers
-            // in the composite buffer
-            buf.capacity(totalLen);
+            int totalLen = 0;
+            while (totalLen < initialBufferSize) {
+                totalLen += chunkSize;
+                // increase the capacity in increments of chunkSize to preallocate the buffers
+                // in the composite buffer
+                buf.capacity(totalLen);
+            }
+        } else {
+            buf = byteBufAllocator.directBuffer(initialBufferSize);
         }
         return buf;
     }
@@ -447,7 +456,6 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                     }
                 } else {
 
-
                     String name = entry.getKey();
                     if (!names.contains(name)) {
                         stream.write("# TYPE ");
@@ -485,12 +493,14 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
     }
 
     private static void generateManagedLedgerBookieClientMetrics(PulsarService pulsar, SimpleTextOutputStream stream) {
-        StatsProvider statsProvider = pulsar.getManagedLedgerClientFactory().getStatsProvider();
-        if (statsProvider instanceof NullStatsProvider) {
-            return;
-        }
+        ManagedLedgerStorageClass defaultStorageClass = pulsar.getManagedLedgerStorage().getDefaultStorageClass();
+        if (defaultStorageClass instanceof BookkeeperManagedLedgerStorageClass bkStorageClass) {
+            StatsProvider statsProvider = bkStorageClass.getStatsProvider();
+            if (statsProvider instanceof NullStatsProvider) {
+                return;
+            }
 
-        try (Writer writer = new OutputStreamWriter(new BufferedOutputStream(new OutputStream() {
+            try (Writer writer = new OutputStreamWriter(new BufferedOutputStream(new OutputStream() {
                 @Override
                 public void write(int b) throws IOException {
                     stream.writeByte(b);
@@ -501,9 +511,10 @@ public class PrometheusMetricsGenerator implements AutoCloseable {
                     stream.write(b, off, len);
                 }
             }), StandardCharsets.UTF_8)) {
-            statsProvider.writeAllMetrics(writer);
-        } catch (IOException e) {
-            log.error("Failed to write managed ledger bookie client metrics", e);
+                statsProvider.writeAllMetrics(writer);
+            } catch (IOException e) {
+                log.error().exception(e).log("Failed to write managed ledger bookie client metrics");
+            }
         }
     }
 

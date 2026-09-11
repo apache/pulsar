@@ -56,11 +56,6 @@ public final class PulsarStandaloneBuilder {
         return this;
     }
 
-    public PulsarStandaloneBuilder withBkPort(int bkPort) {
-        pulsarStandalone.setBkPort(bkPort);
-        return this;
-    }
-
     public PulsarStandaloneBuilder withZkDir(String zkDir) {
         pulsarStandalone.setZkDir(zkDir);
         return this;

@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.common.protocol;
 
+import static org.apache.pulsar.common.api.proto.MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT;
+import static org.apache.pulsar.common.api.proto.MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST;
+import static org.apache.pulsar.common.api.proto.MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE;
+import static org.apache.pulsar.common.api.proto.MarkerType.REPLICATED_SUBSCRIPTION_UPDATE;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
@@ -96,6 +100,13 @@ public class Markers {
         // In future, if we add more marker types that can be also sent to clients
         // we'll have to do finer check here.
         return msgMetadata.hasMarkerType();
+    }
+
+    public static boolean isReplicationMarker(int markerType) {
+        return markerType == REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST.getValue()
+                || markerType == REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE.getValue()
+                || markerType == REPLICATED_SUBSCRIPTION_SNAPSHOT.getValue()
+                || markerType == REPLICATED_SUBSCRIPTION_UPDATE.getValue();
     }
 
     public static boolean isReplicatedSubscriptionSnapshotMarker(MessageMetadata msgMetadata) {

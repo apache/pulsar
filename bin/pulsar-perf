@@ -27,6 +27,13 @@ PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 DEFAULT_CLIENT_CONF=${PULSAR_CLIENT_CONF:-"$PULSAR_HOME/conf/client.conf"}
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
 
+# Remember whether the caller set these, since conf/pulsar_env.sh below fills them in with the
+# broker's defaults. pulsar-perf has never applied those defaults, and a load generator that
+# suddenly reserved the broker's 2g heap could fail to start where it used to run, so only a value
+# the caller passed in is applied. See where OPTS is assembled below.
+PULSAR_MEM_FROM_CALLER=${PULSAR_MEM:+true}
+PULSAR_GC_FROM_CALLER=${PULSAR_GC:+true}
+
 # Check bookkeeper env and load bkenv.sh
 if [ -f "$PULSAR_HOME/conf/bkenv.sh" ]
 then
@@ -56,30 +63,22 @@ if [ $? == 0 ]; then
 fi
 
 # exclude tests jar
-BUILT_JAR=`ls $PULSAR_HOME/pulsar-testclient/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+BUILT_JAR=`ls $PULSAR_HOME/pulsar-testclient/build/libs/pulsar-testclient-*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then
     echo "\nCouldn't find pulsar jar.";
-    echo "Make sure you've run 'mvn package'\n";
+    echo "Make sure you've run './gradlew assemble'\n";
     exit 1;
 elif [ -e "$BUILT_JAR" ]; then
     PULSAR_JAR=$BUILT_JAR
 fi
 
-add_maven_deps_to_classpath() {
-    MVN="mvn"
-    if [ "$MAVEN_HOME" != "" ]; then
-	MVN=${MAVEN_HOME}/bin/mvn
-    fi
-
-    # Need to generate classpath from maven pom. This is costly so generate it
-    # and cache it. Save the file into our target dir so a mvn clean will get
-    # clean it up and force us create a new one.
-    f="${PULSAR_HOME}/distribution/server/target/classpath.txt"
+add_gradle_deps_to_classpath() {
+    f="${PULSAR_HOME}/distribution/server/build/classpath.txt"
     if [ ! -f "${f}" ]
     then
     (
       cd "${PULSAR_HOME}"
-      ${MVN} -pl distribution/server generate-sources &> /dev/null
+      ./gradlew :distribution:pulsar-server-distribution:exportClasspath --no-configuration-cache -q 2> /dev/null
     )
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
@@ -88,7 +87,7 @@ add_maven_deps_to_classpath() {
 if [ -d "$PULSAR_HOME/lib" ]; then
 	PULSAR_CLASSPATH="$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*"
 else
-    add_maven_deps_to_classpath
+    add_gradle_deps_to_classpath
 fi
 
 if [ -z "$PULSAR_PERFTEST_CONF" ]; then
@@ -101,29 +100,97 @@ fi
 
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
-OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF` -Djava.net.preferIPv4Stack=true"
-
-IS_JAVA_8=$( $JAVA -version 2>&1 | grep version | grep '"1\.8' )
-# Start --add-opens options
-# '--add-opens' option is not supported in jdk8
-if [[ -z "$IS_JAVA_8" ]]; then
-  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED"
+OPTS="-Djava.net.preferIPv4Stack=true $OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
+# Required to allow sun.misc.Unsafe on JDK 24 without warnings
+# Also required for enabling unsafe memory access for Netty since 4.1.121.Final
+if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
+  OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
 fi
 
+# Allow Netty to use reflection access
+OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
+OPTS="$OPTS -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
+
+if [[ $JAVA_MAJOR_VERSION -gt 8 ]]; then
+  OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED"
+  # Required by Pulsar client optimized checksum calculation on other than Linux x86_64 platforms
+  # reflection access to java.util.zip.CRC32C
+  OPTS="$OPTS --add-opens java.base/java.util.zip=ALL-UNNAMED"
+fi
+
+if [[ $JAVA_MAJOR_VERSION -ge 11 ]]; then
+  # Required by Netty for optimized direct byte buffer access
+  OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+fi
+
+if [[ $JAVA_MAJOR_VERSION -ge 24 ]]; then
+  # Netty loads native libraries (epoll, io_uring, tcnative) via java.lang.System::loadLibrary,
+  # which is a restricted method from Java 24 onwards. Without this the JVM prints a warning to
+  # stderr on every invocation, and restricted methods will be blocked outright in a future
+  # release. bin/pulsar already sets this for the server side.
+  OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
+fi
+# These two settings work together to ensure the Pulsar process exits immediately and predictably
+# if it runs out of either Java heap memory or its internal off-heap memory,
+# as these are unrecoverable errors that require a process restart to clear the faulty state and restore operation
+OPTS="-XX:+ExitOnOutOfMemoryError -Dpulsar.allocator.exit_on_oom=true $OPTS"
+# Netty tuning
+# These settings are primarily used to modify the Netty allocator configuration,
+# improving memory utilization and reducing the frequency of requesting off-heap memory from the OS
+#
+# Based on the netty source code, the allocator's default chunk size is calculated as:
+# io.netty.allocator.pageSize (default: 8192) shifted left by
+# io.netty.allocator.maxOrder (default: 9 after Netty 4.1.76.Final version).
+# This equals 8192 * 2^9 = 4 MB：
+# https://github.com/netty/netty/blob/4.1/buffer/src/main/java/io/netty/buffer/PooledByteBufAllocator.java#L105
+#
+# Allocations that are larger than chunk size are considered huge allocations and don't use the pool:
+# https://github.com/netty/netty/blob/4.1/buffer/src/main/java/io/netty/buffer/PoolArena.java#L141-L142
+#
+# Currently, Pulsar defaults to a maximum single message size of 5 MB.
+# Therefore, when frequently producing messages whose size exceeds the chunk size,
+# Netty cannot utilize resources from the memory pool and must frequently allocate native memory.
+# This can lead to increased physical memory fragmentation and higher reclamation costs.
+# Thus, increasing io.netty.allocator.maxOrder to 10 to ensure that a single message is larger
+# than chunk size (8MB) and can reuse Netty's memory pool.
+OPTS="-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 $OPTS"
+
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
+# Apply PULSAR_MEM and PULSAR_GC when the caller set them. Unlike conf/pulsar_tools_env.sh, which
+# folds them into PULSAR_EXTRA_OPTS itself, conf/pulsar_env.sh only defines them, so a script that
+# sources it has to add them here or they are silently dropped — which is what used to happen.
+# Only caller-supplied values are used, so that the broker defaults conf/pulsar_env.sh fills in are
+# not imposed on a tool that has never had them; setting them by editing that file therefore does
+# not affect pulsar-perf, export them instead. PULSAR_GC_LOG is left out for the same reason:
+# pulsar_env.sh always gives it a value, so including it would make every run write GC logs.
+if [ -n "$PULSAR_MEM_FROM_CALLER" ]; then
+  OPTS="$OPTS $PULSAR_MEM"
+fi
+if [ -n "$PULSAR_GC_FROM_CALLER" ]; then
+  OPTS="$OPTS $PULSAR_GC"
+fi
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 
 # log directory & file
 PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"Console"}
+# PULSAR_LOG_CONSOLE_JSON_TEMPLATE is deprecated — use PULSAR_LOG_JSON_TEMPLATE
+PULSAR_LOG_JSON_TEMPLATE=${PULSAR_LOG_JSON_TEMPLATE:-${PULSAR_LOG_CONSOLE_JSON_TEMPLATE:-"file:$PULSAR_HOME/conf/OtelLogLayout.json"}}
+PULSAR_LOG_FORMAT=${PULSAR_LOG_FORMAT:-"text"}
 PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-perftest.log"}
-PULSAR_LOG_LEVEL=${PULSAR_LOG_LEVEL:-"info"}
-PULSAR_LOG_ROOT_LEVEL=${PULSAR_LOG_ROOT_LEVEL:-"${PULSAR_LOG_LEVEL}"}
 PULSAR_LOG_IMMEDIATE_FLUSH="${PULSAR_LOG_IMMEDIATE_FLUSH:-"false"}"
 
 #Configure log configuration system properties
 OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
-OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
-OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"
+OPTS="$OPTS -Dpulsar.log.json.template=$PULSAR_LOG_JSON_TEMPLATE"
+OPTS="$OPTS -Dpulsar.log.format=$PULSAR_LOG_FORMAT"
+if [ -n "$PULSAR_LOG_LEVEL" ]; then
+  OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
+fi
+if [ -n "$PULSAR_LOG_ROOT_LEVEL" ]; then
+  OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_ROOT_LEVEL"
+elif [ -n "$PULSAR_LOG_LEVEL" ]; then
+  OPTS="$OPTS -Dpulsar.log.root.level=$PULSAR_LOG_LEVEL"
+fi
 OPTS="$OPTS -Dpulsar.log.immediateFlush=$PULSAR_LOG_IMMEDIATE_FLUSH"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE"

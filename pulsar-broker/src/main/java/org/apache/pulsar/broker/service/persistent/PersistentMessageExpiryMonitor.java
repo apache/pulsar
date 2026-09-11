@@ -19,33 +19,37 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.github.merlimat.slog.Logger;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
-import javax.annotation.Nullable;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.FindEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.LedgerNotExistException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.MessageExpirer;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.Rate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.jspecify.annotations.Nullable;
 /**
  */
 public class PersistentMessageExpiryMonitor implements FindEntryCallback, MessageExpirer {
+
+    private static final Logger LOG = Logger.get(PersistentMessageExpiryMonitor.class);
+    private final Logger log;
+
     private final ManagedCursor cursor;
     private final String subName;
     private final PersistentTopic topic;
@@ -53,6 +57,7 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     private final Rate msgExpired;
     private final LongAdder totalMsgExpired;
     private final PersistentSubscription subscription;
+    private final PersistentMessageFinder finder;
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
@@ -71,6 +76,14 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         this.subscription = subscription;
         this.msgExpired = new Rate();
         this.totalMsgExpired = new LongAdder();
+        this.log = LOG.with()
+                .attr("topic", topicName)
+                .attr("subscription", subscriptionName)
+                .build();
+        int managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis = topic.getBrokerService().pulsar()
+                .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis();
+        this.finder = new PersistentMessageFinder(topicName, cursor,
+                managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis);
     }
 
     @VisibleForTesting
@@ -81,59 +94,51 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     }
 
     @Override
+    public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
+        return CompletableFuture.supplyAsync(() -> expireMessages(messageTTLInSeconds), topic.getOrderedExecutor());
+    }
+
+    @Override
     public boolean expireMessages(int messageTTLInSeconds) {
-        if (expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
-            log.info("[{}][{}] Starting message expiry check, ttl= {} seconds", topicName, subName,
-                    messageTTLInSeconds);
-            // First filter the entire Ledger reached TTL based on the Ledger closing time to avoid client clock skew
-            checkExpiryByLedgerClosureTime(cursor, messageTTLInSeconds);
-            // Some part of entries in active Ledger may have reached TTL, so we need to continue searching.
-            cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
-                try {
-                    long entryTimestamp = Commands.getEntryTimestamp(entry.getDataBuffer());
-                    return MessageImpl.isEntryExpired(messageTTLInSeconds, entryTimestamp);
-                } catch (Exception e) {
-                    log.error("[{}][{}] Error deserializing message for expiry check", topicName, subName, e);
-                } finally {
-                    entry.release();
-                }
-                return false;
-            }, this, null);
-            return true;
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Ignore expire-message scheduled task, last check is still running", topicName,
-                        subName);
-            }
+        if (!expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
+            log.debug()
+                    .log("Ignore expire-message scheduled task, last check is still running");
             return false;
         }
+        log.info()
+                .attr("messageTTLInSeconds", messageTTLInSeconds)
+                .log("Starting message expiry check");
+        // First filter the entire Ledger reached TTL based on the Ledger closing time to avoid client clock skew
+        checkExpiryByLedgerClosureTime(cursor, messageTTLInSeconds);
+        // Some part of entries in active Ledger may have reached TTL, so we need to continue searching.
+        long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTTLInSeconds);
+        finder.findMessages(expiredMessageTimestamp, this);
+        return true;
     }
 
     private void checkExpiryByLedgerClosureTime(ManagedCursor cursor, int messageTTLInSeconds) {
         if (messageTTLInSeconds <= 0) {
             return;
         }
-        if (cursor instanceof ManagedCursorImpl managedCursor) {
-            ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) managedCursor.getManagedLedger();
-            Position deletedPosition = managedCursor.getMarkDeletedPosition();
-            SortedMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgerInfoSortedMap =
-                    managedLedger.getLedgersInfo().subMap(deletedPosition.getLedgerId(), true,
-                            managedLedger.getLedgersInfo().lastKey(), true);
-            MLDataFormats.ManagedLedgerInfo.LedgerInfo info = null;
-            for (MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo : ledgerInfoSortedMap.values()) {
-                if (!ledgerInfo.hasTimestamp() || ledgerInfo.getTimestamp() == 0L
-                        || !MessageImpl.isEntryExpired(messageTTLInSeconds, ledgerInfo.getTimestamp())) {
-                    break;
-                }
-                info = ledgerInfo;
+        ManagedLedger managedLedger = cursor.getManagedLedger();
+        Position deletedPosition = cursor.getMarkDeletedPosition();
+        SortedMap<Long, ManagedLedgerInfo.LedgerInfo> ledgerInfoSortedMap =
+                managedLedger.getLedgersInfo().subMap(deletedPosition.getLedgerId(), true,
+                        managedLedger.getLedgersInfo().lastKey(), true);
+        ManagedLedgerInfo.LedgerInfo info = null;
+        for (ManagedLedgerInfo.LedgerInfo ledgerInfo : ledgerInfoSortedMap.values()) {
+            if (!ledgerInfo.hasTimestamp() || ledgerInfo.getTimestamp() == 0L
+                    || !MessageImpl.isEntryExpired(messageTTLInSeconds, ledgerInfo.getTimestamp())) {
+                break;
             }
-            if (info != null && info.getLedgerId() > -1) {
-                PositionImpl position = PositionImpl.get(info.getLedgerId(), info.getEntries() - 1);
-                if (((PositionImpl) managedLedger.getLastConfirmedEntry()).compareTo(position) < 0) {
-                    findEntryComplete(managedLedger.getLastConfirmedEntry(), null);
-                } else {
-                    findEntryComplete(position, null);
-                }
+            info = ledgerInfo;
+        }
+        if (info != null && info.getLedgerId() > -1) {
+            Position position = PositionFactory.create(info.getLedgerId(), info.getEntries() - 1);
+            if (managedLedger.getLastConfirmedEntry().compareTo(position) < 0) {
+                findEntryComplete(managedLedger.getLastConfirmedEntry(), null);
+            } else {
+                findEntryComplete(position, null);
             }
         }
     }
@@ -141,33 +146,45 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     @Override
     public boolean expireMessages(Position messagePosition) {
         // If it's beyond last position of this topic, do nothing.
-        PositionImpl topicLastPosition = (PositionImpl) this.topic.getLastPosition();
-        if (topicLastPosition.compareTo((PositionImpl) messagePosition) < 0) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Ignore expire-message scheduled task, given position {} is beyond "
-                                + "current topic's last position {}", topicName, subName, messagePosition,
-                        topicLastPosition);
+        Position topicLastPosition = this.topic.getLastPosition();
+        ManagedLedger managedLedger = cursor.getManagedLedger();
+        if (managedLedger instanceof ManagedLedgerImpl ml) {
+            // Confirm the position is valid.
+            Optional<ManagedLedgerInfo.LedgerInfo> ledgerInfoOptional =
+                    ml.getOptionalLedgerInfo(messagePosition.getLedgerId());
+            if (ledgerInfoOptional.isPresent()) {
+                if (messagePosition.getEntryId() >= 0
+                        && ledgerInfoOptional.get().getEntries() - 1 >= messagePosition.getEntryId()) {
+                    findEntryComplete(messagePosition, null);
+                    return true;
+                }
             }
+        }
+        // Fallback to the slower solution if the managed ledger is not an instance of ManagedLedgerImpl.
+        if (topicLastPosition.compareTo(messagePosition) < 0) {
+            log.debug()
+                    .attr("messagePosition", messagePosition)
+                    .attr("topicLastPosition", topicLastPosition)
+                    .log("Ignore expire-message scheduled task, given position is beyond "
+                            + "current topic's last position");
             return false;
         }
         if (expirationCheckInProgressUpdater.compareAndSet(this, FALSE, TRUE)) {
-            log.info("[{}][{}] Starting message expiry check, position= {} seconds", topicName, subName,
-                    messagePosition);
+            log.info()
+                    .attr("messagePosition", messagePosition)
+                    .log("Starting message expiry check");
 
             cursor.asyncFindNewestMatching(ManagedCursor.FindPositionConstraint.SearchActiveEntries, entry -> {
                 try {
                     // If given position larger than entry position.
-                    return ((PositionImpl) entry.getPosition()).compareTo((PositionImpl) messagePosition) <= 0;
+                    return entry.getPosition().compareTo(messagePosition) <= 0;
                 } finally {
                     entry.release();
                 }
             }, this, null);
             return true;
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Ignore expire-message scheduled task, last check is still running", topicName,
-                        subName);
-            }
+            log.debug("Ignore expire-message scheduled task, last check is still running");
             return false;
         }
     }
@@ -181,31 +198,37 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         return msgExpired.getRate();
     }
 
+    public long getMessageExpiryCount() {
+        return msgExpired.getCount();
+    }
+
     public long getTotalMessageExpired() {
         return totalMsgExpired.sum();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentMessageExpiryMonitor.class);
-
     private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
         @Override
         public void markDeleteComplete(Object ctx) {
             long numMessagesExpired = (long) ctx - cursor.getNumberOfEntriesInBacklog(false);
             msgExpired.recordMultipleEvents(numMessagesExpired, 0 /* no value stats */);
             totalMsgExpired.add(numMessagesExpired);
-            updateRates();
-            // If the subscription is a Key_Shared subscription, we should to trigger message dispatch.
-            if (subscription != null && subscription.getType() == SubType.Key_Shared) {
-                subscription.getDispatcher().markDeletePositionMoveForward();
+            if (subscription != null) {
+                Dispatcher dispatcher = subscription.getDispatcher();
+                if (dispatcher != null) {
+                    dispatcher.markDeletePositionMoveForward();
+                }
             }
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Mark deleted {} messages", topicName, subName, numMessagesExpired);
-            }
+            expirationCheckInProgress = FALSE;
+            log.debug()
+                    .attr("numMessagesExpired", numMessagesExpired)
+                    .log("Mark deleted messages");
         }
 
         @Override
         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-            log.warn("[{}][{}] Message expiry failed - mark delete failed", topicName, subName, exception);
+            log.warn()
+                    .exception(exception)
+                    .log("Message expiry failed - mark delete failed");
+            expirationCheckInProgress = FALSE;
             updateRates();
         }
     };
@@ -213,49 +236,58 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
     @Override
     public void findEntryComplete(Position position, Object ctx) {
         if (position != null) {
-            log.info("[{}][{}] Expiring all messages until position {}", topicName, subName, position);
+            var markDeletedPosition = cursor.getMarkDeletedPosition();
+            if (markDeletedPosition != null && markDeletedPosition.compareTo(position) >= 0) {
+                expirationCheckInProgress = FALSE;
+                return;
+            }
+            log.info()
+                    .attr("position", position)
+                    .log("Expiring all messages until position");
             Position prevMarkDeletePos = cursor.getMarkDeletedPosition();
-            cursor.asyncMarkDelete(position, cursor.getProperties(), markDeleteCallback,
-                    cursor.getNumberOfEntriesInBacklog(false));
+            cursor.asyncMarkDelete(position, null, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
             if (!Objects.equals(cursor.getMarkDeletedPosition(), prevMarkDeletePos) && subscription != null) {
                 subscription.updateLastMarkDeleteAdvancedTimestamp();
             }
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] No messages to expire", topicName, subName);
-            }
+            log.debug("No messages to expire");
+            expirationCheckInProgress = FALSE;
             updateRates();
         }
-        expirationCheckInProgress = FALSE;
     }
 
     @Override
     public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition, Object ctx) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Finding expired entry operation failed", topicName, subName, exception);
-        }
+        log.debug()
+                .exception(exception)
+                .log("Finding expired entry operation failed");
         if (isAutoSkipNonRecoverableData() && failedReadPosition.isPresent()
                 && (exception instanceof NonRecoverableLedgerException)) {
-            log.warn("[{}][{}] read failed from ledger at position:{} : {}", topicName, subName, failedReadPosition,
-                    exception.getMessage());
+            log.warn()
+                    .attr("failedReadPosition", failedReadPosition)
+                    .exceptionMessage(exception)
+                    .log("Read failed from ledger");
             if (exception instanceof LedgerNotExistException) {
                 long failedLedgerId = failedReadPosition.get().getLedgerId();
-                ManagedLedgerImpl ledger = ((ManagedLedgerImpl) cursor.getManagedLedger());
+                ManagedLedger ledger = cursor.getManagedLedger();
                 Position lastPositionInLedger = ledger.getOptionalLedgerInfo(failedLedgerId)
-                        .map(ledgerInfo -> PositionImpl.get(failedLedgerId, ledgerInfo.getEntries() - 1))
+                        .map(ledgerInfo -> PositionFactory.create(failedLedgerId, ledgerInfo.getEntries() - 1))
                         .orElseGet(() -> {
-                            Long nextExistingLedger = ledger.getNextValidLedger(failedReadPosition.get().getLedgerId());
+                            Long nextExistingLedger =
+                                ledger.getLedgersInfo().ceilingKey(failedReadPosition.get().getLedgerId() + 1);
                             if (nextExistingLedger == null) {
-                                log.info("[{}] [{}] Couldn't find next next valid ledger for expiry monitor when find "
-                                                + "entry failed {}", ledger.getName(), ledger.getName(),
-                                        failedReadPosition);
-                                return (PositionImpl) failedReadPosition.get();
+                                log.info()
+                                        .attr("failedReadPosition", failedReadPosition)
+                                        .log("Couldn't find next valid ledger for expiry monitor "
+                                                + "when find entry failed");
+                                return failedReadPosition.get();
                             } else {
-                                return PositionImpl.get(nextExistingLedger, -1);
+                                return PositionFactory.create(nextExistingLedger, -1);
                             }
                         });
-                log.info("[{}][{}] ledger not existed, will complete the last position of the non-existed"
-                        + " ledger:{}", topicName, subName, lastPositionInLedger);
+                log.info()
+                        .attr("lastPositionInLedger", lastPositionInLedger)
+                        .log("Ledger does not exist, will complete the last position of the non-existent ledger");
                 findEntryComplete(lastPositionInLedger, ctx);
             } else {
                 findEntryComplete(failedReadPosition.get(), ctx);

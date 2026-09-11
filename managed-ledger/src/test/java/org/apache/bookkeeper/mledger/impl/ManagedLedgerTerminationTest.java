@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.Collections;
 import java.util.List;
 import org.apache.bookkeeper.mledger.Entry;
@@ -31,6 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.annotations.Test;
 
@@ -141,7 +141,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         assertTrue(ledger.isTerminated());
         assertEquals(lastPosition, p1);
 
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionFactory.EARLIEST);
 
         List<Entry> entries = c1.readEntries(10);
         assertEquals(entries.size(), 2);

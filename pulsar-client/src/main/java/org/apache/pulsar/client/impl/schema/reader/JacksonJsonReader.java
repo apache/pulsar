@@ -22,16 +22,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.io.InputStream;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Reader implementation for reading objects from JSON.
  *
  * @param <T> object type to read
  */
+@CustomLog
 public class JacksonJsonReader<T> implements SchemaReader<T> {
     private final Class<T> pojo;
     private final ObjectReader objectReader;
@@ -60,10 +60,8 @@ public class JacksonJsonReader<T> implements SchemaReader<T> {
             try {
                 inputStream.close();
             } catch (IOException e) {
-                log.error("JsonReader close inputStream close error", e);
+                log.error().exception(e).log("JsonReader close inputStream close error");
             }
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(JacksonJsonReader.class);
 }

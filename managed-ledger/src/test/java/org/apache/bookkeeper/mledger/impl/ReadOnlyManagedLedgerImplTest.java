@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.annotations.Test;
 
@@ -56,7 +57,7 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
         factory.asyncOpenReadOnlyManagedLedger(MANAGED_LEDGER_NAME_ATTACHED_PROPERTIES,
                 new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
                     @Override
-                    public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl managedLedger,
+                    public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger managedLedger,
                                                                   Object ctx) {
                         managedLedger.getProperties().forEach((key, value) -> {
                             assertEquals(key, propertiesKey);
@@ -85,7 +86,7 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
         factory.asyncOpenReadOnlyManagedLedger(MANAGED_LEDGER_NAME_NON_PROPERTIES,
                 new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
                     @Override
-                    public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedgerImpl managedLedger,
+                    public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger managedLedger,
                                                                   Object ctx) {
                         assertEquals(managedLedger.getProperties().size(), 0);
                         future.complete(null);

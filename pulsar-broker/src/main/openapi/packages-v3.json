@@ -1,0 +1,16 @@
+{
+  "info": {
+    "title": "Pulsar Packages REST API",
+    "description": "This provides the REST API for Pulsar Packages operations",
+    "version": "v3",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "servers": [
+    {
+      "url": "/admin/v3"
+    }
+  ]
+}

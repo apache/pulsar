@@ -19,10 +19,13 @@
 package org.apache.pulsar;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import java.io.FileInputStream;
 import java.util.Arrays;
-import lombok.extern.slf4j.Slf4j;
+import lombok.AccessLevel;
+import lombok.CustomLog;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -31,13 +34,16 @@ import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import picocli.CommandLine;
 import picocli.CommandLine.Option;
 
-@Slf4j
+@CustomLog
 public class PulsarStandaloneStarter extends PulsarStandalone {
 
     private static final String PULSAR_CONFIG_FILE = "pulsar.config.file";
 
     @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
     private boolean generateDocs = false;
+    private Thread shutdownThread;
+    @Setter(AccessLevel.PACKAGE)
+    private boolean testMode;
 
     public PulsarStandaloneStarter(String[] args) throws Exception {
 
@@ -108,34 +114,68 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
                 }
             }
         }
+    }
 
+    @Override
+    public synchronized void start() throws Exception {
         registerShutdownHook();
+        super.start();
     }
 
     protected void registerShutdownHook() {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        if (shutdownThread != null) {
+            throw new IllegalStateException("Shutdown hook already registered");
+        }
+        shutdownThread = new Thread(() -> {
             try {
-                if (fnWorkerService != null) {
-                    fnWorkerService.stop();
-                }
-
-                if (broker != null) {
-                    broker.close();
-                }
-
-                if (bkEnsemble != null) {
-                    bkEnsemble.stop();
-                }
+                doClose(false);
             } catch (Exception e) {
-                log.error("Shutdown failed: {}", e.getMessage(), e);
+                log.error().exception(e).log("Shutdown failed");
             } finally {
-                LogManager.shutdown();
+                if (!testMode) {
+                    LogManager.shutdown();
+                }
             }
-        }));
+        });
+        Runtime.getRuntime().addShutdownHook(shutdownThread);
+    }
+
+    // simulate running the shutdown hook, for testing
+    @VisibleForTesting
+    void runShutdownHook() {
+        if (!testMode) {
+            throw new IllegalStateException("Not in test mode");
+        }
+        Runtime.getRuntime().removeShutdownHook(shutdownThread);
+        shutdownThread.run();
+        shutdownThread = null;
+    }
+
+    @Override
+    public void close() {
+        doClose(true);
+    }
+
+    private synchronized void doClose(boolean removeShutdownHook) {
+        super.close();
+        if (shutdownThread != null && removeShutdownHook) {
+            Runtime.getRuntime().removeShutdownHook(shutdownThread);
+            shutdownThread = null;
+        }
     }
 
     protected void exit(int status) {
         System.exit(status);
+    }
+
+    @Override
+    protected void processTerminator(int exitCode) {
+        if (testMode) {
+            // In test mode, don't halt the JVM — it would kill the test runner
+            log.info().attr("exitCode", exitCode).log("Ignoring process termination in test mode");
+            return;
+        }
+        super.processTerminator(exitCode);
     }
 
     private static boolean argsContains(String[] args, String arg) {
@@ -148,7 +188,7 @@ public class PulsarStandaloneStarter extends PulsarStandalone {
         try {
             standalone.start();
         } catch (Throwable th) {
-            log.error("Failed to start pulsar service.", th);
+            log.error().exception(th).log("Failed to start pulsar service.");
             LogManager.shutdown();
             Runtime.getRuntime().exit(1);
         }

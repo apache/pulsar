@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.net.BookieId;
@@ -48,14 +48,13 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class BatchMessageIndexAckTest extends ProducerConsumerBase {
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
         super.internalSetup();
         super.producerBaseSetup();
         doReturn(CompletableFuture.completedFuture(new LedgerMetadata() {
@@ -174,7 +173,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .receiverQueueSize(100)
             .isAckReceiptEnabled(ackReceiptEnabled)
             .subscriptionType(SubscriptionType.Shared)
-            .enableBatchIndexAcknowledgment(true)
             .negativeAckRedeliveryDelay(2, TimeUnit.SECONDS)
             .subscribe();
 
@@ -254,7 +252,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
             .subscriptionName("sub")
             .receiverQueueSize(100)
             .isAckReceiptEnabled(ackReceiptEnabled)
-            .enableBatchIndexAcknowledgment(true)
             .subscribe();
 
         @Cleanup
@@ -324,7 +321,6 @@ public class BatchMessageIndexAckTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .acknowledgmentGroupTime(1, TimeUnit.MILLISECONDS)
                 .topic(topic)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionName("test")
                 .subscribe();
 

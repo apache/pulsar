@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
+import lombok.Getter;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotIndexes;
 import org.apache.pulsar.broker.transaction.buffer.metadata.v2.TransactionBufferSnapshotSegment;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.events.EventType;
 
+@Getter
 public class TransactionBufferSnapshotServiceFactory {
 
     private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> txnBufferSnapshotService;
@@ -33,27 +36,14 @@ public class TransactionBufferSnapshotServiceFactory {
 
     private SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> txnBufferSnapshotIndexService;
 
-    public TransactionBufferSnapshotServiceFactory(PulsarClient pulsarClient) {
-        this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
+    public TransactionBufferSnapshotServiceFactory(PulsarService pulsar) throws PulsarServerException {
+        this.txnBufferSnapshotSegmentService = new SystemTopicTxnBufferSnapshotService<>(pulsar,
                 EventType.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS,
                 TransactionBufferSnapshotSegment.class);
-        this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
+        this.txnBufferSnapshotIndexService = new SystemTopicTxnBufferSnapshotService<>(pulsar,
                 EventType.TRANSACTION_BUFFER_SNAPSHOT_INDEXES, TransactionBufferSnapshotIndexes.class);
-        this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotService<>(pulsarClient,
+        this.txnBufferSnapshotService = new SystemTopicTxnBufferSnapshotService<>(pulsar,
                 EventType.TRANSACTION_BUFFER_SNAPSHOT, TransactionBufferSnapshot.class);
-    }
-
-    public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotIndexes> getTxnBufferSnapshotIndexService() {
-        return this.txnBufferSnapshotIndexService;
-    }
-
-    public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshotSegment>
-    getTxnBufferSnapshotSegmentService() {
-        return this.txnBufferSnapshotSegmentService;
-    }
-
-    public SystemTopicTxnBufferSnapshotService<TransactionBufferSnapshot> getTxnBufferSnapshotService() {
-        return this.txnBufferSnapshotService;
     }
 
     public void close() throws Exception {

@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.auth;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import javax.naming.AuthenticationException;
 import java.util.concurrent.CompletableFuture;
+import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -45,13 +45,14 @@ public class MockMutableAuthenticationState implements AuthenticationState {
         return authRole;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthData authenticate(AuthData authData) throws AuthenticationException {
         return null;
     }
 
     /**
-     * This authentication is always single stage, so it returns immediately
+     * This authentication is always single stage, so it returns immediately.
      */
     @Override
     public CompletableFuture<AuthData> authenticateAsync(AuthData authData) {
@@ -69,6 +70,7 @@ public class MockMutableAuthenticationState implements AuthenticationState {
         return authenticationDataSource;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public boolean isComplete() {
         return true;

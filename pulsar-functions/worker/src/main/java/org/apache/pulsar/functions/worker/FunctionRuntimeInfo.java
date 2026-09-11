@@ -20,7 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.apache.pulsar.functions.proto.Function.Instance;
+import org.apache.pulsar.functions.proto.Instance;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 
 @Data

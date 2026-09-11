@@ -20,11 +20,14 @@ package org.apache.pulsar.broker.loadbalance.extensions.channel;
 
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Assigning;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.Owned;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNull;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
+import java.util.Optional;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
@@ -75,5 +78,26 @@ public class ServiceUnitStateDataTest {
         String json = mapper.writeValueAsString(src);
         ServiceUnitStateData dst = mapper.readValue(json, ServiceUnitStateData.class);
         assertEquals(dst, src);
+    }
+
+    @Test
+    public void equalsTest() {
+        // record ServiceUnitStateData(
+        //        ServiceUnitState state, String dstBroker, String sourceBroker,
+        //       Map<String, Optional<String>> splitServiceUnitToDestBroker, boolean force,
+        //       long timestamp, long versionId) {
+        var d1 = new ServiceUnitStateData(Assigning, "A", "B", Map.of("A", Optional.of("B")), true, 0, 1);
+        var d2 = new ServiceUnitStateData(Assigning, "A", "B", Map.of("A", Optional.of("B")), true, 0, 1);
+        assertEquals(d1, d2);
+        var d3 = new ServiceUnitStateData(Assigning, "C", "B", 1);
+        var d4 = new ServiceUnitStateData(Assigning, "A", "B", Map.of("A", Optional.of("C")), true, 0, 1);
+        assertNotEquals(d1, d3);
+        assertNotEquals(d1, d4);
+
+        var d5 = new ServiceUnitStateData(Assigning, "A", "B", Map.of("A", Optional.of("B")), true, 0, 2);
+        assertNotEquals(d1, d5);
+
+        var d6 = new ServiceUnitStateData(Assigning, "C", "B", Map.of("A", Optional.of("B")), true, 0, 1);
+        assertNotEquals(d1, d6);
     }
 }

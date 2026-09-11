@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW_TAG;
+import io.github.merlimat.slog.Logger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -32,10 +33,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
@@ -45,9 +46,10 @@ import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
-@Slf4j
 public class TableViewImpl<T> implements TableView<T> {
 
+    private static final Logger LOG = Logger.get(TableViewImpl.class);
+    private final Logger log;
     private final TableViewConfigurationData conf;
 
     private final ConcurrentMap<String, T> data;
@@ -82,6 +84,7 @@ public class TableViewImpl<T> implements TableView<T> {
 
     TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
         this.conf = conf;
+        this.log = LOG.with().attr("topic", conf.getTopicName()).build();
         this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
         this.data = new ConcurrentHashMap<>();
         this.immutableData = Collections.unmodifiableMap(data);
@@ -208,23 +211,19 @@ public class TableViewImpl<T> implements TableView<T> {
             if (msg.hasKey()) {
                 String key = msg.getKey();
                 T cur = msg.size() > 0 ? msg.getValue() : null;
-                if (log.isDebugEnabled()) {
-                    log.debug("Applying message from topic {}. key={} value={}",
-                            conf.getTopicName(),
-                            key,
-                            cur);
-                }
+                    log.debug().attr("key", key)
+                            .attr("value", cur)
+                            .log("Applying message");
 
                 boolean update = true;
                 if (compactionStrategy != null) {
                     T prev = data.get(key);
                     update = !compactionStrategy.shouldKeepLeft(prev, cur);
                     if (!update) {
-                        log.info("Skipped the message from topic {}. key={} value={} prev={}",
-                                conf.getTopicName(),
-                                key,
-                                cur,
-                                prev);
+                        log.info().attr("key", key)
+                                .attr("value", cur)
+                                .attr("prev", prev)
+                                .log("Skipped the message");
                         compactionStrategy.handleSkippedMessage(key, cur);
                     }
                 }
@@ -242,7 +241,7 @@ public class TableViewImpl<T> implements TableView<T> {
                             try {
                                 listener.accept(key, cur);
                             } catch (Throwable t) {
-                                log.error("Table view listener raised an exception", t);
+                                log.error().exception(t).log("Table view listener raised an exception");
                             }
                         }
                     } finally {
@@ -259,7 +258,11 @@ public class TableViewImpl<T> implements TableView<T> {
     @Override
     public CompletableFuture<Void> refreshAsync() {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-        reader.thenCompose(reader -> getLastMessageIds(reader).thenAccept(lastMessageIds -> {
+        reader.thenCompose(reader -> getLastMessageIdOfNonEmptyTopics(reader).thenAccept(lastMessageIds -> {
+            if (lastMessageIds.isEmpty()) {
+                completableFuture.complete(null);
+                return;
+            }
             // After get the response of lastMessageIds, put the future and result into `refreshMap`
             // and then filter out partitions that has been read to the lastMessageID.
             pendingRefreshRequests.put(completableFuture, lastMessageIds);
@@ -291,8 +294,12 @@ public class TableViewImpl<T> implements TableView<T> {
         AtomicLong messagesRead = new AtomicLong();
 
         CompletableFuture<Void> future = new CompletableFuture<>();
-        getLastMessageIds(reader).thenAccept(maxMessageIds -> {
-            readAllExistingMessages(reader, future, startTime, messagesRead, maxMessageIds);
+        getLastMessageIdOfNonEmptyTopics(reader).thenAccept(lastMessageIds -> {
+            if (lastMessageIds.isEmpty()) {
+                future.complete(null);
+                return;
+            }
+            readAllExistingMessages(reader, future, startTime, messagesRead, lastMessageIds);
         }).exceptionally(ex -> {
             future.completeExceptionally(ex);
             return null;
@@ -300,13 +307,15 @@ public class TableViewImpl<T> implements TableView<T> {
         return future;
     }
 
-    private CompletableFuture<Map<String, TopicMessageId>> getLastMessageIds(Reader<T> reader) {
+    private CompletableFuture<Map<String, TopicMessageId>> getLastMessageIdOfNonEmptyTopics(Reader<T> reader) {
         return reader.getLastMessageIdsAsync().thenApply(lastMessageIds -> {
-            Map<String, TopicMessageId> maxMessageIds = new ConcurrentHashMap<>();
+            Map<String, TopicMessageId> lastMessageIdMap = new ConcurrentHashMap<>();
             lastMessageIds.forEach(topicMessageId -> {
-                maxMessageIds.put(topicMessageId.getOwnerTopic(), topicMessageId);
+                if (((MessageIdAdv) topicMessageId).getEntryId() >= 0) {
+                    lastMessageIdMap.put(topicMessageId.getOwnerTopic(), topicMessageId);
+                } // else: a negative entry id represents an empty topic so that we don't have to read messages from it
             });
-            return maxMessageIds;
+            return lastMessageIdMap;
         });
     }
 
@@ -364,11 +373,12 @@ public class TableViewImpl<T> implements TableView<T> {
                                   }
                                }).exceptionally(ex -> {
                                    if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
-                                       log.error("Reader {} was closed while reading existing messages.",
-                                               reader.getTopic(), ex);
+                                       log.info().attr("reader", reader.getTopic())
+                                               .log("Reader was closed while reading existing messages.");
                                    } else {
-                                       log.warn("Reader {} was interrupted while reading existing messages. ",
-                                               reader.getTopic(), ex);
+                                       log.warn().attr("reader", reader.getTopic())
+                                               .exception(ex)
+                                               .log("Reader was interrupted while reading existing messages.");
                                    }
                                    future.completeExceptionally(ex);
                                    return null;
@@ -377,10 +387,10 @@ public class TableViewImpl<T> implements TableView<T> {
                        // Reached the end
                        long endTime = System.nanoTime();
                        long durationMillis = TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-                       log.info("Started table view for topic {} - Replayed {} messages in {} seconds",
-                               reader.getTopic(),
-                               messagesRead,
-                               durationMillis / 1000.0);
+                       log.info().attr("topic", reader.getTopic())
+                               .attr("replayed", messagesRead)
+                               .attr("durationSeconds", durationMillis / 1000.0)
+                               .log("Started table view for topic - Replayed messages");
                        future.complete(null);
                    }
                 });
@@ -393,8 +403,8 @@ public class TableViewImpl<T> implements TableView<T> {
                     readTailMessages(reader);
                 }).exceptionally(ex -> {
                     if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
-                        log.error("Reader {} was closed while reading tail messages.",
-                                reader.getTopic(), ex);
+                        log.info().attr("reader", reader.getTopic())
+                                .log("Reader was closed while reading tail messages.");
                         // Fail all refresh request when no more messages can be read.
                         pendingRefreshRequests.keySet().forEach(future -> {
                             pendingRefreshRequests.remove(future);
@@ -407,8 +417,9 @@ public class TableViewImpl<T> implements TableView<T> {
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                         }
-                        log.warn("Reader {} was interrupted while reading tail messages. "
-                                + "Retrying..", reader.getTopic(), ex);
+                        log.warn().attr("reader", reader.getTopic())
+                                .exception(ex)
+                                .log("Reader was interrupted while reading tail messages. " + "Retrying..");
                         readTailMessages(reader);
                     }
                     return null;

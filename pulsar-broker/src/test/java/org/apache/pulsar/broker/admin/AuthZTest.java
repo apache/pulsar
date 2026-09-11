@@ -18,22 +18,25 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.Mockito.doReturn;
 import io.jsonwebtoken.Jwts;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import lombok.SneakyThrows;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.security.MockedPulsarStandalone;
 import org.mockito.Mockito;
+import org.mockito.invocation.InvocationOnMock;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
-import static org.mockito.Mockito.doReturn;
 
-public class AuthZTest extends MockedPulsarStandalone {
+public abstract class AuthZTest extends MockedPulsarStandalone {
 
     protected PulsarAdmin superUserAdmin;
 
@@ -41,11 +44,12 @@ public class AuthZTest extends MockedPulsarStandalone {
 
     protected AuthorizationService authorizationService;
 
-    protected AuthorizationService orignalAuthorizationService;
-
     protected static final String TENANT_ADMIN_SUBJECT =  UUID.randomUUID().toString();
     protected static final String TENANT_ADMIN_TOKEN = Jwts.builder()
             .claim("sub", TENANT_ADMIN_SUBJECT).signWith(SECRET_KEY).compact();
+
+    private volatile Consumer<InvocationOnMock> allowTopicOperationAsyncHandler;
+    private volatile Consumer<InvocationOnMock> allowNamespaceOperationAsyncHandler;
 
     @Override
     public void close() throws Exception {
@@ -57,56 +61,72 @@ public class AuthZTest extends MockedPulsarStandalone {
             tenantManagerAdmin.close();
             tenantManagerAdmin = null;
         }
-        authorizationService = null;
-        orignalAuthorizationService = null;
+        if (authorizationService != null) {
+            Mockito.reset(authorizationService);
+            authorizationService = null;
+        }
         super.close();
     }
 
-    @BeforeMethod(alwaysRun = true)
-    public void before() throws IllegalAccessException {
-        orignalAuthorizationService = getPulsarService().getBrokerService().getAuthorizationService();
-        authorizationService = Mockito.spy(orignalAuthorizationService);
+    @SneakyThrows
+    @Override
+    protected void start() {
+        super.start();
+        authorizationService = BrokerTestUtil.spyWithoutRecordingInvocations(
+                getPulsarService().getBrokerService().getAuthorizationService());
         FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
                 authorizationService, true);
+        Mockito.doAnswer(invocationOnMock -> {
+            Consumer<InvocationOnMock> localAllowTopicOperationAsyncHandler =
+                    allowTopicOperationAsyncHandler;
+            if (localAllowTopicOperationAsyncHandler != null) {
+                localAllowTopicOperationAsyncHandler.accept(invocationOnMock);
+            }
+            return invocationOnMock.callRealMethod();
+        }).when(authorizationService).allowTopicOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any(), Mockito.any());
+        doReturn(true)
+                .when(authorizationService).isValidOriginalPrincipal(Mockito.any(), Mockito.any(), Mockito.any());
+        Mockito.doAnswer(invocationOnMock -> {
+            Consumer<InvocationOnMock> localAllowNamespaceOperationAsyncHandler =
+                    allowNamespaceOperationAsyncHandler;
+            if (localAllowNamespaceOperationAsyncHandler != null) {
+                localAllowNamespaceOperationAsyncHandler.accept(invocationOnMock);
+            }
+            return invocationOnMock.callRealMethod();
+        }).when(authorizationService).allowNamespaceOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.any(), Mockito.any());
     }
 
     @AfterMethod(alwaysRun = true)
     public void after() throws IllegalAccessException {
-        FieldUtils.writeField(getPulsarService().getBrokerService(), "authorizationService",
-                orignalAuthorizationService, true);
+        allowNamespaceOperationAsyncHandler = null;
+        allowTopicOperationAsyncHandler = null;
     }
 
     protected AtomicBoolean setAuthorizationTopicOperationChecker(String role, Object operation) {
         AtomicBoolean execFlag = new AtomicBoolean(false);
         if (operation instanceof TopicOperation) {
-            Mockito.doAnswer(invocationOnMock -> {
-                String role_ = invocationOnMock.getArgument(2);
-                if (role.equals(role_)) {
-                    TopicOperation operation_ = invocationOnMock.getArgument(1);
-                    Assert.assertEquals(operation_, operation);
+            allowTopicOperationAsyncHandler = invocationOnMock -> {
+                String role1 = invocationOnMock.getArgument(2);
+                if (role.equals(role1)) {
+                    TopicOperation operation1 = invocationOnMock.getArgument(1);
+                    Assert.assertEquals(operation1, operation);
                 }
                 execFlag.set(true);
-                return invocationOnMock.callRealMethod();
-            }).when(authorizationService).allowTopicOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
-                    Mockito.any(), Mockito.any());
+            };
         } else if (operation instanceof NamespaceOperation) {
-            doReturn(true)
-                    .when(authorizationService).isValidOriginalPrincipal(Mockito.any(), Mockito.any(), Mockito.any());
-            Mockito.doAnswer(invocationOnMock -> {
-                String role_ = invocationOnMock.getArgument(2);
-                if (role.equals(role_)) {
-                    TopicOperation operation_ = invocationOnMock.getArgument(1);
-                    Assert.assertEquals(operation_, operation);
+            allowNamespaceOperationAsyncHandler = invocationOnMock -> {
+                String role1 = invocationOnMock.getArgument(2);
+                if (role.equals(role1)) {
+                    TopicOperation operation1 = invocationOnMock.getArgument(1);
+                    Assert.assertEquals(operation1, operation);
                 }
                 execFlag.set(true);
-                return invocationOnMock.callRealMethod();
-            }).when(authorizationService).allowNamespaceOperationAsync(Mockito.any(), Mockito.any(), Mockito.any(),
-                    Mockito.any(), Mockito.any());
+            };
         } else {
             throw new IllegalArgumentException("");
         }
-
-
         return execFlag;
     }
 

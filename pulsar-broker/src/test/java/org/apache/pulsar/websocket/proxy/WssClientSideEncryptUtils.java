@@ -43,7 +43,7 @@ import java.util.Map;
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import lombok.AllArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -61,10 +61,10 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
-@Slf4j
+@CustomLog
 public class WssClientSideEncryptUtils {
 
-    public static Charset UTF8 = StandardCharsets.UTF_8;
+    public static final Charset UTF8 = StandardCharsets.UTF_8;
 
     public static String base64AndUrlEncode(String str) {
         return base64AndUrlEncode(str.getBytes(UTF8), UTF8);
@@ -131,9 +131,9 @@ public class WssClientSideEncryptUtils {
         try {
             PublicKey pubKey = MessageCryptoBc.loadPublicKey(publicKeyData);
             Cipher dataKeyCipher = loadAndInitCipher(pubKey);
-            return dataKeyCipher.doFinal(msgCrypto.getDataKey().getEncoded());
+            return dataKeyCipher.doFinal(msgCrypto.getEncryptionKey().getEncoded());
         } catch (Exception e) {
-            log.error("Failed to encrypt data key. {}", e.getMessage());
+            log.error().exceptionMessage(e).log("Failed to encrypt data key");
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
     }
@@ -230,7 +230,8 @@ public class WssClientSideEncryptUtils {
         return res;
     }
 
-    public static byte[] unCompressionIfNeeded(byte[] payloadBytes, EncryptionContext encryptionContext) throws IOException {
+    public static byte[] unCompressionIfNeeded(byte[] payloadBytes, EncryptionContext encryptionContext)
+            throws IOException {
         if (encryptionContext.getCompressionType() != null && !org.apache.pulsar.client.api.CompressionType.NONE
                 .equals(encryptionContext.getCompressionType())) {
             CompressionCodec codec =

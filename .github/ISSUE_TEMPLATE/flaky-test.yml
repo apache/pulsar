@@ -25,8 +25,9 @@ body:
       value: |
         Thank you very much for reporting flaky tests!
   - type: checkboxes
+    id: confirmSearch
     attributes:
-      label: Search before asking
+      label: Search before reporting
       description: >
         Please search [issues](https://github.com/apache/pulsar/issues) to check if your issue has already been reported. First search with the test method name and then with the test class name to see if there are reports for the same test method or the same test class.
       options:
@@ -34,26 +35,23 @@ body:
             I searched in the [issues](https://github.com/apache/pulsar/issues) and found nothing similar.
           required: true
   - type: input
+    id: failureUrl
     attributes:
       label: Example failure
       description: |
         Attach a url to the example failure. In the Github Actions workflow run logs, you can right click on the line number to copy a link to the line.
       placeholder: e.g. https://github.com/apache/pulsar/runs/7612690351?check_suite_focus=true#step:2:20
-    validations:
-      required: true
   - type: textarea
+    id: stacktrace
     attributes:
       label: Exception stacktrace
       description: |
         Copy-paste the stack trace from the build log. If the stacktrace is >100 lines, you can limit the stack trace to the point where it includes the stack frame for the test method so that it's possible to find out where the exception occurred in the test.
-      value: |
-        <!-- copy-paste the stack trace in the code block below -->
-        ```
-
-        ```
+      render: text
     validations:
       required: true
   - type: checkboxes
+    id: willSubmitPR
     attributes:
       label: Are you willing to submit a PR?
       description: >

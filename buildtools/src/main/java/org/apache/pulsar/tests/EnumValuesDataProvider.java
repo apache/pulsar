@@ -36,7 +36,9 @@ public abstract class EnumValuesDataProvider {
                 .findFirst()
                 .filter(Class::isEnum)
                 .orElseThrow(() -> new IllegalArgumentException("The test method should have an enum parameter."));
-        return toDataProviderArray((Class<? extends Enum<?>>) enumClass);
+        @SuppressWarnings("unchecked") // safe: verified enumClass.isEnum() above
+        Class<? extends Enum<?>> typedEnumClass = (Class<? extends Enum<?>>) enumClass;
+        return toDataProviderArray(typedEnumClass);
     }
 
     /*

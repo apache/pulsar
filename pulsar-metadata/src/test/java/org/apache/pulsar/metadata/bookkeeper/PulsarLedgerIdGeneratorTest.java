@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -43,7 +43,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.zookeeper.KeeperException;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
@@ -109,8 +109,8 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
 
         assertTrue(countDownLatch2.await(120, TimeUnit.SECONDS),
                 "Wait ledger id generation threads to stop timeout : ");
-        log.info("Number of generated ledger id: {}, time used: {}", shortLedgerIds.size() + longLedgerIds.size(),
-                System.currentTimeMillis() - start);
+        log.info().attr("count", shortLedgerIds.size() + longLedgerIds.size())
+                .attr("timeUsedMs", System.currentTimeMillis() - start).log("Number of generated ledger id");
         assertEquals(errCount.get(), 0, "Error occur during ledger id generation : ");
 
         Set<Long> ledgers = new HashSet<>();
@@ -132,7 +132,8 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
     public void testGenerateLedgerIdWithZkPrefix() throws Exception {
         @Cleanup
         MetadataStoreExtended store =
-                MetadataStoreExtended.create(zks.getConnectionString() + "/test", MetadataStoreConfig.builder().build());
+                MetadataStoreExtended.create(zks.getConnectionString() + "/test",
+                        MetadataStoreConfig.builder().build());
 
         @Cleanup
         PulsarLedgerIdGenerator ledgerIdGenerator = new PulsarLedgerIdGenerator(store, "/ledgers");
@@ -197,12 +198,13 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
                 "Wait ledger id generation threads to stop timeout : ");
         ///test/ledgers/idgen-long/HOB-0000000001/ID-0000000000
         for (Long ledgerId : longLedgerIds) {
-            assertFalse(store.exists("/ledgers/idgen-long/HOB-0000000001/ID-" + String.format("%010d", ledgerId >> 32)).get(),
+            assertFalse(store.exists("/ledgers/idgen-long/HOB-0000000001/ID-"
+                            + String.format("%010d", ledgerId >> 32)).get(),
                     "Exception during deleting node for id generation : ");
         }
 
-        log.info("Number of generated ledger id: {}, time used: {}", shortLedgerIds.size() + longLedgerIds.size(),
-                System.currentTimeMillis() - start);
+        log.info().attr("count", shortLedgerIds.size() + longLedgerIds.size())
+                .attr("timeUsedMs", System.currentTimeMillis() - start).log("Number of generated ledger id");
         assertEquals(errCount.get(), 0, "Error occur during ledger id generation : ");
 
         Set<Long> ledgers = new HashSet<>();
@@ -240,9 +242,9 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
         });
 
         l1.await();
-        log.info("res1 : {}", res1);
+        log.info().attr("res1", res1).log("res1");
 
-        zks.checkContainers();
+        maybeTriggerDeletingEmptyContainers(provider);
 
         CountDownLatch l2 = new CountDownLatch(1);
         AtomicLong res2 = new AtomicLong();
@@ -253,7 +255,7 @@ public class PulsarLedgerIdGeneratorTest extends BaseMetadataStoreTest {
         });
         l2.await();
 
-        log.info("res2 : {}", res2);
+        log.info().attr("res2", res2).log("res2");
         assertNotEquals(res1, res2);
         assertTrue(res1.get() < res2.get());
     }

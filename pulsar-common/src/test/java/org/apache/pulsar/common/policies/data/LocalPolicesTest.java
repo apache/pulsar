@@ -21,12 +21,10 @@ package org.apache.pulsar.common.policies.data;
 import static org.apache.pulsar.common.policies.data.PoliciesUtil.defaultBundle;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -102,9 +100,10 @@ public class LocalPolicesTest {
 
         // serialize and deserialize
         byte[] data = ObjectMapperFactory.getMapper().writer().writeValueAsBytes(mutableLocalPolicies);
-        LocalPolicies mutableDeserializedPolicies = ObjectMapperFactory.getMapper().reader().readValue(data, LocalPolicies.class);
+        LocalPolicies mutableDeserializedPolicies =
+                ObjectMapperFactory.getMapper().reader().readValue(data, LocalPolicies.class);
 
-        Assert.assertEquals(mutableDeserializedPolicies,immutableLocalPolicies);
+        Assert.assertEquals(mutableDeserializedPolicies, immutableLocalPolicies);
 
 
 
@@ -118,13 +117,14 @@ public class LocalPolicesTest {
 
         mutableLocalPolicies.bookieAffinityGroup = bookieAffinityGroupData;
         mutableLocalPolicies.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
-        LocalPolicies immutableLocalPolicies2 = new LocalPolicies(defaultBundle(),bookieAffinityGroupData,namespaceAntiAffinityGroup);
+        LocalPolicies immutableLocalPolicies2 =
+                new LocalPolicies(defaultBundle(), bookieAffinityGroupData, namespaceAntiAffinityGroup);
 
         // serialize and deserialize
         data = ObjectMapperFactory.getMapper().writer().writeValueAsBytes(mutableLocalPolicies);
         mutableDeserializedPolicies = ObjectMapperFactory.getMapper().reader().readValue(data, LocalPolicies.class);
 
-        Assert.assertEquals(mutableDeserializedPolicies,immutableLocalPolicies2);
+        Assert.assertEquals(mutableDeserializedPolicies, immutableLocalPolicies2);
 
     }
 
@@ -137,9 +137,10 @@ public class LocalPolicesTest {
 
         // serialize and deserialize
         String data = ObjectMapperFactory.getMapper().writer().writeValueAsString(mutableLocalPolicies);
-        LocalPolicies mutableDeserializedPolicies = ObjectMapperFactory.getMapper().reader().readValue(data, LocalPolicies.class);
+        LocalPolicies mutableDeserializedPolicies =
+                ObjectMapperFactory.getMapper().reader().readValue(data, LocalPolicies.class);
 
-        Assert.assertEquals(mutableDeserializedPolicies,immutableLocalPolicies);
+        Assert.assertEquals(mutableDeserializedPolicies, immutableLocalPolicies);
 
 
 
@@ -153,13 +154,14 @@ public class LocalPolicesTest {
 
         mutableLocalPolicies.bookieAffinityGroup = bookieAffinityGroupData;
         mutableLocalPolicies.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
-        LocalPolicies immutableLocalPolicies2 = new LocalPolicies(defaultBundle(),bookieAffinityGroupData,namespaceAntiAffinityGroup);
+        LocalPolicies immutableLocalPolicies2 =
+                new LocalPolicies(defaultBundle(), bookieAffinityGroupData, namespaceAntiAffinityGroup);
 
         // serialize and deserialize
         data = ObjectMapperFactory.getMapper().writer().writeValueAsString(mutableLocalPolicies);
         mutableDeserializedPolicies = ObjectMapperFactory.getMapper().reader().readValue(data, LocalPolicies.class);
 
-        Assert.assertEquals(mutableDeserializedPolicies,immutableLocalPolicies2);
+        Assert.assertEquals(mutableDeserializedPolicies, immutableLocalPolicies2);
 
     }
 }

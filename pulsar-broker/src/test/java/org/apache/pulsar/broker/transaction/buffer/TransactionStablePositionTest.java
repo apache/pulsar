@@ -26,9 +26,9 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
@@ -54,7 +54,7 @@ import org.testng.annotations.Test;
 /**
  * Pulsar client transaction test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TransactionStablePositionTest extends TransactionTestBase {
 
@@ -91,19 +91,18 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .topic(TOPIC)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
-        final String TEST1 = "test1";
-        final String TEST2 = "test2";
-        final String TEST3 = "test3";
+        final String test1 = "test1";
+        final String test2 = "test2";
+        final String test3 = "test3";
 
-        producer.newMessage().value(TEST1.getBytes()).send();
-        producer.newMessage(txn).value(TEST2.getBytes()).send();
-        producer.newMessage().value(TEST3.getBytes()).send();
+        producer.newMessage().value(test1.getBytes()).send();
+        producer.newMessage(txn).value(test2.getBytes()).send();
+        producer.newMessage().value(test3.getBytes()).send();
 
         Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST1);
+        assertEquals(new String(message.getData()), test1);
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
@@ -111,10 +110,10 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         txn.commit().get();
 
         message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST2);
+        assertEquals(new String(message.getData()), test2);
 
         message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST3);
+        assertEquals(new String(message.getData()), test3);
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
@@ -139,19 +138,18 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .topic(TOPIC)
                 .subscriptionName("test")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
-        final String TEST1 = "test1";
-        final String TEST2 = "test2";
-        final String TEST3 = "test3";
+        final String test1 = "test1";
+        final String test2 = "test2";
+        final String test3 = "test3";
 
-        producer.newMessage().value(TEST1.getBytes()).send();
-        producer.newMessage(txn).value(TEST2.getBytes()).send();
-        producer.newMessage().value(TEST3.getBytes()).send();
+        producer.newMessage().value(test1.getBytes()).send();
+        producer.newMessage(txn).value(test2.getBytes()).send();
+        producer.newMessage().value(test3.getBytes()).send();
 
         Message<byte[]> message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST1);
+        assertEquals(new String(message.getData()), test1);
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
@@ -159,7 +157,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         txn.abort().get();
 
         message = consumer.receive(2, TimeUnit.SECONDS);
-        assertEquals(new String(message.getData()), TEST3);
+        assertEquals(new String(message.getData()), test3);
 
         message = consumer.receive(2, TimeUnit.SECONDS);
         assertNull(message);
@@ -175,6 +173,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "enableTransactionAndState")
     public void testSyncNormalPositionWhenTBRecover(boolean clientEnableTransaction,
                                                     TopicTransactionBufferState.State state) throws Exception {
@@ -195,6 +194,15 @@ public class TransactionStablePositionTest extends TransactionTestBase {
                 .topic(topicName)
                 .create();
 
+        if (clientEnableTransaction) {
+            Transaction transaction = pulsarClient.newTransaction()
+                    .withTransactionTimeout(5, TimeUnit.HOURS)
+                    .build()
+                    .get();
+            producer.newMessage(transaction).send();
+            transaction.commit().get();
+        }
+
         PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
                 .getTopic(TopicName.get(topicName).toString(), false).get().get();
 
@@ -209,13 +217,13 @@ public class TransactionStablePositionTest extends TransactionTestBase {
 
         // init maxReadPosition is PositionImpl.EARLIEST
         Position position = topicTransactionBuffer.getMaxReadPosition();
-        assertEquals(position, PositionImpl.EARLIEST);
+        assertEquals(position, PositionFactory.EARLIEST);
 
         MessageIdImpl messageId = (MessageIdImpl) producer.send("test".getBytes());
 
         // send normal message can't change MaxReadPosition when state is None or Initializing
         position = topicTransactionBuffer.getMaxReadPosition();
-        assertEquals(position, PositionImpl.EARLIEST);
+        assertEquals(position, PositionFactory.EARLIEST);
 
         // change to None state can recover
         field.set(topicTransactionBuffer, TopicTransactionBufferState.State.None);
@@ -229,7 +237,7 @@ public class TransactionStablePositionTest extends TransactionTestBase {
         checkTopicTransactionBufferState(clientEnableTransaction, topicTransactionBuffer);
 
         // change MaxReadPosition to normal message position
-        assertEquals(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId()),
+        assertEquals(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()),
                 topicTransactionBuffer.getMaxReadPosition());
     }
 

@@ -23,32 +23,17 @@ import static org.testng.Assert.assertTrue;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class TopicSchemaTest extends ProducerConsumerBase {
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class TopicSchemaTest extends SharedPulsarBaseTest {
 
     @DataProvider(name = "topicDomains")
     public Object[][] topicDomains() {
@@ -60,7 +45,7 @@ public class TopicSchemaTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "topicDomains")
     public void testDeleteNonPartitionedTopicWithSchema(TopicDomain topicDomain) throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName(topicDomain.value() + "://public/default/tp");
+        final String topic = topicDomain.value() + "://" + getNamespace() + "/tp-" + System.nanoTime();
         final String schemaId = TopicName.get(TopicName.get(topic).getPartitionedTopicName()).getSchemaName();
         admin.topics().createNonPartitionedTopic(topic);
 
@@ -68,13 +53,15 @@ public class TopicSchemaTest extends ProducerConsumerBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic)
                 .enableBatching(false).create();
         producer.close();
-        List<SchemaAndMetadata> schemaList1 = pulsar.getSchemaRegistryService().getAllSchemas(schemaId).join()
+        List<SchemaAndMetadata> schemaList1 = SharedPulsarCluster.get().getPulsarService()
+                .getSchemaRegistryService().getAllSchemas(schemaId).join()
                 .stream().map(s -> s.join()).filter(Objects::nonNull).collect(Collectors.toList());
         assertTrue(schemaList1 != null && schemaList1.size() > 0);
 
         // Verify the schema has been deleted with topic.
         admin.topics().delete(topic, false);
-        List<SchemaAndMetadata> schemaList2 = pulsar.getSchemaRegistryService().getAllSchemas(schemaId).join()
+        List<SchemaAndMetadata> schemaList2 = SharedPulsarCluster.get().getPulsarService()
+                .getSchemaRegistryService().getAllSchemas(schemaId).join()
                 .stream().map(s -> s.join()).filter(Objects::nonNull).collect(Collectors.toList());
         assertTrue(schemaList2 == null || schemaList2.isEmpty());
     }
@@ -83,7 +70,7 @@ public class TopicSchemaTest extends ProducerConsumerBase {
     public void testDeletePartitionedTopicWithoutSchema() throws Exception {
         // Non-persistent topic does not support partitioned topic now, so only write a test case for persistent topic.
         TopicDomain topicDomain = TopicDomain.persistent;
-        final String topic = BrokerTestUtil.newUniqueName(topicDomain.value() + "://public/default/tp");
+        final String topic = topicDomain.value() + "://" + getNamespace() + "/tp-" + System.nanoTime();
         final String partition0 = topic + "-partition-0";
         final String partition1 = topic + "-partition-1";
         final String schemaId = TopicName.get(TopicName.get(topic).getPartitionedTopicName()).getSchemaName();
@@ -93,25 +80,29 @@ public class TopicSchemaTest extends ProducerConsumerBase {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic)
                 .enableBatching(false).create();
         producer.close();
-        List<SchemaAndMetadata> schemaList1 = pulsar.getSchemaRegistryService().getAllSchemas(schemaId).join()
+        List<SchemaAndMetadata> schemaList1 = SharedPulsarCluster.get().getPulsarService()
+                .getSchemaRegistryService().getAllSchemas(schemaId).join()
                 .stream().map(s -> s.join()).filter(Objects::nonNull).collect(Collectors.toList());
         assertTrue(schemaList1 != null && schemaList1.size() > 0);
 
         // Verify the schema will not been deleted with partition-0.
         admin.topics().delete(partition0, false);
-        List<SchemaAndMetadata> schemaList2 = pulsar.getSchemaRegistryService().getAllSchemas(schemaId).join()
+        List<SchemaAndMetadata> schemaList2 = SharedPulsarCluster.get().getPulsarService()
+                .getSchemaRegistryService().getAllSchemas(schemaId).join()
                 .stream().map(s -> s.join()).filter(Objects::nonNull).collect(Collectors.toList());
         assertTrue(schemaList2 != null && schemaList2.size() > 0);
 
         // Verify the schema will not been deleted with partition-0 & partition-1.
         admin.topics().delete(partition1, false);
-        List<SchemaAndMetadata> schemaList3 = pulsar.getSchemaRegistryService().getAllSchemas(schemaId).join()
+        List<SchemaAndMetadata> schemaList3 = SharedPulsarCluster.get().getPulsarService()
+                .getSchemaRegistryService().getAllSchemas(schemaId).join()
                 .stream().map(s -> s.join()).filter(Objects::nonNull).collect(Collectors.toList());
         assertTrue(schemaList3 != null && schemaList3.size() > 0);
 
         // Verify the schema will be deleted with partitioned metadata.
         admin.topics().deletePartitionedTopic(topic, false);
-        List<SchemaAndMetadata> schemaList4 = pulsar.getSchemaRegistryService().getAllSchemas(schemaId).join()
+        List<SchemaAndMetadata> schemaList4 = SharedPulsarCluster.get().getPulsarService()
+                .getSchemaRegistryService().getAllSchemas(schemaId).join()
                 .stream().map(s -> s.join()).filter(Objects::nonNull).collect(Collectors.toList());
         assertTrue(schemaList4 == null || schemaList4.isEmpty());
     }

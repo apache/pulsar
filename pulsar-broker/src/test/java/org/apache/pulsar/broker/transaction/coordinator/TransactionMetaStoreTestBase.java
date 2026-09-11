@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.transaction.coordinator;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import java.util.Optional;
+import lombok.CustomLog;
 import org.apache.pulsar.PulsarTransactionCoordinatorMetadataSetup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -30,19 +31,16 @@ import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImp
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
+@CustomLog
 public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
-
-    private static final Logger log = LoggerFactory.getLogger(TransactionMetaStoreTestBase.class);
 
     LocalBookkeeperEnsemble bkEnsemble;
     protected PulsarAdmin[] pulsarAdmins = new PulsarAdmin[BROKER_COUNT];
     protected PulsarClient pulsarClient;
-    protected static int BROKER_COUNT = 5;
+    protected static final int BROKER_COUNT = 5;
     protected ServiceConfiguration[] configurations = new ServiceConfiguration[BROKER_COUNT];
     protected PulsarService[] pulsarServices = new PulsarService[BROKER_COUNT];
 
@@ -50,9 +48,9 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
 
     @BeforeClass(alwaysRun = true)
     protected final void setup() throws Exception {
-        log.info("---- Initializing {} -----", getClass().getSimpleName());
+        log.info().attr("class", getClass().getSimpleName()).log("---- Initializing -----");
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         String[] args = new String[]{
@@ -74,7 +72,6 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
             config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
             config.setDefaultNumberOfNamespaceBundles(1);
             config.setLoadBalancerEnabled(false);
-            config.setAcknowledgmentAtBatchIndexLevelEnabled(true);
             config.setTransactionCoordinatorEnabled(true);
             configurations[i] = config;
 
@@ -107,7 +104,6 @@ public abstract class TransactionMetaStoreTestBase extends TestRetrySupport {
     protected void afterSetup() throws Exception {
         // template methods to override in subclasses
     }
-
 
     protected void afterPulsarStart() throws Exception {
         // template methods to override in subclasses

@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -34,13 +35,12 @@ import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Maintains available active broker list and returns next active broker in round-robin for discovery service.
  * This is an API used by Proxy Extensions.
  */
+@CustomLog
 @InterfaceStability.Evolving
 @InterfaceAudience.LimitedPrivate
 public class BrokerDiscoveryProvider implements Closeable {
@@ -62,7 +62,7 @@ public class BrokerDiscoveryProvider implements Closeable {
             this.metadataStoreCacheLoader = new MetadataStoreCacheLoader(pulsarResources,
                     config.getMetadataStoreSessionTimeoutMillis());
         } catch (Exception e) {
-            LOG.error("Failed to start ZooKeeper {}", e.getMessage(), e);
+            log.error().exception(e).log("Failed to start ZooKeeper");
             throw new PulsarServerException("Failed to start zookeeper :" + e.getMessage(), e);
         }
     }
@@ -101,7 +101,5 @@ public class BrokerDiscoveryProvider implements Closeable {
         orderedExecutor.shutdown();
         scheduledExecutorScheduler.shutdownNow();
     }
-
-    private static final Logger LOG = LoggerFactory.getLogger(BrokerDiscoveryProvider.class);
 
 }

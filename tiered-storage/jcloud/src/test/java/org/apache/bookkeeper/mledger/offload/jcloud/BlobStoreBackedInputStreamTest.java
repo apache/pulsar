@@ -23,13 +23,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-import lombok.extern.slf4j.Slf4j;
+import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreBackedInputStreamImpl;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.KeyNotFoundException;
@@ -41,9 +41,9 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
-    
+
     class RandomInputStream extends InputStream {
         final Random r;
         int bytesRemaining;
@@ -107,14 +107,16 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         RandomInputStream toCompare = new RandomInputStream(0, objectSize);
 
         Payload payload = Payloads.newInputStreamPayload(toWrite);
-        payload.getContentMetadata().setContentLength((long)objectSize);
+        payload.getContentMetadata().setContentLength((long) objectSize);
         Blob blob = blobStore.blobBuilder(objectKey)
             .payload(payload)
-            .contentLength((long)objectSize)
+            .contentLength((long) objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
-        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
+        log.debug().attr("objectKey", objectKey).attr("bucket", BUCKET)
+                .attr("result", ret).log("Put blob in blobStore");
 
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
@@ -129,14 +131,16 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         RandomInputStream toCompare = new RandomInputStream(0, objectSize);
 
         Payload payload = Payloads.newInputStreamPayload(toWrite);
-        payload.getContentMetadata().setContentLength((long)objectSize);
+        payload.getContentMetadata().setContentLength((long) objectSize);
         Blob blob = blobStore.blobBuilder(objectKey)
             .payload(payload)
-            .contentLength((long)objectSize)
+            .contentLength((long) objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
-        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
+        log.debug().attr("objectKey", objectKey).attr("bucket", BUCKET)
+                .attr("result", ret).log("Put blob in blobStore");
 
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
@@ -145,6 +149,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
 
     @Test(expectedExceptions = KeyNotFoundException.class)
     public void testNotFoundOnRead() throws Exception {
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, "doesn't exist",
                                                                  (key, md) -> {},
                                                                  1234, 1000);
@@ -161,21 +166,23 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         Map<Integer, InputStream> seeks = new HashMap<>();
         Random r = new Random(12345);
         for (int i = 0; i < 20; i++) {
-            int seek = r.nextInt(objectSize+1);
+            int seek = r.nextInt(objectSize + 1);
             RandomInputStream stream = new RandomInputStream(0, objectSize);
             stream.skip(seek);
             seeks.put(seek, stream);
         }
 
         Payload payload = Payloads.newInputStreamPayload(toWrite);
-        payload.getContentMetadata().setContentLength((long)objectSize);
+        payload.getContentMetadata().setContentLength((long) objectSize);
         Blob blob = blobStore.blobBuilder(objectKey)
             .payload(payload)
-            .contentLength((long)objectSize)
+            .contentLength((long) objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
-        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
+        log.debug().attr("objectKey", objectKey).attr("bucket", BUCKET)
+                .attr("result", ret).log("Put blob in blobStore");
 
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
@@ -192,17 +199,19 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         RandomInputStream toWrite = new RandomInputStream(0, objectSize);
 
         Payload payload = Payloads.newInputStreamPayload(toWrite);
-        payload.getContentMetadata().setContentLength((long)objectSize);
+        payload.getContentMetadata().setContentLength((long) objectSize);
         Blob blob = blobStore.blobBuilder(objectKey)
             .payload(payload)
-            .contentLength((long)objectSize)
+            .contentLength((long) objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
-        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
+        log.debug().attr("objectKey", objectKey).attr("bucket", BUCKET)
+                .attr("result", ret).log("Put blob in blobStore");
 
         //BlobStore spiedBlobStore = spy(blobStore);
         BlobStore spiedBlobStore = mock(BlobStore.class, delegatesTo(blobStore));
 
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(spiedBlobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
@@ -242,31 +251,33 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         RandomInputStream toWrite = new RandomInputStream(0, objectSize);
 
         Payload payload = Payloads.newInputStreamPayload(toWrite);
-        payload.getContentMetadata().setContentLength((long)objectSize);
+        payload.getContentMetadata().setContentLength((long) objectSize);
         Blob blob = blobStore.blobBuilder(objectKey)
             .payload(payload)
-            .contentLength((long)objectSize)
+            .contentLength((long) objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
-        log.debug("put blob: {} in Bucket: {}, in blobStore, result: {}", objectKey, BUCKET, ret);
+        log.debug().attr("objectKey", objectKey).attr("bucket", BUCKET)
+                .attr("result", ret).log("Put blob in blobStore");
 
+        @Cleanup
         BackedInputStream toTest = new BlobStoreBackedInputStreamImpl(blobStore, BUCKET, objectKey,
                                                                  (key, md) -> {},
                                                                  objectSize, 1000);
 
         // seek forward to middle
-        long middle = objectSize/2;
+        long middle = objectSize / 2;
         toTest.seekForward(middle);
 
         try {
-            long before = middle - objectSize/4;
+            long before = middle - objectSize / 4;
             toTest.seekForward(before);
             Assert.fail("Shound't be able to seek backwards");
         } catch (IOException ioe) {
             // correct
         }
 
-        long after = middle + objectSize/4;
+        long after = middle + objectSize / 4;
         RandomInputStream toCompare = new RandomInputStream(0, objectSize);
         toCompare.skip(after);
 
@@ -280,12 +291,13 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
         int objectSize = 2048;
         RandomInputStream toWrite = new RandomInputStream(0, objectSize);
         Payload payload = Payloads.newInputStreamPayload(toWrite);
-        payload.getContentMetadata().setContentLength((long)objectSize);
+        payload.getContentMetadata().setContentLength((long) objectSize);
         Blob blob = blobStore.blobBuilder(objectKey)
             .payload(payload)
             .contentLength(objectSize)
             .build();
         String ret = blobStore.putBlob(BUCKET, blob);
+        @Cleanup
         BackedInputStream bis = new BlobStoreBackedInputStreamImpl(
             blobStore, BUCKET, objectKey, (k, md) -> {}, objectSize, 512);
         assertEquals(bis.available(), objectSize);

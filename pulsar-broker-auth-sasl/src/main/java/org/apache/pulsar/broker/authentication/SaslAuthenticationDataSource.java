@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.broker.authentication;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
-@Slf4j
+@CustomLog
 public class SaslAuthenticationDataSource implements AuthenticationDataSource {
     private static final long serialVersionUID = 1L;
 

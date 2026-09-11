@@ -26,6 +26,7 @@ import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
+import io.opentelemetry.api.OpenTelemetry;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.HashMap;
@@ -34,11 +35,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.Cleanup;
-import org.apache.commons.lang.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
+import org.apache.pulsar.broker.loadbalance.impl.BundleRangeCache;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
@@ -58,8 +60,6 @@ import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
@@ -136,8 +136,9 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
     protected void beforePulsarStart(PulsarService pulsar) throws Exception {
         if (resources == null) {
-            MetadataStoreExtended localStore = pulsar.createLocalMetadataStore(null);
-            MetadataStoreExtended configStore = (MetadataStoreExtended) pulsar.createConfigurationMetadataStore(null);
+            MetadataStoreExtended localStore = pulsar.createLocalMetadataStore(null, OpenTelemetry.noop());
+            MetadataStoreExtended configStore =
+                    (MetadataStoreExtended) pulsar.createConfigurationMetadataStore(null, OpenTelemetry.noop());
             resources = new PulsarResources(localStore, configStore);
         }
         this.createNamespaceIfNotExists(resources, NamespaceName.SYSTEM_NAMESPACE.getTenant(),
@@ -165,11 +166,9 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         }
     }
 
-
     protected Object getBundleOwnershipData(){
-        return ConcurrentOpenHashMap.<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder().build();
+        return new BundleRangeCache();
     }
-
 
     protected String getLoadManagerClassName() {
         return ModularLoadManagerImpl.class.getName();
@@ -183,7 +182,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
     /**
      *
-     * It verifies anti-affinity-namespace assignment with failure-domain
+     * It verifies anti-affinity-namespace assignment with failure-domain.
      *
      * <pre>
      * Domain     Brokers-count
@@ -207,7 +206,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testAntiAffinityNamespaceFilteringWithDomain() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns";
+        final String namespace = "my-tenant/my-ns";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity";
         final String bundle = "/0x00000000_0xffffffff";
@@ -286,7 +285,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     }
 
     /**
-     * It verifies anti-affinity-namespace assignment without failure-domain enabled
+     * It verifies anti-affinity-namespace assignment without failure-domain enabled.
      *
      * <pre>
      *  Anti-affinity-namespace assignment
@@ -303,7 +302,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testAntiAffinityNamespaceFilteringWithoutDomain() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns-wo-domain";
+        final String namespace = "my-tenant/my-ns-wo-domain";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity-wo-domain";
         final String bundle = "/0x00000000_0xffffffff";
@@ -364,17 +363,8 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
             Object ownershipData,
             String broker, String namespace, String assignedBundleName) {
 
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
-                brokerToNamespaceToBundleRange =
-                (ConcurrentOpenHashMap<String,
-                        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>) ownershipData;
-        ConcurrentOpenHashSet<String> bundleSet =
-                ConcurrentOpenHashSet.<String>newBuilder().build();
-        bundleSet.add(assignedBundleName);
-        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> nsToBundleMap =
-                ConcurrentOpenHashMap.<String, ConcurrentOpenHashSet<String>>newBuilder().build();
-        nsToBundleMap.put(namespace, bundleSet);
-        brokerToNamespaceToBundleRange.put(broker, nsToBundleMap);
+        final var brokerToNamespaceToBundleRange = (BundleRangeCache) ownershipData;
+        brokerToNamespaceToBundleRange.add(broker, namespace, assignedBundleName);
     }
 
     /**
@@ -404,8 +394,8 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         final String broker2 = secondaryHost;
         final String cluster = pulsar1.getConfiguration().getClusterName();
         final String tenant = "tenant-" + UUID.randomUUID();
-        final String namespace1 = tenant + "/" + cluster + "/ns1";
-        final String namespace2 = tenant + "/" + cluster + "/ns2";
+        final String namespace1 = tenant + "/ns1";
+        final String namespace2 = tenant + "/ns2";
         final String namespaceAntiAffinityGroup = "group";
 
         FailureDomain domain1 = FailureDomain.builder()
@@ -431,10 +421,10 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
             assertTrue(isLoadManagerUpdatedDomainCache(secondaryLoadManager));
         });
 
-        ServiceUnitId serviceUnit1 = makeBundle(tenant, cluster, "ns1");
+        ServiceUnitId serviceUnit1 = makeBundle(tenant, "ns1");
         String selectedBroker1 = selectBroker(serviceUnit1, primaryLoadManager);
 
-        ServiceUnitId serviceUnit2 = makeBundle(tenant, cluster, "ns2");
+        ServiceUnitId serviceUnit2 = makeBundle(tenant, "ns2");
         String selectedBroker2 = selectBroker(serviceUnit2, primaryLoadManager);
 
         assertNotEquals(selectedBroker1, selectedBroker2);
@@ -460,7 +450,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testLoadSheddingUtilWithAntiAffinityNamespace() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns-load-shedding-util";
+        final String namespace = "my-tenant/my-ns-load-shedding-util";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity-load-shedding-util";
         final String bundle = "/0x00000000_0xffffffff";
@@ -503,14 +493,14 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
     /**
      * It verifies that load-manager::shouldAntiAffinityNamespaceUnload checks that unloading should only happen if all
-     * brokers have same number of anti-affinity namespaces
+     * brokers have same number of anti-affinity namespaces.
      *
      * @throws Exception
      */
     @Test
     public void testLoadSheddingWithAntiAffinityNamespace() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns-load-shedding";
+        final String namespace = "my-tenant/my-ns-load-shedding";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity-load-shedding";
         final String bundle = "0x00000000_0xffffffff";
@@ -545,12 +535,14 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         return !brokerToFailureDomainMap.isEmpty();
     }
 
-    private NamespaceBundle makeBundle(final String property, final String cluster, final String namespace) {
-        return nsFactory.getBundle(NamespaceName.get(property, cluster, namespace),
+    @SuppressWarnings("unchecked")
+    private NamespaceBundle makeBundle(final String tenant, final String namespace) {
+        return nsFactory.getBundle(NamespaceName.get(tenant, namespace),
                 Range.range(NamespaceBundles.FULL_LOWER_BOUND, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND,
                         BoundType.CLOSED));
     }
 
+    @SuppressWarnings("unchecked")
     private static void filterAntiAffinityGroupOwnedBrokers(
             PulsarService pulsar,
             String assignedNamespace,
@@ -560,15 +552,15 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         if (ownershipData instanceof Set) {
             LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, assignedNamespace, brokers,
                     (Set<Map.Entry<String, ServiceUnitStateData>>) ownershipData, brokerToDomainMap);
-        } else if (ownershipData instanceof ConcurrentOpenHashMap) {
+        } else if (ownershipData instanceof BundleRangeCache) {
             LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar, assignedNamespace, brokers,
-                    (ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>)
-                            ownershipData, brokerToDomainMap);
+                    (BundleRangeCache) ownershipData, brokerToDomainMap);
         } else {
             throw new RuntimeException("Unknown ownershipData class type");
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static boolean shouldAntiAffinityNamespaceUnload(
             String namespace,
             String bundle,
@@ -580,11 +572,9 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         if (ownershipData instanceof Set) {
             return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace, bundle,
                     currentBroker, pulsar, (Set<Map.Entry<String, ServiceUnitStateData>>) ownershipData, candidate);
-        } else if (ownershipData instanceof ConcurrentOpenHashMap) {
-            return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace, bundle,
-                    currentBroker, pulsar,
-                    (ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>)
-                            ownershipData, candidate);
+        } else if (ownershipData instanceof BundleRangeCache) {
+            return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace, currentBroker, pulsar,
+                    (BundleRangeCache) ownershipData, candidate);
         } else {
             throw new RuntimeException("Unknown ownershipData class type");
         }

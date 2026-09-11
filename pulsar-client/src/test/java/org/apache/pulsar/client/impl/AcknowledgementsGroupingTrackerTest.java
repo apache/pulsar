@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -27,25 +29,26 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
+import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
+import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.MessageIdAdv;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.apache.pulsar.common.util.collections.ConcurrentBitSetRecyclable;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -57,24 +60,26 @@ public class AcknowledgementsGroupingTrackerTest {
     private ClientCnx cnx;
     private ConsumerImpl<?> consumer;
     private EventLoopGroup eventLoopGroup;
+    private AtomicBoolean returnCnx = new AtomicBoolean(true);
+    private ChannelHandlerContext successCtx;
+    private AtomicBoolean failAckCommandSend = new AtomicBoolean(false);
 
     @BeforeClass
     public void setup() throws NoSuchFieldException, IllegalAccessException {
         eventLoopGroup = new NioEventLoopGroup(1);
         consumer = mock(ConsumerImpl.class);
-        consumer.unAckedChunkedMessageIdSequenceMap =
-                ConcurrentOpenHashMap.<MessageIdAdv, MessageIdImpl[]>newBuilder().build();
+        consumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
         cnx = spy(new ClientCnxTest(new ClientConfigurationData(), eventLoopGroup));
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);
         doReturn(client).when(consumer).getClient();
-        doReturn(cnx).when(consumer).getClientCnx();
         doReturn(new ConsumerStatsRecorderImpl()).when(consumer).getStats();
         doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
                 .when(consumer).getUnAckedMessageTracker();
-        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
-        when(cnx.ctx()).thenReturn(ctx);
+        successCtx = ClientTestFixtures.mockChannelHandlerContext();
+        doAnswer(invocation -> returnCnx.get() ? cnx : null).when(consumer).getClientCnx();
+        doReturn(successCtx).when(cnx).ctx();
     }
 
     @DataProvider(name = "isNeedReceipt")
@@ -131,8 +136,6 @@ public class AcknowledgementsGroupingTrackerTest {
 
         tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg6));
-
-        when(consumer.getClientCnx()).thenReturn(cnx);
 
         tracker.flush();
 
@@ -192,8 +195,6 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.addListAcknowledgment(Collections.singletonList(msg6), AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg6));
 
-        when(consumer.getClientCnx()).thenReturn(cnx);
-
         tracker.flush();
 
         assertTrue(tracker.isDuplicate(msg1));
@@ -220,12 +221,13 @@ public class AcknowledgementsGroupingTrackerTest {
 
         assertFalse(tracker.isDuplicate(msg1));
 
-        when(consumer.getClientCnx()).thenReturn(null);
-
-        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
-        assertFalse(tracker.isDuplicate(msg1));
-
-        when(consumer.getClientCnx()).thenReturn(cnx);
+        returnCnx.set(false);
+        try {
+            tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
+            assertFalse(tracker.isDuplicate(msg1));
+        } finally {
+            returnCnx.set(true);
+        }
 
         tracker.flush();
         assertFalse(tracker.isDuplicate(msg1));
@@ -249,12 +251,13 @@ public class AcknowledgementsGroupingTrackerTest {
 
         assertFalse(tracker.isDuplicate(msg1));
 
-        when(consumer.getClientCnx()).thenReturn(null);
-
-        tracker.addListAcknowledgment(Collections.singletonList(msg1), AckType.Individual, Collections.emptyMap());
-        assertTrue(tracker.isDuplicate(msg1));
-
-        when(consumer.getClientCnx()).thenReturn(cnx);
+        returnCnx.set(false);
+        try {
+            tracker.addListAcknowledgment(Collections.singletonList(msg1), AckType.Individual, Collections.emptyMap());
+            assertTrue(tracker.isDuplicate(msg1));
+        } finally {
+            returnCnx.set(true);
+        }
 
         tracker.flush();
         assertFalse(tracker.isDuplicate(msg1));
@@ -314,8 +317,6 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.addAcknowledgment(msg6, AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg6));
 
-        when(consumer.getClientCnx()).thenReturn(cnx);
-
         tracker.flush();
 
         assertTrue(tracker.isDuplicate(msg1));
@@ -326,6 +327,60 @@ public class AcknowledgementsGroupingTrackerTest {
         assertTrue(tracker.isDuplicate(msg5));
         assertFalse(tracker.isDuplicate(msg6));
 
+        tracker.close();
+    }
+
+    @Test
+    public void testFlushRetainsPendingIndividualAckOnSendFailureWithoutAckReceipt() throws Exception {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        conf.setAckReceiptEnabled(false);
+        doReturn(false).when(consumer).isAckReceiptEnabled();
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+
+        MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
+        tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
+        assertEquals(tracker.getPendingIndividualAcksSize(), 1);
+
+        doReturn(createFailedChannelHandlerContext()).when(cnx).ctx();
+
+        tracker.flush();
+
+        assertTrue(tracker.isDuplicate(msg1));
+        assertEquals(tracker.getPendingIndividualAcksSize(), 1);
+
+        doReturn(successCtx).when(cnx).ctx();
+
+        tracker.flush();
+
+        assertFalse(tracker.isDuplicate(msg1));
+        assertEquals(tracker.getPendingIndividualAcksSize(), 0);
+        tracker.close();
+    }
+
+    @Test
+    public void testFlushFailsAckFutureOnSendFailureWithAckReceipt() throws Exception {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        conf.setAckReceiptEnabled(true);
+        doReturn(true).when(consumer).isAckReceiptEnabled();
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+
+        MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
+        CompletableFuture<Void> ackFuture =
+                tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
+        assertEquals(tracker.getPendingIndividualAcksSize(), 1);
+
+        failAckCommandSend.set(true);
+        tracker.flush();
+
+        assertTrue(ackFuture.isCompletedExceptionally());
+        assertFalse(tracker.isDuplicate(msg1));
+        assertEquals(tracker.getPendingIndividualAcksSize(), 0);
+
+        failAckCommandSend.set(false);
         tracker.close();
     }
 
@@ -376,8 +431,6 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.addListAcknowledgment(Collections.singletonList(msg6), AckType.Individual, Collections.emptyMap());
         assertTrue(tracker.isDuplicate(msg6));
 
-        when(consumer.getClientCnx()).thenReturn(cnx);
-
         tracker.flush();
 
         assertTrue(tracker.isDuplicate(msg1));
@@ -392,24 +445,18 @@ public class AcknowledgementsGroupingTrackerTest {
     }
 
     @Test
-    public void testDoIndividualBatchAckAsync() throws Exception{
+    public void testDoIndividualBatchAckAsync() {
         ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
-        AcknowledgmentsGroupingTracker tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
-        MessageId messageId1 = new BatchMessageIdImpl(5, 1, 0, 3, 10, null);
+        var tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        var messageId1 = new BatchMessageIdImpl(5, 1, 0, 3, 10, null);
         BitSet bitSet = new BitSet(20);
-        for(int i = 0; i < 20; i ++) {
+        for (int i = 0; i < 20; i++) {
             bitSet.set(i, true);
         }
-        MessageId messageId2 = new BatchMessageIdImpl(3, 2, 0, 5, 20, bitSet);
-        Method doIndividualBatchAckAsync = PersistentAcknowledgmentsGroupingTracker.class
-                .getDeclaredMethod("doIndividualBatchAckAsync", MessageIdAdv.class);
-        doIndividualBatchAckAsync.setAccessible(true);
-        doIndividualBatchAckAsync.invoke(tracker, messageId1);
-        doIndividualBatchAckAsync.invoke(tracker, messageId2);
-        Field pendingIndividualBatchIndexAcks = PersistentAcknowledgmentsGroupingTracker.class.getDeclaredField("pendingIndividualBatchIndexAcks");
-        pendingIndividualBatchIndexAcks.setAccessible(true);
-        ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable> batchIndexAcks =
-                (ConcurrentHashMap<MessageIdAdv, ConcurrentBitSetRecyclable>) pendingIndividualBatchIndexAcks.get(tracker);
+        var messageId2 = new BatchMessageIdImpl(3, 2, 0, 5, 20, bitSet);
+        tracker.doIndividualBatchAckAsync(messageId1);
+        tracker.doIndividualBatchAckAsync(messageId2);
+        var batchIndexAcks = tracker.pendingIndividualBatchIndexAcks;
         MessageIdImpl position1 = new MessageIdImpl(5, 1, 0);
         MessageIdImpl position2 = new MessageIdImpl(3, 2, 0);
         assertTrue(batchIndexAcks.containsKey(position1));
@@ -421,6 +468,54 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
+    @Test
+    public void testDoIndividualBatchAckNeverAffectIsDuplicate() throws Exception {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setMaxAcknowledgmentGroupSize(1);
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+
+        BatchMessageIdImpl batchMessageId0 = new BatchMessageIdImpl(5, 1, 0, 0, 10, null);
+        BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(5, 1, 0, 1, 10, null);
+
+        int loops = 10000;
+        int addAcknowledgmentThreadCount = 10;
+        List<Thread> addAcknowledgmentThreads = new ArrayList<>(addAcknowledgmentThreadCount);
+        for (int i = 0; i < addAcknowledgmentThreadCount; i++) {
+            Thread addAcknowledgmentThread = new Thread(() -> {
+                for (int j = 0; j < loops; j++) {
+                    tracker.addAcknowledgment(batchMessageId0, AckType.Individual, Collections.emptyMap());
+                }
+            }, "doIndividualBatchAck-thread-" + i);
+            addAcknowledgmentThread.start();
+            addAcknowledgmentThreads.add(addAcknowledgmentThread);
+        }
+
+        int isDuplicateThreadCount = 10;
+        AtomicBoolean assertResult = new AtomicBoolean();
+        List<Thread> isDuplicateThreads = new ArrayList<>(isDuplicateThreadCount);
+        for (int i = 0; i < isDuplicateThreadCount; i++) {
+            Thread isDuplicateThread = new Thread(() -> {
+                for (int j = 0; j < loops; j++) {
+                    boolean duplicate = tracker.isDuplicate(batchMessageId1);
+                    assertResult.compareAndSet(false, duplicate);
+                }
+            }, "isDuplicate-thread-" + i);
+            isDuplicateThread.start();
+            isDuplicateThreads.add(isDuplicateThread);
+        }
+
+        for (Thread addAcknowledgmentThread : addAcknowledgmentThreads) {
+            addAcknowledgmentThread.join();
+        }
+
+        for (Thread isDuplicateThread : isDuplicateThreads) {
+            isDuplicateThread.join();
+        }
+
+        assertFalse(assertResult.get());
+    }
+
     public class ClientCnxTest extends ClientCnx {
 
         public ClientCnxTest(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
@@ -429,12 +524,40 @@ public class AcknowledgementsGroupingTrackerTest {
 
         @Override
         public CompletableFuture<Void> newAckForReceipt(ByteBuf request, long requestId) {
+            if (failAckCommandSend.get()) {
+                return CompletableFuture.failedFuture(new RuntimeException("ack send failed"));
+            }
             return CompletableFuture.completedFuture(null);
         }
 
         @Override
         public void newAckForReceiptWithFuture(ByteBuf request, long requestId,
                                                TimedCompletableFuture<Void> future) {
+            if (failAckCommandSend.get()) {
+                future.completeExceptionally(new RuntimeException("ack send failed"));
+            }
         }
+    }
+
+    private ChannelHandlerContext createFailedChannelHandlerContext() {
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        ChannelFuture listenerFuture = mock(ChannelFuture.class);
+        ChannelFuture failedFuture = mock(ChannelFuture.class);
+        when(failedFuture.isSuccess()).thenReturn(false);
+        when(failedFuture.cause()).thenReturn(new RuntimeException("ack send failed"));
+        doAnswer(invocation -> {
+            GenericFutureListener<Future<Void>> listener = invocation.getArgument(0);
+            listener.operationComplete(failedFuture);
+            return listenerFuture;
+        }).when(listenerFuture).addListener(any());
+        doAnswer(invocation -> {
+            ReferenceCountUtil.release(invocation.getArgument(0));
+            return listenerFuture;
+        }).when(ctx).write(any());
+        doAnswer(invocation -> {
+            ReferenceCountUtil.release(invocation.getArgument(0));
+            return listenerFuture;
+        }).when(ctx).writeAndFlush(any());
+        return ctx;
     }
 }

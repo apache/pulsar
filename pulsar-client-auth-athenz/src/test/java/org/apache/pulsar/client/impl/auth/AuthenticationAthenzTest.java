@@ -18,15 +18,22 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import static org.apache.pulsar.common.util.Codec.encode;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-import org.testng.annotations.Test;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import static org.apache.pulsar.common.util.Codec.encode;
-import org.testng.annotations.BeforeClass;
-
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yahoo.athenz.auth.util.Crypto;
+import com.yahoo.athenz.zts.RoleToken;
+import com.yahoo.athenz.zts.ZTSClient;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -38,14 +45,20 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.yahoo.athenz.auth.util.Crypto;
-import com.yahoo.athenz.zts.RoleToken;
-import com.yahoo.athenz.zts.ZTSClient;
-
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver.AuthenticationExchange;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
+import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 public class AuthenticationAthenzTest {
 
@@ -247,7 +260,8 @@ public class AuthenticationAthenzTest {
 
         String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() { });
+        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr,
+                new TypeReference<HashMap<String, String>>() { });
 
         authParamsMap.put("autoPrefetchEnabled", "true");
         AuthenticationAthenz auth1 = new AuthenticationAthenz();
@@ -271,7 +285,8 @@ public class AuthenticationAthenzTest {
 
         String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr, new TypeReference<HashMap<String, String>>() { });
+        Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr,
+                new TypeReference<HashMap<String, String>>() { });
 
         authParamsMap.put("roleHeader", "");
         AuthenticationAthenz auth1 = new AuthenticationAthenz();
@@ -286,5 +301,91 @@ public class AuthenticationAthenzTest {
         field.set(auth2, new MockZTSClient("dummy"));
         assertEquals(auth2.getAuthData().getHttpHeaders().iterator().next().getKey(), "Test-Role-Header");
         auth2.close();
+    }
+
+    @Test
+    public void testZtsProxyUrlSetting() throws Exception {
+        final String ztsProxyUrl = "https://example.com:4443/";
+        final String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
+        final ObjectMapper jsonMapper = ObjectMapperFactory.create();
+        final Map<String, String> authParamsMap = jsonMapper.readValue(paramsStr,
+                new TypeReference<HashMap<String, String>>() { });
+
+        try (MockedConstruction<ZTSClient> mockedZTSClient = Mockito.mockConstruction(ZTSClient.class,
+                (mock, context) -> {
+            final String actualZtsProxyUrl = (String) context.arguments().get(1);
+            assertNull(actualZtsProxyUrl);
+
+            when(mock.getRoleToken(any(), any(), anyInt(), anyInt(), anyBoolean())).thenReturn(mock(RoleToken.class));
+        })) {
+            authParamsMap.remove("ztsProxyUrl");
+            final AuthenticationAthenz auth1 = new AuthenticationAthenz();
+            auth1.configure(jsonMapper.writeValueAsString(authParamsMap));
+            auth1.getAuthData();
+
+            assertEquals(mockedZTSClient.constructed().size(), 1);
+
+            auth1.close();
+
+            authParamsMap.put("ztsProxyUrl", "");
+            final AuthenticationAthenz auth2 = new AuthenticationAthenz();
+            auth2.configure(jsonMapper.writeValueAsString(authParamsMap));
+            auth2.getAuthData();
+
+            assertEquals(mockedZTSClient.constructed().size(), 2);
+
+            auth2.close();
+        }
+
+        try (MockedConstruction<ZTSClient> mockedZTSClient = Mockito.mockConstruction(ZTSClient.class,
+                (mock, context) -> {
+            final String actualZtsProxyUrl = (String) context.arguments().get(1);
+            assertEquals(actualZtsProxyUrl, ztsProxyUrl);
+
+            when(mock.getRoleToken(any(), any(), anyInt(), anyInt(), anyBoolean())).thenReturn(mock(RoleToken.class));
+        })) {
+            authParamsMap.put("ztsProxyUrl", ztsProxyUrl);
+            final AuthenticationAthenz auth3 = new AuthenticationAthenz();
+            auth3.configure(jsonMapper.writeValueAsString(authParamsMap));
+            auth3.getAuthData();
+
+            assertEquals(mockedZTSClient.constructed().size(), 1);
+
+            auth3.close();
+        }
+    }
+
+    @Test
+    public void testAsyncPathPreservesGettingAuthenticationDataException() throws Exception {
+        // PIP-478: a ZTS failure surfaces from getAuthData() as GettingAuthenticationDataException. On the
+        // async binary path (the v5 body the client drives -> getAuthDataAsync), the exchange strips one
+        // CompletionException layer before mapping back to the v4 exception type, so currentRoleToken() must
+        // re-wrap the v4 exception in a CompletionException; otherwise the transient credential-acquisition
+        // subtype would be flattened to a generic PulsarClientException.
+        final String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
+        try (MockedConstruction<ZTSClient> mockedZTSClient = Mockito.mockConstruction(ZTSClient.class,
+                (mock, context) -> when(mock.getRoleToken(any(), any(), anyInt(), anyInt(), anyBoolean()))
+                        .thenThrow(new RuntimeException("ZTS unavailable")))) {
+            final AuthenticationAthenz auth = new AuthenticationAthenz();
+            auth.configure(paramsStr);
+
+            // Resolve the body exactly as the client does, then drive it through the same driver ClientCnx
+            // uses, so this exercises the production path rather than a test-only seam.
+            final AuthenticationExchange exchange =
+                    new V5BinaryAuthenticationDriver(V5AuthenticationLoader.forStartedV4Plugin(auth))
+                            .newAuthenticationExchange("broker.example.com");
+            // The fetch is off-loaded even with no client services bound (credential acquisition never runs
+            // on the caller thread), so await the failure rather than expecting it to have happened already.
+            final CompletableFuture<AuthData> future = exchange.getAuthDataAsync();
+            try {
+                future.get(10, TimeUnit.SECONDS);
+                fail("expected the ZTS failure to propagate");
+            } catch (ExecutionException ee) {
+                assertTrue(ee.getCause() instanceof PulsarClientException.GettingAuthenticationDataException,
+                        "expected a v4 GettingAuthenticationDataException subtype, got: " + ee.getCause());
+            }
+
+            auth.close();
+        }
     }
 }

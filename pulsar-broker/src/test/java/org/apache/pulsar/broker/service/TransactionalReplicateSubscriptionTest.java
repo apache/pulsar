@@ -18,7 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -32,23 +40,13 @@ import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
+@Test(groups = "broker-replication")
 public class TransactionalReplicateSubscriptionTest extends ReplicatorTestBase {
     @Override
     @BeforeClass(timeOut = 300000)
@@ -65,7 +63,7 @@ public class TransactionalReplicateSubscriptionTest extends ReplicatorTestBase {
     }
 
     /**
-     * enable transaction coordinator for the cluster1
+     * enable transaction coordinator for the cluster1.
      */
     @Override
     public void setConfig1DefaultValue(){
@@ -73,7 +71,8 @@ public class TransactionalReplicateSubscriptionTest extends ReplicatorTestBase {
         config1.setTransactionCoordinatorEnabled(true);
     }
 
-    protected void createTransactionCoordinatorAssign(int numPartitionsOfTC, PulsarService pulsarService) throws MetadataStoreException {
+    protected void createTransactionCoordinatorAssign(int numPartitionsOfTC, PulsarService pulsarService)
+            throws MetadataStoreException {
         pulsarService.getPulsarResources()
                 .getNamespaceResources()
                 .getPartitionedTopicResources()
@@ -95,7 +94,7 @@ public class TransactionalReplicateSubscriptionTest extends ReplicatorTestBase {
         final LinkedHashSet<String> sentMessages = new LinkedHashSet<>();
         final Set<String> receivedMessages = Collections.synchronizedSet(new LinkedHashSet<>());
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"), false);
         admin1.topics().createNonPartitionedTopic(topicName);
         admin1.topics().createSubscription(topicName, subscriptionName, MessageId.earliest, isReplicatedSubscription);
         final PersistentTopic topic1 =
@@ -118,7 +117,7 @@ public class TransactionalReplicateSubscriptionTest extends ReplicatorTestBase {
         }
         txn1.commit().get();
         Awaitility.await().untilAsserted(() -> {
-            ConcurrentOpenHashMap<String, ? extends Replicator> replicators = topic1.getReplicators();
+            final var replicators = topic1.getReplicators();
             assertTrue(replicators != null && replicators.size() == 1, "Replicator should started");
             assertTrue(replicators.values().iterator().next().isConnected(), "Replicator should be connected");
             assertTrue(topic1.getReplicatedSubscriptionController().get().getLastCompletedSnapshotId().isPresent(),
@@ -157,13 +156,13 @@ public class TransactionalReplicateSubscriptionTest extends ReplicatorTestBase {
         // Since the cluster1 was not crash, all messages will be replicated to the cluster2.
         consumer1.close();
         final PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).build();
-        final Consumer consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
+        final Consumer<?> consumer2 = client2.newConsumer(Schema.AUTO_CONSUME()).topic(topicName)
                 .subscriptionName(subscriptionName).replicateSubscriptionState(isReplicatedSubscription).subscribe();
 
         // Verify all messages will be consumed.
         Awaitility.await().untilAsserted(() -> {
             while (true) {
-                Message message = consumer2.receive(2, TimeUnit.SECONDS);
+                Message<?> message = consumer2.receive(2, TimeUnit.SECONDS);
                 if (message != null) {
                     receivedMessages.add(message.getValue().toString());
                     consumer2.acknowledge(message);

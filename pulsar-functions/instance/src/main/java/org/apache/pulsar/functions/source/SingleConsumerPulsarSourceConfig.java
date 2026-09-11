@@ -22,10 +22,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.Map;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Data
+@EqualsAndHashCode(callSuper = false)
 public class SingleConsumerPulsarSourceConfig extends PulsarSourceConfig {
 
     private String topic;

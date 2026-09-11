@@ -18,49 +18,39 @@
  */
 package org.apache.pulsar.client.cli;
 
-import static org.apache.pulsar.client.internal.PulsarClientImplementationBinding.getBytes;
-import com.google.common.collect.ImmutableMap;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.commons.io.HexDump;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.schema.Field;
-import org.apache.pulsar.client.api.schema.GenericObject;
-import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
-import org.eclipse.jetty.websocket.api.RemoteEndpoint;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * common part of consume command and read command of pulsar-client.
- *
+ * Client-agnostic part shared by the consume and read commands of pulsar-client: the connection
+ * details the WebSocket path needs, the byte rendering, and the WebSocket consumer socket itself.
+ * The message rendering is client-specific and lives in {@link V5MessageSupport} /
+ * {@link V4MessageSupport}.
  */
 public abstract class AbstractCmdConsume extends AbstractCmd {
 
     protected static final Logger LOG = LoggerFactory.getLogger(PulsarClientTool.class);
     protected static final String MESSAGE_BOUNDARY = "----- got message -----";
 
-    protected ClientBuilder clientBuilder;
     protected Authentication authentication;
     protected String serviceURL;
 
@@ -68,127 +58,25 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
         // Do nothing
     }
 
-    /**
-     * Set client configuration.
-     *
-     */
-    public void updateConfig(ClientBuilder clientBuilder, Authentication authentication, String serviceURL) {
-        this.clientBuilder = clientBuilder;
+    /** Record the client-generation-independent configuration. */
+    protected void updateSharedConfig(Authentication authentication, String serviceURL) {
         this.authentication = authentication;
         this.serviceURL = serviceURL;
     }
 
-    /**
-     * Interprets the message to create a string representation.
-     *
-     * @param message
-     *            The message to interpret
-     * @param displayHex
-     *            Whether to display BytesMessages in hexdump style, ignored for simple text messages
-     * @return String representation of the message
-     */
-    protected String interpretMessage(Message<?> message, boolean displayHex) throws IOException {
-        StringBuilder sb = new StringBuilder();
-
-        String properties = Arrays.toString(message.getProperties().entrySet().toArray());
-
-        String data;
-        Object value = message.getValue();
-        if (value == null) {
-            data = "null";
-        } else if (value instanceof byte[]) {
-            byte[] msgData = (byte[]) value;
-            data = interpretByteArray(displayHex, msgData);
-        } else if (value instanceof GenericObject) {
-            Map<String, Object> asMap = genericObjectToMap((GenericObject) value, displayHex);
-            data = asMap.toString();
-        } else if (value instanceof ByteBuffer) {
-            data = new String(getBytes((ByteBuffer) value));
-        } else {
-            data = value.toString();
-        }
-
-        sb.append("publishTime:[").append(message.getPublishTime()).append("], ");
-        sb.append("eventTime:[").append(message.getEventTime()).append("], ");
-
-        String key = null;
-        if (message.hasKey()) {
-            key = message.getKey();
-        }
-
-        sb.append("key:[").append(key).append("], ");
-        if (!properties.isEmpty()) {
-            sb.append("properties:").append(properties).append(", ");
-        }
-        sb.append("content:").append(data);
-
-        return sb.toString();
-    }
-
     protected static String interpretByteArray(boolean displayHex, byte[] msgData) throws IOException {
-        String data;
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
         if (!displayHex) {
             return new String(msgData);
         } else {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
             HexDump.dump(msgData, 0, out, 0);
             return out.toString();
         }
     }
 
-    protected static Map<String, Object> genericObjectToMap(GenericObject value, boolean displayHex)
-            throws IOException {
-        switch (value.getSchemaType()) {
-            case AVRO:
-            case JSON:
-            case PROTOBUF_NATIVE:
-                    return genericRecordToMap((GenericRecord) value, displayHex);
-            case KEY_VALUE:
-                    return keyValueToMap((KeyValue) value.getNativeObject(), displayHex);
-            default:
-                return primitiveValueToMap(value.getNativeObject(), displayHex);
-        }
-    }
-
-    protected static Map<String, Object> keyValueToMap(KeyValue value, boolean displayHex) throws IOException {
-        if (value == null) {
-            return ImmutableMap.of("value", "NULL");
-        }
-        return ImmutableMap.of("key", primitiveValueToMap(value.getKey(), displayHex),
-                "value", primitiveValueToMap(value.getValue(), displayHex));
-    }
-
-    protected static Map<String, Object> primitiveValueToMap(Object value, boolean displayHex) throws IOException {
-        if (value == null) {
-            return ImmutableMap.of("value", "NULL");
-        }
-        if (value instanceof GenericObject) {
-            return genericObjectToMap((GenericObject) value, displayHex);
-        }
-        if (value instanceof byte[]) {
-            value = interpretByteArray(displayHex, (byte[]) value);
-        }
-        return ImmutableMap.of("value", value.toString(), "type", value.getClass());
-    }
-
-    protected static Map<String, Object> genericRecordToMap(GenericRecord value, boolean displayHex)
-            throws IOException {
-        Map<String, Object> res = new HashMap<>();
-        for (Field f : value.getFields()) {
-            Object fieldValue = value.getField(f);
-            if (fieldValue instanceof GenericRecord) {
-                fieldValue = genericRecordToMap((GenericRecord) fieldValue, displayHex);
-            } else if (fieldValue == null) {
-                fieldValue =  "NULL";
-            } else if (fieldValue instanceof byte[]) {
-                fieldValue = interpretByteArray(displayHex, (byte[]) fieldValue);
-            }
-            res.put(f.getName(), fieldValue);
-        }
-        return res;
-    }
-
-    @WebSocket(maxTextMessageSize = 64 * 1024)
+    /** WebSocket client socket used by the {@code ws://} consume and read paths. */
+    @WebSocket
+    @CustomLog
     public static class ConsumerSocket {
         private static final String X_PULSAR_MESSAGE_ID = "messageId";
         private final CountDownLatch closeLatch;
@@ -208,14 +96,15 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
 
         @OnWebSocketClose
         public void onClose(int statusCode, String reason) {
-            log.info("Connection closed: {} - {}", statusCode, reason);
+            log.info().attr("statusCode", statusCode).attr("reason", reason)
+                    .log("Connection closed");
             this.session = null;
             this.closeLatch.countDown();
         }
 
-        @OnWebSocketConnect
+        @OnWebSocketOpen
         public void onConnect(Session session) throws InterruptedException {
-            log.info("Got connect: {}", session);
+            log.info().attr("session", session).log("Got connect");
             this.session = session;
             this.connected.complete(null);
         }
@@ -227,16 +116,12 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
             String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
             ack.add("messageId", new JsonPrimitive(messageId));
             // Acking the proxy
-            this.getRemote().sendString(ack.toString());
+            this.getSession().sendText(ack.toString(), Callback.NOOP);
             this.incomingMessages.put(msg);
         }
 
         public String receive(long timeout, TimeUnit unit) throws Exception {
             return incomingMessages.poll(timeout, unit);
-        }
-
-        public RemoteEndpoint getRemote() {
-            return this.session.getRemote();
         }
 
         public Session getSession() {
@@ -247,7 +132,6 @@ public abstract class AbstractCmdConsume extends AbstractCmd {
             this.session.close();
         }
 
-        private static final Logger log = LoggerFactory.getLogger(ConsumerSocket.class);
     }
 
 }

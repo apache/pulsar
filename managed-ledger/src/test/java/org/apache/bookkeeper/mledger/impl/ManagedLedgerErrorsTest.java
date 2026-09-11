@@ -31,12 +31,15 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -51,10 +54,9 @@ import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
     @Test
@@ -510,6 +512,35 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void recoverAfterOpenManagedLedgerFail() throws Exception {
+        ManagedLedger ledger = factory.open("recoverAfterOpenManagedLedgerFail");
+        Position position = ledger.addEntry("entry".getBytes());
+        ledger.close();
+        bkc.failAfter(0, BKException.Code.BookieHandleNotAvailableException);
+        try {
+            factory.open("recoverAfterOpenManagedLedgerFail");
+        } catch (Exception e) {
+            // ok
+        }
+
+        ledger = factory.open("recoverAfterOpenManagedLedgerFail");
+        CompletableFuture<byte[]> future = new CompletableFuture<>();
+        ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                future.complete(entry.getData());
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null);
+        byte[] bytes = future.get(30, TimeUnit.SECONDS);
+        assertEquals(new String(bytes), "entry");
+    }
+
+    @Test
     public void recoverLongTimeAfterMultipleWriteErrors() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("recoverLongTimeAfterMultipleWriteErrors");
         ManagedCursor cursor = ledger.openCursor("c1");
@@ -531,7 +562,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("Error in write", exception);
+                log.warn().exception(exception).log("Error in write");
                 ex.set(exception);
                 counter.countDown();
             }
@@ -620,5 +651,4 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         factory2.shutdown();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerErrorsTest.class);
 }

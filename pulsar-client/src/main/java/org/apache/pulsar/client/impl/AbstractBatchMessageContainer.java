@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
@@ -30,7 +30,7 @@ import org.apache.pulsar.common.protocol.Commands;
 /**
  * Batch message container framework.
  */
-@Slf4j
+@CustomLog
 public abstract class AbstractBatchMessageContainer implements BatchMessageContainerBase {
 
     protected CompressionType compressionType;

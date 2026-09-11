@@ -23,27 +23,27 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-@Slf4j
+@CustomLog
 public class AutoClusterFailoverTest {
     @Test
-    public void testBuildAutoClusterFailoverInstance() throws PulsarClientException {
+    public void testBuildAutoClusterFailoverInstance() throws Exception {
         String primary = "pulsar://localhost:6650";
         String secondary = "pulsar://localhost:6651";
         long failoverDelay = 30;
@@ -106,7 +106,7 @@ public class AutoClusterFailoverTest {
     }
 
     @Test
-    public void testInitialize() {
+    public void testInitialize() throws Exception {
         String primary = "pulsar://localhost:6650";
         String secondary = "pulsar://localhost:6651";
         long failoverDelay = 10;
@@ -151,7 +151,26 @@ public class AutoClusterFailoverTest {
     }
 
     @Test
-    public void testAutoClusterFailoverSwitchWithoutAuthentication() {
+    public void testInitializeCanOnlyBeCalledOnce() throws Exception {
+        String primary = "pulsar://localhost:6650";
+        String secondary = "pulsar://localhost:6651";
+
+        ServiceUrlProvider provider = AutoClusterFailover.builder()
+                .primary(primary)
+                .secondary(Collections.singletonList(secondary))
+                .failoverDelay(1, TimeUnit.SECONDS)
+                .switchBackDelay(1, TimeUnit.SECONDS)
+                .checkInterval(30, TimeUnit.SECONDS)
+                .build();
+
+        try (PulsarClient client = PulsarClient.builder().serviceUrlProvider(provider).build()) {
+            Throwable error = Assert.expectThrows(IllegalStateException.class, () -> provider.initialize(client));
+            assertEquals(error.getMessage(), "ServiceUrlProvider has already been initialized");
+        }
+    }
+
+    @Test
+    public void testAutoClusterFailoverSwitchWithoutAuthentication() throws Exception {
         String primary = "pulsar://localhost:6650";
         String secondary = "pulsar://localhost:6651";
         long failoverDelay = 1;
@@ -187,7 +206,7 @@ public class AutoClusterFailoverTest {
     }
 
     @Test
-    public void testAutoClusterFailoverSwitchWithAuthentication() throws IOException {
+    public void testAutoClusterFailoverSwitchWithAuthentication() throws Exception {
         String primary = "pulsar+ssl://localhost:6651";
         String secondary = "pulsar+ssl://localhost:6661";
         long failoverDelay = 1;
@@ -251,7 +270,7 @@ public class AutoClusterFailoverTest {
     }
 
     @Test
-    public void testAutoClusterFailoverSwitchTlsTrustStore() throws IOException {
+    public void testAutoClusterFailoverSwitchTlsTrustStore() throws Exception {
         String primary = "pulsar+ssl://localhost:6651";
         String secondary = "pulsar+ssl://localhost:6661";
         long failoverDelay = 1;

@@ -29,7 +29,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -40,20 +42,28 @@ import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.TopicName;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.KeyNotFoundException;
 import org.jclouds.blobstore.domain.Blob;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class BlobStoreBackedReadHandleImpl implements ReadHandle {
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImpl.class);
+@CustomLog
+public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedgerHandle {
+
+    protected static final AtomicIntegerFieldUpdater<BlobStoreBackedReadHandleImpl> PENDING_READ_UPDATER =
+            AtomicIntegerFieldUpdater.newUpdater(BlobStoreBackedReadHandleImpl.class, "pendingRead");
+
+    // Bound on how far seekToEntryOffset() probes backwards through entryOffsetsCache for an anchor
+    // before falling back to re-walking from the sparse index marker.
+    private static final long MAX_OFFSET_PROBE =
+            Long.getLong("pulsar.jclouds.readhandleimpl.offsetprobe.max", 1024);
 
     private final long ledgerId;
     private final OffloadIndexBlock index;
@@ -70,7 +80,12 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
 
     private volatile State state = null;
 
-    private BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
+    private volatile int pendingRead;
+
+    private volatile long lastAccessTimestamp = System.currentTimeMillis();
+
+    @VisibleForTesting
+    BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream, ExecutorService executor,
                                           OffsetsCache entryOffsetsCache) {
         this.ledgerId = ledgerId;
@@ -112,98 +127,226 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
         return promise;
     }
 
-    @Override
-    public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        if (log.isDebugEnabled()) {
-            log.debug("Ledger {}: reading {} - {} ({} entries}",
-                    getId(), firstEntry, lastEntry, (1 + lastEntry - firstEntry));
+    private class ReadTask implements Runnable {
+        private final long firstEntry;
+        private final long lastEntry;
+        private final CompletableFuture<LedgerEntries> promise;
+        private int seekedAndTryTimes = 0;
+
+        public ReadTask(long firstEntry, long lastEntry, CompletableFuture<LedgerEntries> promise) {
+            this.firstEntry = firstEntry;
+            this.lastEntry = lastEntry;
+            this.promise = promise;
         }
-        CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
-        executor.execute(() -> {
+
+        @Override
+        public void run() {
             if (state == State.Closed) {
-                log.warn("Reading a closed read handler. Ledger ID: {}, Read range: {}-{}",
-                        ledgerId, firstEntry, lastEntry);
+                log.warn().attr("ledgerId", ledgerId).attr("firstEntry", firstEntry)
+                        .attr("lastEntry", lastEntry).log("Reading a closed read handler");
                 promise.completeExceptionally(new ManagedLedgerException.OffloadReadHandleClosedException());
                 return;
             }
 
-            List<LedgerEntry> entries = new ArrayList<LedgerEntry>();
-            boolean seeked = false;
+            List<LedgerEntry> entryCollector = new ArrayList<LedgerEntry>();
             try {
                 if (firstEntry > lastEntry
-                    || firstEntry < 0
-                    || lastEntry > getLastAddConfirmed()) {
+                        || firstEntry < 0
+                        || lastEntry > getLastAddConfirmed()) {
                     promise.completeExceptionally(new BKException.BKIncorrectParameterException());
                     return;
                 }
                 long entriesToRead = (lastEntry - firstEntry) + 1;
-                long nextExpectedId = firstEntry;
-
-                // checking the data stream has enough data to read to avoid throw EOF exception when reading data.
-                // 12 bytes represent the stream have the length and entryID to read.
-                if (dataStream.available() < 12) {
-                    log.warn("There hasn't enough data to read, current available data has {} bytes,"
-                        + " seek to the first entry {} to avoid EOF exception", inputStream.available(), firstEntry);
-                    seekToEntry(firstEntry);
-                }
+                long expectedEntryId = firstEntry;
+                seekToEntryOffset(firstEntry);
+                seekedAndTryTimes++;
 
                 while (entriesToRead > 0) {
                     long currentPosition = inputStream.getCurrentPosition();
                     int length = dataStream.readInt();
                     if (length < 0) { // hit padding or new block
-                        seekToEntry(nextExpectedId);
+                        seekToEntryOffset(expectedEntryId);
                         continue;
                     }
                     long entryId = dataStream.readLong();
-
-                    if (entryId == nextExpectedId) {
+                    if (entryId == expectedEntryId) {
                         entryOffsetsCache.put(ledgerId, entryId, currentPosition);
                         ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
-                        entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
+                        entryCollector.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                         int toWrite = length;
                         while (toWrite > 0) {
                             toWrite -= buf.writeBytes(dataStream, toWrite);
                         }
                         entriesToRead--;
-                        nextExpectedId++;
-                    } else if (entryId > nextExpectedId && entryId < lastEntry) {
-                        log.warn("The read entry {} is not the expected entry {} but in the range of {} - {},"
-                            + " seeking to the right position", entryId, nextExpectedId, nextExpectedId, lastEntry);
-                        seekToEntry(nextExpectedId);
-                    } else if (entryId < nextExpectedId
-                        && !index.getIndexEntryForEntry(nextExpectedId).equals(index.getIndexEntryForEntry(entryId))) {
-                        log.warn("Read an unexpected entry id {} which is smaller than the next expected entry id {}"
-                        + ", seeking to the right position", entryId, nextExpectedId);
-                        seekToEntry(nextExpectedId);
-                    } else if (entryId > lastEntry) {
-                        // in the normal case, the entry id should increment in order. But if there has random access in
-                        // the read method, we should allow to seek to the right position and the entry id should
-                        // never over to the last entry again.
-                        if (!seeked) {
-                            seekToEntry(nextExpectedId);
-                            seeked = true;
-                            continue;
-                        }
-                        log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                            nextExpectedId, entryId, lastEntry);
-                        throw new BKException.BKUnexpectedConditionException();
+                        expectedEntryId++;
                     } else {
-                        long ignore = inputStream.skip(length);
+                        handleUnexpectedEntryId(expectedEntryId, entryId);
                     }
                 }
-
-                promise.complete(LedgerEntriesImpl.create(entries));
+                promise.complete(LedgerEntriesImpl.create(entryCollector));
             } catch (Throwable t) {
-                log.error("Failed to read entries {} - {} from the offloader in ledger {}",
-                    firstEntry, lastEntry, ledgerId, t);
+                log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                        .attr("ledgerId", ledgerId)
+                        .attr("position", inputStream.getCurrentPosition()).exception(t)
+                        .log("Failed to read entries from the offloader");
                 if (t instanceof KeyNotFoundException) {
                     promise.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
                 } else {
                     promise.completeExceptionally(t);
                 }
-                entries.forEach(LedgerEntry::close);
+                entryCollector.forEach(LedgerEntry::close);
             }
+        }
+
+        // in the normal case, the entry id should increment in order. But if there has random access in
+        // the read method, we should allow to seek to the right position and the entry id should
+        // never over to the last entry again.
+        private void handleUnexpectedEntryId(long expectedId, long actEntryId) throws Exception {
+            LedgerMetadata ledgerMetadata = getLedgerMetadata();
+            OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedId);
+            OffloadIndexEntry offsetOfActId = actEntryId <= getLedgerMetadata().getLastEntryId() && actEntryId >= 0
+                    ? index.getIndexEntryForEntry(actEntryId) : null;
+            // If it still fails after tried entries count times, throw the exception.
+            long maxTryTimes = Math.max(3, (lastEntry - firstEntry + 1) >> 2);
+            if (seekedAndTryTimes > maxTryTimes) {
+                log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                        .attr("ledgerId", ledgerId).attr("actualEntryId", actEntryId)
+                        .attr("actualOffset", offsetOfActId != null ? String.valueOf(offsetOfActId) : "null")
+                        .attr("expectedEntryId", expectedId)
+                        .attr("expectedOffset", String.valueOf(offsetOfExpectedId))
+                        .attr("retries", seekedAndTryTimes)
+                        .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                        .log("Got incorrect entry id, exhausted retries");
+                throw new BKException.BKUnexpectedConditionException();
+            } else {
+                log.warn().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                        .attr("ledgerId", ledgerId).attr("actualEntryId", actEntryId)
+                        .attr("actualOffset", offsetOfActId != null ? String.valueOf(offsetOfActId) : "null")
+                        .attr("expectedEntryId", expectedId)
+                        .attr("expectedOffset", String.valueOf(offsetOfExpectedId))
+                        .attr("retries", seekedAndTryTimes)
+                        .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                        .log("Got incorrect entry id, retrying");
+            }
+            seekToEntryOffset(expectedId);
+            seekedAndTryTimes++;
+        }
+
+        private void skipPreviousEntry(long startEntryId, long expectedEntryId) throws IOException, BKException {
+            long nextExpectedEntryId = startEntryId;
+            while (nextExpectedEntryId < expectedEntryId) {
+                long offset = inputStream.getCurrentPosition();
+                int len = dataStream.readInt();
+                if (len < 0) {
+                    LedgerMetadata ledgerMetadata = getLedgerMetadata();
+                    OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedEntryId);
+                    log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                            .attr("ledgerId", ledgerId).attr("entryId", nextExpectedEntryId)
+                            .attr("len", len)
+                            .attr("expectedEntryId", expectedEntryId)
+                            .attr("expectedOffset", String.valueOf(offsetOfExpectedId))
+                            .attr("retries", seekedAndTryTimes)
+                            .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                            .log("Failed to skip previous entry, got negative len");
+                    throw new BKException.BKUnexpectedConditionException();
+                }
+                long entryId = dataStream.readLong();
+                if (entryId == nextExpectedEntryId) {
+                    entryOffsetsCache.put(ledgerId, entryId, offset);
+                    long skipped = inputStream.skip(len);
+                    if (skipped != len) {
+                        LedgerMetadata ledgerMetadata = getLedgerMetadata();
+                        OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedEntryId);
+                        log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                                .attr("ledgerId", ledgerId).attr("entryId", entryId)
+                                .attr("offset", offset).attr("len", len)
+                                .attr("expectedEntryId", expectedEntryId)
+                                .attr("expectedOffset", String.valueOf(offsetOfExpectedId))
+                                .attr("retries", seekedAndTryTimes)
+                                .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                                .log("Failed to skip previous entry, no more data");
+                        throw new BKException.BKUnexpectedConditionException();
+                    }
+                    nextExpectedEntryId++;
+                } else {
+                    LedgerMetadata ledgerMetadata = getLedgerMetadata();
+                    OffloadIndexEntry offsetOfExpectedId = index.getIndexEntryForEntry(expectedEntryId);
+                    log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                            .attr("ledgerId", ledgerId).attr("actualEntryId", entryId)
+                            .attr("expectedEntryId", expectedEntryId)
+                            .attr("expectedOffset", String.valueOf(offsetOfExpectedId))
+                            .attr("retries", seekedAndTryTimes)
+                            .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                            .log("Got incorrect entry id while skipping previous entry");
+                    throw new BKException.BKUnexpectedConditionException();
+                }
+            }
+        }
+
+        private void seekToEntryOffset(long expectedEntryId) throws IOException, BKException {
+            // 1. Try to find the precise index.
+            // 1-1. Precise cached indexes.
+            Long cachedPreciseIndex = entryOffsetsCache.getIfPresent(ledgerId, expectedEntryId);
+            if (cachedPreciseIndex != null) {
+                inputStream.seek(cachedPreciseIndex);
+                return;
+            }
+            // 1-2. Precise persistent indexes.
+            OffloadIndexEntry indexOfNearestEntry = index.getIndexEntryForEntry(expectedEntryId);
+            if (indexOfNearestEntry.getEntryId() == expectedEntryId) {
+                inputStream.seek(indexOfNearestEntry.getDataOffset());
+                return;
+            }
+            // 2. Probe backwards for the nearest cached offset within a bounded window. Since entry-0
+            //    must have a precise index, we can skip checking whether "expectedEntryId" is larger
+            //    than 0. skipPreviousEntry() below caches every entry it walks past, so once a block
+            //    has been walked once, a later jump into the same block lands on that cached run
+            //    within "gap" probes instead of re-walking from the sparse index marker in step 3.
+            long probeFloor = Math.max(indexOfNearestEntry.getEntryId(), expectedEntryId - MAX_OFFSET_PROBE);
+            for (long probe = expectedEntryId - 1; probe >= probeFloor; probe--) {
+                Long cachedOffset = entryOffsetsCache.getIfPresent(ledgerId, probe);
+                if (cachedOffset != null) {
+                    inputStream.seek(cachedOffset);
+                    skipPreviousEntry(probe, expectedEntryId);
+                    return;
+                }
+            }
+            // 3. Use the persistent index of the nearest entry that is smaller than "expectedEntryId".
+            //    Because it is a sparse index, some entries need to be skipped.
+            if (indexOfNearestEntry.getEntryId() < expectedEntryId) {
+                inputStream.seek(indexOfNearestEntry.getDataOffset());
+                skipPreviousEntry(indexOfNearestEntry.getEntryId(), expectedEntryId);
+            } else {
+                LedgerMetadata ledgerMetadata = getLedgerMetadata();
+                log.error().attr("firstEntry", firstEntry).attr("lastEntry", lastEntry)
+                        .attr("ledgerId", ledgerId)
+                        .attr("index", String.valueOf(indexOfNearestEntry))
+                        .attr("expectedEntryId", expectedEntryId)
+                        .attr("retries", seekedAndTryTimes)
+                        .attr("lac", ledgerMetadata != null ? ledgerMetadata.getLastEntryId() : -1)
+                        .log("Got incorrect index greater than expected entry");
+                throw new BKException.BKUnexpectedConditionException();
+            }
+        }
+    }
+
+    @Override
+    public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
+        log.debug().attr("ledgerId", getId()).attr("firstEntry", firstEntry)
+                .attr("lastEntry", lastEntry).attr("entries", 1 + lastEntry - firstEntry)
+                .log("Reading entries");
+        CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
+
+        // Ledger handles will be only marked idle when "pendingRead" is "0", it is not needed to update
+        // "lastAccessTimestamp" if "pendingRead" is larger than "0".
+        // Rather than update "lastAccessTimestamp" when starts a reading, updating it when a reading task is finished
+        // is better.
+        PENDING_READ_UPDATER.incrementAndGet(this);
+        promise.whenComplete((__, ex) -> {
+            lastAccessTimestamp = System.currentTimeMillis();
+            PENDING_READ_UPDATER.decrementAndGet(BlobStoreBackedReadHandleImpl.this);
         });
+        executor.execute(new ReadTask(firstEntry, lastEntry, promise));
         return promise;
     }
 
@@ -217,6 +360,11 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             long dataOffset = index.getIndexEntryForEntry(nextExpectedId).getDataOffset();
             inputStream.seek(dataOffset);
         }
+    }
+
+    private void seekToEntry(OffloadIndexEntry offloadIndexEntry) throws IOException {
+        long dataOffset = offloadIndexEntry.getDataOffset();
+        inputStream.seek(dataOffset);
     }
 
     @Override
@@ -278,7 +426,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
             long readIndexStartTime = System.nanoTime();
             Blob blob = blobStore.getBlob(bucket, indexKey);
             if (blob == null) {
-                log.error("{} not found in container {}", indexKey, bucket);
+                log.error().attr("indexKey", indexKey).attr("bucket", bucket)
+                    .log("Index key not found in container");
                 throw new BKException.BKNoSuchLedgerExistsException();
             }
             offloaderStats.recordReadOffloadIndexLatency(topicName,
@@ -289,8 +438,8 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
                 index = (OffloadIndexBlock) indexBuilder.fromStream(payLoadStream);
             } catch (IOException e) {
                 // retry to avoid the network issue caused read failure
-                log.warn("Failed to get index block from the offoaded index file {}, still have {} times to retry",
-                    indexKey, retryCount, e);
+                log.warn().attr("indexKey", indexKey).attr("retriesLeft", retryCount)
+                        .exception(e).log("Failed to get index block from offloaded index file");
                 lastException = e;
                 continue;
             }
@@ -311,5 +460,15 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle {
     @VisibleForTesting
     State getState() {
         return this.state;
+    }
+
+    @Override
+    public long lastAccessTimestamp() {
+        return lastAccessTimestamp;
+    }
+
+    @Override
+    public int getPendingRead() {
+        return PENDING_READ_UPDATER.get(this);
     }
 }

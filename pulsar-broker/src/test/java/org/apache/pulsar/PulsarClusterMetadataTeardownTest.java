@@ -34,7 +34,7 @@ public class PulsarClusterMetadataTeardownTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            Class argumentsClass =
+            Class<?> argumentsClass =
                     Class.forName("org.apache.pulsar.PulsarClusterMetadataTeardown$Arguments");
 
             PulsarClusterMetadataTeardown.main(new String[]{"-zk", "zk", "-g"});

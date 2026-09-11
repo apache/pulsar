@@ -19,12 +19,12 @@
 package org.apache.pulsar.broker.intercept;
 
 import io.netty.buffer.ByteBuf;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import java.io.IOException;
 import java.util.Map;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;

@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.EncryptionKeyInfo;
  */
 @Data
 public class RawFileKeyReader implements CryptoKeyReader {
+    private static final long serialVersionUID = 1L;
 
     private final String publicKeyFile;
     private final String privateKeyFile;

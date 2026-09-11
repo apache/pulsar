@@ -61,9 +61,19 @@ public interface ManagedLedgerMXBean {
     double getAddEntryBytesRate();
 
     /**
+     * @return the total number of bytes written
+     */
+    long getAddEntryBytesTotal();
+
+    /**
      * @return the bytes/s rate of messages added with replicas
      */
     double getAddEntryWithReplicasBytesRate();
+
+    /**
+     * @return the total number of bytes written, including replicas
+     */
+    long getAddEntryWithReplicasBytesTotal();
 
     /**
      * @return the msg/s rate of messages read
@@ -76,9 +86,19 @@ public interface ManagedLedgerMXBean {
     double getReadEntriesBytesRate();
 
     /**
+     * @return the total number of bytes read
+     */
+    long getReadEntriesBytesTotal();
+
+    /**
      * @return the rate of mark-delete ops/s
      */
     double getMarkDeleteRate();
+
+    /**
+     * @return the number of mark-delete ops
+     */
+    long getMarkDeleteTotal();
 
     /**
      * @return the number of addEntry requests that succeeded
@@ -94,6 +114,11 @@ public interface ManagedLedgerMXBean {
      * @return the number of addEntry requests that failed
      */
     long getAddEntryErrors();
+
+    /**
+     * @return the total number of addEntry requests that failed
+     */
+    long getAddEntryErrorsTotal();
 
     /**
      * @return the number of entries read from the managed ledger (from cache or BK)
@@ -116,9 +141,19 @@ public interface ManagedLedgerMXBean {
     long getReadEntriesErrors();
 
     /**
+     * @return the total number of readEntries requests that failed
+     */
+    long getReadEntriesErrorsTotal();
+
+    /**
      * @return the number of readEntries requests that cache miss Rate
      */
     double getReadEntriesOpsCacheMissesRate();
+
+    /**
+     * @return the total number of readEntries requests that cache miss
+     */
+    long getReadEntriesOpsCacheMissesTotal();
 
     // Entry size statistics
 

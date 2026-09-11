@@ -59,6 +59,7 @@ import org.apache.bookkeeper.test.TestStatsProvider.TestStatsLogger;
 import org.apache.bookkeeper.util.StaticDNSResolver;
 import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.zookeeper.KeeperException;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -101,6 +102,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         super.tearDown();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPlacementPolicyCheckWithBookiesFromDifferentRacks() throws Exception {
         int numOfBookies = 5;
@@ -216,6 +218,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPlacementPolicyCheckWithLedgersNotAdheringToPlacementPolicy() throws Exception {
         int numOfBookies = 5;
@@ -299,6 +302,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPlacementPolicyCheckWithLedgersNotAdheringToPlacementPolicyAndNotMarkToUnderreplication()
             throws Exception {
@@ -371,6 +375,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         assertEquals(unnderReplicateLedgerId, -1);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPlacementPolicyCheckWithLedgersNotAdheringToPlacementPolicyAndMarkToUnderreplication()
             throws Exception {
@@ -432,6 +437,16 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
                     .getGauge(ReplicationStats.NUM_LEDGERS_SOFTLY_ADHERING_TO_PLACEMENT_POLICY);
             assertEquals("NUM_LEDGERS_SOFTLY_ADHERING_TO_PLACEMENT_POLICY guage value",
                     0, ledgersSoftlyAdheringToPlacementPolicyGuage.getSample());
+            /*
+             * placementPolicyCheck marks the ledger underreplicated with a fire-and-forget async write which
+             * it doesn't await before recording its stats, so the mark isn't necessarily visible once the
+             * check reports success. pollLedgerToRereplicate() is a one-shot scan, so poll it until the mark
+             * shows up, and do so while the auditor is still up so that the wait doesn't race auditor
+             * shutdown and the periodic check can retry a write that failed.
+             */
+            LedgerUnderreplicationManager underreplicationManager = mFactory.newLedgerUnderreplicationManager();
+            Awaitility.await().untilAsserted(
+                    () -> assertEquals(1L, underreplicationManager.pollLedgerToRereplicate()));
         } finally {
             Auditor auditor = auditorRef.getValue();
             if (auditor != null) {
@@ -439,9 +454,6 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
             }
             regManager.close();
         }
-        LedgerUnderreplicationManager underreplicationManager = mFactory.newLedgerUnderreplicationManager();
-        long unnderReplicateLedgerId = underreplicationManager.pollLedgerToRereplicate();
-        assertEquals(unnderReplicateLedgerId, 1L);
     }
 
     @Test
@@ -454,6 +466,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         testPlacementPolicyCheckWithURLedgers(false);
     }
 
+    @SuppressWarnings("deprecation")
     public void testPlacementPolicyCheckWithURLedgers(boolean timeElapsed) throws Exception {
         int numOfBookies = 4;
         /*
@@ -578,6 +591,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testPlacementPolicyCheckWithLedgersNotAdheringToPolicyWithMultipleSegments() throws Exception {
         int numOfBookies = 7;
@@ -682,6 +696,7 @@ public class AuditorPlacementPolicyCheckTest extends BookKeeperClusterTestCase {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testZoneawarePlacementPolicyCheck() throws Exception {
         int numOfBookies = 6;

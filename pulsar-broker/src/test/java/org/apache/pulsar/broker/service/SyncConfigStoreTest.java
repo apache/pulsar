@@ -26,7 +26,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.util.Arrays;
 import java.util.HashSet;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
@@ -42,7 +42,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class SyncConfigStoreTest extends GeoReplicationWithConfigurationSyncTestBase {
 

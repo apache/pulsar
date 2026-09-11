@@ -29,8 +29,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jclouds.Constants;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
@@ -52,7 +52,7 @@ import org.jclouds.s3.reference.S3Constants;
  * properties such as region, bucket, user credentials, etc.
  * </p>
  */
-@Slf4j
+@CustomLog
 public class TieredStorageConfiguration {
 
     private static final long serialVersionUID = 1L;
@@ -342,7 +342,7 @@ public class TieredStorageConfiguration {
                 overrides.setProperty(jcloudsProp.getKey().toString(), jcloudsProp.getValue().toString());
             });
 
-        log.info("getOverrides: {}", overrides.toString());
+        log.info().attr("overrides", overrides.toString()).log("getOverrides");
         return overrides;
     }
 

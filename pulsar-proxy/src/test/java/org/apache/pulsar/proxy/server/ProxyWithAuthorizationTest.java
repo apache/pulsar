@@ -31,6 +31,7 @@ import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -38,6 +39,7 @@ import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -53,8 +55,6 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -62,31 +62,52 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
+@CustomLog
 public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyWithAuthorizationTest.class);
     private static final String CLUSTER_NAME = "proxy-authorization";
+@SuppressWarnings("deprecation")
 
-    private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-    private final String CLIENT_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "Client", Optional.empty());
+    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    private static final String CLIENT_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "Client", Optional.empty());
 
     // The Proxy, Client, and SuperUser Client certs are signed by this CA
-    private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    private static final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
 
-    // Proxy and Broker use valid certs that have no Subject Alternative Name to test hostname verification correctly
-    // fails a connection to an invalid host.
-    private final String TLS_NO_SUBJECT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/no-subject-alt-cert.pem";
-    private final String TLS_NO_SUBJECT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/no-subject-alt-key.pem";
-    private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem";
-    private final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-key.pem";
-    private final String TLS_CLIENT_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cacert.pem";
-    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cert.pem";
-    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-key.pem";
-    private final String TLS_SUPERUSER_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
-    private final String TLS_SUPERUSER_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
+    // A valid cert (signed by the trusted CA) that has NO Subject Alternative Name and CN=Broker. Used only
+    // by the two dedicated hostname-verification tests to prove that hostname verification correctly rejects
+    // a connection whose server certificate does not match the host. It fails on both counts: there is no SAN
+    // to match, and the CN that the JDK and OpenSSL engines fall back to for a SAN-less certificate is
+    // "Broker", not the advertised "localhost".
+    private static final String TLS_NO_SUBJECT_CERT_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/no-subject-alt-cert.pem";
+    private static final String TLS_NO_SUBJECT_KEY_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/no-subject-alt-key.pem";
+    // A valid server cert signed by the trusted CA WITH a SubjectAltName (DNS:localhost, IP:127.0.0.1). Used
+    // as the broker/proxy server cert on the functional test paths so that hostname verification (enabled by
+    // default since Pulsar 5.0) succeeds end to end.
+    private static final String TLS_SAN_SERVER_CERT_FILE_PATH =
+            "./src/test/resources/authentication/tls/server-cert.pem";
+    private static final String TLS_SAN_SERVER_KEY_FILE_PATH =
+            "./src/test/resources/authentication/tls/server-key.pem";
+    private static final String TLS_PROXY_CERT_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-cert.pem";
+    private static final String TLS_PROXY_KEY_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/proxy-key.pem";
+    private static final String TLS_CLIENT_TRUST_CERT_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cacert.pem";
+    private static final String TLS_CLIENT_CERT_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-cert.pem";
+    private static final String TLS_CLIENT_KEY_FILE_PATH =
+            "./src/test/resources/authentication/tls/ProxyWithAuthorizationTest/client-key.pem";
+    private static final String TLS_SUPERUSER_CLIENT_KEY_FILE_PATH =
+            "./src/test/resources/authentication/tls/client-key.pem";
+    private static final String TLS_SUPERUSER_CLIENT_CERT_FILE_PATH =
+            "./src/test/resources/authentication/tls/client-cert.pem";
 
     private ProxyService proxyService;
     private WebServer webServer;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @DataProvider(name = "hostnameVerification")
     public Object[][] hostnameVerificationCodecProvider() {
@@ -99,60 +120,60 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     @DataProvider(name = "protocolsCiphersProvider")
     public Object[][] protocolsCiphersProviderCodecProvider() {
         // Test using defaults
-        Set<String> ciphers_1 = new TreeSet<>();
-        Set<String> protocols_1 = new TreeSet<>();
+        Set<String> ciphers1 = new TreeSet<>();
+        Set<String> protocols1 = new TreeSet<>();
 
         // Test explicitly specifying protocols defaults
-        Set<String> ciphers_2 = new TreeSet<>();
-        Set<String> protocols_2 = new TreeSet<>();
-        protocols_2.add("TLSv1.3");
-        protocols_2.add("TLSv1.2");
+        Set<String> ciphers2 = new TreeSet<>();
+        Set<String> protocols2 = new TreeSet<>();
+        protocols2.add("TLSv1.3");
+        protocols2.add("TLSv1.2");
 
         // Test for invalid ciphers
-        Set<String> ciphers_3 = new TreeSet<>();
-        Set<String> protocols_3 = new TreeSet<>();
-        ciphers_3.add("INVALID_PROTOCOL");
+        Set<String> ciphers3 = new TreeSet<>();
+        Set<String> protocols3 = new TreeSet<>();
+        ciphers3.add("INVALID_PROTOCOL");
 
         // Incorrect Config since TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 was introduced in TLSv1.2
-        Set<String> ciphers_4 = new TreeSet<>();
-        Set<String> protocols_4 = new TreeSet<>();
-        ciphers_4.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-        protocols_4.add("TLSv1.1");
+        Set<String> ciphers4 = new TreeSet<>();
+        Set<String> protocols4 = new TreeSet<>();
+        ciphers4.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        protocols4.add("TLSv1.1");
 
         // Incorrect Config since TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 was introduced in TLSv1.2
-        Set<String> ciphers_5 = new TreeSet<>();
-        Set<String> protocols_5 = new TreeSet<>();
-        ciphers_5.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-        protocols_5.add("TLSv1");
+        Set<String> ciphers5 = new TreeSet<>();
+        Set<String> protocols5 = new TreeSet<>();
+        ciphers5.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        protocols5.add("TLSv1");
 
         // Correct Config
-        Set<String> ciphers_6 = new TreeSet<>();
-        Set<String> protocols_6 = new TreeSet<>();
-        ciphers_6.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-        protocols_6.add("TLSv1.2");
+        Set<String> ciphers6 = new TreeSet<>();
+        Set<String> protocols6 = new TreeSet<>();
+        ciphers6.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        protocols6.add("TLSv1.2");
 
         // In correct config - JDK 8 doesn't support TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-        Set<String> ciphers_7 = new TreeSet<>();
-        Set<String> protocols_7 = new TreeSet<>();
-        protocols_7.add("TLSv1.2");
-        ciphers_7.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+        Set<String> ciphers7 = new TreeSet<>();
+        Set<String> protocols7 = new TreeSet<>();
+        protocols7.add("TLSv1.2");
+        ciphers7.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
 
         // Correct config - Atlease one of the Cipher Suite is supported
-        Set<String> ciphers_8 = new TreeSet<>();
-        Set<String> protocols_8 = new TreeSet<>();
-        protocols_8.add("TLSv1.2");
-        ciphers_8.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
-        ciphers_8.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+        Set<String> ciphers8 = new TreeSet<>();
+        Set<String> protocols8 = new TreeSet<>();
+        protocols8.add("TLSv1.2");
+        ciphers8.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        ciphers8.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
 
         return new Object[][] {
-            { ciphers_1, protocols_1, Boolean.FALSE },
-            { ciphers_2, protocols_2, Boolean.FALSE },
-            { ciphers_3, protocols_3, Boolean.TRUE },
-            { ciphers_4, protocols_4, Boolean.TRUE },
-            { ciphers_5, protocols_5, Boolean.TRUE },
-            { ciphers_6, protocols_6, Boolean.FALSE },
-            { ciphers_7, protocols_7, Boolean.FALSE },
-            { ciphers_8, protocols_8, Boolean.FALSE }
+            { ciphers1, protocols1, Boolean.FALSE },
+            { ciphers2, protocols2, Boolean.FALSE },
+            { ciphers3, protocols3, Boolean.TRUE },
+            { ciphers4, protocols4, Boolean.TRUE },
+            { ciphers5, protocols5, Boolean.TRUE },
+            { ciphers6, protocols6, Boolean.FALSE },
+            { ciphers7, protocols7, Boolean.FALSE },
+            { ciphers8, protocols8, Boolean.FALSE }
         };
     }
 
@@ -164,15 +185,31 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         conf.setAuthorizationEnabled(true);
         conf.setTopicLevelPoliciesEnabled(false);
         conf.setProxyRoles(Collections.singleton("Proxy"));
-        conf.setAdvertisedAddress(null);
+        // Advertise over loopback so the broker service/web URLs the proxy connects to (localhost) match the
+        // broker server certificate's SubjectAltName (tls/server-cert.pem carries DNS:localhost, IP:127.0.0.1).
+        // TLS hostname verification is on by default (PIP-478), and the default advertised address
+        // resolves to the machine's canonical hostname, which is not in the cert SAN (fails on CI runners).
+        conf.setAdvertisedAddress("localhost");
 
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setBrokerServicePort(Optional.empty());
         conf.setWebServicePortTls(Optional.of(0));
         conf.setWebServicePort(Optional.empty());
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-        conf.setTlsCertificateFilePath(TLS_NO_SUBJECT_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(TLS_NO_SUBJECT_KEY_FILE_PATH);
+        if ("testTlsHostVerificationProxyToBroker".equals(methodName)) {
+            // This test verifies the proxy->broker hostname verification: the broker deliberately presents a
+            // cert with no matching SAN so the proxy rejects it. The broker's own outbound client (e.g. the
+            // system-topic reader) would otherwise reject the same mismatched cert, so disable hostname
+            // verification for the broker's outbound client here.
+            conf.setTlsCertificateFilePath(TLS_NO_SUBJECT_CERT_FILE_PATH);
+            conf.setTlsKeyFilePath(TLS_NO_SUBJECT_KEY_FILE_PATH);
+            conf.setTlsHostnameVerificationEnabled(false);
+        } else {
+            // Functional paths: broker presents a SAN cert so hostname verification (on by default) succeeds.
+            conf.setTlsCertificateFilePath(TLS_SAN_SERVER_CERT_FILE_PATH);
+            conf.setTlsKeyFilePath(TLS_SAN_SERVER_KEY_FILE_PATH);
+            conf.setTlsHostnameVerificationEnabled(true);
+        }
         conf.setTlsAllowInsecureConnection(false);
 
         Set<String> superUserRoles = new HashSet<>();
@@ -182,7 +219,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         conf.setBrokerClientAuthenticationParameters(
-                "tlsCertFile:" + TLS_SUPERUSER_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
+                "tlsCertFile:" + TLS_SUPERUSER_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:"
+                        + TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
         conf.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderTls.class.getName(),
                 AuthenticationProviderToken.class.getName()));
@@ -206,7 +244,13 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerServiceURLTLS(pulsar.getBrokerServiceUrlTls());
         proxyConfig.setBrokerWebServiceURLTLS(pulsar.getWebServiceAddressTls());
-        proxyConfig.setAdvertisedAddress(null);
+        // Advertise over loopback so the client-facing proxy service URL host (localhost) matches the proxy
+        // server certificate's SubjectAltName (tls/server-cert.pem carries DNS:localhost, IP:127.0.0.1). TLS
+        // hostname verification is on by default (PIP-478); the default advertised address resolves
+        // to the machine's canonical hostname, which is not in the cert SAN (fails on CI runners). The two
+        // dedicated hostname-verification tests still fail as intended: their server presents a certificate
+        // with no SAN and CN=Broker, which matches neither "localhost" nor the default advertised address.
+        proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setClusterName(CLUSTER_NAME);
 
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
@@ -215,8 +259,18 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setTlsEnabledWithBroker(true);
 
         // enable tls and auth&auth at proxy
-        proxyConfig.setTlsCertificateFilePath(TLS_NO_SUBJECT_CERT_FILE_PATH);
-        proxyConfig.setTlsKeyFilePath(TLS_NO_SUBJECT_KEY_FILE_PATH);
+        if ("testTlsHostVerificationProxyToClient".equals(methodName)) {
+            // This test verifies the client->proxy hostname verification: the proxy deliberately presents a
+            // cert with no matching SAN so the client rejects it.
+            proxyConfig.setTlsCertificateFilePath(TLS_NO_SUBJECT_CERT_FILE_PATH);
+            proxyConfig.setTlsKeyFilePath(TLS_NO_SUBJECT_KEY_FILE_PATH);
+        } else {
+            // Functional paths: proxy presents a SAN cert so hostname verification (on by default) succeeds.
+            proxyConfig.setTlsCertificateFilePath(TLS_SAN_SERVER_CERT_FILE_PATH);
+            proxyConfig.setTlsKeyFilePath(TLS_SAN_SERVER_KEY_FILE_PATH);
+        }
+        // Secure-by-default proxy->broker hostname verification; the proxy->broker hostname test overrides this.
+        proxyConfig.setTlsHostnameVerificationEnabled(true);
         proxyConfig.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         proxyConfig.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
@@ -230,7 +284,10 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
 
         AuthenticationService authService =
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig));
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, authService));
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+        proxyService = Mockito.spy(new ProxyService(proxyConfig, authService, proxyClientAuthentication));
         proxyService.setGracefulShutdown(false);
         webServer = new WebServer(proxyConfig, authService);
     }
@@ -241,11 +298,14 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         super.internalCleanup();
         proxyService.close();
         webServer.stop();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     private void startProxy() throws Exception {
         proxyService.start();
-        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService, null);
+        ProxyServiceStarter.addWebServerHandlers(webServer, proxyConfig, proxyService, null, proxyClientAuthentication);
         webServer.start();
     }
 
@@ -265,11 +325,14 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
      */
     @Test
     public void testProxyAuthorization() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         startProxy();
-        // Skip hostname verification because the certs intentionally do not have a hostname
-        createProxyAdminClient(false);
+        // Broker and proxy present SAN certs matching "localhost", so hostname verification (on by default)
+        // succeeds on every hop.
+        createProxyAdminClient(true);
         // create a client which connects to proxy over tls and pass authData
         @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrlTls(), PulsarClient.builder());
@@ -296,7 +359,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug()
+                    .attr("receivedMessage", receivedMessage)
+                    .log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             count++;
@@ -305,12 +370,16 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         Assert.assertEquals(msgs, count);
         consumer.acknowledgeCumulative(msg);
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     @Test(dataProvider = "hostnameVerification")
     public void testTlsHostVerificationProxyToClient(boolean hostnameVerificationEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         startProxy();
         // Testing client to proxy hostname verification, so use the dataProvider's value here
@@ -350,7 +419,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
             }
         }
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     /**
@@ -367,7 +438,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
      */
     @Test(dataProvider = "hostnameVerification")
     public void testTlsHostVerificationProxyToBroker(boolean hostnameVerificationEnabled) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         proxyConfig.setTlsHostnameVerificationEnabled(hostnameVerificationEnabled);
         startProxy();
@@ -409,7 +482,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
             }
         }
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
         // reset
         proxyConfig.setTlsHostnameVerificationEnabled(false);
     }
@@ -421,7 +496,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
     @Test(dataProvider = "protocolsCiphersProvider", timeOut = 5000)
     public void tlsCiphersAndProtocols(Set<String> tlsCiphers, Set<String> tlsProtocols, boolean expectFailure)
             throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
         String namespaceName = "my-tenant/my-ns";
         createBrokerAdminClient();
 
@@ -460,9 +537,14 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setTlsCiphers(tlsCiphers);
 
         @Cleanup
-        ProxyService proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                                                        new AuthenticationService(
-                                                                PulsarConfigurationLoader.convertFrom(proxyConfig))));
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
+        @Cleanup
+        ProxyService proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
         proxyService.setGracefulShutdown(false);
         try {
             proxyService.start();
@@ -481,7 +563,8 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         }, 3, 1000);
         try {
             @Cleanup
-            PulsarClient proxyClient = createPulsarClient("pulsar://localhost:" + proxyService.getListenPortTls().get(), PulsarClient.builder());
+            PulsarClient proxyClient = createPulsarClient("pulsar://localhost:"
+                    + proxyService.getListenPortTls().get(), PulsarClient.builder());
             Consumer<byte[]> consumer = proxyClient.newConsumer()
                     .topic("persistent://my-tenant/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
@@ -496,7 +579,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
             }
         }
         admin.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     private final Authentication tlsAuth = new AuthenticationTls(TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH);
@@ -510,13 +595,17 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "tlsTransportWithAuth")
     public void testProxyTlsTransportWithAuth(Authentication auth) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         startProxy();
-        // Skip hostname verification because the certs intentionally do not have a hostname
-        createProxyAdminClient(false);
+        // Broker and proxy present SAN certs matching "localhost", so hostname verification (on by default)
+        // succeeds on every hop.
+        createProxyAdminClient(true);
 
         @Cleanup
         PulsarClient proxyClient = PulsarClient.builder()
@@ -551,7 +640,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug()
+                    .attr("receivedMessage", receivedMessage)
+                    .log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             count++;
@@ -560,7 +651,9 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         Assert.assertEquals(msgs, count);
         consumer.acknowledgeCumulative(msg);
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     private void initializeCluster(PulsarAdmin adminClient, String namespaceName) throws Exception {
@@ -593,8 +686,12 @@ public class ProxyWithAuthorizationTest extends ProducerConsumerBase {
         authParams.put("tlsCertFile", TLS_SUPERUSER_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_SUPERUSER_CLIENT_KEY_FILE_PATH);
         closeAdmin();
+        // Setup helper that talks directly to the broker (bypassing the proxy) to initialize the cluster. It is
+        // used by the proxy->broker hostname test, where the broker deliberately presents a cert with no
+        // matching SAN, so hostname verification is disabled here; this client does not exercise it.
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .enableTlsHostnameVerification(false)
                 .authentication(AuthenticationTls.class.getName(), authParams).build());
     }
 

@@ -27,7 +27,8 @@ public class ProxyServiceStarterDisableZeroCopyTest extends ProxyServiceStarterT
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
-        serviceStarter = new ProxyServiceStarter(ARGS, null, true);
+        setupDefaultTenantAndNamespace();
+        serviceStarter = new ProxyServiceStarter(getArgs(), null, true);
         serviceStarter.getConfig().setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         serviceStarter.getConfig().setBrokerWebServiceURL(pulsar.getWebServiceAddress());
         serviceStarter.getConfig().setWebServicePort(Optional.of(0));

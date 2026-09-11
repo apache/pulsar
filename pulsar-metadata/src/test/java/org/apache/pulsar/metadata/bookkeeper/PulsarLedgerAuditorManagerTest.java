@@ -29,7 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.meta.LedgerAuditorManager;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
@@ -38,7 +38,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
 
     private static final int managerVersion = 0xabcd;
@@ -82,7 +82,7 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
         assertNull(lam1.getCurrentAuditor());
 
         lam1.tryToBecomeAuditor("bookie-1:3181", auditorEvent -> {
-            log.info("---- LAM-1 - Received auditor event: {}", auditorEvent);
+            log.info().attr("auditorEvent", auditorEvent).log("LAM-1 - Received auditor event");
         });
 
         assertEquals(lam1.getCurrentAuditor(), BookieId.parse("bookie-1:3181"));
@@ -98,13 +98,13 @@ public class PulsarLedgerAuditorManagerTest extends BaseMetadataStoreTest {
         executor.execute(() -> {
             try {
                 lam2.tryToBecomeAuditor("bookie-2:3181", auditorEvent -> {
-                    log.info("---- LAM-2 - Received auditor event: {}", auditorEvent);
+                    log.info().attr("auditorEvent", auditorEvent).log("LAM-2 - Received auditor event");
                 });
 
                 // Lam2 is now auditor
                 latch.countDown();
             } catch (Exception e) {
-                log.error("---- Failed to become auditor", e);
+                log.error().exception(e).log("Failed to become auditor");
             }
         });
 

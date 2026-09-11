@@ -21,33 +21,32 @@ package org.apache.pulsar.broker.authentication;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
-import com.google.common.annotations.VisibleForTesting;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.JwtParser;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.RequiredTypeException;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.SignatureException;
-import io.prometheus.client.Counter;
-import io.prometheus.client.Histogram;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.SocketAddress;
 import java.security.Key;
+import java.util.Collection;
 import java.util.Date;
-import java.util.List;
+import java.util.Optional;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 
+@SuppressWarnings({"deprecation", "unchecked"})
 public class AuthenticationProviderToken implements AuthenticationProvider {
 
     static final String HTTP_HEADER_NAME = "Authorization";
@@ -79,17 +78,6 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
     static final String TOKEN = "token";
 
-    private static final Counter expiredTokenMetrics = Counter.build()
-            .name("pulsar_expired_token_total")
-            .help("Pulsar expired token")
-            .register();
-
-    private static final Histogram expiringTokenMinutesMetrics = Histogram.build()
-            .name("pulsar_expiring_token_minutes")
-            .help("The remaining time of expiring token in minutes")
-            .buckets(5, 10, 60, 240)
-            .register();
-
     private Key validationKey;
     private String roleClaim;
     private SignatureAlgorithm publicKeyAlg;
@@ -106,6 +94,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     private String confTokenAudienceSettingName;
     private String confTokenAllowedClockSkewSecondsSettingName;
 
+    private AuthenticationMetricsToken authenticationMetricsToken;
+
     public enum ErrorCode {
         INVALID_AUTH_DATA,
         INVALID_TOKEN,
@@ -117,14 +107,17 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         // noop
     }
 
-    @VisibleForTesting
-    public static void resetMetrics() {
-        expiredTokenMetrics.clear();
-        expiringTokenMinutesMetrics.clear();
+    @Override
+    public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(Context.builder().config(config).build());
     }
 
     @Override
-    public void initialize(ServiceConfiguration config) throws IOException, IllegalArgumentException {
+    public void initialize(Context context) throws IOException {
+        authenticationMetricsToken = new AuthenticationMetricsToken(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
+
+        var config = context.getConfig();
         String prefix = (String) config.getProperty(CONF_TOKEN_SETTING_PREFIX);
         if (null == prefix) {
             prefix = "";
@@ -146,7 +139,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
 
         long allowedSkew = getConfTokenAllowedClockSkewSeconds(config);
 
-        this.parser = Jwts.parserBuilder()
+        this.parser = Jwts.parser()
                 .setAllowedClockSkewSeconds(allowedSkew)
                 .setSigningKey(this.validationKey)
                 .build();
@@ -163,6 +156,11 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetricsToken.recordFailure(errorCode);
+    }
+
+    @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         String token;
         try {
@@ -174,7 +172,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
         // Parse Token by validating
         String role = getPrincipal(authenticateToken(token));
-        AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+        authenticationMetricsToken.recordSuccess();
         return role;
     }
 
@@ -232,9 +230,9 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
     }
 
     @SuppressWarnings("unchecked")
-    private Jwt<?, Claims> authenticateToken(final String token) throws AuthenticationException {
+    private Jws<Claims> authenticateToken(final String token) throws AuthenticationException {
         try {
-            Jwt<?, Claims> jwt = parser.parseClaimsJws(token);
+            Jws<Claims> jwt = parser.parseClaimsJws(token);
 
             if (audienceClaim != null) {
                 Object object = jwt.getBody().get(audienceClaim);
@@ -242,8 +240,8 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                     throw new JwtException("Found null Audience in token, for claimed field: " + audienceClaim);
                 }
 
-                if (object instanceof List) {
-                    List<String> audiences = (List<String>) object;
+                if (object instanceof Collection) {
+                    Collection<String> audiences = (Collection<String>) object;
                     // audience not contains this broker, throw exception.
                     if (audiences.stream().noneMatch(audienceInToken -> audienceInToken.equals(audience))) {
                         incrementFailureMetric(ErrorCode.INVALID_AUDIENCES);
@@ -263,29 +261,26 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
                 }
             }
 
-            if (jwt.getBody().getExpiration() != null) {
-                expiringTokenMinutesMetrics.observe(
-                        (double) (jwt.getBody().getExpiration().getTime() - new Date().getTime()) / (60 * 1000));
-            }
+            var expiration = jwt.getBody().getExpiration();
+            var tokenRemainingDurationMs = expiration != null ? expiration.getTime() - new Date().getTime() : null;
+            authenticationMetricsToken.recordTokenDuration(tokenRemainingDurationMs);
             return jwt;
         } catch (JwtException e) {
             if (e instanceof ExpiredJwtException) {
-                expiredTokenMetrics.inc();
+                authenticationMetricsToken.recordTokenExpired();
             }
             incrementFailureMetric(ErrorCode.INVALID_TOKEN);
             throw new AuthenticationException("Failed to authentication token: " + e.getMessage());
         }
     }
 
-    private String getPrincipal(Jwt<?, Claims> jwt) {
+    private String getPrincipal(Jws<Claims> jwt) {
         try {
             return jwt.getBody().get(roleClaim, String.class);
         } catch (RequiredTypeException requiredTypeException) {
-            List list = jwt.getBody().get(roleClaim, List.class);
-            if (list != null && !list.isEmpty() && list.get(0) instanceof String) {
-                return (String) list.get(0);
-            }
-            return null;
+            Collection list = jwt.getBody().get(roleClaim, Collection.class);
+            Optional<String> firstEntry = list.stream().findFirst().map(Object::toString);
+            return firstEntry.orElse(null);
         }
     }
 
@@ -363,7 +358,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         private final SocketAddress remoteAddress;
         private final SSLSession sslSession;
         private AuthenticationDataSource authenticationDataSource;
-        private Jwt<?, Claims> jwt;
+        private Jws<Claims> jwt;
         private long expiration;
 
         TokenAuthenticationState(
@@ -437,7 +432,7 @@ public class AuthenticationProviderToken implements AuthenticationProvider {
         }
     }
 
-    private static final class HttpServletRequestWrapper extends javax.servlet.http.HttpServletRequestWrapper {
+    private static final class HttpServletRequestWrapper extends jakarta.servlet.http.HttpServletRequestWrapper {
         private final HttpServletRequest request;
 
         public HttpServletRequestWrapper(HttpServletRequest request) {

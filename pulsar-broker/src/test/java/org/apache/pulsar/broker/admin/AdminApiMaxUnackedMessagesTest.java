@@ -26,7 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
@@ -41,7 +41,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest {
 
@@ -106,8 +106,8 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         admin.namespaces().createNamespace("max-unacked-messages/default-on-consumers");
         String namespace = "max-unacked-messages/default-on-consumers";
         assertNull(admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace));
-        admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 2*50000);
-        assertEquals(2*50000, admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue());
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(namespace, 2 * 50000);
+        assertEquals(2 * 50000, admin.namespaces().getMaxUnackedMessagesPerConsumer(namespace).intValue());
     }
 
     @Test
@@ -115,15 +115,17 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         admin.namespaces().createNamespace("max-unacked-messages/default-on-subscription");
         String namespace = "max-unacked-messages/default-on-subscription";
         assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace));
-        admin.namespaces().setMaxUnackedMessagesPerSubscription(namespace, 2*200000);
+        admin.namespaces().setMaxUnackedMessagesPerSubscription(namespace, 2 * 200000);
         Awaitility.await().untilAsserted(()
-                -> assertEquals(2*200000, admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace).intValue()));
+                -> assertEquals(2 * 200000, admin.namespaces()
+                .getMaxUnackedMessagesPerSubscription(namespace).intValue()));
 
         admin.namespaces().removeMaxUnackedMessagesPerSubscription(namespace);
         Awaitility.await().untilAsserted(()
                 -> assertNull(admin.namespaces().getMaxUnackedMessagesPerSubscription(namespace)));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMaxUnackedMessagesPerConsumerPriority() throws Exception {
         int brokerLevelPolicy = 3;
@@ -156,11 +158,12 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionName("sub").topic(topic).receiverQueueSize(1).subscribe();
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicIfExists(topic).get().get();
         org.apache.pulsar.broker.service.Consumer serverConsumer =
                 persistentTopic.getSubscription("sub").getConsumers().get(0);
         assertEquals(serverConsumer.getMaxUnackedMessages(), topicLevelPolicy);
-        List<Message> msgs = consumeMsg(consumer, 3);
+        List<Message<?>> msgs = consumeMsg(consumer, 3);
         assertEquals(msgs.size(), 1);
         //disable topic-level limiter
         admin.topics().setMaxUnackedMessagesOnConsumer(topic, 0);
@@ -194,10 +197,10 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
 
     }
 
-    private List<Message> consumeMsg(Consumer<?> consumer, int msgNum) throws Exception {
-        List<Message> list = new ArrayList<>();
-        for (int i = 0; i <msgNum; i++) {
-            Message message = consumer.receive(1500, TimeUnit.MILLISECONDS);
+    private List<Message<?>> consumeMsg(Consumer<?> consumer, int msgNum) throws Exception {
+        List<Message<?>> list = new ArrayList<>();
+        for (int i = 0; i < msgNum; i++) {
+            Message<?> message = consumer.receive(1500, TimeUnit.MILLISECONDS);
             if (message == null) {
                 break;
             }
@@ -206,8 +209,8 @@ public class AdminApiMaxUnackedMessagesTest extends MockedPulsarServiceBaseTest 
         return list;
     }
 
-    private void ackMsgs(Consumer<?> consumer, List<Message> msgs) throws Exception {
-        for (Message msg : msgs) {
+    private void ackMsgs(Consumer<?> consumer, List<Message<?>> msgs) throws Exception {
+        for (Message<?> msg : msgs) {
             consumer.acknowledge(msg);
         }
     }

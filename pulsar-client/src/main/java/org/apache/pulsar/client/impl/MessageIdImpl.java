@@ -25,13 +25,22 @@ import java.io.IOException;
 import java.util.Objects;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
+import org.apache.pulsar.client.api.TraceableMessageId;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.naming.TopicName;
 
-public class MessageIdImpl implements MessageIdAdv {
+public class MessageIdImpl implements MessageIdAdv, TraceableMessageId {
+    private static final long serialVersionUID = 1L;
+
     protected final long ledgerId;
     protected final long entryId;
     protected final int partitionIndex;
+
+    /**
+     * OpenTelemetry tracing span associated with this message ID.
+     * Used for distributed tracing support via the TraceableMessageId interface.
+     */
+    private transient io.opentelemetry.api.trace.Span tracingSpan;
 
     // Private constructor used only for json deserialization
     @SuppressWarnings("unused")
@@ -187,5 +196,17 @@ public class MessageIdImpl implements MessageIdAdv {
     public byte[] toByteArray() {
         // there is no message batch so we pass -1
         return toByteArray(-1, 0);
+    }
+
+    // TraceableMessageId implementation for OpenTelemetry support
+
+    @Override
+    public void setTracingSpan(io.opentelemetry.api.trace.Span span) {
+        this.tracingSpan = span;
+    }
+
+    @Override
+    public io.opentelemetry.api.trace.Span getTracingSpan() {
+        return this.tracingSpan;
     }
 }

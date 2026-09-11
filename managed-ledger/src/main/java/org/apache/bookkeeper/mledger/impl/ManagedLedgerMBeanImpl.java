@@ -87,6 +87,8 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     public void addAddEntrySample(long size) {
         addEntryOps.recordEvent(size);
         entryStats.addValue(size);
+        managedLedger.getFactory().getOpenTelemetryManagedLedgerStats()
+                .recordEntrySize(size, managedLedger);
         addEntryWithReplicasOps.recordEvent(size * managedLedger.getConfig().getWriteQuorumSize());
     }
 
@@ -108,14 +110,20 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public void addAddEntryLatencySample(long latency, TimeUnit unit) {
         addEntryLatencyStatsUsec.addValue(unit.toMicros(latency));
+        managedLedger.getFactory().getOpenTelemetryManagedLedgerStats()
+                .recordAddEntryLatency(latency, unit, managedLedger);
     }
 
     public void addLedgerAddEntryLatencySample(long latency, TimeUnit unit) {
         ledgerAddEntryLatencyStatsUsec.addValue(unit.toMicros(latency));
+        managedLedger.getFactory().getOpenTelemetryManagedLedgerStats()
+                .recordLedgerAddEntryLatency(latency, unit, managedLedger);
     }
 
     public void addLedgerSwitchLatencySample(long latency, TimeUnit unit) {
         ledgerSwitchLatencyStatsUsec.addValue(unit.toMicros(latency));
+        managedLedger.getFactory().getOpenTelemetryManagedLedgerStats()
+                .recordLedgerSwitchLatency(latency, unit, managedLedger);
     }
 
     public void addReadEntriesSample(int count, long totalSize) {
@@ -211,8 +219,18 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public long getAddEntryBytesTotal() {
+        return addEntryOps.getTotalValue();
+    }
+
+    @Override
     public double getAddEntryWithReplicasBytesRate() {
         return addEntryWithReplicasOps.getValueRate();
+    }
+
+    @Override
+    public long getAddEntryWithReplicasBytesTotal() {
+        return addEntryWithReplicasOps.getTotalValue();
     }
 
     @Override
@@ -223,6 +241,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     @Override
     public double getReadEntriesBytesRate() {
         return readEntriesOps.getValueRate();
+    }
+
+    @Override
+    public long getReadEntriesBytesTotal() {
+        return readEntriesOps.getTotalValue();
     }
 
     @Override
@@ -241,6 +264,11 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public long getAddEntryErrorsTotal() {
+        return addEntryOpsFailed.getTotalCount();
+    }
+
+    @Override
     public long getReadEntriesSucceeded() {
         return readEntriesOps.getCount();
     }
@@ -256,13 +284,28 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     }
 
     @Override
+    public long getReadEntriesErrorsTotal() {
+        return readEntriesOpsFailed.getTotalCount();
+    }
+
+    @Override
     public double getReadEntriesOpsCacheMissesRate() {
         return readEntriesOpsCacheMisses.getRate();
     }
 
     @Override
+    public long getReadEntriesOpsCacheMissesTotal() {
+        return readEntriesOpsCacheMisses.getTotalCount();
+    }
+
+    @Override
     public double getMarkDeleteRate() {
         return markDeleteOps.getRate();
+    }
+
+    @Override
+    public long getMarkDeleteTotal() {
+        return markDeleteOps.getTotalCount();
     }
 
     @Override
@@ -322,7 +365,10 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     @Override
     public long getStoredMessagesSize() {
-        return managedLedger.getTotalSize() * managedLedger.getConfig().getWriteQuorumSize();
+        long totalSize = managedLedger.getTotalSize();
+        long offloadedSize = managedLedger.getOffloadedSize();
+        long bookieSize = totalSize - offloadedSize;
+        return bookieSize * managedLedger.getConfig().getWriteQuorumSize() + offloadedSize;
     }
 
     @Override

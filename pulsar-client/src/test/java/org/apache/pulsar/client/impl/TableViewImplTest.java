@@ -18,17 +18,15 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TableView;
-import org.apache.pulsar.client.impl.TableViewConfigurationData;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TableView;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 public class TableViewImplTest {
 
@@ -36,6 +34,7 @@ public class TableViewImplTest {
     private TableViewConfigurationData data;
 
     @BeforeClass(alwaysRun = true)
+    @SuppressWarnings("unchecked")
     public void setup() {
         client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
@@ -48,9 +47,10 @@ public class TableViewImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testTableViewImpl() {
         data.setCryptoKeyReader(mock(CryptoKeyReader.class));
-        TableView tableView = new TableViewImpl(client, Schema.BYTES, data);
+        TableView<?> tableView = new TableViewImpl<>(client, Schema.BYTES, data);
 
         assertNotNull(tableView);
     }

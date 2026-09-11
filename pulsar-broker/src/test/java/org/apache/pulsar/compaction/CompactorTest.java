@@ -45,9 +45,8 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -91,17 +90,17 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use",
+        admin.clusters().createCluster("test",
                 ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns");
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compactor").setDaemon(true).build());
         bk = pulsar.getBookKeeperClientFactory().create(
-                this.conf, null, null, Optional.empty(), null);
-        compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+                this.conf, null, null, Optional.empty(), null).get();
+        compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
 
@@ -127,7 +126,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         return compactor;
     }
 
-    private List<String> compactAndVerify(String topic, Map<String, byte[]> expected, boolean checkMetrics)
+    protected List<String> compactAndVerify(String topic, Map<String, byte[]> expected, boolean checkMetrics)
             throws Exception {
 
         long compactedLedgerId = compact(topic);
@@ -171,7 +170,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompaction() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
         final int numMessages = 1000;
         final int maxKeys = 10;
 
@@ -199,7 +198,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testAllCompactedOut() throws Exception {
-        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/use/my-ns/testAllCompactedOut");
+        String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/testAllCompactedOut");
         // set retain null key to true
         boolean oldRetainNullKey = pulsar.getConfig().isTopicCompactionRetainNullKey();
         pulsar.getConfig().setTopicCompactionRetainNullKey(true);
@@ -224,7 +223,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         var attributes = Attributes.builder()
                 .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
                 .put(OpenTelemetryAttributes.PULSAR_TENANT, "my-property")
-                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/use/my-ns")
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/my-ns")
                 .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
                 .build();
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
@@ -276,7 +275,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactAddCompact() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
@@ -314,7 +313,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactedInOrder() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
@@ -346,7 +345,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testCompactEmptyTopic() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/my-topic1";
 
         // trigger creation of topic on server side
         pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
@@ -361,14 +360,14 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(mockClient.getCnxPool()).thenReturn(connectionPool);
-        TwoPhaseCompactor compactor = new TwoPhaseCompactor(configuration, mockClient,
+        PublishingOrderCompactor compactor = new PublishingOrderCompactor(configuration, mockClient,
                 Mockito.mock(BookKeeper.class), compactionScheduler);
         Assert.assertEquals(compactor.getPhaseOneLoopReadTimeoutInSeconds(), 60);
     }
 
     @Test
     public void testCompactedWithConcurrentSend() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testCompactedWithConcurrentSend";
+        String topic = "persistent://my-property/my-ns/testCompactedWithConcurrentSend";
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
@@ -400,10 +399,11 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         });
 
         Position lastCompactedPosition = topicCompactionService.getLastCompactedPosition().get();
-        Entry lastCompactedEntry = topicCompactionService.readLastCompactedEntry().get();
+        final var lastMessagePosition = topicCompactionService.getLastMessagePosition().get();
 
-        Assert.assertTrue(PositionImpl.get(lastCompactedPosition.getLedgerId(), lastCompactedPosition.getEntryId())
-                .compareTo(lastCompactedEntry.getLedgerId(), lastCompactedEntry.getEntryId()) >= 0);
+        Assert.assertTrue(PositionFactory.create(lastCompactedPosition.getLedgerId(),
+                lastCompactedPosition.getEntryId()).compareTo(lastMessagePosition.ledgerId(),
+                lastMessagePosition.entryId()) >= 0);
 
         future.join();
     }

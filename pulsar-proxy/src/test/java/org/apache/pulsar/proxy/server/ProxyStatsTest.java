@@ -21,23 +21,26 @@ package org.apache.pulsar.proxy.server;
 import static java.util.Objects.requireNonNull;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -61,11 +64,13 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     private ProxyService proxyService;
     private WebServer proxyWebServer;
     private final ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.of(0));
         proxyConfig.setBrokerProxyAllowedTargetPorts("*");
@@ -76,9 +81,15 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         // enable full parsing feature
         proxyConfig.setProxyLogLevel(Optional.of(2));
 
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
-                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+                new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)),
+                proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper)))
+                .when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
                 .createConfigurationMetadataStore();
 
@@ -90,7 +101,8 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         proxyWebServer = new WebServer(proxyConfig, authService);
-        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null);
+        ProxyServiceStarter.addWebServerHandlers(proxyWebServer, proxyConfig, proxyService, null,
+                proxyClientAuthentication);
         proxyWebServer.start();
     }
 
@@ -109,6 +121,9 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         internalCleanup();
         proxyService.close();
         proxyWebServer.stop();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     /**
@@ -118,7 +133,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
      */
     @Test
     public void testConnectionsStats() throws Exception {
-        final String topicName1 = "persistent://sample/test/local/connections-stats";
+        final String topicName1 = "persistent://public/default/connections-stats";
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
         Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(topicName1).enableBatching(false)
@@ -153,15 +168,15 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Validate proxy topic stats api
+     * Validate proxy topic stats api.
      *
      * @throws Exception
      */
     @Test
     public void testTopicStats() throws Exception {
         proxyService.setProxyLogLevel(2);
-        final String topicName = "persistent://sample/test/local/topic-stats";
-        final String topicName2 = "persistent://sample/test/local/topic-stats-2";
+        final String topicName = "persistent://public/default/topic-stats";
+        final String topicName2 = "persistent://public/default/topic-stats-2";
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
@@ -202,10 +217,66 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
         consumer.close();
         consumer2.close();
+
+        // check that topic stats are cleared after setting proxy log level to 0
+        assertFalse(proxyService.getTopicStats().isEmpty());
+        proxyService.setProxyLogLevel(0);
+        assertTrue(proxyService.getTopicStats().isEmpty());
+    }
+
+    @Test
+    public void testMemoryLeakFixed() throws Exception {
+        proxyService.setProxyLogLevel(2);
+        final String topicName = "persistent://public/default/topic-stats";
+        final String topicName2 = "persistent://public/default/topic-stats-2";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl()).build();
+        Producer<byte[]> producer1 = client.newProducer(Schema.BYTES).topic(topicName).enableBatching(false)
+                .producerName("producer1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+
+        Producer<byte[]> producer2 = client.newProducer(Schema.BYTES).topic(topicName2).enableBatching(false)
+                .producerName("producer2").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
+
+        Consumer<byte[]> consumer = client.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
+        Consumer<byte[]> consumer2 = client.newConsumer().topic(topicName2).subscriptionName("my-sub")
+                .subscribe();
+
+        int totalMessages = 10;
+        for (int i = 0; i < totalMessages; i++) {
+            producer1.send("test".getBytes());
+            producer2.send("test".getBytes());
+        }
+
+        for (int i = 0; i < totalMessages; i++) {
+            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
+            requireNonNull(msg);
+            consumer.acknowledge(msg);
+            msg = consumer2.receive(1, TimeUnit.SECONDS);
+        }
+
+        ParserProxyHandler.Context context = proxyService.getClientCnxs().stream().map(proxyConnection -> {
+            ParserProxyHandler parserProxyHandler = proxyConnection.ctx().pipeline().get(ParserProxyHandler.class);
+            return parserProxyHandler != null ? parserProxyHandler.getContext() : null;
+        }).filter(c -> c != null && !c.getConsumerIdToTopicName().isEmpty()).findFirst().get();
+
+        assertEquals(context.getConsumerIdToTopicName().size(), 2);
+        assertEquals(context.getProducerIdToTopicName().size(), 2);
+
+
+        consumer.close();
+        assertEquals(context.getConsumerIdToTopicName().size(), 1);
+        consumer2.close();
+        assertEquals(context.getConsumerIdToTopicName().size(), 0);
+
+        producer1.close();
+        assertEquals(context.getProducerIdToTopicName().size(), 1);
+        producer2.close();
+        assertEquals(context.getProducerIdToTopicName().size(), 0);
     }
 
     /**
-     * Change proxy log level dynamically
+     * Change proxy log level dynamically.
      *
      * @throws Exception
      */

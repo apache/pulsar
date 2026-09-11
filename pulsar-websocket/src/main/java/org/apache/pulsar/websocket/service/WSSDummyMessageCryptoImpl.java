@@ -45,7 +45,7 @@ public class WSSDummyMessageCryptoImpl implements MessageCrypto<MessageMetadata,
     }
 
     @Override
-    public void addPublicKeyCipher(Set keyNames, CryptoKeyReader keyReader)
+    public void addPublicKeyCipher(Set<String> keyNames, CryptoKeyReader keyReader)
             throws PulsarClientException.CryptoException {}
 
     @Override

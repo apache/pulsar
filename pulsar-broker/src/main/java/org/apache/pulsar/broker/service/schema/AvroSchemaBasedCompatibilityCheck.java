@@ -22,20 +22,21 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import java.util.Collections;
 import java.util.LinkedList;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaParseException;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
 import org.apache.avro.SchemaValidatorBuilder;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.validator.StructSchemaDataValidator;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 
 /**
  * The abstract implementation of {@link SchemaCompatibilityCheck} using Avro Schema.
  */
-@Slf4j
+@CustomLog
 abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityCheck {
 
     @Override
@@ -51,17 +52,18 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
         checkArgument(from != null, "check compatibility list is null");
         try {
             for (SchemaData schemaData : from) {
-                Schema.Parser parser = new Schema.Parser();
+                Schema.Parser parser =
+                        new Schema.Parser(StructSchemaDataValidator.COMPATIBLE_NAME_VALIDATOR);
                 parser.setValidateDefaults(false);
                 fromList.addFirst(parser.parse(new String(schemaData.getData(), UTF_8)));
             }
-            Schema.Parser parser = new Schema.Parser();
+            Schema.Parser parser = new Schema.Parser(StructSchemaDataValidator.COMPATIBLE_NAME_VALIDATOR);
             parser.setValidateDefaults(false);
             Schema toSchema = parser.parse(new String(to.getData(), UTF_8));
             SchemaValidator schemaValidator = createSchemaValidator(strategy);
             schemaValidator.validate(toSchema, fromList);
         } catch (SchemaParseException e) {
-            log.warn("Error during schema parsing: {}", e.getMessage());
+            log.warn().exceptionMessage(e).log("Error during schema parsing");
             throw new IncompatibleSchemaException(e);
         } catch (SchemaValidationException e) {
             String msg = String.format("Error during schema compatibility check with strategy %s: %s: %s",

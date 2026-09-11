@@ -23,7 +23,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -35,12 +35,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
-
 import lombok.Cleanup;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet.LongPair;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Lists;
 
 public class ConcurrentLongPairSetTest {
 
@@ -374,7 +371,7 @@ public class ConcurrentLongPairSetTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
-        final int N = 100_000;
+        final int num = 100_000;
 
         List<Future<?>> futures = new ArrayList<>();
         for (int i = 0; i < nThreads; i++) {
@@ -383,7 +380,7 @@ public class ConcurrentLongPairSetTest {
             futures.add(executor.submit(() -> {
                 Random random = new Random();
 
-                for (int j = 0; j < N; j++) {
+                for (int j = 0; j < num; j++) {
                     long key = random.nextLong();
                     // Ensure keys are unique
                     key -= key % (threadIdx + 1);
@@ -397,7 +394,7 @@ public class ConcurrentLongPairSetTest {
             future.get();
         }
 
-        assertEquals(set.size(), N * nThreads);
+        assertEquals(set.size(), num * nThreads);
     }
 
     @Test
@@ -407,7 +404,7 @@ public class ConcurrentLongPairSetTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 16;
-        final int N = 100_000;
+        final int num = 100_000;
 
         List<Future<?>> futures = new ArrayList<>();
         for (int i = 0; i < nThreads; i++) {
@@ -416,7 +413,7 @@ public class ConcurrentLongPairSetTest {
             futures.add(executor.submit(() -> {
                 Random random = new Random();
 
-                for (int j = 0; j < N; j++) {
+                for (int j = 0; j < num; j++) {
                     long key = random.nextLong();
                     // Ensure keys are unique
                     key -= key % (threadIdx + 1);
@@ -430,7 +427,7 @@ public class ConcurrentLongPairSetTest {
             future.get();
         }
 
-        assertEquals(map.size(), N * nThreads);
+        assertEquals(map.size(), num * nThreads);
     }
 
     @Test
@@ -439,17 +436,17 @@ public class ConcurrentLongPairSetTest {
 
         assertEquals(set.items(), Collections.emptyList());
 
-        set.add(0l, 0l);
+        set.add(0L, 0L);
 
-        assertEquals(new LongPair(0l, 0l), set.items().iterator().next());
+        assertEquals(new LongPair(0L, 0L), set.items().iterator().next());
 
-        set.remove(0l, 0l);
+        set.remove(0L, 0L);
 
         assertEquals(set.items(), Collections.emptyList());
 
-        set.add(0l, 0l);
-        set.add(1l, 1l);
-        set.add(2l, 2l);
+        set.add(0L, 0L);
+        set.add(1L, 1L);
+        set.add(2L, 2L);
 
         List<LongPair> values = new ArrayList<>(set.items());
         values.sort(null);
@@ -531,9 +528,9 @@ public class ConcurrentLongPairSetTest {
 
     @Test
     public void testHashConflictWithDeletion() {
-        final int Buckets = 16;
+        final int buckets = 16;
         ConcurrentLongPairSet set = ConcurrentLongPairSet.newBuilder()
-                .expectedItems(Buckets)
+                .expectedItems(buckets)
                 .concurrencyLevel(1)
                 .build();
 
@@ -541,8 +538,8 @@ public class ConcurrentLongPairSetTest {
         long key1 = 1;
         long key2 = 538515;
 
-        int bucket1 = ConcurrentLongPairSet.signSafeMod(ConcurrentLongPairSet.hash(key1, key1), Buckets);
-        int bucket2 = ConcurrentLongPairSet.signSafeMod(ConcurrentLongPairSet.hash(key2, key2), Buckets);
+        int bucket1 = ConcurrentLongPairSet.signSafeMod(ConcurrentLongPairSet.hash(key1, key1), buckets);
+        int bucket2 = ConcurrentLongPairSet.signSafeMod(ConcurrentLongPairSet.hash(key2, key2), buckets);
 
         assertEquals(bucket1, bucket2);
 
@@ -574,19 +571,19 @@ public class ConcurrentLongPairSetTest {
 
         long t1 = 1;
         long t2 = 2;
-        long t1_b = 1;
-        assertEquals(t1, t1_b);
+        long t1b = 1;
+        assertEquals(t1, t1b);
         assertNotEquals(t2, t1);
-        assertNotEquals(t2, t1_b);
+        assertNotEquals(t2, t1b);
 
         set.add(t1, t1);
         assertTrue(set.contains(t1, t1));
-        assertTrue(set.contains(t1_b, t1_b));
+        assertTrue(set.contains(t1b, t1b));
         assertFalse(set.contains(t2, t2));
 
-        assertTrue(set.remove(t1_b, t1_b));
+        assertTrue(set.remove(t1b, t1b));
         assertFalse(set.contains(t1, t1));
-        assertFalse(set.contains(t1_b, t1_b));
+        assertFalse(set.contains(t1b, t1b));
     }
 
     @Test

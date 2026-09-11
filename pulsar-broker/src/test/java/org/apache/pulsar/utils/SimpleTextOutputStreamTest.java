@@ -19,15 +19,12 @@
 package org.apache.pulsar.utils;
 
 import static org.testng.Assert.assertEquals;
-
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
-
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
 @Test(groups = "utils")
 public class SimpleTextOutputStreamTest {

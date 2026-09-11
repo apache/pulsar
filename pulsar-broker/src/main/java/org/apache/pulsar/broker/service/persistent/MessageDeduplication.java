@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.markDelete;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.openCursor;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import com.google.common.annotations.VisibleForTesting;
+import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.Iterator;
 import java.util.List;
@@ -29,31 +34,32 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerReplayTask;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Producer;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
+import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.protocol.Markers;
 
 /**
  * Class that contains all the logic to control and perform the deduplication on the broker side.
  */
 public class MessageDeduplication {
 
+    private static final Logger LOG = Logger.get(MessageDeduplication.class);
+    private final Logger log;
+
     private final PulsarService pulsar;
     private final PersistentTopic topic;
     private final ManagedLedger managedLedger;
+    private final ManagedLedgerReplayTask replayTask;
     private ManagedCursor managedCursor;
 
     private static final String IS_LAST_CHUNK = "isLastChunk";
@@ -90,31 +96,25 @@ public class MessageDeduplication {
     }
 
     public static class MessageDupUnknownException extends RuntimeException {
-        public MessageDupUnknownException() {
-            super("Cannot determine whether the message is a duplicate at this time");
+        public MessageDupUnknownException(String topicName, String producerName) {
+            super(String.format("[%s][%s]Cannot determine whether the message is a duplicate at this time", topicName,
+                    producerName));
         }
     }
 
 
     private volatile Status status;
+    private CompletableFuture<Void> statusChangeFuture = CompletableFuture.completedFuture(null);
 
     // Map that contains the highest sequenceId that have been sent by each producers. The map will be updated before
     // the messages are persisted
     @VisibleForTesting
-    final ConcurrentOpenHashMap<String, Long> highestSequencedPushed =
-            ConcurrentOpenHashMap.<String, Long>newBuilder()
-                    .expectedItems(16)
-                    .concurrencyLevel(1)
-                    .build();
+    final Map<String, Long> highestSequencedPushed = new ConcurrentHashMap<>();
 
     // Map that contains the highest sequenceId that have been persistent by each producers. The map will be updated
     // after the messages are persisted
     @VisibleForTesting
-    final ConcurrentOpenHashMap<String, Long> highestSequencedPersisted =
-            ConcurrentOpenHashMap.<String, Long>newBuilder()
-            .expectedItems(16)
-            .concurrencyLevel(1)
-            .build();
+    final Map<String, Long> highestSequencedPersisted = new ConcurrentHashMap<>();
 
     // Number of persisted entries after which to store a snapshot of the sequence ids map
     private final int snapshotInterval;
@@ -145,67 +145,8 @@ public class MessageDeduplication {
         this.maxNumberOfProducers = pulsar.getConfiguration().getBrokerDeduplicationMaxNumberOfProducers();
         this.snapshotCounter = 0;
         this.replicatorPrefix = pulsar.getConfiguration().getReplicatorPrefix();
-    }
-
-    private CompletableFuture<Void> recoverSequenceIdsMap() {
-        // Load the sequence ids from the snapshot in the cursor properties
-        managedCursor.getProperties().forEach((k, v) -> {
-            producerRemoved(k);
-            highestSequencedPushed.put(k, v);
-            highestSequencedPersisted.put(k, v);
-        });
-
-        // Replay all the entries and apply all the sequence ids updates
-        log.info("[{}] Replaying {} entries for deduplication", topic.getName(), managedCursor.getNumberOfEntries());
-        CompletableFuture<Position> future = new CompletableFuture<>();
-        replayCursor(future);
-        return future.thenAccept(lastPosition -> {
-            if (lastPosition != null && snapshotCounter >= snapshotInterval) {
-                snapshotCounter = 0;
-                takeSnapshot(lastPosition);
-            }
-        });
-    }
-
-    /**
-     * Read all the entries published from the cursor position until the most recent and update the highest sequence id
-     * from each producer.
-     *
-     * @param future future to trigger when the replay is complete
-     */
-    private void replayCursor(CompletableFuture<Position> future) {
-        managedCursor.asyncReadEntries(100, new ReadEntriesCallback() {
-            @Override
-            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                Position lastPosition = null;
-                for (Entry entry : entries) {
-                    ByteBuf messageMetadataAndPayload = entry.getDataBuffer();
-                    MessageMetadata md = Commands.parseMessageMetadata(messageMetadataAndPayload);
-
-                    String producerName = md.getProducerName();
-                    long sequenceId = Math.max(md.getHighestSequenceId(), md.getSequenceId());
-                    highestSequencedPushed.put(producerName, sequenceId);
-                    highestSequencedPersisted.put(producerName, sequenceId);
-                    producerRemoved(producerName);
-                    snapshotCounter++;
-                    lastPosition = entry.getPosition();
-                    entry.release();
-                }
-
-                if (managedCursor.hasMoreEntries()) {
-                    // Read next batch of entries
-                    pulsar.getExecutor().execute(() -> replayCursor(future));
-                } else {
-                    // Done replaying
-                    future.complete(lastPosition);
-                }
-            }
-
-            @Override
-            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                future.completeExceptionally(exception);
-            }
-        }, null, PositionImpl.LATEST);
+        this.replayTask = new ManagedLedgerReplayTask("MessageDeduplication", pulsar.getExecutor(), 100);
+        this.log = LOG.with().attr("topic", topic.getName()).build();
     }
 
     public Status getStatus() {
@@ -219,7 +160,10 @@ public class MessageDeduplication {
     public CompletableFuture<Void> checkStatus() {
         boolean shouldBeEnabled = topic.isDeduplicationEnabled();
         synchronized (this) {
-            if (status == Status.Recovering || status == Status.Removing) {
+            if (status == Status.Recovering) {
+                return statusChangeFuture;
+            }
+            if (status == Status.Removing) {
                 // If there's already a transition happening, check later for status
                 pulsar.getExecutor().schedule(this::checkStatus, 1, TimeUnit.MINUTES);
                 return CompletableFuture.completedFuture(null);
@@ -231,7 +175,7 @@ public class MessageDeduplication {
                             @Override
                             public void deleteCursorComplete(Object ctx) {
                                 status = Status.Disabled;
-                                log.info("[{}] Deleted deduplication cursor", topic.getName());
+                                log.info("Deleted deduplication cursor");
                             }
 
                             @Override
@@ -239,7 +183,9 @@ public class MessageDeduplication {
                                 if (exception instanceof ManagedLedgerException.CursorNotFoundException) {
                                     status = Status.Disabled;
                                 } else {
-                            log.error("[{}] Deleted deduplication cursor error", topic.getName(), exception);
+                            log.error()
+                                    .exception(exception)
+                                    .log("Deleted deduplication cursor error");
                         }
                     }
                 }, null);
@@ -259,7 +205,7 @@ public class MessageDeduplication {
                                 highestSequencedPushed.clear();
                                 highestSequencedPersisted.clear();
                                 future.complete(null);
-                                log.info("[{}] Disabled deduplication", topic.getName());
+                                log.info("Disabled deduplication");
                             }
 
                             @Override
@@ -272,8 +218,9 @@ public class MessageDeduplication {
                                     highestSequencedPersisted.clear();
                                     future.complete(null);
                                 } else {
-                                    log.warn("[{}] Failed to disable deduplication: {}", topic.getName(),
-                                            exception.getMessage());
+                                    log.warn()
+                                            .exceptionMessage(exception)
+                                            .log("Failed to disable deduplication");
                                     status = Status.Failed;
                                     future.completeExceptionally(exception);
                                 }
@@ -281,42 +228,72 @@ public class MessageDeduplication {
                         }, null);
 
                 return future;
-            } else if ((status == Status.Disabled || status == Status.Initialized) && shouldBeEnabled) {
+            } else if ((status == Status.Disabled || status == Status.Initialized || status == Status.Failed)
+                    && shouldBeEnabled) {
                 // Enable deduping
-                CompletableFuture<Void> future = new CompletableFuture<>();
-                managedLedger.asyncOpenCursor(PersistentTopic.DEDUPLICATION_CURSOR_NAME, new OpenCursorCallback() {
-
-                    @Override
-                    public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                        // We don't want to retain cache for this cursor
-                        cursor.setAlwaysInactive();
-                        managedCursor = cursor;
-                        recoverSequenceIdsMap().thenRun(() -> {
-                            status = Status.Enabled;
-                            future.complete(null);
-                            log.info("[{}] Enabled deduplication", topic.getName());
-                        }).exceptionally(ex -> {
-                            status = Status.Failed;
-                            log.warn("[{}] Failed to enable deduplication: {}", topic.getName(), ex.getMessage());
-                            future.completeExceptionally(ex);
-                            return null;
-                        });
+                status = Status.Recovering;
+                final CompletableFuture<Void> future;
+                try {
+                    future = openCursor(managedLedger, PersistentTopic.DEDUPLICATION_CURSOR_NAME)
+                            .thenCompose(this::replayCursor);
+                } catch (Throwable e) {
+                    status = Status.Failed;
+                    statusChangeFuture = CompletableFuture.failedFuture(e);
+                    log.error().exception(e).log("Failed to enable deduplication");
+                    return statusChangeFuture;
+                }
+                statusChangeFuture = future.whenComplete((__, e) -> {
+                    if (e != null) {
+                        status = Status.Failed;
+                        log.error().exception(e).log("Failed to enable deduplication");
                     }
-
-                    @Override
-                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
-                        log.warn("[{}] Failed to enable deduplication: {}", topic.getName(),
-                                exception.getMessage());
-                        future.completeExceptionally(exception);
-                    }
-
-                }, null);
-                return future;
+                });
+                return statusChangeFuture;
             } else {
                 // Nothing to do, we are in the correct state
                 return CompletableFuture.completedFuture(null);
             }
         }
+    }
+
+    private CompletableFuture<Void> replayCursor(ManagedCursor cursor) {
+        managedCursor = cursor;
+        cursor.rewind();
+        snapshotCounter = 0;
+        highestSequencedPushed.clear();
+        highestSequencedPersisted.clear();
+        inactiveProducers.clear();
+        // Load the sequence ids from the snapshot in the cursor properties
+        managedCursor.getProperties().forEach((k, v) -> {
+            producerRemoved(k);
+            highestSequencedPushed.put(k, v);
+            highestSequencedPersisted.put(k, v);
+        });
+        // Replay all the entries and apply all the sequence ids updates
+        log.info()
+                .attr("numberOfEntries", managedCursor.getNumberOfEntries())
+                .log("Replaying entries for deduplication");
+        return replayTask.replay(cursor, (__, buffer) -> {
+            final var metadata = Commands.parseMessageMetadata(buffer);
+            final var producerName = metadata.getProducerName();
+            final var sequenceId = Math.max(metadata.getHighestSequenceId(), metadata.getSequenceId());
+            highestSequencedPushed.put(producerName, sequenceId);
+            highestSequencedPersisted.put(producerName, sequenceId);
+            producerRemoved(producerName);
+        }).thenCompose(optPosition -> {
+            if (optPosition.isEmpty()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            snapshotCounter = replayTask.getNumEntriesProcessed();
+            if (snapshotCounter >= snapshotInterval) {
+                return takeSnapshot(optPosition.get());
+            } else {
+                return CompletableFuture.completedFuture(null);
+            }
+        }).thenRun(() -> {
+            status = Status.Enabled;
+            log.info("Enabled deduplication");
+        });
     }
 
     public boolean isEnabled() {
@@ -329,35 +306,170 @@ public class MessageDeduplication {
      * @return true if the message should be published or false if it was recognized as a duplicate
      */
     public MessageDupStatus isDuplicate(PublishContext publishContext, ByteBuf headersAndPayload) {
+        setContextPropsIfRepl(publishContext, headersAndPayload);
         if (!isEnabled() || publishContext.isMarkerMessage()) {
             return MessageDupStatus.NotDup;
         }
+        if (Producer.isRemoteOrShadow(publishContext.getProducerName(), replicatorPrefix)) {
+            if (!publishContext.supportsReplDedupByLidAndEid()){
+                return isDuplicateReplV1(publishContext, headersAndPayload);
+            } else {
+                return isDuplicateReplV2(publishContext, headersAndPayload);
+            }
+        }
+        return isDuplicateNormal(publishContext, headersAndPayload, false);
+    }
 
+    public MessageDupStatus isDuplicateReplV1(PublishContext publishContext, ByteBuf headersAndPayload) {
+        // Message is coming from replication, we need to use the original producer name and sequence id
+        // for the purpose of deduplication and not rely on the "replicator" name.
+        int readerIndex = headersAndPayload.readerIndex();
+        MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
+        headersAndPayload.readerIndex(readerIndex);
+
+        String producerName = md.getProducerName();
+        long sequenceId = md.getSequenceId();
+        long highestSequenceId = Math.max(md.getHighestSequenceId(), sequenceId);
+        publishContext.setOriginalProducerName(producerName);
+        publishContext.setOriginalSequenceId(sequenceId);
+        publishContext.setOriginalHighestSequenceId(highestSequenceId);
+        return isDuplicateNormal(publishContext, headersAndPayload, true);
+    }
+
+    private void setContextPropsIfRepl(PublishContext publishContext, ByteBuf headersAndPayload) {
+        // Case-1: is a replication marker.
+        if (publishContext.isMarkerMessage()) {
+            // Message is coming from replication, we need to use the replication's producer name, ledger id and entry
+            // id for the purpose of deduplication.
+            MessageMetadata md = Commands.peekMessageMetadata(headersAndPayload, "Check-Deduplicate", -1);
+            if (md != null && md.hasMarkerType() && Markers.isReplicationMarker(md.getMarkerType())) {
+                publishContext.setProperty(MSG_PROP_IS_REPL_MARKER, "");
+            }
+            return;
+        }
+
+        // Case-2: is a replicated message.
+        if (Producer.isRemoteOrShadow(publishContext.getProducerName(), replicatorPrefix)) {
+            // Message is coming from replication, we need to use the replication's producer name, source cluster's
+            // ledger id and entry id for the purpose of deduplication.
+            int readerIndex = headersAndPayload.readerIndex();
+            MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.readerIndex(readerIndex);
+
+            List<KeyValue> kvPairList = md.getPropertiesList();
+            for (KeyValue kvPair : kvPairList) {
+                if (kvPair.getKey().equals(MSG_PROP_REPL_SOURCE_POSITION)) {
+                    if (!kvPair.getValue().contains(":")) {
+                        log.warn()
+                                .attr("producerName", publishContext.getProducerName())
+                                .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
+                                .attr("value", kvPair.getValue())
+                                .log("Unexpected");
+                        break;
+                    }
+                    String[] ledgerIdAndEntryId = kvPair.getValue().split(":");
+                    if (ledgerIdAndEntryId.length != 2 || !StringUtils.isNumeric(ledgerIdAndEntryId[0])
+                            || !StringUtils.isNumeric(ledgerIdAndEntryId[1])) {
+                        log.warn()
+                                .attr("producerName", publishContext.getProducerName())
+                                .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
+                                .attr("value", kvPair.getValue())
+                                .log("Unexpected");
+                        break;
+                    }
+                    long[] positionPair = new long[]{Long.valueOf(ledgerIdAndEntryId[0]).longValue(),
+                            Long.valueOf(ledgerIdAndEntryId[1]).longValue()};
+                    publishContext.setProperty(MSG_PROP_REPL_SOURCE_POSITION, positionPair);
+                    break;
+                }
+            }
+        }
+    }
+
+    public MessageDupStatus isDuplicateReplV2(PublishContext publishContext, ByteBuf headersAndPayload) {
+        Object positionPairObj = publishContext.getProperty(MSG_PROP_REPL_SOURCE_POSITION);
+        if (positionPairObj == null || !(positionPairObj instanceof long[])) {
+            log.error()
+                    .attr("producerName", publishContext.getProducerName())
+                    .attr("supportsReplDedupByLidAndEid", publishContext.supportsReplDedupByLidAndEid())
+                    .attr("sequenceId", publishContext.getSequenceId())
+                    .attr("propKey", MSG_PROP_REPL_SOURCE_POSITION)
+                    .log("Message cannot determine whether it is duplicated due to the acquired message "
+                            + "props being invalid, prop not in expected format");
+            return MessageDupStatus.Unknown;
+        }
+
+        long[] positionPair = (long[]) positionPairObj;
+        long replSequenceLId = positionPair[0];
+        long replSequenceEId = positionPair[1];
+
+        String lastSequenceLIdKey = publishContext.getProducerName() + "_LID";
+        String lastSequenceEIdKey = publishContext.getProducerName() + "_EID";
+        synchronized (highestSequencedPushed) {
+            Long lastSequenceLIdPushed = highestSequencedPushed.get(lastSequenceLIdKey);
+            Long lastSequenceEIdPushed = highestSequencedPushed.get(lastSequenceEIdKey);
+            if (lastSequenceLIdPushed != null && lastSequenceEIdPushed != null
+                && (replSequenceLId < lastSequenceLIdPushed.longValue()
+                        || (replSequenceLId == lastSequenceLIdPushed.longValue()
+                        && replSequenceEId <= lastSequenceEIdPushed.longValue()))) {
+                log.debug()
+                        .attr("producerName", publishContext.getProducerName())
+                        .attr("replSequenceLId", replSequenceLId)
+                        .attr("replSequenceEId", replSequenceEId)
+                        .attr("lastSequenceLIdPushed", lastSequenceLIdPushed)
+                        .attr("lastSequenceEIdPushed", lastSequenceEIdPushed)
+                        .log("Message identified as duplicated");
+
+                // Also need to check sequence ids that has been persisted.
+                // If current message's seq id is smaller or equals to the
+                // "lastSequenceLIdPersisted:lastSequenceEIdPersisted" than its definitely a dup
+                // If current message's seq id is between "lastSequenceLIdPushed:lastSequenceEIdPushed" and
+                // "lastSequenceLIdPersisted:lastSequenceEIdPersisted", then we cannot be sure whether the message
+                // is a dup or not we should return an error to the producer for the latter case so that it can retry
+                // at a future time
+                Long lastSequenceLIdPersisted = highestSequencedPersisted.get(lastSequenceLIdKey);
+                Long lastSequenceEIdPersisted = highestSequencedPersisted.get(lastSequenceEIdKey);
+                log.debug()
+                        .attr("producerName", publishContext.getProducerName())
+                        .attr("replSequenceLId", replSequenceLId)
+                        .attr("replSequenceEId", replSequenceEId)
+                        .attr("lastSequenceLIdPersisted", lastSequenceLIdPersisted)
+                        .attr("lastSequenceEIdPersisted", lastSequenceEIdPersisted)
+                        .log("Message identified as duplicated producer=. publishing:, latest" + "persisted");
+                if (lastSequenceLIdPersisted != null && lastSequenceEIdPersisted != null
+                    && (replSequenceLId < lastSequenceLIdPersisted.longValue()
+                        || (replSequenceLId == lastSequenceLIdPersisted.longValue()
+                            && replSequenceEId <= lastSequenceEIdPersisted))) {
+                    return MessageDupStatus.Dup;
+                } else {
+                    return MessageDupStatus.Unknown;
+                }
+            }
+            highestSequencedPushed.put(lastSequenceLIdKey, replSequenceLId);
+            highestSequencedPushed.put(lastSequenceEIdKey, replSequenceEId);
+        }
+        log.debug()
+                .attr("producerName", publishContext.getProducerName())
+                .attr("replSequenceLId", replSequenceLId)
+                .attr("replSequenceEId", replSequenceEId)
+                .log("Message identified as non-duplicated producer=. publishing");
+        return MessageDupStatus.NotDup;
+    }
+
+    public MessageDupStatus isDuplicateNormal(PublishContext publishContext, ByteBuf headersAndPayload,
+                                              boolean useOriginalProducerName) {
         String producerName = publishContext.getProducerName();
+        if (useOriginalProducerName) {
+            producerName = publishContext.getOriginalProducerName();
+        }
         long sequenceId = publishContext.getSequenceId();
         long highestSequenceId = Math.max(publishContext.getHighestSequenceId(), sequenceId);
-        MessageMetadata md = null;
-        if (producerName.startsWith(replicatorPrefix)) {
-            // Message is coming from replication, we need to use the original producer name and sequence id
-            // for the purpose of deduplication and not rely on the "replicator" name.
-            int readerIndex = headersAndPayload.readerIndex();
-            md = Commands.parseMessageMetadata(headersAndPayload);
-            producerName = md.getProducerName();
-            sequenceId = md.getSequenceId();
-            highestSequenceId = Math.max(md.getHighestSequenceId(), sequenceId);
-            publishContext.setOriginalProducerName(producerName);
-            publishContext.setOriginalSequenceId(sequenceId);
-            publishContext.setOriginalHighestSequenceId(highestSequenceId);
-            headersAndPayload.readerIndex(readerIndex);
-        }
         long chunkID = -1;
         long totalChunk = -1;
         if (publishContext.isChunked()) {
-            if (md == null) {
-                int readerIndex = headersAndPayload.readerIndex();
-                md = Commands.parseMessageMetadata(headersAndPayload);
-                headersAndPayload.readerIndex(readerIndex);
-            }
+            int readerIndex = headersAndPayload.readerIndex();
+            MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.readerIndex(readerIndex);
             chunkID = md.getChunkId();
             totalChunk = md.getNumChunksFromMsg();
         }
@@ -372,10 +484,11 @@ public class MessageDeduplication {
         synchronized (highestSequencedPushed) {
             Long lastSequenceIdPushed = highestSequencedPushed.get(producerName);
             if (lastSequenceIdPushed != null && sequenceId <= lastSequenceIdPushed) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Message identified as duplicated producer={} seq-id={} -- highest-seq-id={}",
-                            topic.getName(), producerName, sequenceId, lastSequenceIdPushed);
-                }
+                log.debug()
+                        .attr("producerName", producerName)
+                        .attr("sequenceId", sequenceId)
+                        .attr("lastSequenceIdPushed", lastSequenceIdPushed)
+                        .log("Message identified as duplicated");
 
                 // Also need to check sequence ids that has been persisted.
                 // If current message's seq id is smaller or equals to the
@@ -403,11 +516,43 @@ public class MessageDeduplication {
     /**
      * Call this method whenever a message is persisted to get the chance to trigger a snapshot.
      */
-    public void recordMessagePersisted(PublishContext publishContext, PositionImpl position) {
+    public void recordMessagePersisted(PublishContext publishContext, Position position) {
         if (!isEnabled() || publishContext.isMarkerMessage()) {
             return;
         }
+        if (publishContext.getProducerName().startsWith(replicatorPrefix)
+                && publishContext.supportsReplDedupByLidAndEid()) {
+            recordMessagePersistedRepl(publishContext, position);
+        } else {
+            recordMessagePersistedNormal(publishContext, position);
+        }
+    }
 
+    public void recordMessagePersistedRepl(PublishContext publishContext, Position position) {
+        Object positionPairObj = publishContext.getProperty(MSG_PROP_REPL_SOURCE_POSITION);
+        if (positionPairObj == null || !(positionPairObj instanceof long[])) {
+            log.error()
+                    .attr("producerName", publishContext.getProducerName())
+                    .attr("supportsReplDedupByLidAndEid", publishContext.supportsReplDedupByLidAndEid())
+                    .attr("sequenceId", publishContext.getSequenceId())
+                    .attr("MSG_PROP_REPL_SOURCE_POSITION", MSG_PROP_REPL_SOURCE_POSITION)
+                    .log("Can not persist highest sequence-id due to the acquired messages"
+                            + "props are invalid. producer=. supportsReplDedupByLidAndEid:, sequence-id,"
+                            + "prop-: not in expected format");
+            recordMessagePersistedNormal(publishContext, position);
+            return;
+        }
+        long[] positionPair = (long[]) positionPairObj;
+        long replSequenceLId = positionPair[0];
+        long replSequenceEId = positionPair[1];
+        String lastSequenceLIdKey = publishContext.getProducerName() + "_LID";
+        String lastSequenceEIdKey = publishContext.getProducerName() + "_EID";
+        highestSequencedPersisted.put(lastSequenceLIdKey, replSequenceLId);
+        highestSequencedPersisted.put(lastSequenceEIdKey, replSequenceEId);
+        increaseSnapshotCounterAndTakeSnapshotIfNeeded(position);
+    }
+
+    public void recordMessagePersistedNormal(PublishContext publishContext, Position position) {
         String producerName = publishContext.getProducerName();
         long sequenceId = publishContext.getSequenceId();
         long highestSequenceId = publishContext.getHighestSequenceId();
@@ -421,9 +566,18 @@ public class MessageDeduplication {
         if (isLastChunk == null || isLastChunk) {
             highestSequencedPersisted.put(producerName, Math.max(highestSequenceId, sequenceId));
         }
+        increaseSnapshotCounterAndTakeSnapshotIfNeeded(position);
+    }
+
+    private void increaseSnapshotCounterAndTakeSnapshotIfNeeded(Position position) {
         if (++snapshotCounter >= snapshotInterval) {
             snapshotCounter = 0;
             takeSnapshot(position);
+        } else {
+            log.debug()
+                    .attr("snapshotCounter", snapshotCounter)
+                    .attr("snapshotInterval", snapshotInterval)
+                    .log("Waiting for sequence-id snapshot");
         }
     }
 
@@ -433,18 +587,19 @@ public class MessageDeduplication {
         }
 
         highestSequencedPushed.clear();
-        for (String producer : highestSequencedPersisted.keys()) {
+        for (String producer : highestSequencedPersisted.keySet()) {
             highestSequencedPushed.put(producer, highestSequencedPersisted.get(producer));
         }
     }
 
-    private void takeSnapshot(Position position) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Taking snapshot of sequence ids map", topic.getName());
-        }
+    private CompletableFuture<Void> takeSnapshot(Position position) {
+        log.debug("Taking snapshot of sequence ids map");
 
         if (!snapshotTaking.compareAndSet(false, true)) {
-            return;
+            log.warn()
+                    .attr("position", position)
+                    .log("There is a pending snapshot when taking snapshot for");
+            return CompletableFuture.completedFuture(null);
         }
 
         Map<String, Long> snapshot = new TreeMap<>();
@@ -454,22 +609,29 @@ public class MessageDeduplication {
             }
         });
 
-        getManagedCursor().asyncMarkDelete(position, snapshot, new MarkDeleteCallback() {
-            @Override
-            public void markDeleteComplete(Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Stored new deduplication snapshot at {}", topic.getName(), position);
-                }
-                lastSnapshotTimestamp = System.currentTimeMillis();
-                snapshotTaking.set(false);
-            }
-
-            @Override
-            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}] Failed to store new deduplication snapshot at {}", topic.getName(), position);
-                snapshotTaking.set(false);
-            }
-        }, null);
+        final var cursor = managedCursor;
+        if (cursor == null) {
+            log.warn()
+                    .attr("position", position)
+                    .log("Cursor is null when taking snapshot for");
+            return CompletableFuture.completedFuture(null);
+        }
+        final var future = markDelete(cursor, position, snapshot).thenRun(() -> {
+            log.debug()
+                    .attr("position", position)
+                    .log("Stored new deduplication snapshot at");
+            lastSnapshotTimestamp = System.currentTimeMillis();
+            snapshotTaking.set(false);
+        });
+        future.exceptionally(e -> {
+            log.warn()
+                    .attr("position", position)
+                    .exception(e)
+                    .log("Failed to store new deduplication snapshot at");
+            snapshotTaking.set(false);
+            return null;
+        });
+        return future;
     }
 
     /**
@@ -519,7 +681,9 @@ public class MessageDeduplication {
             long lastActiveTimestamp = entry.getValue();
 
             if (lastActiveTimestamp < minimumActiveTimestamp) {
-                log.info("[{}] Purging dedup information for producer {}", topic.getName(), producerName);
+                log.info()
+                        .attr("producerName", producerName)
+                        .log("Purging dedup information for producer");
                 mapIterator.remove();
                 highestSequencedPushed.remove(producerName);
                 highestSequencedPersisted.remove(producerName);
@@ -547,11 +711,11 @@ public class MessageDeduplication {
                 || currentTimeStamp - lastSnapshotTimestamp < TimeUnit.SECONDS.toMillis(interval)) {
             return;
         }
-        PositionImpl position = (PositionImpl) managedLedger.getLastConfirmedEntry();
+        Position position = managedLedger.getLastConfirmedEntry();
         if (position == null) {
             return;
         }
-        PositionImpl markDeletedPosition = (PositionImpl) managedCursor.getMarkDeletedPosition();
+        Position markDeletedPosition = managedCursor.getMarkDeletedPosition();
         if (markDeletedPosition != null && position.compareTo(markDeletedPosition) <= 0) {
             return;
         }
@@ -567,6 +731,4 @@ public class MessageDeduplication {
     Map<String, Long> getInactiveProducers() {
         return inactiveProducers;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(MessageDeduplication.class);
 }

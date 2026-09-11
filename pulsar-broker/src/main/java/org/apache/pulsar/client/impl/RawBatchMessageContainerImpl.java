@@ -167,7 +167,7 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
             }
         }
 
-        ByteBuf encryptedPayload = encrypt(getCompressedBatchMetadataAndPayload());
+        ByteBuf encryptedPayload = encrypt(getCompressedBatchMetadataAndPayload(false));
         updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
         ByteBuf metadataAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
                 messageMetadata, encryptedPayload);

@@ -1,0 +1,70 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# Submits the Gradle dependency graph to GitHub so that Dependabot can raise
+# vulnerability alerts (and updates) for transitive dependencies that are not
+# declared directly in the build scripts. Without this submission, Dependabot
+# only sees the direct dependencies it can parse from build.gradle files and
+# misses CVEs in the resolved transitive graph.
+#
+# See https://github.com/gradle/actions/blob/main/docs/dependency-submission.md
+
+name: CI - Gradle Dependency Submission
+
+on:
+  push:
+    branches: [ 'master' ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  JDK_DISTRIBUTION: corretto
+
+jobs:
+  dependency-submission:
+    name: Dependency Submission
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v6
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: 21
+
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
+        with:
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          cache-read-only: false
+
+      - name: Generate and submit dependency graph
+        uses: gradle/actions/dependency-submission@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e

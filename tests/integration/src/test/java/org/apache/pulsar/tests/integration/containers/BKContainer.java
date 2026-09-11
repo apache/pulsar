@@ -30,4 +30,9 @@ public class BKContainer extends PulsarContainer<BKContainer> {
             clusterName, hostName, hostName, "bin/run-bookie.sh", BOOKIE_PORT, INVALID_PORT);
         tailContainerLog();
     }
+
+    @Override
+    protected boolean isPassNettyLeakDetectionSystemProperties() {
+        return false;
+    }
 }

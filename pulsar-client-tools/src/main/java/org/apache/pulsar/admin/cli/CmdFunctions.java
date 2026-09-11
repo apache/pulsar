@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static org.apache.commons.lang.StringUtils.isBlank;
-import static org.apache.commons.lang.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import com.google.common.annotations.VisibleForTesting;
@@ -36,9 +36,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -57,7 +57,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-@Slf4j
+@CustomLog
 @Command(description = "Interface for managing Pulsar Functions "
         + "(lightweight, Lambda-style compute processes that work with Pulsar)")
 public class CmdFunctions extends CmdBase {
@@ -100,13 +100,21 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Option(names = "--tenant", description = "The tenant of a Pulsar Function",
-                defaultValue = PUBLIC_TENANT)
+        @Option(names = "--tenant", description = "The tenant of a Pulsar Function")
         protected String tenant;
 
-        @Option(names = "--namespace", description = "The namespace of a Pulsar Function",
-                defaultValue = DEFAULT_NAMESPACE)
+        @Option(names = "--namespace", description = "The namespace of a Pulsar Function")
         protected String namespace;
+
+        @Override
+        public void processArguments() {
+            if (tenant == null) {
+                tenant = PUBLIC_TENANT;
+            }
+            if (namespace == null) {
+                namespace = DEFAULT_NAMESPACE;
+            }
+        }
     }
 
     /**
@@ -117,12 +125,10 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function")
         protected String fqfn;
 
-        @Option(names = "--tenant", description = "The tenant of a Pulsar Function",
-                defaultValue = PUBLIC_TENANT)
+        @Option(names = "--tenant", description = "The tenant of a Pulsar Function")
         protected String tenant;
 
-        @Option(names = "--namespace", description = "The namespace of a Pulsar Function",
-                defaultValue = DEFAULT_NAMESPACE)
+        @Option(names = "--namespace", description = "The namespace of a Pulsar Function")
         protected String namespace;
 
         @Option(names = "--name", description = "The name of a Pulsar Function")
@@ -170,11 +176,9 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--fqfn", description = "The Fully Qualified Function Name (FQFN) for the function"
                 + " #Java, Python")
         protected String fqfn;
-        @Option(names = "--tenant", description = "The tenant of a Pulsar Function #Java, Python, Go",
-                defaultValue = PUBLIC_TENANT)
+        @Option(names = "--tenant", description = "The tenant of a Pulsar Function #Java, Python, Go")
         protected String tenant;
-        @Option(names = "--namespace", description = "The namespace of a Pulsar Function #Java, Python, Go",
-                defaultValue = DEFAULT_NAMESPACE)
+        @Option(names = "--namespace", description = "The namespace of a Pulsar Function #Java, Python, Go")
         protected String namespace;
         @Option(names = "--name", description = "The name of a Pulsar Function #Java, Python, Go")
         protected String functionName;
@@ -293,10 +297,11 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--retainOrdering",
                 description = "Function consumes and processes messages in order", hidden = true)
         protected Boolean deprecatedRetainOrdering;
-        @Option(names = "--retain-ordering", description = "Function consumes and processes messages in order #Java")
+        @Option(names = "--retain-ordering",
+                description = "Function consumes and processes messages in order #Java, Python, Go")
         protected Boolean retainOrdering;
         @Option(names = "--retain-key-ordering",
-                description = "Function consumes and processes messages in key order #Java")
+                description = "Function consumes and processes messages in key order #Java, Python, Go")
         protected Boolean retainKeyOrdering;
         @Option(names = "--batch-builder", description = "BatcherBuilder provides two types of "
                 + "batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
@@ -432,6 +437,7 @@ public class CmdFunctions extends CmdBase {
             }
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         void processArguments() throws Exception {
             // merge deprecated args with new args
