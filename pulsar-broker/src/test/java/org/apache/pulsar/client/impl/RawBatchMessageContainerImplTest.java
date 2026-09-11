@@ -21,19 +21,30 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.api.proto.CompressionType.NONE;
 import static org.apache.pulsar.common.api.proto.CompressionType.ZSTD;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageCrypto;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -307,5 +318,92 @@ public class RawBatchMessageContainerImplTest {
         Assert.assertEquals(e.getClass(), IllegalArgumentException.class);
         Assert.assertEquals(container.getNumMessagesInBatch(), 0);
         Assert.assertEquals(container.batchedMessageMetadataAndPayload, null);
+    }
+
+    /**
+     * A crypto provider that fails with an unexpected (non-{@link PulsarClientException}) error after the batch
+     * payload was built must not orphan the compressed payload or the partially built encrypted buffer.
+     */
+    @Test
+    public void testToByteBufReleasesPayloadWhenEncryptionFailsUnexpectedly() throws Exception {
+        setEncryptionAndCompression(true, false);
+        // Track every buffer the container allocates, so the partially built encrypted output buffer is
+        // asserted as well, not just the batch payload it hands over.
+        List<ByteBuf> allocated = new ArrayList<>();
+        ByteBufAllocator trackingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ByteBuf buffer = Unpooled.buffer(invocation.getArgument(0));
+            allocated.add(buffer);
+            return buffer;
+        }).when(trackingAllocator).buffer(anyInt());
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(trackingAllocator);
+        container.setCryptoKeyReader(cryptoKeyReader);
+        container.add(createMessage("my-topic", "hi-1", 0), null);
+
+        // Replace the real crypto with one whose encrypt() throws an unexpected RuntimeException, so the batch
+        // payload is built (getCompressedBatchMetadataAndPayload) and then encryption fails outside the
+        // PulsarClientException contract.
+        MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
+        when(crypto.getMaxOutputSize(anyInt())).thenReturn(128);
+        doThrow(new RuntimeException("mocked crypto failure"))
+                .when(crypto).encrypt(anySet(), any(), any(), any(), any());
+        container.setMsgCryptoForTesting(crypto);
+
+        Throwable e = null;
+        try {
+            container.toByteBuf();
+        } catch (Throwable ex) {
+            e = ex;
+        }
+        Assert.assertEquals(e.getClass(), RuntimeException.class);
+        Assert.assertTrue(e.getMessage().contains("mocked crypto failure"));
+        // The compressed batch payload must have been released instead of leaked; the container keeps its
+        // (now released) buffer reference until the caller recovers, mirroring the producer path.
+        Assert.assertEquals(container.batchedMessageMetadataAndPayload.refCnt(), 0);
+        // The partially built encrypted output buffer must have been released as well, not only the source.
+        for (ByteBuf buffer : allocated) {
+            Assert.assertEquals(buffer.refCnt(), 0);
+        }
+
+        container.discard(null);
+    }
+
+    /**
+     * A crypto provider failing with a {@link PulsarClientException} must release the compressed batch payload
+     * and the partially built encrypted buffer and discard the batch, so the compactor can reuse the container.
+     */
+    @Test
+    public void testToByteBufReleasesPayloadAndDiscardsWhenEncryptionFailsWithClientException() throws Exception {
+        setEncryptionAndCompression(true, false);
+        List<ByteBuf> allocated = new ArrayList<>();
+        ByteBufAllocator trackingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ByteBuf buffer = Unpooled.buffer(invocation.getArgument(0));
+            allocated.add(buffer);
+            return buffer;
+        }).when(trackingAllocator).buffer(anyInt());
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(trackingAllocator);
+        container.setCryptoKeyReader(cryptoKeyReader);
+        container.add(createMessage("my-topic", "hi-1", 0), null);
+
+        MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
+        when(crypto.getMaxOutputSize(anyInt())).thenReturn(128);
+        doThrow(new PulsarClientException("mocked crypto failure"))
+                .when(crypto).encrypt(anySet(), any(), any(), any(), any());
+        container.setMsgCryptoForTesting(crypto);
+
+        try {
+            container.toByteBuf();
+            Assert.fail("expected the encryption failure to propagate");
+        } catch (RuntimeException e) {
+            Assert.assertTrue(e.getMessage().contains("Failed to encrypt payload"));
+            Assert.assertTrue(e.getCause() instanceof PulsarClientException);
+        }
+        // Unlike the unexpected-Throwable branch, the PulsarClientException branch discards the batch so the
+        // container is empty and reusable for the next flush.
+        Assert.assertEquals(container.getNumMessagesInBatch(), 0);
+        for (ByteBuf buffer : allocated) {
+            Assert.assertEquals(buffer.refCnt(), 0);
+        }
     }
 }
