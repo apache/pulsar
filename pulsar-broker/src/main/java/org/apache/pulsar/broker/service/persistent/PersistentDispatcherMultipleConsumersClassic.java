@@ -314,7 +314,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         topic.getBrokerService().executor().execute(this::readMoreEntries);
     }
 
-    public synchronized void readMoreEntries() {
+    @Override
+    protected synchronized void internalReadMoreEntries() {
         if (cursor.isClosed()) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Cursor is already closed, skipping read more entries.", cursor.getName());
