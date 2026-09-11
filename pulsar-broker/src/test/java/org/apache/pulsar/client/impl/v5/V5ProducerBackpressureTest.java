@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.v5;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -28,7 +29,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
@@ -39,6 +42,7 @@ import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.V5ClientBaseTest;
 import org.apache.pulsar.client.api.v5.async.AsyncProducer;
 import org.apache.pulsar.client.api.v5.config.BatchingPolicy;
+import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.MemoryLimitController;
@@ -56,15 +60,39 @@ public class V5ProducerBackpressureTest extends V5ClientBaseTest {
     private static final int PAYLOAD_BYTES = 1024;
     private static final int NUM_MESSAGES = 20_000;
 
+    /**
+     * One IO thread and one callback thread, so that a test can hold the client's dispatch executor
+     * or its completion executor behind a gate and know it is holding the only one.
+     */
     private PulsarClient newClientWithMemoryLimit() throws Exception {
         return track(PulsarClient.builder()
                 .serviceUrl(getBrokerServiceUrl())
                 .memoryLimit(MemorySize.ofBytes(MEMORY_LIMIT_BYTES))
+                .connectionPolicy(ConnectionPolicy.builder().ioThreads(1).callbackThreads(1).build())
                 .build());
     }
 
     private static MemoryLimitController memoryLimit(PulsarClient client) {
         return ((PulsarClientV5) client).v4Client().getMemoryLimitController();
+    }
+
+    /** Hold the client's only dispatch executor until the gate opens. */
+    private static void holdDispatchExecutor(PulsarClient client, CountDownLatch gate) {
+        ((PulsarClientV5) client).v4Client().getInternalExecutorService().execute(() -> awaitQuietly(gate));
+    }
+
+    /** Hold the client's only completion executor until the gate opens. */
+    private static void holdCompletionExecutor(PulsarClient client, CountDownLatch gate) {
+        ((PulsarClientV5) client).v4Client().externalExecutorProvider().getExecutor()
+                .execute(() -> awaitQuietly(gate));
+    }
+
+    private static void awaitQuietly(CountDownLatch gate) {
+        try {
+            gate.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static void assertMemoryReleased(PulsarClient client) {
@@ -255,17 +283,85 @@ public class V5ProducerBackpressureTest extends V5ClientBaseTest {
                 .create();
         byte[] payload = new byte[PAYLOAD_BYTES];
 
-        // Cold segment: these queue up behind the creation of the segment producer.
+        // Hold the dispatch executor: the sends stay queued on the chain, whatever the broker does.
+        CountDownLatch gate = new CountDownLatch(1);
+        holdDispatchExecutor(client, gate);
         List<CompletableFuture<MessageId>> futures = new ArrayList<>();
         for (int i = 0; i < 100; i++) {
             futures.add(producer.async().newMessage().value(payload).send());
         }
         futures.forEach(future -> future.cancel(true));
-        assertTrue(memoryLimit(client).currentUsage() > 0,
+        assertEquals(memoryLimit(client).currentUsage(),
+                100L * (PAYLOAD_BYTES + ScalableTopicProducer.PER_MESSAGE_OVERHEAD_BYTES),
                 "cancelling must not hand the budget back while the sends are still queued");
 
-        // Dropped before dispatch or acknowledged after it, each send gives its budget back once.
+        // Dropped at dispatch, each send gives its budget back once.
+        gate.countDown();
+        assertMemoryReleased(client);
         assertNotNull(producer.newMessage().value(payload).send());
+    }
+
+    /**
+     * A send stays part of what {@link AsyncProducer#flush()} waits for until its future completes,
+     * including while its failure is on its way to the caller through the completion executor.
+     */
+    @Test(timeOut = 60_000)
+    public void flushWaitsForASendWhoseFailureIsStillBeingDelivered() throws Exception {
+        PulsarClient client = newClientWithMemoryLimit();
+        String topic = newScalableTopic(1);
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer(Schema.bytes())
+                .topic(topic)
+                .batchingPolicy(BatchingPolicy.ofDisabled())
+                .create();
+        MemoryLimitController memoryLimit = memoryLimit(client);
+
+        // Hold the completion executor: an oversized message fails on the dispatch thread and its
+        // failure is delivered to the caller through it.
+        CountDownLatch gate = new CountDownLatch(1);
+        holdCompletionExecutor(client, gate);
+        CompletableFuture<MessageId> failing = producer.async().newMessage()
+                .value(new byte[6 * 1024 * 1024]).send();
+        // The reservation is given back as soon as the send fails, before the caller hears of it.
+        Awaitility.await().until(() -> memoryLimit.currentUsage() == 0);
+        assertFalse(failing.isDone(), "the failure must not reach the caller while the executor is held");
+
+        CompletableFuture<Void> flush = producer.async().flush();
+        assertThrows(TimeoutException.class, () -> flush.get(500, TimeUnit.MILLISECONDS));
+
+        gate.countDown();
+        assertNotNull(failureOf(flush), "the flush must report the failed send");
+        assertTrue(failing.isCompletedExceptionally());
+    }
+
+    /**
+     * The acknowledgement can arrive before the result callback is registered, in which case the
+     * callback runs on the dispatch thread. The caller's future must still not be completed there.
+     */
+    @Test(timeOut = 60_000)
+    public void anAcknowledgementThatBeatsTheCallbackIsDeliveredOffTheDispatchThread() throws Exception {
+        PulsarClient client = newClientWithMemoryLimit();
+        String topic = newScalableTopic(1);
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer(Schema.bytes())
+                .topic(topic)
+                .batchingPolicy(BatchingPolicy.ofDisabled())
+                .create();
+        byte[] payload = new byte[PAYLOAD_BYTES];
+        // Have every acknowledgement arrive while the dispatch link is still between the enqueue and
+        // the callback registration.
+        ((ScalableTopicProducer<byte[]>) producer).afterV4EnqueueHook =
+                ackFuture -> ackFuture.handle((__, ___) -> null).join();
+
+        AtomicReference<String> continuationThread = new AtomicReference<>();
+        CompletableFuture<MessageId> chained = producer.async().newMessage().value(payload).send()
+                .thenCompose(__ -> {
+                    continuationThread.set(Thread.currentThread().getName());
+                    return producer.async().newMessage().value(payload).send();
+                });
+        assertNotNull(chained.get(30, TimeUnit.SECONDS), "the send issued from the continuation must complete");
+        assertFalse(continuationThread.get().startsWith("pulsar-client-internal"),
+                "the acknowledgement was delivered on the dispatch thread: " + continuationThread.get());
         assertMemoryReleased(client);
     }
 

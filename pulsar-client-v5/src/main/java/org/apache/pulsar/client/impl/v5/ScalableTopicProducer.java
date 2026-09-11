@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.EventExecutor;
@@ -115,12 +116,19 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private final EventLoopGroup eventLoopGroup;
 
     /**
-     * Where the caller's future is completed when a send fails somewhere other than on an IO
-     * thread: the dispatch executor, the timer, the thread closing the producer. Code chained on the
-     * future may block, and a send from it may wait for memory, which none of those threads can
-     * afford to do (see {@link #finish}). Successes arrive on an IO thread and complete in place.
+     * Where the caller's future is completed when its result did not arrive on an IO thread: on
+     * the dispatch thread, the timer, the thread closing the producer. Code chained on the future
+     * may block, and a send from it may wait for memory, which none of those threads can afford to
+     * do (see {@link #finish}). Results that arrive on an IO thread complete in place.
      */
-    private final ExecutorService failureCompletionExecutor;
+    private final ExecutorService completionExecutor;
+
+    /**
+     * Test hook, run in the dispatch link right after the v4 enqueue and before the result callback
+     * is registered: lets a test have the acknowledgement arrive in between.
+     */
+    @VisibleForTesting
+    volatile Consumer<CompletableFuture<?>> afterV4EnqueueHook;
 
     /**
      * Per-segment v4 producers. Stored as futures so concurrent send-on-cold-segment
@@ -184,7 +192,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         this.memoryLimit = client.v4Client().getMemoryLimitController();
         this.dispatchExecutor = client.v4Client().getInternalExecutorService();
         this.eventLoopGroup = client.v4Client().eventLoopGroup();
-        this.failureCompletionExecutor = client.v4Client().externalExecutorProvider().getExecutor();
+        this.completionExecutor = client.v4Client().externalExecutorProvider().getExecutor();
         this.asyncView = new AsyncProducerV5<>(this);
 
         // Register for layout changes
@@ -271,6 +279,12 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         final AtomicBoolean payloadHeld = new AtomicBoolean(true);
         /** Whether the send has reached its terminal event and given its reservation back. */
         final AtomicBoolean finished = new AtomicBoolean();
+        /**
+         * Set while the dispatch link hands the message to the v4 producer. A result that arrives
+         * while it is set (a failure raised inside {@code sendAsync}, or an acknowledgement that beat
+         * the callback registration) is being delivered on the dispatch thread.
+         */
+        volatile boolean dispatching;
 
         PendingSend(String key, V value, EncodeData encoded, int payloadSize,
                     Map<String, String> properties, Instant eventTime, Long sequenceId,
@@ -520,6 +534,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             return userFuture;
         }
         inFlightSends.add(userFuture);
+        // Tracked until the caller-visible future is done, whichever side completes it. Registered
+        // before the future is handed out, so it runs after the caller's own continuations.
+        userFuture.whenComplete((__, ___) -> inFlightSends.remove(userFuture));
         dispatchSendAttempt(send, 0);
         return userFuture;
     }
@@ -560,27 +577,35 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     if (abandonIfDone(send)) {
                         return;
                     }
-                    CompletableFuture<org.apache.pulsar.client.api.MessageId> ackFuture;
+                    send.dispatching = true;
                     try {
-                        ackFuture = buildV4Message(producer, send).sendAsync();
-                    } catch (Exception e) {
-                        // Only this send fails; the chain stays healthy for the sends behind it.
-                        finish(send, null, e);
-                        return;
-                    }
-                    if (!ackFuture.isDone()) {
-                        // Handed over: the v4 producer accounts for the payload from here on. A send
-                        // that already failed inside sendAsync keeps its share until its result is in.
-                        releasePayloadShare(send);
-                    }
-                    ackFuture.whenComplete((v4MsgId, ex) -> {
-                        if (ex == null) {
-                            finish(send, new MessageIdV5(v4MsgId, routedSegmentId), null);
-                        } else {
-                            // Failure from the v4 send (e.g. the segment sealed mid-flight).
-                            handleAsyncSegmentFailure(send, routedSegmentId, attempt, ex, retry);
+                        CompletableFuture<org.apache.pulsar.client.api.MessageId> ackFuture;
+                        try {
+                            ackFuture = buildV4Message(producer, send).sendAsync();
+                        } catch (Exception e) {
+                            // Only this send fails; the chain stays healthy for the sends behind it.
+                            finish(send, null, e);
+                            return;
                         }
-                    });
+                        if (afterV4EnqueueHook != null) {
+                            afterV4EnqueueHook.accept(ackFuture);
+                        }
+                        if (!ackFuture.isDone()) {
+                            // Handed over: the v4 producer accounts for the payload from here on. A
+                            // send whose result is already in keeps its share until finish().
+                            releasePayloadShare(send);
+                        }
+                        ackFuture.whenComplete((v4MsgId, ex) -> {
+                            if (ex == null) {
+                                finish(send, new MessageIdV5(v4MsgId, routedSegmentId), null);
+                            } else {
+                                // Failure from the v4 send (e.g. the segment sealed mid-flight).
+                                handleAsyncSegmentFailure(send, routedSegmentId, attempt, ex, retry);
+                            }
+                        });
+                    } finally {
+                        send.dispatching = false;
+                    }
                 },
                 // Failure while (re)creating the per-segment producer — e.g. the partition was
                 // terminated by a migration between routing and creation.
@@ -610,33 +635,41 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * the meantime: give the reservation back first, then complete the caller's future last, so
      * that the budget is already available to whatever the caller chained on it.
      *
-     * <p>A success completes in place: it arrives on the IO thread that received the
-     * acknowledgement, where a send from a continuation fails fast rather than waits (see
-     * {@link #admit}). A failure that did not arrive on an IO thread came from one of the client's
-     * own threads, which a continuation must not hold up, so it completes on
-     * {@link #failureCompletionExecutor}.
+     * <p>The caller's continuations run where the future is completed. That is fine on the IO
+     * thread that received the result, where a send from them fails fast rather than waits (see
+     * {@link #admit}), and nowhere else: not on the dispatch thread, which has the next links
+     * queued behind it, nor on the timer or the thread closing the producer. A result delivered
+     * inside the dispatch link, whether a failure raised in {@code sendAsync} or an acknowledgement
+     * that beat the callback registration, is on the dispatch thread. Those complete on
+     * {@link #completionExecutor}.
      */
     private void finish(PendingSend<T> send, MessageId messageId, Throwable failure) {
         if (!send.finished.compareAndSet(false, true)) {
             return;
         }
         releaseAll(send);
-        inFlightSends.remove(send.userFuture);
         if (send.userFuture.isDone()) {
             // Completed by the caller (cancelled, timed out): nothing left to deliver.
             return;
         }
+        boolean offload = send.dispatching || (failure != null && !isEventLoopThread());
+        if (!offload) {
+            complete(send, messageId, failure);
+            return;
+        }
+        try {
+            completionExecutor.execute(() -> complete(send, messageId, failure));
+        } catch (RejectedExecutionException e) {
+            // The client is shutting down and its executors are gone: complete in place.
+            complete(send, messageId, failure);
+        }
+    }
+
+    private static <V> void complete(PendingSend<V> send, MessageId messageId, Throwable failure) {
         if (failure == null) {
             send.userFuture.complete(messageId);
-        } else if (isEventLoopThread()) {
-            send.userFuture.completeExceptionally(failure);
         } else {
-            try {
-                failureCompletionExecutor.execute(() -> send.userFuture.completeExceptionally(failure));
-            } catch (RejectedExecutionException e) {
-                // The client is shutting down and its executors are gone: complete in place.
-                send.userFuture.completeExceptionally(failure);
-            }
+            send.userFuture.completeExceptionally(failure);
         }
     }
 
