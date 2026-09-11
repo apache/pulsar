@@ -69,21 +69,24 @@ public class PemReaderTest {
     public static Object[][] privateKeyFormats() throws Exception {
         List<Object[]> cases = new ArrayList<>();
         for (String algorithm : List.of("RSA", "EC")) {
-            KeyPairGenerator generator = KeyPairGenerator.getInstance(algorithm);
-            generator.initialize("RSA".equals(algorithm) ? 2048 : 256);
-            PrivateKey key = generator.generateKeyPair().getPrivate();
-            Provider provider = KeyFactory.getInstance(algorithm).getProvider();
-            for (boolean pkcs1 : new boolean[]{false, true}) {
-                if (pkcs1 && !"RSA".equals(algorithm)) {
-                    continue;
-                }
-                byte[] encoded = pkcs1
-                        ? PrivateKeyInfo.getInstance(key.getEncoded()).parsePrivateKey().toASN1Primitive().getEncoded()
-                        : key.getEncoded();
-                String pem = toPem(pkcs1 ? "RSA PRIVATE KEY" : "PRIVATE KEY", encoded);
-                for (int preambleLines = 0; preambleLines <= 4; preambleLines++) {
-                    for (Provider pinned : new Provider[]{null, provider}) {
-                        cases.add(new Object[]{pem, key, preambleLines, pinned});
+            for (int keySize : "RSA".equals(algorithm) ? new int[]{2048, 3072, 4096} : new int[]{256}) {
+                KeyPairGenerator generator = KeyPairGenerator.getInstance(algorithm);
+                generator.initialize(keySize);
+                PrivateKey key = generator.generateKeyPair().getPrivate();
+                Provider provider = KeyFactory.getInstance(algorithm).getProvider();
+                for (boolean pkcs1 : new boolean[]{false, true}) {
+                    if (pkcs1 && !"RSA".equals(algorithm)) {
+                        continue;
+                    }
+                    byte[] encoded = pkcs1
+                            ? PrivateKeyInfo.getInstance(key.getEncoded()).parsePrivateKey()
+                                .toASN1Primitive().getEncoded()
+                            : key.getEncoded();
+                    String pem = toPem(pkcs1 ? "RSA PRIVATE KEY" : "PRIVATE KEY", encoded);
+                    for (int preambleLines = 0; preambleLines <= 4; preambleLines++) {
+                        for (Provider pinned : new Provider[]{null, provider}) {
+                            cases.add(new Object[]{pem, key, preambleLines, pinned});
+                        }
                     }
                 }
             }
