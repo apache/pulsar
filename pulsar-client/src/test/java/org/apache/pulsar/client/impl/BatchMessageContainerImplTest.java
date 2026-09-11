@@ -24,6 +24,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBufAllocator;
@@ -230,4 +231,84 @@ public class BatchMessageContainerImplTest {
         batchMessageContainer.clear();
         messages.forEach(ReferenceCountUtil::safeRelease);
     }
+
+    /**
+     * A batch carries one transaction id in its metadata, so every message in it inherits that transaction.
+     * Mixing a plain message into a transactional batch therefore silently enrolls it in the transaction: it
+     * stays invisible until commit and is dropped on abort, even though the application never sent it inside
+     * a transaction.
+     */
+    @Test
+    public void testPlainMessageIsNotBatchedWithTransactionalMessages() throws Exception {
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(createTestProducer());
+        container.add(newMessage(1L, 7L, 13L), null);
+
+        assertFalse(container.hasSameTxn(newMessage(2L, null, null)),
+                "a plain message was accepted into a transactional batch");
+    }
+
+    /**
+     * The mirror image: a transactional message joining a batch that already holds plain messages stamps its
+     * transaction id onto the whole batch, retroactively pulling those plain messages into the transaction.
+     */
+    @Test
+    public void testTransactionalMessageIsNotBatchedWithPlainMessages() throws Exception {
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(createTestProducer());
+        container.add(newMessage(1L, null, null), null);
+
+        assertFalse(container.hasSameTxn(newMessage(2L, 7L, 13L)),
+                "a transactional message was accepted into a plain batch");
+    }
+
+    /**
+     * Key-based batching fails the other way round: the guard reads the outer container's transaction state
+     * while the batch metadata is built by the per-key inner container, so a transactional message landing in
+     * a key bucket whose first message was plain is published with no transaction id at all — outside the
+     * transaction, and not rolled back on abort.
+     */
+    @Test
+    public void testKeyBasedContainerKeepsTransactionalAndPlainMessagesApart() throws Exception {
+        BatchMessageKeyBasedContainer container = new BatchMessageKeyBasedContainer();
+        container.setProducer(createTestProducer());
+        container.add(newMessage(1L, null, null), null);
+
+        assertFalse(container.hasSameTxn(newMessage(2L, 7L, 13L)),
+                "a transactional message was accepted into a plain key-based batch");
+    }
+
+    /** Messages of the same transaction must still batch together, and two different transactions must not. */
+    @Test
+    public void testSameTransactionStillBatchesTogether() throws Exception {
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(createTestProducer());
+        container.add(newMessage(1L, 7L, 13L), null);
+
+        assertTrue(container.hasSameTxn(newMessage(2L, 7L, 13L)),
+                "two messages of the same transaction were split across batches");
+        assertFalse(container.hasSameTxn(newMessage(3L, 7L, 14L)),
+                "messages of two different transactions were put in one batch");
+    }
+
+    /** Plain messages must still batch with each other. */
+    @Test
+    public void testPlainMessagesStillBatchTogether() throws Exception {
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(createTestProducer());
+        container.add(newMessage(1L, null, null), null);
+
+        assertTrue(container.hasSameTxn(newMessage(2L, null, null)),
+                "two plain messages were split across batches");
+    }
+
+    private static MessageImpl<byte[]> newMessage(long sequenceId, Long txnIdMostBits, Long txnIdLeastBits) {
+        MessageMetadata metadata = new MessageMetadata();
+        metadata.setSequenceId(sequenceId);
+        metadata.setProducerName("producer1");
+        metadata.setPublishTime(System.currentTimeMillis());
+        if (txnIdMostBits != null) {
+            metadata.setTxnidMostBits(txnIdMostBits);
+            metadata.setTxnidLeastBits(txnIdLeastBits);
+        }
+        ByteBuffer payload = ByteBuffer.wrap(("payload-" + sequenceId).getBytes(StandardCharsets.UTF_8));
+        return MessageImpl.create(metadata, payload, Schema.BYTES, null);
+    }
+
 }
