@@ -160,43 +160,81 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
             break;
 
         case Disconnected:
-            if (disconnectedAt == 0) {
-                // this is the first disconnect event, we should monitor the time out from now, so we record the
-                // time of disconnect
-                disconnectedAt = System.nanoTime();
-            }
+        case ConnectedReadOnly:
+            handleDisconnected(zkClientState);
+            break;
 
-            long timeRemainingMillis = monitorTimeoutMillis
-                    - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - disconnectedAt);
-            if (timeRemainingMillis <= 0 && currentStatus != SessionEvent.SessionLost) {
-                log.error("ZooKeeper session reconnection timeout. Notifying session is lost.");
+        case SyncConnected:
+            handleSyncConnected();
+            break;
+
+        case AuthFailed:
+            if (currentStatus != SessionEvent.SessionLost) {
+                log.error("ZooKeeper client authentication failed. Notifying session is lost.");
                 currentStatus = SessionEvent.SessionLost;
                 sessionListener.accept(currentStatus);
-            } else if (currentStatus != SessionEvent.SessionLost) {
+            }
+            break;
+
+        case SaslAuthenticated:
+            log.info().attr("currentStatus", currentStatus)
+                    .log("ZooKeeper client SASL authentication completed");
+            break;
+
+        case Closed:
+            log.info().attr("currentStatus", currentStatus).log("ZooKeeper client is closed");
+            break;
+
+        default:
+            log.warn().attr("zkClientState", zkClientState).attr("currentStatus", currentStatus)
+                    .log("Ignoring ZooKeeper client state that does not indicate a reconnection");
+            break;
+        }
+    }
+
+    private void handleDisconnected(Watcher.Event.KeeperState zkClientState) {
+        if (disconnectedAt == 0) {
+            // this is the first disconnect event, we should monitor the time out from now, so we record the
+            // time of disconnect
+            disconnectedAt = System.nanoTime();
+        }
+
+        long timeRemainingMillis = monitorTimeoutMillis
+                - TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - disconnectedAt);
+        if (timeRemainingMillis <= 0 && currentStatus != SessionEvent.SessionLost) {
+            log.error("ZooKeeper session reconnection timeout. Notifying session is lost.");
+            currentStatus = SessionEvent.SessionLost;
+            sessionListener.accept(currentStatus);
+        } else if (currentStatus != SessionEvent.SessionLost) {
+            if (zkClientState == Watcher.Event.KeeperState.ConnectedReadOnly) {
+                log.warn()
+                        .attr("sessionId", zk.getSessionId())
+                        .attr("timeRemainingSeconds", timeRemainingMillis / 1000.0)
+                        .log("ZooKeeper client is connected to a read-only server. Waiting for read-write connection");
+            } else {
                 log.warn()
                         .attr("sessionId", zk.getSessionId())
                         .attr("timeRemainingSeconds", timeRemainingMillis / 1000.0)
                         .log("ZooKeeper client is disconnected. Waiting to reconnect");
-                if (currentStatus == SessionEvent.SessionReestablished) {
-                    currentStatus = SessionEvent.ConnectionLost;
-                    sessionListener.accept(currentStatus);
-                }
             }
-            break;
-
-        default:
-            if (currentStatus != SessionEvent.SessionReestablished) {
-                // since it reconnected to zoo keeper, we reset the disconnected time
-                log.info().attr("currentStatus", currentStatus).log("ZooKeeper client reconnection with server quorum");
-                disconnectedAt = 0;
-
-                sessionListener.accept(SessionEvent.Reconnected);
-                if (currentStatus == SessionEvent.SessionLost) {
-                    sessionListener.accept(SessionEvent.SessionReestablished);
-                }
-                currentStatus = SessionEvent.SessionReestablished;
+            if (currentStatus == SessionEvent.SessionReestablished) {
+                currentStatus = SessionEvent.ConnectionLost;
+                sessionListener.accept(currentStatus);
             }
-            break;
+        }
+    }
+
+    private void handleSyncConnected() {
+        if (currentStatus != SessionEvent.SessionReestablished) {
+            // since it reconnected to zoo keeper, we reset the disconnected time
+            log.info().attr("currentStatus", currentStatus).log("ZooKeeper client reconnection with server quorum");
+            disconnectedAt = 0;
+
+            sessionListener.accept(SessionEvent.Reconnected);
+            if (currentStatus == SessionEvent.SessionLost) {
+                sessionListener.accept(SessionEvent.SessionReestablished);
+            }
+            currentStatus = SessionEvent.SessionReestablished;
         }
     }
 }
