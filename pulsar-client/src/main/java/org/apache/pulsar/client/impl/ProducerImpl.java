@@ -216,6 +216,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // deduplication on the remote side.
         this.pauseSendingToPreservePublishOrderOnSchemaRegFailure = conf.isReplProducer();
         if (conf.getMaxPendingMessages() > 0) {
+            // With admission done upstream the permit is never taken but would still be released.
+            checkArgument(!conf.isMemoryLimitAdmittedUpstream(),
+                    "memoryLimitAdmittedUpstream cannot be combined with a maxPendingMessages limit");
             this.semaphore = Optional.of(new Semaphore(conf.getMaxPendingMessages(), true));
         } else {
             this.semaphore = Optional.empty();
@@ -1128,6 +1131,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private boolean canEnqueueRequest(SendCallback callback, long sequenceId, int payloadSize) {
+        if (conf.isMemoryLimitAdmittedUpstream()) {
+            // The caller already admitted this message against the client memory limit before handing
+            // it over (see ProducerConfigurationData#memoryLimitAdmittedUpstream). Only account for the
+            // bytes here: never block or reject, this may be running on an IO thread.
+            client.getMemoryLimitController().forceReserveMemory(payloadSize);
+            return true;
+        }
         try {
             if (conf.isBlockIfQueueFull()) {
                 if (semaphore.isPresent()) {
