@@ -49,6 +49,7 @@ public abstract class AbstractPersistentDispatcherMultipleConsumers extends Abst
 
     /**
      * Conflate concurrent and reentrant requests into follow-up passes driven by the owning caller.
+     * If a pass fails, drain registered follow-ups before propagating the first failure to the owner.
      */
     public final void readMoreEntries() {
         for (;;) {
@@ -66,19 +67,29 @@ public abstract class AbstractPersistentDispatcherMultipleConsumers extends Abst
                 return;
             }
         }
-        try {
-            for (;;) {
-                // Requests received before this pass are covered by this pass.
-                readMoreEntriesState.set(RUNNING);
+        Throwable failure = null;
+        for (;;) {
+            // Requests received before this pass are covered by this pass.
+            readMoreEntriesState.set(RUNNING);
+            try {
                 internalReadMoreEntries();
-                if (readMoreEntriesState.compareAndSet(RUNNING, IDLE)) {
-                    return;
+            } catch (RuntimeException | Error t) {
+                // Keep ownership so a failure cannot discard an already-registered follow-up.
+                if (failure == null) {
+                    failure = t;
+                } else if (failure != t) {
+                    failure.addSuppressed(t);
                 }
-                // A request arrived during the pass. Run another pass without recursion.
             }
-        } catch (Throwable t) {
-            readMoreEntriesState.set(IDLE);
-            throw t;
+            if (readMoreEntriesState.compareAndSet(RUNNING, IDLE)) {
+                break;
+            }
+            // A request arrived during the pass. Run another pass without recursion, even after a failure.
+        }
+        if (failure instanceof RuntimeException runtimeException) {
+            throw runtimeException;
+        } else if (failure instanceof Error error) {
+            throw error;
         }
     }
 
