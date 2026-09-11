@@ -248,7 +248,7 @@ func getFirstMatch(
 
 func (stat *StatWithLabelValues) setLastInvocation() {
 	now := time.Now()
-	stat.statLastInvocation.Set(float64(now.UnixNano()))
+	stat.statLastInvocation.Set(float64(now.UnixMilli()))
 }
 
 func (stat *StatWithLabelValues) processTimeStart() {
@@ -272,7 +272,7 @@ func (stat *StatWithLabelValues) incrTotalUserExceptions(err error) {
 
 func (stat *StatWithLabelValues) addUserException(err error) {
 	now := time.Now()
-	ts := now.UnixNano()
+	ts := now.UnixMilli()
 	errorTS := LatestException{err, ts}
 	stat.latestUserException = append(stat.latestUserException, errorTS)
 	if len(stat.latestUserException) > 10 {
@@ -302,7 +302,7 @@ func (stat *StatWithLabelValues) incrTotalSysExceptions(exception error) {
 
 func (stat *StatWithLabelValues) addSysException(exception error) {
 	now := time.Now()
-	ts := now.UnixNano()
+	ts := now.UnixMilli()
 	errorTS := LatestException{exception, ts}
 	stat.latestSysException = append(stat.latestSysException, errorTS)
 	if len(stat.latestSysException) > 10 {
