@@ -31,10 +31,13 @@ import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.Unpooled;
+import io.netty.buffer.WrappedByteBuf;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
@@ -598,6 +601,132 @@ public class BatchMessageContainerImplTest {
             container.clear();
         } finally {
             messages.forEach(ReferenceCountUtil::safeRelease);
+        }
+    }
+
+    /**
+     * A single message whose header + payload exceed the max message size is rejected after the command was
+     * already built. Without compression or encryption the command's payload IS the container's batch buffer,
+     * taken without a retain: releasing the command must therefore be the release of the container's claim too.
+     * The container used to keep reporting ownership after the command release, so the internal discard()
+     * released the already-freed buffer a second time — the failure was swallowed by safeRelease, but if the
+     * buffer had been recycled in between, the second release corrupted a live buffer. The batch buffer must
+     * end up freed with release() invoked exactly once.
+     */
+    @Test
+    public void oversizedSingleMessageReleasesTheBatchBufferExactlyOnce() throws Exception {
+        ProducerImpl<?> producer = createTestProducer(CompressionType.NONE);
+        doAnswer(invocation -> {
+            ByteBuf payload = invocation.getArgument(5);
+            ByteBuf header = PulsarByteBufAllocator.DEFAULT.buffer();
+            header.writeInt(4 + 4 + payload.readableBytes());
+            header.writeInt(0);
+            return ByteBufPair.get(header, payload);
+        }).when(producer).sendMessage(anyLong(), anyLong(), anyLong(), anyInt(), any(), any());
+
+        List<ReleaseCountingByteBuf> containerBuffers = new ArrayList<>();
+        ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ReleaseCountingByteBuf buffer =
+                    new ReleaseCountingByteBuf(Unpooled.buffer((int) invocation.getArgument(0)));
+            containerBuffers.add(buffer);
+            return buffer;
+        }).when(recordingAllocator).buffer(anyInt());
+
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(recordingAllocator);
+        container.setProducer(producer);
+
+        MessageImpl<?> message = createMessage(0, Commands.DEFAULT_MAX_MESSAGE_SIZE + 2048);
+        try {
+            container.add(message, null);
+            assertNull(container.createOpSendMsg(), "an oversized single message must not produce an op");
+
+            assertEquals(containerBuffers.size(), 1, "the batch buffer is the container's only allocation");
+            ReleaseCountingByteBuf batchBuffer = containerBuffers.get(0);
+            assertEquals(batchBuffer.refCnt(), 0, "the batch buffer must be freed");
+            assertEquals(batchBuffer.releases(), 1,
+                    "the batch buffer must be released exactly once: the command release is the release of "
+                            + "the container's claim, so discard() must not release it again");
+        } finally {
+            ReferenceCountUtil.safeRelease(message);
+        }
+    }
+
+    /**
+     * The multi-message variant of the same defect: the oversized check used to release the payload
+     * unconditionally, and without compression or encryption that payload is the container's own batch buffer,
+     * which discard() then released a second time. The orphan-aware release (skip when the container still
+     * owns the buffer — discard() performs the single release) must hold here too.
+     */
+    @Test
+    public void oversizedBatchReleasesTheBatchBufferExactlyOnce() throws Exception {
+        ProducerImpl<?> producer = createTestProducer(CompressionType.NONE);
+
+        List<ReleaseCountingByteBuf> containerBuffers = new ArrayList<>();
+        ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ReleaseCountingByteBuf buffer =
+                    new ReleaseCountingByteBuf(Unpooled.buffer((int) invocation.getArgument(0)));
+            containerBuffers.add(buffer);
+            return buffer;
+        }).when(recordingAllocator).buffer(anyInt());
+
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(recordingAllocator);
+        container.setProducer(producer);
+
+        // Two messages whose combined payload exceeds the 5MB limit, checked before any command is built.
+        int halfLimit = Commands.DEFAULT_MAX_MESSAGE_SIZE / 2;
+        MessageImpl<?> first = createMessage(0, halfLimit + 1024);
+        MessageImpl<?> second = createMessage(1, halfLimit + 1024);
+        try {
+            container.add(first, null);
+            container.add(second, null);
+            assertNull(container.createOpSendMsg(), "an oversized batch must not produce an op");
+
+            assertEquals(containerBuffers.size(), 1, "the batch buffer is the container's only allocation");
+            ReleaseCountingByteBuf batchBuffer = containerBuffers.get(0);
+            assertEquals(batchBuffer.refCnt(), 0, "the batch buffer must be freed");
+            assertEquals(batchBuffer.releases(), 1,
+                    "the batch buffer must be released exactly once: discard() owns the release of a buffer "
+                            + "the container never handed off");
+        } finally {
+            ReferenceCountUtil.safeRelease(first);
+            ReferenceCountUtil.safeRelease(second);
+        }
+    }
+
+    private MessageImpl<?> createMessage(long sequenceId, int payloadSize) {
+        MessageMetadata messageMetadata = new MessageMetadata();
+        messageMetadata.setSequenceId(sequenceId);
+        messageMetadata.setProducerName("producer");
+        messageMetadata.setPublishTime(System.currentTimeMillis());
+        ByteBuffer payload = ByteBuffer.wrap(new byte[payloadSize]);
+        return MessageImpl.create(messageMetadata, payload, Schema.BYTES, null);
+    }
+
+    /** Delegates everything and counts {@code release()} invocations, making a swallowed double release visible. */
+    private static final class ReleaseCountingByteBuf extends WrappedByteBuf {
+
+        private int releases;
+
+        ReleaseCountingByteBuf(ByteBuf buffer) {
+            super(buffer);
+        }
+
+        @Override
+        public boolean release() {
+            releases++;
+            return super.release();
+        }
+
+        @Override
+        public boolean release(int decrement) {
+            releases++;
+            return super.release(decrement);
+        }
+
+        int releases() {
+            return releases;
         }
     }
 

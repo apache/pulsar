@@ -389,6 +389,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
             // handle mgs size check as non-batched in `ProducerImpl.isMessageSizeExceeded`
             if (op.getMessageHeaderAndPayloadSize() > getMaxMessageSize()) {
+                // The pair took the payload without retaining it, so its release is the release of the
+                // container's claim too: drop the ownership before releasing, or discard() would release
+                // the already-freed buffer a second time.
+                batchPayloadOwned = false;
                 cmd.release();
                 producer.semaphoreRelease(1);
                 producer.client.getMemoryLimitController().releaseMemory(
@@ -403,7 +407,9 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         ByteBuf encryptedPayload = buildAndEncryptBatchPayload();
         updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
         if (encryptedPayload.readableBytes() > getMaxMessageSize()) {
-            encryptedPayload.release();
+            // Release only the payload whose ownership left the container (compression or encryption
+            // replaced the batch buffer); the container's own buffer is released by discard() below.
+            releasePayloadIfOrphaned(encryptedPayload);
             producer.semaphoreRelease(messages.size());
             messages.forEach(msg -> producer.client.getMemoryLimitController()
                     .releaseMemory(msg.getUncompressedSize()));

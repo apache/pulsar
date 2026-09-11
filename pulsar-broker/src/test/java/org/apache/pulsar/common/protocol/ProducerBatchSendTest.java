@@ -68,10 +68,10 @@ public class ProducerBatchSendTest extends SharedPulsarBaseTest {
     }
 
     /**
-     * {@link org.apache.pulsar.client.impl.BatchMessageContainerImpl#createOpSendMsg} may fail after the batch
-     * payload was already built, e.g. when the command buffer allocation fails in
-     * {@link Commands#serializeCommandSendWithSize}. With compression enabled, the batch buffer has already been
-     * released at that point, so the recovery must not reuse it when the batch is retried.
+     * The batch container's {@code createOpSendMsg()} may fail after the batch payload was already built, e.g.
+     * when the command buffer allocation fails in {@link Commands#serializeCommandSendWithSize}. With
+     * compression enabled, the batch buffer has already been released at that point, so the recovery must not
+     * reuse it when the batch is retried.
      */
     @Test(dataProvider = "flushSend")
     public void testNoEnoughMemSend(List<Integer> flushSend, CompressionType compressionType) throws Exception {
