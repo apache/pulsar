@@ -119,7 +119,7 @@ public interface PulsarClientProvider {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "No PulsarClientProvider found on the classpath. "
-                                + "Add pulsar-client to your dependencies."));
+                                + "Add pulsar-client-v5 or pulsar-client-v5-all to your dependencies."));
 
         private Holder() {
         }

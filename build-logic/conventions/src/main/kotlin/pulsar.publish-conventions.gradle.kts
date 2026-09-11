@@ -49,8 +49,8 @@ pluginManager.withPlugin("java-library") {
     }
 
     // The Maven publication. Its software component is wired in a deferred block because it depends
-    // on whether this is a shaded module:
-    //   - Shaded modules (com.gradleup.shadow applied) publish the shadow plugin's dependency-reduced
+    // on whether shading replaces the primary artifact:
+    //   - Modules applying pulsar.shadow-conventions publish the shadow plugin's dependency-reduced
     //     `shadow` component: the artifact is the shadow jar and the published dependencies are
     //     EXACTLY the `shadow` configuration (the non-bundled runtime deps), not the bundled
     //     component modules + their unshaded transitive tree. This is the Gradle equivalent of
@@ -62,19 +62,19 @@ pluginManager.withPlugin("java-library") {
         artifact(javadocJar)
     }
 
-    // Shaded modules: the shadow plugin registers components["shadow"] in its own afterEvaluate, so
+    // Primary shaded artifacts: the shadow plugin registers components["shadow"] in its own afterEvaluate, so
     // wire it from an afterEvaluate registered AFTER that. Registering inside withPlugin (which fires
     // once the shadow plugin is applied, after this convention) guarantees the ordering.
-    pluginManager.withPlugin("com.gradleup.shadow") {
+    pluginManager.withPlugin("pulsar.shadow-conventions") {
         afterEvaluate {
             mavenPublication.from(components["shadow"])
         }
     }
 
-    // Non-shaded modules: standard java component + resolved version mapping. By afterEvaluate all
-    // plugins are applied, so the shadow-plugin check is reliable.
+    // Ordinary artifacts, including optional shaded classifiers, use the Java component and resolved
+    // version mapping. By afterEvaluate all plugins are applied, so the convention check is reliable.
     afterEvaluate {
-        if (!pluginManager.hasPlugin("com.gradleup.shadow")) {
+        if (!pluginManager.hasPlugin("pulsar.shadow-conventions")) {
             mavenPublication.from(components["java"])
             mavenPublication.versionMapping {
                 usage(Usage.JAVA_RUNTIME) {

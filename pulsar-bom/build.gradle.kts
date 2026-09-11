@@ -36,6 +36,7 @@ dependencies {
         // Client API
         api(project(":pulsar-client-api"))
         api(project(":pulsar-client-admin-api"))
+        api(project(":pulsar-client-api-v5"))
 
         // Focused SPI modules (PIP-478): TLS factory SPI + HTTP client SPI
         api(project(":pulsar-tls-factory-api"))
@@ -46,7 +47,11 @@ dependencies {
         api(project(":pulsar-client-admin-shaded"))
         api(project(":pulsar-client-all"))
 
+        // Combined v4/v5 client and admin, with an optional shaded classifier
+        api(project(":pulsar-client-v5-all"))
+
         // Original (unshaded) clients
+        api(project(":pulsar-client-v5"))
         api(project(":pulsar-client-original"))
         api(project(":pulsar-client-admin-original"))
 
