@@ -84,6 +84,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
 import org.apache.bookkeeper.mledger.offload.Offloaders;
 import org.apache.bookkeeper.mledger.offload.OffloadersCache;
+import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.commons.configuration2.Configuration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -129,6 +132,7 @@ import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusRawMetricsProvider;
 import org.apache.pulsar.broker.stats.prometheus.PulsarPrometheusMetricsServlet;
+import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
 import org.apache.pulsar.broker.storage.BookkeeperManagedLedgerStorageClass;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorageClass;
@@ -326,6 +330,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private String brokerId;
     private final CompletableFuture<Void> readyForIncomingRequestsFuture = new CompletableFuture<>();
     private final List<Runnable> pendingTasksBeforeReadyForIncomingRequests = new ArrayList<>();
+    private StatsProvider metadataStoreStatsProvider = new NullStatsProvider();
 
     public enum State {
         Init, Started, Closing, Closed
@@ -444,6 +449,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
         return MetadataStoreFactory.create(config.getConfigurationMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
+                        .statsProvider(metadataStoreStatsProvider)
                         .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
                         .allowReadOnlyOperations(config.isMetadataStoreAllowReadOnlyOperations())
                         .configFilePath(configFilePath)
@@ -756,6 +762,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 openTelemetryTopicStats = null;
             }
 
+            if (metadataStoreStatsProvider != null) {
+                metadataStoreStatsProvider.stop();
+            }
             asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
 
             // add timeout handling for closing executors
@@ -928,6 +937,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
                     ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())
                     : null;
+            Configuration configuration = new ClientConfiguration();
+            if (config.isMetadataStoreExposeStatsToPrometheus()) {
+                configuration.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS,
+                        config.getManagedLedgerPrometheusStatsLatencyRolloverSeconds());
+                configuration.addProperty(PrometheusMetricsProvider.CLUSTER_NAME, config.getClusterName());
+                metadataStoreStatsProvider = new PrometheusMetricsProvider();
+            }
+            metadataStoreStatsProvider.start(configuration);
             localMetadataStore = createLocalMetadataStore(localMetadataSynchronizer,
                     openTelemetry.getOpenTelemetryService().getOpenTelemetry());
             localMetadataStore.registerSessionListener(this::handleMetadataSessionEvent);
@@ -1376,6 +1393,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             throws MetadataStoreException, PulsarServerException {
         return MetadataStoreExtended.create(config.getMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
+                        .statsProvider(metadataStoreStatsProvider)
                         .sessionTimeoutMillis((int) config.getMetadataStoreSessionTimeoutMillis())
                         .allowReadOnlyOperations(config.isMetadataStoreAllowReadOnlyOperations())
                         .configFilePath(config.getMetadataStoreConfigPath())
