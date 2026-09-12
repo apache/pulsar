@@ -83,8 +83,9 @@ public interface LongBitmap {
      *
      * @param value value to remove
      * @throws IllegalArgumentException if value is outside the supported range
+     * @return {@code true} if removed, otherwise {@code false}
      */
-    void remove(long value);
+    boolean remove(long value);
 
     /**
      * Removes all values in the half-open range {@code [from, to)}.
@@ -94,8 +95,9 @@ public interface LongBitmap {
      * @param from inclusive lower bound
      * @param to exclusive upper bound
      * @throws IllegalArgumentException if the range exceeds the supported value range
+     * @return {@code true} if removed, otherwise {@code false}
      */
-    void remove(long from, long to);
+    boolean remove(long from, long to);
 
     /**
      * Returns whether the bitmap contains the given value.

@@ -24,8 +24,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import lombok.Builder;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
@@ -76,15 +78,33 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
+     * Initialization dependencies for an authorization provider.
+     * The authentication service is already initialized and owned by the enclosing service.
+     */
+    @Builder
+    record InitialContext(ServiceConfiguration config, PulsarResources pulsarResources,
+                          AuthenticationService authenticationService) {
+    }
+
+    /**
+     * Initialize the authorization provider with its shared dependencies.
+     */
+    default void initialize(InitialContext context) throws IOException {
+        initialize(context.config(), context.pulsarResources());
+    }
+
+    /**
      * Perform initialization for the authorization provider.
      *
      * @param conf
      *            broker config object
      * @param pulsarResources
      *            Resources component for access to metadata
+     * @deprecated use {@link #initialize(InitialContext)} instead
      * @throws IOException
      *             if the initialization fails
      */
+    @Deprecated
     default void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
     }
 

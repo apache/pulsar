@@ -266,6 +266,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
 
         // ctx will contain a Position instance only in the case of ShadowManagedLedgerImpl
         long ledgerId = ledger != null ? ledger.getId() : ((Position) ctx).getLedgerId();
+        Position lastEntry = PositionFactory.create(ledgerId, entryId);
 
         // Handle caching for tailing reads
         if (ml.shouldCacheAddedEntry()) {
@@ -275,7 +276,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
                 // use the number of active cursors as the expected read count
                 expectedReadCount = ml.getActiveCursors().size();
             }
-            EntryImpl entry = EntryImpl.create(ledgerId, entryId, data, expectedReadCount);
+            EntryImpl entry = EntryImpl.create(lastEntry, data, expectedReadCount);
             entry.setDecreaseReadCountOnRelease(false);
             // EntryCache.insert: duplicates entry by allocating new entry and data. so, recycle entry after calling
             // insert
@@ -283,7 +284,6 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             entry.release();
         }
 
-        Position lastEntry = PositionFactory.create(ledgerId, entryId);
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
 

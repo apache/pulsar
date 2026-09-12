@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -32,6 +33,11 @@ import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 
 public abstract class AbstractPersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers
         implements Dispatcher, AsyncCallbacks.ReadEntriesCallback {
+    private static final int IDLE = 0;
+    private static final int RUNNING = 1;
+    private static final int RUNNING_REQUESTED = 2;
+    private final AtomicInteger readMoreEntriesState = new AtomicInteger(IDLE);
+
     public AbstractPersistentDispatcherMultipleConsumers(Subscription subscription,
                                                          ServiceConfiguration serviceConfig) {
         super(subscription, serviceConfig);
@@ -40,6 +46,57 @@ public abstract class AbstractPersistentDispatcherMultipleConsumers extends Abst
     public abstract void unBlockDispatcherOnUnackedMsgs();
 
     public abstract void readMoreEntriesAsync();
+
+    /**
+     * Conflate concurrent and reentrant requests into follow-up passes driven by the owning caller.
+     * If a pass fails, drain registered follow-ups before propagating the first failure to the owner.
+     */
+    public final void readMoreEntries() {
+        for (;;) {
+            int state = readMoreEntriesState.get();
+            if (state == IDLE) {
+                if (readMoreEntriesState.compareAndSet(IDLE, RUNNING)) {
+                    break;
+                }
+            } else if (state == RUNNING) {
+                if (readMoreEntriesState.compareAndSet(RUNNING, RUNNING_REQUESTED)) {
+                    return;
+                }
+            } else {
+                // A follow-up pass is already requested.
+                return;
+            }
+        }
+        Throwable failure = null;
+        for (;;) {
+            // Requests received before this pass are covered by this pass.
+            readMoreEntriesState.set(RUNNING);
+            try {
+                internalReadMoreEntries();
+            } catch (RuntimeException | Error t) {
+                // Keep ownership so a failure cannot discard an already-registered follow-up.
+                if (failure == null) {
+                    failure = t;
+                } else if (failure != t) {
+                    failure.addSuppressed(t);
+                }
+            }
+            if (readMoreEntriesState.compareAndSet(RUNNING, IDLE)) {
+                break;
+            }
+            // A request arrived during the pass. Run another pass without recursion, even after a failure.
+        }
+        if (failure instanceof RuntimeException runtimeException) {
+            throw runtimeException;
+        } else if (failure instanceof Error error) {
+            throw error;
+        }
+    }
+
+    /**
+     * Execute one read pass. Implementations must synchronize on this dispatcher to protect read state.
+     */
+    protected abstract void internalReadMoreEntries();
 
     public abstract String getName();
 

@@ -61,7 +61,7 @@ dependencies {
 // Maven uses ant-plugin to copy pom.xml -> dummy.nar for TestCmdSinks/TestCmdSources.
 // The file is gitignored (*.nar), so we generate it from the build file instead.
 // Must run after processTestResources to avoid being overwritten.
-val generateDummyNar by tasks.registering(Copy::class) {
+val generateDummyNar = tasks.register<Copy>("generateDummyNar") {
     dependsOn(tasks.named("processTestResources"))
     from(layout.projectDirectory.file("build.gradle.kts"))
     into(layout.buildDirectory.dir("resources/test"))

@@ -1091,7 +1091,14 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
 
     @Override
     public void checkGC() {
-        if (!isDeleteWhileInactive()) {
+        // Close-on-inactive is a broker-level switch and takes precedence over any namespace- or topic-level
+        // `deleteWhileInactive` policy, so enabling it can never fall through to the delete path.
+        // No delete-mode guard is needed here: isActive() only reports inactivity when there is neither a
+        // subscription nor a local producer, so a non-persistent topic always follows
+        // delete_when_no_subscriptions semantics regardless of the configured mode.
+        boolean closeEnabled = isCloseWhileInactive();
+        boolean deleteEnabled = !closeEnabled && isDeleteWhileInactive();
+        if (!deleteEnabled && !closeEnabled) {
             // This topic is not included in GC
             return;
         }
@@ -1102,11 +1109,29 @@ public class NonPersistentTopic extends AbstractTopic implements Topic, TopicPol
             if (System.nanoTime() - lastActive > TimeUnit.SECONDS.toNanos(maxInactiveDurationInSec)) {
 
                 // Close repl producers first.
-                // Once all repl producers are closed, we can delete the topic,
+                // Once all repl producers are closed, we can delete/close the topic,
                 // provided no remote producers connected to the broker.
                 log.debug()
                         .attr("maxInactiveDurationInSec", maxInactiveDurationInSec)
                         .log("Topic inactive for seconds, closing repl producers.");
+
+                if (closeEnabled) {
+                    stopReplProducers().thenCompose(v -> close(true, false))
+                            .thenRun(() -> log.info("Topic closed successfully due to inactivity"))
+                            .exceptionally(e -> {
+                                Throwable throwable = e.getCause();
+                                if (throwable instanceof TopicBusyException) {
+                                    log.debug()
+                                            .exceptionMessage(throwable)
+                                            .log("Did not close busy topic");
+                                    replicators.forEach((region, replicator) -> replicator.startProducer());
+                                } else {
+                                    log.warn().exception(e).log("Inactive topic close failed");
+                                }
+                                return null;
+                            });
+                    return;
+                }
 
                 stopReplProducers().thenCompose(v -> delete(true, false))
                         .thenCompose(__ -> tryToDeletePartitionedMetadata())

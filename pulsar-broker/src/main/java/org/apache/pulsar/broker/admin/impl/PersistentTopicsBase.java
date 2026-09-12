@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.pulsar.common.api.proto.CompressionType.NONE;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isSystemTopic;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
@@ -75,6 +76,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -221,13 +223,6 @@ public class PersistentTopicsBase extends AdminResource {
 
         return validateAccessForTenantCf
                 .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(topicName));
-    }
-
-    protected void validateCreateTopic(TopicName topicName) {
-        if (isTransactionInternalName(topicName)) {
-            log.warn().attr("topic", topicName).log("Forbidden to create transaction internal topic");
-            throw new RestException(Status.BAD_REQUEST, "Cannot create topic in system topic format!");
-        }
     }
 
     public void validateAdminOperationOnTopic(boolean authoritative) {
@@ -460,6 +455,9 @@ public class PersistentTopicsBase extends AdminResource {
                                                 // We must not re-create non-durable subscriptions on the new partitions
                                                 .stream().filter(entry -> entry.getValue().isDurable())
                                                 .map(entry -> {
+                                                    Map<String, String> subscriptionProperties =
+                                                            filterSubscriptionPropertiesForPartitionExpansion(
+                                                                    entry.getValue().getSubscriptionProperties());
                                                     final List<CompletableFuture<Void>> innerFutures =
                                                             new ArrayList<>(expectPartitions);
                                                     for (int i = 0; i < expectPartitions; i++) {
@@ -467,7 +465,7 @@ public class PersistentTopicsBase extends AdminResource {
                                                                         topicName.getPartition(i).toString(),
                                                                         entry.getKey(), MessageId.earliest,
                                                                         entry.getValue().isReplicated(),
-                                                                        entry.getValue().getSubscriptionProperties())
+                                                                        subscriptionProperties)
                                                                 .exceptionally(ex -> {
                                                                     Throwable rc =
                                                                             FutureUtil.unwrapCompletionException(ex);
@@ -532,6 +530,23 @@ public class PersistentTopicsBase extends AdminResource {
                             });
                 });
             });
+    }
+
+    /**
+     * Returns the properties that can be applied to a subscription on a newly created partition.
+     *
+     * <p>Cursor internal properties belong to the source partition and must not be copied. Keep all filtering
+     * rules here so partition expansion has a single property-copy boundary.</p>
+     */
+    private static Map<String, String> filterSubscriptionPropertiesForPartitionExpansion(
+            Map<String, String> subscriptionProperties) {
+        if (subscriptionProperties == null) {
+            return null;
+        }
+
+        Map<String, String> filteredProperties = new HashMap<>(subscriptionProperties);
+        filteredProperties.keySet().removeIf(key -> key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX));
+        return filteredProperties;
     }
 
     private CompletableFuture<Set<String>> getReplicationClusters() {
@@ -1957,10 +1972,11 @@ public class PersistentTopicsBase extends AdminResource {
                                     .log("Cleared backlog");
                         }
                     };
-                    if (subName.startsWith(topic.getReplicatorPrefix())) {
-                        String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                    Optional<String> remoteCluster =
+                            AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                    if (remoteCluster.isPresent()) {
                         PersistentReplicator repl =
-                            (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                            (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                         if (repl == null) {
                             asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                     getSubNotFoundErrorMessage(topicName.toString(), subName)));
@@ -2012,10 +2028,11 @@ public class PersistentTopicsBase extends AdminResource {
                      throw new RestException(new RestException(Status.NOT_FOUND,
                              getTopicNotFoundErrorMessage(topicName.toString())));
                  }
-                 if (subName.startsWith(topic.getReplicatorPrefix())) {
-                     String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                 Optional<String> remoteCluster =
+                         AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                 if (remoteCluster.isPresent()) {
                      PersistentReplicator repl =
-                             (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                             (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                      if (repl == null) {
                          return FutureUtil.failedFuture(
                                  new RestException(Status.NOT_FOUND, "Replicator not found"));
@@ -3081,9 +3098,8 @@ public class PersistentTopicsBase extends AdminResource {
                     PersistentReplicator repl = getReplicatorReference(subName, (PersistentTopic) topic);
                     entry = repl.peekNthMessage(messagePosition);
                 } else {
-                    PersistentSubscription sub =
-                            (PersistentSubscription) getSubscriptionReference(subName, (PersistentTopic) topic);
-                    entry = sub.peekNthMessage(messagePosition);
+                    entry = findOrCreateSubscriptionAsync(subName, (PersistentTopic) topic)
+                            .thenCompose(sub -> sub.peekNthMessage(messagePosition));
                 }
             }
             return entry.thenApply(e -> Pair.of(e, (PersistentTopic) topic));
@@ -3302,6 +3318,16 @@ public class PersistentTopicsBase extends AdminResource {
         if (metadata.hasTxnidMostBits()) {
             responseBuilder.header("X-Pulsar-txnid-most-bits", metadata.getTxnidMostBits());
         }
+        if (metadata.hasTxnidMostBits() && metadata.hasTxnidLeastBits()) {
+            TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
+            boolean isTxnAborted = persistentTopic.isTxnAborted(txnID, entry.getPosition());
+            responseBuilder.header("X-Pulsar-txn-aborted", isTxnAborted);
+            boolean isTxnUncommitted = persistentTopic.isTxnOngoing(txnID);
+            responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
+        }
+        boolean isTxnConsumable = entry.getPosition()
+                .compareTo(persistentTopic.getMaxReadPosition()) <= 0;
+        responseBuilder.header("X-Pulsar-txn-consumable", isTxnConsumable);
         if (metadata.hasHighestSequenceId()) {
             responseBuilder.header("X-Pulsar-highest-sequence-id", metadata.getHighestSequenceId());
         }
@@ -3320,14 +3346,6 @@ public class PersistentTopicsBase extends AdminResource {
         if (metadata.hasNullPartitionKey()) {
             responseBuilder.header("X-Pulsar-null-partition-key", metadata.isNullPartitionKey());
         }
-        if (metadata.hasTxnidMostBits() && metadata.hasTxnidLeastBits()) {
-            TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
-            boolean isTxnAborted = persistentTopic.isTxnAborted(txnID, entry.getPosition());
-            responseBuilder.header("X-Pulsar-txn-aborted", isTxnAborted);
-        }
-        boolean isTxnUncommitted = (entry.getPosition())
-                .compareTo(persistentTopic.getMaxReadPosition()) > 0;
-        responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
 
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider
@@ -3776,9 +3794,23 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Boolean> internalGetDispatcherPauseOnAckStatePersistent(boolean applied,
                                                                                         boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-            .thenApply(op -> op.map(TopicPolicies::getDispatcherPauseOnAckStatePersistentEnabled)
-                .orElse(false));
-}
+            .thenCompose(op -> {
+                Boolean topicPolicy = op.map(TopicPolicies::getDispatcherPauseOnAckStatePersistentEnabled)
+                        .orElse(null);
+                if (topicPolicy != null) {
+                    return CompletableFuture.completedFuture(topicPolicy);
+                }
+                if (!applied) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return getNamespacePoliciesAsync(namespaceName).thenApply(namespacePolicies -> {
+                    Boolean namespacePolicy = namespacePolicies.dispatcherPauseOnAckStatePersistentEnabled;
+                    return namespacePolicy == null
+                            ? config().isDispatcherPauseOnAckStatePersistentEnabled()
+                            : namespacePolicy;
+                });
+            });
+    }
 
     @SuppressWarnings("deprecation")
     protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied, boolean isGlobal) {
@@ -4189,14 +4221,15 @@ public class PersistentTopicsBase extends AdminResource {
                 PersistentTopic topic = (PersistentTopic) t;
 
                 final MessageExpirer messageExpirer;
-                if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                Optional<String> remoteCluster =
+                        AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                if (remoteCluster.isPresent()) {
+                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                 } else {
                     messageExpirer = topic.getSubscription(subName);
                 }
                 if (messageExpirer == null) {
-                    final String message = subName.startsWith(topic.getReplicatorPrefix())
+                    final String message = remoteCluster.isPresent()
                             ? "Replicator not found" : getSubNotFoundErrorMessage(topicName.toString(), subName);
                     resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, message));
                     return;
@@ -4305,14 +4338,15 @@ public class PersistentTopicsBase extends AdminResource {
             }
             try {
                 final MessageExpirer messageExpirer;
-                if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                Optional<String> remoteCluster =
+                        AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                if (remoteCluster.isPresent()) {
+                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                 } else {
                     messageExpirer = topic.getSubscription(subName);
                 }
                 if (messageExpirer == null) {
-                    final String message = (subName.startsWith(topic.getReplicatorPrefix()))
+                    final String message = remoteCluster.isPresent()
                             ? "Replicator not found" : getSubNotFoundErrorMessage(topicName.toString(), subName);
                     asyncResponse.resume(new RestException(Status.NOT_FOUND, message));
                     return;
@@ -4708,20 +4742,35 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     /**
-     * Get the Subscription object reference from the Topic reference.
+     * Find the subscription or create it when automatic subscription creation is allowed.
      */
-    private Subscription getSubscriptionReference(String subName, PersistentTopic topic) {
-        try {
-            Subscription sub = topic.getSubscription(subName);
-            if (sub == null) {
-                sub = topic.createSubscription(subName,
-                        InitialPosition.Earliest, false, null).get();
-            }
-
-            return checkNotNull(sub);
-        } catch (Exception e) {
-            throw new RestException(Status.NOT_FOUND, getSubNotFoundErrorMessage(topicName.toString(), subName));
+    private CompletableFuture<Subscription> findOrCreateSubscriptionAsync(String subName, PersistentTopic topic) {
+        Subscription subscription = topic.getSubscription(subName);
+        if (subscription != null) {
+            return CompletableFuture.completedFuture(subscription);
         }
+
+        return pulsar().getBrokerService().isAllowAutoSubscriptionCreationAsync(topicName)
+                .thenCompose(isAllowed -> {
+                    Subscription existingSubscription = topic.getSubscription(subName);
+                    if (existingSubscription != null) {
+                        return CompletableFuture.completedFuture(existingSubscription);
+                    }
+                    if (!isAllowed) {
+                        return CompletableFuture.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                String.format("Subscription %s does not exist for topic %s and automatic "
+                                                + "subscription creation is disabled",
+                                        subName, topicName)));
+                    }
+                    return topic.createSubscription(subName, InitialPosition.Earliest, false, null)
+                            .handle((createdSubscription, ex) -> {
+                                if (ex != null || createdSubscription == null) {
+                                    throw new RestException(Status.NOT_FOUND,
+                                            getSubNotFoundErrorMessage(topicName.toString(), subName));
+                                }
+                                return createdSubscription;
+                            });
+                });
     }
 
     /**
@@ -4729,7 +4778,8 @@ public class PersistentTopicsBase extends AdminResource {
      */
     private PersistentReplicator getReplicatorReference(String replName, PersistentTopic topic) {
         try {
-            String remoteCluster = PersistentReplicator.getRemoteCluster(replName);
+            String remoteCluster = AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), replName)
+                    .orElseThrow();
             PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
             return checkNotNull(repl);
         } catch (Exception e) {
@@ -5540,17 +5590,20 @@ public class PersistentTopicsBase extends AdminResource {
                         });
     }
 
-    @SuppressWarnings("deprecation")
     protected CompletableFuture<Boolean> internalGetSchemaValidationEnforced(boolean applied) {
-        // Schema validation enforced is typically a local policy
         return getTopicPoliciesAsyncWithRetry(topicName)
-                .thenApply(op -> op.map(TopicPolicies::getSchemaValidationEnforced).orElseGet(() -> {
-                    if (applied) {
-                        boolean namespacePolicy = getNamespacePolicies(namespaceName).schema_validation_enforced;
-                        return namespacePolicy || pulsar().getConfiguration().isSchemaValidationEnforced();
+                .thenCompose(op -> {
+                    Boolean topicPolicy = op.map(TopicPolicies::getSchemaValidationEnforced).orElse(null);
+                    boolean brokerPolicy = pulsar().getConfiguration().isSchemaValidationEnforced();
+                    if (topicPolicy != null) {
+                        return CompletableFuture.completedFuture(applied ? topicPolicy || brokerPolicy : topicPolicy);
                     }
-                    return false; // Default if not set and not applied
-                }));
+                    if (!applied) {
+                        return CompletableFuture.completedFuture(false);
+                    }
+                    return getNamespacePoliciesAsync(namespaceName)
+                            .thenApply(policies -> policies.schema_validation_enforced || brokerPolicy);
+                });
     }
 
     protected CompletableFuture<Void> internalSetSchemaValidationEnforced(boolean schemaValidationEnforcedToSet) {

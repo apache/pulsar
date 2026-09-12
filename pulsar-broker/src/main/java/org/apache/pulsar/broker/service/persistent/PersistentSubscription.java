@@ -340,7 +340,12 @@ public class PersistentSubscription extends AbstractSubscription {
                         || !((StickyKeyDispatcher) dispatcher)
                         .hasSameKeySharedPolicy(ksm)) {
                     previousDispatcher = dispatcher;
-                    if (config.isSubscriptionKeySharedUseClassicPersistentImplementation()) {
+                    if (ksm.isEntryBucketDispatch()) {
+                        // PIP-486 scalable-topic segment shared by entry-bucket. Always uses the
+                        // modern implementation; the classic dispatcher has no bucket support.
+                        dispatcher = new PersistentEntryBucketDispatcherMultipleConsumers(topic, cursor,
+                                this, config, ksm);
+                    } else if (config.isSubscriptionKeySharedUseClassicPersistentImplementation()) {
                         dispatcher =
                                 new PersistentStickyKeyDispatcherMultipleConsumersClassic(topic, cursor,
                                         this, config, ksm);
@@ -1509,6 +1514,8 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
+        subStats.oldestBacklogMessageAgeSeconds =
+                topic.getBestEffortOldestUnacknowledgedMessageAgeSeconds(subName);
         if (getStatsOptions.isSubscriptionBacklogSize()) {
             subStats.backlogSize = topic.getManagedLedger()
                     .getEstimatedBacklogSize(cursor.getMarkDeletedPosition());

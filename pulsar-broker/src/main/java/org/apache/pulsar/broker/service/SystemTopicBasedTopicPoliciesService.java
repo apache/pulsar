@@ -584,7 +584,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             final Mutable<Pair<Boolean, Optional<TopicPolicies>>> policiesFutureHolder = new MutableObject<>();
             // NOTICE: avoid using any callback with lock scope to avoid deadlock
             policyCacheInitMap.compute(namespace, (___, existingFuture) -> {
-                if (!inserted || existingFuture != null) {
+                // A namespace-bundle bounce landing inside the thread hop above drops the cached policies together
+                // with the future tracking their load, then starts a new load under a new future: the presence of a
+                // future is not enough, since reading the caches mid-load reports "no policies" for a topic that has
+                // some. Read them only from a load that finished successfully; a missing, still running or failed
+                // future takes the retry below, which awaits a load again before reading. (!inserted -- service
+                // closed, or namespace being deleted -- keeps answering from whatever the caches still hold.)
+                if (!inserted || (existingFuture != null && existingFuture.isDone()
+                        && !existingFuture.isCompletedExceptionally())) {
                     final var partitionedTopicName = TopicName.get(topicName.getPartitionedTopicName());
                     final var policies = Optional.ofNullable(switch (type) {
                         case GLOBAL_ONLY -> globalPoliciesCache.get(partitionedTopicName);
@@ -600,7 +607,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             if (!p.getLeft()) {
                 log.info()
                         .attr("namespace", namespace)
-                        .log("The future of has been removed from cache, retry getTopicPolicies again");
+                        .log("Policy cache init future is missing, failed or not yet complete, "
+                                + "retry getTopicPolicies again");
                 return getTopicPoliciesAsync(topicName, type);
             }
             return CompletableFuture.completedFuture(p.getRight());

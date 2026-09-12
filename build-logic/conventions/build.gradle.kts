@@ -22,6 +22,9 @@ plugins {
 }
 
 dependencies {
+    // The Shadow plugin brings its own log4j-core onto the build classpath; align it with the
+    // log4j version the rest of the build uses (`log4j2` in the version catalog).
+    implementation(platform(libs.log4j.bom))
     implementation(libs.plugins.shadow.get().let {
         "${it.pluginId}:${it.pluginId}.gradle.plugin:${it.version}"
     })

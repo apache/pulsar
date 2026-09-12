@@ -78,10 +78,17 @@ public class V5AsyncApisTest extends V5ClientBaseTest {
         }
 
         // flush() must complete only after all in-flight sends have been acknowledged.
-        async.flush().get(AWAIT.toMillis(), TimeUnit.MILLISECONDS);
+        // Sample the send futures from *inside* a flush() dependent rather than after
+        // flush().get() returns: the dependent runs on the thread that completes flush(),
+        // before that thread moves on to any other dependent of the last send. A send
+        // future flush() didn't genuinely await therefore shows up as not-done here every
+        // time, instead of only when the woken test thread happens to win the race.
+        List<Boolean> doneWhenFlushCompleted = async.flush()
+                .thenApply(__ -> sendFutures.stream().map(CompletableFuture::isDone).toList())
+                .get(AWAIT.toMillis(), TimeUnit.MILLISECONDS);
         for (int i = 0; i < n; i++) {
-            assertTrue(sendFutures.get(i).isDone(),
-                    "send future " + i + " must be done after flush()");
+            assertTrue(doneWhenFlushCompleted.get(i),
+                    "send future " + i + " must be done when flush() completes");
             assertNotNull(sendFutures.get(i).getNow(null),
                     "send future " + i + " must carry a non-null MessageId");
         }

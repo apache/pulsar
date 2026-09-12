@@ -120,15 +120,28 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
                     client.instrumentProvider()));
         }
 
+        ProducerConfigurationData producerConf = client.applyNoMemoryLimitProducerDefaults(conf);
+
         return effectiveInterceptors == null || effectiveInterceptors.size() == 0
-                ? client.createProducerAsync(conf, schema, null)
-                : client.createProducerAsync(conf, schema, new ProducerInterceptors(effectiveInterceptors));
+                ? client.createProducerAsync(producerConf, schema, null)
+                : client.createProducerAsync(producerConf, schema, new ProducerInterceptors(effectiveInterceptors));
     }
 
     @Override
     public ProducerBuilder<T> loadConf(Map<String, Object> config) {
+        // A limit present in the map was configured by the application, even when its value is the
+        // same as the unset one. loadData builds a new configuration instance by replaying every
+        // property through its setters, so the markers have to be carried over rather than read off
+        // the result.
+        boolean maxPendingMessagesConfigured =
+                conf.isMaxPendingMessagesConfigured() || config.containsKey("maxPendingMessages");
+        boolean maxPendingMessagesAcrossPartitionsConfigured =
+                conf.isMaxPendingMessagesAcrossPartitionsConfigured()
+                        || config.containsKey("maxPendingMessagesAcrossPartitions");
         conf = ConfigurationDataUtils.loadData(
             config, conf, ProducerConfigurationData.class);
+        conf.setMaxPendingMessagesConfigured(maxPendingMessagesConfigured);
+        conf.setMaxPendingMessagesAcrossPartitionsConfigured(maxPendingMessagesAcrossPartitionsConfigured);
         return this;
     }
 

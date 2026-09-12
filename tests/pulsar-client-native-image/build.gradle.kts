@@ -39,6 +39,20 @@ dependencies {
     testImplementation(libs.testcontainers)
 }
 
+// The GraalVM native-build-tools plugin is not configuration-cache compatible: its tasks hold
+// references to Project, SourceSetContainer and TaskContainer, none of which can be serialized.
+// Opt those tasks out explicitly so builds that pull them in — `./gradlew test`, `./gradlew check`
+// and the NATIVE_IMAGE integration test group — run without the configuration cache instead of
+// failing (the build enables the configuration cache by default in gradle.properties). Drop this
+// once https://github.com/graalvm/native-build-tools/issues/477 is fixed.
+tasks.configureEach {
+    if (javaClass.name.startsWith("org.graalvm.buildtools.")) {
+        notCompatibleWithConfigurationCache(
+            "The GraalVM native-build-tools plugin is not configuration-cache compatible"
+        )
+    }
+}
+
 val nativeImageName = "pulsar-client-native-tester"
 
 graalvmNative {

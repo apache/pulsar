@@ -17,8 +17,13 @@ for the agent-specific guardrails on top of it.
   Both run on sources only (no compilation): `./gradlew quickCheck` runs the license-header and
   checkstyle checks across all modules, and `./gradlew sanityCheck` also compiles main + test — see
   [`CONTRIBUTING.md`](CONTRIBUTING.md#building).
-- Prefer imports over fully qualified class names in code. Use a fully qualified class name only when
-  needed to disambiguate a name collision that imports cannot resolve.
+- **Must use imports, not fully qualified class names, in code.** Reference every type through an
+  `import` statement (or the same package); never write a fully qualified class name in a statement or
+  expression. The only exception is a simple-name collision that imports cannot resolve — then fully
+  qualify the conflicting type and note why.
+- Note that Pulsar's code style does **not** put a blank line between static imports and regular
+imports. The Checkstyle config linked in the bullet point above is the authoritative source for the
+exact rules.
 
 ## Logging
 
@@ -236,6 +241,8 @@ defaulting to the safe/old behaviour.
 
 - **Back optimizations with evidence** — a JMH benchmark (see *Testing conventions*) or a profile, not
   intuition — measured on JIT-warmed code (see *Reproducing concurrency / memory-visibility bugs*).
+  `-PtestAsyncProfiler` profiles a test run with async-profiler (see
+  [`CONTRIBUTING.md`](CONTRIBUTING.md#profiling-tests-with-async-profiler)).
 - **On hot paths** (dispatch, IO, per-message): avoid `String.format` (build strings directly),
   `Enum.values()` (match explicitly), and unnecessary allocation/locking; prefer lock-free or
   single-writer designs.

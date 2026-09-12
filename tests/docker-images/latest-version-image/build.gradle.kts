@@ -21,6 +21,7 @@ val pulsarVersion = project.version.toString()
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
 val dockerPlatforms = providers.gradleProperty("docker.platforms").getOrElse("")
+val dockerInstallAsyncProfiler = providers.gradleProperty("docker.install.asyncprofiler").getOrElse("false")
 val golangImage = providers.gradleProperty("docker.golang.image").getOrElse("golang:1.25-alpine")
 
 // Ensure the parent project is configured before resolving cross-project task references.
@@ -30,24 +31,24 @@ evaluationDependsOn(":docker")
 // Resolvable configurations for cross-project artifact dependencies.
 // Using configurations instead of direct task references (project().tasks.named())
 // ensures compatibility with Gradle's configure-on-demand feature.
-val testFunctionsJar by configurations.creating {
+val testFunctionsJar = configurations.create("testFunctionsJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
 }
-val testPluginsJar by configurations.creating {
+val testPluginsJar = configurations.create("testPluginsJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
 }
-val buildtoolsJar by configurations.creating {
+val buildtoolsJar = configurations.create("buildtoolsJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
 }
 // The filesystem offloader NAR is excluded from the base image; layer it back in here as an overlay
 // so the filesystem offload integration tests can run against this image.
-val offloaderNar by configurations.creating {
+val offloaderNar = configurations.create("offloaderNar") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
@@ -64,7 +65,7 @@ dependencies {
 }
 
 // Prepare the build context in target/ (to match Dockerfile COPY paths)
-val prepareBuildContext by tasks.registering(Sync::class) {
+val prepareBuildContext = tasks.register<Sync>("prepareBuildContext") {
     // Copy pulsar-function-go source
     from("${rootDir}/pulsar-function-go") {
         into("pulsar-function-go")
@@ -99,7 +100,7 @@ val prepareBuildContext by tasks.registering(Sync::class) {
     into("${projectDir}/target")
 }
 
-val dockerBuild by tasks.registering(Exec::class) {
+val dockerBuild = tasks.register<Exec>("dockerBuild") {
     group = "docker"
     description = "Build the pulsar-test-latest-version Docker image"
 
@@ -107,6 +108,7 @@ val dockerBuild by tasks.registering(Exec::class) {
 
     val imageName = "${dockerOrganization}/pulsar-test-latest-version:${dockerTag}"
     val pulsarImage = "${dockerOrganization}/pulsar:${dockerTag}"
+    val asyncProfilerVersion = libs.versions.async.profiler.get()
 
     workingDir = projectDir
 
@@ -115,6 +117,8 @@ val dockerBuild by tasks.registering(Exec::class) {
         "-t", imageName,
         "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
         "--build-arg", "GOLANG_IMAGE=${golangImage}",
+        "--build-arg", "INSTALL_ASYNC_PROFILER=${dockerInstallAsyncProfiler}",
+        "--build-arg", "ASYNC_PROFILER_VERSION=${asyncProfilerVersion}"
     )
 
     if (dockerPlatforms.isNotEmpty()) {

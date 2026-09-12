@@ -19,7 +19,10 @@
 package org.apache.bookkeeper.mledger.offload;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.testng.Assert.assertSame;
+import java.nio.file.Paths;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
@@ -29,9 +32,10 @@ public class OffloadersCacheTest {
     @Test
     public void testLoadsOnlyOnce() throws Exception {
         Offloaders expectedOffloaders = new Offloaders();
+        String normalizedPath = Paths.get("./offloaders").toAbsolutePath().normalize().toString();
 
         try (MockedStatic<OffloaderUtils> offloaderUtils = Mockito.mockStatic(OffloaderUtils.class)) {
-            offloaderUtils.when(() -> OffloaderUtils.searchForOffloaders(eq("./offloaders"), eq("/tmp")))
+            offloaderUtils.when(() -> OffloaderUtils.searchForOffloaders(eq(normalizedPath), eq("/tmp")))
                     .thenReturn(expectedOffloaders);
 
             OffloadersCache cache = new OffloadersCache();
@@ -45,6 +49,32 @@ public class OffloadersCacheTest {
             Offloaders offloaders2 = cache.getOrLoadOffloaders("./offloaders", "/tmp");
 
             assertSame(offloaders2, expectedOffloaders, "The offloaders should be the mocked one.");
+        }
+    }
+
+    @Test
+    public void testEquivalentPathsLoadOnlyOnce() throws Exception {
+        String relativePath = "./offloaders";
+        String normalizedPath = Paths.get(relativePath).toAbsolutePath().normalize().toString();
+        Offloaders expectedOffloaders = new Offloaders();
+
+        try (MockedStatic<OffloaderUtils> offloaderUtils = Mockito.mockStatic(OffloaderUtils.class)) {
+            offloaderUtils.when(() -> OffloaderUtils.searchForOffloaders(eq(relativePath), eq("/tmp")))
+                    .thenReturn(expectedOffloaders);
+            offloaderUtils.when(() -> OffloaderUtils.searchForOffloaders(eq(normalizedPath), eq("/tmp")))
+                    .thenReturn(expectedOffloaders);
+
+            OffloadersCache cache = new OffloadersCache();
+
+            Offloaders offloaders1 = cache.getOrLoadOffloaders(relativePath, "/tmp");
+            Offloaders offloaders2 = cache.getOrLoadOffloaders(normalizedPath, "/tmp");
+
+            assertSame(offloaders1, expectedOffloaders, "The relative path should load the mocked offloaders.");
+            assertSame(offloaders2, expectedOffloaders, "The absolute path should reuse the cached offloaders.");
+            offloaderUtils.verify(
+                    () -> OffloaderUtils.searchForOffloaders(eq(normalizedPath), eq("/tmp")), times(1));
+            offloaderUtils.verify(
+                    () -> OffloaderUtils.searchForOffloaders(eq(relativePath), eq("/tmp")), never());
         }
     }
 }

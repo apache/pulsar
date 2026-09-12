@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -61,13 +60,14 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         when(consumer2.consumerName()).thenReturn("c2");
         selector.addConsumer(consumer2);
 
+        // Use repeatable keys so random sampling cannot make the distribution assertions flaky.
         final int num = 1000;
         final double percentError = 0.20; // 20 %
 
         Map<String, Integer> selectionMap = new HashMap<>();
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
@@ -82,8 +82,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumer3);
 
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
@@ -98,8 +98,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumer4);
 
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
@@ -113,8 +113,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.removeConsumer(consumer1);
 
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
@@ -126,8 +126,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
         selector.removeConsumer(consumer2);
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
@@ -139,8 +139,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
         selector.removeConsumer(consumer3);
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }

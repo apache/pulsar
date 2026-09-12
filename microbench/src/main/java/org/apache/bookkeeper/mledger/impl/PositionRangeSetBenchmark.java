@@ -47,6 +47,11 @@ import org.openjdk.jmh.infra.Blackhole;
  * <pre>{@code
  * ./gradlew :microbench:shadowJar
  * java -jar microbench/build/libs/microbench-*-benchmarks.jar PositionRangeSetBenchmark
+ *
+ * # Allocation profile of the individual-ack path (addOpenClosedSameLedger issues a
+ * # one-wide range add per ack, the shape that dominates cursor allocation):
+ * java -jar microbench/build/libs/microbench-*-benchmarks.jar \
+ *     PositionRangeSetBenchmark.addOpenClosedSameLedger -prof gc
  * }</pre>
  */
 @BenchmarkMode(Mode.Throughput)
