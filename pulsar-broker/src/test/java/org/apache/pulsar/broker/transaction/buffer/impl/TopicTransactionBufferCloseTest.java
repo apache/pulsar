@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
-import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -35,7 +34,6 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import io.netty.util.HashedWheelTimer;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -63,8 +61,7 @@ import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.MarkerType;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Markers;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -92,6 +89,7 @@ public class TopicTransactionBufferCloseTest {
             TxnID txnID = new TxnID(1, 1);
             if (replay) {
                 Entry marker = createTxnEntry(position, txnID, abort ? MarkerType.TXN_ABORT : MarkerType.TXN_COMMIT);
+                ByteBuf markerData = marker.getDataBuffer();
                 when(context.managedCursor.hasMoreEntries()).thenReturn(true, false);
                 doAnswer(invocation -> {
                     AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
@@ -101,7 +99,7 @@ public class TopicTransactionBufferCloseTest {
 
                 recoveryFuture.complete(PositionFactory.create(1, 0));
                 context.transactionBuffer.getTransactionBufferFuture().get(5, TimeUnit.SECONDS);
-                verify(marker).release();
+                assertThat(markerData.refCnt()).isZero();
             } else {
                 recoveryFuture.complete(position);
                 context.transactionBuffer.getTransactionBufferFuture().get(5, TimeUnit.SECONDS);
@@ -121,11 +119,14 @@ public class TopicTransactionBufferCloseTest {
     }
 
     private EntryImpl createTxnEntry(Position position, TxnID txnID, MarkerType markerType) {
-        MessageMetadata messageMetadata = new MessageMetadata().setTxnidMostBits(txnID.getMostSigBits())
-                .setTxnidLeastBits(txnID.getLeastSigBits()).setMarkerType(markerType.getValue());
-        ByteBuf byteBuf =
-                serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.EMPTY_BUFFER);
-        return EntryImpl.create(position.getLedgerId(), position.getEntryId(), byteBuf);
+        ByteBuf byteBuf = markerType == MarkerType.TXN_ABORT
+                ? Markers.newTxnAbortMarker(0, txnID.getMostSigBits(), txnID.getLeastSigBits())
+                : Markers.newTxnCommitMarker(0, txnID.getMostSigBits(), txnID.getLeastSigBits());
+        try {
+            return EntryImpl.create(position.getLedgerId(), position.getEntryId(), byteBuf);
+        } finally {
+            byteBuf.release();
+        }
     }
 
     @Test(timeOut = 10_000)
