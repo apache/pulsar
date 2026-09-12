@@ -26,15 +26,17 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataAnonymous;
+import org.apache.pulsar.broker.authentication.AuthenticationDataForwarded;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authentication.TokenAuthenticationProvider;
-import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -69,12 +71,6 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     private String roleClaim = DEFAULT_ROLE_CLAIM;
     private TokenAuthenticationProvider authenticationProvider;
 
-    @Deprecated
-    @Override
-    public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
-        initialize(new InitialContext(conf, pulsarResources, null));
-    }
-
     @Override
     public void initialize(InitialContext context) throws IOException {
         ServiceConfiguration conf = context.config();
@@ -88,14 +84,18 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
             this.roleClaim = (String) tokenAuthClaim;
         }
 
-        if (!conf.isAuthenticationEnabled()) {
-            throw new IOException("MultiRolesTokenAuthorizationProvider requires authenticationEnabled=true");
-        }
         // Token and OpenID share the "token" method; the service returns their AuthenticationProviderList
         // when both are configured.
         AuthenticationProvider sharedProvider = context.authenticationService() == null ? null
                 : context.authenticationService()
                         .getAuthenticationProvider(TokenAuthenticationProvider.AUTH_METHOD_NAME);
+        if (!conf.isAuthorizationEnabled() && !(sharedProvider instanceof TokenAuthenticationProvider)) {
+            super.initialize(context);
+            return;
+        }
+        if (!conf.isAuthenticationEnabled()) {
+            throw new IOException("MultiRolesTokenAuthorizationProvider requires authenticationEnabled=true");
+        }
         if (!(sharedProvider instanceof TokenAuthenticationProvider tokenProvider)) {
             throw new IOException("MultiRolesTokenAuthorizationProvider requires an initialized token authentication "
                     + "provider in AuthorizationProvider.InitialContext");
@@ -170,24 +170,39 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     }
 
     private CompletableFuture<Set<String>> getRolesAsync(String role, AuthenticationDataSource authData) {
-        if (authData == null || (authData instanceof AuthenticationDataSubscription subscription
-                && subscription.getAuthData() == null)) {
+        AuthenticationDataSource roleData = authData;
+        // Subscription wrappers must preserve principal-only and already-resolved role contexts.
+        while (roleData instanceof AuthenticationDataSubscription subscription
+                && !(roleData instanceof RoleAuthenticationData)) {
+            roleData = subscription.getAuthData();
+        }
+        if (roleData instanceof RoleAuthenticationData resolved) {
+            return CompletableFuture.completedFuture(Collections.singleton(resolved.role));
+        }
+        if (roleData == null || roleData instanceof AuthenticationDataAnonymous
+                || roleData instanceof AuthenticationDataForwarded) {
             return CompletableFuture.completedFuture(
                     role == null ? Collections.emptySet() : Collections.singleton(role));
         }
         try {
             return authenticationProvider.authenticateRolesAsync(authData, roleClaim)
                     .exceptionally(error -> {
-                        log.debug().log("Unable to extract additional roles from JWT token");
+                        log.debug().exception(error).log("Unable to extract additional roles from JWT token");
                         return Collections.emptySet();
                     });
         } catch (RuntimeException e) {
+            log.debug().exception(e).log("Unable to extract additional roles from JWT token");
             return CompletableFuture.completedFuture(Collections.emptySet());
         }
     }
 
     public CompletableFuture<Boolean> authorize(String role, AuthenticationDataSource authenticationData,
                                                 Function<String, CompletableFuture<Boolean>> authorizeFunc) {
+        return authorize(role, authenticationData, (resolvedRole, data) -> authorizeFunc.apply(resolvedRole));
+    }
+
+    private CompletableFuture<Boolean> authorize(String role, AuthenticationDataSource authenticationData,
+            BiFunction<String, AuthenticationDataSource, CompletableFuture<Boolean>> authorizeFunc) {
         if (role != null && conf.getSuperUserRoles().contains(role)) {
             return CompletableFuture.completedFuture(true);
         }
@@ -201,9 +216,12 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                     }
                     List<CompletableFuture<Boolean>> futures = new ArrayList<>(roles.size());
                     if (roles.size() == 1) {
-                        roles.forEach(r -> futures.add(authorizeFunc.apply(r)));
+                        roles.forEach(r -> futures.add(
+                                authorizeFunc.apply(r, new RoleAuthenticationData(authenticationData, r))));
                     } else {
-                        roles.forEach(r -> futures.add(authorizeFunc.apply(r).exceptionally(ex -> false)));
+                        roles.forEach(r -> futures.add(
+                                authorizeFunc.apply(r, new RoleAuthenticationData(authenticationData, r))
+                                        .exceptionally(ex -> false)));
                     }
                     return FutureUtil.waitForAny(futures, ret -> (boolean) ret).thenApply(v -> v.isPresent());
                 });
@@ -218,7 +236,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     @Override
     public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
                                                       AuthenticationDataSource authenticationData) {
-        return authorize(role, authenticationData, r -> super.canProduceAsync(topicName, r, authenticationData));
+        return authorize(role, authenticationData, (r, data) -> super.canProduceAsync(topicName, r, data));
     }
 
     /**
@@ -233,7 +251,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
                                                       AuthenticationDataSource authenticationData,
                                                       String subscription) {
-        return authorize(role, authenticationData, r -> super.canConsumeAsync(topicName, r, authenticationData,
+        return authorize(role, authenticationData, (r, data) -> super.canConsumeAsync(topicName, r, data,
                 subscription));
     }
 
@@ -250,27 +268,27 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
     @Override
     public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
                                                      AuthenticationDataSource authenticationData) {
-        return authorize(role, authenticationData, r -> super.canLookupAsync(topicName, r, authenticationData));
+        return authorize(role, authenticationData, (r, data) -> super.canLookupAsync(topicName, r, data));
     }
 
     @Override
     public CompletableFuture<Boolean> allowFunctionOpsAsync(NamespaceName namespaceName, String role,
                                                             AuthenticationDataSource authenticationData) {
         return authorize(role, authenticationData,
-                r -> super.allowFunctionOpsAsync(namespaceName, r, authenticationData));
+                (r, data) -> super.allowFunctionOpsAsync(namespaceName, r, data));
     }
 
     @Override
     public CompletableFuture<Boolean> allowSourceOpsAsync(NamespaceName namespaceName, String role,
                                                           AuthenticationDataSource authenticationData) {
         return authorize(role, authenticationData,
-                r -> super.allowSourceOpsAsync(namespaceName, r, authenticationData));
+                (r, data) -> super.allowSourceOpsAsync(namespaceName, r, data));
     }
 
     @Override
     public CompletableFuture<Boolean> allowSinkOpsAsync(NamespaceName namespaceName, String role,
                                                         AuthenticationDataSource authenticationData) {
-        return authorize(role, authenticationData, r -> super.allowSinkOpsAsync(namespaceName, r, authenticationData));
+        return authorize(role, authenticationData, (r, data) -> super.allowSinkOpsAsync(namespaceName, r, data));
     }
 
     @Override
@@ -278,7 +296,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                                                                 String role,
                                                                 TenantOperation operation,
                                                                 AuthenticationDataSource authData) {
-        return authorize(role, authData, r -> super.allowTenantOperationAsync(tenantName, r, operation, authData));
+        return authorize(role, authData, (r, data) -> super.allowTenantOperationAsync(tenantName, r, operation, data));
     }
 
     @Override
@@ -287,7 +305,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                                                                    NamespaceOperation operation,
                                                                    AuthenticationDataSource authData) {
         return authorize(role, authData,
-                r -> super.allowNamespaceOperationAsync(namespaceName, r, operation, authData));
+                (r, data) -> super.allowNamespaceOperationAsync(namespaceName, r, operation, data));
     }
 
     @Override
@@ -297,7 +315,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                                                                          String role,
                                                                          AuthenticationDataSource authData) {
         return authorize(role, authData,
-                r -> super.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, r, authData));
+                (r, data) -> super.allowNamespacePolicyOperationAsync(namespaceName, policy, operation, r, data));
     }
 
     @Override
@@ -305,7 +323,7 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                                                                String role,
                                                                TopicOperation operation,
                                                                AuthenticationDataSource authData) {
-        return authorize(role, authData, r -> super.allowTopicOperationAsync(topicName, r, operation, authData));
+        return authorize(role, authData, (r, data) -> super.allowTopicOperationAsync(topicName, r, operation, data));
     }
 
     @Override
@@ -315,6 +333,20 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                                                                      PolicyOperation policyOperation,
                                                                      AuthenticationDataSource authData) {
         return authorize(role, authData,
-                r -> super.allowTopicPolicyOperationAsync(topicName, r, policyName, policyOperation, authData));
+                (r, data) -> super.allowTopicPolicyOperationAsync(topicName, r, policyName, policyOperation, data));
+    }
+
+    /**
+     * Carries a resolved role only through the nested checks of one authorization call.
+     * The delegate may be null for role-only checks: getRolesAsync then uses only the supplied role,
+     * and nested checks still evaluate that role's permissions.
+     */
+    private static final class RoleAuthenticationData extends AuthenticationDataSubscription {
+        private final String role;
+
+        private RoleAuthenticationData(AuthenticationDataSource data, String role) {
+            super(data, data == null ? null : data.getSubscription());
+            this.role = role;
+        }
     }
 }

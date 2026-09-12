@@ -24,6 +24,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
+import java.io.IOException;
 import java.util.HashSet;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -85,6 +86,29 @@ public class AuthorizationServiceTest {
             provider.initialize(legacyConfig, legacyResources);
             assertThat(provider.conf).isSameAs(legacyConfig);
             assertThat(provider.pulsarResources).isSameAs(legacyResources);
+        }
+    }
+
+    public static class LegacyPulsarProvider extends PulsarAuthorizationProvider {
+        private int initializationCount;
+
+        @Override
+        @SuppressWarnings("deprecation")
+        public void initialize(ServiceConfiguration config, PulsarResources resources) throws IOException {
+            super.initialize(config, resources);
+            initializationCount++;
+        }
+    }
+
+    @Test
+    public void testContextInitializesLegacyPulsarSubclass() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        PulsarResources resources = mock(PulsarResources.class);
+        try (LegacyPulsarProvider provider = new LegacyPulsarProvider()) {
+            provider.initialize(new AuthorizationProvider.InitialContext(config, resources, null));
+            assertThat(provider.initializationCount).isEqualTo(1);
+            assertThat(provider.conf).isSameAs(config);
+            assertThat(provider.pulsarResources).isSameAs(resources);
         }
     }
 

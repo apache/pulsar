@@ -76,13 +76,15 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     @Deprecated
     @Override
     public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
-        initialize(InitialContext.builder().config(conf).pulsarResources(pulsarResources).build());
+        this.conf = requireNonNull(conf, "ServiceConfiguration can't be null");
+        this.pulsarResources = requireNonNull(pulsarResources, "PulsarResources can't be null");
     }
 
     @Override
     public void initialize(InitialContext context) throws IOException {
-        this.conf = requireNonNull(context.config(), "ServiceConfiguration can't be null");
-        this.pulsarResources = requireNonNull(context.pulsarResources(), "PulsarResources can't be null");
+        // Preserve initialization in third-party subclasses that override the legacy two-argument method.
+        // Keep field assignment in that method so overrides can call super without recursing here.
+        initialize(context.config(), context.pulsarResources());
     }
 
     /**
