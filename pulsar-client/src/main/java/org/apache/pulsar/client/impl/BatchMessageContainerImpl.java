@@ -306,6 +306,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             stampEntryBucketRange();
             ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata,
                     getCompressedBatchMetadataAndPayload());
+            // A successful encryption releases its input and returns a different buffer, so the field has to
+            // follow it, exactly as it does for compression. Otherwise it keeps pointing at freed memory that
+            // discard() would release again.
+            batchedMessageMetadataAndPayload = encryptedPayload;
             updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
             ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 1, null, messageMetadata, encryptedPayload);
@@ -343,13 +347,12 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata,
                 getCompressedBatchMetadataAndPayload());
+        // See the single-message branch above: the field follows whatever encryption returned.
+        batchedMessageMetadataAndPayload = encryptedPayload;
         updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
         if (encryptedPayload.readableBytes() > getMaxMessageSize()) {
-            // With compression and encryption off this is the batch payload itself, which discard() releases
-            // below; releasing it here as well would drop a live buffer back into the pool.
-            if (encryptedPayload != batchedMessageMetadataAndPayload) {
-                encryptedPayload.release();
-            }
+            // The container owns the payload at this point — no command has been built yet — so discard() below
+            // is its single owner. Releasing it here as well would drop a live buffer back into the pool.
             producer.semaphoreRelease(messages.size());
             messages.forEach(msg -> producer.client.getMemoryLimitController()
                     .releaseMemory(msg.getUncompressedSize()));
