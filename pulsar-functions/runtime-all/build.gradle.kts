@@ -36,6 +36,8 @@ dependencies {
     implementation(libs.log4j.slf4j2.impl)
     implementation(libs.log4j.api)
     implementation(libs.log4j.core)
+    // log4j-jul is needed to support the JUL-to-Log4j2 bridge in function instance JVMs
+    implementation(libs.log4j.jul)
 }
 
 // Build a fat JAR as java-instance.jar using the Shadow plugin.
