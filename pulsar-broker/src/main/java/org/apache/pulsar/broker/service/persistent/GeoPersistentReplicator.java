@@ -23,6 +23,7 @@ import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -279,11 +280,18 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     schemaFuture.whenComplete((__, e) -> {
                         if (e != null) {
                             log.warn()
+                                    .attr("backoffMs", PersistentTopic.MESSAGE_RATE_BACKOFF_MS)
                                     .exception(e)
-                                    .log("Failed to get schema from local cluster, will try in the next loop");
+                                    .log("Failed to get schema from local cluster, will retry after backoff");
+                            topic.getBrokerService().executor().schedule(() -> {
+                                log.debug("Resume the data replication after the schema fetching done");
+                                doRewindCursor(true);
+                            },
+                                    PersistentTopic.MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+                        } else {
+                            log.info("Resume the data replication after the schema fetching done");
+                            doRewindCursor(true);
                         }
-                        log.info("Resume the data replication after the schema fetching done");
-                        doRewindCursor(true);
                     });
                 } else {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
