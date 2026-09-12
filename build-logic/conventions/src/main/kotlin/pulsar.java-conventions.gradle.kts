@@ -236,8 +236,9 @@ tasks.withType<Test>().configureEach {
         showExceptions = true
         showCauses = true
     }
-    maxHeapSize = "1300m"
-    maxParallelForks = 4
+    maxHeapSize = providers.gradleProperty("testMaxHeapSize").getOrElse("1300m")
+    maxParallelForks = providers.gradleProperty("testMaxParallelForks").map { it.toInt() }.getOrElse(4)
+    forkEvery = providers.gradleProperty("testForkEvery").map { it.toLong() }.getOrElse(0L)
     val failFastValue = providers.gradleProperty("testFailFast").getOrElse("true").toBoolean()
     failFast = failFastValue
     val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.getOrElse(false)
@@ -245,6 +246,8 @@ tasks.withType<Test>().configureEach {
     systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse(defaultTestRetryCount))
     systemProperty("testFailFast", failFastValue.toString())
     jvmArgs(
+        "-XX:+HeapDumpOnOutOfMemoryError",
+        "-XX:HeapDumpPath=${providers.gradleProperty("testHeapDumpPath").getOrElse("/tmp")}",
         "--add-opens", "java.base/jdk.internal.loader=ALL-UNNAMED",
         "--add-opens", "java.base/java.lang=ALL-UNNAMED",
         "--add-opens", "java.base/java.io=ALL-UNNAMED",
@@ -368,6 +371,7 @@ if (asyncProfilerEnabled) {
         systemProperty("pulsar.test.enableManualTest", "true")
         // One test JVM at a time and no retries, so that a run produces a single comparable profile.
         maxParallelForks = 1
+        forkEvery = 0
         systemProperty("testRetryCount", "0")
         // A profiling run has to actually run the tests, even when the task is up-to-date. Don't
         // "fix" this by declaring inputs: the point is to re-run, not to track a missing input. The

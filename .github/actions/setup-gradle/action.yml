@@ -18,7 +18,7 @@
 #
 
 name: Setup Gradle
-description: Sets up Gradle with Develocity or public build scan publishing by default
+description: Sets up Gradle with runner memory defaults and build scans for public repositories
 inputs:
   develocity-access-key:
     description: 'Develocity access key for authenticated build scans'
@@ -28,6 +28,10 @@ inputs:
     description: 'Whether to publish build scans or use Develocity when the access key is set'
     required: false
     default: 'true'
+  memory-profile:
+    description: 'Gradle memory profile: auto (low-memory on Linux runners with up to 8 GiB RAM), low-memory, or standard'
+    required: false
+    default: 'auto'
   cache-read-only:
     description: 'Whether the Gradle cache is read-only'
     required: false
@@ -40,7 +44,7 @@ runs:
   using: composite
   steps:
     - name: Set Develocity Project ID and configure custom settings
-      if: ${{ inputs.develocity-access-key != '' && inputs.build-scan-publish == 'true' }}
+      if: ${{ inputs.develocity-access-key != '' && inputs.build-scan-publish == 'true' && github.event.repository.visibility == 'public' }}
       shell: bash
       run: |
         mkdir -p ~/.gradle
@@ -49,23 +53,29 @@ runs:
         grep -q 'systemProp.scan.uploadInBackground=' ~/.gradle/gradle.properties || echo systemProp.scan.uploadInBackground=false >> ~/.gradle/gradle.properties
 
     - name: Setup Gradle with Develocity
-      if: ${{ inputs.develocity-access-key != '' && inputs.build-scan-publish == 'true' }}
+      if: ${{ inputs.develocity-access-key != '' && inputs.build-scan-publish == 'true' && github.event.repository.visibility == 'public' }}
       uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
       with:
         develocity-injection-enabled: true
         develocity-url: https://develocity.apache.org
         # expected format is develocity.apache.org:<access-key>
         develocity-access-key: ${{ inputs.develocity-access-key }}
-        build-scan-publish: ${{ inputs.build-scan-publish }}
+        build-scan-publish: ${{ inputs.build-scan-publish == 'true' && github.event.repository.visibility == 'public' }}
         cache-read-only: ${{ inputs.cache-read-only }}
         add-job-summary: ${{ inputs.add-job-summary }}
 
     - name: Setup Gradle
-      if: ${{ !(inputs.develocity-access-key != '' && inputs.build-scan-publish == 'true') }}
+      if: ${{ !(inputs.develocity-access-key != '' && inputs.build-scan-publish == 'true' && github.event.repository.visibility == 'public') }}
       uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
       with:
-        build-scan-publish: ${{ inputs.build-scan-publish }}
+        build-scan-publish: ${{ inputs.build-scan-publish == 'true' && github.event.repository.visibility == 'public' }}
         build-scan-terms-of-use-url: 'https://gradle.com/terms-of-service'
         build-scan-terms-of-use-agree: 'yes'
         cache-read-only: ${{ inputs.cache-read-only }}
         add-job-summary: ${{ inputs.add-job-summary }}
+
+    - name: Configure Gradle memory
+      shell: bash
+      env:
+        MEMORY_PROFILE: ${{ inputs.memory-profile }}
+      run: bash "$GITHUB_ACTION_PATH/configure-memory.sh" "$MEMORY_PROFILE"

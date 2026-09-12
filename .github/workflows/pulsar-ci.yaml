@@ -76,8 +76,16 @@ env:
   ARTIFACT_RETENTION_DAYS: 3
   JDK_DISTRIBUTION: corretto
 
+# Do not depend on the repository or enterprise default token permissions.
+permissions:
+  contents: read
+
 jobs:
   preconditions:
+    permissions:
+      contents: read
+      pull-requests: read # List changed files and check whether the PR is ready.
+      actions: write # Cancel scheduled runs in forks.
     name: Preconditions
     runs-on: ubuntu-24.04
     outputs:
@@ -638,6 +646,9 @@ jobs:
           action: wait
 
   pulsar-test-latest-version-image:
+    permissions:
+      contents: read
+      security-events: write # Upload scheduled container scan results.
     name: Build pulsar-test-latest-version Docker image
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -855,7 +866,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: ['preconditions', 'unit-tests']
-    if: ${{ (needs.preconditions.outputs.java_non_tests == 'true' || github.event_name != 'pull_request') && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
+    # Private repositories need Code Security enabled before opting in.
+    if: ${{ (github.event.repository.visibility == 'public' || vars.CI_ENABLE_CODEQL == 'true') && (needs.preconditions.outputs.java_non_tests == 'true' || github.event_name != 'pull_request') && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
     permissions:
       actions: read
       contents: read
@@ -916,6 +928,8 @@ jobs:
   # protected_branches section for master branch required_status_checks.
   # It depends on all other jobs in this workflow.
   pulsar-ci-checks-completed:
+    permissions:
+      actions: write # Delete intermediate build artifacts.
     name: "Pulsar CI checks completed"
     # run always, but skip for other repositories than apache/pulsar when a scheduled workflow is cancelled
     # this is to allow the workflow scheduled jobs to show as cancelled instead of failed since scheduled
