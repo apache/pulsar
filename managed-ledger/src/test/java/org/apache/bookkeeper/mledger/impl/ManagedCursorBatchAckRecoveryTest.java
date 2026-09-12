@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.awaitility.Awaitility;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.Position;
@@ -48,6 +49,33 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
     @DataProvider(name = "booleans")
     public Object[][] booleans() {
         return new Object[][] {{false}, {true}};
+    }
+
+    @Test
+    public void testIsCursorDataFullyPersistableReflectsBatchDeletedIndexLimit() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setDeletionAtBatchIndexLevelEnabled(true);
+        config.setMaxBatchDeletedIndexToPersist(2);
+        config.setThrottleMarkDelete(0);
+        String name = "tenant/ns/persistent/cursor-data-fully-persistable-batch-index";
+        @Cleanup
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i <= 3; i++) {
+            positions.add(ledger.addEntry(new byte[] {(byte) i}));
+        }
+        cursor.delete(positions.get(0));
+        Awaitility.await().until(() -> cursor.getStats().getPersistLedgerSucceed() > 0);
+
+        long[][] ackSets = {{2L}, {Long.MIN_VALUE, 1L}, {5L, 0L, 3L}};
+        for (int i = 1; i < positions.size(); i++) {
+            Position position = positions.get(i);
+            cursor.delete(AckSetStateUtil.createPositionWithAckSet(
+                    position.getLedgerId(), position.getEntryId(), ackSets[i - 1]));
+        }
+
+        assertThat(cursor.isCursorDataFullyPersistable()).isFalse();
     }
 
     @Test(dataProvider = "batchRecovery")
