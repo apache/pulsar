@@ -522,8 +522,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         waitReplicatorStarted(topicName);
         admin1.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
         admin2.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE);
-        admin1.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, true, null);
-        admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema, null);
+        admin1.namespaces().setIsAllowAutoUpdateSchema(ns, true, null);
+        admin2.namespaces().setIsAllowAutoUpdateSchema(ns, isAllowAutoUpdateSchema, null);
         RetentionPolicies retentionPolicies = new RetentionPolicies(10, 1);
         admin1.namespaces().setRetention(ns, retentionPolicies);
         admin2.namespaces().setRetention(ns, retentionPolicies);
@@ -598,8 +598,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
 
         // Change policies.
-        admin1.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, true, null);
-        admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema,
+        admin1.namespaces().setIsAllowAutoUpdateSchema(ns, true, null);
+        admin2.namespaces().setIsAllowAutoUpdateSchema(ns, isAllowAutoUpdateSchema,
                 allowAutoUpdateSchemaWithReplicator);
         Awaitility.await().untilAsserted(() -> {
             assertTrue(topic1.get().isAllowAutoUpdateSchema);
@@ -624,7 +624,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             TopicStats topicStats = admin1.topics().getStats(topicName);
             assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 1);
             // Change the policy to allow replicator update schemas.
-            admin2.namespaces().setIsAllowAutoUpdateSchemaAsync(ns, isAllowAutoUpdateSchema, true);
+            admin2.namespaces().setIsAllowAutoUpdateSchema(ns, isAllowAutoUpdateSchema, true);
             Awaitility.await().untilAsserted(() -> {
                 assertEquals(topic2.isAllowAutoUpdateSchema, isAllowAutoUpdateSchema);
                 assertTrue(topic2.isAllowAutoUpdateSchemaWithReplicator);
