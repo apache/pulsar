@@ -211,6 +211,7 @@ class PythonInstance(object):
         "crypto_key_reader": crypto_key_reader
       }
       consumer_args.update(nack_args)
+      consumer_args.update(self.get_crypto_failure_action_args(consumer_conf))
       if consumer_conf.HasField("receiverQueueSize"):
         consumer_args["receiver_queue_size"] = consumer_conf.receiverQueueSize.value
 
@@ -614,3 +615,33 @@ class PythonInstance(object):
       except Exception as e:
         Log.error("Failed to load the crypto key reader from spec: %s, error: %s" % (crypto_spec, e))
     return crypto_key_reader
+
+  def get_crypto_failure_action_args(self, consumer_conf):
+    """Build the crypto failure action argument for Client.subscribe().
+
+    Returns a dict to splat into the subscribe() call: either empty, or carrying
+    crypto_failure_action.
+
+    ConsumerSpec.cryptoSpec.consumerCryptoFailureAction tells the client what to do when an
+    input message cannot be decrypted. The Java runtime applies it in PulsarSource
+    (cb.cryptoFailureAction(...)); the Python runtime previously dropped it, so the client
+    default (FAIL) always applied and a configured DISCARD or CONSUME was silently ignored.
+
+    The argument is omitted when no cryptoSpec is configured rather than passed as None,
+    because subscribe() validates it with _check_type(ConsumerCryptoFailureAction, ...) rather
+    than _check_type_or_none, so None would fail for every function without crypto - the same
+    constraint get_negative_ack_args documents for its delay. When a cryptoSpec is present the
+    action is always forwarded: the proto3 enum default (FAIL) equals the client default, so an
+    unset action keeps today's behavior while DISCARD and CONSUME now reach the client. The
+    producer-only value (SEND) is not meaningful for a consumer and falls back to FAIL, like
+    the compression mapping treats values without a consumer equivalent.
+    """
+    if not consumer_conf.HasField("cryptoSpec"):
+      return {}
+
+    if consumer_conf.cryptoSpec.consumerCryptoFailureAction == Function_pb2.CryptoSpec.FailureAction.Value("DISCARD"):
+      return {"crypto_failure_action": pulsar.ConsumerCryptoFailureAction.DISCARD}
+    if consumer_conf.cryptoSpec.consumerCryptoFailureAction == Function_pb2.CryptoSpec.FailureAction.Value("CONSUME"):
+      return {"crypto_failure_action": pulsar.ConsumerCryptoFailureAction.CONSUME}
+
+    return {"crypto_failure_action": pulsar.ConsumerCryptoFailureAction.FAIL}
