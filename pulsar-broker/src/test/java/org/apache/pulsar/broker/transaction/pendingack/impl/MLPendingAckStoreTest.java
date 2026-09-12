@@ -20,9 +20,12 @@ package org.apache.pulsar.broker.transaction.pendingack.impl;
 
 import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter.BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER;
 import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter.BATCHED_ENTRY_DATA_PREFIX_VERSION;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -63,6 +66,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
+import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.util.LogIndexLagBackoff;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck;
@@ -208,8 +213,16 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         }
     }
 
-    @Test
-    public void testReplayFailureDoesNotHideStoreFromConcurrentClose() throws Exception {
+    @DataProvider(name = "lateReplayFailures")
+    public Object[][] lateReplayFailures() {
+        return new Object[][] {
+                {new ManagedLedgerException.CursorAlreadyClosedException("closed")},
+                {new ManagedLedgerException.ManagedLedgerFencedException()}
+        };
+    }
+
+    @Test(dataProvider = "lateReplayFailures")
+    public void testReplayFailureDoesNotHideStoreFromConcurrentClose(ManagedLedgerException failure) throws Exception {
         // Create the log so the handle opens a real store during initialization.
         closePendingAckStoreWithRetry(createPendingAckStore(new TxnLogBufferedWriterConfig()));
         PendingAckHandleImpl handle = new PendingAckHandleImpl(persistentSubscriptionMock);
@@ -224,7 +237,7 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
                 // closeAsync publishes Close before taking this monitor. Hold it as replayFailed does,
                 // ensuring the failure runs before closeAsync can retrieve the store future.
                 Awaitility.await().atMost(10, TimeUnit.SECONDS).until(handle::checkIfClose);
-                handle.exceptionHandleFuture(new ManagedLedgerException.CursorAlreadyClosedException("closed"));
+                handle.exceptionHandleFuture(failure);
             }
             closeResult.get(10, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS);
             Assert.assertEquals(ledger.getState(), ManagedLedgerImpl.State.Closed,
@@ -232,6 +245,48 @@ public class MLPendingAckStoreTest extends TransactionTestBase {
         } finally {
             closeExecutor.shutdownNow();
             ledger.close();
+        }
+    }
+
+    @Test
+    public void testCloseDuringPendingAckStoreCreation() throws Exception {
+        PersistentSubscription subscription = mock(PersistentSubscription.class, RETURNS_DEEP_STUBS);
+        doReturn(persistentSubscriptionMock.getTopicName()).when(subscription).getTopicName();
+        when(subscription.getName()).thenReturn("close-during-store-creation");
+        var pulsar = subscription.getTopic().getBrokerService().getPulsar();
+        when(pulsar.getTransactionExecutorProvider().getExecutor(any(PendingAckHandleImpl.class)))
+                .thenReturn(internalPinnedExecutor);
+        TransactionPendingAckStoreProvider provider = mock(TransactionPendingAckStoreProvider.class);
+        when(pulsar.getTransactionPendingAckStoreProvider()).thenReturn(provider);
+        CompletableFuture<Boolean> initialized = new CompletableFuture<>();
+        when(provider.checkInitializedBefore(subscription)).thenReturn(initialized);
+        PendingAckStore store = mock(PendingAckStore.class);
+        CompletableFuture<Void> storeClosed = new CompletableFuture<>();
+        when(store.closeAsync()).thenReturn(storeClosed);
+        CompletableFuture<PendingAckStore> storeCreated = new CompletableFuture<>();
+        CompletableFuture<CompletableFuture<Void>> closeStarted = new CompletableFuture<>();
+        PendingAckHandleImpl handle = new PendingAckHandleImpl(subscription);
+        when(provider.newPendingAckStore(subscription)).thenAnswer(invocation -> {
+            // Close after init's state check, but before the provider returns its future.
+            closeStarted.complete(handle.closeAsync());
+            return storeCreated;
+        });
+        try {
+            initialized.complete(true);
+            CompletableFuture<Void> closed = closeStarted.get(10, TimeUnit.SECONDS);
+            assertThat(closed).as("Close must wait for the store being created").isNotDone();
+            storeCreated.complete(store);
+            verify(store, timeout(10000)).closeAsync();
+            assertThat(closed).as("Close must wait for store cleanup").isNotDone();
+            storeClosed.complete(null);
+            closed.get(10, TimeUnit.SECONDS);
+            handle.getInternalPinnedExecutor().submit(() -> { }).get(10, TimeUnit.SECONDS);
+            verify(store, never()).replayAsync(any(), any());
+            assertThat(handle.getState()).isEqualTo(PendingAckHandleState.State.Close);
+        } finally {
+            storeCreated.complete(store);
+            storeClosed.complete(null);
+            handle.closeAsync().get(10, TimeUnit.SECONDS);
         }
     }
 

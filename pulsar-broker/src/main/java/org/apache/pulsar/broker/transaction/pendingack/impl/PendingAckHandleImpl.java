@@ -193,20 +193,29 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     private void initPendingAckStore() {
-        if (changeToInitializingState()) {
-            if (!checkIfClose()) {
-                this.pendingAckStoreFuture =
-                        pendingAckStoreProvider.newPendingAckStore(persistentSubscription);
-                this.pendingAckStoreFuture.thenAccept(pendingAckStore -> {
-                    recoverTime.setRecoverStartTime(System.currentTimeMillis());
-                    pendingAckStore.replayAsync(this, internalPinnedExecutor);
-                }).exceptionallyAsync(e -> {
-                    // Handling the exceptions in `exceptionHandleFuture`,
-                    // it will be helpful to make the exception handling clearer.
-                    exceptionHandleFuture(e.getCause());
-                    return null;
-                }, internalPinnedExecutor);
+        CompletableFuture<PendingAckStore> storeFuture;
+        synchronized (this) {
+            if (!changeToInitializingState()) {
+                return;
             }
+            // Publish ownership before calling the provider so closeAsync() also waits for a store
+            // whose creation has started but whose future has not yet been returned.
+            storeFuture = new CompletableFuture<>();
+            this.pendingAckStoreFuture = storeFuture;
+        }
+        storeFuture.thenAccept(pendingAckStore -> {
+            if (!checkIfClose()) {
+                recoverTime.setRecoverStartTime(System.currentTimeMillis());
+                pendingAckStore.replayAsync(this, internalPinnedExecutor);
+            }
+        }).exceptionallyAsync(e -> {
+            exceptionHandleFuture(FutureUtil.unwrapCompletionException(e));
+            return null;
+        }, internalPinnedExecutor);
+        try {
+            FutureUtil.completeAfter(storeFuture, pendingAckStoreProvider.newPendingAckStore(persistentSubscription));
+        } catch (Exception e) {
+            storeFuture.completeExceptionally(e);
         }
     }
 
@@ -1003,12 +1012,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         changeToErrorState();
         // ToDo: Add a new serverError `TransactionComponentLoadFailedException`
         //  and before that a `Unknown` will be returned first.
-        // A retryable failure reaches here only when the atomic reset observed Close. Keep the
-        // original store future so closeAsync(), which may be waiting for this monitor, can close it.
-        if (!retryable) {
-            this.pendingAckStoreFuture = FutureUtil.failedFuture(new BrokerServiceException(
-                    String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
-        }
+        // Keep the original store future, including for non-retryable replay failures, so closeAsync()
+        // can still close the store. Report initialization failure through the handle future below.
         final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(
                 new BrokerServiceException(
                 String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
