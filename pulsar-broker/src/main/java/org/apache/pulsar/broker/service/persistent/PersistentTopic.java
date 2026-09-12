@@ -587,14 +587,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         List<String> replicationClusters = topicPolicies.getReplicationClusters().get();
         for (ManagedCursor cursor : ledger.getCursors()) {
-            if (cursor.getName().startsWith(replicatorPrefix)) {
-                String remoteCluster = PersistentReplicator.getRemoteCluster(cursor.getName());
-                if (!replicationClusters.contains(remoteCluster)) {
-                    log.warn()
-                            .attr("remoteCluster", remoteCluster)
-                            .log("Remove the orphan replicator because the cluster does not exist");
-                    futures.add(removeReplicator(remoteCluster));
-                }
+            Optional<String> remoteCluster =
+                    PersistentReplicator.getRemoteCluster(replicatorPrefix, cursor.getName());
+            if (remoteCluster.isPresent() && !replicationClusters.contains(remoteCluster.get())) {
+                log.warn()
+                        .attr("remoteCluster", remoteCluster.get())
+                        .log("Remove the orphan replicator because the cluster does not exist");
+                futures.add(removeReplicator(remoteCluster.get()));
             }
         }
         return FutureUtil.waitForAll(futures);

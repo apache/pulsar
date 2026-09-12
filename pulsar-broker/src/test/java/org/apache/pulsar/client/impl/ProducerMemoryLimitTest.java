@@ -25,17 +25,21 @@ import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBufAllocator;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -312,6 +316,33 @@ public class ProducerMemoryLimitTest extends ProducerConsumerBase {
 
         producer2.close();
         Assert.assertEquals(pulsarClient1.getMemoryLimitController().currentUsage(), 0);
+    }
+
+    /**
+     * A producer whose sends were admitted against the memory limit upstream (the V5 client does
+     * this on the caller's thread) only accounts for their bytes: it neither rejects nor blocks a
+     * send on the limit, and still gives the bytes back once the send completes.
+     */
+    @Test(timeOut = 10_000)
+    public void testMemoryLimitAdmittedUpstreamOnlyAccounts() throws Exception {
+        initClientWithMemoryLimit();
+        PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setTopicName("testProducerMemoryLimit");
+        conf.setBlockIfQueueFull(false);
+        conf.setBatchingEnabled(false);
+        conf.setMemoryLimitAdmittedUpstream(true);
+        @Cleanup
+        Producer<byte[]> producer = clientImpl.createProducerAsync(conf, Schema.BYTES).get();
+
+        // Each message alone exceeds the 50 KiB limit: with the limit applied here, the second
+        // send would be rejected with MemoryBufferIsFullError.
+        byte[] payload = new byte[60 * 1024];
+        CompletableFuture<MessageId> first = producer.sendAsync(payload);
+        CompletableFuture<MessageId> second = producer.sendAsync(payload);
+        Assert.assertNotNull(first.get(5, TimeUnit.SECONDS));
+        Assert.assertNotNull(second.get(5, TimeUnit.SECONDS));
+        Assert.assertEquals(clientImpl.getMemoryLimitController().currentUsage(), 0);
     }
 
     private void initClientWithMemoryLimit() throws PulsarClientException {
