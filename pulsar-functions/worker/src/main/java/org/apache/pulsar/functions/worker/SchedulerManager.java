@@ -768,26 +768,29 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     @Override
-    public synchronized void close() {
+    public void close() {
         log.info("Closing scheduler manager");
-        // make sure we are not closing while a scheduling is being calculated
+        // Acquire schedulerLock before the manager monitor, as scheduling does when reading membership.
+        // This also prevents closing the producer while a scheduling is being calculated.
         schedulerLock.lock();
         try {
-            isRunning = false;
+            synchronized (this) {
+                isRunning = false;
 
-            if (scheduledExecutorService != null) {
-                scheduledExecutorService.shutdown();
-            }
+                if (scheduledExecutorService != null) {
+                    scheduledExecutorService.shutdown();
+                }
 
-            if (executorService != null) {
-                executorService.shutdown();
-            }
+                if (executorService != null) {
+                    executorService.shutdown();
+                }
 
-            if (exclusiveProducer != null) {
-                try {
-                    exclusiveProducer.close();
-                } catch (PulsarClientException e) {
-                    log.warn().exception(e).log("Failed to shutdown scheduler manager assignment producer");
+                if (exclusiveProducer != null) {
+                    try {
+                        exclusiveProducer.close();
+                    } catch (PulsarClientException e) {
+                        log.warn().exception(e).log("Failed to shutdown scheduler manager assignment producer");
+                    }
                 }
             }
         } finally {
