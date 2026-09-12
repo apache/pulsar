@@ -117,6 +117,10 @@ public class SchedulerManager implements AutoCloseable {
 
     AtomicBoolean isCompactionNeeded = new AtomicBoolean(false);
     private static final long DEFAULT_ADMIN_API_BACKOFF_SEC = 60;
+    // how long close() waits for an in-progress scheduling round to complete before interrupting it, and then for
+    // the interrupted round to unwind
+    private static final long DEFAULT_CLOSE_SCHEDULING_ROUND_TIMEOUT_MS = TimeUnit.SECONDS.toMillis(10);
+    private volatile long closeSchedulingRoundTimeoutMs = DEFAULT_CLOSE_SCHEDULING_ROUND_TIMEOUT_MS;
     public static final String HEARTBEAT_TENANT = "pulsar-function";
     public static final String HEARTBEAT_NAMESPACE = "heartbeat";
 
@@ -210,8 +214,15 @@ public class SchedulerManager implements AutoCloseable {
                         try {
                             runnable.run();
                         } catch (Throwable th) {
-                            log.error("Encountered error when invoking scheduler [{}]", errMsg);
-                            errorNotifier.triggerError(th);
+                            if (!isRunning) {
+                                // close() interrupts a scheduling round that doesn't complete in time; the
+                                // failure of a round that was cut short by closing is not an error of the worker
+                                log.warn("Scheduler manager was closed while invoking the scheduler [{}]", errMsg,
+                                        th);
+                            } else {
+                                log.error("Encountered error when invoking scheduler [{}]", errMsg, th);
+                                errorNotifier.triggerError(th);
+                            }
                         }
                     }
                 } finally {
@@ -738,31 +749,68 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     @Override
-    public synchronized void close() {
+    public void close() {
         log.info("Closing scheduler manager");
-        // make sure we are not closing while a scheduling is being calculated
-        schedulerLock.lock();
-        try {
+        final ThreadPoolExecutor executor;
+        final ScheduledExecutorService scheduledExecutor;
+        final Producer<byte[]> producer;
+        // don't hold the monitor while waiting for the scheduler lock: a scheduling round holds the scheduler lock
+        // while calling synchronized methods of this class
+        synchronized (this) {
             isRunning = false;
+            executor = executorService;
+            scheduledExecutor = scheduledExecutorService;
+            producer = exclusiveProducer;
+        }
 
-            if (scheduledExecutorService != null) {
-                scheduledExecutorService.shutdown();
+        if (scheduledExecutor != null) {
+            scheduledExecutor.shutdown();
+        }
+        if (executor != null) {
+            // stop accepting new scheduling rounds, a round that is already running keeps running
+            executor.shutdown();
+        }
+
+        // make sure we are not closing the assignment producer while a scheduling round is being calculated.
+        // A round can block for a long time (for example while downloading a function package), so don't wait for
+        // it indefinitely: interrupt it and continue closing.
+        boolean locked = tryLockSchedulerLock();
+        if (!locked && executor != null) {
+            log.warn("Scheduling round did not complete in {} ms, interrupting it", closeSchedulingRoundTimeoutMs);
+            executor.shutdownNow();
+            locked = tryLockSchedulerLock();
+            if (!locked) {
+                log.warn("Interrupted scheduling round did not complete in {} ms, closing anyway",
+                        closeSchedulingRoundTimeoutMs);
             }
-
-            if (executorService != null) {
-                executorService.shutdown();
-            }
-
-            if (exclusiveProducer != null) {
+        }
+        try {
+            if (producer != null) {
                 try {
-                    exclusiveProducer.close();
+                    producer.close();
                 } catch (PulsarClientException e) {
                     log.warn("Failed to shutdown scheduler manager assignment producer", e);
                 }
             }
         } finally {
-            schedulerLock.unlock();
+            if (locked) {
+                schedulerLock.unlock();
+            }
         }
+    }
+
+    private boolean tryLockSchedulerLock() {
+        try {
+            return schedulerLock.tryLock(closeSchedulingRoundTimeoutMs, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    @VisibleForTesting
+    void setCloseSchedulingRoundTimeoutMs(long closeSchedulingRoundTimeoutMs) {
+        this.closeSchedulingRoundTimeoutMs = closeSchedulingRoundTimeoutMs;
     }
 
     static String checkHeartBeatFunction(Instance funInstance) {

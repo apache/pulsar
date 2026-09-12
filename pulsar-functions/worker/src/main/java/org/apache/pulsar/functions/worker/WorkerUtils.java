@@ -121,8 +121,8 @@ public final class WorkerUtils {
                                               OutputStream outputStream,
                                               String packagePath) throws IOException {
         log.info("Downloading {} from BK...", packagePath);
-        DistributedLogManager dlm = namespace.openLog(packagePath);
-        try (InputStream in = new DLInputStream(dlm)) {
+        try (DistributedLogManager dlm = namespace.openLog(packagePath);
+             InputStream in = new DLInputStream(dlm)) {
             int read = 0;
             byte[] bytes = new byte[1024];
             while ((read = in.read(bytes)) != -1) {
