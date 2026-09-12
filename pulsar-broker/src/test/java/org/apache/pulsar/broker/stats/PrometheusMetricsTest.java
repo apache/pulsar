@@ -952,11 +952,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/my-ns/elm-bundle-metrics")
+                .topic("persistent://prop/ns-abc/elm-bundle-metrics")
                 .create();
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
-                .topic("persistent://my-property/my-ns/elm-bundle-metrics")
+                .topic("persistent://prop/ns-abc/elm-bundle-metrics")
                 .subscriptionName("test")
                 .subscribe();
 
