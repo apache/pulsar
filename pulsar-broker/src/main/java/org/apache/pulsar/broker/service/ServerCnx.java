@@ -82,6 +82,8 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
+import org.apache.pulsar.broker.authentication.AuthenticationDataAnonymous;
+import org.apache.pulsar.broker.authentication.AuthenticationDataForwarded;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -1827,26 +1829,27 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                  * if the client does not configure an authentication method
                  * the proxy side will set the value of anonymousUserRole to clientAuthRole when it creates a connection
                  * and the value of clientAuthMethod will be none.
-                 * Similarly, should also set the value of authRole to anonymousUserRole on the broker side.
+                 * The broker uses that role for the original principal while authenticating the proxy separately.
                  */
                 if (originalAuthenticationProvider == null) {
-                    authRole = getBrokerService().getAuthenticationService().getAnonymousUserRole()
+                    originalPrincipal = getBrokerService().getAuthenticationService().getAnonymousUserRole()
                             .orElseThrow(() ->
                                     new AuthenticationException("No anonymous role, and can't find "
                                             + "AuthenticationProvider for original role using auth method "
                                             + "[" + originalAuthMethod + "] is not available"));
-                    originalPrincipal = authRole;
-                    completeConnect(clientProtocolVersion, clientVersion);
-                    return;
+                    originalAuthData = AuthenticationDataAnonymous.INSTANCE;
+                } else {
+                    originalAuthDataCopy = AuthData.of(connect.getOriginalAuthData().getBytes());
+                    originalAuthState = originalAuthenticationProvider.newAuthState(
+                            originalAuthDataCopy,
+                            remoteAddress,
+                            sslSession);
                 }
-
-                originalAuthDataCopy = AuthData.of(connect.getOriginalAuthData().getBytes());
-                originalAuthState = originalAuthenticationProvider.newAuthState(
-                        originalAuthDataCopy,
-                        remoteAddress,
-                        sslSession);
             } else if (connect.hasOriginalPrincipal()) {
                 originalPrincipal = connect.getOriginalPrincipal();
+                if (!WEBSOCKET_DUMMY_ORIGINAL_PRINCIPLE.equals(originalPrincipal)) {
+                    originalAuthData = AuthenticationDataForwarded.INSTANCE;
+                }
 
                 log.debug()
                         .attr("originalPrincipal", originalPrincipal)
