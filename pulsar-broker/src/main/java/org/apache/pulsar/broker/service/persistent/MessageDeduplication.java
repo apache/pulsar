@@ -323,9 +323,7 @@ public class MessageDeduplication {
     public MessageDupStatus isDuplicateReplV1(PublishContext publishContext, ByteBuf headersAndPayload) {
         // Message is coming from replication, we need to use the original producer name and sequence id
         // for the purpose of deduplication and not rely on the "replicator" name.
-        int readerIndex = headersAndPayload.readerIndex();
-        MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
-        headersAndPayload.readerIndex(readerIndex);
+        MessageMetadata md = publishContext.getMessageMetadata(headersAndPayload);
 
         String producerName = md.getProducerName();
         long sequenceId = md.getSequenceId();
@@ -352,9 +350,7 @@ public class MessageDeduplication {
         if (Producer.isRemoteOrShadow(publishContext.getProducerName(), replicatorPrefix)) {
             // Message is coming from replication, we need to use the replication's producer name, source cluster's
             // ledger id and entry id for the purpose of deduplication.
-            int readerIndex = headersAndPayload.readerIndex();
-            MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
-            headersAndPayload.readerIndex(readerIndex);
+            MessageMetadata md = publishContext.getMessageMetadata(headersAndPayload);
 
             List<KeyValue> kvPairList = md.getPropertiesList();
             for (KeyValue kvPair : kvPairList) {
@@ -467,9 +463,7 @@ public class MessageDeduplication {
         long chunkID = -1;
         long totalChunk = -1;
         if (publishContext.isChunked()) {
-            int readerIndex = headersAndPayload.readerIndex();
-            MessageMetadata md = Commands.parseMessageMetadata(headersAndPayload);
-            headersAndPayload.readerIndex(readerIndex);
+            MessageMetadata md = publishContext.getMessageMetadata(headersAndPayload);
             chunkID = md.getChunkId();
             totalChunk = md.getNumChunksFromMsg();
         }
