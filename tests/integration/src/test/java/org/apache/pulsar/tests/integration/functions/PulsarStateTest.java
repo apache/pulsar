@@ -149,7 +149,8 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
         getFunctionInfoNotFound(functionName);
     }
 
-    @Test(groups = {"python_state", "state", "function", "python_function"})
+    // Both passes launch many admin CLI JVMs to verify state operations and cleanup after deletion.
+    @Test(groups = {"python_state", "state", "function", "python_function"}, timeOut = 600_000)
     public void testPythonWordCountFunction() throws Exception {
         if (PulsarMetadataStateStoreProviderImpl.class.getName().equals(stateStoreProvider)) {
             // python function doesn't support metadata state store yet
@@ -163,7 +164,8 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
         doTestPythonWordCountFunction(functionName);
     }
 
-    @Test(groups = {"java_state", "state", "function", "java_function"})
+    // Both passes launch many admin CLI JVMs to verify state operations and cleanup after deletion.
+    @Test(groups = {"java_state", "state", "function", "java_function"}, timeOut = 600_000)
     public void testJavaWordCountFunction() throws Exception {
         String functionName = "test-wordcount-java-fn-" + randomName(8);
         doTestJavaWordCountFunction(functionName);
