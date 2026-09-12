@@ -1222,11 +1222,16 @@ public class TopicAuthZTest extends AuthZTest {
 
 
 
-    @Test
+    @DataProvider(name = "entryFilterTopicDomains")
+    public static Object[][] entryFilterTopicDomains() {
+        return new Object[][] {{"persistent"}, {"non-persistent"}};
+    }
+
+    @Test(dataProvider = "entryFilterTopicDomains")
     @SneakyThrows
-    public void testGetEntryFilter() {
+    public void testGetEntryFilter(String domain) {
         final String random = UUID.randomUUID().toString();
-        final String topic = "persistent://public/default/" + random;
+        final String topic = domain + "://public/default/" + random;
         final String subject =  UUID.randomUUID().toString();
         final String token = Jwts.builder()
                 .claim("sub", subject).signWith(SECRET_KEY).compact();
@@ -1246,7 +1251,8 @@ public class TopicAuthZTest extends AuthZTest {
                 PolicyName.ENTRY_FILTERS, PolicyOperation.READ);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().getEntryFiltersPerTopic(topic, false));
-        Assert.assertTrue(execFlag.get());
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topicPolicies().getEntryFiltersPerTopic(topic, true));
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
@@ -1254,14 +1260,15 @@ public class TopicAuthZTest extends AuthZTest {
                     () -> subAdmin.topicPolicies().getEntryFiltersPerTopic(topic, false));
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
+        Assert.assertTrue(execFlag.get());
         deleteTopic(topic, false);
     }
 
-    @Test
+    @Test(dataProvider = "entryFilterTopicDomains")
     @SneakyThrows
-    public void testSetEntryFilter() {
+    public void testSetEntryFilter(String domain) {
         final String random = UUID.randomUUID().toString();
-        final String topic = "persistent://public/default/" + random;
+        final String topic = domain + "://public/default/" + random;
         final String subject =  UUID.randomUUID().toString();
         final String token = Jwts.builder()
                 .claim("sub", subject).signWith(SECRET_KEY).compact();
@@ -1296,7 +1303,6 @@ public class TopicAuthZTest extends AuthZTest {
                 PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE);
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> subAdmin.topicPolicies().setEntryFiltersPerTopic(topic, entryFilter));
-        Assert.assertTrue(execFlag.get());
 
         for (AuthAction action : AuthAction.values()) {
             superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
@@ -1304,16 +1310,17 @@ public class TopicAuthZTest extends AuthZTest {
                     () -> subAdmin.topicPolicies().setEntryFiltersPerTopic(topic, entryFilter));
             superUserAdmin.topics().revokePermissions(topic, subject);
         }
+        Assert.assertTrue(execFlag.get());
         deleteTopic(topic, false);
         FieldUtils.writeField(getPulsarService().getBrokerService(),
                 "entryFilterProvider", oldEntryFilterProvider, true);
     }
 
-    @Test
+    @Test(dataProvider = "entryFilterTopicDomains")
     @SneakyThrows
-    public void testRemoveEntryFilter() {
+    public void testRemoveEntryFilter(String domain) {
         final String random = UUID.randomUUID().toString();
-        final String topic = "persistent://public/default/" + random;
+        final String topic = domain + "://public/default/" + random;
         final String subject =  UUID.randomUUID().toString();
         final String token = Jwts.builder()
                 .claim("sub", subject).signWith(SECRET_KEY).compact();
