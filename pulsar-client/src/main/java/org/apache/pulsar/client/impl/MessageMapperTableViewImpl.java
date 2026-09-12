@@ -18,24 +18,32 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.function.Function;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 
 /**
- * {@link org.apache.pulsar.client.api.TableView} implementation that stores the deserialized message
- * payload as the value.
+ * {@link org.apache.pulsar.client.api.TableView} implementation that applies a user-provided mapper
+ * function to each message to produce the value stored in the view.
  *
  * @param <T> the message schema type
+ * @param <V> the value type returned by the mapper function
  */
-public class TableViewImpl<T> extends AbstractTableViewImpl<T, T> {
+public class MessageMapperTableViewImpl<T, V> extends AbstractTableViewImpl<T, V> {
 
-    TableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf) {
-        // the message is fully consumed while extracting the value, so pooled messages can be used and released
-        super(client, schema, conf, true);
+    private final Function<Message<T>, V> mapper;
+
+    MessageMapperTableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf,
+                               Function<Message<T>, V> mapper) {
+        // The message instance is passed to the user-provided mapper function, which may keep a reference
+        // to it (e.g. when Function.identity() is used as the mapper). Pooled messages must not be used
+        // since there is no way to know when the message could be released.
+        super(client, schema, conf, false);
+        this.mapper = mapper;
     }
 
     @Override
-    protected T getValue(Message<T> msg) {
-        return msg.getValue();
+    protected V getValue(Message<T> msg) {
+        return mapper.apply(msg);
     }
 }

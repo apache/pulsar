@@ -336,7 +336,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .create();
 
         ((ServiceUnitStateDataConflictResolver)
-                FieldUtils.readDeclaredField(tv, "compactionStrategy", true))
+                FieldUtils.readField(tv, "compactionStrategy", true))
                 .checkBrokers(false);
         TestData testData = generateTestData();
         var topic = testData.topic;
@@ -679,7 +679,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
 
         var reader = ((CompletableFuture<ReaderImpl<ServiceUnitStateData>>) FieldUtils
-                .readDeclaredField(tv, "reader", true)).get();
+                .readField(tv, "reader", true)).get();
         var consumer = spy(reader.getConsumer());
         FieldUtils.writeDeclaredField(reader, "consumer", consumer, true);
         String bundle = "bundle1";
