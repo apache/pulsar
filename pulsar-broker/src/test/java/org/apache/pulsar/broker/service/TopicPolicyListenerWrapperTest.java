@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
@@ -27,6 +26,8 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class TopicPolicyListenerWrapperTest {
+
+    private static final String TOPIC = "public/default/test-topic";
 
     private static TopicPolicies globalPolicies() {
         return TopicPolicies.builder().isGlobal(true).build();
@@ -46,48 +47,10 @@ public class TopicPolicyListenerWrapperTest {
     }
 
     @Test
-    public void shouldBufferUpdatesUntilInitializedThenForwardLive() {
+    public void shouldApplyLoadedLocalBeforeGlobalWhenNoLiveUpdates() {
         RecordingListener real = new RecordingListener();
-        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real);
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
-        // Updates received before initialization are buffered, not forwarded.
-        TopicPolicies bufferedLocal = localPolicies();
-        wrapper.onUpdate(bufferedLocal);
-        assertThat(real.updates).isEmpty();
-
-        // On completion, the buffered local value wins over the loaded local value; the loaded global value
-        // is applied since none was buffered. The local policy is emitted before the global one.
-        TopicPolicies loadedGlobal = globalPolicies();
-        wrapper.completeInitialization(loadedGlobal, localPolicies());
-        assertThat(real.updates).containsExactly(bufferedLocal, loadedGlobal);
-
-        // After initialization, updates are forwarded immediately.
-        TopicPolicies liveUpdate = localPolicies();
-        wrapper.onUpdate(liveUpdate);
-        assertThat(real.updates).containsExactly(bufferedLocal, loadedGlobal, liveUpdate);
-    }
-
-    @Test
-    public void shouldPreferBufferedOverLoadedForBothScopes() {
-        RecordingListener real = new RecordingListener();
-        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real);
-
-        TopicPolicies bufferedGlobal = globalPolicies();
-        TopicPolicies bufferedLocal = localPolicies();
-        wrapper.onUpdate(bufferedGlobal);
-        wrapper.onUpdate(bufferedLocal);
-
-        wrapper.completeInitialization(globalPolicies(), localPolicies());
-        assertThat(real.updates).containsExactly(bufferedLocal, bufferedGlobal);
-    }
-
-    @Test
-    public void shouldApplyLoadedWhenNothingBuffered() {
-        RecordingListener real = new RecordingListener();
-        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real);
-
-        // The local policy is emitted before the global policy, so a local topic policy takes precedence over a
-        // global one once both have been applied.
         TopicPolicies loadedGlobal = globalPolicies();
         TopicPolicies loadedLocal = localPolicies();
         wrapper.completeInitialization(loadedGlobal, loadedLocal);
@@ -95,118 +58,141 @@ public class TopicPolicyListenerWrapperTest {
     }
 
     @Test
-    public void shouldSuppressLoadedValuesWhenDeletedBeforeInitialization() {
+    public void shouldSkipLoadedLocalWhenLocalAlreadyUpdated() {
         RecordingListener real = new RecordingListener();
-        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real);
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
-        // A delete (null) arriving before initialization must not NPE and must not be forwarded yet (#26037).
-        assertThatCode(() -> wrapper.onUpdate(null)).doesNotThrowAnyException();
-        assertThat(real.updates).isEmpty();
+        TopicPolicies liveLocal = localPolicies();
+        wrapper.onUpdate(liveLocal);
 
-        // The delete supersedes the (now-stale) loaded values: they are not applied, and the delete (null) is
-        // propagated downstream instead.
+        TopicPolicies loadedGlobal = globalPolicies();
+        wrapper.completeInitialization(loadedGlobal, localPolicies());
+        assertThat(real.updates).containsExactly(liveLocal, loadedGlobal);
+    }
+
+    @Test
+    public void shouldSkipLoadedGlobalWhenGlobalAlreadyUpdated() {
+        RecordingListener real = new RecordingListener();
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
+
+        TopicPolicies liveGlobal = globalPolicies();
+        wrapper.onUpdate(liveGlobal);
+
+        TopicPolicies loadedLocal = localPolicies();
+        wrapper.completeInitialization(globalPolicies(), loadedLocal);
+        assertThat(real.updates).containsExactly(loadedLocal, liveGlobal);
+    }
+
+    @Test
+    public void shouldSkipBothLoadedWhenBothAlreadyUpdated() {
+        RecordingListener real = new RecordingListener();
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
+
+        TopicPolicies liveGlobal = globalPolicies();
+        TopicPolicies liveLocal = localPolicies();
+        wrapper.onUpdate(liveGlobal);
+        wrapper.onUpdate(liveLocal);
+        assertThat(real.updates).containsExactly(liveLocal, liveGlobal);
+
+        wrapper.completeInitialization(globalPolicies(), localPolicies());
+        assertThat(real.updates).containsExactly(liveLocal, liveGlobal);
+    }
+
+    @Test
+    public void shouldSkipLoadedPoliciesWhenDeletedBeforeInitialization() {
+        RecordingListener real = new RecordingListener();
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
+
+        wrapper.onUpdate(null);
+        assertThat(real.updates).containsExactly(null, null);
+
         wrapper.completeInitialization(globalPolicies(), localPolicies());
         assertThat(real.updates).containsExactly(null, null);
     }
 
     @Test
-    public void shouldApplyLatestScopedUpdateOverEarlierDeleteDuringInitialization() {
+    public void shouldApplyPerScopeUpdatesAfterDeleteBeforeInitialization() {
         RecordingListener real = new RecordingListener();
-        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real);
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
-        // A delete records empty for both scopes, then a newer global update overrides only the global scope.
         wrapper.onUpdate(null);
         TopicPolicies newerGlobal = globalPolicies();
         wrapper.onUpdate(newerGlobal);
 
-        wrapper.completeInitialization(globalPolicies(), localPolicies());
-        // Local (emitted first): the delete (null) wins over the loaded local value; Global: the newer update wins.
-        assertThat(real.updates).containsExactly(null, newerGlobal);
+        TopicPolicies globalLoaded = globalPolicies();
+        TopicPolicies localLoaded = localPolicies();
+        wrapper.completeInitialization(globalLoaded, localLoaded);
+        assertThat(real.updates).containsExactly(null, null, newerGlobal);
     }
 
     @Test
-    public void shouldNotEmitLocalScopeWhenNoLocalPolicyExists() {
+    public void shouldForwardLiveUpdatesAfterInitialization() {
         RecordingListener real = new RecordingListener();
-        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real);
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
-        // With no local policy, only the global policy is emitted; no local onUpdate happens, so the
-        // local-before-global ordering leaves behavior unchanged for topics that only have a global policy.
+        wrapper.completeInitialization(globalPolicies(), localPolicies());
+        real.updates.clear();
+
+        TopicPolicies liveLocal = localPolicies();
+        wrapper.onUpdate(liveLocal);
+        assertThat(real.updates).containsExactly(liveLocal);
+
+        TopicPolicies liveGlobal = globalPolicies();
+        wrapper.onUpdate(liveGlobal);
+        assertThat(real.updates).containsExactly(liveLocal, liveGlobal);
+    }
+
+    @Test
+    public void shouldApplyLocalBeforeGlobalWhenOnlyGlobalLoaded() {
+        RecordingListener real = new RecordingListener();
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
+
         TopicPolicies loadedGlobal = globalPolicies();
         wrapper.completeInitialization(loadedGlobal, null);
-        assertThat(real.updates).containsExactly(loadedGlobal);
+        assertThat(real.updates).containsExactly(null, loadedGlobal);
     }
 
     @Test
-    public void shouldIgnoreCompleteInitializationAfterAlreadyCompleted() {
+    public void shouldApplyLocalBeforeGlobalWhenOnlyLocalLoaded() {
         RecordingListener real = new RecordingListener();
-        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real);
-        wrapper.startInitialization();
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
         TopicPolicies loadedLocal = localPolicies();
         wrapper.completeInitialization(null, loadedLocal);
-        assertThat(real.updates).containsExactly(loadedLocal);
-
-        // Completing again (e.g. from initTopicPolicy's terminal handler) must be a no-op and must not re-emit.
-        wrapper.completeInitialization(globalPolicies(), localPolicies());
-        wrapper.completeInitializationUnlessAlreadyCompleted();
-        assertThat(real.updates).containsExactly(loadedLocal);
+        assertThat(real.updates).containsExactly(loadedLocal, null);
     }
 
     @Test
-    public void shouldEmitBufferedValueAndForwardLiveUpdatesWhenCompletedWithoutLoadedPolicies() {
+    public void shouldStillApplyLocalBeforeGlobalWhenBothLoadedAreNull() {
         RecordingListener real = new RecordingListener();
-        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real);
-        wrapper.startInitialization();
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
 
-        // A policy update arrives while initializing and is buffered.
-        TopicPolicies buffered = localPolicies();
-        wrapper.onUpdate(buffered);
-        assertThat(real.updates).isEmpty();
-
-        // initTopicPolicy's terminal handler completes initialization with no loaded policies -- the path taken after
-        // a policy-load error or when the listener was not registered. The buffered value is emitted and the wrapper
-        // leaves the buffering phase.
-        wrapper.completeInitializationUnlessAlreadyCompleted();
-        assertThat(real.updates).containsExactly(buffered);
-
-        // Subsequent live updates now flow through instead of being dropped.
-        TopicPolicies live = globalPolicies();
-        wrapper.onUpdate(live);
-        assertThat(real.updates).containsExactly(buffered, live);
-    }
-
-    @Test
-    public void shouldForwardLiveUpdatesAfterCompletingWithNothingBuffered() {
-        RecordingListener real = new RecordingListener();
-        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real);
-        wrapper.startInitialization();
-
-        // Completed with nothing buffered and no loaded policies (e.g. after a failed load): nothing is emitted, but
-        // the wrapper still leaves the buffering phase so later live updates are forwarded rather than dropped.
-        wrapper.completeInitializationUnlessAlreadyCompleted();
-        assertThat(real.updates).isEmpty();
-
-        TopicPolicies live = localPolicies();
-        wrapper.onUpdate(live);
-        assertThat(real.updates).containsExactly(live);
-    }
-
-    @Test
-    public void shouldRebufferAndReapplyAfterStartInitializationIsCalledAgain() {
-        RecordingListener real = new RecordingListener();
-        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real);
-        wrapper.startInitialization();
-        TopicPolicies firstLocal = localPolicies();
-        wrapper.completeInitialization(null, firstLocal);
-        assertThat(real.updates).containsExactly(firstLocal);
-
-        // A new initialization phase (e.g. re-running initTopicPolicy): updates are buffered again until it completes,
-        // and a value buffered during the phase is applied on completion.
-        wrapper.startInitialization();
-        TopicPolicies bufferedGlobal = globalPolicies();
-        wrapper.onUpdate(bufferedGlobal);
-        assertThat(real.updates).containsExactly(firstLocal);
         wrapper.completeInitialization(null, null);
-        assertThat(real.updates).containsExactly(firstLocal, bufferedGlobal);
+        assertThat(real.updates).containsExactly(null, null);
+    }
+
+    @Test
+    public void shouldSkipLoadedLocalEvenWhenNullLoadedGlobalAfterLiveUpdate() {
+        RecordingListener real = new RecordingListener();
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
+
+        TopicPolicies liveLocal = localPolicies();
+        wrapper.onUpdate(liveLocal);
+
+        wrapper.completeInitialization(null, localPolicies());
+        assertThat(real.updates).containsExactly(liveLocal, null);
+    }
+
+    @Test
+    public void shouldBeNoopWhenInitializationCalledAgain() {
+        RecordingListener real = new RecordingListener();
+        TopicPolicyListenerWrapper wrapper = new TopicPolicyListenerWrapper(real, TOPIC);
+
+        TopicPolicies loadedLocal = localPolicies();
+        wrapper.completeInitialization(null, loadedLocal);
+        assertThat(real.updates).containsExactly(loadedLocal, null);
+
+        wrapper.completeInitialization(globalPolicies(), localPolicies());
+        assertThat(real.updates).containsExactly(loadedLocal, null);
     }
 }
