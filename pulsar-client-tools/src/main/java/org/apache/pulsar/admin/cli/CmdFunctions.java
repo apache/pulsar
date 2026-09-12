@@ -371,7 +371,7 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--timeout-ms", description = "The message timeout in milliseconds #Java, Python")
         protected Long timeoutMs;
         @Option(names = "--max-message-retries",
-                description = "How many times should we try to process a message before giving up #Java")
+                description = "How many times should we try to process a message before giving up #Java, Python")
         protected Integer maxMessageRetries;
         @Option(names = "--custom-runtime-options", description = "A string that encodes options to "
                 + "customize the runtime, see docs for configured runtime for details #Java")
@@ -380,7 +380,7 @@ public class CmdFunctions extends CmdBase {
                 + "how the secret is fetched by the underlying secrets provider #Java, Python")
         protected String secretsString;
         @Option(names = "--dead-letter-topic",
-                description = "The topic where messages that are not processed successfully are sent to #Java")
+                description = "The topic where messages that are not processed successfully are sent to #Java, Python")
         protected String deadLetterTopic;
         @Option(names = "--runtime-flags", description = "Any flags that you want to pass to a runtime"
                 + " (for process & Kubernetes runtime only).")
