@@ -90,6 +90,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGenerator;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -138,6 +139,37 @@ public class PrometheusMetricsTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testDynamicMetricsConfiguration() throws Exception {
+        String topic = "persistent://my-property/my-ns/dynamic-metrics";
+        try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                     .producerName("dynamic-producer").create();
+             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
+                     .subscriptionName("dynamic-subscription").consumerName("dynamic-consumer").subscribe()) {
+            producer.send(new byte[] {1});
+            consumer.acknowledge(consumer.receive(10, TimeUnit.SECONDS));
+            PrometheusMetricsClient metricsClient = new PrometheusMetricsClient("localhost",
+                    pulsar.getListenPortHTTP().orElseThrow());
+            for (boolean enabled : new boolean[] {false, true, false}) {
+                admin.brokers().updateDynamicConfiguration("exposeTopicLevelMetricsInPrometheus",
+                        Boolean.toString(enabled));
+                admin.brokers().updateDynamicConfiguration("exposeConsumerLevelMetricsInPrometheus",
+                        Boolean.toString(enabled));
+                admin.brokers().updateDynamicConfiguration("exposeProducerLevelMetricsInPrometheus",
+                        Boolean.toString(enabled));
+                Awaitility.await().untilAsserted(() -> {
+                    Collection<Metric> metrics = metricsClient.getMetrics().getNameToDataPoints().values();
+                    assertThat(metrics.stream().anyMatch(metric -> topic.equals(metric.tags.get("topic"))))
+                            .isEqualTo(enabled);
+                    assertThat(metrics.stream().anyMatch(metric ->
+                            "dynamic-producer".equals(metric.tags.get("producer_name")))).isEqualTo(enabled);
+                    assertThat(metrics.stream().anyMatch(metric ->
+                            "dynamic-consumer".equals(metric.tags.get("consumer_name")))).isEqualTo(enabled);
+                });
+            }
+        }
     }
 
     @Test
