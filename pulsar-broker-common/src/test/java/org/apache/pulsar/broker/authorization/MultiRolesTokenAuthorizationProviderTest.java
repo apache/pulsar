@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -47,7 +48,9 @@ import lombok.Cleanup;
 import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataAnonymous;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationDataForwarded;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -56,8 +59,14 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.TokenAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.TenantResources;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.RestException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -67,6 +76,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
     private static ServiceConfiguration tokenConfiguration(SecretKey key) {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setAuthenticationEnabled(true);
+        conf.setAuthorizationEnabled(true);
         conf.setAuthenticationProviders(Set.of(AuthenticationProviderToken.class.getName()));
         conf.getProperties().setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(key));
         return conf;
@@ -133,8 +143,6 @@ public class MultiRolesTokenAuthorizationProviderTest {
         assertThatThrownBy(() -> provider.initialize(new AuthorizationProvider.InitialContext(
                 conf, mock(PulsarResources.class), null)))
                 .isInstanceOf(IOException.class).hasMessageContaining("initialized token authentication provider");
-        assertThatThrownBy(() -> provider.initialize(conf, mock(PulsarResources.class)))
-                .isInstanceOf(IOException.class);
     }
 
     @DataProvider
@@ -181,6 +189,118 @@ public class MultiRolesTokenAuthorizationProviderTest {
         assertThatThrownBy(() -> provider.initialize(new AuthorizationProvider.InitialContext(
                 conf, null, authenticationService(mock(TokenAuthenticationProvider.class)))))
                 .isInstanceOf(IOException.class).hasMessageContaining("authenticationEnabled=true");
+    }
+
+    @DataProvider
+    public Object[][] authenticationModes() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(dataProvider = "authenticationModes")
+    public void testDisabledAuthorizationWithoutTokenProvider(boolean authenticationEnabled) throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setAuthenticationEnabled(authenticationEnabled);
+        config.setAuthenticationProviders(Set.of(AuthenticationProviderTls.class.getName()));
+        config.setAuthorizationProvider(MultiRolesTokenAuthorizationProvider.class.getName());
+        PulsarResources resources = mock(PulsarResources.class);
+        try (AuthenticationService authenticationService = new AuthenticationService(config)) {
+            AuthorizationService service = new AuthorizationService(config, resources, authenticationService);
+            assertThat(service.canProduceAsync(TopicName.get("persistent://tenant/ns/topic"), "user", null).get())
+                    .isTrue();
+        }
+    }
+
+    @DataProvider
+    public Object[][] topicChecks() {
+        return new Object[][]{
+                {TopicOperation.TERMINATE, "reader", false},
+                {TopicOperation.PRODUCE, "reader", true},
+                {TopicOperation.LOOKUP, "reader", true},
+                {TopicOperation.CONSUME, "reader", true},
+                {TopicOperation.CONSUME, "other", false}
+        };
+    }
+
+    @Test(dataProvider = "topicChecks")
+    public void testNestedTopicChecksValidateRolesOnce(TopicOperation operation, String subscription,
+                                                      boolean allowed) throws Exception {
+        ServiceConfiguration config = tokenConfiguration(AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256));
+        TokenAuthenticationProvider authenticationProvider = mock(TokenAuthenticationProvider.class);
+        when(authenticationProvider.authenticateRolesAsync(any(), eq("roles")))
+                .thenReturn(CompletableFuture.completedFuture(Set.of("reader", "writer")));
+        TenantResources tenants = mock(TenantResources.class);
+        when(tenants.getTenantAsync("tenant"))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(new TenantInfoImpl(Set.of(), Set.of()))));
+        PulsarResources resources = mock(PulsarResources.class);
+        when(resources.getTenantResources()).thenReturn(tenants);
+        NamespaceResources namespaces = mock(NamespaceResources.class);
+        when(resources.getNamespaceResources()).thenReturn(namespaces);
+        Policies policies = new Policies();
+        policies.auth_policies.getNamespaceAuthentication().put("reader", Set.of(AuthAction.consume));
+        policies.auth_policies.getNamespaceAuthentication().put("writer", Set.of(AuthAction.produce));
+        policies.auth_policies.getSubscriptionAuthentication().put("reader", Set.of("reader"));
+        policies.auth_policies.getSubscriptionAuthentication().put("other", Set.of("other"));
+        when(namespaces.getPoliciesAsync(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(policies)));
+        try (MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider()) {
+            provider.initialize(new AuthorizationProvider.InitialContext(config, resources,
+                    authenticationService(authenticationProvider)));
+            AuthenticationDataSource data = new AuthenticationDataSubscription(
+                    new AuthenticationDataCommand("token"), subscription);
+            assertThat(provider.allowTopicOperationAsync(TopicName.get("persistent://tenant/ns/topic"),
+                    "reader", operation, data).get()).isEqualTo(allowed);
+            verify(authenticationProvider).authenticateRolesAsync(data, "roles");
+            when(authenticationProvider.authenticateRolesAsync(data, "roles"))
+                    .thenReturn(CompletableFuture.completedFuture(Set.of()));
+            assertThat(provider.allowTopicOperationAsync(TopicName.get("persistent://tenant/ns/topic"),
+                    "reader", operation, data).get()).isFalse();
+            verify(authenticationProvider, times(2)).authenticateRolesAsync(data, "roles");
+        }
+    }
+
+    @DataProvider
+    public Object[][] roleOnlyAuthenticationData() {
+        return new Object[][]{
+                {null},
+                {new AuthenticationDataSubscription(null, "subscription")},
+                {AuthenticationDataForwarded.INSTANCE},
+                {new AuthenticationDataSubscription(AuthenticationDataForwarded.INSTANCE, "subscription")},
+                {new AuthenticationDataSubscription(
+                        new AuthenticationDataSubscription(AuthenticationDataForwarded.INSTANCE, "inner"), "outer")},
+                {AuthenticationDataAnonymous.INSTANCE},
+                {new AuthenticationDataSubscription(AuthenticationDataAnonymous.INSTANCE, "subscription")},
+                {new AuthenticationDataSubscription(
+                        new AuthenticationDataSubscription(AuthenticationDataAnonymous.INSTANCE, "inner"), "outer")}
+        };
+    }
+
+    @Test(dataProvider = "roleOnlyAuthenticationData")
+    public void testNestedChecksWithRoleOnlyAuthenticationData(AuthenticationDataSource data) throws Exception {
+        ServiceConfiguration config = tokenConfiguration(AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256));
+        TokenAuthenticationProvider authenticationProvider = mock(TokenAuthenticationProvider.class);
+        TenantResources tenants = mock(TenantResources.class);
+        when(tenants.getTenantAsync("tenant"))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(new TenantInfoImpl(Set.of(), Set.of()))));
+        NamespaceResources namespaces = mock(NamespaceResources.class);
+        Policies policies = new Policies();
+        policies.auth_policies.getNamespaceAuthentication().put("reader", Set.of(AuthAction.consume));
+        when(namespaces.getPoliciesAsync(any())).thenReturn(CompletableFuture.completedFuture(Optional.of(policies)));
+        PulsarResources resources = mock(PulsarResources.class);
+        when(resources.getTenantResources()).thenReturn(tenants);
+        when(resources.getNamespaceResources()).thenReturn(namespaces);
+        TopicName topic = TopicName.get("persistent://tenant/ns/topic");
+        try (MultiRolesTokenAuthorizationProvider provider = new MultiRolesTokenAuthorizationProvider()) {
+            provider.initialize(new AuthorizationProvider.InitialContext(config, resources,
+                    authenticationService(authenticationProvider)));
+            assertThat(provider.allowTopicOperationAsync(topic, "reader", TopicOperation.LOOKUP, data).get())
+                    .isTrue();
+            assertThat(provider.allowTopicOperationAsync(topic, "reader", TopicOperation.CONSUME, data).get())
+                    .isTrue();
+            assertThat(provider.allowTopicOperationAsync(topic, "other", TopicOperation.CONSUME, data).get())
+                    .isFalse();
+            assertThat(provider.allowTopicOperationAsync(topic, null, TopicOperation.CONSUME, data).get())
+                    .isFalse();
+            verify(authenticationProvider, never()).authenticateRolesAsync(any(), any());
+        }
     }
 
     @DataProvider

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class Worker {
     private final WorkerConfig workerConfig;
     private final WorkerService workerService;
     private WorkerServer server;
+    private AuthenticationService authenticationService;
 
     private final OrderedExecutor orderedExecutor =
             OrderedExecutor.newBuilder().numThreads(8).name("zk-cache-ordered").build();
@@ -53,8 +55,9 @@ public class Worker {
 
     protected void start() throws Exception {
         workerService.initAsStandalone(workerConfig);
-        workerService.start(getAuthenticationService(), getAuthorizationService(), errorNotifier);
-        server = new WorkerServer(workerService, getAuthenticationService());
+        AuthorizationService authorizationService = initializeAuthorizationService();
+        workerService.start(authenticationService, authorizationService, errorNotifier);
+        server = new WorkerServer(workerService, authenticationService);
         server.start();
         log.info("/** Started worker server **/");
 
@@ -67,6 +70,12 @@ public class Worker {
     }
 
 
+
+    @VisibleForTesting
+    AuthorizationService initializeAuthorizationService() throws PulsarServerException {
+        authenticationService = getAuthenticationService();
+        return getAuthorizationService();
+    }
 
     private AuthorizationService getAuthorizationService() throws PulsarServerException {
 
@@ -82,7 +91,7 @@ public class Worker {
                 throw new PulsarServerException(e);
             }
             pulsarResources = new PulsarResources(null, configMetadataStore);
-            return new AuthorizationService(getServiceConfiguration(), this.pulsarResources);
+            return new AuthorizationService(getServiceConfiguration(), this.pulsarResources, authenticationService);
             }
         return null;
     }
@@ -99,6 +108,14 @@ public class Worker {
             workerService.stop();
         } catch (Exception e) {
             log.warn("Failed to gracefully stop worker service ", e);
+        }
+
+        if (authenticationService != null) {
+            try {
+                authenticationService.close();
+            } catch (IOException e) {
+                log.warn("Failed to close authentication service", e);
+            }
         }
 
         if (this.configMetadataStore != null) {
