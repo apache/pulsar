@@ -111,8 +111,11 @@ concurrent workers across projects. Task-specific limits, such as the integratio
 fork and `1G` heap, take precedence.
 
 Use `-PtestForkEvery=50` to replace a test JVM after 50 detected test classes, limiting state
-retained across classes. The default is `0` (no class limit). Gradle counts classes before
-TestNG group and `--tests` filtering, so excluded classes can also consume a batch slot.
+retained across classes. The default is `0` (no class limit). Gradle counts candidate classes
+passed to test workers before TestNG group filtering, so classes excluded by groups still count
+toward each batch. `--tests` can narrow candidates, but wildcard filters may still count classes
+that execute no matching tests. Test methods, data-provider rows and factory instances do not
+count separately.
 Tasks using TestNG XML suites and async-profiler keep recycling disabled; task-specific
 isolation, such as SASL's one class per worker, takes precedence.
 
