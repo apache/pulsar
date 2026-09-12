@@ -226,7 +226,7 @@ public class MultiRolesTokenAuthorizationProviderTest {
                                                       boolean allowed) throws Exception {
         ServiceConfiguration config = tokenConfiguration(AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256));
         TokenAuthenticationProvider authenticationProvider = mock(TokenAuthenticationProvider.class);
-        when(authenticationProvider.authenticateRolesAsync(any(), eq("roles")))
+        when(authenticationProvider.authenticateRolesAsync(any(), eq("sub")))
                 .thenReturn(CompletableFuture.completedFuture(Set.of("reader", "writer")));
         TenantResources tenants = mock(TenantResources.class);
         when(tenants.getTenantAsync("tenant"))
@@ -248,12 +248,12 @@ public class MultiRolesTokenAuthorizationProviderTest {
                     new AuthenticationDataCommand("token"), subscription);
             assertThat(provider.allowTopicOperationAsync(TopicName.get("persistent://tenant/ns/topic"),
                     "reader", operation, data).get()).isEqualTo(allowed);
-            verify(authenticationProvider).authenticateRolesAsync(data, "roles");
-            when(authenticationProvider.authenticateRolesAsync(data, "roles"))
+            verify(authenticationProvider).authenticateRolesAsync(data, "sub");
+            when(authenticationProvider.authenticateRolesAsync(data, "sub"))
                     .thenReturn(CompletableFuture.completedFuture(Set.of()));
             assertThat(provider.allowTopicOperationAsync(TopicName.get("persistent://tenant/ns/topic"),
                     "reader", operation, data).get()).isFalse();
-            verify(authenticationProvider, times(2)).authenticateRolesAsync(data, "roles");
+            verify(authenticationProvider, times(2)).authenticateRolesAsync(data, "sub");
         }
     }
 
