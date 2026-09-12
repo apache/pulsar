@@ -101,6 +101,9 @@ fi
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
 OPTS="-Djava.net.preferIPv4Stack=true $OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
+# Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+# (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration (conf/log4j2.yaml)
+OPTS="-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager $OPTS"
 # Required to allow sun.misc.Unsafe on JDK 24 without warnings
 # Also required for enabling unsafe memory access for Netty since 4.1.121.Final
 if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
