@@ -20,35 +20,47 @@ package org.apache.pulsar.functions.worker.dlog;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InterruptedIOException;
+import java.time.Duration;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.apache.distributedlog.DLSN;
 import org.apache.distributedlog.LogRecordWithDLSN;
+import org.apache.distributedlog.api.AsyncLogReader;
 import org.apache.distributedlog.api.DistributedLogManager;
-import org.apache.distributedlog.api.LogReader;
 import org.apache.distributedlog.exceptions.EndOfStreamException;
 
 /**
  * DistributedLog Input Stream.
+ *
+ * <p>Reads the records of a log stream until the end-of-stream marker written by {@link DLOutputStream#close()}.
+ * A log stream is a tailing log: a reader of a stream that has no end-of-stream marker (for example because the
+ * writer failed before completing the upload, or the stream was never written to) waits for more records to arrive
+ * forever. To avoid blocking the calling thread indefinitely, waiting for the next records is bounded by a read
+ * timeout and fails with an {@link IOException} when it expires.
  */
 public class DLInputStream extends InputStream {
 
-  private LogRecordWithInputStream currentLogRecord = null;
+  /**
+   * Default maximum time to wait for the next records of the log stream to become available.
+   */
+  public static final Duration DEFAULT_READ_TIMEOUT = Duration.ofSeconds(60);
+
+  private static final int READ_BATCH_SIZE = 100;
+
   private final DistributedLogManager dlm;
-  private LogReader reader;
+  private final AsyncLogReader reader;
+  private final long readTimeoutMs;
+  private final Deque<LogRecordWithDLSN> pendingRecords = new ArrayDeque<>();
+  // payload of the log record that is currently being consumed
+  private InputStream currentPayload;
   private boolean eos = false;
-
-  // Cache the input stream for a log record.
-  private static class LogRecordWithInputStream {
-    private final InputStream payloadStream;
-
-    LogRecordWithInputStream(LogRecordWithDLSN logRecord) {
-      this.payloadStream = logRecord.getPayLoadInputStream();
-    }
-
-    InputStream getPayLoadInputStream() {
-      return payloadStream;
-    }
-
-  }
 
   /**
    * Construct DistributedLog input stream.
@@ -56,38 +68,73 @@ public class DLInputStream extends InputStream {
    * @param dlm the Distributed Log Manager to access the stream
    */
   public DLInputStream(DistributedLogManager dlm) throws IOException {
-    this.dlm = dlm;
-    reader = dlm.getInputStream(DLSN.InitialDLSN);
+    this(dlm, DEFAULT_READ_TIMEOUT);
   }
 
   /**
-   * Get input stream representing next entry in the
-   * ledger.
+   * Construct DistributedLog input stream.
    *
-   * @return input stream, or null if no more entries
+   * @param dlm the Distributed Log Manager to access the stream
+   * @param readTimeout maximum time to wait for the next records of the stream to become available
    */
-  private LogRecordWithInputStream nextLogRecord() throws IOException {
+  public DLInputStream(DistributedLogManager dlm, Duration readTimeout) throws IOException {
+    this.dlm = dlm;
+    this.readTimeoutMs = readTimeout.toMillis();
+    this.reader = await(dlm.openAsyncLogReader(DLSN.InitialDLSN), "open a reader for");
+  }
+
+  private <T> T await(CompletableFuture<T> future, String operation) throws IOException {
     try {
-      return nextLogRecord(reader);
-    } catch (EndOfStreamException e) {
-      eos = true;
-      return null;
+      return future.get(readTimeoutMs, TimeUnit.MILLISECONDS);
+    } catch (TimeoutException e) {
+      future.cancel(false);
+      throw new IOException("Timed out after " + readTimeoutMs + " ms waiting to " + operation + " log stream "
+          + dlm.getStreamName(), e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new InterruptedIOException("Interrupted while waiting to " + operation + " log stream "
+          + dlm.getStreamName());
+    } catch (ExecutionException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof IOException) {
+        throw (IOException) cause;
+      }
+      throw new IOException("Failed to " + operation + " log stream " + dlm.getStreamName(), cause);
     }
   }
 
-  private static LogRecordWithInputStream nextLogRecord(LogReader reader) throws IOException {
-    LogRecordWithDLSN record = reader.readNext(false);
-
-    if (null != record) {
-      return new LogRecordWithInputStream(record);
-    } else {
-      record = reader.readNext(false);
-      if (null != record) {
-        return new LogRecordWithInputStream(record);
-      } else {
-        return null;
+  /**
+   * Get the next log record of the stream.
+   *
+   * @return the next log record, or null when the end of the stream has been reached
+   */
+  private LogRecordWithDLSN nextLogRecord() throws IOException {
+    if (pendingRecords.isEmpty() && !eos) {
+      try {
+        List<LogRecordWithDLSN> records = await(reader.readBulk(READ_BATCH_SIZE), "read");
+        pendingRecords.addAll(records);
+      } catch (EndOfStreamException e) {
+        eos = true;
       }
     }
+    return pendingRecords.pollFirst();
+  }
+
+  /**
+   * Get the payload of the log record that is currently being consumed, moving on to the next log record when the
+   * current payload has been fully consumed.
+   *
+   * @return the payload input stream, or null when the end of the stream has been reached
+   */
+  private InputStream currentPayload() throws IOException {
+    if (currentPayload == null) {
+      LogRecordWithDLSN record = nextLogRecord();
+      if (record == null) {
+        return null;
+      }
+      currentPayload = record.getPayLoadInputStream();
+    }
+    return currentPayload;
   }
 
   @Override
@@ -102,35 +149,32 @@ public class DLInputStream extends InputStream {
 
   @Override
   public int read(byte[] b, int off, int len) throws IOException {
-    if (eos) {
-      return -1;
+    Objects.checkFromIndexSize(off, len, b.length);
+    if (len == 0) {
+      return 0;
     }
-
     int read = 0;
-    if (currentLogRecord == null) {
-      currentLogRecord = nextLogRecord();
-      if (currentLogRecord == null) {
-        return read;
-      }
-    }
-
     while (read < len) {
-      int thisread = currentLogRecord.getPayLoadInputStream().read(b, off + read, len - read);
+      InputStream payload = currentPayload();
+      if (payload == null) {
+        break;
+      }
+      int thisread = payload.read(b, off + read, len - read);
       if (thisread == -1) {
-        currentLogRecord = nextLogRecord();
-        if (currentLogRecord == null) {
-          return read;
-        }
+        currentPayload = null;
       } else {
         read += thisread;
       }
     }
-    return read;
+    return read == 0 ? -1 : read;
   }
 
   @Override
   public void close() throws IOException {
-    reader.close();
-    dlm.close();
+    try {
+      await(reader.asyncClose(), "close the reader of");
+    } finally {
+      dlm.close();
+    }
   }
 }
