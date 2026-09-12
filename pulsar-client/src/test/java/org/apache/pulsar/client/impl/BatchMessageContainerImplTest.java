@@ -24,14 +24,17 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.ReferenceCountUtil;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Schema;
@@ -230,4 +233,105 @@ public class BatchMessageContainerImplTest {
         batchMessageContainer.clear();
         messages.forEach(ReferenceCountUtil::safeRelease);
     }
+
+    /**
+     * With compression and encryption off — the default — {@code getCompressedBatchMetadataAndPayload()} returns
+     * the batch buffer itself and {@code encryptMessage} passes it straight through, so the buffer released in
+     * the oversized branch is the very one {@code discard()} releases again. A second release drops a live
+     * buffer to zero and returns it to the pool while it is still referenced.
+     */
+    @Test
+    public void testOversizedBatchReleasesItsPayloadExactlyOnce() throws Exception {
+        List<ByteBuf> allocated = new ArrayList<>();
+        ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer(invocation.getArgument(0));
+            allocated.add(buffer);
+            return buffer;
+        }).when(recordingAllocator).buffer(anyInt());
+
+        ProducerImpl<?> producer = createTestProducer();
+        // encryption disabled: the real implementation returns its input unchanged
+        when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.getMaxMessageSize()).thenReturn(1);
+        when(producer.getConnectionHandler()).thenReturn(connectionHandler);
+
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(recordingAllocator);
+        container.setProducer(producer);
+        container.add(newTestMessage(1L), null);
+        container.add(newTestMessage(2L), null);
+
+        assertEquals(allocated.size(), 1, "expected exactly one batch payload allocation");
+        ByteBuf payload = allocated.get(0);
+        // Stand in for anything else still holding the payload, so that an extra release is observable rather
+        // than being swallowed by ReferenceCountUtil.safeRelease.
+        payload.retain();
+
+        assertNull(container.createOpSendMsg(), "an oversized batch must not produce an op to send");
+
+        assertEquals(payload.refCnt(), 1, "the oversized batch payload was released more than once");
+        payload.release();
+    }
+
+    private static MessageImpl<byte[]> newTestMessage(long sequenceId) {
+        MessageMetadata metadata = new MessageMetadata();
+        metadata.setSequenceId(sequenceId);
+        metadata.setProducerName("producer1");
+        metadata.setPublishTime(System.currentTimeMillis());
+        ByteBuffer payload = ByteBuffer.wrap(("payload-" + sequenceId).getBytes(StandardCharsets.UTF_8));
+        return MessageImpl.create(metadata, payload, Schema.BYTES, null);
+    }
+
+    /**
+     * A successful encryption releases its input and returns a different buffer, so after it the container
+     * field points at freed memory unless it is transferred to the result. The identity check alone is not
+     * enough: it stops the encrypted output from being released twice, but {@code discard()} still releases the
+     * stale field.
+     */
+    @Test
+    public void testOversizedEncryptedBatchReleasesItsBuffersExactlyOnce() throws Exception {
+        List<ByteBuf> allocated = new ArrayList<>();
+        ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer(invocation.getArgument(0));
+            allocated.add(buffer);
+            return buffer;
+        }).when(recordingAllocator).buffer(anyInt());
+
+        ProducerImpl<?> producer = createTestProducer();
+        List<ByteBuf> encryptedBuffers = new ArrayList<>();
+        // Mirror a successful encryption: release the input and return a different buffer.
+        when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> {
+            ByteBuf input = invocation.getArgument(1);
+            ByteBuf encrypted = ByteBufAllocator.DEFAULT.buffer(input.readableBytes());
+            encrypted.writeBytes(input.copy());
+            input.release();
+            encryptedBuffers.add(encrypted);
+            return encrypted;
+        });
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.getMaxMessageSize()).thenReturn(1);
+        when(producer.getConnectionHandler()).thenReturn(connectionHandler);
+
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(recordingAllocator);
+        container.setProducer(producer);
+        container.add(newTestMessage(1L), null);
+        container.add(newTestMessage(2L), null);
+
+        assertEquals(allocated.size(), 1, "expected exactly one batch payload allocation");
+        ByteBuf batchPayload = allocated.get(0);
+        // Stand in for anything else still holding the pre-encryption buffer, so that releasing it a second
+        // time is observable rather than being swallowed by ReferenceCountUtil.safeRelease.
+        batchPayload.retain();
+
+        assertNull(container.createOpSendMsg(), "an oversized batch must not produce an op to send");
+
+        assertEquals(encryptedBuffers.size(), 1, "expected exactly one encryption");
+        assertEquals(batchPayload.refCnt(), 1,
+                "the pre-encryption batch payload was released again after encryption had already released it");
+        assertEquals(encryptedBuffers.get(0).refCnt(), 0, "the encrypted payload was not released");
+        batchPayload.release();
+    }
+
 }

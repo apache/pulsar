@@ -200,7 +200,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         if (clientOperation && producer != null){
             if (compressionType != CompressionType.NONE
                     && uncompressedSize > producer.conf.getCompressMinMsgBodySize()) {
+                // applyCompression releases the buffer it is given and returns a new one, so the field has to
+                // follow it: otherwise it keeps pointing at freed memory that discard() would release again.
                 compressedPayload = producer.applyCompression(batchedMessageMetadataAndPayload);
+                batchedMessageMetadataAndPayload = compressedPayload;
                 messageMetadata.setCompression(compressionType);
                 messageMetadata.setUncompressedSize(uncompressedSize);
             } else {
@@ -209,6 +212,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         } else {
             compressedPayload = compressor.encode(batchedMessageMetadataAndPayload);
             batchedMessageMetadataAndPayload.release();
+            // The codec returns a new buffer whenever it actually compresses, and the release above frees the
+            // old one, so the field has to follow it: otherwise it keeps pointing at freed memory that
+            // discard() would release again and resetPayloadAfterFailedPublishing() would write into.
+            batchedMessageMetadataAndPayload = compressedPayload;
             if (compressionType != CompressionType.NONE) {
                 messageMetadata.setCompression(compressionType);
                 messageMetadata.setUncompressedSize(uncompressedSize);
@@ -299,6 +306,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             stampEntryBucketRange();
             ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata,
                     getCompressedBatchMetadataAndPayload());
+            // A successful encryption releases its input and returns a different buffer, so the field has to
+            // follow it, exactly as it does for compression. Otherwise it keeps pointing at freed memory that
+            // discard() would release again.
+            batchedMessageMetadataAndPayload = encryptedPayload;
             updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
             ByteBufPair cmd = producer.sendMessage(producer.producerId, messageMetadata.getSequenceId(),
                 1, null, messageMetadata, encryptedPayload);
@@ -319,7 +330,11 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
             // handle mgs size check as non-batched in `ProducerImpl.isMessageSizeExceeded`
             if (op.getMessageHeaderAndPayloadSize() > getMaxMessageSize()) {
+                // The payload was handed to the command, which now owns it: ByteBufPair.deallocate releases
+                // both of its buffers. Drop the container's reference before discard() runs, or the payload —
+                // the same buffer with compression and encryption off — would be released a second time.
                 cmd.release();
+                batchedMessageMetadataAndPayload = null;
                 producer.semaphoreRelease(1);
                 producer.client.getMemoryLimitController().releaseMemory(
                         messages.get(0).getUncompressedSize() + batchAllocatedSizeBytes);
@@ -332,9 +347,12 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
         ByteBuf encryptedPayload = producer.encryptMessage(messageMetadata,
                 getCompressedBatchMetadataAndPayload());
+        // See the single-message branch above: the field follows whatever encryption returned.
+        batchedMessageMetadataAndPayload = encryptedPayload;
         updateAndReserveBatchAllocatedSize(encryptedPayload.capacity());
         if (encryptedPayload.readableBytes() > getMaxMessageSize()) {
-            encryptedPayload.release();
+            // The container owns the payload at this point — no command has been built yet — so discard() below
+            // is its single owner. Releasing it here as well would drop a live buffer back into the pool.
             producer.semaphoreRelease(messages.size());
             messages.forEach(msg -> producer.client.getMemoryLimitController()
                     .releaseMemory(msg.getUncompressedSize()));
