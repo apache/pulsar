@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.integration.proxy;
 import static org.testng.Assert.assertEquals;
 import java.util.Collections;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -30,15 +31,13 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 /**
  * Test cases for proxy.
  */
+@CustomLog
 public class TestProxy extends PulsarTestSuite {
-    private static final Logger log = LoggerFactory.getLogger(TestProxy.class);
 
     @Override
     protected PulsarClusterSpec.PulsarClusterSpecBuilder beforeSetupCluster(

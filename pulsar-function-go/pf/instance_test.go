@@ -27,6 +27,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 )
 
 func testProcessSpawnerHealthCheckTimer(
@@ -114,4 +116,34 @@ func Test_goInstance_handlerMsg(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "output", string(output))
 	assert.Equal(t, message, fc.record)
+}
+
+func newTestGoInstance(guarantee pb.ProcessingGuarantees) *goInstance {
+	return &goInstance{
+		context: &FunctionContext{
+			instanceConf: &instanceConf{
+				funcDetails: pb.FunctionDetails{
+					ProcessingGuarantees: guarantee,
+				},
+			},
+		},
+	}
+}
+
+func TestShouldNackInputOnFailure(t *testing.T) {
+	tests := []struct {
+		name      string
+		guarantee pb.ProcessingGuarantees
+		want      bool
+	}{
+		{"atLeastOnce", pb.ProcessingGuarantees_ATLEAST_ONCE, true},
+		{"manual", pb.ProcessingGuarantees_MANUAL, true},
+		{"atMostOnce", pb.ProcessingGuarantees_ATMOST_ONCE, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			instance := newTestGoInstance(tt.guarantee)
+			assert.Equal(t, tt.want, instance.shouldNackInputOnFailure())
+		})
+	}
 }

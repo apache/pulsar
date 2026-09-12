@@ -21,14 +21,11 @@ package org.apache.pulsar.broker.service.schema;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * An avro schema validator that always reports as incompatible, if there is an existing schema.
  */
 class NeverSchemaValidator implements SchemaValidator {
-    private static final Logger log = LoggerFactory.getLogger(NeverSchemaValidator.class);
     static final NeverSchemaValidator INSTANCE = new NeverSchemaValidator();
 
     @Override

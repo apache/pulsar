@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.AllArgsConstructor;
@@ -29,8 +28,8 @@ import lombok.NoArgsConstructor;
 /**
  * The data of a failure domain configuration in a cluster.
  */
-@ApiModel(
-    value = "FailureDomain",
+@Schema(
+    name = "FailureDomain",
     description = "The data of a failure domain configuration in a cluster"
 )
 @Data
@@ -38,9 +37,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public final class FailureDomainImpl implements FailureDomain {
 
-    @ApiModelProperty(
+    @Schema(
         name = "brokers",
-        value = "The collection of brokers in the same failure domain",
+        description = "The collection of brokers in the same failure domain",
         example = "[ 'broker-1', 'broker-2' ]"
     )
     public Set<String> brokers;

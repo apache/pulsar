@@ -18,19 +18,25 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.ResourceGroupResources;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Resource Group Config Listener
@@ -41,30 +47,40 @@ import org.slf4j.LoggerFactory;
  * @see <a href="https://github.com/apache/pulsar/wiki/PIP-82%3A-Tenant-and-namespace-level-rate-limiting">Global-quotas</a>
  *
  */
+@CustomLog
 public class ResourceGroupConfigListener implements Consumer<Notification> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ResourceGroupConfigListener.class);
     private final ResourceGroupService rgService;
     private final PulsarService pulsarService;
     private final ResourceGroupResources rgResources;
-    private final ResourceGroupNamespaceConfigListener rgNamespaceConfigListener;
+    private volatile ResourceGroupNamespaceConfigListener rgNamespaceConfigListener;
 
     public ResourceGroupConfigListener(ResourceGroupService rgService, PulsarService pulsarService) {
         this.rgService = rgService;
         this.pulsarService = pulsarService;
         this.rgResources = pulsarService.getPulsarResources().getResourcegroupResources();
-        loadAllResourceGroups();
         this.rgResources.getStore().registerListener(this);
-        rgNamespaceConfigListener = new ResourceGroupNamespaceConfigListener(
-                rgService, pulsarService, this);
+        execute(() -> loadAllResourceGroupsWithRetryAsync(0));
     }
 
-    private void loadAllResourceGroups() {
-        rgResources.listResourceGroupsAsync().whenCompleteAsync((rgList, ex) -> {
-            if (ex != null) {
-                LOG.error("Exception when fetching resource groups", ex);
-                return;
+    private void loadAllResourceGroupsWithRetryAsync(long retry) {
+        loadAllResourceGroupsAsync().thenAccept(__ -> {
+            if (rgNamespaceConfigListener == null) {
+                rgNamespaceConfigListener = new ResourceGroupNamespaceConfigListener(rgService, pulsarService, this);
             }
+        }).exceptionally(e -> {
+            long nextRetry = retry + 1;
+            long delay = 500 * nextRetry;
+            log.error()
+                    .attr("afterMs", delay)
+                    .exception(e)
+                    .log("Failed to load all resource groups during initialization, retrying later");
+            schedule(() -> loadAllResourceGroupsWithRetryAsync(nextRetry), delay);
+            return null;
+        });
+    }
+
+    private CompletableFuture<Void> loadAllResourceGroupsAsync() {
+        return rgResources.listResourceGroupsAsync().thenCompose(rgList -> {
             final Set<String> existingSet = rgService.resourceGroupGetAll();
             HashSet<String> newSet = new HashSet<>();
 
@@ -72,42 +88,48 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
 
             final Sets.SetView<String> deleteList = Sets.difference(existingSet, newSet);
 
-            for (String rgName: deleteList) {
+            for (String rgName : deleteList) {
                 deleteResourceGroup(rgName);
             }
 
             final Sets.SetView<String> addList = Sets.difference(newSet, existingSet);
-            for (String rgName: addList) {
-                pulsarService.getPulsarResources().getResourcegroupResources()
-                    .getResourceGroupAsync(rgName).thenAcceptAsync(optionalRg -> {
-                    ResourceGroup rg = optionalRg.get();
-                    createResourceGroup(rgName, rg);
-                }).exceptionally((ex1) -> {
-                    LOG.error("Failed to fetch resourceGroup", ex1);
-                    return null;
-                });
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (String rgName : addList) {
+                futures.add(pulsarService.getPulsarResources()
+                        .getResourcegroupResources()
+                        .getResourceGroupAsync(rgName)
+                        .thenAccept(optionalRg -> {
+                            if (optionalRg.isPresent()) {
+                                ResourceGroup rg = optionalRg.get();
+                                createResourceGroup(rgName, rg);
+                            }
+                        })
+                );
             }
+
+            return FutureUtil.waitForAll(futures);
         });
     }
 
     public synchronized void deleteResourceGroup(String rgName) {
         try {
             if (rgService.resourceGroupGet(rgName) != null) {
-                LOG.info("Deleting resource group {}", rgName);
+                log.info().attr("resourceGroup", rgName).log("Deleting resource group");
                 rgService.resourceGroupDelete(rgName);
             }
         } catch (PulsarAdminException e) {
-            LOG.error("Got exception while deleting resource group {}, {}", rgName, e);
+            log.error().attr("resourceGroup", rgName).exceptionMessage(e)
+                    .log("Got exception while deleting resource group");
         }
     }
 
     public synchronized void createResourceGroup(String rgName, ResourceGroup rg) {
         if (rgService.resourceGroupGet(rgName) == null) {
-            LOG.info("Creating resource group {}, {}", rgName, rg.toString());
+            log.info().attr("resourceGroup", rgName).attr("value", rg).log("Creating resource group");
             try {
                 rgService.resourceGroupCreate(rgName, rg);
             } catch (PulsarAdminException ex1) {
-                LOG.error("Got an exception while creating RG {}", rgName, ex1);
+                log.error().attr("resourceGroup", rgName).exception(ex1).log("Got an exception while creating RG");
             }
         }
     }
@@ -115,15 +137,16 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
     private void updateResourceGroup(String rgName) {
         rgResources.getResourceGroupAsync(rgName).whenComplete((optionalRg, ex) -> {
             if (ex != null) {
-                LOG.error("Exception when getting resource group {}", rgName, ex);
+                log.error().attr("resourceGroup", rgName).exception(ex).log("Exception when getting resource group");
                 return;
             }
             ResourceGroup rg = optionalRg.get();
             try {
-                LOG.info("Updating resource group {}, {}", rgName, rg);
+                log.info().attr("resourceGroup", rgName).attr("value", rg).log("Updating resource group");
                 rgService.resourceGroupUpdate(rgName, rg);
             } catch (PulsarAdminException ex1) {
-                LOG.error("Got an exception while creating resource group {}", rgName, ex1);
+                log.error().attr("resourceGroup", rgName).exception(ex1)
+                        .log("Got an exception while creating resource group");
             }
         });
     }
@@ -135,12 +158,18 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
         if (!ResourceGroupResources.isResourceGroupPath(notifyPath)) {
             return;
         }
-        LOG.info("Metadata store notification: Path {}, Type {}", notifyPath, notification.getType());
+        log.info()
+                .attr("path", notifyPath)
+                .attr("type", notification.getType())
+                .log("Metadata store notification: Path , Type");
 
         Optional<String> rgName = ResourceGroupResources.resourceGroupNameFromPath(notifyPath);
         if ((notification.getType() == NotificationType.ChildrenChanged)
             || (notification.getType() == NotificationType.Created)) {
-            loadAllResourceGroups();
+            loadAllResourceGroupsAsync().exceptionally((ex) -> {
+                log.error().exception(ex).log("Exception when fetching resource groups");
+                return null;
+            });
         } else if (rgName.isPresent()) {
             switch (notification.getType()) {
             case Modified:
@@ -150,5 +179,18 @@ public class ResourceGroupConfigListener implements Consumer<Notification> {
                 break;
             }
         }
+    }
+
+    protected void execute(Runnable runnable) {
+        pulsarService.getExecutor().execute(catchingAndLoggingThrowables(runnable));
+    }
+
+    protected void schedule(Runnable runnable, long delayMs) {
+        pulsarService.getExecutor().schedule(catchingAndLoggingThrowables(runnable), delayMs, TimeUnit.MILLISECONDS);
+    }
+
+    @VisibleForTesting
+    ResourceGroupNamespaceConfigListener getRgNamespaceConfigListener() {
+        return rgNamespaceConfigListener;
     }
 }

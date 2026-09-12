@@ -27,15 +27,13 @@ import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
-
-    private static final Logger log = LoggerFactory.getLogger(UnAckedMessageRedeliveryTracker.class);
 
     protected final HashMap<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>> redeliveryMessageIdPartitionMap;
     protected final ArrayDeque<HashSet<UnackMessageIdWrapper>> redeliveryTimePartitions;
@@ -59,6 +57,10 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         timeout = client.timer().newTimeout(new TimerTask() {
             @Override
             public void run(Timeout t) throws Exception {
+                if (t.isCancelled()) {
+                    return;
+                }
+
                 writeLock.lock();
                 try {
                     HashSet<UnackMessageIdWrapper> headPartition = redeliveryTimePartitions.removeFirst();
@@ -73,8 +75,11 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                     redeliveryTimePartitions.addLast(headPartition);
                     triggerRedelivery(consumerBase);
                 } finally {
-                    writeLock.unlock();
-                    timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
+                    try {
+                        timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
+                    } finally {
+                        writeLock.unlock();
+                    }
                 }
             }
         }, this.tickDurationInMs, TimeUnit.MILLISECONDS);
@@ -109,7 +114,9 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                 }
             });
             if (!messageIds.isEmpty()) {
-                log.info("[{}] {} messages will be re-delivered", consumerBase, messageIds.size());
+                log.info().attr("consumerBase", consumerBase)
+                        .attr("size", messageIds.size())
+                        .log("messages will be re-delivered");
                 Iterator<MessageId> iterator = messageIds.iterator();
                 while (iterator.hasNext()) {
                     MessageId messageId = iterator.next();

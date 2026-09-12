@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -66,4 +67,40 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
         assertNotEquals(seq1, seq2);
         assertTrue(n1 < n2);
     }
+
+    @Test(dataProvider = "impl")
+    public void testPersistentOrEphemeralPut(String provider, Supplier<String> urlSupplier) throws Exception {
+        final String key1 = newKey();
+        @Cleanup
+        MetadataStoreExtended store =
+                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
+        store.put(key1, "value-1".getBytes(), Optional.empty(), EnumSet.noneOf(CreateOption.class)).join();
+        var value = store.get(key1).join().get();
+        assertEquals(value.getValue(), "value-1".getBytes());
+        assertFalse(value.getStat().isEphemeral());
+        assertTrue(value.getStat().isFirstVersion());
+        var version = value.getStat().getVersion();
+
+        store.put(key1, "value-2".getBytes(), Optional.empty(), EnumSet.noneOf(CreateOption.class)).join();
+        value = store.get(key1).join().get();
+        assertEquals(value.getValue(), "value-2".getBytes());
+        assertFalse(value.getStat().isEphemeral());
+        assertEquals(value.getStat().getVersion(), version + 1);
+
+        final String key2 = newKey();
+        store.put(key2, "value-4".getBytes(), Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
+        value = store.get(key2).join().get();
+        assertEquals(value.getValue(), "value-4".getBytes());
+        assertTrue(value.getStat().isEphemeral());
+        assertTrue(value.getStat().isFirstVersion());
+        version = value.getStat().getVersion();
+
+
+        store.put(key2, "value-5".getBytes(), Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
+        value = store.get(key2).join().get();
+        assertEquals(value.getValue(), "value-5".getBytes());
+        assertTrue(value.getStat().isEphemeral());
+        assertEquals(value.getStat().getVersion(), version + 1);
+    }
+
 }

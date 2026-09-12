@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LoadReport;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
@@ -28,11 +29,9 @@ import org.apache.pulsar.broker.loadbalance.ServiceUnit;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.NamespaceIsolationPolicy;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class SimpleResourceAllocationPolicies {
-    private static final Logger LOG = LoggerFactory.getLogger(SimpleResourceAllocationPolicies.class);
     private final PulsarService pulsar;
 
     public SimpleResourceAllocationPolicies(PulsarService pulsar) {
@@ -49,7 +48,7 @@ public class SimpleResourceAllocationPolicies {
             return pulsar.getPulsarResources().getNamespaceResources().getIsolationPolicies()
                     .getIsolationDataPolicies(clusterName);
         } catch (Exception e) {
-            LOG.warn("GetIsolationPolicies: Unable to get the namespaceIsolationPolicies", e);
+            log.warn().exception(e).log("GetIsolationPolicies: Unable to get the namespaceIsolationPolicies");
             return Optional.empty();
         }
     }
@@ -75,7 +74,7 @@ public class SimpleResourceAllocationPolicies {
             return policies.filter(isolationPolicies -> isolationPolicies.getPolicyByNamespace(namespace) != null)
                     .isPresent();
         } catch (Exception e) {
-            LOG.warn("IsIsolationPoliciesPresent: Unable to get the namespaceIsolationPolicies", e);
+            log.warn().exception(e).log("IsIsolationPoliciesPresent: Unable to get the namespaceIsolationPolicies");
             return false;
         }
     }
@@ -87,7 +86,7 @@ public class SimpleResourceAllocationPolicies {
             return policies.map(isolationPolicies -> isolationPolicies.getPolicyByNamespace(namespace));
 
         } catch (Exception e) {
-            LOG.warn("Unable to get the namespaceIsolationPolicies", e);
+            log.warn().exception(e).log("Unable to get the namespaceIsolationPolicies");
             return Optional.empty();
         }
     }
@@ -109,7 +108,7 @@ public class SimpleResourceAllocationPolicies {
             return policies.map(isolationPolicies -> isolationPolicies.isSharedBroker(broker)).orElse(true);
 
         } catch (Exception e) {
-            LOG.warn("isPrimaryForAnyNamespace", e);
+            log.warn().exception(e).log("isPrimaryForAnyNamespace");
         }
         return false;
     }

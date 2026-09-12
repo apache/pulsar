@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.ReaderDecryptFailListener;
 import org.apache.pulsar.client.api.ReaderInterceptor;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
@@ -73,7 +74,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     public Reader<T> create() throws PulsarClientException {
         try {
-            return createAsync().get();
+            return FutureUtil.getAndCleanupOnInterrupt(createAsync(), Reader::closeAsync);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
@@ -86,22 +87,35 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the reader builder"));
         }
 
-        if (conf.getStartMessageId() != null && conf.getStartMessageFromRollbackDurationInSec() > 0
-                || conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0) {
+        boolean isStartMsgIdExist = conf.getStartMessageId() != null && conf.getStartMessageId() != MessageId.earliest;
+        if ((isStartMsgIdExist && conf.getStartMessageFromRollbackDurationInSec() > 0)
+                || (conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0)) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException(
                             "Start message id or start message from roll back must be specified but they cannot be"
-                                    + " specified at the same time"));
+                                    + " specified at the same time. MessageId =" + conf.getStartMessageId()
+                                    + ", rollback seconds =" + conf.getStartMessageFromRollbackDurationInSec()));
         }
 
         if (conf.getStartMessageFromRollbackDurationInSec() > 0) {
             conf.setStartMessageId(MessageId.earliest);
         }
 
+        if (conf.getReaderDecryptFailListener() != null && conf.getReaderListener() == null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "readerDecryptFailListener must be set with readerListener"
+            ));
+        }
+        if (conf.getCryptoFailureAction() != null && conf.getReaderDecryptFailListener() != null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "readerDecryptFailListener cannot set with cryptoFailureAction"
+            ));
+        }
         return client.createReaderAsync(conf, schema);
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public ReaderBuilder<T> loadConf(Map<String, Object> config) {
         MessageId startMessageId = conf.getStartMessageId();
         conf = ConfigurationDataUtils.loadData(config, conf, ReaderConfigurationData.class);
@@ -151,6 +165,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
+    public ReaderBuilder<T> readerDecryptFailListener(ReaderDecryptFailListener<T> readerDecryptFailListener) {
+        conf.setReaderDecryptFailListener(readerDecryptFailListener);
+        return this;
+    }
+
+    @Override
     public ReaderBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
@@ -175,7 +195,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
-    public ReaderBuilder<T> messageCrypto(MessageCrypto messageCrypto) {
+    public ReaderBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto) {
         conf.setMessageCrypto(messageCrypto);
         return this;
     }
@@ -253,7 +273,8 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
-    public ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors) {
+    @SafeVarargs
+    public final ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors) {
         if (interceptors != null) {
             this.conf.setReaderInterceptorList(Arrays.asList(interceptors));
         }

@@ -19,14 +19,14 @@
 package org.apache.pulsar.functions.auth;
 
 import java.util.Optional;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionAuthenticationSpec;
 
 public final class FunctionAuthUtils {
 
     public static FunctionAuthData getFunctionAuthData(
-            Optional<Function.FunctionAuthenticationSpec> functionAuthenticationSpec) {
+            Optional<FunctionAuthenticationSpec> functionAuthenticationSpec) {
         return functionAuthenticationSpec
-                .map(authenticationSpec -> FunctionAuthData.builder().data(authenticationSpec.getData().toByteArray())
+                .map(authenticationSpec -> FunctionAuthData.builder().data(authenticationSpec.getData())
                         .build())
                 .orElse(null);
     }

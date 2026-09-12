@@ -36,11 +36,12 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
 import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.testng.annotations.Test;
 
 /**
@@ -153,6 +154,24 @@ public class BookKeeperClientFactoryImplTest {
     }
 
     @Test
+    public void testSetEnsemblePlacementPolicys() {
+        ClientConfiguration bkConf = new ClientConfiguration();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setBookkeeperClientMinNumRacksPerWriteQuorum(3);
+        conf.setBookkeeperClientEnforceMinNumRacksPerWriteQuorum(true);
+
+        MetadataStore store = mock(MetadataStore.class);
+
+        BookKeeperClientFactoryImpl.setEnsemblePlacementPolicy(
+                bkConf,
+                conf,
+                store,
+                ZkIsolatedBookieEnsemblePlacementPolicy.class);
+        assertEquals(bkConf.getMinNumRacksPerWriteQuorum(), 3);
+        assertTrue(bkConf.getEnforceMinNumRacksPerWriteQuorum());
+    }
+
+    @Test
     public void testSetDiskWeightBasedPlacementEnabled() {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
@@ -169,7 +188,8 @@ public class BookKeeperClientFactoryImplTest {
         BookKeeperClientFactoryImpl factory = new BookKeeperClientFactoryImpl();
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setMetadataStoreUrl("zk:localhost:2181");
-        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf).getExplictLacInterval(),
+        assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getExplictLacInterval(),
                 0);
         conf.setBookkeeperExplicitLacIntervalInMills(5);
         assertEquals(
@@ -257,6 +277,13 @@ public class BookKeeperClientFactoryImplTest {
                 assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
                         .getMetadataServiceUri(), expectedUri);
 
+            }
+            {
+                String uri = "metadata-store:oxia://oxia-server:6648/bookkeeper"
+                        + "?batchingMaxDelayMillis=10&batchingMaxSizeKb=256&numSerDesThreads=4";
+                conf.setBookkeeperMetadataServiceUri(uri);
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), uri);
             }
         } catch (ConfigurationException e) {
             e.printStackTrace();

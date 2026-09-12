@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.utils;
 
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 public class ComponentTypeUtils {
     public static String toString(FunctionDetails.ComponentType componentType) {

@@ -18,10 +18,14 @@
  */
 package org.apache.pulsar.policies.data.loadbalancer;
 
+import static org.apache.pulsar.common.util.CompareUtil.compareDoubleWithResolution;
+import lombok.EqualsAndHashCode;
+
 /**
  * Data class comprising the average message data over a fixed period of time.
  */
-public class TimeAverageMessageData {
+@EqualsAndHashCode
+public class TimeAverageMessageData implements Comparable<TimeAverageMessageData> {
     // The maximum number of samples this data will consider.
     private int maxSamples;
 
@@ -40,6 +44,11 @@ public class TimeAverageMessageData {
 
     // The average message rate out per second.
     private double msgRateOut;
+
+    // When comparing throughput, uses a resolution of 100 KB/s, effectively rounding values before comparison
+    private static final double throughputComparisonResolution = 1e5;
+    // When comparing message rate, uses a resolution of 100, effectively rounding values before comparison
+    private static final double msgRateComparisonResolution = 100;
 
     // For JSON only.
     public TimeAverageMessageData() {
@@ -176,5 +185,32 @@ public class TimeAverageMessageData {
      */
     public double totalMsgThroughput() {
         return msgThroughputIn + msgThroughputOut;
+    }
+
+    @Override
+    public int compareTo(TimeAverageMessageData other) {
+        int result = this.compareByBandwidthIn(other);
+
+        if (result == 0) {
+            result = this.compareByBandwidthOut(other);
+        }
+        if (result == 0) {
+            result = this.compareByMsgRate(other);
+        }
+        return result;
+    }
+
+    public int compareByMsgRate(TimeAverageMessageData other) {
+        double thisMsgRate = this.msgRateIn + this.msgRateOut;
+        double otherMsgRate = other.msgRateIn + other.msgRateOut;
+        return compareDoubleWithResolution(thisMsgRate, otherMsgRate, msgRateComparisonResolution);
+    }
+
+    public int compareByBandwidthIn(TimeAverageMessageData other) {
+        return compareDoubleWithResolution(msgThroughputIn, other.msgThroughputIn, throughputComparisonResolution);
+    }
+
+    public int compareByBandwidthOut(TimeAverageMessageData other) {
+        return compareDoubleWithResolution(msgThroughputOut, other.msgThroughputOut, throughputComparisonResolution);
     }
 }

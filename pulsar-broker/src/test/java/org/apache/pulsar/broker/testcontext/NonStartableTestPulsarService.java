@@ -20,11 +20,13 @@ package org.apache.pulsar.broker.testcontext;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
@@ -42,6 +44,7 @@ import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
@@ -67,9 +70,9 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
                                          ManagedLedgerStorage managedLedgerClientFactory,
                                          Function<BrokerService, BrokerService> brokerServiceCustomizer) {
         super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
-                brokerInterceptor, bookKeeperClientFactory);
+                brokerInterceptor, bookKeeperClientFactory, null);
         setPulsarResources(pulsarResources);
-        setManagedLedgerClientFactory(managedLedgerClientFactory);
+        setManagedLedgerStorage(managedLedgerClientFactory);
         try {
             setBrokerService(brokerServiceCustomizer.apply(
                     spyConfig.getBrokerService().spy(TestBrokerService.class, this, getIoEventLoopGroup())));
@@ -77,7 +80,10 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
             throw new RuntimeException(e);
         }
         setSchemaRegistryService(spyWithClassAndConstructorArgs(DefaultSchemaRegistryService.class));
-        setClient(mock(PulsarClientImpl.class));
+        PulsarClientImpl mockClient = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(mockClient.getCnxPool()).thenReturn(connectionPool);
+        setClient(mockClient);
         this.namespaceService = mock(NamespaceService.class);
         try {
             startNamespaceService();
@@ -111,13 +117,16 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
     }
 
     @Override
-    public PulsarClientImpl createClientImpl(ClientConfigurationData clientConf) throws PulsarClientException {
+    public PulsarClientImpl createClientImpl(ClientConfigurationData clientConf,
+                                             Consumer<PulsarClientImpl.PulsarClientImplBuilder> customizer)
+            throws PulsarClientException {
         try {
             return (PulsarClientImpl) getClient();
         } catch (PulsarServerException e) {
             throw new PulsarClientException(e);
         }
     }
+
     @Override
     protected BrokerService newBrokerService(PulsarService pulsar) throws Exception {
         return getBrokerService();
@@ -140,7 +149,7 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         private final TopicResources topicResources;
         private final NamespaceResources namespaceResources;
 
-        public TestPulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
+        public TestPulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
                                    TopicResources topicResources, NamespaceResources namespaceResources) {
             super(localMetadataStore, configurationMetadataStore);
             this.topicResources = topicResources;

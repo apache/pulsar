@@ -29,6 +29,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -38,8 +39,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -53,13 +54,9 @@ import org.apache.pulsar.transaction.coordinator.proto.BatchedTransactionMetadat
 import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class MLTransactionLogImpl implements TransactionLog {
-
-    private static final Logger log = LoggerFactory.getLogger(MLTransactionLogImpl.class);
-
     private final ManagedLedgerFactory managedLedgerFactory;
     private final ManagedLedgerConfig managedLedgerConfig;
     private ManagedLedger managedLedger;
@@ -94,11 +91,14 @@ public class MLTransactionLogImpl implements TransactionLog {
         this.tcId = tcID.getId();
         this.managedLedgerFactory = managedLedgerFactory;
         this.managedLedgerConfig = managedLedgerConfig;
+        this.managedLedgerConfig.setLoggerContext(log.with().attr("tcId", tcId).build());
         this.timer = timer;
         this.txnLogBufferedWriterConfig = txnLogBufferedWriterConfig;
         if (txnLogBufferedWriterConfig.isBatchEnabled()) {
             this.managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(true);
         }
+        // the transaction log keeps TransactionMetadataEntry records, not Pulsar messages
+        this.managedLedgerConfig.setPulsarMessageEntries(false);
         this.entryQueue = new SpscArrayQueue<>(2000);
         this.bufferedWriterMetrics = bufferedWriterMetrics;
     }
@@ -156,7 +156,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
     private void readAsync(int numberOfEntriesToRead,
                            AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.LATEST);
+        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionFactory.LATEST);
     }
 
     @Override
@@ -166,7 +166,7 @@ public class MLTransactionLogImpl implements TransactionLog {
         managedLedger.asyncClose(new AsyncCallbacks.CloseCallback() {
             @Override
             public void closeComplete(Object ctx) {
-                log.info("Transaction log with tcId : {} close managedLedger successful!", tcId);
+                log.info().attr("value", tcId).log("Transaction log with tcId :close managedLedger successful!");
                 completableFuture.complete(null);
                 bufferedWriter.close();
             }
@@ -174,7 +174,7 @@ public class MLTransactionLogImpl implements TransactionLog {
             @Override
             public void closeFailed(ManagedLedgerException exception, Object ctx) {
                 // If close managed ledger failure, should not close buffered writer.
-                log.error("Transaction log with tcId : {} close managedLedger fail!", tcId);
+                log.error().attr("value", tcId).log("Transaction log with tcId :close managedLedger fail!");
                 completableFuture.completeExceptionally(exception);
             }
         }, null);
@@ -193,7 +193,7 @@ public class MLTransactionLogImpl implements TransactionLog {
 
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("Transaction log write transaction operation error", exception);
+                log.error().exception(exception).log("Transaction log write transaction operation error");
                 if (exception instanceof ManagedLedgerAlreadyClosedException) {
                     managedLedger.readyToCreateNewLedger();
                 }
@@ -215,17 +215,18 @@ public class MLTransactionLogImpl implements TransactionLog {
         this.cursor.asyncDelete(positions, new AsyncCallbacks.DeleteCallback() {
             @Override
             public void deleteComplete(Object position) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Deleted message at {}", topicName,
-                            TRANSACTION_SUBSCRIPTION_NAME, position);
-                }
+                log.debug().attr("topic", topicName)
+                        .attr("subscription", TRANSACTION_SUBSCRIPTION_NAME)
+                        .attr("position", position).log("Deleted message");
                 completableFuture.complete(null);
             }
 
             @Override
             public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-                log.warn("[{}][{}] Failed to delete message at {}", topicName,
-                        TRANSACTION_SUBSCRIPTION_NAME, ctx, exception);
+                log.warn().attr("topic", topicName)
+                        .attr("subscription", TRANSACTION_SUBSCRIPTION_NAME)
+                        .attr("position", ctx).exception(exception)
+                        .log("Failed to delete message");
                 completableFuture.completeExceptionally(exception);
             }
         }, null);
@@ -264,7 +265,7 @@ public class MLTransactionLogImpl implements TransactionLog {
                              * 3. Build batched position and handle valid data.
                              */
                             long[] ackSetAlreadyAck = cursor.getDeletedBatchIndexesAsLongArray(
-                                    PositionImpl.get(entry.getLedgerId(), entry.getEntryId()));
+                                    PositionFactory.create(entry.getLedgerId(), entry.getEntryId()));
                             BitSetRecyclable bitSetAlreadyAck = null;
                             if (ackSetAlreadyAck != null){
                                 bitSetAlreadyAck = BitSetRecyclable.valueOf(ackSetAlreadyAck);
@@ -366,7 +367,7 @@ public class MLTransactionLogImpl implements TransactionLog {
             } else {
                 outstandingReadsRequests.decrementAndGet();
             }
-            log.error("Transaction log init fail error!", exception);
+            log.error().exception(exception).log("Transaction log init fail error!");
         }
 
     }

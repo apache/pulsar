@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.broker.auth;
 
-import org.apache.pulsar.broker.authentication.AuthenticationState;
-import org.apache.pulsar.common.api.AuthData;
-
+import java.net.SocketAddress;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-import java.net.SocketAddress;
+import org.apache.pulsar.broker.authentication.AuthenticationState;
+import org.apache.pulsar.common.api.AuthData;
 
 /**
  * Class that provides the same authentication semantics as the {@link MockAuthenticationProvider} except

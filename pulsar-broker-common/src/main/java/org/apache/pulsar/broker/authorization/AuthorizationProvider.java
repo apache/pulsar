@@ -20,16 +20,22 @@ package org.apache.pulsar.broker.authorization;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import lombok.Builder;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
+import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.BrokerOperation;
+import org.apache.pulsar.common.policies.data.ClusterOperation;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
@@ -37,7 +43,6 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 /**
@@ -60,20 +65,6 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * @deprecated - Use method {@link #isSuperUser(String, AuthenticationDataSource, ServiceConfiguration)}.
-     * Will be removed after 2.12.
-     * Check if specified role is a super user
-     * @param role the role to check
-     * @return a CompletableFuture containing a boolean in which true means the role is a super user
-     * and false if it is not
-     */
-    @Deprecated
-    default CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
-        Set<String> superUserRoles = serviceConfiguration.getSuperUserRoles();
-        return CompletableFuture.completedFuture(role != null && superUserRoles.contains(role));
-    }
-
-    /**
      * Check if specified role is an admin of the tenant.
      * @param tenant the tenant to check
      * @param role the role to check
@@ -87,15 +78,33 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
+     * Initialization dependencies for an authorization provider.
+     * The authentication service is already initialized and owned by the enclosing service.
+     */
+    @Builder
+    record InitialContext(ServiceConfiguration config, PulsarResources pulsarResources,
+                          AuthenticationService authenticationService) {
+    }
+
+    /**
+     * Initialize the authorization provider with its shared dependencies.
+     */
+    default void initialize(InitialContext context) throws IOException {
+        initialize(context.config(), context.pulsarResources());
+    }
+
+    /**
      * Perform initialization for the authorization provider.
      *
      * @param conf
      *            broker config object
      * @param pulsarResources
      *            Resources component for access to metadata
+     * @deprecated use {@link #initialize(InitialContext)} instead
      * @throws IOException
      *             if the initialization fails
      */
+    @Deprecated
     default void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
     }
 
@@ -239,6 +248,16 @@ public interface AuthorizationProvider extends Closeable {
     CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions, String role,
             String authDataJson);
 
+    default CompletableFuture<Void> grantPermissionAsync(List<GrantTopicPermissionOptions> options) {
+        return FutureUtil.failedFuture(new IllegalStateException(
+                String.format("grantPermissionAsync is not supported by the Authorization")));
+    }
+
+    default CompletableFuture<Void> revokePermissionAsync(List<RevokeTopicPermissionOptions> options) {
+        return FutureUtil.failedFuture(new IllegalStateException(
+                String.format("revokePermissionAsync is not supported by the Authorization")));
+    }
+
 
     /**
      * Revoke authorization-action permission on a topic to the given client.
@@ -271,21 +290,6 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * @deprecated - will be removed after 2.12. Use async variant.
-     */
-    @Deprecated
-    default Boolean allowTenantOperation(String tenantName, String role, TenantOperation operation,
-                                         AuthenticationDataSource authData) {
-        try {
-            return allowTenantOperationAsync(tenantName, role, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
-
-    /**
      * Check if a given <tt>role</tt> is allowed to execute a given <tt>operation</tt> on the namespace.
      *
      * @param namespaceName namespace name
@@ -301,23 +305,6 @@ public interface AuthorizationProvider extends Closeable {
         return FutureUtil.failedFuture(
             new IllegalStateException("NamespaceOperation [" + operation.name() + "] is not supported by "
                     + "the Authorization provider you are using."));
-    }
-
-    /**
-     * @deprecated - will be removed after 2.12. Use async variant.
-     */
-    @Deprecated
-    default Boolean allowNamespaceOperation(NamespaceName namespaceName,
-                                            String role,
-                                            NamespaceOperation operation,
-                                            AuthenticationDataSource authData) {
-        try {
-            return allowNamespaceOperationAsync(namespaceName, role, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
     }
 
     /**
@@ -341,24 +328,6 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
-     * @deprecated - will be removed after 2.12. Use async variant.
-     */
-    @Deprecated
-    default Boolean allowNamespacePolicyOperation(NamespaceName namespaceName,
-                                                  PolicyName policy,
-                                                  PolicyOperation operation,
-                                                  String role,
-                                                  AuthenticationDataSource authData) {
-        try {
-            return allowNamespacePolicyOperationAsync(namespaceName, policy, operation, role, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
-    }
-
-    /**
      * Check if a given <tt>role</tt> is allowed to execute a given topic <tt>operation</tt> on the topic.
      *
      * @param topic topic name
@@ -374,23 +343,6 @@ public interface AuthorizationProvider extends Closeable {
         return FutureUtil.failedFuture(
             new IllegalStateException("TopicOperation [" + operation.name() + "] is not supported by the Authorization"
                     + "provider you are using."));
-    }
-
-    /**
-     * @deprecated - will be removed after 2.12. Use async variant.
-     */
-    @Deprecated
-    default Boolean allowTopicOperation(TopicName topicName,
-                                        String role,
-                                        TopicOperation operation,
-                                        AuthenticationDataSource authData) {
-        try {
-            return allowTopicOperationAsync(topicName, role, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
     }
 
     /**
@@ -410,24 +362,6 @@ public interface AuthorizationProvider extends Closeable {
         return FutureUtil.failedFuture(
                 new IllegalStateException("TopicPolicyOperation [" + policy.name() + "/" + operation.name() + "] "
                         + "is not supported by the Authorization provider you are using."));
-    }
-
-    /**
-     * @deprecated - will be removed after 2.12. Use async variant.
-     */
-    @Deprecated
-    default Boolean allowTopicPolicyOperation(TopicName topicName,
-                                              String role,
-                                              PolicyName policy,
-                                              PolicyOperation operation,
-                                              AuthenticationDataSource authData) {
-        try {
-            return allowTopicPolicyOperationAsync(topicName, role, policy, operation, authData).get();
-        } catch (InterruptedException e) {
-            throw new RestException(e);
-        } catch (ExecutionException e) {
-            throw new RestException(e.getCause());
-        }
     }
 
     /**
@@ -470,5 +404,33 @@ public interface AuthorizationProvider extends Closeable {
         return FutureUtil.failedFuture(new IllegalStateException(
                 String.format("getPermissionsAsync on namespaceName %s is not supported by the Authorization",
                         namespaceName)));
+    }
+
+    default CompletableFuture<Boolean> allowBrokerOperationAsync(String clusterName,
+                                                                 String brokerId,
+                                                                 BrokerOperation brokerOperation,
+                                                                 String role,
+                                                                 AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("allowBrokerOperationAsync is not supported yet."));
+    }
+
+
+    default CompletableFuture<Boolean> allowClusterOperationAsync(String clusterName,
+                                                                  ClusterOperation clusterOperation,
+                                                                  String role,
+                                                                  AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("allowClusterOperationAsync is not supported yet."));
+    }
+
+    default CompletableFuture<Boolean> allowClusterPolicyOperationAsync(String clusterName,
+                                                                        String role,
+                                                                        PolicyName policy,
+                                                                        PolicyOperation operation,
+                                                                        AuthenticationDataSource authData) {
+        return FutureUtil.failedFuture(
+                new IllegalStateException("ClusterPolicyOperation [" + policy.name() + "/" + operation.name() + "] "
+                                          + "is not supported by the Authorization provider you are using."));
     }
 }

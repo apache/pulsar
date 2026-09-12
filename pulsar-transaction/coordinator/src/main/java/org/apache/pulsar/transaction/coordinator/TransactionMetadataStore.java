@@ -134,6 +134,15 @@ public interface TransactionMetadataStore {
     TransactionMetadataStoreStats getMetadataStoreStats();
 
     /**
+     * Get the transaction metadata store OpenTelemetry attributes.
+     *
+     * @return TransactionMetadataStoreAttributes {@link TransactionMetadataStoreAttributes}
+     */
+    default TransactionMetadataStoreAttributes getAttributes() {
+        return new TransactionMetadataStoreAttributes(this);
+    }
+
+    /**
      * Get the transactions witch timeout is bigger than given timeout.
      *
      * @return {@link TxnMeta} the txnMetas of slow transactions

@@ -23,14 +23,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 
-@Slf4j
+@CustomLog
 @UtilityClass
 public class OffloaderObjectsScannerUtils {
 
@@ -54,7 +54,7 @@ public class OffloaderObjectsScannerUtils {
         AtomicInteger totalErrors = new AtomicInteger();
         AtomicInteger totalUnknown = new AtomicInteger();
         managedLedgerOffloader.scanLedgers((md -> {
-            log.info("Found ledger {}", md);
+            log.info().attr("metadata", md).log("Found ledger");
             Map<String, Object> objectInfo = new HashMap<>();
             objectInfo.put("ledger", md.getLedgerId());
             objectInfo.put("name", md.getName());
@@ -82,7 +82,8 @@ public class OffloaderObjectsScannerUtils {
                             Thread.currentThread().interrupt();
                             throw new RuntimeException(err);
                         } catch (ManagedLedgerException err) {
-                            log.error("Error while checking managed ledger {}", managedLedgerName);
+                            log.error().attr("managedLedger", managedLedgerName)
+                                    .log("Error while checking managed ledger");
                             throw new RuntimeException(err);
                         }
                     }
@@ -118,24 +119,36 @@ public class OffloaderObjectsScannerUtils {
             ManagedLedgerInfo.LedgerInfo ledgerInfo = managedLedgerInfo
                     .ledgers.stream().filter(l -> l.ledgerId == ledgerId).findAny().orElse(null);
             if (ledgerInfo == null) {
-                log.info("Managed ledger {} does not contain ledger {}", managedLedgerName, ledgerId);
+                log.info()
+                        .attr("managedLedger", managedLedgerName)
+                        .attr("ledgerId", ledgerId)
+                        .log("Managed ledger does not contain ledger");
                 return STATUS_NOT_FOUND;
             }
             data.put("numEntries", ledgerInfo.entries);
             data.put("offloaded", ledgerInfo.isOffloaded);
             if (!ledgerInfo.isOffloaded) {
-                log.info("Ledger {} is not marked as OFFLOADED in {}", ledgerId, managedLedgerName);
+                log.info()
+                        .attr("ledgerId", ledgerId)
+                        .attr("managedLedger", managedLedgerName)
+                        .log("Ledger is not marked as OFFLOADED");
                 return STATUS_NOT_OFFLOADED;
             }
             String uuidOnMetadata = ledgerInfo.offloadedContextUuid;
             if (!Objects.equals(uuidOnMetadata, uuid)) {
-                log.info("Ledger {} uuid {} does not match name uuid {}", ledgerId, uuidOnMetadata, uuid);
+                log.info()
+                        .attr("ledgerId", ledgerId)
+                        .attr("metadataUuid", uuidOnMetadata)
+                        .attr("uuid", uuid)
+                        .log("Ledger uuid does not match name uuid");
                 return STATUS_BAD_UUID;
             }
             return "OK";
         }  catch (ManagedLedgerException.ManagedLedgerNotFoundException
                 | ManagedLedgerException.MetadataNotFoundException notFound) {
-            log.info("Managed ledger {} does not exist (maybe the topic has been deleted)", managedLedgerName);
+            log.info()
+                    .attr("managedLedger", managedLedgerName)
+                    .log("Managed ledger does not exist (maybe the topic has been deleted)");
             return STATUS_NOT_FOUND;
         }
     }

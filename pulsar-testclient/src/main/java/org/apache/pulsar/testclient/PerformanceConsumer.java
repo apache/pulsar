@@ -19,543 +19,323 @@
 package org.apache.pulsar.testclient;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.util.concurrent.RateLimiter;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
-import java.nio.ByteBuffer;
-import java.text.DecimalFormat;
-import java.util.ArrayList;
-import java.util.Collections;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.Future;
-import java.util.concurrent.Semaphore;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.concurrent.atomic.LongAdder;
-import org.HdrHistogram.Histogram;
-import org.HdrHistogram.HistogramLogWriter;
-import org.HdrHistogram.Recorder;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.MessageListener;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.client.impl.ConsumerBase;
-import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.client.api.v5.Message;
+import org.apache.pulsar.client.api.v5.MessageId;
+import org.apache.pulsar.client.api.v5.PulsarClient;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
+import org.apache.pulsar.client.api.v5.PulsarClientException;
+import org.apache.pulsar.client.api.v5.QueueConsumer;
+import org.apache.pulsar.client.api.v5.QueueConsumerBuilder;
+import org.apache.pulsar.client.api.v5.StreamConsumer;
+import org.apache.pulsar.client.api.v5.StreamConsumerBuilder;
+import org.apache.pulsar.client.api.v5.Transaction;
+import org.apache.pulsar.client.api.v5.auth.PemFileKeyProvider;
+import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
+import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
+import org.apache.pulsar.client.api.v5.schema.Schema;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-public class PerformanceConsumer {
-    private static final LongAdder messagesReceived = new LongAdder();
-    private static final LongAdder bytesReceived = new LongAdder();
-    private static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
-    private static final DecimalFormat dec = new DecimalFormat("0.000");
+/**
+ * A client program to test pulsar consumer performance with the V5 client API.
+ *
+ * <p>Everything that is not V5-specific lives in {@link PerformanceConsumerBase}; the v4 client is
+ * driven by {@link PerformanceConsumerV4} under the {@code consume-v4} name.
+ */
+@Command(name = "consume", description = "Test pulsar consumer performance.")
+public class PerformanceConsumer
+        extends PerformanceConsumerBase<PulsarClient, PerformanceConsumer.PerfConsumer, Message<byte[]>, Transaction> {
 
-    private static final LongAdder totalMessagesReceived = new LongAdder();
-    private static final LongAdder totalBytesReceived = new LongAdder();
+    /**
+     * Which V5 scalable-topic consumer API to drive. {@code Queue} gives unordered,
+     * individually-acked work distribution; {@code Stream} gives ordered, cumulatively-acked
+     * consumption with broker-coordinated 1:1 segment-to-consumer assignment. Switching to
+     * {@code Stream} with more consumers than segments is the handle for exercising the
+     * auto-split feature (PIP-483).
+     */
+    public enum ScalableConsumerType {
+        Queue,
+        Stream
+    }
 
-    private static final LongAdder totalNumTxnOpenFail = new LongAdder();
-    private static final LongAdder totalNumTxnOpenSuccess = new LongAdder();
+    @Option(names = { "-sct", "--scalable-consumer-type" },
+            description = "V5 scalable-topic consumer API to use: Queue (unordered, individual ack) "
+                    + "or Stream (ordered, cumulative ack, 1:1 segment assignment). Use Stream with "
+                    + "more consumers than segments to drive auto-split (PIP-483).")
+    public ScalableConsumerType scalableConsumerType = ScalableConsumerType.Queue;
 
-    private static final LongAdder totalMessageAck = new LongAdder();
-    private static final LongAdder totalMessageAckFailed = new LongAdder();
-    private static final LongAdder messageAck = new LongAdder();
+    @Option(names = { "-sp", "--subscription-position" }, description = "Subscription position")
+    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.LATEST;
 
-    private static final LongAdder totalEndTxnOpFailNum = new LongAdder();
-    private static final LongAdder totalEndTxnOpSuccessNum = new LongAdder();
-    private static final LongAdder numTxnOpSuccess = new LongAdder();
+    private ConsumerEncryptionPolicy encryptionPolicy;
+    private ExecutorService consumerExec;
 
-    private static final long MAX_LATENCY = TimeUnit.DAYS.toMillis(10);
-    private static final Recorder recorder = new Recorder(MAX_LATENCY, 5);
-    private static final Recorder cumulativeRecorder = new Recorder(MAX_LATENCY, 5);
+    public PerformanceConsumer() {
+        super("consume");
+    }
 
-    @Parameters(commandDescription = "Test pulsar consumer performance.")
-    static class Arguments extends PerformanceTopicListArguments {
+    @Override
+    protected Object consumerTypeForLog() {
+        return this.scalableConsumerType;
+    }
 
-        @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
-                + "one consumer is allowed when subscriptionType is Exclusive",
-                validateWith = PositiveNumberParameterValidator.class)
-        public int numConsumers = 1;
-
-        @Parameter(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)",
-                validateWith = PositiveNumberParameterValidator.class)
-        public int numSubscriptions = 1;
-
-        @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
-        public String subscriberName;
-
-        @Parameter(names = { "-ss", "--subscriptions" },
-                description = "A list of subscriptions to consume (for example, sub1,sub2)")
-        public List<String> subscriptions = Collections.singletonList("sub");
-
-        @Parameter(names = { "-st", "--subscription-type" }, description = "Subscription type")
-        public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
-
-        @Parameter(names = { "-sp", "--subscription-position" }, description = "Subscription position")
-        private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
-
-        @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message consumer (rate in msg/s)")
-        public double rate = 0;
-
-        @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
-        public int receiverQueueSize = 1000;
-
-        @Parameter(names = { "-p", "--receiver-queue-size-across-partitions" },
-                description = "Max total size of the receiver queue across partitions")
-        public int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
-
-        @Parameter(names = {"-aq", "--auto-scaled-receiver-queue-size"},
-                description = "Enable autoScaledReceiverQueueSize")
-        public boolean autoScaledReceiverQueueSize = false;
-
-        @Parameter(names = {"-rs", "--replicated" },
-                description = "Whether the subscription status should be replicated")
-        public boolean replicatedSubscription = false;
-
-        @Parameter(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
-        public int acknowledgmentsGroupingDelayMillis = 100;
-
-        @Parameter(names = {"-m",
-                "--num-messages"},
-                description = "Number of messages to consume in total. If <= 0, it will keep consuming")
-        public long numMessages = 0;
-
-        @Parameter(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
-        private int maxPendingChunkedMessage = 0;
-
-        @Parameter(names = { "-ac",
-                "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
-        private boolean autoAckOldestChunkedMessageOnQueueFull = false;
-
-        @Parameter(names = { "-e",
-                "--expire_time_incomplete_chunked_messages" },
-                description = "Expire time in ms for incomplete chunk messages")
-        private long expireTimeOfIncompleteChunkedMessageMs = 0;
-
-        @Parameter(names = { "-v",
-                "--encryption-key-value-file" },
-                description = "The file which contains the private key to decrypt payload")
-        public String encKeyFile = null;
-
-        @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
-        public long testTime = 0;
-
-        @Parameter(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
-        public boolean batchIndexAck = false;
-
-        @Parameter(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = 1)
-        private boolean poolMessages = true;
-
-        @Parameter(names = {"-tto", "--txn-timeout"},  description = "Set the time value of transaction timeout,"
-                + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
-        public long transactionTimeout = 10;
-
-        @Parameter(names = {"-nmt", "--numMessage-perTransaction"},
-                description = "The number of messages acknowledged by a transaction. "
-                + "(After --txn-enable setting to true, -numMessage-perTransaction takes effect")
-        public int numMessagesPerTransaction = 50;
-
-        @Parameter(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
-        public boolean isEnableTransaction = false;
-
-        @Parameter(names = {"-ntxn"}, description = "The number of opened transactions, 0 means keeping open."
-                + "(After --txn-enable setting to true, -ntxn takes effect.)")
-        public long totalNumTxn = 0;
-
-        @Parameter(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
-                + "setting to true, -abort takes effect)")
-        public boolean isAbortTransaction = false;
-
-        @Parameter(names = { "--histogram-file" }, description = "HdrHistogram output file")
-        public String histogramFile = null;
-
-        @Override
-        public void fillArgumentsFromProperties(Properties prop) {
+    @Override
+    protected void prepareRun() {
+        log.info().attr("consumerType", this.scalableConsumerType).log("Using V5 scalable-topic consumer API");
+        if (this.subscriptionType == SubscriptionType.Exclusive
+                || this.subscriptionType == SubscriptionType.Failover) {
+            log.warn().attr("type", this.subscriptionType)
+                    .log("V5 has no exclusive/failover subscription type. Falling back to QueueConsumer "
+                            + "(Shared-style work distribution). Latency/throughput numbers may not be "
+                            + "directly comparable with the v4 client. Use consume-v4 for the v4 client.");
         }
+        if (this.autoScaledReceiverQueueSize) {
+            log.warn("--auto-scaled-receiver-queue-size has no V5 equivalent and will be ignored.");
+        }
+        if (this.batchIndexAck) {
+            log.warn("--batch-index-ack has no V5 equivalent and will be ignored.");
+        }
+        if (!this.poolMessages) {
+            log.info("--pool-messages has no effect on V5 (pooled messages are not exposed).");
+        }
+        if (this.maxPendingChunkedMessage > 0 || this.expireTimeOfIncompleteChunkedMessageMs > 0
+                || this.autoAckOldestChunkedMessageOnQueueFull) {
+            log.warn("Chunked-message specific knobs (--max_chunked_msg / "
+                    + "--expire_time_incomplete_chunked_messages / --auto_ack_chunk_q_full) "
+                    + "have no V5 equivalents and will be ignored.");
+        }
+        if (this.maxTotalReceiverQueueSizeAcrossPartitions != 50000) {
+            log.info("--receiver-queue-size-across-partitions has no V5 equivalent and will be ignored.");
+        }
+        this.encryptionPolicy = buildEncryptionPolicyOrNull();
+    }
 
-        @Override
-        public void validate() throws Exception {
-            super.validate();
-            if (subscriptionType == SubscriptionType.Exclusive && numConsumers > 1) {
-                throw new Exception("Only one consumer is allowed when subscriptionType is Exclusive");
-            }
+    @Override
+    protected PulsarClient createClient() throws PulsarClientException {
+        PulsarClientBuilder clientBuilder = PerfClientUtils.createV5ClientBuilderFromArguments(this);
+        if (this.isEnableTransaction) {
+            clientBuilder.transactionPolicy(TransactionPolicy.builder()
+                    .timeout(Duration.ofSeconds(this.transactionTimeout))
+                    .build());
+        }
+        return clientBuilder.build();
+    }
 
-            if (subscriptions != null && subscriptions.size() != numSubscriptions) {
-                // keep compatibility with the previous version
-                if (subscriptions.size() == 1) {
-                    if (subscriberName == null) {
-                        subscriberName = subscriptions.get(0);
-                    }
-                    List<String> defaultSubscriptions = new ArrayList<>();
-                    for (int i = 0; i < numSubscriptions; i++) {
-                        defaultSubscriptions.add(String.format("%s-%d", subscriberName, i));
-                    }
-                    subscriptions = defaultSubscriptions;
-                } else {
-                    throw new Exception("The size of subscriptions list should be equal to --num-subscriptions");
-                }
+    @Override
+    protected void closeClient(PulsarClient client) {
+        PerfClientUtils.closeClient(client);
+    }
+
+    @Override
+    protected CompletableFuture<PerfConsumer> subscribeAsync(PulsarClient client, String topic,
+                                                             String subscription) {
+        if (this.scalableConsumerType == ScalableConsumerType.Stream) {
+            // StreamConsumer has no receiverQueueSize knob; the rest carries over. Deliberately
+            // do NOT set a consumerName: the controller keys group membership by consumer name,
+            // so the V5 client's auto-generated unique name keeps every consumer — within one
+            // process and across separate `pulsar-perf consume` invocations — a distinct member.
+            // (Setting a deterministic name would make two processes collide and the second be
+            // treated as a reconnect of the first.)
+            StreamConsumerBuilder<byte[]> b = client.newStreamConsumer(Schema.bytes())
+                    .acknowledgmentGroupTime(Duration.ofMillis(this.acknowledgmentsGroupingDelayMillis))
+                    .subscriptionInitialPosition(this.subscriptionInitialPosition)
+                    .replicateSubscriptionState(this.replicatedSubscription)
+                    .topic(topic)
+                    .subscriptionName(subscription);
+            if (encryptionPolicy != null) {
+                b.encryptionPolicy(encryptionPolicy);
             }
+            return b.subscribeAsync().thenApply(PerformanceConsumer::wrap);
+        }
+        QueueConsumerBuilder<byte[]> b = client.newQueueConsumer(Schema.bytes())
+                .receiverQueueSize(this.receiverQueueSize)
+                .acknowledgmentGroupTime(Duration.ofMillis(this.acknowledgmentsGroupingDelayMillis))
+                .subscriptionInitialPosition(this.subscriptionInitialPosition)
+                .replicateSubscriptionState(this.replicatedSubscription)
+                .topic(topic)
+                .subscriptionName(subscription);
+        if (encryptionPolicy != null) {
+            b.encryptionPolicy(encryptionPolicy);
+        }
+        return b.subscribeAsync().thenApply(PerformanceConsumer::wrap);
+    }
+
+    @Override
+    protected Transaction newTransaction(PulsarClient client) throws PulsarClientException {
+        return client.newTransaction();
+    }
+
+    @Override
+    protected Transaction openFirstTransaction(PulsarClient client)
+            throws PulsarClientException, InterruptedException {
+        return PerfClientUtils.newTransactionWithRetry(client);
+    }
+
+    @Override
+    protected CompletableFuture<Void> commitTransaction(Transaction transaction) {
+        return transaction.async().commit();
+    }
+
+    @Override
+    protected CompletableFuture<Void> abortTransaction(Transaction transaction) {
+        return transaction.async().abort();
+    }
+
+    @Override
+    protected int messageSize(Message<byte[]> msg) {
+        return msg.size();
+    }
+
+    @Override
+    protected long publishTimeMillis(Message<byte[]> msg) {
+        return msg.publishTime().toEpochMilli();
+    }
+
+    @Override
+    protected void acknowledge(PerfConsumer consumer, Message<byte[]> msg, Transaction transaction) {
+        // V5 acknowledge is synchronous void. Catch any failure into the shared counter.
+        try {
+            if (transaction != null) {
+                consumer.ackTxn(msg.id(), transaction);
+            } else {
+                consumer.ack(msg.id());
+            }
+            ackSucceeded();
+        } catch (Exception e) {
+            ackFailed(e);
         }
     }
 
-    public static void main(String[] args) throws Exception {
-        final Arguments arguments = new Arguments();
-        arguments.parseCLI("pulsar-perf consume", args);
-
-        // Dump config variables
-        PerfClientUtils.printJVMInformation(log);
-        ObjectMapper m = new ObjectMapper();
-        ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info("Starting Pulsar performance consumer with config: {}", w.writeValueAsString(arguments));
-
-        final Recorder qRecorder = arguments.autoScaledReceiverQueueSize
-                ? new Recorder(arguments.receiverQueueSize, 5) : null;
-        final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
-        long startTime = System.nanoTime();
-        long testEndTime = startTime + (long) (arguments.testTime * 1e9);
-
-        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
-                .enableTransaction(arguments.isEnableTransaction);
-
-        PulsarClient pulsarClient = clientBuilder.build();
-
-        AtomicReference<Transaction> atomicReference;
-        if (arguments.isEnableTransaction) {
-            atomicReference = new AtomicReference<>(pulsarClient.newTransaction()
-                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS).build().get());
-        } else {
-            atomicReference = new AtomicReference<>(null);
+    /**
+     * V5 has no MessageListener — drive each consumer from a dedicated poll thread that calls
+     * receive(timeout) and runs the same per-message handler the v4 listener does. One thread per
+     * consumer mirrors the v4 dispatch concurrency closely enough for the perf workload.
+     */
+    @Override
+    protected void startConsuming(List<PerfConsumer> consumers) {
+        consumerExec = Executors.newCachedThreadPool(
+                new DefaultThreadFactory("pulsar-perf-consumer-poll"));
+        for (PerfConsumer consumer : consumers) {
+            consumerExec.submit(() -> pollLoop(consumer));
         }
+    }
 
-        AtomicLong messageAckedCount = new AtomicLong();
-        Semaphore messageReceiveLimiter = new Semaphore(arguments.numMessagesPerTransaction);
-        Thread thread = Thread.currentThread();
-        MessageListener<ByteBuffer> listener = (consumer, msg) -> {
-                if (arguments.testTime > 0) {
-                    if (System.nanoTime() > testEndTime) {
-                        log.info("------------------- DONE -----------------------");
-                        PerfClientUtils.exit(0);
-                        thread.interrupt();
-                    }
-                }
-                if (arguments.totalNumTxn > 0) {
-                    if (totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= arguments.totalNumTxn) {
-                        log.info("------------------- DONE -----------------------");
-                        PerfClientUtils.exit(0);
-                        thread.interrupt();
-                    }
-                }
-                if (qRecorder != null) {
-                    qRecorder.recordValue(((ConsumerBase<?>) consumer).getTotalIncomingMessages());
-                }
-                messagesReceived.increment();
-                bytesReceived.add(msg.size());
-
-                totalMessagesReceived.increment();
-                totalBytesReceived.add(msg.size());
-
-                if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
-                    log.info("------------------- DONE -----------------------");
-                    PerfClientUtils.exit(0);
-                    thread.interrupt();
-                }
-
-                if (limiter != null) {
-                    limiter.acquire();
-                }
-
-                long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
-                if (latencyMillis >= 0) {
-                    if (latencyMillis >= MAX_LATENCY) {
-                        latencyMillis = MAX_LATENCY;
-                    }
-                    recorder.recordValue(latencyMillis);
-                    cumulativeRecorder.recordValue(latencyMillis);
-                }
-                if (arguments.isEnableTransaction) {
-                    try {
-                        messageReceiveLimiter.acquire();
-                    } catch (InterruptedException e){
-                        log.error("Got error: ", e);
-                    }
-                    consumer.acknowledgeAsync(msg.getMessageId(), atomicReference.get()).thenRun(() -> {
-                        totalMessageAck.increment();
-                        messageAck.increment();
-                    }).exceptionally(throwable ->{
-                        log.error("Ack message {} failed with exception", msg, throwable);
-                        totalMessageAckFailed.increment();
-                        return null;
-                    });
-                } else {
-                    consumer.acknowledgeAsync(msg).thenRun(()->{
-                        totalMessageAck.increment();
-                        messageAck.increment();
-                    }
-                    ).exceptionally(throwable ->{
-                                log.error("Ack message {} failed with exception", msg, throwable);
-                                totalMessageAckFailed.increment();
-                                return null;
-                            }
-                    );
-                }
-                if (arguments.poolMessages) {
-                    msg.release();
-                }
-                if (arguments.isEnableTransaction
-                        && messageAckedCount.incrementAndGet() == arguments.numMessagesPerTransaction) {
-                    Transaction transaction = atomicReference.get();
-                    if (!arguments.isAbortTransaction) {
-                        transaction.commit()
-                                .thenRun(() -> {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("Commit transaction {}", transaction.getTxnID());
-                                    }
-                                    totalEndTxnOpSuccessNum.increment();
-                                    numTxnOpSuccess.increment();
-                                })
-                                .exceptionally(exception -> {
-                                    log.error("Commit transaction failed with exception : ", exception);
-                                    totalEndTxnOpFailNum.increment();
-                                    return null;
-                                });
-                    } else {
-                        transaction.abort().thenRun(() -> {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Abort transaction {}", transaction.getTxnID());
-                            }
-                            totalEndTxnOpSuccessNum.increment();
-                            numTxnOpSuccess.increment();
-                        }).exceptionally(exception -> {
-                            log.error("Abort transaction {} failed with exception",
-                                    transaction.getTxnID().toString(),
-                                    exception);
-                            totalEndTxnOpFailNum.increment();
-                            return null;
-                        });
-                    }
-                    while (true) {
-                        try {
-                            Transaction newTransaction = pulsarClient.newTransaction()
-                                    .withTransactionTimeout(arguments.transactionTimeout, TimeUnit.SECONDS)
-                                    .build().get();
-                            atomicReference.compareAndSet(transaction, newTransaction);
-                            totalNumTxnOpenSuccess.increment();
-                            messageAckedCount.set(0);
-                            messageReceiveLimiter.release(arguments.numMessagesPerTransaction);
-                            break;
-                        } catch (Exception e) {
-                            log.error("Failed to new transaction with exception:", e);
-                            totalNumTxnOpenFail.increment();
-                        }
-                    }
-                }
-
-        };
-
-        List<Future<Consumer<ByteBuffer>>> futures = new ArrayList<>();
-        ConsumerBuilder<ByteBuffer> consumerBuilder = pulsarClient.newConsumer(Schema.BYTEBUFFER) //
-                .messageListener(listener) //
-                .receiverQueueSize(arguments.receiverQueueSize) //
-                .maxTotalReceiverQueueSizeAcrossPartitions(arguments.maxTotalReceiverQueueSizeAcrossPartitions)
-                .acknowledgmentGroupTime(arguments.acknowledgmentsGroupingDelayMillis, TimeUnit.MILLISECONDS) //
-                .subscriptionType(arguments.subscriptionType)
-                .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
-                .autoAckOldestChunkedMessageOnQueueFull(arguments.autoAckOldestChunkedMessageOnQueueFull)
-                .enableBatchIndexAcknowledgment(arguments.batchIndexAck)
-                .poolMessages(arguments.poolMessages)
-                .replicateSubscriptionState(arguments.replicatedSubscription)
-                .autoScaledReceiverQueueSizeEnabled(arguments.autoScaledReceiverQueueSize);
-        if (arguments.maxPendingChunkedMessage > 0) {
-            consumerBuilder.maxPendingChunkedMessage(arguments.maxPendingChunkedMessage);
+    @Override
+    protected void stopConsuming() {
+        if (consumerExec == null) {
+            return;
         }
-        if (arguments.expireTimeOfIncompleteChunkedMessageMs > 0) {
-            consumerBuilder.expireTimeOfIncompleteChunkedMessage(arguments.expireTimeOfIncompleteChunkedMessageMs,
-                    TimeUnit.MILLISECONDS);
-        }
-
-        if (isNotBlank(arguments.encKeyFile)) {
-            consumerBuilder.defaultCryptoKeyReader(arguments.encKeyFile);
-        }
-
-        for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = TopicName.get(arguments.topics.get(i));
-
-            log.info("Adding {} consumers per subscription on topic {}", arguments.numConsumers, topicName);
-
-            for (int j = 0; j < arguments.numSubscriptions; j++) {
-                String subscriberName = arguments.subscriptions.get(j);
-                for (int k = 0; k < arguments.numConsumers; k++) {
-                    futures.add(consumerBuilder.clone().topic(topicName.toString()).subscriptionName(subscriberName)
-                            .subscribeAsync());
-                }
+        consumerExec.shutdownNow();
+        try {
+            if (!consumerExec.awaitTermination(10, TimeUnit.SECONDS)) {
+                log.warn("Consumer poll executor did not terminate within timeout");
             }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
-        for (Future<Consumer<ByteBuffer>> future : futures) {
-            future.get();
-        }
-        log.info("Start receiving from {} consumers per subscription on {} topics", arguments.numConsumers,
-                arguments.numTopics);
+    }
 
-        long start = System.nanoTime();
+    /** Per-consumer poll loop replacing the v4 {@code MessageListener}. */
+    private void pollLoop(PerfConsumer consumer) {
+        while (!Thread.currentThread().isInterrupted()) {
+            if (checkDone()) {
+                return;
+            }
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            printAggregatedThroughput(start, arguments);
-            printAggregatedStats();
-        }));
-
-
-        long oldTime = System.nanoTime();
-
-        Histogram reportHistogram = null;
-        Histogram qHistogram = null;
-        HistogramLogWriter histogramLogWriter = null;
-
-        if (arguments.histogramFile != null) {
-            String statsFileName = arguments.histogramFile;
-            log.info("Dumping latency stats to {}", statsFileName);
-
-            PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
-            histogramLogWriter = new HistogramLogWriter(histogramLog);
-
-            // Some log header bits
-            histogramLogWriter.outputLogFormatVersion();
-            histogramLogWriter.outputLegend();
-        }
-
-        while (true) {
+            Message<byte[]> msg;
             try {
-                Thread.sleep(10000);
-            } catch (InterruptedException e) {
-                break;
-            }
-
-            long now = System.nanoTime();
-            double elapsed = (now - oldTime) / 1e9;
-            long total = totalMessagesReceived.sum();
-            double rate = messagesReceived.sumThenReset() / elapsed;
-            double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
-            double rateAck = messageAck.sumThenReset() / elapsed;
-            long totalTxnOpSuccessNum = 0;
-            long totalTxnOpFailNum = 0;
-            double rateOpenTxn = 0;
-            reportHistogram = recorder.getIntervalHistogram(reportHistogram);
-
-            if (arguments.isEnableTransaction) {
-                totalTxnOpSuccessNum = totalEndTxnOpSuccessNum.sum();
-                totalTxnOpFailNum = totalEndTxnOpFailNum.sum();
-                rateOpenTxn = numTxnOpSuccess.sumThenReset() / elapsed;
-                log.info("--- Transaction: {} transaction end successfully --- {} transaction end failed "
-                                + "--- {}  Txn/s --- AckRate: {} msg/s",
-                        totalTxnOpSuccessNum,
-                        totalTxnOpFailNum,
-                        dec.format(rateOpenTxn),
-                        dec.format(rateAck));
-            }
-            log.info(
-                    "Throughput received: {} msg --- {}  msg/s --- {} Mbit/s  "
-                            + "--- Latency: mean: {} ms - med: {} "
-                            + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    intFormat.format(total),
-                    dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
-                    reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
-                    reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
-                    reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
-
-            if (arguments.autoScaledReceiverQueueSize && log.isDebugEnabled() && qRecorder != null) {
-                qHistogram = qRecorder.getIntervalHistogram(qHistogram);
-                log.debug("ReceiverQueueUsage: cnt={},mean={}, min={},max={},25pct={},50pct={},75pct={}",
-                        qHistogram.getTotalCount(), dec.format(qHistogram.getMean()),
-                        qHistogram.getMinValue(), qHistogram.getMaxValue(),
-                        qHistogram.getValueAtPercentile(25),
-                        qHistogram.getValueAtPercentile(50),
-                        qHistogram.getValueAtPercentile(75)
-                );
-                qHistogram.reset();
-                for (Future<Consumer<ByteBuffer>> future : futures) {
-                    ConsumerBase<?> consumerBase = (ConsumerBase<?>) future.get();
-                    log.debug("[{}] CurrentReceiverQueueSize={}", consumerBase.getConsumerName(),
-                            consumerBase.getCurrentReceiverQueueSize());
-                    if (consumerBase instanceof MultiTopicsConsumerImpl) {
-                        for (ConsumerImpl<?> consumer : ((MultiTopicsConsumerImpl<?>) consumerBase).getConsumers()) {
-                            log.debug("[{}] SubConsumer.CurrentReceiverQueueSize={}", consumer.getConsumerName(),
-                                    consumer.getCurrentReceiverQueueSize());
-                        }
-                    }
+                msg = consumer.receive(Duration.ofSeconds(1));
+            } catch (Exception e) {
+                if (PerfClientUtils.hasInterruptedException(e)) {
+                    Thread.currentThread().interrupt();
+                    return;
                 }
+                log.warn().exception(e).log("receive failed; retrying");
+                continue;
             }
-            if (histogramLogWriter != null) {
-                histogramLogWriter.outputIntervalHistogram(reportHistogram);
+            if (msg == null) {
+                continue;
             }
 
-            reportHistogram.reset();
-            oldTime = now;
+            if (handleMessage(consumer, msg)) {
+                return;
+            }
         }
-
-        pulsarClient.close();
     }
 
-    private static void printAggregatedThroughput(long start, Arguments arguments) {
-        double elapsed = (System.nanoTime() - start) / 1e9;
-        double rate = totalMessagesReceived.sum() / elapsed;
-        double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
-        long totalEndTxnSuccess = 0;
-        long totalEndTxnFail = 0;
-        long numTransactionOpenFailed = 0;
-        long numTransactionOpenSuccess = 0;
-        long totalnumMessageAckFailed = 0;
-        double rateAck = totalMessageAck.sum() / elapsed;
-        double rateOpenTxn = 0;
-        if (arguments.isEnableTransaction) {
-            totalEndTxnSuccess = totalEndTxnOpSuccessNum.sum();
-            totalEndTxnFail = totalEndTxnOpFailNum.sum();
-            rateOpenTxn = (totalEndTxnSuccess + totalEndTxnFail) / elapsed;
-            totalnumMessageAckFailed = totalMessageAckFailed.sum();
-            numTransactionOpenFailed = totalNumTxnOpenFail.sum();
-            numTransactionOpenSuccess = totalNumTxnOpenSuccess.sum();
-            log.info("-- Transaction: {}  transaction end successfully --- {} transaction end failed "
-                            + "--- {} transaction open successfully --- {} transaction open failed "
-                            + "--- {} Txn/s ",
-                    totalEndTxnSuccess,
-                    totalEndTxnFail,
-                    numTransactionOpenSuccess,
-                    numTransactionOpenFailed,
-                    dec.format(rateOpenTxn));
+    /**
+     * Minimal common view over the V5 {@link QueueConsumer} / {@link StreamConsumer} APIs so the
+     * poll loop is independent of which scalable-topic consumer type was selected. The ack methods
+     * map to {@code acknowledge} for Queue and {@code acknowledgeCumulative} for Stream.
+     */
+    public interface PerfConsumer {
+        Message<byte[]> receive(Duration timeout) throws Exception;
+
+        void ack(MessageId messageId) throws Exception;
+
+        void ackTxn(MessageId messageId, Transaction txn) throws Exception;
+    }
+
+    private ConsumerEncryptionPolicy buildEncryptionPolicyOrNull() {
+        if (!isNotBlank(this.encKeyFile)) {
+            return null;
         }
-        log.info(
-            "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s"
-                 + " --- AckRate: {}  msg/s --- ack failed {} msg",
-            totalMessagesReceived.sum(),
-            dec.format(rate),
-            dec.format(throughput),
-                rateAck,
-                totalnumMessageAckFailed);
+        // We do not know the key name from --encryption-key-value-file alone; PemFileKeyProvider
+        // expects a name → path mapping. Register the file under the same name the producer side
+        // used (defaults to the file path's last component if unset upstream).
+        String keyName = Path.of(this.encKeyFile).getFileName().toString();
+        PemFileKeyProvider keys = PemFileKeyProvider.builder()
+                .privateKey(keyName, Path.of(this.encKeyFile))
+                .build();
+        return ConsumerEncryptionPolicy.builder()
+                .privateKeyProvider(keys)
+                .build();
     }
 
-    private static void printAggregatedStats() {
-        Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
+    private static PerfConsumer wrap(QueueConsumer<byte[]> consumer) {
+        return new PerfConsumer() {
+            @Override
+            public Message<byte[]> receive(Duration timeout) throws Exception {
+                return consumer.receive(timeout);
+            }
 
-        log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
-                        + "- 99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
-                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
-                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
-                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
+            @Override
+            public void ack(MessageId messageId) throws Exception {
+                consumer.acknowledge(messageId);
+            }
+
+            @Override
+            public void ackTxn(MessageId messageId, Transaction txn) throws Exception {
+                consumer.acknowledge(messageId, txn);
+            }
+        };
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);
+    private static PerfConsumer wrap(StreamConsumer<byte[]> consumer) {
+        return new PerfConsumer() {
+            @Override
+            public Message<byte[]> receive(Duration timeout) throws Exception {
+                return consumer.receive(timeout);
+            }
+
+            @Override
+            public void ack(MessageId messageId) throws Exception {
+                consumer.acknowledgeCumulative(messageId);
+            }
+
+            @Override
+            public void ackTxn(MessageId messageId, Transaction txn) throws Exception {
+                consumer.acknowledgeCumulative(messageId, txn);
+            }
+        };
+    }
 }

@@ -25,7 +25,10 @@ import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 
+@SuppressWarnings("deprecation")
 public class AuthenticationProviderTls implements AuthenticationProvider {
+
+    private AuthenticationMetrics authenticationMetrics;
 
     private enum ErrorCode {
         UNKNOWN,
@@ -40,12 +43,23 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        // noop
+        initialize(Context.builder().config(config).build());
+    }
+
+    @Override
+    public void initialize(Context context) throws IOException {
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
     }
 
     @Override
     public String getAuthMethodName() {
         return "tls";
+    }
+
+    @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
     }
 
     @Override
@@ -96,7 +110,7 @@ public class AuthenticationProviderTls implements AuthenticationProvider {
                 errorCode = ErrorCode.INVALID_CN;
                 throw new AuthenticationException("Client unable to authenticate with TLS certificate");
             }
-            AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+            authenticationMetrics.recordSuccess();
         } catch (AuthenticationException exception) {
             incrementFailureMetric(errorCode);
             throw exception;

@@ -20,11 +20,11 @@ package org.apache.pulsar.broker.authentication;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import javax.naming.AuthenticationException;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.codec.binary.Base64;
+import lombok.CustomLog;
 
-@Slf4j
+@CustomLog
 public class SaslRoleTokenSigner {
     private static final String SIGNATURE = "&s=";
 
@@ -76,7 +76,7 @@ public class SaslRoleTokenSigner {
         String originalSignature = signedStr.substring(index + SIGNATURE.length());
         String rawValue = signedStr.substring(0, index);
         String currentSignature = computeSignature(rawValue);
-        if (!originalSignature.equals(currentSignature)) {
+        if (!MessageDigest.isEqual(originalSignature.getBytes(), currentSignature.getBytes())){
             throw new AuthenticationException("Invalid signature");
         }
         return rawValue;
@@ -97,7 +97,7 @@ public class SaslRoleTokenSigner {
 
             md.update(secret);
             byte[] digest = md.digest();
-            return new Base64(0).encodeToString(digest);
+            return Base64.getEncoder().encodeToString(digest);
         } catch (NoSuchAlgorithmException ex) {
             throw new RuntimeException("It should not happen, " + ex.getMessage(), ex);
         }

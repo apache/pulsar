@@ -25,6 +25,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.bookkeeper.test.ZooKeeperCluster;
 import org.apache.bookkeeper.util.IOUtils;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
@@ -33,11 +34,9 @@ import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
 import org.apache.zookeeper.server.ZooKeeperServer;
 import org.apache.zookeeper.test.ClientBase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class ZooKeeperUtil implements ZooKeeperCluster {
-    static final Logger LOG;
     protected Integer zooKeeperPort = 0;
     private InetSocketAddress zkaddr;
     protected ZooKeeperServer zks;
@@ -73,7 +72,7 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
     }
 
     public void startCluster() throws Exception {
-        LOG.debug("Running ZK server");
+        log.debug("Running ZK server");
         ClientBase.setupTestEnv();
         this.zkTmpDir = IOUtils.createTempDir("zookeeper", "test");
         this.restartCluster();
@@ -91,30 +90,34 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
             this.connectString = this.zkaddr.getAddress().getHostAddress() + ":" + this.zooKeeperPort;
         }
 
-        boolean b = ClientBase.waitForServerUp(this.getZooKeeperConnectString(), (long)ClientBase.CONNECTION_TIMEOUT);
-        LOG.debug("Server up: " + b);
-        LOG.debug("Instantiate ZK Client");
-        this.zkc = ZooKeeperClient.newBuilder().connectString(this.getZooKeeperConnectString()).sessionTimeoutMs(10000).build();
+        boolean b = ClientBase.waitForServerUp(this.getZooKeeperConnectString(),
+                (long) ClientBase.CONNECTION_TIMEOUT);
+        log.debug("Server up: " + b);
+        log.debug("Instantiate ZK Client");
+        this.zkc = ZooKeeperClient.newBuilder().connectString(this.getZooKeeperConnectString())
+                .sessionTimeoutMs(10000).build();
     }
 
-    public void sleepCluster(final int time, final TimeUnit timeUnit, final CountDownLatch l) throws InterruptedException, IOException {
+    public void sleepCluster(final int time, final TimeUnit timeUnit, final CountDownLatch l)
+            throws InterruptedException, IOException {
         Thread[] allthreads = new Thread[Thread.activeCount()];
         Thread.enumerate(allthreads);
         Thread[] var5 = allthreads;
         int var6 = allthreads.length;
 
-        for(int var7 = 0; var7 < var6; ++var7) {
+        for (int var7 = 0; var7 < var6; ++var7) {
             final Thread t = var5[var7];
             if (t.getName().contains("SyncThread:0")) {
                 Thread sleeper = new Thread() {
+                    @SuppressWarnings({"deprecation", "removal"})
                     public void run() {
                         try {
                             t.suspend();
                             l.countDown();
-                            timeUnit.sleep((long)time);
+                            timeUnit.sleep((long) time);
                             t.resume();
                         } catch (Exception var2) {
-                            ZooKeeperUtil.LOG.error("Error suspending thread", var2);
+                            log.error().exception(var2).log("Error suspending thread");
                         }
 
                     }
@@ -134,7 +137,8 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
 
         if (this.serverFactory != null) {
             this.serverFactory.shutdown();
-            assertTrue(ClientBase.waitForServerDown(this.getZooKeeperConnectString(), (long)ClientBase.CONNECTION_TIMEOUT),"waiting for server down");
+            assertTrue(ClientBase.waitForServerDown(this.getZooKeeperConnectString(),
+                    (long) ClientBase.CONNECTION_TIMEOUT), "waiting for server down");
         }
 
         if (this.zks != null) {
@@ -150,6 +154,5 @@ public class ZooKeeperUtil implements ZooKeeperCluster {
 
     static {
         System.setProperty("zookeeper.4lw.commands.whitelist", "*");
-        LOG = LoggerFactory.getLogger(ZooKeeperUtil.class);
     }
 }

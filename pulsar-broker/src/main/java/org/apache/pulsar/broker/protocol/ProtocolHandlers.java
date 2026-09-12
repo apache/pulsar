@@ -24,21 +24,22 @@ import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 
 /**
  * A collection of loaded handlers.
  */
-@Slf4j
+@CustomLog
 public class ProtocolHandlers implements AutoCloseable {
 
     @Getter
@@ -51,6 +52,9 @@ public class ProtocolHandlers implements AutoCloseable {
      * @return the collection of protocol handlers
      */
     public static ProtocolHandlers load(ServiceConfiguration conf) throws IOException {
+        if (conf.getMessagingProtocols().isEmpty()) {
+            return new ProtocolHandlers(Collections.emptyMap());
+        }
         ProtocolHandlerDefinitions definitions =
                 ProtocolHandlerUtils.searchForHandlers(
                         conf.getProtocolHandlerDirectory(), conf.getNarExtractionDirectory());
@@ -69,18 +73,21 @@ public class ProtocolHandlers implements AutoCloseable {
             try {
                 handler = ProtocolHandlerUtils.load(definition, conf.getNarExtractionDirectory());
             } catch (IOException e) {
-                log.error("Failed to load the protocol handler for protocol `" + protocol + "`", e);
+                log.error()
+                        .attr("protocol", protocol)
+                        .exception(e)
+                        .log("Failed to load the protocol handler for protocol ` `");
                 throw new RuntimeException("Failed to load the protocol handler for protocol `" + protocol + "`");
             }
 
             if (!handler.accept(protocol)) {
                 handler.close();
-                log.error("Malformed protocol handler found for protocol `" + protocol + "`");
+                log.error().attr("protocol", protocol).log("Malformed protocol handler found for protocol ` `");
                 throw new RuntimeException("Malformed protocol handler found for protocol `" + protocol + "`");
             }
 
             handlersBuilder.put(protocol, handler);
-            log.info("Successfully loaded protocol handler for protocol `{}`", protocol);
+            log.info().attr("protocol", protocol).log("Successfully loaded protocol handler for protocol ``");
         });
 
         return new ProtocolHandlers(handlersBuilder.build());
@@ -130,9 +137,11 @@ public class ProtocolHandlers implements AutoCloseable {
                 handler.getValue().newChannelInitializers();
             initializers.forEach((address, initializer) -> {
                 if (!addresses.add(address)) {
-                    log.error("Protocol handler for `{}` attempts to use {} for its listening port."
-                        + " But it is already occupied by other message protocols.",
-                        handler.getKey(), address);
+                    log.error()
+                            .attr("handler", handler.getKey())
+                            .attr("address", address)
+                            .log("Protocol handler attempts to use listening port already occupied by other"
+                                    + " messaging protocols");
                     throw new RuntimeException("Protocol handler for `" + handler.getKey()
                         + "` attempts to use " + address + " for its listening port. But it is"
                         + " already occupied by other messaging protocols");

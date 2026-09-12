@@ -17,6 +17,9 @@
 
 blank_issues_enabled: false
 contact_links:
+  - name: 📃 Documentation issue
+    url: https://github.com/apache/pulsar-site/issues/new
+    about: This issue tracker is not for documentation issues. Please file documentation issues here.
   - name: Ask a question or get support
     url: https://github.com/apache/pulsar/discussions/categories/q-a
     about: Ask a question or request support for using Apache Pulsar

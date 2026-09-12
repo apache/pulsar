@@ -24,10 +24,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -39,12 +42,10 @@ import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 @Getter
+@CustomLog
 public class NamespaceResources extends BaseResources<Policies> {
-    private static final Logger log = LoggerFactory.getLogger(NamespaceResources.class);
 
     private final IsolationPolicyResources isolationPolicies;
     private final PartitionedTopicResources partitionedTopicResources;
@@ -52,13 +53,16 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
     private static final String NAMESPACE_BASE_PATH = "/namespace";
-    private static final String BUNDLE_DATA_BASE_PATH = "/loadbalance/bundle-data";
 
     public NamespaceResources(MetadataStore configurationStore, int operationTimeoutSec) {
+        this(configurationStore, operationTimeoutSec, ForkJoinPool.commonPool());
+    }
+
+    public NamespaceResources(MetadataStore configurationStore, int operationTimeoutSec, Executor executor) {
         super(configurationStore, Policies.class, operationTimeoutSec);
         this.configurationStore = configurationStore;
         isolationPolicies = new IsolationPolicyResources(configurationStore, operationTimeoutSec);
-        partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec);
+        partitionedTopicResources = new PartitionedTopicResources(configurationStore, operationTimeoutSec, executor);
     }
 
     public CompletableFuture<List<String>> listNamespacesAsync(String tenant) {
@@ -110,7 +114,7 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public CompletableFuture<Void> deletePoliciesAsync(NamespaceName ns){
-        return deleteAsync(joinPath(BASE_POLICIES_PATH, ns.toString()));
+        return deleteIfExistsAsync(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
 
     public Optional<Policies> getPolicies(NamespaceName ns) throws MetadataStoreException{
@@ -126,6 +130,14 @@ public class NamespaceResources extends BaseResources<Policies> {
     @Deprecated
     public Optional<Policies> getPoliciesIfCached(NamespaceName ns) {
         return getCache().getIfCached(joinPath(BASE_POLICIES_PATH, ns.toString()));
+    }
+
+    public Optional<Policies> getPoliciesIfCachedAndAsyncLoad(NamespaceName ns) {
+        Optional<Policies> policiesOptional = getCache().getIfCached(joinPath(BASE_POLICIES_PATH, ns.toString()));
+
+        // trigger async load if cache miss
+        getPoliciesAsync(ns);
+        return policiesOptional;
     }
 
     public CompletableFuture<Optional<Policies>> getPoliciesAsync(NamespaceName ns) {
@@ -150,10 +162,18 @@ public class NamespaceResources extends BaseResources<Policies> {
                 && path.substring(LOCAL_POLICIES_ROOT.length() + 1).contains("/");
     }
 
-    // clear resource of `/namespace/{namespaceName}` for zk-node
+    /**
+     * Clear resource of `/namespace/{namespaceName}` for zk-node.
+     * @param ns the namespace name
+     * @return a handle to the results of the operation
+     * */
+    //
     public CompletableFuture<Void> deleteNamespaceAsync(NamespaceName ns) {
         final String namespacePath = joinPath(NAMESPACE_BASE_PATH, ns.toString());
-        return deleteIfExistsAsync(namespacePath);
+        // please beware that this will delete all the children of the namespace
+        // including the ownership nodes (ephemeral nodes)
+        // see ServiceUnitUtils.path(ns) for the ownership node path
+        return getStore().deleteRecursive(namespacePath);
     }
 
     // clear resource of `/namespace/{tenant}` for zk-node
@@ -235,9 +255,11 @@ public class NamespaceResources extends BaseResources<Policies> {
 
     public static class PartitionedTopicResources extends BaseResources<PartitionedTopicMetadata> {
         private static final String PARTITIONED_TOPIC_PATH = "/admin/partitioned-topics";
+        private final Executor executor;
 
-        public PartitionedTopicResources(MetadataStore configurationStore, int operationTimeoutSec) {
+        public PartitionedTopicResources(MetadataStore configurationStore, int operationTimeoutSec, Executor executor) {
             super(configurationStore, PartitionedTopicMetadata.class, operationTimeoutSec);
+            this.executor = executor;
         }
 
         public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn, Function<PartitionedTopicMetadata,
@@ -262,6 +284,15 @@ public class NamespaceResources extends BaseResources<Policies> {
                             list.stream().map(x -> TopicName.get(domain.value(), ns, Codec.decode(x)).toString())
                                     .collect(Collectors.toList())
                     );
+        }
+
+        public Optional<PartitionedTopicMetadata> getPartitionedTopicMetadataIfCacheAndAsyncLoad(TopicName tn) {
+            String path = joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
+                tn.getEncodedLocalName());
+            Optional<PartitionedTopicMetadata> result = getCache().getIfCached(path);
+            // trigger async load if cache miss
+            getAsync(path);
+            return result;
         }
 
         public CompletableFuture<Optional<PartitionedTopicMetadata>> getPartitionedTopicMetadataAsync(TopicName tn) {
@@ -296,11 +327,19 @@ public class NamespaceResources extends BaseResources<Policies> {
 
         public CompletableFuture<Void> clearPartitionedTopicMetadataAsync(NamespaceName namespaceName) {
             final String globalPartitionedPath = joinPath(PARTITIONED_TOPIC_PATH, namespaceName.toString());
+            log.info()
+                    .attr("namespace", namespaceName)
+                    .attr("path", globalPartitionedPath)
+                    .log("Clearing partitioned topic metadata");
             return getStore().deleteRecursive(globalPartitionedPath);
         }
 
         public CompletableFuture<Void> clearPartitionedTopicTenantAsync(String tenant) {
             final String partitionedTopicPath = joinPath(PARTITIONED_TOPIC_PATH, tenant);
+            log.info()
+                    .attr("tenant", tenant)
+                    .attr("path", partitionedTopicPath)
+                    .log("Clearing partitioned topic metadata");
             return deleteIfExistsAsync(partitionedTopicPath);
         }
 
@@ -308,9 +347,7 @@ public class NamespaceResources extends BaseResources<Policies> {
             if (tn.isPartitioned()) {
                 return CompletableFuture.completedFuture(null);
             }
-            if (log.isDebugEnabled()) {
-                log.debug("markPartitionedTopicDeletedAsync {}", tn);
-            }
+            log.debug().attr("markPartitionedTopicDeletedAsync", tn).log("markPartitionedTopicDeletedAsync");
             return updatePartitionedTopicAsync(tn, md -> {
                 md.deleted = true;
                 return md;
@@ -321,9 +358,7 @@ public class NamespaceResources extends BaseResources<Policies> {
             if (tn.isPartitioned()) {
                 return CompletableFuture.completedFuture(null);
             }
-            if (log.isDebugEnabled()) {
-                log.debug("unmarkPartitionedTopicDeletedAsync {}", tn);
-            }
+            log.debug().attr("unmarkPartitionedTopicDeletedAsync", tn).log("unmarkPartitionedTopicDeletedAsync");
             return updatePartitionedTopicAsync(tn, md -> {
                 md.deleted = false;
                 return md;
@@ -349,7 +384,7 @@ public class NamespaceResources extends BaseResources<Policies> {
                     if (markExc.getCause() instanceof MetadataStoreException.NotFoundException) {
                         mdFound = false;
                     } else {
-                        log.error("Failed to mark the topic {} as deleted", topic, markExc);
+                        log.error().attr("topic", topic).exception(markExc).log("Failed to mark the topic as deleted");
                         future.completeExceptionally(markExc);
                         return;
                     }
@@ -362,7 +397,10 @@ public class NamespaceResources extends BaseResources<Policies> {
                         unmarkPartitionedTopicDeletedAsync(topic)
                                 .thenRun(() -> future.completeExceptionally(deleteExc))
                                 .exceptionally(ex -> {
-                                    log.warn("Failed to unmark the topic {} as deleted", topic, ex);
+                                    log.warn()
+                                            .attr("topic", topic)
+                                            .exception(ex)
+                                            .log("Failed to unmark the topic as deleted");
                                     future.completeExceptionally(deleteExc);
                                     return null;
                                 });
@@ -372,22 +410,9 @@ public class NamespaceResources extends BaseResources<Policies> {
                         future.complete(deleteResult);
                     }
                 });
-            });
+            }, executor);
 
             return future;
         }
     }
-
-    // clear resource of `/loadbalance/bundle-data/{tenant}/{namespace}/` in metadata-store
-    public CompletableFuture<Void> deleteBundleDataAsync(NamespaceName ns) {
-        final String namespaceBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, ns.toString());
-        return getStore().deleteRecursive(namespaceBundlePath);
-    }
-
-    // clear resource of `/loadbalance/bundle-data/{tenant}/` in metadata-store
-    public CompletableFuture<Void> deleteBundleDataTenantAsync(String tenant) {
-        final String tenantBundlePath = joinPath(BUNDLE_DATA_BASE_PATH, tenant);
-        return getStore().deleteRecursive(tenantBundlePath);
-    }
-
 }

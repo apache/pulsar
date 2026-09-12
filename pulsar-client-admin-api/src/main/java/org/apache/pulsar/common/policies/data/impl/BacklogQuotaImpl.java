@@ -20,13 +20,14 @@ package org.apache.pulsar.common.policies.data.impl;
 
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.ToString;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 
 @ToString
 @EqualsAndHashCode
 @NoArgsConstructor
-public class BacklogQuotaImpl implements BacklogQuota {
+public class BacklogQuotaImpl implements BacklogQuota, Cloneable {
     public static final long BYTES_IN_GIGABYTE = 1024 * 1024 * 1024;
 
     /**
@@ -52,6 +53,12 @@ public class BacklogQuotaImpl implements BacklogQuota {
         this.limitSize = limitSize;
         this.limitTime = limitTime;
         this.policy = policy;
+    }
+
+    @SneakyThrows
+    @Override
+    public BacklogQuotaImpl clone() {
+        return BacklogQuotaImpl.class.cast(super.clone());
     }
 
     @Deprecated

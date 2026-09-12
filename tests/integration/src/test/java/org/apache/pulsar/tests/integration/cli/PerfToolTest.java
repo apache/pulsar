@@ -19,6 +19,8 @@
 package org.apache.pulsar.tests.integration.cli;
 
 import static org.testng.Assert.fail;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
@@ -26,8 +28,6 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.messaging.TopicMessagingBase;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 public class PerfToolTest extends TopicMessagingBase {
 
@@ -35,56 +35,117 @@ public class PerfToolTest extends TopicMessagingBase {
 
     @Test
     public void testProduce() throws Exception {
-        String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":" + PulsarContainer.BROKER_PORT;
+        String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":"
+                + PulsarContainer.BROKER_PORT;
         final String topicName = getNonPartitionedTopic("testProduce", true);
         // Using the ZK container as it is separate from brokers, so its environment resembles real world usage more
         ZKContainer clientToolContainer = pulsarCluster.getZooKeeper();
-        ContainerExecResult produceResult = produceWithPerfTool(clientToolContainer, serviceUrl, topicName, MESSAGE_COUNT);
-        checkOutputForLogs(produceResult,"PerformanceProducer - Aggregated throughput stats",
+        ContainerExecResult produceResult =
+                produceWithPerfTool(clientToolContainer, serviceUrl, topicName, MESSAGE_COUNT);
+        checkOutputForLogs(produceResult, "PerformanceProducer - Aggregated throughput stats",
                 "PerformanceProducer - Aggregated latency stats");
     }
 
     @Test
     public void testConsume() throws Exception {
-        String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":" + PulsarContainer.BROKER_PORT;
+        String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":"
+                + PulsarContainer.BROKER_PORT;
         final String topicName = getNonPartitionedTopic("testConsume", true);
         // Using the ZK container as it is separate from brokers, so its environment resembles real world usage more
         ZKContainer clientToolContainer = pulsarCluster.getZooKeeper();
         ContainerExecResult consumeResult = consumeWithPerfTool(clientToolContainer, serviceUrl, topicName);
-        checkOutputForLogs(consumeResult,"PerformanceConsumer - Aggregated throughput stats",
+        checkOutputForLogs(consumeResult, "PerformanceConsumer - Aggregated throughput stats",
                 "PerformanceConsumer - Aggregated latency stats");
     }
 
     @Test
     public void testRead() throws Exception {
-        String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":" + PulsarContainer.BROKER_PORT;
+        String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":"
+                + PulsarContainer.BROKER_PORT;
         final String topicName = getNonPartitionedTopic("testRead", true);
         // Using the ZK container as it is separate from brokers, so its environment resembles real world usage more
         ZKContainer clientToolContainer = pulsarCluster.getZooKeeper();
         ContainerExecResult readResult = readWithPerfTool(clientToolContainer, serviceUrl, topicName);
-        checkOutputForLogs(readResult,"PerformanceReader - Aggregated throughput stats ",
+        checkOutputForLogs(readResult, "PerformanceReader - Aggregated throughput stats ",
                 "PerformanceReader - Aggregated latency stats");
     }
 
-    private ContainerExecResult produceWithPerfTool(ChaosContainer<?> container, String url, String topic, int messageCount) throws Exception {
-        ContainerExecResult result = container.execCmd("bin/pulsar-perf", "produce", "-u", url, "-m", String.valueOf(messageCount), topic);
+    @Test
+    public void testProduceV4() throws Exception {
+        String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":"
+                + PulsarContainer.BROKER_PORT;
+        final String topicName = getNonPartitionedTopic("testProduceV4", true);
+        ZKContainer clientToolContainer = pulsarCluster.getZooKeeper();
+        ContainerExecResult produceResult =
+                produceWithPerfTool(clientToolContainer, "produce-v4", serviceUrl, topicName, MESSAGE_COUNT);
+        checkOutputForLogs(produceResult, "PerformanceProducerV4 - Aggregated throughput stats",
+                "PerformanceProducerV4 - Aggregated latency stats");
+    }
+
+    @Test
+    public void testConsumeV4() throws Exception {
+        String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":"
+                + PulsarContainer.BROKER_PORT;
+        final String topicName = getNonPartitionedTopic("testConsumeV4", true);
+        ZKContainer clientToolContainer = pulsarCluster.getZooKeeper();
+        ContainerExecResult consumeResult =
+                consumeWithPerfTool(clientToolContainer, "consume-v4", "produce-v4", serviceUrl, topicName);
+        checkOutputForLogs(consumeResult, "PerformanceConsumerV4 - Aggregated throughput stats",
+                "PerformanceConsumerV4 - Aggregated latency stats");
+    }
+
+    @Test
+    public void testReadV4() throws Exception {
+        String serviceUrl = "pulsar://" + pulsarCluster.getProxy().getContainerName() + ":"
+                + PulsarContainer.BROKER_PORT;
+        final String topicName = getNonPartitionedTopic("testReadV4", true);
+        ZKContainer clientToolContainer = pulsarCluster.getZooKeeper();
+        ContainerExecResult readResult =
+                readWithPerfTool(clientToolContainer, "read-v4", "produce-v4", serviceUrl, topicName);
+        checkOutputForLogs(readResult, "PerformanceReaderV4 - Aggregated throughput stats ",
+                "PerformanceReaderV4 - Aggregated latency stats");
+    }
+
+    private ContainerExecResult produceWithPerfTool(ChaosContainer<?> container, String url, String topic,
+                                                    int messageCount) throws Exception {
+        return produceWithPerfTool(container, "produce", url, topic, messageCount);
+    }
+
+    private ContainerExecResult produceWithPerfTool(ChaosContainer<?> container, String command, String url,
+                                                    String topic, int messageCount) throws Exception {
+        ContainerExecResult result = container.execCmd("bin/pulsar-perf", command, "-u", url, "-m",
+                String.valueOf(messageCount), topic);
 
         return failOnError("Performance producer", result);
     }
 
-    private ContainerExecResult consumeWithPerfTool(ChaosContainer<?> container, String url, String topic) throws Exception {
-        CompletableFuture<ContainerExecResult> resultFuture =
-                container.execCmdAsync("bin/pulsar-perf", "consume", "-u", url, "-m", String.valueOf(MESSAGE_COUNT), topic);
-        produceWithPerfTool(container, url, topic, MESSAGE_COUNT);
+    private ContainerExecResult consumeWithPerfTool(ChaosContainer<?> container, String url, String topic)
+            throws Exception {
+        return consumeWithPerfTool(container, "consume", "produce", url, topic);
+    }
+
+    private ContainerExecResult consumeWithPerfTool(ChaosContainer<?> container, String consumeCommand,
+                                                    String produceCommand, String url, String topic)
+            throws Exception {
+        CompletableFuture<ContainerExecResult> resultFuture = container.execCmdAsync("bin/pulsar-perf",
+                consumeCommand, "-u", url, "-m", String.valueOf(MESSAGE_COUNT), topic);
+        produceWithPerfTool(container, produceCommand, url, topic, MESSAGE_COUNT);
 
         ContainerExecResult result = resultFuture.get(5, TimeUnit.SECONDS);
         return failOnError("Performance consumer", result);
     }
 
-    private ContainerExecResult readWithPerfTool(ChaosContainer<?> container, String url, String topic) throws Exception {
-        CompletableFuture<ContainerExecResult> resultFuture =
-                container.execCmdAsync("bin/pulsar-perf", "read", "-u", url, "-n", String.valueOf(MESSAGE_COUNT), topic);
-        produceWithPerfTool(container, url, topic, MESSAGE_COUNT);
+    private ContainerExecResult readWithPerfTool(ChaosContainer<?> container, String url, String topic)
+            throws Exception {
+        return readWithPerfTool(container, "read", "produce", url, topic);
+    }
+
+    private ContainerExecResult readWithPerfTool(ChaosContainer<?> container, String readCommand,
+                                                 String produceCommand, String url, String topic)
+            throws Exception {
+        CompletableFuture<ContainerExecResult> resultFuture = container.execCmdAsync("bin/pulsar-perf",
+                readCommand, "-u", url, "-n", String.valueOf(MESSAGE_COUNT), topic);
+        produceWithPerfTool(container, produceCommand, url, topic, MESSAGE_COUNT);
 
         ContainerExecResult result = resultFuture.get(5, TimeUnit.SECONDS);
         return failOnError("Performance consumer", result);

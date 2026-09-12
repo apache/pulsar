@@ -217,6 +217,14 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
     }
 
     /**
+     * Copy a BitSetRecyclable.
+     */
+    public static BitSetRecyclable valueOf(BitSetRecyclable src) {
+        // The internal implementation will do the array-copy.
+        return valueOf(src.words);
+    }
+
+    /**
      * Returns a new bit set containing all the bits in the given byte
      * buffer between its position and limit.
      *
@@ -864,8 +872,9 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public int cardinality() {
         int sum = 0;
-        for (int i = 0; i < wordsInUse; i++)
+        for (int i = 0; i < wordsInUse; i++) {
             sum += Long.bitCount(words[i]);
+        }
         return sum;
     }
 

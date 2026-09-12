@@ -21,8 +21,8 @@ package org.apache.pulsar.jclouds;
 import com.google.inject.AbstractModule;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.jclouds.ContextBuilder;
 import org.jclouds.http.apachehc.config.ApacheHCHttpCommandExecutorServiceModule;
 import org.jclouds.http.okhttp.config.OkHttpCommandExecutorServiceModule;
@@ -32,7 +32,7 @@ import org.jclouds.logging.slf4j.config.SLF4JLoggingModule;
  * This utility class helps in dealing with shaded dependencies (especially Guice).
  */
 @UtilityClass
-@Slf4j
+@CustomLog
 public class ShadedJCloudsUtils {
 
     /**

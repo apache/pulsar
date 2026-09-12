@@ -33,9 +33,13 @@ public class NamedEntity {
     public static final Pattern NAMED_ENTITY_PATTERN = Pattern.compile("^[-=:.\\w]*$");
 
     public static void checkName(String name) throws IllegalArgumentException {
-        Matcher m = NAMED_ENTITY_PATTERN.matcher(name);
-        if (!m.matches()) {
+        if (!isAllowed(name)) {
             throw new IllegalArgumentException("Invalid named entity: " + name);
         }
+    }
+
+    public static boolean isAllowed(String name) {
+        Matcher m = NAMED_ENTITY_PATTERN.matcher(name);
+        return m.matches();
     }
 }

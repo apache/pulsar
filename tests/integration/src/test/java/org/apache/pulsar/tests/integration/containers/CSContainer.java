@@ -39,4 +39,9 @@ public class CSContainer extends PulsarContainer<CSContainer> {
     protected boolean isCodeCoverageEnabled() {
         return false;
     }
+
+    @Override
+    protected boolean isPassNettyLeakDetectionSystemProperties() {
+        return false;
+    }
 }

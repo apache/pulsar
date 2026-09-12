@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.ResourceGroups;
 import org.apache.pulsar.client.api.Authentication;
@@ -32,8 +32,8 @@ import org.apache.pulsar.common.policies.data.ResourceGroup;
 public class ResourceGroupsImpl extends BaseResource implements ResourceGroups {
     private final WebTarget adminResourceGroups;
 
-    public ResourceGroupsImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public ResourceGroupsImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminResourceGroups = web.path("/admin/v2/resourcegroups");
     }
 

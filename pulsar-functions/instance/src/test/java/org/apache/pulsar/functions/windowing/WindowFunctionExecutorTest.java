@@ -49,7 +49,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Unit tests for {@link WindowFunctionExecutor}
+ * Unit tests for {@link WindowFunctionExecutor}.
  */
 public class WindowFunctionExecutorTest {
 
@@ -132,24 +132,28 @@ public class WindowFunctionExecutorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testWindowFunctionWithAtmostOnce() throws Exception {
         windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATMOST_ONCE);
         doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context)
                 .getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+        @SuppressWarnings("rawtypes")
         Record record = mock(Record.class);
         when(context.getCurrentRecord()).thenReturn(record);
         doReturn(Optional.of("test-topic")).when(record).getTopicName();
         doReturn(record).when(context).getCurrentRecord();
-        doReturn(100l).when(record).getValue();
+        doReturn(100L).when(record).getValue();
         testWindowedPulsarFunction.process(10L, context);
         verify(record, times(1)).ack();
     }
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
     public void testWindowFunctionWithAtleastOnce() throws Exception {
 
         WindowConfig config = new WindowConfig();
         config.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        @SuppressWarnings("rawtypes")
         WindowFunctionExecutor windowFunctionExecutor = spy(WindowFunctionExecutor.class);
         windowFunctionExecutor.windowConfig = config;
         doNothing().when(windowFunctionExecutor).initialize(any());
@@ -157,7 +161,7 @@ public class WindowFunctionExecutorTest {
         doReturn(CompletableFuture.completedFuture(null)).when(context).publish(any(), any(), any());
 
         List<Event<Record<Long>>> tuples = new ArrayList<>();
-        tuples.add(new EventImpl<>(mock(Record.class), 0l, mock(Record.class)));
+        tuples.add(new EventImpl<>(mock(Record.class), 0L, mock(Record.class)));
         WindowLifecycleListener<Event<Record<Long>>> eventWindowLifecycleListener =
                 windowFunctionExecutor.newWindowLifecycleListener(context);
 
@@ -166,7 +170,7 @@ public class WindowFunctionExecutorTest {
             verify(tuple.getRecord(), times(0)).ack();
         }
 
-        eventWindowLifecycleListener.onActivation(tuples, new ArrayList<>(), new ArrayList<>(), 0l);
+        eventWindowLifecycleListener.onActivation(tuples, new ArrayList<>(), new ArrayList<>(), 0L);
         for (Event<Record<Long>> tuple : tuples) {
             verify(tuple.get(), times(1)).ack();
         }
@@ -248,11 +252,13 @@ public class WindowFunctionExecutorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testExecuteWithLateTupleStream() throws Exception {
 
         windowConfig.setLateDataTopic("$late");
         doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
                 .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+        @SuppressWarnings("rawtypes")
         TypedMessageBuilder typedMessageBuilder = mock(TypedMessageBuilder.class);
         when(typedMessageBuilder.value(any())).thenReturn(typedMessageBuilder);
         when(typedMessageBuilder.sendAsync()).thenReturn(CompletableFuture.anyOf());

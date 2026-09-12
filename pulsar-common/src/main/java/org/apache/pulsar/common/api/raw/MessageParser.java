@@ -25,8 +25,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -37,8 +37,8 @@ import org.apache.pulsar.common.protocol.Commands;
 /**
  * Helper class to work with a raw Pulsar entry payload.
  */
+@CustomLog
 @UtilityClass
-@Slf4j
 public class MessageParser {
 
     private static final FastThreadLocal<SingleMessageMetadata> LOCAL_SINGLE_MESSAGE_METADATA = //
@@ -55,11 +55,17 @@ public class MessageParser {
         void process(RawMessage message) throws IOException;
     }
 
+    @Deprecated
+    public static void parseMessage(TopicName topicName, long ledgerId, long entryId, ByteBuf headersAndPayload,
+                                    MessageProcessor processor, int maxMessageSize) throws IOException {
+        parseMessage(topicName.toString(), ledgerId, entryId, headersAndPayload, processor, maxMessageSize);
+    }
+
     /**
      * Parse a raw Pulsar entry payload and extract all the individual message that may be included in the batch. The
      * provided {@link MessageProcessor} will be invoked for each individual message.
      */
-    public static void parseMessage(TopicName topicName, long ledgerId, long entryId, ByteBuf headersAndPayload,
+    public static void parseMessage(String topicName, long ledgerId, long entryId, ByteBuf headersAndPayload,
             MessageProcessor processor, int maxMessageSize) throws IOException {
         ByteBuf payload = headersAndPayload;
         ByteBuf uncompressedPayload = null;
@@ -77,8 +83,11 @@ public class MessageParser {
             try {
                 Commands.parseMessageMetadata(payload, msgMetadata);
             } catch (Throwable t) {
-                log.warn("[{}] Failed to deserialize metadata for message {}:{} - Ignoring",
-                    topicName, ledgerId, entryId);
+                log.warn()
+                    .attr("topic", topicName)
+                    .attr("ledgerId", ledgerId)
+                    .attr("entryId", entryId)
+                    .log("Failed to deserialize metadata for message - Ignoring");
                 return;
             }
 
@@ -117,14 +126,18 @@ public class MessageParser {
         }
     }
 
-    public static boolean verifyChecksum(TopicName topic, ByteBuf headersAndPayload, long ledgerId, long entryId) {
+    public static boolean verifyChecksum(String topic, ByteBuf headersAndPayload, long ledgerId, long entryId) {
         if (hasChecksum(headersAndPayload)) {
             int checksum = readChecksum(headersAndPayload);
             int computedChecksum = computeChecksum(headersAndPayload);
             if (checksum != computedChecksum) {
-                log.error(
-                        "[{}] Checksum mismatch for message at {}:{}. Received checksum: 0x{}, Computed checksum: 0x{}",
-                        topic, ledgerId, entryId, Long.toHexString(checksum), Integer.toHexString(computedChecksum));
+                log.error()
+                        .attr("topic", topic)
+                        .attr("ledgerId", ledgerId)
+                        .attr("entryId", entryId)
+                        .attr("receivedChecksum", "0x" + Long.toHexString(checksum))
+                        .attr("computedChecksum", "0x" + Integer.toHexString(computedChecksum))
+                        .log("Checksum mismatch for message");
                 return false;
             }
         }
@@ -132,15 +145,26 @@ public class MessageParser {
         return true;
     }
 
-    public static ByteBuf uncompressPayloadIfNeeded(TopicName topic, MessageMetadata msgMetadata,
+    @Deprecated
+    public static ByteBuf uncompressPayloadIfNeeded(TopicName topicName, MessageMetadata msgMetadata,
+                                                    ByteBuf payload, long ledgerId, long entryId, int maxMessageSize) {
+        return uncompressPayloadIfNeeded(topicName.toString(), msgMetadata, payload, ledgerId, entryId,
+                maxMessageSize);
+    }
+
+    public static ByteBuf uncompressPayloadIfNeeded(String topic, MessageMetadata msgMetadata,
             ByteBuf payload, long ledgerId, long entryId, int maxMessageSize) {
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(msgMetadata.getCompression());
         int uncompressedSize = msgMetadata.getUncompressedSize();
         int payloadSize = payload.readableBytes();
         if (payloadSize > maxMessageSize) {
             // payload size is itself corrupted since it cannot be bigger than the MaxMessageSize
-            log.error("[{}] Got corrupted payload message size {} at {}:{}", topic, payloadSize,
-                    ledgerId, entryId);
+            log.error()
+                    .attr("topic", topic)
+                    .attr("payloadSize", payloadSize)
+                    .attr("ledgerId", ledgerId)
+                    .attr("entryId", entryId)
+                    .log("Got corrupted payload message size");
             return null;
         }
 
@@ -148,8 +172,13 @@ public class MessageParser {
             ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
             return uncompressedPayload;
         } catch (IOException e) {
-            log.error("[{}] Failed to decompress message with {} at {}:{} : {}", topic,
-                    msgMetadata.getCompression(), ledgerId, entryId, e.getMessage(), e);
+            log.error()
+                    .attr("topic", topic)
+                    .attr("compression", msgMetadata.getCompression())
+                    .attr("ledgerId", ledgerId)
+                    .attr("entryId", entryId)
+                    .exception(e)
+                    .log("Failed to decompress message");
             return null;
         }
     }
@@ -174,7 +203,7 @@ public class MessageParser {
                         ledgerId, entryId, i));
             }
         } catch (IOException e) {
-            log.warn("Unable to obtain messages in batch", e);
+            log.warn().exception(e).log("Unable to obtain messages in batch");
         }
     }
 

@@ -79,7 +79,7 @@ public class WindowImpl<T> implements Window<T> {
             return false;
         }
 
-        WindowImpl that = (WindowImpl) o;
+        WindowImpl<?> that = (WindowImpl<?>) o;
 
         if (tuples != null ? !tuples.equals(that.tuples) : that.tuples != null) {
             return false;

@@ -22,12 +22,12 @@ import java.lang.management.ManagementFactory;
 import javax.management.MBeanServer;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  * Logger for the JVM G1 GC metrics.
  */
+@CustomLog
 public class JvmG1GCMetricsLogger implements JvmGCMetricsLogger {
 
     private volatile long accumulatedYoungGcCount = 0;
@@ -83,10 +83,9 @@ public class JvmG1GCMetricsLogger implements JvmGCMetricsLogger {
             accumulatedOldGcCount = newValueOldGcCount;
             accumulatedOldGcTime = newValueOldGcTime;
         } catch (Exception e) {
-            log.error("Failed to collect GC stats: {}", e.getMessage());
+            log.error().exceptionMessage(e).log("Failed to collect GC stats");
         }
 
     }
 
-    private static final Logger log = LoggerFactory.getLogger(JvmG1GCMetricsLogger.class);
 }

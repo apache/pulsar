@@ -19,15 +19,18 @@
 package org.apache.pulsar.metadata.impl.batching;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.apache.pulsar.metadata.api.Option;
 
 @Data
 @AllArgsConstructor
 public class OpGetChildren implements MetadataOp {
 
     private final String path;
+    private final Set<Option> options;
     public final long created = System.currentTimeMillis();
     private final CompletableFuture<List<String>> future = new CompletableFuture<>();
 

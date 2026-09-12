@@ -20,13 +20,8 @@ package org.apache.pulsar.functions.runtime;
 
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSinkType;
 import static org.apache.pulsar.functions.utils.FunctionCommon.getSourceType;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.converters.StringConverter;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.google.protobuf.Empty;
-import com.google.protobuf.util.JsonFormat;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
@@ -37,7 +32,10 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import net.bytebuddy.description.type.TypeDefinition;
+import net.bytebuddy.dynamic.ClassFileLocator;
+import net.bytebuddy.pool.TypePool;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -46,9 +44,14 @@ import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.Empty;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionStatus;
+import org.apache.pulsar.functions.proto.HealthCheckResult;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
+import org.apache.pulsar.functions.proto.MetricsData;
+import org.apache.pulsar.functions.proto.SinkSpec;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntime;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
@@ -56,104 +59,104 @@ import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
+import picocli.CommandLine;
+import picocli.CommandLine.Option;
 
 
-@Slf4j
+@CustomLog
 public class JavaInstanceStarter implements AutoCloseable {
-    @Parameter(names = "--function_details", description = "Function details json\n", required = true)
+    @Option(names = "--function_details", description = "Function details json\n", required = true)
     public String functionDetailsJsonString;
-    @Parameter(
+    @Option(
             names = "--jar",
-            description = "Path to Jar\n",
-            listConverter = StringConverter.class)
+            description = "Path to Jar\n")
     public String jarFile;
 
-    @Parameter(
+    @Option(
             names = "--transform_function_jar",
-            description = "Path to Transform Function Jar\n",
-            listConverter = StringConverter.class)
+            description = "Path to Transform Function Jar\n")
     public String transformFunctionJarFile;
 
-    @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
+    @Option(names = "--instance_id", description = "Instance Id\n", required = true)
     public int instanceId;
 
-    @Parameter(names = "--function_id", description = "Function Id\n", required = true)
+    @Option(names = "--function_id", description = "Function Id\n", required = true)
     public String functionId;
 
-    @Parameter(names = "--function_version", description = "Function Version\n", required = true)
+    @Option(names = "--function_version", description = "Function Version\n", required = true)
     public String functionVersion;
 
-    @Parameter(names = "--pulsar_serviceurl", description = "Pulsar Service Url\n", required = true)
+    @Option(names = "--pulsar_serviceurl", description = "Pulsar Service Url\n", required = true)
     public String pulsarServiceUrl;
 
-    @Parameter(names = "--transform_function_id", description = "Transform Function Id\n")
+    @Option(names = "--transform_function_id", description = "Transform Function Id\n")
     public String transformFunctionId;
 
-    @Parameter(names = "--client_auth_plugin", description = "Client auth plugin name\n")
+    @Option(names = "--client_auth_plugin", description = "Client auth plugin name\n")
     public String clientAuthenticationPlugin;
 
-    @Parameter(names = "--client_auth_params", description = "Client auth param\n")
+    @Option(names = "--client_auth_params", description = "Client auth param\n")
     public String clientAuthenticationParameters;
 
-    @Parameter(names = "--use_tls", description = "Use tls connection\n")
+    @Option(names = "--use_tls", description = "Use tls connection\n")
     public String useTls = Boolean.FALSE.toString();
 
-    @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
+    @Option(names = "--tls_allow_insecure", description = "Allow insecure tls connection\n")
     public String tlsAllowInsecureConnection = Boolean.FALSE.toString();
 
-    @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification")
+    @Option(names = "--hostname_verification_enabled", description = "Enable hostname verification")
     public String tlsHostNameVerificationEnabled = Boolean.FALSE.toString();
 
-    @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path")
+    @Option(names = "--tls_trust_cert_path", description = "tls trust cert file path")
     public String tlsTrustCertFilePath;
 
-    @Parameter(names = "--state_storage_impl_class", description = "State Storage Service "
+    @Option(names = "--state_storage_impl_class", description = "State Storage Service "
             + "Implementation class\n", required = false)
     public String stateStorageImplClass;
 
-    @Parameter(names = "--state_storage_serviceurl", description = "State Storage Service Url\n", required = false)
+    @Option(names = "--state_storage_serviceurl", description = "State Storage Service Url\n", required = false)
     public String stateStorageServiceUrl;
 
-    @Parameter(names = "--port", description = "Port to listen on\n", required = true)
+    @Option(names = "--port", description = "Port to listen on\n", required = true)
     public int port;
 
-    @Parameter(names = "--metrics_port", description = "Port metrics will be exposed on\n", required = true)
+    @Option(names = "--metrics_port", description = "Port metrics will be exposed on\n", required = true)
     public int metricsPort;
 
-    @Parameter(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
+    @Option(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
     public int maxBufferedTuples;
 
-    @Parameter(names = "--expected_healthcheck_interval", description = "Expected interval in "
+    @Option(names = "--expected_healthcheck_interval", description = "Expected interval in "
             + "seconds between healtchecks", required = true)
     public int expectedHealthCheckInterval;
 
-    @Parameter(names = "--secrets_provider", description = "The classname of the secrets provider", required = false)
+    @Option(names = "--secrets_provider", description = "The classname of the secrets provider", required = false)
     public String secretsProviderClassName;
 
-    @Parameter(names = "--secrets_provider_config", description = "The config that needs to be "
+    @Option(names = "--secrets_provider_config", description = "The config that needs to be "
             + "passed to secrets provider", required = false)
     public String secretsProviderConfig;
 
-    @Parameter(names = "--cluster_name", description = "The name of the cluster this "
+    @Option(names = "--cluster_name", description = "The name of the cluster this "
             + "instance is running on", required = true)
     public String clusterName;
 
-    @Parameter(names = "--nar_extraction_directory", description = "The directory where "
+    @Option(names = "--nar_extraction_directory", description = "The directory where "
             + "extraction of nar packages happen", required = false)
     public String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 
-    @Parameter(names = "--pending_async_requests", description = "Max pending async requests per instance",
+    @Option(names = "--pending_async_requests", description = "Max pending async requests per instance",
             required = false)
     public int maxPendingAsyncRequests = 1000;
 
-    @Parameter(names = "--web_serviceurl", description = "Pulsar Web Service Url", required = false)
+    @Option(names = "--web_serviceurl", description = "Pulsar Web Service Url", required = false)
     public String webServiceUrl = null;
 
-    @Parameter(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client "
+    @Option(names = "--expose_pulsaradmin", description = "Whether the pulsar admin client "
             + "exposed to function context, default is disabled.", required = false)
     public Boolean exposePulsarAdminClientEnabled = false;
 
-    @Parameter(names = "--ignore_unknown_config_fields",
+    @Option(names = "--ignore_unknown_config_fields",
             description = "Whether to ignore unknown properties when deserializing the connector configuration.",
             required = false)
     public Boolean ignoreUnknownConfigFields = false;
@@ -164,7 +167,7 @@ public class JavaInstanceStarter implements AutoCloseable {
     private ThreadRuntimeFactory containerFactory;
     private Long lastHealthCheckTs = null;
     private HTTPServer metricsServer;
-    private ScheduledFuture healthCheckTimer;
+    private ScheduledFuture<?> healthCheckTimer;
 
     public JavaInstanceStarter() {
     }
@@ -173,9 +176,8 @@ public class JavaInstanceStarter implements AutoCloseable {
             throws Exception {
         Thread.currentThread().setContextClassLoader(functionInstanceClassLoader);
 
-        JCommander jcommander = new JCommander(this);
-        // parse args by JCommander
-        jcommander.parse(args);
+        CommandLine jcommander = new CommandLine(this);
+        jcommander.parseArgs(args);
 
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionId(functionId);
@@ -187,19 +189,18 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
         instanceConfig.setExposePulsarAdminClientEnabled(exposePulsarAdminClientEnabled);
         instanceConfig.setIgnoreUnknownConfigFields(ignoreUnknownConfigFields);
-        Function.FunctionDetails.Builder functionDetailsBuilder = Function.FunctionDetails.newBuilder();
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
         }
         if (functionDetailsJsonString.charAt(functionDetailsJsonString.length() - 1) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(0, functionDetailsJsonString.length() - 1);
         }
-        JsonFormat.parser().merge(functionDetailsJsonString, functionDetailsBuilder);
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.parseFromJson(functionDetailsJsonString);
         FunctionCacheManager fnCache = new FunctionCacheManagerImpl(rootClassLoader);
         ClassLoader functionClassLoader = ThreadRuntime.loadJars(jarFile, instanceConfig, functionId,
-                functionDetailsBuilder.getName(), narExtractionDirectory, fnCache);
-        inferringMissingTypeClassName(functionDetailsBuilder, functionClassLoader);
-        Function.FunctionDetails functionDetails = functionDetailsBuilder.build();
+                functionDetails.getName(), narExtractionDirectory, fnCache);
+        inferringMissingTypeClassName(functionDetails, functionClassLoader);
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setPort(port);
         instanceConfig.setMetricsPort(metricsPort);
@@ -257,7 +258,7 @@ public class JavaInstanceStarter implements AutoCloseable {
                 .addService(new InstanceControlImpl(runtimeSpawner))
                 .build()
                 .start();
-        log.info("JavaInstance Server started, listening on " + port);
+        log.info().attr("port", port).log("JavaInstance Server started");
         java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             // Use stderr here since the logger may have been reset by its JVM shutdown hook.
             try {
@@ -271,7 +272,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         runtimeSpawner.start();
 
         // starting metrics server
-        log.info("Starting metrics server on port {}", metricsPort);
+        log.info().attr("metricsPort", metricsPort).log("Starting metrics server");
         metricsServer = new HTTPServer(new InetSocketAddress(metricsPort), collectorRegistry, true);
 
         if (expectedHealthCheckInterval > 0) {
@@ -284,7 +285,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                                 close();
                             }
                         } catch (Exception e) {
-                            log.error("Error occurred when checking for latest health check", e);
+                            log.error().exception(e)
+                                    .log("Error occurred when checking for latest health check");
                         }
                     }, expectedHealthCheckInterval * 1000, expectedHealthCheckInterval * 1000, TimeUnit.MILLISECONDS);
         }
@@ -298,6 +300,7 @@ public class JavaInstanceStarter implements AutoCloseable {
         return Boolean.TRUE.toString().equals(param);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void close() {
         try {
@@ -324,81 +327,69 @@ public class JavaInstanceStarter implements AutoCloseable {
         }
     }
 
-    private void inferringMissingTypeClassName(Function.FunctionDetails.Builder functionDetailsBuilder,
-                                               ClassLoader classLoader) throws ClassNotFoundException {
-        switch (functionDetailsBuilder.getComponentType()) {
+    private void inferringMissingTypeClassName(FunctionDetails functionDetails,
+                                               ClassLoader classLoader) {
+        TypePool typePool = TypePool.Default.of(ClassFileLocator.ForClassLoader.of(classLoader));
+        switch (functionDetails.getComponentType()) {
             case FUNCTION:
-                if ((functionDetailsBuilder.hasSource()
-                        && functionDetailsBuilder.getSource().getTypeClassName().isEmpty())
-                        || (functionDetailsBuilder.hasSink()
-                        && functionDetailsBuilder.getSink().getTypeClassName().isEmpty())) {
-                    Map<String, Object> userConfigs = new Gson().fromJson(functionDetailsBuilder.getUserConfig(),
+                if ((functionDetails.hasSource()
+                        && functionDetails.getSource().getTypeClassName().isEmpty())
+                        || (functionDetails.hasSink()
+                        && functionDetails.getSink().getTypeClassName().isEmpty())) {
+                    Map<String, Object> userConfigs = new Gson().fromJson(functionDetails.getUserConfig(),
                             new TypeToken<Map<String, Object>>() {
                             }.getType());
                     boolean isWindowConfigPresent =
                             userConfigs != null && userConfigs.containsKey(WindowConfig.WINDOW_CONFIG_KEY);
-                    String className = functionDetailsBuilder.getClassName();
+                    String className = functionDetails.getClassName();
                     if (isWindowConfigPresent) {
                         WindowConfig windowConfig = new Gson().fromJson(
                                 (new Gson().toJson(userConfigs.get(WindowConfig.WINDOW_CONFIG_KEY))),
                                 WindowConfig.class);
                         className = windowConfig.getActualWindowFunctionClassName();
                     }
-
-                    Class<?>[] typeArgs = FunctionCommon.getFunctionTypes(classLoader.loadClass(className),
+                    TypeDefinition[] typeArgs = FunctionCommon.getFunctionTypes(typePool.describe(className).resolve(),
                             isWindowConfigPresent);
-                    if (functionDetailsBuilder.hasSource()
-                            && functionDetailsBuilder.getSource().getTypeClassName().isEmpty()
+                    if (functionDetails.hasSource()
+                            && functionDetails.getSource().getTypeClassName().isEmpty()
                             && typeArgs[0] != null) {
-                        Function.SourceSpec.Builder sourceBuilder = functionDetailsBuilder.getSource().toBuilder();
-                        sourceBuilder.setTypeClassName(typeArgs[0].getName());
-                        functionDetailsBuilder.setSource(sourceBuilder.build());
+                        functionDetails.setSource().setTypeClassName(typeArgs[0].asErasure().getTypeName());
                     }
 
-                    if (functionDetailsBuilder.hasSink()
-                            && functionDetailsBuilder.getSink().getTypeClassName().isEmpty()
+                    if (functionDetails.hasSink()
+                            && functionDetails.getSink().getTypeClassName().isEmpty()
                             && typeArgs[1] != null) {
-                        Function.SinkSpec.Builder sinkBuilder = functionDetailsBuilder.getSink().toBuilder();
-                        sinkBuilder.setTypeClassName(typeArgs[1].getName());
-                        functionDetailsBuilder.setSink(sinkBuilder.build());
+                        functionDetails.setSink().setTypeClassName(typeArgs[1].asErasure().getTypeName());
                     }
                 }
                 break;
             case SINK:
-                if ((functionDetailsBuilder.hasSink()
-                        && functionDetailsBuilder.getSink().getTypeClassName().isEmpty())) {
+                if ((functionDetails.hasSink()
+                        && functionDetails.getSink().getTypeClassName().isEmpty())) {
                     String typeArg =
-                            getSinkType(functionDetailsBuilder.getSink().getClassName(), classLoader).getName();
+                            getSinkType(functionDetails.getSink().getClassName(), typePool).asErasure()
+                                    .getTypeName();
 
-                    Function.SinkSpec.Builder sinkBuilder =
-                            Function.SinkSpec.newBuilder(functionDetailsBuilder.getSink());
-                    sinkBuilder.setTypeClassName(typeArg);
-                    functionDetailsBuilder.setSink(sinkBuilder);
+                    functionDetails.setSink().setTypeClassName(typeArg);
 
-                    Function.SourceSpec sourceSpec = functionDetailsBuilder.getSource();
+                    SourceSpec sourceSpec = functionDetails.hasSource() ? functionDetails.getSource() : null;
                     if (null == sourceSpec || StringUtils.isEmpty(sourceSpec.getTypeClassName())) {
-                        Function.SourceSpec.Builder sourceBuilder = Function.SourceSpec.newBuilder(sourceSpec);
-                        sourceBuilder.setTypeClassName(typeArg);
-                        functionDetailsBuilder.setSource(sourceBuilder);
+                        functionDetails.setSource().setTypeClassName(typeArg);
                     }
                 }
                 break;
             case SOURCE:
-                if ((functionDetailsBuilder.hasSource()
-                        && functionDetailsBuilder.getSource().getTypeClassName().isEmpty())) {
+                if ((functionDetails.hasSource()
+                        && functionDetails.getSource().getTypeClassName().isEmpty())) {
                     String typeArg =
-                            getSourceType(functionDetailsBuilder.getSource().getClassName(), classLoader).getName();
+                            getSourceType(functionDetails.getSource().getClassName(), typePool).asErasure()
+                                    .getTypeName();
 
-                    Function.SourceSpec.Builder sourceBuilder =
-                            Function.SourceSpec.newBuilder(functionDetailsBuilder.getSource());
-                    sourceBuilder.setTypeClassName(typeArg);
-                    functionDetailsBuilder.setSource(sourceBuilder);
+                    functionDetails.setSource().setTypeClassName(typeArg);
 
-                    Function.SinkSpec sinkSpec = functionDetailsBuilder.getSink();
+                    SinkSpec sinkSpec = functionDetails.hasSink() ? functionDetails.getSink() : null;
                     if (null == sinkSpec || StringUtils.isEmpty(sinkSpec.getTypeClassName())) {
-                        Function.SinkSpec.Builder sinkBuilder = Function.SinkSpec.newBuilder(sinkSpec);
-                        sinkBuilder.setTypeClassName(typeArg);
-                        functionDetailsBuilder.setSink(sinkBuilder);
+                        functionDetails.setSink().setTypeClassName(typeArg);
                     }
                 }
                 break;
@@ -416,74 +407,73 @@ public class JavaInstanceStarter implements AutoCloseable {
 
         @Override
         public void getFunctionStatus(Empty request,
-                                      StreamObserver<InstanceCommunication.FunctionStatus> responseObserver) {
+                                      StreamObserver<FunctionStatus> responseObserver) {
             try {
-                InstanceCommunication.FunctionStatus response =
+                FunctionStatus response =
                         runtimeSpawner.getFunctionStatus(runtimeSpawner.getInstanceConfig().getInstanceId()).get();
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
             } catch (Exception e) {
-                log.error("Exception in JavaInstance doing getFunctionStatus", e);
+                log.error().exception(e).log("Exception in JavaInstance doing getFunctionStatus");
                 throw new RuntimeException(e);
             }
         }
 
         @Override
-        public void getAndResetMetrics(com.google.protobuf.Empty request,
-                   io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData>
-                   responseObserver) {
+        public void getAndResetMetrics(Empty request,
+                   StreamObserver<MetricsData> responseObserver) {
             Runtime runtime = runtimeSpawner.getRuntime();
             if (runtime != null) {
                 try {
-                    InstanceCommunication.MetricsData metrics = runtime.getAndResetMetrics().get();
+                    MetricsData metrics = runtime.getAndResetMetrics().get();
                     responseObserver.onNext(metrics);
                     responseObserver.onCompleted();
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error("Exception in JavaInstance doing getAndResetMetrics", e);
+                    log.error().exception(e)
+                            .log("Exception in JavaInstance doing getAndResetMetrics");
                     throw new RuntimeException(e);
                 }
             }
         }
 
         @Override
-        public void getMetrics(com.google.protobuf.Empty request,
-                   io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData>
-                   responseObserver) {
+        public void getMetrics(Empty request,
+                   StreamObserver<MetricsData> responseObserver) {
             Runtime runtime = runtimeSpawner.getRuntime();
             if (runtime != null) {
                 try {
-                    InstanceCommunication.MetricsData metrics = runtime.getMetrics(instanceId).get();
+                    MetricsData metrics = runtime.getMetrics(instanceId).get();
                     responseObserver.onNext(metrics);
                     responseObserver.onCompleted();
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error("Exception in JavaInstance doing getAndResetMetrics", e);
+                    log.error().exception(e)
+                            .log("Exception in JavaInstance doing getMetrics");
                     throw new RuntimeException(e);
                 }
             }
         }
 
-        public void resetMetrics(com.google.protobuf.Empty request,
-                                 io.grpc.stub.StreamObserver<com.google.protobuf.Empty> responseObserver) {
+        public void resetMetrics(Empty request,
+                                 StreamObserver<Empty> responseObserver) {
             Runtime runtime = runtimeSpawner.getRuntime();
             if (runtime != null) {
                 try {
                     runtime.resetMetrics().get();
-                    responseObserver.onNext(com.google.protobuf.Empty.getDefaultInstance());
+                    responseObserver.onNext(new Empty());
                     responseObserver.onCompleted();
                 } catch (InterruptedException | ExecutionException e) {
-                    log.error("Exception in JavaInstance doing resetMetrics", e);
+                    log.error().exception(e).log("Exception in JavaInstance doing resetMetrics");
                     throw new RuntimeException(e);
                 }
             }
         }
 
         @Override
-        public void healthCheck(com.google.protobuf.Empty request,
-                io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.HealthCheckResult>
-                responseObserver) {
+        public void healthCheck(Empty request,
+                StreamObserver<HealthCheckResult> responseObserver) {
             log.debug("Received health check request...");
-            InstanceCommunication.HealthCheckResult healthCheckResult =
-                    InstanceCommunication.HealthCheckResult.newBuilder().setSuccess(true).build();
+            HealthCheckResult healthCheckResult = new HealthCheckResult();
+            healthCheckResult.setSuccess(true);
             responseObserver.onNext(healthCheckResult);
             responseObserver.onCompleted();
 

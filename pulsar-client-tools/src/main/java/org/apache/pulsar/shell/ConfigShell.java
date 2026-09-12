@@ -19,10 +19,6 @@
 package org.apache.pulsar.shell;
 
 import static org.apache.pulsar.shell.config.ConfigStore.DEFAULT_CONFIG;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.ByteArrayOutputStream;
@@ -33,22 +29,30 @@ import java.io.StringReader;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.Callable;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.SneakyThrows;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.internal.InnerClassFactory;
+import org.apache.pulsar.internal.ShellCommandsProvider;
 import org.apache.pulsar.shell.config.ConfigStore;
+import org.apache.pulsar.shell.config.ConfigStore.ConfigEntry;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 /**
  * Shell commands to manage shell configurations.
  */
-@Parameters(commandDescription = "Manage Pulsar shell configurations.")
+@Command(description = "Manage Pulsar shell configurations.")
 public class ConfigShell implements ShellCommandsProvider {
 
     private static final String LOCAL_FILES_BASE_DIR = System.getProperty("pulsar.shell.working.dir");
@@ -65,25 +69,43 @@ public class ConfigShell implements ShellCommandsProvider {
         return file;
     }
 
-
-    @Getter
-    @Parameters
-    public static class Params {
-
-        @Parameter(names = {"-h", "--help"}, help = true, description = "Show this help.")
-        boolean help;
-    }
-
-    private interface RunnableWithResult {
+    private interface RunnableWithResult extends Callable<Integer> {
         boolean run() throws Exception;
+
+        // Picocli entrypoint.
+        @Override
+        default Integer call() throws Exception {
+            if (run()) {
+                return 0;
+            }
+            return 1;
+        }
     }
 
-    private JCommander jcommander;
-    private Params params;
+    // Must be a public modifier.
+    public class ConfigNameCompletionCandidates implements Iterable<String> {
+        @SneakyThrows
+        @Override
+        public Iterator<String> iterator() {
+            return pulsarShell.getConfigStore().listConfigs().stream().map(ConfigEntry::getName).iterator();
+        }
+    }
+
+    static class ConfigFileCompletionCandidates implements Iterable<String> {
+        @Override
+        public Iterator<String> iterator() {
+            String path = ConfigShell.resolveLocalFile(".").toPath().toString();
+            ArrayList<String> strings = new ArrayList<>();
+            strings.add(path);
+            return strings.iterator();
+        }
+    }
+
     private final PulsarShell pulsarShell;
-    private final Map<String, RunnableWithResult> commands = new HashMap<>();
     private final ConfigStore configStore;
     private final ObjectMapper writer = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    private final CommandLine commander = new CommandLine(this, new InnerClassFactory(this));
+
     @Getter
     private String currentConfig;
 
@@ -91,6 +113,15 @@ public class ConfigShell implements ShellCommandsProvider {
         this.configStore = pulsarShell.getConfigStore();
         this.pulsarShell = pulsarShell;
         this.currentConfig = currentConfig;
+        commander.addSubcommand("list", new CmdConfigList());
+        commander.addSubcommand("create", new CmdConfigCreate());
+        commander.addSubcommand("clone", new CmdConfigClone());
+        commander.addSubcommand("update", new CmdConfigUpdate());
+        commander.addSubcommand("delete", new CmdConfigDelete());
+        commander.addSubcommand("use", new CmdConfigUse());
+        commander.addSubcommand("view", new CmdConfigView());
+        commander.addSubcommand("set-property", new CmdConfigSetProperty());
+        commander.addSubcommand("get-property", new CmdConfigGetProperty());
     }
 
     @Override
@@ -109,68 +140,11 @@ public class ConfigShell implements ShellCommandsProvider {
     }
 
     @Override
-    public void setupState(Properties properties) {
-
-        this.params = new Params();
-        this.jcommander = new JCommander();
-        jcommander.addObject(params);
-
-        commands.put("list", new CmdConfigList());
-        commands.put("create", new CmdConfigCreate());
-        commands.put("clone", new CmdConfigClone());
-        commands.put("update", new CmdConfigUpdate());
-        commands.put("delete", new CmdConfigDelete());
-        commands.put("use", new CmdConfigUse());
-        commands.put("view", new CmdConfigView());
-        commands.put("set-property", new CmdConfigSetProperty());
-        commands.put("get-property", new CmdConfigGetProperty());
-        commands.forEach((k, v) -> jcommander.addCommand(k, v));
+    public CommandLine getCommander() {
+        return commander;
     }
 
-    @Override
-    public void cleanupState(Properties properties) {
-        setupState(properties);
-    }
-
-    @Override
-    public JCommander getJCommander() {
-        return jcommander;
-    }
-
-    @Override
-    public boolean runCommand(String[] args) throws Exception {
-        try {
-            jcommander.parse(args);
-
-            if (params.help) {
-                jcommander.usage();
-                return true;
-            }
-
-            String chosenCommand = jcommander.getParsedCommand();
-            final RunnableWithResult command = commands.get(chosenCommand);
-            if (command == null) {
-                jcommander.usage();
-                return false;
-            }
-            return command.run();
-        } catch (Throwable e) {
-            jcommander.getConsole().println(e.getMessage());
-            String chosenCommand = jcommander.getParsedCommand();
-            if (e instanceof ParameterException) {
-                try {
-                    jcommander.getUsageFormatter().usage(chosenCommand);
-                } catch (ParameterException noCmd) {
-                    e.printStackTrace();
-                }
-            } else {
-                e.printStackTrace();
-            }
-            return false;
-        }
-    }
-
-    @Parameters(commandDescription = "List configurations")
+    @Command(description = "List configurations")
     private class CmdConfigList implements RunnableWithResult {
 
         @Override
@@ -194,10 +168,10 @@ public class ConfigShell implements ShellCommandsProvider {
         }
     }
 
-    @Parameters(commandDescription = "Use the configuration for next commands")
+    @Command(description = "Use the configuration for next commands")
     private class CmdConfigUse implements RunnableWithResult {
-        @Parameter(description = "Name of the config", required = true)
-        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        @Parameters(description = "Name of the config", arity = "1",
+                completionCandidates = ConfigNameCompletionCandidates.class)
         private String name;
 
         @Override
@@ -218,10 +192,10 @@ public class ConfigShell implements ShellCommandsProvider {
         }
     }
 
-    @Parameters(commandDescription = "View configuration")
+    @Command(description = "View configuration")
     private class CmdConfigView implements RunnableWithResult {
-        @Parameter(description = "Name of the config", required = true)
-        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        @Parameters(description = "Name of the config", arity = "1",
+                completionCandidates = ConfigNameCompletionCandidates.class)
         private String name;
 
         @Override
@@ -237,10 +211,10 @@ public class ConfigShell implements ShellCommandsProvider {
         }
     }
 
-    @Parameters(commandDescription = "Delete a configuration")
+    @Command(description = "Delete a configuration")
     private class CmdConfigDelete implements RunnableWithResult {
-        @Parameter(description = "Name of the config", required = true)
-        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        @Parameters(description = "Name of the config", arity = "1",
+                completionCandidates = ConfigNameCompletionCandidates.class)
         private String name;
 
         @Override
@@ -259,10 +233,10 @@ public class ConfigShell implements ShellCommandsProvider {
         }
     }
 
-    @Parameters(commandDescription = "Create a new configuration.")
+    @Command(name = "create", description = "Create a new configuration.")
     private class CmdConfigCreate extends CmdConfigPut {
 
-        @Parameter(description = "Configuration name", required = true)
+        @Parameters(description = "Configuration name", arity = "1")
         protected String name;
 
         @Override
@@ -282,11 +256,11 @@ public class ConfigShell implements ShellCommandsProvider {
         }
     }
 
-    @Parameters(commandDescription = "Update an existing configuration.")
+    @Command(description = "Update an existing configuration.")
     private class CmdConfigUpdate extends CmdConfigPut {
 
-        @Parameter(description = "Configuration name", required = true)
-        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        @Parameters(description = "Name of the config", arity = "1",
+                completionCandidates = ConfigNameCompletionCandidates.class)
         protected String name;
 
         @Override
@@ -312,14 +286,14 @@ public class ConfigShell implements ShellCommandsProvider {
 
     private abstract class CmdConfigPut implements RunnableWithResult {
 
-        @Parameter(names = {"--url"}, description = "URL of the config")
+        @Option(names = {"--url"}, description = "URL of the config")
         protected String url;
 
-        @Parameter(names = {"--file"}, description = "File path of the config")
-        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.FILES)
+        @Option(names = {"--file"}, description = "File path of the config",
+                completionCandidates = ConfigFileCompletionCandidates.class)
         protected String file;
 
-        @Parameter(names = {"--value"}, description = "Inline value of the config")
+        @Option(names = {"--value"}, description = "Inline value of the config")
         protected String inlineValue;
 
         @Override
@@ -372,13 +346,14 @@ public class ConfigShell implements ShellCommandsProvider {
     }
 
 
+    @Command
     private class CmdConfigClone implements RunnableWithResult {
 
-        @Parameter(description = "Configuration to clone", required = true)
-        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        @Parameters(description = "Configuration to clone", arity = "1",
+                completionCandidates = ConfigNameCompletionCandidates.class)
         protected String cloneFrom;
 
-        @Parameter(names = {"--name"}, description = "Name of the new config", required = true)
+        @Option(names = {"--name"}, description = "Name of the new config", required = true)
         protected String newName;
 
         @Override
@@ -410,17 +385,17 @@ public class ConfigShell implements ShellCommandsProvider {
     }
 
 
-    @Parameters(commandDescription = "Set a configuration property by name")
+    @Command(description = "Set a configuration property by name")
     private class CmdConfigSetProperty implements RunnableWithResult {
 
-        @Parameter(description = "Name of the config", required = true)
-        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        @Parameters(description = "Name of the config", arity = "1",
+                completionCandidates = ConfigNameCompletionCandidates.class)
         private String name;
 
-        @Parameter(names = {"-p", "--property"}, required = true, description = "Name of the property to update")
+        @Option(names = {"-p", "--property"}, required = true, description = "Name of the property to update")
         protected String propertyName;
 
-        @Parameter(names = {"-v", "--value"}, description = "New value for the property")
+        @Option(names = {"-v", "--value"}, description = "New value for the property")
         protected String propertyValue;
 
         @Override
@@ -450,14 +425,14 @@ public class ConfigShell implements ShellCommandsProvider {
         }
     }
 
-    @Parameters(commandDescription = "Get a configuration property by name")
+    @Command(description = "Get a configuration property by name")
     private class CmdConfigGetProperty implements RunnableWithResult {
 
-        @Parameter(description = "Name of the config", required = true)
-        @JCommanderCompleter.ParameterCompleter(type = JCommanderCompleter.ParameterCompleter.Type.CONFIGS)
+        @Parameters(description = "Name of the config", arity = "1",
+                completionCandidates = ConfigNameCompletionCandidates.class)
         private String name;
 
-        @Parameter(names = {"-p", "--property"}, required = true, description = "Name of the property")
+        @Option(names = {"-p", "--property"}, required = true, description = "Name of the property")
         protected String propertyName;
 
         @Override
@@ -482,7 +457,6 @@ public class ConfigShell implements ShellCommandsProvider {
     }
 
 
-
     <T> void print(List<T> items) {
         for (T item : items) {
             print(item);
@@ -492,9 +466,9 @@ public class ConfigShell implements ShellCommandsProvider {
     <T> void print(T item) {
         try {
             if (item instanceof String) {
-                jcommander.getConsole().println((String) item);
+                commander.getOut().println((String) item);
             } else {
-                jcommander.getConsole().println(writer.writeValueAsString(item));
+                commander.getOut().println(writer.writeValueAsString(item));
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

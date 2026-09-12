@@ -29,6 +29,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Private
 @InterfaceStability.Stable
+@SuppressWarnings("deprecation")
 public class ProducerInterceptorWrapper implements ProducerInterceptor {
     private final org.apache.pulsar.client.api.ProducerInterceptor<?> innerInterceptor;
 
@@ -43,19 +44,25 @@ public class ProducerInterceptorWrapper implements ProducerInterceptor {
     }
 
     @Override
-    public boolean eligible(Message message) {
+    public boolean eligible(Message<?> message) {
         return true;
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
-    public Message beforeSend(Producer producer, Message message) {
-        return innerInterceptor.beforeSend(producer, message);
+    public Message<?> beforeSend(Producer<?> producer, Message<?> message) {
+        // Wildcard type parameters on ProducerInterceptor<?> require raw type bridge
+        return ((org.apache.pulsar.client.api.ProducerInterceptor) innerInterceptor)
+                .beforeSend(producer, message);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
-    public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
+    public void onSendAcknowledgement(Producer<?> producer, Message<?> message, MessageId msgId,
                                       Throwable exception) {
-        innerInterceptor.onSendAcknowledgement(producer, message, msgId, exception);
+        // Wildcard type parameters on ProducerInterceptor<?> require raw type bridge
+        ((org.apache.pulsar.client.api.ProducerInterceptor) innerInterceptor)
+                .onSendAcknowledgement(producer, message, msgId, exception);
     }
 
     @Override

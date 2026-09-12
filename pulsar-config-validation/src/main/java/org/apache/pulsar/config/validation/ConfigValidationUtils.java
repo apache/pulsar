@@ -31,7 +31,7 @@ public class ConfigValidationUtils {
      * @param notNull whether or not a value of null is valid
      * @return a NestableFieldValidator for that class
      */
-    public static NestableFieldValidator fv(final Class cls, final boolean notNull) {
+    public static NestableFieldValidator fv(final Class<?> cls, final boolean notNull) {
         return new NestableFieldValidator() {
             @Override
             public void validateField(String pd, String name, Object field)
@@ -58,7 +58,7 @@ public class ConfigValidationUtils {
      * @param notNull whether or not a value of null is valid
      * @return a NestableFieldValidator for a list of the given class
      */
-    public static NestableFieldValidator listFv(Class cls, boolean notNull) {
+    public static NestableFieldValidator listFv(Class<?> cls, boolean notNull) {
         return listFv(fv(cls, notNull), notNull);
     }
 
@@ -103,7 +103,7 @@ public class ConfigValidationUtils {
      * @param notNull whether or not a value of null is valid
      * @return a NestableFieldValidator for a Map of key to val
      */
-    public static NestableFieldValidator mapFv(Class key, Class val,
+    public static NestableFieldValidator mapFv(Class<?> key, Class<?> val,
                                                boolean notNull) {
         return mapFv(fv(key, false), fv(val, false), notNull);
     }

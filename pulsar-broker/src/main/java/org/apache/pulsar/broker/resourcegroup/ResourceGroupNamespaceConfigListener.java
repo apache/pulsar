@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.resourcegroup;
 
 import java.util.function.Consumer;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.TenantResources;
@@ -27,8 +28,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Resource Group Namespace Config Listener
@@ -39,9 +38,8 @@ import org.slf4j.LoggerFactory;
  * @see <a href="https://github.com/apache/pulsar/wiki/PIP-82%3A-Tenant-and-namespace-level-rate-limiting">Global-quotas</a>
  *
  */
+@CustomLog
 public class ResourceGroupNamespaceConfigListener implements Consumer<Notification> {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ResourceGroupNamespaceConfigListener.class);
     private final ResourceGroupService rgService;
     private final PulsarService pulsarService;
     private final NamespaceResources namespaceResources;
@@ -62,7 +60,7 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
     private void updateNamespaceResourceGroup(NamespaceName nsName) {
         namespaceResources.getPoliciesAsync(nsName).whenCompleteAsync((optionalPolicies, ex) -> {
             if (ex != null) {
-                LOG.error("Exception when getting namespace {}", nsName, ex);
+                log.error().attr("namespace", nsName).exception(ex).log("Exception when getting namespace");
                 return;
             }
             Policies policy = optionalPolicies.get();
@@ -73,13 +71,13 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
     private void loadAllNamespaceResourceGroups() {
         tenantResources.listTenantsAsync().whenComplete((tenantList, ex) -> {
             if (ex != null) {
-                LOG.error("Exception when fetching tenants", ex);
+                log.error().exception(ex).log("Exception when fetching tenants");
                 return;
             }
             for (String ts: tenantList) {
                 namespaceResources.listNamespacesAsync(ts).whenComplete((nsList, ex1) -> {
                     if (ex1 != null) {
-                        LOG.error("Exception when fetching namespaces", ex1);
+                        log.error().exception(ex1).log("Exception when fetching namespaces");
                     } else {
                         for (String ns : nsList) {
                             NamespaceName nsn = NamespaceName.get(ts, ns);
@@ -119,16 +117,26 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
         }
         try {
             if (delete) {
-                LOG.info("Unregistering namespace {} from resource group {}", ns, current.resourceGroupName);
+                log.info()
+                        .attr("namespace", ns)
+                        .attr("resourceGroup", current.resourceGroupName)
+                        .log("Unregistering namespace from resource group");
                 rgService.unRegisterNameSpace(current.resourceGroupName, ns);
             }
             if (add) {
-                LOG.info("Registering namespace {} with resource group {}", ns, policy.resource_group_name);
+                log.info()
+                        .attr("namespace", ns)
+                        .attr("resourceGroup", policy.resource_group_name)
+                        .log("Registering namespace with resource group");
                 rgService.registerNameSpace(policy.resource_group_name, ns);
             }
         } catch (PulsarAdminException e) {
-            LOG.error("Failed to {} namespace {} with resource group {}",
-                    delete ? "unregister" : "register", ns, policy.resource_group_name, e);
+            log.error()
+                    .attr("operation", delete ? "unregister" : "register")
+                    .attr("namespace", ns)
+                    .attr("resourceGroup", policy.resource_group_name)
+                    .exception(e)
+                    .log("Failed to update namespace with resource group");
         }
     }
 
@@ -144,7 +152,10 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
             // We are only interested in the tenant and namespace level notifications
             return;
         }
-        LOG.info("Metadata store notification: Path {}, Type {}", notifyPath, notification.getType());
+        log.info()
+                .attr("path", notifyPath)
+                .attr("type", notification.getType())
+                .log("Metadata store notification: Path , Type");
 
         if (parts.length == 4 && notification.getType() == NotificationType.ChildrenChanged) {
             // Namespace add/delete
@@ -164,7 +175,7 @@ public class ResourceGroupNamespaceConfigListener implements Consumer<Notificati
                         try {
                             rgService.unRegisterNameSpace(rg.resourceGroupName, nsName);
                         } catch (PulsarAdminException e) {
-                            LOG.error("Failed to unregister namespace", e);
+                            log.error().exception(e).log("Failed to unregister namespace");
                         }
                     }
                     break;

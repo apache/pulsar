@@ -51,6 +51,7 @@ public class MockOIDCIdentityProvider {
     private final WireMockServer server;
     private final PublicKey publicKey;
     private final String audience;
+    @SuppressWarnings("deprecation")
     public MockOIDCIdentityProvider(String clientSecret, String audience, long tokenTTLMillis) {
         this.audience = audience;
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);

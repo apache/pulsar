@@ -18,13 +18,15 @@
  */
 package org.apache.pulsar;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 /**
  * Set up the transaction coordinator metadata for a cluster, the setup will create pulsar/system namespace and create
@@ -32,56 +34,61 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
  */
 public class PulsarTransactionCoordinatorMetadataSetup {
 
+    @Command(name = "initialize-transaction-coordinator-metadata", showDefaultValues = true, scope = ScopeType.INHERIT)
     private static class Arguments {
 
-        @Parameter(names = { "-c", "--cluster" }, description = "Cluster name", required = true)
+        @Option(names = { "-c", "--cluster" }, description = "Cluster name", required = true)
         private String cluster;
 
-        @Parameter(names = { "-cs",
+        @Option(names = { "-cs",
                 "--configuration-store" }, description = "Configuration Store connection string", required = true)
         private String configurationStore;
 
-        @Parameter(names = {
+        @Option(names = {"-cmscp",
+                "--configuration-metadata-store-config-path"}, description = "Configuration Metadata Store config path",
+                hidden = false)
+        private String configurationStoreConfigPath;
+
+        @Option(names = {
                 "--zookeeper-session-timeout-ms"
         }, description = "Local zookeeper session timeout ms")
         private int zkSessionTimeoutMillis = 30000;
 
-        @Parameter(names = {
+        @Option(names = {
                 "--initial-num-transaction-coordinators"
         }, description = "Num transaction coordinators will assigned in cluster")
         private int numTransactionCoordinators = 16;
 
-        @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+        @Option(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
         private boolean generateDocs = false;
     }
 
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
-        JCommander jcommander = new JCommander();
+        CommandLine commander = new CommandLine(arguments);
         try {
-            jcommander.addObject(arguments);
-            jcommander.parse(args);
+            commander.parseArgs(args);
             if (arguments.help) {
-                jcommander.usage();
+                commander.usage(commander.getOut());
                 return;
             }
             if (arguments.generateDocs) {
                 CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-                cmd.addCommand("initialize-transaction-coordinator-metadata", arguments);
+                cmd.addCommand("initialize-transaction-coordinator-metadata", commander);
                 cmd.run(null);
                 return;
             }
         } catch (Exception e) {
-            jcommander.usage();
+            commander.usage(commander.getOut());
             throw e;
         }
 
         if (arguments.configurationStore == null) {
             System.err.println("Configuration store address argument is required (--configuration-store)");
-            jcommander.usage();
+            commander.usage(commander.getOut());
             System.exit(1);
         }
 
@@ -90,8 +97,10 @@ public class PulsarTransactionCoordinatorMetadataSetup {
             System.exit(1);
         }
 
-        try (MetadataStoreExtended configStore = PulsarClusterMetadataSetup
-                .initConfigMetadataStore(arguments.configurationStore, arguments.zkSessionTimeoutMillis)) {
+        try (MetadataStoreExtended configStore = PulsarClusterMetadataSetup.initConfigMetadataStore(
+                arguments.configurationStore,
+                arguments.configurationStoreConfigPath,
+                arguments.zkSessionTimeoutMillis)) {
             PulsarResources pulsarResources = new PulsarResources(null, configStore);
             // Create system tenant
             PulsarClusterMetadataSetup

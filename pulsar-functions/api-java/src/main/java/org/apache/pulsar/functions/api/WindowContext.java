@@ -18,33 +18,16 @@
  */
 package org.apache.pulsar.functions.api;
 
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-import org.slf4j.Logger;
 
 @InterfaceAudience.Public
 @InterfaceStability.Stable
-public interface WindowContext {
-
-    /**
-     * The tenant this function belongs to.
-     *
-     * @return the tenant this function belongs to
-     */
-    String getTenant();
-
-    /**
-     * The namespace this function belongs to.
-     *
-     * @return the namespace this function belongs to
-     */
-    String getNamespace();
-
+public interface WindowContext extends BaseContext {
     /**
      * The name of the function that we are executing.
      *
@@ -58,20 +41,6 @@ public interface WindowContext {
      * @return The function id
      */
     String getFunctionId();
-
-    /**
-     * The id of the instance that invokes this function.
-     *
-     * @return the instance id
-     */
-    int getInstanceId();
-
-    /**
-     * Get the number of instances that invoke this function.
-     *
-     * @return the number of instances that invoke this function.
-     */
-    int getNumInstances();
 
     /**
      * The version of the function that we are executing.
@@ -102,45 +71,6 @@ public interface WindowContext {
     String getOutputSchemaType();
 
     /**
-     * The logger object that can be used to log in a function.
-     *
-     * @return the logger object
-     */
-    Logger getLogger();
-
-    /**
-     * Increment the builtin distributed counter referred by key.
-     *
-     * @param key The name of the key
-     * @param amount The amount to be incremented
-     */
-    void incrCounter(String key, long amount);
-
-    /**
-     * Retrieve the counter value for the key.
-     *
-     * @param key name of the key
-     * @return the amount of the counter value for this key
-     */
-    long getCounter(String key);
-
-    /**
-     * Update the state value for the key.
-     *
-     * @param key name of the key
-     * @param value state value of the key
-     */
-    void putState(String key, ByteBuffer value);
-
-    /**
-     * Retrieve the state value for the key.
-     *
-     * @param key name of the key
-     * @return the state value for the key.
-     */
-    ByteBuffer getState(String key);
-
-    /**
      * Get a map of all user-defined key/value configs for the function.
      *
      * @return The full map of user-defined config values
@@ -163,14 +93,6 @@ public interface WindowContext {
      * @return Either the user config value associated with a given key or a supplied default value
      */
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
-
-    /**
-     * Record a user defined metric.
-     *
-     * @param metricName The name of the metric
-     * @param value The value of the metric
-     */
-    void recordMetric(String metricName, double value);
 
     /**
      * Publish an object using serDe for serializing to the topic.

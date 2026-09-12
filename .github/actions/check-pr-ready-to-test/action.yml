@@ -1,0 +1,55 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: check PR readiness for running CI
+description: >
+  Fails the workflow when a pull request isn't ready for consuming the shared CI resources of the
+  apache/pulsar repository. Draft pull requests and stacked pull requests which aren't at the bottom
+  of the stack are expected to be tested in the contributor's own fork. The check is overridden by
+  adding the ready-to-test label to the pull request.
+inputs:
+  github-token:
+    description: "Token used for reading the pull request state"
+    required: false
+    default: ${{ github.token }}
+  ready-to-test-label:
+    description: "Label which overrides the readiness check"
+    required: false
+    default: 'ready-to-test'
+  trunk-branches:
+    description: >
+      Comma separated glob patterns of the branches that are considered trunk branches. Used for
+      detecting stacked pull requests when the GitHub stack API isn't available.
+    required: false
+    default: 'master,branch-*,pulsar-*'
+runs:
+  using: composite
+  steps:
+    - uses: actions/github-script@v8
+      env:
+        # github.action_path is passed in an environment variable since a relative require would be
+        # resolved against the github-script action's own directory instead of this action's directory
+        ACTION_PATH: ${{ github.action_path }}
+        READY_TO_TEST_LABEL: ${{ inputs.ready-to-test-label }}
+        TRUNK_BRANCHES: ${{ inputs.trunk-branches }}
+      with:
+        github-token: ${{ inputs.github-token }}
+        script: |
+          const checkPrReadyToTest = require(`${process.env.ACTION_PATH}/check-pr-ready-to-test.js`);
+          await checkPrReadyToTest({ github, context, core });

@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.service.AbstractBaseDispatcher.checkAndAp
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.MoreObjects;
+import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -29,13 +30,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -50,13 +52,12 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursor
 import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ScanOutcome;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.AbstractSubscription;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -68,6 +69,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInval
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryFilterSupport;
+import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
@@ -90,10 +93,12 @@ import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class PersistentSubscription extends AbstractSubscription implements Subscription {
+public class PersistentSubscription extends AbstractSubscription {
+
+    private static final Logger LOG = Logger.get(PersistentSubscription.class);
+    protected final Logger log;
+
     protected final PersistentTopic topic;
     protected final ManagedCursor cursor;
     protected volatile Dispatcher dispatcher;
@@ -115,7 +120,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
     private static final int MINIMUM_BACKLOG_FOR_EXPIRY_CHECK = 1000;
 
-    private static final String REPLICATED_SUBSCRIPTION_PROPERTY = "pulsar.replicated.subscription";
+    protected static final String REPLICATED_SUBSCRIPTION_PROPERTY = "pulsar.replicated.subscription";
 
     // Map of properties that is used to mark this subscription as "replicated".
     // Since this is the only field at this point, we can just keep a static
@@ -125,36 +130,58 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private static final Map<String, Long> NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES = Map.of();
 
     private volatile ReplicatedSubscriptionSnapshotCache replicatedSubscriptionSnapshotCache;
+    @Getter
     private final PendingAckHandle pendingAckHandle;
-    private volatile Map<String, String> subscriptionProperties;
     private volatile CompletableFuture<Void> fenceFuture;
+    private volatile CompletableFuture<Void> inProgressResetCursorFuture;
+    private volatile Boolean replicatedControlled;
+    private final ServiceConfiguration config;
 
-    static Map<String, Long> getBaseCursorProperties(boolean isReplicated) {
-        return isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES : NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
+    static Map<String, Long> getBaseCursorProperties(Boolean isReplicated) {
+        return isReplicated != null && isReplicated ? REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES :
+                NON_REPLICATED_SUBSCRIPTION_CURSOR_PROPERTIES;
     }
 
-    static boolean isCursorFromReplicatedSubscription(ManagedCursor cursor) {
-        return cursor.getProperties().containsKey(REPLICATED_SUBSCRIPTION_PROPERTY);
+    static Optional<Boolean> getReplicatedSubscriptionConfiguration(ManagedCursor cursor) {
+        Long v = cursor.getProperties().get(REPLICATED_SUBSCRIPTION_PROPERTY);
+        if (v == null || (v < 0L || v > 1L)) {
+            return Optional.empty();
+        }
+        return Optional.of(v == 1L);
     }
 
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                  boolean replicated) {
+                                  Boolean replicated) {
         this(topic, subscriptionName, cursor, replicated, Collections.emptyMap());
     }
 
+    /**
+     * Creates a persistent subscription.
+     *
+     * @deprecated use {@link #PersistentSubscription(PersistentTopic, String, ManagedCursor, Boolean)}
+     *             instead. The {@code subscriptionProperties} parameter is no longer read; the
+     *             cursor already carries all subscription properties.
+     */
+    @Deprecated
     public PersistentSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                  boolean replicated, Map<String, String> subscriptionProperties) {
+                                  Boolean replicated, Map<String, String> subscriptionProperties) {
         this.topic = topic;
+        this.config = topic.getBrokerService().getPulsar().getConfig();
         this.cursor = cursor;
         this.topicName = topic.getName();
         this.subName = subscriptionName;
         this.fullName = MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
+        this.log = LOG.with()
+                .attr("topic", topicName)
+                .attr("subscription", subName)
+                .build();
         this.expiryMonitor = new PersistentMessageExpiryMonitor(topic, subscriptionName, cursor, this);
-        this.setReplicated(replicated);
-        this.subscriptionProperties = MapUtils.isEmpty(subscriptionProperties)
-                ? Collections.emptyMap() : Collections.unmodifiableMap(subscriptionProperties);
-        if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()
-                && !isEventSystemTopic(TopicName.get(topicName))) {
+        if (replicated != null) {
+            this.setReplicated(replicated);
+        }
+        if (config.isTransactionCoordinatorEnabled()
+                && !isEventSystemTopic(TopicName.get(topicName))
+                && !ExtensibleLoadManagerImpl.isInternalTopic(topicName)) {
             this.pendingAckHandle = new PendingAckHandleImpl(this);
         } else {
             this.pendingAckHandle = new PendingAckHandleDisabled();
@@ -188,18 +215,26 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     public boolean setReplicated(boolean replicated) {
-        ServiceConfiguration config = topic.getBrokerService().getPulsar().getConfig();
+        replicatedControlled = replicated;
 
         if (!replicated || !config.isEnableReplicatedSubscriptions()) {
             this.replicatedSubscriptionSnapshotCache = null;
         } else if (this.replicatedSubscriptionSnapshotCache == null) {
             this.replicatedSubscriptionSnapshotCache = new ReplicatedSubscriptionSnapshotCache(subName,
-                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription());
+                    config.getReplicatedSubscriptionsSnapshotMaxCachedPerSubscription(),
+                    getCursor().getManagedLedger()::getNumberOfEntries);
         }
 
         if (this.cursor != null) {
             if (replicated) {
-                return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+                if (!config.isEnableReplicatedSubscriptions()) {
+                    log.warn()
+                            .attr("replicated", replicated)
+                            .log("Failed set replicated subscription status to, please enable the "
+                                    + "configuration enableReplicatedSubscriptions");
+                } else {
+                    return this.cursor.putProperty(REPLICATED_SUBSCRIPTION_PROPERTY, 1L);
+                }
             } else {
                 return this.cursor.removeProperty(REPLICATED_SUBSCRIPTION_PROPERTY);
             }
@@ -210,78 +245,131 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     @Override
     public CompletableFuture<Void> addConsumer(Consumer consumer) {
+        CompletableFuture<Void> inProgressResetCursorFuture = this.inProgressResetCursorFuture;
+        if (inProgressResetCursorFuture != null) {
+            return inProgressResetCursorFuture.handle((ignore, ignoreEx) -> null)
+                    .thenCompose(ignore -> addConsumerInternal(consumer));
+        } else {
+            return addConsumerInternal(consumer);
+        }
+    }
+
+    private CompletableFuture<Void> addConsumerInternal(Consumer consumer) {
         return pendingAckHandle.pendingAckHandleFuture().thenCompose(future -> {
             synchronized (PersistentSubscription.this) {
                 cursor.updateLastActive();
+                if (!cursor.isActive()
+                        && (topic.getManagedLedger().getConfig().isCacheEvictionByExpectedReadCount()
+                        // set the cursor active when it connects, if the backlog size is less than the threshold.
+                        // this is configured with the managedLedgerCursorBackloggedThreshold setting
+                        || topic.getBackloggedCursorThresholdEntries() < 0
+                        || cursor.getNumberOfEntries() <= topic.getBackloggedCursorThresholdEntries())) {
+                    // If the cursor is not active, we need to set it active
+                    cursor.setActive();
+                }
+
                 if (IS_FENCED_UPDATER.get(this) == TRUE) {
-                    log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
+                    log.warn().attr("consumer", consumer).log("Attempting to add consumer on a fenced subscription");
                     return FutureUtil.failedFuture(new SubscriptionFencedException("Subscription is fenced"));
                 }
 
                 if (dispatcher == null || !dispatcher.isConsumerConnected()) {
-                    Dispatcher previousDispatcher = null;
-                    switch (consumer.subType()) {
-                        case Exclusive:
-                            if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
-                                previousDispatcher = dispatcher;
-                                dispatcher = new PersistentDispatcherSingleActiveConsumer(
-                                        cursor, SubType.Exclusive, 0, topic, this);
-                            }
-                            break;
-                        case Shared:
-                            if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
-                                previousDispatcher = dispatcher;
-                                dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
-                            }
-                            break;
-                        case Failover:
-                            int partitionIndex = TopicName.getPartitionIndex(topicName);
-                            if (partitionIndex < 0) {
-                                // For non partition topics, use a negative index so
-                                // dispatcher won't sort consumers before picking
-                                // an active consumer for the topic.
-                                partitionIndex = -1;
-                            }
-
-                            if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
-                                previousDispatcher = dispatcher;
-                                dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover,
-                                                partitionIndex, topic, this);
-                            }
-                            break;
-                        case Key_Shared:
-                            KeySharedMeta ksm = consumer.getKeySharedMeta();
-                            if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
-                                    || !((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher)
-                                    .hasSameKeySharedPolicy(ksm)) {
-                                previousDispatcher = dispatcher;
-                                dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
-                                        topic.getBrokerService().getPulsar().getConfiguration(), ksm);
-                            }
-                            break;
-                        default:
-                            return FutureUtil.failedFuture(
-                                    new ServerMetadataException("Unsupported subscription type"));
+                    if (consumer.subType() == null) {
+                        return FutureUtil.failedFuture(new ServerMetadataException("Unsupported subscription type"));
                     }
-
-                    if (previousDispatcher != null) {
-                        previousDispatcher.close().thenRun(() -> {
-                            log.info("[{}][{}] Successfully closed previous dispatcher", topicName, subName);
-                        }).exceptionally(ex -> {
-                            log.error("[{}][{}] Failed to close previous dispatcher", topicName, subName, ex);
-                            return null;
-                        });
-                    }
+                    dispatcher = reuseOrCreateDispatcher(dispatcher, consumer);
                 } else {
-                    if (consumer.subType() != dispatcher.getType()) {
-                        return FutureUtil.failedFuture(
-                                new SubscriptionBusyException("Subscription is of different type"));
+                    Optional<CompletableFuture<Void>> compatibilityError =
+                            checkForConsumerCompatibilityErrorWithDispatcher(dispatcher, consumer);
+                    if (compatibilityError.isPresent()) {
+                        return compatibilityError.get();
                     }
                 }
 
                 return dispatcher.addConsumer(consumer);
             }
         });
+    }
+
+    /**
+     * Create a new dispatcher or reuse the existing one when it's compatible with the new consumer.
+     * This protected method can be overridded for testing purpose for injecting test dispatcher instances with
+     * special behaviors.
+     * @param dispatcher the existing dispatcher
+     * @param consumer the new consumer
+     * @return the dispatcher to use, either the existing one or a new one
+     */
+    protected Dispatcher reuseOrCreateDispatcher(Dispatcher dispatcher, Consumer consumer) {
+        Dispatcher previousDispatcher = null;
+        switch (consumer.subType()) {
+            case Exclusive:
+                if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
+                    previousDispatcher = dispatcher;
+                    dispatcher = new PersistentDispatcherSingleActiveConsumer(
+                            cursor, SubType.Exclusive, 0, topic, this);
+                }
+                break;
+            case Shared:
+                if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
+                    previousDispatcher = dispatcher;
+                    if (config.isSubscriptionSharedUseClassicPersistentImplementation()) {
+                        dispatcher = new PersistentDispatcherMultipleConsumersClassic(topic, cursor, this);
+                    } else {
+                        dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
+                    }
+                }
+                break;
+            case Failover:
+                int partitionIndex = TopicName.getPartitionIndex(topicName);
+                if (partitionIndex < 0) {
+                    // For non partition topics, use a negative index so
+                    // dispatcher won't sort consumers before picking
+                    // an active consumer for the topic.
+                    partitionIndex = -1;
+                }
+
+                if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
+                    previousDispatcher = dispatcher;
+                    dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor, SubType.Failover,
+                            partitionIndex, topic, this);
+                }
+                break;
+            case Key_Shared:
+                KeySharedMeta ksm = consumer.getKeySharedMeta();
+                if (dispatcher == null || dispatcher.getType() != SubType.Key_Shared
+                        || !((StickyKeyDispatcher) dispatcher)
+                        .hasSameKeySharedPolicy(ksm)) {
+                    previousDispatcher = dispatcher;
+                    if (ksm.isEntryBucketDispatch()) {
+                        // PIP-486 scalable-topic segment shared by entry-bucket. Always uses the
+                        // modern implementation; the classic dispatcher has no bucket support.
+                        dispatcher = new PersistentEntryBucketDispatcherMultipleConsumers(topic, cursor,
+                                this, config, ksm);
+                    } else if (config.isSubscriptionKeySharedUseClassicPersistentImplementation()) {
+                        dispatcher =
+                                new PersistentStickyKeyDispatcherMultipleConsumersClassic(topic, cursor,
+                                        this, config, ksm);
+                    } else {
+                        dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
+                                config, ksm);
+                    }
+                }
+                break;
+        }
+
+        if (previousDispatcher != null) {
+            previousDispatcher.close().thenRun(() -> {
+                log.info()
+                        .log("Successfully closed previous dispatcher");
+            }).exceptionally(ex -> {
+                log.error()
+                        .exception(ex)
+                        .log("Failed to close previous dispatcher");
+                return null;
+            });
+        }
+
+        return dispatcher;
     }
 
     @Override
@@ -298,39 +386,57 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
         if (dispatcher != null && dispatcher.getConsumers().isEmpty()) {
             deactivateCursor();
+            // Remove the cursor from the waiting cursors list.
+            // For durable cursors, we should *not* cancel the pending read with cursor.cancelPendingReadRequest.
+            // This is because internally, in the dispatcher implementations, there is a "havePendingRead" flag
+            // that is not reset. If the pending read is cancelled, the dispatcher will not continue reading from
+            // the managed ledger when a new consumer is added to the dispatcher since based on the "havePendingRead"
+            // state, it will continue to expect that a read is pending and will not submit a new read.
+            // For non-durable cursors, there's no difference since the cursor is not expected to be used again.
+
+            // remove waiting cursor from the managed ledger, this applies to both durable and non-durable cursors.
             topic.getManagedLedger().removeWaitingCursor(cursor);
 
             if (!cursor.isDurable()) {
-                // If cursor is not durable, we need to clean up the subscription as well
-                this.close().thenRun(() -> {
+                // If cursor is not durable, we need to clean up the subscription as well. No need to check for active
+                // consumers since we already validated that there are no consumers on this dispatcher.
+                this.closeCursor(false).thenRun(() -> {
                     synchronized (this) {
                         if (dispatcher != null) {
                             dispatcher.close().thenRun(() -> {
-                                log.info("[{}][{}] Successfully closed dispatcher for reader", topicName, subName);
+                                log.info()
+                                        .log("Successfully closed dispatcher for reader");
                             }).exceptionally(ex -> {
-                                log.error("[{}][{}] Failed to close dispatcher for reader", topicName, subName, ex);
+                                log.error()
+                                        .exception(ex)
+                                        .log("Failed to close dispatcher for reader");
                                 return null;
                             });
                         }
                     }
                 }).exceptionally(exception -> {
-                    log.error("[{}][{}] Failed to close subscription for reader", topicName, subName, exception);
+                    log.error()
+                            .exception(exception)
+                            .log("Failed to close subscription for reader");
                     return null;
                 });
 
                 // when topic closes: it iterates through concurrent-subscription map to close each subscription. so,
                 // topic.remove again try to access same map which creates deadlock. so, execute it in different thread.
                 topic.getBrokerService().pulsar().getExecutor().execute(() -> {
-                    topic.removeSubscription(subName);
-                    // Also need remove the cursor here, otherwise the data deletion will not work well.
-                    // Because data deletion depends on the mark delete position of all cursors.
-                    if (!isResetCursor) {
-                        try {
-                            topic.getManagedLedger().deleteCursor(cursor.getName());
-                        } catch (InterruptedException | ManagedLedgerException e) {
-                            log.warn("[{}] [{}] Failed to remove non durable cursor", topic.getName(), subName, e);
+                    topic.removeSubscription(subName).thenRunAsync(() -> {
+                        // Also need remove the cursor here, otherwise the data deletion will not work well.
+                        // Because data deletion depends on the mark delete position of all cursors.
+                        if (!isResetCursor) {
+                            try {
+                                topic.getManagedLedger().deleteCursor(cursor.getName());
+                            } catch (InterruptedException | ManagedLedgerException e) {
+                                log.warn()
+                                        .exception(e)
+                                        .log("Failed to remove non durable cursor");
+                            }
                         }
-                    }
+                    }, topic.getBrokerService().pulsar().getExecutor());
                 });
             }
         }
@@ -338,10 +444,10 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         // invalid consumer remove will throw an exception
         // decrement usage is triggered only for valid consumer close
         topic.decrementUsageCount();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] [{}] Removed consumer -- count: {}", topic.getName(), subName, consumer.consumerName(),
-                    topic.currentUsageCount());
-        }
+        log.debug()
+                .attr("consumerName", consumer.consumerName())
+                .attr("currentUsageCount", topic.currentUsageCount())
+                .log("Removed consumer -- count");
     }
 
     public void deactivateCursor() {
@@ -354,33 +460,56 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         dispatcher.consumerFlow(consumer, additionalNumberOfMessages);
     }
 
-    @Override
-    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
+    public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
+                                                           Map<String, Long> properties) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
         cursor.updateLastActive();
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
 
         if (ackType == AckType.Cumulative) {
 
             if (positions.size() != 1) {
-                log.warn("[{}][{}] Invalid cumulative ack received with multiple message ids.", topicName, subName);
-                return;
+                log.warn()
+                        .log("Invalid cumulative ack received with multiple message ids.");
+                future.completeExceptionally(
+                        new IllegalArgumentException("Invalid cumulative ack received with multiple message ids."));
+                return future;
             }
 
             Position position = positions.get(0);
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Cumulative ack on {}", topicName, subName, position);
+            log.debug()
+                    .attr("position", position)
+                    .log("Cumulative ack on");
+            AckCallback callback = new AckCallback(previousMarkDeletePosition, future);
+            if (dispatcher instanceof AbstractDispatcherSingleActiveConsumer singleConsumerDispatcher) {
+                // For compacted consumer, we should ignore the position that does not exist in the managed ledger,
+                // otherwise, the `asyncMarkDelete` call could jump the read position to the active ledger, which will
+                // skip all entries present in the compacted ledger but not present in the managed ledger.
+                final var consumer = singleConsumerDispatcher.getActiveConsumer();
+                final var ml = cursor.getManagedLedger();
+                if (consumer != null
+                        && consumer.readCompacted()
+                        && !cursor.isDurable()
+                        && ml.getOptionalLedgerInfo(position.getLedgerId()).isEmpty()) {
+                    if (ml.getFirstPosition() == null || position.getLedgerId() > ml.getFirstPosition().getLedgerId()) {
+                        log.warn("Received an ACK whose position is " + position + ", valid ledgers: "
+                                + ml.getLedgersInfo().keySet());
+                    }
+                    return CompletableFuture.completedFuture(null);
+                }
             }
             cursor.asyncMarkDelete(position, mergeCursorProperties(properties),
-                    markDeleteCallback, previousMarkDeletePosition);
+                    callback, callback);
 
         } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Individual acks on {}", topicName, subName, positions);
-            }
-            cursor.asyncDelete(positions, deleteCallback, previousMarkDeletePosition);
-            if (topic.getBrokerService().getPulsar().getConfig().isTransactionCoordinatorEnabled()) {
+            log.debug()
+                    .attr("positions", positions)
+                    .log("Individual acks on");
+            AckCallback callback = new AckCallback(previousMarkDeletePosition, future);
+            cursor.asyncDelete(positions, callback, callback);
+            if (config.isTransactionCoordinatorEnabled()) {
                 positions.forEach(position -> {
-                    if (((ManagedCursorImpl) cursor).isMessageDeleted(position)) {
+                    if ((cursor.isMessageDeleted(position))) {
                         pendingAckHandle.clearIndividualPosition(position);
                     }
                 });
@@ -391,82 +520,123 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             }
         }
 
-        if (!cursor.getMarkDeletedPosition().equals(previousMarkDeletePosition)) {
-            this.updateLastMarkDeleteAdvancedTimestamp();
-
-            // Mark delete position advance
-            ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
-            if (snapshotCache != null) {
-                ReplicatedSubscriptionsSnapshot snapshot = snapshotCache
-                        .advancedMarkDeletePosition((PositionImpl) cursor.getMarkDeletedPosition());
-                if (snapshot != null) {
-                    topic.getReplicatedSubscriptionController()
-                            .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
-                }
-            }
-        }
-
-        if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
+        if (topic.getManagedLedger().isTerminated() && !cursor.hasBacklog(false)) {
             // Notify all consumer that the end of topic was reached
             if (dispatcher != null) {
                 checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
             }
         }
+
+        return future;
     }
 
     public CompletableFuture<Void> transactionIndividualAcknowledge(
             TxnID txnId,
-            List<MutablePair<PositionImpl, Integer>> positions) {
+            List<MutablePair<Position, Integer>> positions) {
         return pendingAckHandle.individualAcknowledgeMessage(txnId, positions);
     }
 
-    public CompletableFuture<Void> transactionCumulativeAcknowledge(TxnID txnId, List<PositionImpl> positions) {
+    public CompletableFuture<Void> transactionCumulativeAcknowledge(TxnID txnId, List<Position> positions) {
         return pendingAckHandle.cumulativeAcknowledgeMessage(txnId, positions);
     }
 
-    private final MarkDeleteCallback markDeleteCallback = new MarkDeleteCallback() {
+    private final class AckCallback implements MarkDeleteCallback, DeleteCallback {
+        private final Position previousMarkDeletePosition;
+        private final CompletableFuture<Void> completionFuture;
+
+        private AckCallback(Position previousMarkDeletePosition, CompletableFuture<Void> completionFuture) {
+            this.previousMarkDeletePosition = previousMarkDeletePosition;
+            this.completionFuture = completionFuture;
+        }
+
         @Override
         public void markDeleteComplete(Object ctx) {
-            PositionImpl oldMD = (PositionImpl) ctx;
-            PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Mark deleted messages to position {} from position {}",
-                        topicName, subName, newMD, oldMD);
-            }
-            // Signal the dispatchers to give chance to take extra actions
-            notifyTheMarkDeletePositionMoveForwardIfNeeded(oldMD);
+            Position newMD = cursor.getMarkDeletedPosition();
+            log.debug()
+                    .attr("newMD", newMD)
+                    .attr("oldMD", previousMarkDeletePosition)
+                    .log("Mark deleted messages to position from position");
+            completeAck();
         }
 
         @Override
         public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
             // TODO: cut consumer connection on markDeleteFailed
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Failed to mark delete for position {}: {}", topicName, subName, ctx, exception);
-            }
+            log.debug()
+                    .attr("oldMD", previousMarkDeletePosition)
+                    .exceptionMessage(exception)
+                    .log("Failed to mark delete for position");
+            failAck(exception);
         }
-    };
 
-    private final DeleteCallback deleteCallback = new DeleteCallback() {
         @Override
-        public void deleteComplete(Object position) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Deleted message at {}", topicName, subName, position);
-            }
-            // Signal the dispatchers to give chance to take extra actions
-            notifyTheMarkDeletePositionMoveForwardIfNeeded((PositionImpl) position);
+        public void deleteComplete(Object context) {
+            log.debug()
+                    .attr("oldMD", previousMarkDeletePosition)
+                    .log("Deleted message");
+            completeAck();
         }
 
         @Override
         public void deleteFailed(ManagedLedgerException exception, Object ctx) {
-            log.warn("[{}][{}] Failed to delete message at {}: {}", topicName, subName, ctx, exception);
+            log.warn()
+                    .attr("odMD", previousMarkDeletePosition)
+                    .exceptionMessage(exception)
+                    .log("Failed to delete message");
+            failAck(exception);
         }
-    };
 
-    private void notifyTheMarkDeletePositionMoveForwardIfNeeded(Position oldPosition) {
-        PositionImpl oldMD = (PositionImpl) oldPosition;
-        PositionImpl newMD = (PositionImpl) cursor.getMarkDeletedPosition();
-        if (dispatcher != null && newMD.compareTo(oldMD) > 0) {
-            dispatcher.markDeletePositionMoveForward();
+        private void completeAck() {
+            Dispatcher currentDispatcher = dispatcher;
+            if (currentDispatcher != null) {
+                currentDispatcher.afterAckMessages(null, this);
+            }
+            notifyTheMarkDeletePositionChanged(previousMarkDeletePosition);
+            completionFuture.complete(null);
+        }
+
+        private void failAck(ManagedLedgerException exception) {
+            Dispatcher currentDispatcher = dispatcher;
+            if (currentDispatcher != null) {
+                currentDispatcher.afterAckMessages(exception, this);
+            }
+            completionFuture.completeExceptionally(exception);
+        }
+    }
+
+    /**
+     * This method is called after acknowledgements (such as individual acks) have been processed and the mark-delete
+     * position has possibly been updated and advanced after "ack holes" have been filled up by the latest individual
+     * acknowledgements.
+     * @param oldPosition previous mark-delete position before the update
+     */
+    private void notifyTheMarkDeletePositionChanged(Position oldPosition) {
+        Position newMD = cursor.getMarkDeletedPosition();
+
+        // check if the mark delete position has changed since the last call
+        if (newMD.compareTo(oldPosition) != 0) {
+            updateLastMarkDeleteAdvancedTimestamp();
+            handleReplicatedSubscriptionsUpdate(newMD);
+        }
+    }
+
+    /**
+     * Checks the snapshot cache for a snapshot that corresponds to the given mark-delete position.
+     * If a snapshot is found, it will notify the replicated subscription controller that the local subscription
+     * has been updated.
+     * This method is called when the mark-delete position is advanced or when a new snapshot is added to the cache.
+     * When the new snapshot is added, it might be suitable for the current mark-delete position.
+     * @param markDeletePosition the mark delete position to check for a snapshot
+     */
+    private void handleReplicatedSubscriptionsUpdate(Position markDeletePosition) {
+        ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
+        if (snapshotCache != null) {
+            ReplicatedSubscriptionSnapshotCache.SnapshotResult snapshot = snapshotCache
+                    .advancedMarkDeletePosition(markDeletePosition);
+            if (snapshot != null) {
+                topic.getReplicatedSubscriptionController()
+                        .ifPresent(c -> c.localSubscriptionUpdated(subName, snapshot));
+            }
         }
     }
 
@@ -506,47 +676,57 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return "Null";
     }
 
-    @Override
     public CompletableFuture<AnalyzeBacklogResult> analyzeBacklog(Optional<Position> position) {
-
-        long start = System.currentTimeMillis();
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Starting to analyze backlog", topicName, subName);
+        final ManagedLedger managedLedger = topic.getManagedLedger();
+        final String newNonDurableCursorName = "analyze-backlog-" + UUID.randomUUID();
+        ManagedCursor newNonDurableCursor;
+        try {
+            newNonDurableCursor = cursor.duplicateNonDurableCursor(newNonDurableCursorName);
+        } catch (ManagedLedgerException e) {
+            return CompletableFuture.failedFuture(e);
         }
+        long start = System.currentTimeMillis();
+        log.debug().log("Starting to analyze backlog");
 
         AtomicLong entries = new AtomicLong();
         AtomicLong accepted = new AtomicLong();
         AtomicLong rejected = new AtomicLong();
         AtomicLong rescheduled = new AtomicLong();
         AtomicLong messages = new AtomicLong();
+        AtomicLong markerMessages = new AtomicLong();
         AtomicLong acceptedMessages = new AtomicLong();
         AtomicLong rejectedMessages = new AtomicLong();
         AtomicLong rescheduledMessages = new AtomicLong();
 
-        Position currentPosition = cursor.getMarkDeletedPosition();
+        Position currentPosition = newNonDurableCursor.getMarkDeletedPosition();
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] currentPosition {}",
-                    topicName, subName, currentPosition);
-        }
+        log.debug()
+                .attr("currentPosition", currentPosition)
+                .log("currentPosition");
         final EntryFilterSupport entryFilterSupport = dispatcher != null
                 ? (EntryFilterSupport) dispatcher : new EntryFilterSupport(this);
         // we put some hard limits on the scan, in order to prevent denial of services
-        ServiceConfiguration configuration = topic.getBrokerService().getPulsar().getConfiguration();
-        long maxEntries = configuration.getSubscriptionBacklogScanMaxEntries();
-        long timeOutMs = configuration.getSubscriptionBacklogScanMaxTimeMs();
-        int batchSize = configuration.getDispatcherMaxReadBatchSize();
+        long maxEntries = config.getSubscriptionBacklogScanMaxEntries();
+        long timeOutMs = config.getSubscriptionBacklogScanMaxTimeMs();
+        int batchSize = config.getDispatcherMaxReadBatchSize();
         AtomicReference<Position> firstPosition = new AtomicReference<>();
         AtomicReference<Position> lastPosition = new AtomicReference<>();
         final Predicate<Entry> condition = entry -> {
-            if (log.isDebugEnabled()) {
-                log.debug("found {}", entry);
-            }
+            log.debug().attr("entry", entry).log("found");
             Position entryPosition = entry.getPosition();
             firstPosition.compareAndSet(null, entryPosition);
             lastPosition.set(entryPosition);
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            MessageMetadata messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
+            MessageMetadata messageMetadata;
+            if (entry.getMessageMetadata() != null) {
+                messageMetadata = entry.getMessageMetadata();
+            } else {
+                messageMetadata = Commands.peekMessageMetadata(metadataAndPayload, "", -1);
+            }
+            if (messageMetadata.hasMarkerType()) {
+                markerMessages.incrementAndGet();
+                return true;
+            }
             int numMessages = 1;
             if (messageMetadata.hasNumMessagesInBatch()) {
                 numMessages = messageMetadata.getNumMessagesInBatch();
@@ -576,14 +756,15 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
             if (num % 1000 == 0) {
                 long end = System.currentTimeMillis();
-                log.info(
-                        "[{}][{}] scan running since {} ms - scanned {} entries",
-                        topicName, subName, end - start, num);
+                log.info()
+                        .attr("latencyMs", end - start)
+                        .attr("num", num)
+                        .log("Scan running");
             }
 
             return true;
         };
-        return cursor.scan(
+        CompletableFuture<AnalyzeBacklogResult> res = newNonDurableCursor.scan(
                 position,
                 condition,
                 batchSize,
@@ -596,6 +777,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             result.setLastPosition(lastPosition.get());
             result.setEntries(entries.get());
             result.setMessages(messages.get());
+            result.setMarkerMessages(markerMessages.get());
             result.setFilterAcceptedEntries(accepted.get());
             result.setFilterAcceptedMessages(acceptedMessages.get());
             result.setFilterRejectedEntries(rejected.get());
@@ -605,30 +787,45 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             // sometimes we abort the execution due to a timeout or
             // when we reach a maximum number of entries
             result.setScanOutcome(outcome);
-            log.info(
-                    "[{}][{}] scan took {} ms - {}",
-                    topicName, subName, end - start, result);
+            log.info()
+                    .attr("latencyMs", end - start)
+                    .attr("result", result)
+                    .log("Scan complete");
             return result;
         });
+        res.whenComplete((__, ex) -> {
+            managedLedger.asyncDeleteCursor(newNonDurableCursorName,
+                new AsyncCallbacks.DeleteCursorCallback(){
+                    @Override
+                    public void deleteCursorComplete(Object ctx) {
+                        // Nothing to do.
+                    }
 
+                    @Override
+                    public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        log.warn()
+                                .attr("name", newNonDurableCursor.getName())
+                                .log("Delete non-durable cursor failed when analyze backlog.");
+                    }
+                }, null);
+        });
+        return res;
     }
 
     @Override
     public CompletableFuture<Void> clearBacklog() {
         CompletableFuture<Void> future = new CompletableFuture<>();
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Backlog size before clearing: {}", topicName, subName,
-                    cursor.getNumberOfEntriesInBacklog(false));
-        }
+        log.debug()
+                .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
+                .log("Backlog size before clearing");
 
         cursor.asyncClearBacklog(new ClearBacklogCallback() {
             @Override
             public void clearBacklogComplete(Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] Backlog size after clearing: {}", topicName, subName,
-                            cursor.getNumberOfEntriesInBacklog(false));
-                }
+                log.debug()
+                        .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
+                        .log("Backlog size after clearing");
                 if (dispatcher != null) {
                     dispatcher.clearDelayedMessages().whenComplete((__, ex) -> {
                         if (ex != null) {
@@ -637,6 +834,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                             future.complete(null);
                         }
                     });
+                    dispatcher.markDeletePositionMoveForward();
+                    dispatcher.afterAckMessages(null, ctx);
                 } else {
                     future.complete(null);
                 }
@@ -644,8 +843,13 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
             @Override
             public void clearBacklogFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("[{}][{}] Failed to clear backlog", topicName, subName, exception);
+                log.error()
+                        .exception(exception)
+                        .log("Failed to clear backlog");
                 future.completeExceptionally(exception);
+                if (dispatcher != null) {
+                    dispatcher.afterAckMessages(exception, ctx);
+                }
             }
         }, null);
 
@@ -656,26 +860,35 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     public CompletableFuture<Void> skipMessages(int numMessagesToSkip) {
         CompletableFuture<Void> future = new CompletableFuture<>();
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Skipping {} messages, current backlog {}", topicName, subName, numMessagesToSkip,
-                    cursor.getNumberOfEntriesInBacklog(false));
-        }
+        log.debug()
+                .attr("numMessagesToSkip", numMessagesToSkip)
+                .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
+                .log("Skipping messages");
         cursor.asyncSkipEntries(numMessagesToSkip, IndividualDeletedEntries.Exclude,
                 new AsyncCallbacks.SkipEntriesCallback() {
                     @Override
                     public void skipEntriesComplete(Object ctx) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}][{}] Skipped {} messages, new backlog {}", topicName, subName,
-                                    numMessagesToSkip, cursor.getNumberOfEntriesInBacklog(false));
-                        }
+                        log.debug()
+                                .attr("numMessagesToSkip", numMessagesToSkip)
+                                .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
+                                .log("Skipped messages");
                         future.complete(null);
+                        if (dispatcher != null) {
+                            dispatcher.markDeletePositionMoveForward();
+                            dispatcher.afterAckMessages(null, ctx);
+                        }
                     }
 
                     @Override
                     public void skipEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("[{}][{}] Failed to skip {} messages", topicName, subName, numMessagesToSkip,
-                                exception);
+                        log.error()
+                                .attr("numMessagesToSkip", numMessagesToSkip)
+                                .exception(exception)
+                                .log("Failed to skip messages");
                         future.completeExceptionally(exception);
+                        if (dispatcher != null) {
+                            dispatcher.afterAckMessages(exception, ctx);
+                        }
                     }
                 }, null);
 
@@ -684,12 +897,18 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
 
     @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor);
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Resetting subscription to timestamp {}", topicName, subName, timestamp);
+        if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+            return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
         }
+
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        inProgressResetCursorFuture = future;
+        PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor,
+                config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
+
+        log.debug()
+                .attr("timestamp", timestamp)
+                .log("Resetting subscription to timestamp");
         persistentMessageFinder.findMessages(timestamp, new AsyncCallbacks.FindEntryCallback() {
             @Override
             public void findEntryComplete(Position position, Object ctx) {
@@ -699,28 +918,35 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     // that spans beyond the retention limits (time/size)
                     finalPosition = cursor.getFirstPosition();
                     if (finalPosition == null) {
-                        log.warn("[{}][{}] Unable to find position for timestamp {}."
-                                        + " Unable to reset cursor to first position",
-                                topicName, subName, timestamp);
+                        log.warn()
+                                .attr("timestamp", timestamp)
+                                .log("Unable to find position for timestamp."
+                                        + "Unable to reset cursor to first position");
+                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        inProgressResetCursorFuture = null;
                         future.completeExceptionally(
                                 new SubscriptionInvalidCursorPosition(
                                         "Unable to find position for specified timestamp"));
                         return;
                     }
-                    log.info(
-                            "[{}][{}] Unable to find position for timestamp {}."
-                                    + " Resetting cursor to first position {} in ledger",
-                            topicName, subName, timestamp, finalPosition);
+                    log.info()
+                            .attr("timestamp", timestamp)
+                            .attr("finalPosition", finalPosition)
+                            .log("Unable to find position for timestamp."
+                                    + "Resetting cursor to first position in ledger");
                 } else {
                     finalPosition = position.getNext();
                 }
-                resetCursor(finalPosition, future);
+                CompletableFuture<Void> resetCursorFuture = resetCursorInternal(finalPosition, future, true);
+                FutureUtil.completeAfter(future, resetCursorFuture);
             }
 
             @Override
             public void findEntryFailed(ManagedLedgerException exception,
                                         Optional<Position> failedReadPosition, Object ctx) {
                 // todo - what can go wrong here that needs to be retried?
+                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                inProgressResetCursorFuture = null;
                 if (exception instanceof ConcurrentFindCursorPositionException) {
                     future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
                 } else {
@@ -733,18 +959,19 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
-    public CompletableFuture<Void> resetCursor(Position position) {
-        CompletableFuture<Void> future = new CompletableFuture<>();
-        resetCursor(position, future);
-        return future;
+    public CompletableFuture<Void> resetCursor(Position finalPosition) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        return resetCursorInternal(finalPosition, future, false);
     }
 
-    private void resetCursor(Position finalPosition, CompletableFuture<Void> future) {
-        if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
-            future.completeExceptionally(new SubscriptionBusyException("Failed to fence subscription"));
-            return;
+    private CompletableFuture<Void> resetCursorInternal(Position finalPosition, CompletableFuture<Void> future,
+                                                        boolean alreadyFenced) {
+        if (!alreadyFenced
+                && !IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+            return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
         }
 
+        inProgressResetCursorFuture = future;
         final CompletableFuture<Void> disconnectFuture;
 
         // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
@@ -762,22 +989,25 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             }
 
             if (throwable != null) {
-                log.error("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
+                log.error()
+                        .exception(throwable)
+                        .log("Failed to disconnect consumer from subscription");
                 IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                inProgressResetCursorFuture = null;
                 future.completeExceptionally(
                         new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
                 return;
             }
 
-            log.info("[{}][{}] Successfully disconnected consumers from subscription, proceeding with cursor reset",
-                    topicName, subName);
+            log.info()
+                    .log("Successfully disconnected consumers from subscription, proceeding with cursor reset");
 
             CompletableFuture<Boolean> forceReset = new CompletableFuture<>();
             if (topic.getTopicCompactionService() == null) {
                 forceReset.complete(false);
             } else {
                 topic.getTopicCompactionService().getLastCompactedPosition().thenAccept(lastCompactedPosition -> {
-                    PositionImpl resetTo = (PositionImpl) finalPosition;
+                    Position resetTo = finalPosition;
                     if (lastCompactedPosition != null && resetTo.compareTo(lastCompactedPosition.getLedgerId(),
                             lastCompactedPosition.getEntryId()) <= 0) {
                         forceReset.complete(true);
@@ -794,22 +1024,26 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
                     @Override
                     public void resetComplete(Object ctx) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}][{}] Successfully reset subscription to position {}", topicName, subName,
-                                    finalPosition);
-                        }
+                        log.debug()
+                                .attr("finalPosition", finalPosition)
+                                .log("Successfully reset subscription to position");
                         if (dispatcher != null) {
                             dispatcher.cursorIsReset();
+                            dispatcher.afterAckMessages(null, finalPosition);
                         }
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        inProgressResetCursorFuture = null;
                         future.complete(null);
                     }
 
                     @Override
                     public void resetFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("[{}][{}] Failed to reset subscription to position {}", topicName, subName,
-                                finalPosition, exception);
+                        log.error()
+                                .attr("finalPosition", finalPosition)
+                                .exception(exception)
+                                .log("Failed to reset subscription to position");
                         IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        inProgressResetCursorFuture = null;
                         // todo - retry on InvalidCursorPositionException
                         // or should we just ask user to retry one more time?
                         if (exception instanceof InvalidCursorPositionException) {
@@ -822,21 +1056,25 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                     }
                 });
             }).exceptionally((e) -> {
-                log.error("[{}][{}] Error while resetting cursor", topicName, subName, e);
+                log.error()
+                        .exception(e)
+                        .log("Error while resetting cursor");
                 IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                inProgressResetCursorFuture = null;
                 future.completeExceptionally(new BrokerServiceException(e));
                 return null;
             });
         });
+        return future;
     }
 
     @Override
     public CompletableFuture<Entry> peekNthMessage(int messagePosition) {
         CompletableFuture<Entry> future = new CompletableFuture<>();
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Getting message at position {}", topicName, subName, messagePosition);
-        }
+        log.debug()
+                .attr("messagePosition", messagePosition)
+                .log("Getting message at position");
 
         cursor.asyncGetNthEntry(messagePosition, IndividualDeletedEntries.Exclude, new ReadEntryCallback() {
 
@@ -849,6 +1087,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             public void readEntryComplete(Entry entry, Object ctx) {
                 future.complete(entry);
             }
+
+            @Override
+            public String toString() {
+                return String.format("Subscription [%s-%s] async replay entries", PersistentSubscription.this.topicName,
+                        PersistentSubscription.this.subName);
+            }
         }, null);
 
         return future;
@@ -857,6 +1101,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     @Override
     public long getNumberOfEntriesInBacklog(boolean getPreciseBacklog) {
         return cursor.getNumberOfEntriesInBacklog(getPreciseBacklog);
+    }
+
+    @Override
+    public boolean hasBacklog(boolean getPreciseBacklog) {
+        return cursor.hasBacklog(getPreciseBacklog);
     }
 
     @Override
@@ -873,49 +1122,85 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     /**
-     * Close the cursor ledger for this subscription. Requires that there are no active consumers on the dispatcher
+     * Close the cursor ledger for this subscription. Optionally verifies that there are no active consumers on the
+     * dispatcher.
      *
-     * @return CompletableFuture indicating the completion of delete operation
+     * @return CompletableFuture indicating the completion of close operation
+     */
+    private synchronized CompletableFuture<Void> closeCursor(boolean checkActiveConsumers) {
+        if (checkActiveConsumers && dispatcher != null && dispatcher.isConsumerConnected()) {
+            return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
+        }
+        return this.pendingAckHandle.closeAsync().thenAccept(v -> {
+            IS_FENCED_UPDATER.set(this, TRUE);
+            log.info()
+                    .attr("cursor", cursor)
+                    .log("Successfully closed subscription");
+        });
+    }
+
+
+    /**
+     * Disconnect all consumers from this subscription.
+     *
+     * @return CompletableFuture indicating the completion of the operation.
      */
     @Override
-    public CompletableFuture<Void> close() {
-        synchronized (this) {
-            if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                return FutureUtil.failedFuture(new SubscriptionBusyException("Subscription has active consumers"));
-            }
-            return this.pendingAckHandle.closeAsync().thenAccept(v -> {
-                IS_FENCED_UPDATER.set(this, TRUE);
-                log.info("[{}][{}] Successfully closed subscription [{}]", topicName, subName, cursor);
-            });
-        }
+    public synchronized CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData) {
+        CompletableFuture<Void> disconnectFuture = new CompletableFuture<>();
+
+        (dispatcher != null
+                ? dispatcher.disconnectAllConsumers(false, assignedBrokerLookupData)
+                : CompletableFuture.completedFuture(null))
+                .thenRun(() -> {
+                    log.info()
+                            .log("Successfully disconnected subscription consumers");
+                    disconnectFuture.complete(null);
+                }).exceptionally(exception -> {
+                    log.error()
+                            .exception(exception)
+                            .log("Error disconnecting subscription consumers");
+                    disconnectFuture.completeExceptionally(exception);
+                    return null;
+                });
+
+        return disconnectFuture;
     }
 
     /**
-     * Disconnect all consumers attached to the dispatcher and close this subscription.
+     * Fence this subscription and optionally disconnect all consumers.
      *
-     * @return CompletableFuture indicating the completion of disconnect operation
+     * @return CompletableFuture indicating the completion of the operation.
      */
     @Override
-    public synchronized CompletableFuture<Void> disconnect() {
-        if (fenceFuture != null){
+    public synchronized CompletableFuture<Void> close(boolean disconnectConsumers,
+                                                      Optional<BrokerLookupData> assignedBrokerLookupData) {
+        if (fenceFuture != null) {
             return fenceFuture;
         }
+
         fenceFuture = new CompletableFuture<>();
 
         // block any further consumers on this subscription
         IS_FENCED_UPDATER.set(this, TRUE);
 
-        (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null))
-                .thenCompose(v -> close()).thenRun(() -> {
-                    log.info("[{}][{}] Successfully disconnected and closed subscription", topicName, subName);
+        (dispatcher != null
+                ? dispatcher.close(disconnectConsumers, assignedBrokerLookupData)
+                : CompletableFuture.completedFuture(null))
+                // checkActiveConsumers is false since we just closed all of them if we wanted.
+                .thenCompose(__ -> closeCursor(false)).thenRun(() -> {
+                    log.info()
+                            .log("Successfully closed the subscription");
                     fenceFuture.complete(null);
                 }).exceptionally(exception -> {
-                    log.error("[{}][{}] Error disconnecting consumers from subscription", topicName, subName,
-                            exception);
+                    log.error()
+                            .exception(exception)
+                            .log("Error closing the subscription");
                     fenceFuture.completeExceptionally(exception);
                     resumeAfterFence();
                     return null;
                 });
+
         return fenceFuture;
     }
 
@@ -923,7 +1208,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      * Resume subscription after topic deletion or close failure.
      */
     public synchronized void resumeAfterFence() {
-        // If "fenceFuture" is null, it means that "disconnect" has never been called.
+        // If "fenceFuture" is null, it means that "close" has never been called.
         if (fenceFuture != null) {
             fenceFuture.whenComplete((ignore, ignoreEx) -> {
                 synchronized (PersistentSubscription.this) {
@@ -935,7 +1220,9 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                         }
                         fenceFuture = null;
                     } catch (Exception ex) {
-                        log.error("[{}] Resume subscription [{}] failure", topicName, subName, ex);
+                        log.error()
+                                .exception(ex)
+                                .log("Resume subscription failure");
                     }
                 }
             });
@@ -975,23 +1262,27 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     private CompletableFuture<Void> delete(boolean closeIfConsumersConnected) {
         CompletableFuture<Void> deleteFuture = new CompletableFuture<>();
 
-        log.info("[{}][{}] Unsubscribing", topicName, subName);
+        log.info().log("Unsubscribing");
 
         CompletableFuture<Void> closeSubscriptionFuture = new CompletableFuture<>();
 
         if (closeIfConsumersConnected) {
-            this.disconnect().thenRun(() -> {
+            this.close(true, Optional.empty()).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(ex -> {
-                log.error("[{}][{}] Error disconnecting and closing subscription", topicName, subName, ex);
+                log.error()
+                        .exception(ex)
+                        .log("Error disconnecting and closing subscription");
                 closeSubscriptionFuture.completeExceptionally(ex);
                 return null;
             });
         } else {
-            this.close().thenRun(() -> {
+            this.closeCursor(true).thenRun(() -> {
                 closeSubscriptionFuture.complete(null);
             }).exceptionally(exception -> {
-                log.error("[{}][{}] Error closing subscription", topicName, subName, exception);
+                log.error()
+                        .exception(exception)
+                        .log("Error closing subscription");
                 closeSubscriptionFuture.completeExceptionally(exception);
                 return null;
             });
@@ -1001,21 +1292,26 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         closeSubscriptionFuture.thenCompose(v -> topic.unsubscribe(subName)).thenAccept(v -> {
             synchronized (this) {
                 (dispatcher != null ? dispatcher.close() : CompletableFuture.completedFuture(null)).thenRun(() -> {
-                    log.info("[{}][{}] Successfully deleted subscription", topicName, subName);
+                    log.info()
+                            .log("Successfully deleted subscription");
                     deleteFuture.complete(null);
                 }).exceptionally(ex -> {
                     IS_FENCED_UPDATER.set(this, FALSE);
                     if (dispatcher != null) {
                         dispatcher.reset();
                     }
-                    log.error("[{}][{}] Error deleting subscription", topicName, subName, ex);
+                    log.error()
+                            .exception(ex)
+                            .log("Error deleting subscription");
                     deleteFuture.completeExceptionally(ex);
                     return null;
                 });
             }
         }).exceptionally(exception -> {
             IS_FENCED_UPDATER.set(this, FALSE);
-            log.error("[{}][{}] Error deleting subscription", topicName, subName, exception);
+            log.error()
+                    .exception(exception)
+                    .log("Error deleting subscription");
             deleteFuture.completeExceptionally(exception);
             return null;
         });
@@ -1032,16 +1328,32 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
      */
     @Override
     public CompletableFuture<Void> doUnsubscribe(Consumer consumer) {
+        return doUnsubscribe(consumer, false);
+    }
+
+    /**
+     * Handle unsubscribe command from the client API Check with the dispatcher is this consumer can proceed with
+     * unsubscribe.
+     *
+     * @param consumer consumer object that is initiating the unsubscribe operation
+     * @param force unsubscribe forcefully by disconnecting consumers and closing subscription
+     * @return CompletableFuture indicating the completion of unsubscribe operation
+     */
+    @Override
+    public CompletableFuture<Void> doUnsubscribe(Consumer consumer, boolean force) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            if (dispatcher.canUnsubscribe(consumer)) {
+            if (force || dispatcher.canUnsubscribe(consumer)) {
+                log.debug()
+                        .attr("consumerName", consumer.consumerName())
+                        .log("unsubscribing forcefully");
                 consumer.close();
-                return delete();
+                return delete(force);
             }
             future.completeExceptionally(
                     new ServerMetadataException("Unconnected or shared consumer attempting to unsubscribe"));
         } catch (BrokerServiceException e) {
-            log.warn("Error removing consumer {}", consumer);
+            log.warn().attr("consumer", consumer).log("Error removing consumer");
             future.completeExceptionally(e);
         }
         return future;
@@ -1071,6 +1383,26 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
+    public CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds) {
+        long backlog = getNumberOfEntriesInBacklog(false);
+        if (backlog == 0) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (dispatcher != null && dispatcher.isConsumerConnected() && backlog < MINIMUM_BACKLOG_FOR_EXPIRY_CHECK) {
+            return topic.isOldestMessageExpiredAsync(cursor, messageTTLInSeconds)
+                .thenCompose(oldestMsgExpired -> {
+                    if (oldestMsgExpired) {
+                        this.lastExpireTimestamp = System.currentTimeMillis();
+                        return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
+                    } else {
+                        return CompletableFuture.completedFuture(false);
+                    }
+            });
+        }
+        return expiryMonitor.expireMessagesAsync(messageTTLInSeconds);
+    }
+
+    @Override
     public boolean expireMessages(Position position) {
         this.lastExpireTimestamp = System.currentTimeMillis();
         return expiryMonitor.expireMessages(position);
@@ -1088,8 +1420,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return cursor.getEstimatedSizeSinceMarkDeletePosition();
     }
 
-    public SubscriptionStatsImpl getStats(Boolean getPreciseBacklog, boolean subscriptionBacklogSize,
-                                          boolean getEarliestTimeInBacklog) {
+    @SuppressWarnings("deprecation")
+    public CompletableFuture<SubscriptionStatsImpl> getStatsAsync(GetStatsOptions getStatsOptions) {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         subStats.lastExpireTimestamp = lastExpireTimestamp;
         subStats.lastConsumedFlowTimestamp = lastConsumedFlowTimestamp;
@@ -1100,10 +1432,12 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         Dispatcher dispatcher = this.dispatcher;
         if (dispatcher != null) {
             Map<Consumer, List<Range>> consumerKeyHashRanges = getType() == SubType.Key_Shared
-                    ? ((PersistentStickyKeyDispatcherMultipleConsumers) dispatcher).getConsumerKeyHashRanges() : null;
+                    ? ((StickyKeyDispatcher) dispatcher).getConsumerKeyHashRanges() : null;
             dispatcher.getConsumers().forEach(consumer -> {
                 ConsumerStatsImpl consumerStats = consumer.getStats();
-                subStats.consumers.add(consumerStats);
+                if (!getStatsOptions.isExcludeConsumers()) {
+                    subStats.consumers.add(consumerStats);
+                }
                 subStats.msgRateOut += consumerStats.msgRateOut;
                 subStats.msgThroughputOut += consumerStats.msgThroughputOut;
                 subStats.bytesOutCounter += consumerStats.bytesOutCounter;
@@ -1115,17 +1449,41 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
                 subStats.lastConsumedTimestamp =
                         Math.max(subStats.lastConsumedTimestamp, consumerStats.lastConsumedTimestamp);
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
-                if (consumerKeyHashRanges != null && consumerKeyHashRanges.containsKey(consumer)) {
-                    consumerStats.keyHashRanges = consumerKeyHashRanges.get(consumer).stream()
-                            .map(Range::toString)
-                            .collect(Collectors.toList());
+                List<Range> keyRanges = consumerKeyHashRanges != null ? consumerKeyHashRanges.get(consumer) : null;
+                if (keyRanges != null) {
+                    if (((StickyKeyDispatcher) dispatcher).isClassic()) {
+                        // Use string representation for classic mode
+                        consumerStats.keyHashRanges = keyRanges.stream()
+                                .map(Range::toString)
+                                .collect(Collectors.toList());
+                    } else {
+                        // Use array representation for PIP-379 stats
+                        consumerStats.keyHashRangeArrays = keyRanges.stream()
+                                .map(range -> new int[]{range.getStart(), range.getEnd()})
+                                .collect(Collectors.toList());
+                    }
                 }
+                subStats.drainingHashesCount += consumerStats.drainingHashesCount;
+                subStats.drainingHashesClearedTotal += consumerStats.drainingHashesClearedTotal;
+                subStats.drainingHashesUnackedMessages += consumerStats.drainingHashesUnackedMessages;
             });
 
             subStats.filterProcessedMsgCount = dispatcher.getFilterProcessedMsgCount();
             subStats.filterAcceptedMsgCount = dispatcher.getFilterAcceptedMsgCount();
             subStats.filterRejectedMsgCount = dispatcher.getFilterRejectedMsgCount();
             subStats.filterRescheduledMsgCount = dispatcher.getFilterRescheduledMsgCount();
+            subStats.dispatchThrottledMsgEventsBySubscriptionLimit =
+                    dispatcher.getDispatchThrottledMsgEventsBySubscriptionLimit();
+            subStats.dispatchThrottledBytesEventsBySubscriptionLimit =
+                    dispatcher.getDispatchThrottledBytesBySubscriptionLimit();
+            subStats.dispatchThrottledMsgEventsByBrokerLimit =
+                    dispatcher.getDispatchThrottledMsgEventsByBrokerLimit();
+            subStats.dispatchThrottledBytesEventsByBrokerLimit =
+                    dispatcher.getDispatchThrottledBytesEventsByBrokerLimit();
+            subStats.dispatchThrottledMsgEventsByTopicLimit =
+                    dispatcher.getDispatchThrottledMsgEventsByTopicLimit();
+            subStats.dispatchThrottledBytesEventsByTopicLimit =
+                    dispatcher.getDispatchThrottledBytesEventsByTopicLimit();
         }
 
         SubType subType = getType();
@@ -1137,54 +1495,46 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
             }
         }
 
-        if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
+        if (dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
             subStats.delayedMessageIndexSizeInBytes =
-                    ((PersistentDispatcherMultipleConsumers) dispatcher).getDelayedTrackerMemoryUsage();
+                    ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getDelayedTrackerMemoryUsage();
 
             subStats.bucketDelayedIndexStats =
-                    ((PersistentDispatcherMultipleConsumers) dispatcher).getBucketDelayedIndexStats();
+                    ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).getBucketDelayedIndexStats();
         }
 
         if (Subscription.isIndividualAckMode(subType)) {
-            if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
-                PersistentDispatcherMultipleConsumers d = (PersistentDispatcherMultipleConsumers) dispatcher;
+            if (dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
+                AbstractPersistentDispatcherMultipleConsumers d =
+                        (AbstractPersistentDispatcherMultipleConsumers) dispatcher;
                 subStats.unackedMessages = d.getTotalUnackedMessages();
                 subStats.blockedSubscriptionOnUnackedMsgs = d.isBlockedDispatcherOnUnackedMsgs();
                 subStats.msgDelayed = d.getNumberOfDelayedMessages();
+                subStats.msgInReplay = d.getNumberOfMessagesInReplay();
             }
         }
-        subStats.msgBacklog = getNumberOfEntriesInBacklog(getPreciseBacklog);
-        if (subscriptionBacklogSize) {
-            subStats.backlogSize = ((ManagedLedgerImpl) topic.getManagedLedger())
-                    .getEstimatedBacklogSize((PositionImpl) cursor.getMarkDeletedPosition());
+        subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
+        subStats.oldestBacklogMessageAgeSeconds =
+                topic.getBestEffortOldestUnacknowledgedMessageAgeSeconds(subName);
+        if (getStatsOptions.isSubscriptionBacklogSize()) {
+            subStats.backlogSize = topic.getManagedLedger()
+                    .getEstimatedBacklogSize(cursor.getMarkDeletedPosition());
         } else {
             subStats.backlogSize = -1;
         }
-        if (getEarliestTimeInBacklog && subStats.msgBacklog > 0) {
-            ManagedLedgerImpl managedLedger = ((ManagedLedgerImpl) cursor.getManagedLedger());
-            PositionImpl markDeletedPosition = (PositionImpl) cursor.getMarkDeletedPosition();
-            long result = 0;
-            try {
-                result = managedLedger.getEarliestMessagePublishTimeOfPos(markDeletedPosition).get();
-            } catch (InterruptedException | ExecutionException e) {
-                result = -1;
-            }
-            subStats.earliestMsgPublishTimeInBacklog = result;
-        }
         subStats.msgBacklogNoDelayed = subStats.msgBacklog - subStats.msgDelayed;
         subStats.msgRateExpired = expiryMonitor.getMessageExpiryRate();
+        subStats.msgExpired = expiryMonitor.getMessageExpiryCount();
         subStats.totalMsgExpired = expiryMonitor.getTotalMessageExpired();
         subStats.isReplicated = isReplicated();
-        subStats.subscriptionProperties = subscriptionProperties;
+        subStats.subscriptionProperties = getSubscriptionProperties();
         subStats.isDurable = cursor.isDurable();
-        if (getType() == SubType.Key_Shared && dispatcher instanceof PersistentStickyKeyDispatcherMultipleConsumers) {
-            PersistentStickyKeyDispatcherMultipleConsumers keySharedDispatcher =
-                    (PersistentStickyKeyDispatcherMultipleConsumers) dispatcher;
-
+        if (getType() == SubType.Key_Shared && dispatcher instanceof StickyKeyDispatcher) {
+            StickyKeyDispatcher keySharedDispatcher = (StickyKeyDispatcher) dispatcher;
             subStats.allowOutOfOrderDelivery = keySharedDispatcher.isAllowOutOfOrderDelivery();
             subStats.keySharedMode = keySharedDispatcher.getKeySharedMode().toString();
 
-            LinkedHashMap<Consumer, PositionImpl> recentlyJoinedConsumers = keySharedDispatcher
+            LinkedHashMap<Consumer, Position> recentlyJoinedConsumers = keySharedDispatcher
                     .getRecentlyJoinedConsumers();
             if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
                 recentlyJoinedConsumers.forEach((k, v) -> {
@@ -1195,7 +1545,65 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
         subStats.nonContiguousDeletedMessagesRangesSerializedSize =
                 cursor.getNonContiguousDeletedMessagesRangeSerializedSize();
-        return subStats;
+        if (!getStatsOptions.isGetEarliestTimeInBacklog()) {
+            return CompletableFuture.completedFuture(subStats);
+        }
+        if (subStats.msgBacklog > 0) {
+            ManagedLedger managedLedger = cursor.getManagedLedger();
+            Position markDeletedPosition = cursor.getMarkDeletedPosition();
+            return getEarliestMessagePublishTimeOfPos(managedLedger, markDeletedPosition).thenApply(v -> {
+                subStats.earliestMsgPublishTimeInBacklog = v;
+                return subStats;
+            });
+        } else {
+            subStats.earliestMsgPublishTimeInBacklog = -1;
+            return CompletableFuture.completedFuture(subStats);
+        }
+    }
+
+    private CompletableFuture<Long> getEarliestMessagePublishTimeOfPos(ManagedLedger ml, Position pos) {
+        CompletableFuture<Long> future = new CompletableFuture<>();
+        if (pos == null) {
+            future.complete(0L);
+            return future;
+        }
+        Position nextPos = ml.getNextValidPosition(pos);
+
+        if (nextPos.compareTo(ml.getLastConfirmedEntry()) > 0) {
+            return CompletableFuture.completedFuture(-1L);
+        }
+
+        ml.asyncReadEntry(nextPos, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                try {
+                    long entryTimestamp = entry.getEntryTimestamp();
+                    future.complete(entryTimestamp);
+                } catch (Exception e) {
+                    log.error()
+                            .attr("nextPos", nextPos)
+                            .exception(e)
+                            .log("Error deserializing message for message position");
+                    future.completeExceptionally(e);
+                } finally {
+                    entry.release();
+                }
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                log.error().attr("nextPos", nextPos).exception(exception).log("Error read entry for position");
+                future.completeExceptionally(exception);
+            }
+
+            @Override
+            public String toString() {
+                return String.format("ML [%s] get earliest message publish time of pos",
+                        ml.getName());
+            }
+        }, null);
+
+        return future;
     }
 
     @Override
@@ -1207,16 +1615,16 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+    public void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {
         Dispatcher dispatcher = getDispatcher();
         if (dispatcher != null) {
             dispatcher.redeliverUnacknowledgedMessages(consumer, positions);
         }
     }
 
-    private void trimByMarkDeletePosition(List<PositionImpl> positions) {
+    private void trimByMarkDeletePosition(List<Position> positions) {
         positions.removeIf(position -> cursor.getMarkDeletedPosition() != null
-                && position.compareTo((PositionImpl) cursor.getMarkDeletedPosition()) <= 0);
+                && position.compareTo(cursor.getMarkDeletedPosition()) <= 0);
     }
 
     @Override
@@ -1239,7 +1647,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     void topicTerminated() {
-        if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
+        if (!cursor.hasBacklog(false)) {
             // notify the consumers if there are consumers connected to this topic.
             if (null != dispatcher) {
                 // Immediately notify the consumer that there are no more available messages
@@ -1249,11 +1657,21 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
     }
 
     @Override
-    public Map<String, String> getSubscriptionProperties() {
-        return subscriptionProperties;
+    public boolean isSubscriptionMigrated() {
+        if (!topic.isMigrated()) {
+            return false;
+        }
+        boolean hasBacklog = cursor.hasBacklog();
+        log.info().attr("hasBacklog", hasBacklog).log("Checked subscription backlog for topic migration");
+        return !hasBacklog;
     }
 
-    public PositionImpl getPositionInPendingAck(PositionImpl position) {
+    @Override
+    public Map<String, String> getSubscriptionProperties() {
+        return cursor.getCursorProperties();
+    }
+
+    public Position getPositionInPendingAck(Position position) {
         return pendingAckHandle.getPositionInPendingAck(position);
     }
     @Override
@@ -1264,10 +1682,7 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         } else {
             newSubscriptionProperties = Collections.unmodifiableMap(subscriptionProperties);
         }
-        return cursor.setCursorProperties(newSubscriptionProperties)
-                .thenRun(() -> {
-                    this.subscriptionProperties = newSubscriptionProperties;
-                });
+        return cursor.setCursorProperties(newSubscriptionProperties);
     }
     /**
      * Return a merged map that contains the cursor properties specified by used
@@ -1293,6 +1708,8 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         ReplicatedSubscriptionSnapshotCache snapshotCache = this.replicatedSubscriptionSnapshotCache;
         if (snapshotCache != null) {
             snapshotCache.addNewSnapshot(new ReplicatedSubscriptionsSnapshot().copyFrom(snapshot));
+            // check if the newly added snapshot can be used with the current mark delete position
+            handleReplicatedSubscriptionsUpdate(cursor.getMarkDeletedPosition());
         }
     }
 
@@ -1318,16 +1735,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return cursor;
     }
 
-    @VisibleForTesting
-    public PendingAckHandle getPendingAckHandle() {
-        return pendingAckHandle;
-    }
-
-    public void syncBatchPositionBitSetForPendingAck(PositionImpl position) {
+    public void syncBatchPositionBitSetForPendingAck(Position position) {
         this.pendingAckHandle.syncBatchPositionAckSetForTransaction(position);
     }
 
-    public boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
+    public boolean checkIsCanDeleteConsumerPendingAck(Position position) {
         return this.pendingAckHandle.checkIsCanDeleteConsumerPendingAck(position);
     }
 
@@ -1355,10 +1767,11 @@ public class PersistentSubscription extends AbstractSubscription implements Subs
         return this.pendingAckHandle.checkIfPendingAckStoreInit();
     }
 
-    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+    public PositionInPendingAckStats checkPositionInPendingAckState(Position position, Integer batchIndex) {
         return pendingAckHandle.checkPositionInPendingAckState(position, batchIndex);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentSubscription.class);
-
+    @VisibleForTesting
+    public Boolean getReplicatedControlled() {
+        return replicatedControlled;
+    }
 }

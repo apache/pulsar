@@ -29,7 +29,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class EnsemblePlacementPolicyConfig {
     public static final String ENSEMBLE_PLACEMENT_POLICY_CONFIG = "EnsemblePlacementPolicyConfig";
-    private final Class policyClass;
+    private final Class<?> policyClass;
     private final Map<String, Object> properties;
 
     // Add a default constructor for decode data from bytes to construct this.
@@ -38,13 +38,13 @@ public class EnsemblePlacementPolicyConfig {
         this.properties = Collections.emptyMap();
     }
 
-    public EnsemblePlacementPolicyConfig(Class policyClass, Map<String, Object> properties) {
+    public EnsemblePlacementPolicyConfig(Class<?> policyClass, Map<String, Object> properties) {
         super();
         this.policyClass = policyClass;
         this.properties = properties;
     }
 
-    public Class getPolicyClass() {
+    public Class<?> getPolicyClass() {
         return policyClass;
     }
 
@@ -91,6 +91,8 @@ public class EnsemblePlacementPolicyConfig {
     }
 
     public static class ParseEnsemblePlacementPolicyConfigException extends Exception {
+        private static final long serialVersionUID = 1L;
+
         ParseEnsemblePlacementPolicyConfigException(String message, Throwable throwable) {
             super(message, throwable);
         }

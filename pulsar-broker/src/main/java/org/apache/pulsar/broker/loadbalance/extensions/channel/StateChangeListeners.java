@@ -22,10 +22,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListener;
 
-@Slf4j
+@CustomLog
 public class StateChangeListeners {
 
     private final List<StateChangeListener> stateChangeListeners;
@@ -51,7 +51,22 @@ public class StateChangeListeners {
     public <T> CompletableFuture<T> notifyOnCompletion(CompletableFuture<T> future,
                                                        String serviceUnit,
                                                        ServiceUnitStateData data) {
-        return future.whenComplete((r, ex) -> notify(serviceUnit, data, ex));
+        return notifyOnArrival(serviceUnit, data).
+                thenCombine(future, (unused, t) -> t).
+                whenComplete((r, ex) -> notify(serviceUnit, data, ex));
+    }
+
+    private CompletableFuture<Void> notifyOnArrival(String serviceUnit, ServiceUnitStateData data) {
+        stateChangeListeners.forEach(listener -> {
+            try {
+                listener.beforeEvent(serviceUnit, data);
+            } catch (Throwable ex) {
+                log.error().attr("stateChangeListener", listener).attr("event", data)
+                        .attr("unit", serviceUnit).exception(ex)
+                        .log("StateChangeListener: exception while notifying arrival event for service unit");
+            }
+        });
+        return CompletableFuture.completedFuture(null);
     }
 
     public void notify(String serviceUnit, ServiceUnitStateData data, Throwable t) {
@@ -59,8 +74,9 @@ public class StateChangeListeners {
             try {
                 listener.handleEvent(serviceUnit, data, t);
             } catch (Throwable ex) {
-                log.error("StateChangeListener: {} exception while handling {} for service unit {}",
-                        listener, data, serviceUnit, ex);
+                log.error().attr("stateChangeListener", listener).attr("handling", data)
+                        .attr("unit", serviceUnit).exception(ex)
+                        .log("StateChangeListener: exception while handling for service unit");
             }
         });
     }

@@ -26,9 +26,11 @@ public class FunctionCollectorRegistryImpl extends FunctionCollectorRegistry {
 
     private final Map<String, Collector> namesToCollectors = new HashMap<String, Collector>();
 
-    public Collector registerIfNotExist(String metricName, Collector collector) {
+    @Override
+    public <T extends Collector> T registerIfNotExist(String metricName, T collector) {
         synchronized (this) {
-            Collector existingCollector = namesToCollectors.get(metricName);
+            @SuppressWarnings("unchecked")
+            T existingCollector = (T) namesToCollectors.get(metricName);
             if (existingCollector == null) {
                 namesToCollectors.put(metricName, collector);
                 super.register(collector);

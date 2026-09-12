@@ -31,6 +31,7 @@ import org.apache.pulsar.common.policies.data.BrokerInfo;
 @NoArgsConstructor
 public final class BrokerInfoImpl implements BrokerInfo {
     private String serviceUrl;
+    private String brokerId;
 
     public static BrokerInfoImplBuilder builder() {
         return new BrokerInfoImplBuilder();
@@ -38,14 +39,20 @@ public final class BrokerInfoImpl implements BrokerInfo {
 
     public static class BrokerInfoImplBuilder implements BrokerInfo.Builder {
         private String serviceUrl;
+        private String brokerId;
 
         public BrokerInfoImplBuilder serviceUrl(String serviceUrl) {
             this.serviceUrl = serviceUrl;
             return this;
         }
 
+        public BrokerInfoImplBuilder brokerId(String brokerId) {
+            this.brokerId = brokerId;
+            return this;
+        }
+
         public BrokerInfoImpl build() {
-            return new BrokerInfoImpl(serviceUrl);
+            return new BrokerInfoImpl(serviceUrl, brokerId);
         }
     }
 }

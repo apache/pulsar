@@ -38,6 +38,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateC
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.AntiAffinityGroupPolicyFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -59,15 +60,18 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         return ExtensibleLoadManagerImpl.class.getName();
     }
 
+    @SuppressWarnings("unchecked")
     protected String selectBroker(ServiceUnitId serviceUnit, Object loadManager) {
         try {
-            return ((ExtensibleLoadManagerImpl) loadManager).assign(Optional.empty(), serviceUnit).get()
+            return ((ExtensibleLoadManagerImpl) loadManager)
+                    .assign(Optional.empty(), serviceUnit, LookupOptions.builder().build()).get()
                     .get().getPulsarServiceUrl();
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected void selectBrokerForNamespace(
             Object ownershipData,
             String broker, String namespace, String assignedBundleName) {
@@ -85,14 +89,14 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         // No-op
     }
 
+    @SuppressWarnings("unchecked")
     protected boolean isLoadManagerUpdatedDomainCache(Object loadManager) throws Exception {
-        @SuppressWarnings("unchecked")
         var antiAffinityGroupPolicyHelper =
                 (AntiAffinityGroupPolicyHelper)
                         FieldUtils.readDeclaredField(
                                 loadManager, "antiAffinityGroupPolicyHelper", true);
         var brokerToFailureDomainMap = (Map<String, String>)
-                org.apache.commons.lang.reflect.FieldUtils.readDeclaredField(antiAffinityGroupPolicyHelper,
+                org.apache.commons.lang3.reflect.FieldUtils.readDeclaredField(antiAffinityGroupPolicyHelper,
                         "brokerToFailureDomainMap", true);
         return !brokerToFailureDomainMap.isEmpty();
     }
@@ -102,13 +106,14 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
             throws IllegalAccessException, ExecutionException, InterruptedException,
             TimeoutException, PulsarAdminException, PulsarClientException {
 
-        final String namespace = "my-tenant/test/my-ns-filter";
+        final String namespace = "my-tenant/my-ns-filter";
         final String namespaceAntiAffinityGroup = "my-antiaffinity-filter";
 
 
         final String antiAffinityEnabledNameSpace = namespace + nsSuffix;
         admin.namespaces().createNamespace(antiAffinityEnabledNameSpace);
         admin.namespaces().setNamespaceAntiAffinityGroup(antiAffinityEnabledNameSpace, namespaceAntiAffinityGroup);
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getSafeWebServiceAddress()).build();
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(

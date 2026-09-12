@@ -18,13 +18,8 @@
  */
 package org.apache.pulsar.websocket;
 
-
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
-import org.testng.annotations.Test;
-import org.testng.Assert;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -32,9 +27,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class WebSocketProxyConfigurationTest {
 
@@ -100,7 +97,8 @@ public class WebSocketProxyConfigurationTest {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         // Use non-default values for testing
         config.setTlsAllowInsecureConnection(true);
-        Assert.assertFalse(config.isTlsHostnameVerificationEnabled(), "Update me when default changes.");
+        // Enabled by default since Pulsar 5.0 (PIP-478).
+        Assert.assertTrue(config.isTlsHostnameVerificationEnabled(), "Update me when default changes.");
         config.setTlsHostnameVerificationEnabled(true);
         ServiceConfiguration brokerConf = PulsarConfigurationLoader.convertFrom(config);
         Assert.assertTrue(brokerConf.isTlsAllowInsecureConnection(),

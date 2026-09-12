@@ -27,13 +27,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> {
 
     private final Descriptors.Descriptor descriptor;
@@ -53,7 +53,7 @@ public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> 
                     .map(f -> new Field(f.getName(), f.getIndex()))
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("GenericProtobufNativeReader init error", e);
+            log.error().exception(e).log("GenericProtobufNativeReader init error");
             throw new RuntimeException(e);
         }
     }
@@ -85,6 +85,4 @@ public class GenericProtobufNativeReader implements SchemaReader<GenericRecord> 
     public Optional<Object> getNativeSchema() {
         return Optional.of(descriptor);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(GenericProtobufNativeReader.class);
 }

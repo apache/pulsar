@@ -53,4 +53,9 @@
         <Class name="org.apache.pulsar.common.policies.data.NonPersistentTopicStats"/>
         <Bug pattern="MF_CLASS_MASKS_FIELD"/>
     </Match>
+    <Match>
+        <Class name="org.apache.pulsar.common.protocol.Commands"/>
+        <Field name="NONE_KEY"/>
+        <Bug pattern="MS_PKGPROTECT"/>
+    </Match>
 </FindBugsFilter>

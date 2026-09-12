@@ -20,13 +20,13 @@ package org.apache.pulsar.tests.integration.websocket;
 
 
 import com.google.common.collect.ImmutableMap;
+import java.util.Collections;
+import java.util.Map;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.CSContainer;
 import org.apache.pulsar.tests.integration.containers.WebSocketContainer;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.testng.annotations.Test;
-import java.util.Collections;
-import java.util.Map;
 
 /**
  * Test cases for websocket.

@@ -26,39 +26,44 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Resources;
+import org.apache.pulsar.functions.proto.RetryDetails;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.jose4j.json.internal.json_simple.JSONObject;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class RuntimeUtilsTest {
 
     @Test
     public void testSplitRuntimeArgs() {
         String str1 = "-Xms314572800";
         String[] result = RuntimeUtils.splitRuntimeArgs(str1);
-        Assert.assertEquals(result.length,1);
+        Assert.assertEquals(result.length, 1);
         Assert.assertEquals(result[0], str1);
 
         String str2 = "-Xms314572800 -Dbar=foo";
         result = RuntimeUtils.splitRuntimeArgs(str2);
-        Assert.assertEquals(result.length,2);
+        Assert.assertEquals(result.length, 2);
         Assert.assertEquals(result[0], "-Xms314572800");
         Assert.assertEquals(result[1], "-Dbar=foo");
 
         String str3 = "-Xms314572800 -Dbar=foo -Dfoo=\"bar foo\"";
         result = RuntimeUtils.splitRuntimeArgs(str3);
-        Assert.assertEquals(result.length,3);
+        Assert.assertEquals(result.length, 3);
         Assert.assertEquals(result[0], "-Xms314572800");
         Assert.assertEquals(result[1], "-Dbar=foo");
         Assert.assertEquals(result[2], "-Dfoo=\"bar foo\"");
     }
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test(dataProvider = "k8sRuntime")
     public void getGoInstanceCmd(boolean k8sRuntime) throws IOException {
         HashMap<String, String> goInstanceConfig;
@@ -86,44 +91,42 @@ public class RuntimeUtilsTest {
         JSONObject secretsMap = new JSONObject();
         secretsMap.put("secret", "cake is a lie");
 
-        Function.SourceSpec sources = Function.SourceSpec.newBuilder()
+        SourceSpec sources = new SourceSpec()
                 .setCleanupSubscription(true)
                 .setSubscriptionName("go-func-sub")
-                .setTimeoutMs(500)
-                .putInputSpecs("go-func-input", Function.ConsumerSpec.newBuilder().setIsRegexPattern(false).build())
-                .build();
+                .setTimeoutMs(500);
+        sources.putInputSpecs("go-func-input").setIsRegexPattern(false);
 
-        Function.RetryDetails retryDetails = Function.RetryDetails.newBuilder()
+        RetryDetails retryDetails = new RetryDetails()
                 .setDeadLetterTopic("go-func-deadletter")
-                .setMaxMessageRetries(1)
-                .build();
+                .setMaxMessageRetries(1);
 
-        Function.Resources resources = Function.Resources.newBuilder()
+        Resources resources = new Resources()
                 .setCpu(2)
                 .setDisk(1024)
-                .setRam(32)
-                .build();
+                .setRam(32);
 
-        Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder()
+        FunctionDetails functionDetails = new FunctionDetails()
                 .setAutoAck(true)
                 .setTenant("public")
                 .setNamespace("default")
                 .setName("go-func")
                 .setLogTopic("go-func-log")
-                .setProcessingGuarantees(Function.ProcessingGuarantees.ATLEAST_ONCE)
-                .setRuntime(Function.FunctionDetails.Runtime.GO)
+                .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
+                .setRuntime(FunctionDetails.Runtime.GO)
                 .setSecretsMap(secretsMap.toJSONString())
                 .setParallelism(1)
-                .setSource(sources)
-                .setRetryDetails(retryDetails)
-                .setResources(resources)
-                .setUserConfig(userConfig.toJSONString())
-                .build();
+                .setUserConfig(userConfig.toJSONString());
+        functionDetails.setSource().copyFrom(sources);
+        functionDetails.setRetryDetails().copyFrom(retryDetails);
+        functionDetails.setResources().copyFrom(resources);
 
         instanceConfig.setFunctionDetails(functionDetails);
         instanceConfig.setExposePulsarAdminClientEnabled(true);
 
-        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig, "config", "pulsar://localhost:6650", "bk://localhost:4181",  "http://localhost:8080", k8sRuntime);
+        List<String> commands = RuntimeUtils.getGoInstanceCmd(instanceConfig, authConfig, "config",
+                "pulsar://localhost:6650", "bk://localhost:4181",
+                "http://localhost:8080", k8sRuntime);
         if (k8sRuntime) {
             goInstanceConfig = new ObjectMapper().readValue(commands.get(2).replaceAll("^\'|\'$", ""), HashMap.class);
         } else {
@@ -169,7 +172,8 @@ public class RuntimeUtilsTest {
         Assert.assertEquals(goInstanceConfig.get("deadLetterTopic"), "go-func-deadletter");
         Assert.assertEquals(goInstanceConfig.get("userConfig"), userConfig.toString());
         Assert.assertEquals(goInstanceConfig.get("metricsPort"), 60000);
-        Assert.assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"), "org.apache.pulsar.client.impl.auth.AuthenticationToken");
+        Assert.assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"),
+                "org.apache.pulsar.client.impl.auth.AuthenticationToken");
         Assert.assertEquals(goInstanceConfig.get("clientAuthenticationParameters"), "file:///secret/token.jwt");
         Assert.assertEquals(goInstanceConfig.get("tlsTrustCertsFilePath"), "/secret/ca.cert.pem");
         Assert.assertEquals(goInstanceConfig.get("tlsHostnameVerificationEnable"), true);
@@ -198,7 +202,7 @@ public class RuntimeUtilsTest {
         instanceConfig.setFunctionVersion("1.0.0");
         instanceConfig.setMaxBufferedTuples(5);
         instanceConfig.setPort(1337);
-        instanceConfig.setFunctionDetails(Function.FunctionDetails.newBuilder().build());
+        instanceConfig.setFunctionDetails(new FunctionDetails());
         instanceConfig.setAdditionalJavaRuntimeArguments(Arrays.asList("-XX:+ExitOnOutOfMemoryError"));
 
         List<String> cmd = RuntimeUtils.getCmd(instanceConfig, "instanceFile",
@@ -223,7 +227,7 @@ public class RuntimeUtilsTest {
                 false,
                 "");
 
-        log.info("cmd {}", cmd);
+        log.info().attr("cmd", cmd).log("Generated command");
 
         assertTrue(cmd.contains("-XX:+ExitOnOutOfMemoryError"));
 

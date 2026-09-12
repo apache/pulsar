@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -42,22 +42,22 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSupports {
 
-    private static final String topicName = UUID.randomUUID().toString().replaceAll("-","");
+    private static final String topicName = UUID.randomUUID().toString().replaceAll("-", "");
     private static final String topicFullName = "persistent://public/default/" + topicName;
 
     @BeforeMethod
     public void before() throws PulsarAdminException, MetadataStoreException {
         // Create Topics
-        PulsarAdmin pulsarAdmin_0 = super.getAllAdmins().get(0);
-        List<String> topicList_defaultNamespace = pulsarAdmin_0.topics().getList("public/default");
-        if (!topicList_defaultNamespace.contains(topicName)
-                && !topicList_defaultNamespace.contains(topicFullName + "-partition-0")
-                && !topicList_defaultNamespace.contains(topicFullName)){
-            pulsarAdmin_0.topics().createNonPartitionedTopic(topicFullName);
+        PulsarAdmin pulsarAdmin0 = super.getAllAdmins().get(0);
+        List<String> topicListDefaultNamespace = pulsarAdmin0.topics().getList("public/default");
+        if (!topicListDefaultNamespace.contains(topicName)
+                && !topicListDefaultNamespace.contains(topicFullName + "-partition-0")
+                && !topicListDefaultNamespace.contains(topicFullName)){
+            pulsarAdmin0.topics().createNonPartitionedTopic(topicFullName);
         }
     }
 
@@ -104,7 +104,7 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
                 }
             }
         } catch (Exception e){
-            log.warn("create namespace failure", e);
+            log.warn().exception(e).log("create namespace failure");
         }
         return clientBuilder.enableTransaction(true).build();
     }

@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.source;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertSame;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
@@ -33,9 +35,9 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -44,6 +46,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.functions.ConsumerConfig;
@@ -57,7 +60,7 @@ import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarSourceTest {
 
 
@@ -105,6 +108,8 @@ public class PulsarSourceTest {
      */
     private static PulsarClientImpl getPulsarClient() throws PulsarClientException {
         PulsarClientImpl pulsarClient = Mockito.mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(pulsarClient.getCnxPool()).thenReturn(connectionPool);
         ConsumerBuilder<?> goodConsumerBuilder = Mockito.mock(ConsumerBuilder.class);
         ConsumerBuilder<?> badConsumerBuilder = Mockito.mock(ConsumerBuilder.class);
         Mockito.doReturn(goodConsumerBuilder).when(goodConsumerBuilder)
@@ -237,10 +242,10 @@ public class PulsarSourceTest {
             pulsarSource.open(new HashMap<>(), Mockito.mock(SourceContext.class));
             fail();
         } catch (RuntimeException ex) {
-            log.error("RuntimeException: {}", ex, ex);
+            log.error().exception(ex).log("RuntimeException");
             assertEquals(ex.getMessage(), "Input type of Pulsar Function cannot be Void");
         } catch (Exception ex) {
-            log.error("Exception: {}", ex, ex);
+            log.error().exception(ex).log("Exception");
             fail();
         }
     }
@@ -262,11 +267,11 @@ public class PulsarSourceTest {
             pulsarSource.open(new HashMap<>(), Mockito.mock(SourceContext.class));
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException ex) {
-            log.error("RuntimeException: {}", ex, ex);
+            log.error().exception(ex).log("RuntimeException");
             assertTrue(
                     ex.getMessage().startsWith("Inconsistent types found between function input type and serde type:"));
         } catch (Exception ex) {
-            log.error("Exception: {}", ex, ex);
+            log.error().exception(ex).log("Exception");
             fail();
         }
     }
@@ -321,6 +326,7 @@ public class PulsarSourceTest {
     }
 
     @Test(dataProvider = "sourceImpls")
+    @SuppressWarnings("unchecked")
     public void testPreserveOriginalSchema(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         pulsarSourceConfig.setTypeClassName(GenericRecord.class.getName());
 
@@ -343,6 +349,7 @@ public class PulsarSourceTest {
     }
 
     @Test(dataProvider = "sourceImpls")
+    @SuppressWarnings("unchecked")
     public void testInputConsumersGetter(PulsarSourceConfig pulsarSourceConfig) throws Exception {
         PulsarSource<GenericRecord> pulsarSource = getPulsarSource(pulsarSourceConfig);
         pulsarSource.open(new HashMap<>(), null);
@@ -364,6 +371,7 @@ public class PulsarSourceTest {
 
 
     @Test(dataProvider = "sourceImpls")
+    @SuppressWarnings("unchecked")
     public void testPulsarRecordCustomAck(PulsarSourceConfig pulsarSourceConfig) throws Exception {
 
         PulsarSource pulsarSource = getPulsarSource(pulsarSourceConfig);

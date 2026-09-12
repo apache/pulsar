@@ -60,6 +60,6 @@ public @interface Connector {
      *
      * @return config class used by this connector.
      */
-    Class configClass();
+    Class<?> configClass();
 
 }

@@ -23,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.Consumer;
 
@@ -34,14 +35,19 @@ public interface CompactedTopic {
      * Read entries from compacted topic.
      *
      * @deprecated Use {@link CompactedTopicUtils#asyncReadCompactedEntries(TopicCompactionService, ManagedCursor,
-     * int, long, boolean, ReadEntriesCallback, boolean, Consumer)} instead.
+     * int, long, org.apache.bookkeeper.mledger.Position, boolean, boolean)}
+     * instead.
      */
     @Deprecated
-    void asyncReadEntriesOrWait(ManagedCursor cursor,
-                                int numberOfEntriesToRead,
+    default void asyncReadEntriesOrWait(ManagedCursor cursor,
+                                int maxEntries,
+                                long bytesToRead,
+                                Position maxReadPosition,
                                 boolean isFirstRead,
                                 ReadEntriesCallback callback,
-                                Consumer consumer);
+                                Consumer consumer) {
+        callback.readEntriesFailed(new ManagedLedgerException("deprecated"), null);
+    }
     CompletableFuture<Entry> readLastEntryOfCompactedLedger();
     Optional<Position> getCompactionHorizon();
 }

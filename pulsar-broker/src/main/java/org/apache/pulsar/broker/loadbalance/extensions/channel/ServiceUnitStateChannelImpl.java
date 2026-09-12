@@ -32,6 +32,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState.isInFlightState;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Closed;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Constructed;
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Disabled;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.LeaderElectionServiceStarted;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.ChannelState.Started;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.EventType.Assign;
@@ -42,7 +43,6 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl.MetadataState.Unstable;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData.state;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
-import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW_TAG;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionLost;
 import static org.apache.pulsar.metadata.api.extended.SessionEvent.SessionReestablished;
 import com.google.common.annotations.VisibleForTesting;
@@ -51,9 +51,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -63,14 +65,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.mutable.MutableInt;
+import org.apache.commons.lang3.mutable.MutableObject;
 import org.apache.pulsar.PulsarClusterMetadataSetup;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.extensions.BrokerRegistry;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
@@ -80,67 +84,56 @@ import org.apache.pulsar.broker.loadbalance.extensions.manager.StateChangeListen
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Unload;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.client.api.CompressionType;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceBundles;
-import org.apache.pulsar.common.naming.TopicDomain;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
-@Slf4j
+@CustomLog
 public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
-    public static final String TOPIC = TopicName.get(
-            TopicDomain.persistent.value(),
-            SYSTEM_NAMESPACE,
-            "loadbalancer-service-unit-state").toString();
-
-    public static final CompressionType MSG_COMPRESSION_TYPE = CompressionType.ZSTD;
-    private static final long MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS = 30 * 1000; // 30sec
 
     private static final int OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS = 5000;
     private static final int OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS = 100;
-    private static final int OWNERSHIP_CLEAN_UP_CONVERGENCE_DELAY_IN_MILLIS = 3000;
     public static final long VERSION_ID_INIT = 1; // initial versionId
-    private static final long OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS = 60;
     public static final long MAX_CLEAN_UP_DELAY_TIME_IN_SECS = 3 * 60; // 3 mins
     private static final long MIN_CLEAN_UP_DELAY_TIME_IN_SECS = 0; // 0 secs to clean immediately
     private static final long MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS = 10;
-    private static final int MAX_OUTSTANDING_PUB_MESSAGES = 500;
     private static final long MAX_OWNED_BUNDLE_COUNT_DELAY_TIME_IN_MILLIS = 10 * 60 * 1000;
+    private static final long MAX_BROKER_HEALTH_CHECK_RETRY = 3;
+    private static final long MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS = 1000;
+
     private final PulsarService pulsar;
     private final ServiceConfiguration config;
     private final Schema<ServiceUnitStateData> schema;
-    private final ConcurrentOpenHashMap<String, CompletableFuture<String>> getOwnerRequests;
-    private final String lookupServiceAddress;
-    private final ConcurrentOpenHashMap<String, CompletableFuture<Void>> cleanupJobs;
+    private final Map<String, CompletableFuture<String>> getOwnerRequests;
+    private final String brokerId;
+    private final Map<String, CompletableFuture<Void>> cleanupJobs;
     private final StateChangeListeners stateChangeListeners;
-    private ExtensibleLoadManagerImpl loadManager;
+
     private BrokerRegistry brokerRegistry;
     private LeaderElectionService leaderElectionService;
-    private TableView<ServiceUnitStateData> tableview;
-    private Producer<ServiceUnitStateData> producer;
+
+    private ServiceUnitStateTableView tableview;
     private ScheduledFuture<?> monitorTask;
-    private SessionEvent lastMetadataSessionEvent = SessionReestablished;
-    private long lastMetadataSessionEventTimestamp = 0;
+    private volatile SessionEvent lastMetadataSessionEvent = SessionReestablished;
+    private volatile long lastMetadataSessionEventTimestamp = 0;
     private long inFlightStateWaitingTimeInMillis;
 
     private long ownershipMonitorDelayTimeInSecs;
-    private long semiTerminalStateWaitingTimeInMillis;
+    private long stateTombstoneDelayTimeInMillis;
     private long maxCleanupDelayTimeInSecs;
     private long minCleanupDelayTimeInSecs;
     // cleanup metrics
@@ -153,6 +146,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long totalInactiveBrokerCleanupIgnoredCnt = 0;
     private long totalInactiveBrokerCleanupCancelledCnt = 0;
     private volatile ChannelState channelState;
+    private final Set<CompletableFuture<Void>> pendingAssignPublishes = new HashSet<>();
     private volatile long lastOwnEventHandledAt = 0;
     private long lastOwnedServiceUnitCountAt = 0;
     private int totalOwnedServiceUnitCnt = 0;
@@ -162,7 +156,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         Split,
         Unload,
         Override
-
     }
 
     @Getter
@@ -170,7 +163,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     public static class Counters {
         private final AtomicLong total;
         private final AtomicLong failure;
-        public Counters(){
+
+        public Counters() {
             total = new AtomicLong();
             failure = new AtomicLong();
         }
@@ -185,11 +179,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         Closed(0),
         Constructed(1),
         LeaderElectionServiceStarted(2),
-        Started(3);
+        Started(3),
+        Disabled(4);
 
         ChannelState(int id) {
             this.id = id;
         }
+
         int id;
     }
 
@@ -199,23 +195,25 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         Unstable
     }
 
+    @VisibleForTesting
     public ServiceUnitStateChannelImpl(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.config = pulsar.getConfig();
-        this.lookupServiceAddress = pulsar.getLookupServiceAddress();
+        this.brokerId = pulsar.getBrokerId();
         this.schema = Schema.JSON(ServiceUnitStateData.class);
-        this.getOwnerRequests = ConcurrentOpenHashMap.<String,
-                CompletableFuture<String>>newBuilder().build();
-        this.cleanupJobs = ConcurrentOpenHashMap.<String, CompletableFuture<Void>>newBuilder().build();
+        this.getOwnerRequests = new ConcurrentHashMap<>();
+        this.cleanupJobs = new ConcurrentHashMap<>();
         this.stateChangeListeners = new StateChangeListeners();
-        this.semiTerminalStateWaitingTimeInMillis = config.getLoadBalancerServiceUnitStateTombstoneDelayTimeInSeconds()
+        this.stateTombstoneDelayTimeInMillis = config.getLoadBalancerServiceUnitStateTombstoneDelayTimeInSeconds()
                 * 1000;
-        this.inFlightStateWaitingTimeInMillis = MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS;
-        this.ownershipMonitorDelayTimeInSecs = OWNERSHIP_MONITOR_DELAY_TIME_IN_SECS;
-        if (semiTerminalStateWaitingTimeInMillis < inFlightStateWaitingTimeInMillis) {
+        this.inFlightStateWaitingTimeInMillis = config.getLoadBalancerInFlightServiceUnitStateWaitingTimeInMillis();
+        this.ownershipMonitorDelayTimeInSecs = config.getLoadBalancerServiceUnitStateMonitorIntervalInSeconds();
+        if (stateTombstoneDelayTimeInMillis < inFlightStateWaitingTimeInMillis) {
             throw new IllegalArgumentException(
-                    "Invalid Config: loadBalancerServiceUnitStateCleanUpDelayTimeInSeconds < "
-                            + (MAX_IN_FLIGHT_STATE_WAITING_TIME_IN_MILLIS / 1000) + " secs");
+                    "Invalid Config: loadBalancerServiceUnitStateTombstoneDelayTimeInSeconds"
+                            + stateTombstoneDelayTimeInMillis / 1000 + " secs"
+                            + "< loadBalancerInFlightServiceUnitStateWaitingTimeInMillis"
+                            + inFlightStateWaitingTimeInMillis + " millis");
         }
         this.maxCleanupDelayTimeInSecs = MAX_CLEAN_UP_DELAY_TIME_IN_SECS;
         this.minCleanupDelayTimeInSecs = MIN_CLEAN_UP_DELAY_TIME_IN_SECS;
@@ -236,6 +234,27 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         this.channelState = Constructed;
     }
 
+    @VisibleForTesting
+    Map<String, CompletableFuture<String>> getOwnerRequests() {
+        return getOwnerRequests;
+    }
+
+    @VisibleForTesting
+    Map<String, CompletableFuture<Void>> getCleanupJobs() {
+        return cleanupJobs;
+    }
+
+    @VisibleForTesting
+    ServiceUnitStateTableView getTableView() {
+        return tableview;
+    }
+
+    @VisibleForTesting
+    void setTableView(ServiceUnitStateTableView tableview) {
+        this.tableview = tableview;
+    }
+
+    @Override
     public void scheduleOwnershipMonitor() {
         if (monitorTask == null) {
             this.monitorTask = this.pulsar.getLoadManagerExecutor()
@@ -244,29 +263,66 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                     monitorOwnerships(brokerRegistry.getAvailableBrokersAsync()
                                             .get(inFlightStateWaitingTimeInMillis, MILLISECONDS));
                                 } catch (Exception e) {
-                                    log.info("Failed to monitor the ownerships. will retry..", e);
+                                    log.info().exception(e).log("Failed to monitor the ownerships. will retry");
                                 }
                             },
                             0, ownershipMonitorDelayTimeInSecs, SECONDS);
-            log.info("This leader broker:{} started the ownership monitor.",
-                    lookupServiceAddress);
+            log.info().attr("broker", brokerId).log("This leader broker: started the ownership monitor");
         }
     }
 
+    @Override
     public void cancelOwnershipMonitor() {
         if (monitorTask != null) {
             monitorTask.cancel(false);
             monitorTask = null;
-            log.info("This previous leader broker:{} stopped the ownership monitor.",
-                    lookupServiceAddress);
+            log.info().attr("broker", brokerId).log("This previous leader broker: stopped the ownership monitor");
         }
     }
 
     @Override
     public void cleanOwnerships() {
-        doCleanup(lookupServiceAddress);
+        disable();
+        List<CompletableFuture<Void>> pending;
+        synchronized (pendingAssignPublishes) {
+            pending = List.copyOf(pendingAssignPublishes);
+        }
+        try {
+            // A lookup may have selected a broker before disable(). Finish accepted assignment writes
+            // before scanning ownership, while rejecting any new assignments after disable().
+            FutureUtil.waitForAll(pending).get(config.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn().exception(e).log("Interrupted while waiting for in-flight assignment writes");
+        } catch (ExecutionException | TimeoutException e) {
+            log.warn().exception(e).log("Failed to finish in-flight assignment writes before ownership cleanup");
+        }
+        doCleanup(brokerId, true);
     }
 
+    @Override
+    public synchronized boolean started() {
+        return validateChannelState(Started, true);
+    }
+
+    private ServiceUnitStateTableView createServiceUnitStateTableView() {
+        ServiceConfiguration conf = pulsar.getConfiguration();
+        try {
+            ServiceUnitStateTableView tableview =
+                    Reflections.createInstance(conf.getLoadManagerServiceUnitStateTableViewClassName(),
+                            ServiceUnitStateTableView.class, Thread.currentThread().getContextClassLoader());
+            log.info().attr("tableView", tableview.getClass().getCanonicalName())
+                    .log("Created service unit state tableview");
+            return tableview;
+        } catch (Throwable e) {
+            log.error().attr("tableView", conf.getLoadManagerServiceUnitStateTableViewClassName())
+                    .exception(e)
+                    .log("Error when trying to create service unit state tableview");
+            throw e;
+        }
+    }
+
+    @Override
     public synchronized void start() throws PulsarServerException {
         if (!validateChannelState(LeaderElectionServiceStarted, false)) {
             throw new IllegalStateException("Invalid channel state:" + channelState.name());
@@ -280,56 +336,23 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             var leader = leaderElectionService.readCurrentLeader().get(
                     MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS);
             if (leader.isPresent()) {
-                log.info("Successfully found the channel leader:{}.", leader.get());
+                log.info().attr("leader", leader.get()).log("Successfully found the channel leader");
             } else {
                 log.warn("Failed to find the channel leader.");
             }
             this.channelState = LeaderElectionServiceStarted;
-            loadManager = getLoadManager();
 
-            if (producer != null) {
-                producer.close();
-                if (debug) {
-                    log.info("Closed the channel producer.");
-                }
-            }
+            PulsarClusterMetadataSetup.createTenantIfAbsent
+                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE.getTenant(),
+                            pulsar.getConfiguration().getClusterName());
+
             PulsarClusterMetadataSetup.createNamespaceIfAbsent
-                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, config.getClusterName());
+                    (pulsar.getPulsarResources(), SYSTEM_NAMESPACE, pulsar.getConfiguration().getClusterName(),
+                            pulsar.getConfiguration().getDefaultNumberOfNamespaceBundles());
 
-            ExtensibleLoadManagerImpl.createSystemTopic(pulsar, TOPIC);
+            tableview = createServiceUnitStateTableView();
+            tableview.start(pulsar, this::handleEvent, this::handleExisting, this::handleInvalidate);
 
-            producer = pulsar.getClient().newProducer(schema)
-                    .enableBatching(true)
-                    .compressionType(MSG_COMPRESSION_TYPE)
-                    .maxPendingMessages(MAX_OUTSTANDING_PUB_MESSAGES)
-                    .blockIfQueueFull(true)
-                    .topic(TOPIC)
-                    .create();
-
-            if (debug) {
-                log.info("Successfully started the channel producer.");
-            }
-
-            if (tableview != null) {
-                tableview.close();
-                if (debug) {
-                    log.info("Closed the channel tableview.");
-                }
-            }
-            tableview = pulsar.getClient().newTableViewBuilder(schema)
-                    .topic(TOPIC)
-                    .loadConf(Map.of(
-                            "topicCompactionStrategyClassName",
-                            ServiceUnitStateCompactionStrategy.class.getName()))
-                    .create();
-            tableview.listen((key, value) -> handle(key, value));
-            var strategy = (ServiceUnitStateCompactionStrategy) TopicCompactionStrategy.getInstance(TABLE_VIEW_TAG);
-            if (strategy == null) {
-                String err = TABLE_VIEW_TAG + "tag TopicCompactionStrategy is null.";
-                log.error(err);
-                throw new IllegalStateException(err);
-            }
-            strategy.setSkippedMsgHandler((key, value) -> handleSkippedEvent(key));
             if (debug) {
                 log.info("Successfully started the channel tableview.");
             }
@@ -342,7 +365,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.info("Successfully started the channel.");
         } catch (Exception e) {
             String msg = "Failed to start the channel.";
-            log.error(msg, e);
+            log.error().exception(e).log(msg);
             throw new PulsarServerException(msg, e);
         }
     }
@@ -370,23 +393,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 .get().getLeaderElectionService();
     }
 
+    @VisibleForTesting
+    protected PulsarAdmin getPulsarAdmin() throws PulsarServerException {
+        return pulsar.getAdminClient();
+    }
+
+    @Override
     public synchronized void close() throws PulsarServerException {
         channelState = Closed;
-        boolean debug = debug();
         try {
             leaderElectionService = null;
+
             if (tableview != null) {
                 tableview.close();
                 tableview = null;
-                if (debug) {
-                    log.info("Successfully closed the channel tableview.");
-                }
-            }
-
-            if (producer != null) {
-                producer.close();
-                producer = null;
-                log.info("Successfully closed the channel producer.");
             }
 
             if (brokerRegistry != null) {
@@ -407,7 +427,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         } catch (Exception e) {
             String msg = "Failed to close the channel.";
-            log.error(msg, e);
+            log.error().exception(e).log(msg);
             throw new PulsarServerException(msg, e);
         }
     }
@@ -424,51 +444,35 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return ExtensibleLoadManagerImpl.debug(config, log);
     }
 
+    @Override
     public CompletableFuture<Optional<String>> getChannelOwnerAsync() {
         if (!validateChannelState(LeaderElectionServiceStarted, true)) {
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Invalid channel state:" + channelState.name()));
         }
 
-        return leaderElectionService.readCurrentLeader().thenApply(leader -> {
-                    //expecting http://broker-xyz:port
-                    // TODO: discard this protocol prefix removal
-                    //  by a util func that returns lookupServiceAddress(serviceUrl)
-                    if (leader.isPresent()) {
-                        String broker = leader.get().getServiceUrl();
-                        broker = broker.substring(broker.lastIndexOf('/') + 1);
-                        return Optional.of(broker);
-                    } else {
-                        return Optional.empty();
-                    }
-                }
-        );
+        return leaderElectionService.readCurrentLeader()
+                .thenApply(leader -> leader.map(LeaderBroker::getBrokerId));
     }
 
+    @Override
     public CompletableFuture<Boolean> isChannelOwnerAsync() {
         return getChannelOwnerAsync().thenApply(owner -> {
             if (owner.isPresent()) {
                 return isTargetBroker(owner.get());
             } else {
-                String msg = "There is no channel owner now.";
-                log.error(msg);
-                throw new IllegalStateException(msg);
+                throw new IllegalStateException("There is no channel owner now.");
             }
         });
     }
-
-    public boolean isChannelOwner() {
-        try {
-            return isChannelOwnerAsync().get(
-                    MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
-            String msg = "Failed to get the channel owner.";
-            log.error(msg, e);
-            throw new RuntimeException(msg, e);
-        }
+    @Override
+    public boolean isChannelOwner() throws ExecutionException, InterruptedException, TimeoutException {
+        return isChannelOwnerAsync().get(
+                MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS);
     }
 
-    public boolean isOwner(String serviceUnit, String targetBroker) {
+    @Override
+    public boolean isOwner(String serviceUnit, String targetBrokerId) {
         if (!validateChannelState(Started, true)) {
             throw new IllegalStateException("Invalid channel state:" + channelState.name());
         }
@@ -477,39 +481,120 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             return false;
         }
         var owner = ownerFuture.join();
-        if (owner.isPresent() && StringUtils.equals(targetBroker, owner.get())) {
+        if (owner.isPresent() && Objects.equals(targetBrokerId, owner.get())) {
             return true;
         }
         return false;
     }
 
+    @Override
     public boolean isOwner(String serviceUnit) {
-        return isOwner(serviceUnit, lookupServiceAddress);
+        return isOwner(serviceUnit, brokerId);
     }
 
+    private CompletableFuture<Optional<String>> getActiveOwnerAsync(
+            String serviceUnit,
+            ServiceUnitState state,
+            Optional<String> owner) {
+        // When the channel is disabled/closed, do not perform liveness verification, return according to the status:
+        if (channelState == Disabled || channelState == Closed) {
+            switch (state) {
+                // Owned/Splitting: Directly return owner (for isOwner judgment as true)
+                case Owned:
+                case Splitting:
+                    return CompletableFuture.completedFuture(owner);
+                case Assigning:
+                case Releasing:
+                    if (owner.isPresent()) {
+                        if (isTargetBroker(owner.get())) {
+                            // This machine is the target taker,
+                            // return an unfinished future with "waiting for ownership"
+                            return dedupeGetOwnerRequest(serviceUnit).thenApply(Optional::ofNullable);
+                        } else {
+                            // The target is another broker, return directly so that the upper layer can redirect
+                            return CompletableFuture.completedFuture(owner);
+                        }
+                    } else {
+                        return CompletableFuture.completedFuture(Optional.empty());
+                    }
+                // Other status: return empty
+                default:
+                    return CompletableFuture.completedFuture(Optional.empty());
+            }
+        }
+        // If this broker's registry does not exist(possibly suffering from connecting to the metadata store),
+        // we return the owner without its activeness check.
+        // This broker tries to serve lookups on a best efforts basis when metadata store connection is unstable.
+        if (!brokerRegistry.isRegistered()) {
+            if (tableview.isMetadataStoreBased()) {
+                return FutureUtil.failedFuture(new MetadataStoreException("broker is unavailable so far because it is"
+                    + " in the state that tries to reconnect to the metadata store."));
+            } else {
+                return CompletableFuture.completedFuture(owner);
+            }
+        }
+
+        return dedupeGetOwnerRequest(serviceUnit)
+                .thenCompose(newOwner -> {
+                    if (newOwner == null) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+
+                    return brokerRegistry.lookupAsync(newOwner)
+                            .thenApply(lookupData -> {
+                                if (lookupData.isPresent()) {
+                                    return newOwner;
+                                } else {
+                                    throw new IllegalStateException(
+                                            "The new owner " + newOwner + " is inactive.");
+                                }
+                            });
+                }).whenComplete((__, e) -> {
+                    if (e != null) {
+                        log.error().attr("broker", brokerId).attr("serviceUnit", serviceUnit)
+                                .attr("state", state).attr("owner", owner).exception(e)
+                                .log("failed to get active owner broker");
+                        ownerLookUpCounters.get(state).getFailure().incrementAndGet();
+                    }
+                }).thenApply(Optional::ofNullable);
+    }
+
+    /**
+     * Case 1: If the service unit is owned, it returns the completed future object with the current owner.
+     * Case 2: If the service unit's assignment is ongoing, it returns the non-completed future object.
+     *      Sub-case1: If the assigned broker is available and finally takes the ownership,
+     *                 the future object will complete and return the owner broker.
+     *      Sub-case2: If the assigned broker does not take the ownership in time,
+     *                 the future object will time out.
+     * Case 3: If none of them, it returns Optional.empty().
+     */
+    @Override
     public CompletableFuture<Optional<String>> getOwnerAsync(String serviceUnit) {
         if (!validateChannelState(Started, true)) {
             return CompletableFuture.failedFuture(
                     new IllegalStateException("Invalid channel state:" + channelState.name()));
         }
-
-        ServiceUnitStateData data = tableview.get(serviceUnit);
+        var data = tableview.get(serviceUnit);
         ServiceUnitState state = state(data);
         ownerLookUpCounters.get(state).getTotal().incrementAndGet();
         switch (state) {
             case Owned -> {
-                return CompletableFuture.completedFuture(Optional.of(data.dstBroker()));
+                return getActiveOwnerAsync(serviceUnit, state, Optional.of(data.dstBroker()));
             }
             case Splitting -> {
-                return CompletableFuture.completedFuture(Optional.of(data.sourceBroker()));
+                return getActiveOwnerAsync(serviceUnit, state, Optional.of(data.sourceBroker()));
             }
             case Assigning, Releasing -> {
-                return deferGetOwnerRequest(serviceUnit).whenComplete((__, e) -> {
-                    if (e != null) {
-                        ownerLookUpCounters.get(state).getFailure().incrementAndGet();
-                    }
-                }).thenApply(
-                        broker -> broker == null ? Optional.empty() : Optional.of(broker));
+                if (isTargetBroker(data.dstBroker())) {
+                    return getActiveOwnerAsync(serviceUnit, state, Optional.of(data.dstBroker()));
+                }
+                // If this broker is not the dst broker, return the dst broker as the owner(or empty).
+                // Clients need to connect(redirect) to the dst broker anyway
+                // and wait for the dst broker to receive `Owned`.
+                // This is also required to return getOwnerAsync on the src broker immediately during unloading.
+                // Otherwise, topic creation(getOwnerAsync) could block unloading bundles,
+                // if the topic creation(getOwnerAsync) happens during unloading on the src broker.
+                return CompletableFuture.completedFuture(Optional.ofNullable(data.dstBroker()));
             }
             case Init, Free -> {
                 return CompletableFuture.completedFuture(Optional.empty());
@@ -520,59 +605,138 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             }
             default -> {
                 ownerLookUpCounters.get(state).getFailure().incrementAndGet();
-                String errorMsg = String.format("Failed to process service unit state data: %s when get owner.", data);
+                String errorMsg =
+                        String.format("Failed to process service unit state data: %s when get owner.", data);
                 log.error(errorMsg);
                 return CompletableFuture.failedFuture(new IllegalStateException(errorMsg));
             }
         }
     }
 
-    private long getNextVersionId(String serviceUnit) {
+    private Optional<String> getOwnerNow(String serviceUnit) {
+        if (!validateChannelState(Started, true)) {
+            throw new IllegalStateException("Invalid channel state:" + channelState.name());
+        }
         var data = tableview.get(serviceUnit);
-        return getNextVersionId(data);
+        ServiceUnitState state = state(data);
+        switch (state) {
+            case Owned -> {
+                return Optional.of(data.dstBroker());
+            }
+            case Splitting -> {
+                return Optional.of(data.sourceBroker());
+            }
+            case Init, Free -> {
+                return Optional.empty();
+            }
+            default -> {
+                return null;
+            }
+        }
+    }
+
+
+    @Override
+    public Optional<String> getAssigned(String serviceUnit) {
+        if (!validateChannelState(Started, true)) {
+            return Optional.empty();
+        }
+
+        var data = tableview.get(serviceUnit);
+        if (data == null) {
+            return Optional.empty();
+        }
+        ServiceUnitState state = state(data);
+        switch (state) {
+            case Owned, Assigning -> {
+                return Optional.of(data.dstBroker());
+            }
+            case Releasing -> {
+                return Optional.ofNullable(data.dstBroker());
+            }
+            case Splitting -> {
+                return Optional.of(data.sourceBroker());
+            }
+            case Init, Free -> {
+                return Optional.empty();
+            }
+            case Deleted -> {
+                log.warn().attr("serviceUnit", serviceUnit)
+                        .log("Trying to get the assigned broker from the deleted serviceUnit");
+                return Optional.empty();
+            }
+            default -> {
+                log.warn().attr("state", state).attr("serviceUnit", serviceUnit)
+                        .log("Trying to get the assigned broker from unknown state: serviceUnit");
+                return Optional.empty();
+            }
+        }
+    }
+
+    private Long getNextVersionId(String serviceUnit) {
+        return getNextVersionId(tableview.get(serviceUnit));
     }
 
     private long getNextVersionId(ServiceUnitStateData data) {
         return data == null ? VERSION_ID_INIT : data.versionId() + 1;
     }
 
-    public CompletableFuture<String> publishAssignEventAsync(String serviceUnit, String broker) {
-        if (!validateChannelState(Started, true)) {
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException("Invalid channel state:" + channelState.name()));
+    @Override
+    public CompletableFuture<String> publishAssignEventAsync(String serviceUnit, String brokerId) {
+        CompletableFuture<Void> published = new CompletableFuture<>();
+        synchronized (pendingAssignPublishes) {
+            if (channelState != Started) {
+                return CompletableFuture.failedFuture(
+                        new IllegalStateException("Invalid channel state:" + channelState.name()));
+            }
+            pendingAssignPublishes.add(published);
         }
+        published.whenComplete((__, ex) -> {
+            synchronized (pendingAssignPublishes) {
+                pendingAssignPublishes.remove(published);
+            }
+        });
         EventType eventType = Assign;
         eventCounters.get(eventType).getTotal().incrementAndGet();
-        CompletableFuture<String> getOwnerRequest = deferGetOwnerRequest(serviceUnit);
+        CompletableFuture<String> getOwnerRequest;
+        try {
+            getOwnerRequest = dedupeGetOwnerRequest(serviceUnit);
+        } catch (Throwable e) {
+            published.complete(null);
+            eventCounters.get(eventType).getFailure().incrementAndGet();
+            return CompletableFuture.failedFuture(e);
+        }
 
-        pubAsync(serviceUnit, new ServiceUnitStateData(Assigning, broker, getNextVersionId(serviceUnit)))
-                .whenComplete((__, ex) -> {
-                    if (ex != null) {
-                        getOwnerRequests.remove(serviceUnit, getOwnerRequest);
-                        if (!getOwnerRequest.isCompletedExceptionally()) {
-                            getOwnerRequest.completeExceptionally(ex);
-                        }
-                        eventCounters.get(eventType).getFailure().incrementAndGet();
-                    }
-                });
+        CompletableFuture<Void> publishFuture;
+        try {
+            publishFuture = pubAsync(serviceUnit,
+                    new ServiceUnitStateData(Assigning, brokerId, getNextVersionId(serviceUnit)));
+        } catch (Throwable e) {
+            publishFuture = CompletableFuture.failedFuture(e);
+        }
+        publishFuture.whenComplete((__, ex) -> {
+            // Complete outside the lock: completion may run the waiting cleanup's callbacks.
+            published.complete(null);
+            if (ex != null) {
+                getOwnerRequests.remove(serviceUnit, getOwnerRequest);
+                if (!getOwnerRequest.isCompletedExceptionally()) {
+                    getOwnerRequest.completeExceptionally(ex);
+                }
+                eventCounters.get(eventType).getFailure().incrementAndGet();
+            }
+        });
+
         return getOwnerRequest;
     }
 
     private CompletableFuture<Void> publishOverrideEventAsync(String serviceUnit,
-                                           ServiceUnitStateData orphanData,
-                                           ServiceUnitStateData override) {
+                                                              ServiceUnitStateData override) {
         if (!validateChannelState(Started, true)) {
-            throw new IllegalStateException("Invalid channel state:" + channelState.name());
+            return FutureUtil.failedFuture(new IllegalStateException("Invalid channel state:" + channelState.name()));
         }
         EventType eventType = EventType.Override;
         eventCounters.get(eventType).getTotal().incrementAndGet();
-        return pubAsync(serviceUnit, override).whenComplete((__, e) -> {
-            if (e != null) {
-                eventCounters.get(eventType).getFailure().incrementAndGet();
-                log.error("Failed to override serviceUnit:{} from orphanData:{} to overrideData:{}",
-                        serviceUnit, orphanData, override, e);
-            }
-        }).thenApply(__ -> null);
+        return pubAsync(serviceUnit, override).thenApply(__ -> null);
     }
 
     public CompletableFuture<Void> publishUnloadEventAsync(Unload unload) {
@@ -617,14 +781,24 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }).thenApply(__ -> null);
     }
 
-    private void handle(String serviceUnit, ServiceUnitStateData data) {
+    private void handleEvent(String serviceUnit, ServiceUnitStateData data) {
+
         long totalHandledRequests = getHandlerTotalCounter(data).incrementAndGet();
         if (debug()) {
-            log.info("{} received a handle request for serviceUnit:{}, data:{}. totalHandledRequests:{}",
-                    lookupServiceAddress, serviceUnit, data, totalHandledRequests);
+            log.info().attr("broker", brokerId).attr("serviceUnit", serviceUnit).attr("data", data)
+                    .attr("totalHandledRequests", totalHandledRequests)
+                    .log("received a handle request");
         }
 
         ServiceUnitState state = state(data);
+        if (channelState == Disabled && (data == null || !data.force())) {
+            final var request = getOwnerRequests.remove(serviceUnit);
+            if (request != null) {
+                request.completeExceptionally(new BrokerServiceException.ServiceUnitNotReadyException(
+                        "cancel the lookup request for " + serviceUnit + " when receiving " + state));
+            }
+            return;
+        }
         try {
             switch (state) {
                 case Owned -> handleOwnEvent(serviceUnit, data);
@@ -636,11 +810,46 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 case Init -> handleInitEvent(serviceUnit);
                 default -> throw new IllegalStateException("Failed to handle channel data:" + data);
             }
-        } catch (Throwable e){
-            log.error("Failed to handle the event. serviceUnit:{}, data:{}, handlerFailureCount:{}",
-                    serviceUnit, data, getHandlerFailureCounter(data).incrementAndGet(), e);
+        } catch (Throwable e) {
+            log.error().attr("serviceUnit", serviceUnit).attr("data", data)
+                    .attr("handlerFailureCount", getHandlerFailureCounter(data).incrementAndGet())
+                    .exception(e)
+                    .log("Failed to handle the event");
             throw e;
         }
+    }
+
+    private void handleExisting(String serviceUnit, ServiceUnitStateData data) {
+        if (debug()) {
+            log.info().attr("serviceUnit", serviceUnit).attr("data", data)
+                    .log("Loaded the service unit state data");
+        }
+        ServiceUnitState state = state(data);
+        if (state.equals(Owned) && isTargetBroker(data.dstBroker())) {
+            pulsar.getNamespaceService()
+                    .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
+        } else if (state.equals(Assigning) && isTargetBroker(data.dstBroker())) {
+            // If this broker is the assignment target and the Assigning event was published before this
+            // broker's channel finished starting (e.g., after a restart), handle it now so ownership
+            // is resolved immediately rather than waiting for the ownership monitor (up to 60s).
+            handleAssignEvent(serviceUnit, data);
+        }
+    }
+
+    /***
+     * When the {@link #tableview} can not determine the ownership of the service-unit, this method will be called.
+     * Often happens when the current broker can not connect to others.
+     */
+    private void handleInvalidate(String serviceUnit, ServiceUnitStateData data) {
+        closeServiceUnit(serviceUnit, true).whenComplete((__, ex) -> {
+            if (ex == null) {
+                log.info().attr("serviceUnit", serviceUnit)
+                        .log("Unloaded serviceUnit: because the ownership is invalidate");
+                return;
+            }
+            log.error().attr("serviceUnit", serviceUnit).exception(ex)
+                    .log("Failed to unload serviceUnit: after the ownership is invalidate");
+        });
     }
 
     private static boolean isTransferCommand(ServiceUnitStateData data) {
@@ -680,37 +889,39 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     private void log(Throwable e, String serviceUnit, ServiceUnitStateData data, ServiceUnitStateData next) {
         if (e == null) {
-            if (log.isDebugEnabled() || isTransferCommand(data)) {
+            if (debug() || isTransferCommand(data)) {
                 long handlerTotalCount = getHandlerTotalCounter(data).get();
                 long handlerFailureCount = getHandlerFailureCounter(data).get();
-                log.info("{} handled {} event for serviceUnit:{}, cur:{}, next:{}, "
-                                + "totalHandledRequests:{}, totalFailedRequests:{}",
-                        lookupServiceAddress, getLogEventTag(data), serviceUnit,
-                        data == null ? "" : data,
-                        next == null ? "" : next,
-                        handlerTotalCount, handlerFailureCount
-                );
+                log.info()
+                        .attr("broker", brokerId)
+                        .attr("event", getLogEventTag(data))
+                        .attr("serviceUnit", serviceUnit)
+                        .attr("cur", data == null ? "" : data)
+                        .attr("next", next == null ? "" : next)
+                        .attr("handlerTotalCount", handlerTotalCount)
+                        .attr("totalFailedRequests", handlerFailureCount)
+                        .log("Handled event for serviceUnit");
             }
         } else {
             long handlerTotalCount = getHandlerTotalCounter(data).get();
             long handlerFailureCount = getHandlerFailureCounter(data).incrementAndGet();
-            log.error("{} failed to handle {} event for serviceUnit:{}, cur:{}, next:{}, "
-                            + "totalHandledRequests:{}, totalFailedRequests:{}",
-                    lookupServiceAddress, getLogEventTag(data), serviceUnit,
-                    data == null ? "" : data,
-                    next == null ? "" : next,
-                    handlerTotalCount, handlerFailureCount,
-                    e);
+            log.error().attr("broker", brokerId).attr("event", getLogEventTag(data))
+                    .attr("serviceUnit", serviceUnit).attr("cur", data == null ? "" : data)
+                    .attr("next", next == null ? "" : next).attr("handlerTotalCount", handlerTotalCount)
+                    .attr("totalFailedRequests", handlerFailureCount).exception(e)
+                    .log("Failed to handle event for serviceUnit");
         }
     }
 
-    private void handleSkippedEvent(String serviceUnit) {
+    @VisibleForTesting
+    void handleSkippedEvent(String serviceUnit) {
         var getOwnerRequest = getOwnerRequests.get(serviceUnit);
         if (getOwnerRequest != null) {
             var data = tableview.get(serviceUnit);
             if (data != null && data.state() == Owned) {
                 getOwnerRequest.complete(data.dstBroker());
-                getOwnerRequests.remove(serviceUnit);
+                // Completing the request can run callbacks that install a newer request for the same service unit.
+                getOwnerRequests.remove(serviceUnit, getOwnerRequest);
                 stateChangeListeners.notify(serviceUnit, data, null);
             }
         }
@@ -719,16 +930,27 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleOwnEvent(String serviceUnit, ServiceUnitStateData data) {
         var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
         if (getOwnerRequest != null) {
+            if (debug()) {
+                log.info().attr("serviceUnit", serviceUnit).log("Returned owner request for serviceUnit");
+            }
             getOwnerRequest.complete(data.dstBroker());
         }
-        stateChangeListeners.notify(serviceUnit, data, null);
+
         if (isTargetBroker(data.dstBroker())) {
-            log(null, serviceUnit, data, null);
             pulsar.getNamespaceService()
                     .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
             lastOwnEventHandledAt = System.currentTimeMillis();
-        } else if (data.force() && isTargetBroker(data.sourceBroker())) {
-            closeServiceUnit(serviceUnit);
+            stateChangeListeners.notify(serviceUnit, data, null);
+            log(null, serviceUnit, data, null);
+        } else if (isTargetBroker(data.sourceBroker())) {
+            var isOrphanCleanup = data.force();
+            var isTransfer = isTransferCommand(data) && pulsar.getConfig().isLoadBalancerMultiPhaseBundleUnload();
+            var future = isOrphanCleanup || isTransfer
+                    ? closeServiceUnit(serviceUnit, true) : CompletableFuture.completedFuture(null);
+            stateChangeListeners.notifyOnCompletion(future, serviceUnit, data)
+                    .whenComplete((__, e) -> log(e, serviceUnit, data, null));
+        } else {
+            stateChangeListeners.notify(serviceUnit, data, null);
         }
     }
 
@@ -744,15 +966,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private void handleReleaseEvent(String serviceUnit, ServiceUnitStateData data) {
         if (isTargetBroker(data.sourceBroker())) {
             ServiceUnitStateData next;
+            CompletableFuture<Integer> unloadFuture;
             if (isTransferCommand(data)) {
                 next = new ServiceUnitStateData(
                         Assigning, data.dstBroker(), data.sourceBroker(), getNextVersionId(data));
-                // TODO: when close, pass message to clients to connect to the new broker
+                // If the optimized bundle unload is disabled, disconnect the clients at time of RELEASE.
+                var disconnectClients = !pulsar.getConfig().isLoadBalancerMultiPhaseBundleUnload();
+                unloadFuture = closeServiceUnit(serviceUnit, disconnectClients);
             } else {
                 next = new ServiceUnitStateData(
                         Free, null, data.sourceBroker(), getNextVersionId(data));
+                unloadFuture = closeServiceUnit(serviceUnit, true);
             }
-            stateChangeListeners.notifyOnCompletion(closeServiceUnit(serviceUnit)
+            // If the optimized bundle unload is disabled, disconnect the clients at time of RELEASE.
+            stateChangeListeners.notifyOnCompletion(unloadFuture
                             .thenCompose(__ -> pubAsync(serviceUnit, next)), serviceUnit, data)
                     .whenComplete((__, e) -> log(e, serviceUnit, data, next));
         }
@@ -765,14 +992,24 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         }
     }
 
-    private void handleFreeEvent(String serviceUnit, ServiceUnitStateData data) {
+    private CompletableFuture<Void> handleFreeEvent(String serviceUnit, ServiceUnitStateData data) {
         var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
         if (getOwnerRequest != null) {
             getOwnerRequest.complete(null);
         }
-        stateChangeListeners.notify(serviceUnit, data, null);
+
         if (isTargetBroker(data.sourceBroker())) {
-            log(null, serviceUnit, data, null);
+            // If data.force(), try closeServiceUnit and tombstone the bundle.
+            CompletableFuture<Void> future =
+                    (data.force() ? closeServiceUnit(serviceUnit, true)
+                            .thenCompose(__ -> tombstoneAsync(serviceUnit))
+                            : CompletableFuture.completedFuture(0)).thenApply(__ -> null);
+            stateChangeListeners.notifyOnCompletion(future, serviceUnit, data)
+                    .whenComplete((__, e) -> log(e, serviceUnit, data, null));
+            return future;
+        } else {
+            stateChangeListeners.notify(serviceUnit, data, null);
+            return CompletableFuture.completedFuture(null);
         }
     }
 
@@ -781,9 +1018,13 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (getOwnerRequest != null) {
             getOwnerRequest.completeExceptionally(new IllegalStateException(serviceUnit + "has been deleted."));
         }
-        stateChangeListeners.notify(serviceUnit, data, null);
+
         if (isTargetBroker(data.sourceBroker())) {
-            log(null, serviceUnit, data, null);
+            stateChangeListeners.notifyOnCompletion(
+                            tombstoneAsync(serviceUnit), serviceUnit, data)
+                    .whenComplete((__, e) -> log(e, serviceUnit, data, null));
+        } else {
+            stateChangeListeners.notify(serviceUnit, data, null);
         }
     }
 
@@ -796,77 +1037,148 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         log(null, serviceUnit, null, null);
     }
 
-    private CompletableFuture<MessageId> pubAsync(String serviceUnit, ServiceUnitStateData data) {
-        CompletableFuture<MessageId> future = new CompletableFuture<>();
-        producer.newMessage()
-                .key(serviceUnit)
-                .value(data)
-                .sendAsync()
-                .whenComplete((messageId, e) -> {
+    private CompletableFuture<Void> pubAsync(String serviceUnit, ServiceUnitStateData data) {
+        return tableview.put(serviceUnit, data)
+                .whenComplete((__, e) -> {
                     if (e != null) {
-                        log.error("Failed to publish the message: serviceUnit:{}, data:{}",
-                                serviceUnit, data, e);
-                        future.completeExceptionally(e);
-                    } else {
-                        future.complete(messageId);
+                        log.error().attr("serviceUnit", serviceUnit).attr("data", data).exception(e)
+                                .log("Failed to publish the message: serviceUnit: , data");
                     }
                 });
-        return future;
     }
 
-    private CompletableFuture<MessageId> tombstoneAsync(String serviceUnit) {
-        return pubAsync(serviceUnit, null);
+    private CompletableFuture<Void> tombstoneAsync(String serviceUnit) {
+        return tableview.delete(serviceUnit)
+                .whenComplete((__, e) -> {
+                    if (e != null) {
+                        log.error().attr("serviceUnit", serviceUnit).exception(e)
+                                .log("Failed to tombstone the serviceUnit: }");
+                    }
+                });
     }
 
     private boolean isTargetBroker(String broker) {
         if (broker == null) {
             return false;
         }
-        return broker.equals(lookupServiceAddress);
+        return broker.equals(brokerId);
     }
 
-    private CompletableFuture<String> deferGetOwnerRequest(String serviceUnit) {
-        return getOwnerRequests
-                .computeIfAbsent(serviceUnit, k -> {
-                    CompletableFuture<String> future = new CompletableFuture<>();
-                    future.orTimeout(inFlightStateWaitingTimeInMillis, TimeUnit.MILLISECONDS)
-                            .whenComplete((v, e) -> {
-                                        if (e != null) {
-                                            getOwnerRequests.remove(serviceUnit, future);
-                                            log.warn("Failed to getOwner for serviceUnit:{}",
-                                                    serviceUnit, e);
-                                        }
-                                    }
-                            );
-                    return future;
+
+    private CompletableFuture<String> deferGetOwner(String serviceUnit) {
+        var future = new CompletableFuture<String>().orTimeout(inFlightStateWaitingTimeInMillis,
+                        TimeUnit.MILLISECONDS)
+                .exceptionally(e -> {
+                    var ownerAfter = getOwnerNow(serviceUnit);
+                    log.warn().attr("broker", brokerId).attr("serviceUnit", serviceUnit)
+                            .attr("owner", ownerAfter).exception(e)
+                            .log("failed to wait for owner for serviceUnit: ; Trying to " + "return the current owner");
+                    if (ownerAfter == null) {
+                        throw new IllegalStateException(e);
+                    }
+                    return ownerAfter.orElse(null);
                 });
+        if (debug()) {
+            log.info().attr("broker", brokerId).attr("serviceUnit", serviceUnit)
+                    .log("is waiting for owner for serviceUnit");
+        }
+        return future;
     }
 
-    private CompletableFuture<Integer> closeServiceUnit(String serviceUnit) {
+    @VisibleForTesting
+    CompletableFuture<String> dedupeGetOwnerRequest(String serviceUnit) {
+
+        var requested = new MutableObject<CompletableFuture<String>>();
+        try {
+            return getOwnerRequests.computeIfAbsent(serviceUnit, k -> {
+                var ownerBefore = getOwnerNow(serviceUnit);
+                if (ownerBefore != null && ownerBefore.isPresent()) {
+                    // Here, we do the broker active check first with the computeIfAbsent lock
+                    requested.setValue(brokerRegistry.lookupAsync(ownerBefore.get())
+                            .thenCompose(brokerLookupData -> {
+                                if (brokerLookupData.isPresent()) {
+                                    // The owner broker is active.
+                                    // Immediately return the request.
+                                    return CompletableFuture.completedFuture(ownerBefore.get());
+                                } else {
+                                    // The owner broker is inactive.
+                                    // The leader broker should be cleaning up the orphan service units.
+                                    // Defer this request til the leader notifies the new ownerships.
+                                    return deferGetOwner(serviceUnit);
+                                }
+                            }));
+                } else {
+                    // The owner broker has not been declared yet.
+                    // The ownership should be in the middle of transferring or assigning.
+                    // Defer this request til the inflight ownership change is complete.
+                    requested.setValue(deferGetOwner(serviceUnit));
+                }
+                return requested.get();
+            });
+        } finally {
+            var future = requested.get();
+            if (future != null) {
+                future.whenComplete((__, e) -> {
+                    // The request may have been replaced by a later lookup before this callback runs.
+                    getOwnerRequests.remove(serviceUnit, future);
+                    if (e != null) {
+                        log.warn().attr("broker", brokerId).attr("serviceUnit", serviceUnit).exception(e)
+                                .log("failed to getOwner for serviceUnit");
+                    }
+                });
+            }
+        }
+    }
+
+    private CompletableFuture<Integer> closeServiceUnit(String serviceUnit, boolean disconnectClients) {
         long startTime = System.nanoTime();
         MutableInt unloadedTopics = new MutableInt();
         NamespaceBundle bundle = LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit);
+        // Capture the topic futures for this bundle once, before unloading starts, and reuse the same snapshot
+        // both to close the topics below and to clean up afterward, so the cleanup is identity-safe: a stale
+        // cleanup call must only remove what this snapshot observed, never a newer ownership generation's topic
+        // installed for the same bundle in the meantime.
+        //
+        // A straggler topic loaded into BrokerService's topic cache for this bundle *after* the snapshot is
+        // taken is deliberately left alone: neither closed below nor evicted by the cleanup. The alternative —
+        // force-evicting whatever is in the cache at cleanup time regardless of identity — could yank a topic
+        // that was never closed, letting a second, independent instance for the same name be created on the
+        // next load. A straggler surviving the unload does not need this unload to fix it: new connections
+        // converge through the normal lookup path once ownership has actually moved, and BookKeeper's ledger
+        // fencing (see ManagedLedgerImpl#addEntryFailedDueToConcurrentlyModified) is what prevents it from
+        // silently double-writing if a new owner's ManagedLedger instance does start writing the same topic.
+        Map<String, CompletableFuture<Optional<Topic>>> topicFutures =
+                pulsar.getBrokerService().getTopicFuturesInBundle(bundle);
         return pulsar.getBrokerService().unloadServiceUnit(
                         bundle,
+                        disconnectClients,
                         true,
                         pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(),
-                        TimeUnit.MILLISECONDS)
+                        TimeUnit.MILLISECONDS,
+                        topicFutures)
                 .thenApply(numUnloadedTopics -> {
                     unloadedTopics.setValue(numUnloadedTopics);
                     return numUnloadedTopics;
                 })
                 .whenComplete((__, ex) -> {
-                    // clean up topics that failed to unload from the broker ownership cache
-                    pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                    if (disconnectClients) {
+                        // clean up topics that failed to unload from the broker ownership cache
+                        pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
+                    }
                     pulsar.getNamespaceService().onNamespaceBundleUnload(bundle);
                     double unloadBundleTime = TimeUnit.NANOSECONDS
                             .toMillis((System.nanoTime() - startTime));
                     if (ex != null) {
-                        log.error("Failed to close topics under bundle:{} in {} ms",
-                                bundle.toString(), unloadBundleTime, ex);
+                        log.error().attr("bundle", bundle.toString()).attr("unloadTimeMs", unloadBundleTime)
+                                .exception(ex)
+                                .log("Failed to close topics under bundle");
+                        if (!disconnectClients) {
+                            pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
+                        }
                     } else {
-                        log.info("Unloading bundle:{} with {} topics completed in {} ms",
-                                bundle, unloadedTopics, unloadBundleTime);
+                        log.info().attr("bundle", bundle).attr("topicCount", unloadedTopics)
+                                .attr("unloadTimeMs", unloadBundleTime)
+                                .log("Unloaded bundle topics");
                     }
                 });
     }
@@ -905,7 +1217,6 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
 
-
     @VisibleForTesting
     protected void splitServiceUnitOnceAndRetry(NamespaceService namespaceService,
                                                 NamespaceBundleFactory bundleFactory,
@@ -925,11 +1236,12 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 .thenAccept(__ -> // Update bundled_topic cache for load-report-generation
                         pulsar.getBrokerService().refreshTopicToStatsMaps(parentBundle))
                 .thenAccept(__ -> pubAsync(parentBundle.toString(), new ServiceUnitStateData(
-                                Deleted, null, parentData.sourceBroker(), getNextVersionId(parentData))))
+                        Deleted, null, parentData.sourceBroker(), getNextVersionId(parentData))))
                 .thenAccept(__ -> {
                     double splitBundleTime = TimeUnit.NANOSECONDS.toMillis((System.nanoTime() - startTime));
-                    log.info("Successfully split {} parent namespace-bundle to {} in {} ms",
-                            parentBundle, childBundles, splitBundleTime);
+                    log.info().attr("parentBundle", parentBundle).attr("childBundles", childBundles)
+                            .attr("splitTimeMs", splitBundleTime)
+                            .log("Successfully split parent namespace-bundle");
                     namespaceService.onNamespaceBundleSplit(parentBundle);
                     completionFuture.complete(null);
                 })
@@ -938,10 +1250,11 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     Throwable throwable = FutureUtil.unwrapCompletionException(ex);
                     if ((throwable instanceof MetadataStoreException.BadVersionException)
                             && (counter.incrementAndGet() < NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT)) {
-                        log.warn("Failed to update bundle range in metadata store. Retrying {} th / {} limit",
-                                counter.get(), NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT, ex);
+                        log.warn().attr("retry", counter.get())
+                                .attr("retryLimit", NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT).exception(ex)
+                                .log("Failed to update bundle range in metadata store. Retrying");
                         pulsar.getExecutor().schedule(() -> splitServiceUnitOnceAndRetry(
-                                namespaceService, bundleFactory, algorithm, parentBundle, childBundles,
+                                        namespaceService, bundleFactory, algorithm, parentBundle, childBundles,
                                         boundaries, parentData, counter, startTime, completionFuture),
                                 100, MILLISECONDS);
                     } else {
@@ -949,7 +1262,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                         String msg = format("Failed to split bundle %s, Retried %d th / %d limit, reason %s",
                                 parentBundle.toString(), counter.get(),
                                 NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT, throwable.getMessage());
-                        log.warn(msg, throwable);
+                        log.warn().exception(throwable).log(msg);
                         completionFuture.completeExceptionally(
                                 new BrokerServiceException.ServiceUnitNotReadyException(msg));
                     }
@@ -966,7 +1279,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             var childData = tableview.get(childBundleStr);
             if (childData != null) {
                 if (debug) {
-                    log.info("Already owned child bundle:{}", childBundleStr);
+                    log.info().attr("bundle", childBundleStr).log("Already owned child bundle");
                 }
             } else {
                 childData = new ServiceUnitStateData(Owned, parentData.sourceBroker(),
@@ -988,45 +1301,43 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                                                          NamespaceBundle parentBundle,
                                                                          List<NamespaceBundle> childBundles,
                                                                          List<Long> boundaries) {
-        CompletableFuture future = new CompletableFuture();
         final var debug = debug();
-        var targetNsBundle = bundleFactory.getBundles(parentBundle.getNamespaceObject());
-        boolean found = false;
-        try {
-            targetNsBundle.validateBundle(parentBundle);
-        } catch (IllegalArgumentException e) {
-            if (debug) {
-                log.info("Namespace bundles do not contain the parent bundle:{}",
-                        parentBundle);
-            }
-            for (var childBundle : childBundles) {
-                try {
-                    targetNsBundle.validateBundle(childBundle);
-                    if (debug) {
-                        log.info("Namespace bundles contain the child bundle:{}",
-                                childBundle);
+        return bundleFactory.getBundlesAsync(parentBundle.getNamespaceObject())
+                .thenCompose(targetNsBundle -> {
+                    boolean found = false;
+                    try {
+                        targetNsBundle.validateBundle(parentBundle);
+                    } catch (IllegalArgumentException e) {
+                        if (debug) {
+                            log.info().attr("bundle", parentBundle)
+                                    .log("Namespace bundles do not contain the parent bundle");
+                        }
+                        for (var childBundle : childBundles) {
+                            try {
+                                targetNsBundle.validateBundle(childBundle);
+                                if (debug) {
+                                    log.info().attr("bundle", childBundle)
+                                            .log("Namespace bundles contain the child bundle");
+                                }
+                            } catch (Exception ex) {
+                                throw FutureUtil.wrapToCompletionException(
+                                        new BrokerServiceException.ServiceUnitNotReadyException(
+                                                "Namespace bundles do not contain the child bundle:" + childBundle, e));
+                            }
+                        }
+                        found = true;
+                    } catch (Exception e) {
+                        throw FutureUtil.wrapToCompletionException(
+                                new BrokerServiceException.ServiceUnitNotReadyException(
+                                        "Failed to validate the parent bundle in the namespace bundles.", e));
                     }
-                } catch (Exception ex) {
-                    future.completeExceptionally(
-                            new BrokerServiceException.ServiceUnitNotReadyException(
-                                    "Namespace bundles do not contain the child bundle:" + childBundle, e));
-                    return future;
-                }
-            }
-            found = true;
-        } catch (Exception e) {
-            future.completeExceptionally(
-                    new BrokerServiceException.ServiceUnitNotReadyException(
-                            "Failed to validate the parent bundle in the namespace bundles.", e));
-            return future;
-        }
-        if (found) {
-            future.complete(targetNsBundle);
-            return future;
-        } else {
-            return namespaceService.getSplitBoundary(parentBundle, algorithm, boundaries)
-                    .thenApply(splitBundlesPair -> splitBundlesPair.getLeft());
-        }
+                    if (found) {
+                        return CompletableFuture.completedFuture(targetNsBundle);
+                    } else {
+                        return namespaceService.getSplitBoundary(parentBundle, algorithm, boundaries)
+                                .thenApply(splitBundlesPair -> splitBundlesPair.getLeft());
+                    }
+                });
     }
 
     private CompletableFuture<Void> updateSplitNamespaceBundlesAsync(
@@ -1047,21 +1358,50 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 });
     }
 
-    public void handleMetadataSessionEvent(SessionEvent e) {
+    /**
+     * The stability of the metadata connection is important
+     * to determine how to handle the broker deletion(unavailable) event notified from the metadata store.
+     */
+    @VisibleForTesting
+    protected void handleMetadataSessionEvent(SessionEvent e) {
         if (e == SessionReestablished || e == SessionLost) {
             lastMetadataSessionEvent = e;
             lastMetadataSessionEventTimestamp = System.currentTimeMillis();
-            log.info("Received metadata session event:{} at timestamp:{}",
-                    lastMetadataSessionEvent, lastMetadataSessionEventTimestamp);
+            log.info().attr("event", lastMetadataSessionEvent)
+                    .attr("timestamp", lastMetadataSessionEventTimestamp)
+                    .log("Received metadata session event: at timestamp");
         }
     }
 
-    public void handleBrokerRegistrationEvent(String broker, NotificationType type) {
+    /**
+     * Case 1: If NotificationType is Deleted,
+     *         it will schedule a clean-up operation to release the ownerships of the deleted broker.
+     *
+     *      Sub-case1: If the metadata connection has been stable for long time,
+     *                 it will immediately execute the cleanup operation to guarantee high-availability.
+     *
+     *      Sub-case2: If the metadata connection has been stable only for short time,
+     *                 it will defer the clean-up operation for some time and execute it.
+     *                 This is to gracefully handle the case when metadata connection is flaky --
+     *                 If the deleted broker comes back very soon,
+     *                 we better cancel the clean-up operation for high-availability.
+     *
+     *      Sub-case3: If the metadata connection is unstable,
+     *                 it will not schedule the clean-up operation, as the broker-metadata connection is lost.
+     *                 The brokers will continue to serve existing topics connections,
+     *                 and we better not to interrupt the existing topic connections for high-availability.
+     *
+     *
+     * Case 2: If NotificationType is Created,
+     *         it will cancel any scheduled clean-up operation if still not executed.
+     */
+    @VisibleForTesting
+    protected void handleBrokerRegistrationEvent(String broker, NotificationType type) {
         if (type == NotificationType.Created) {
-            log.info("BrokerRegistry detected the broker:{} registry has been created.", broker);
+            log.info().attr("broker", broker).log("BrokerRegistry detected the broker: registry has been created");
             handleBrokerCreationEvent(broker);
         } else if (type == NotificationType.Deleted) {
-            log.info("BrokerRegistry detected the broker:{} registry has been deleted.", broker);
+            log.info().attr("broker", broker).log("BrokerRegistry detected the broker: registry has been deleted");
             handleBrokerDeletionEvent(broker);
         }
     }
@@ -1078,191 +1418,335 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     }
 
     private void handleBrokerCreationEvent(String broker) {
-        CompletableFuture<Void> future = cleanupJobs.remove(broker);
-        if (future != null) {
-            future.cancel(false);
-            totalInactiveBrokerCleanupCancelledCnt++;
-            log.info("Successfully cancelled the ownership cleanup for broker:{}."
-                            + " Active cleanup job count:{}",
-                    broker, cleanupJobs.size());
-        } else {
-            if (debug()) {
-                log.info("No needs to cancel the ownership cleanup for broker:{}."
-                                + " There was no scheduled cleanup job. Active cleanup job count:{}",
-                        broker, cleanupJobs.size());
-            }
+
+        CompletableFuture<Void> cleanupJob = cleanupJobs.get(broker);
+        if (cleanupJob != null) {
+            healthCheckBrokerAsync(broker)
+                    .orTimeout(MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS * (MAX_BROKER_HEALTH_CHECK_RETRY + 1)
+                            , MILLISECONDS)
+                    .thenAccept(__ -> {
+                        // The health check is async; only cancel the cleanup job observed before the check.
+                        if (cleanupJobs.remove(broker, cleanupJob)) {
+                            cleanupJob.cancel(false);
+                            totalInactiveBrokerCleanupCancelledCnt++;
+                            log.info().attr("broker", broker).attr("count", cleanupJobs.size())
+                                    .log("Successfully cancelled the ownership cleanup for broker: ."
+                                            + " Active cleanup job count");
+                        } else {
+                            if (debug()) {
+                                log.info().attr("broker", broker).attr("count", cleanupJobs.size())
+                                        .log("No needs to cancel the ownership cleanup for broker: ."
+                                                + " There was no scheduled cleanup job. Active cleanup job count");
+                            }
+                        }
+                    })
+                    .exceptionally(e -> {
+                        if (FutureUtil.unwrapCompletionException(e) instanceof PulsarAdminException.NotFoundException) {
+                            log.warn().attr("broker", broker).exceptionMessage(e)
+                                    .log("Failed to run health check");
+                        } else {
+                            log.error().attr("broker", broker).exception(e).log("Failed to run health check");
+                        }
+                        return null;
+                    });
         }
     }
 
     private void handleBrokerDeletionEvent(String broker) {
-        if (!isChannelOwner()) {
-            log.warn("This broker is not the leader now. Ignoring BrokerDeletionEvent for broker {}.", broker);
+        try {
+            if (!isChannelOwner()) {
+                log.warn().attr("broker", broker)
+                        .log("This broker is not the leader now. Ignoring BrokerDeletionEvent for broker");
+                return;
+            }
+        } catch (Exception e) {
+            if (e instanceof ExecutionException && e.getCause() instanceof IllegalStateException) {
+                log.warn().exceptionMessage(e).log("Failed to handle broker deletion event");
+            } else {
+                log.error().exception(e).log("Failed to handle broker deletion event");
+            }
             return;
         }
         MetadataState state = getMetadataState();
-        log.info("Handling broker:{} ownership cleanup based on metadata connection state:{}, event:{}, event_ts:{}:",
-                broker, state, lastMetadataSessionEvent, lastMetadataSessionEventTimestamp);
+        log.info().attr("broker", broker).attr("state", state).attr("event", lastMetadataSessionEvent)
+                .attr("eventTs", lastMetadataSessionEventTimestamp)
+                .log("Handling broker ownership cleanup based on metadata connection state");
         switch (state) {
             case Stable -> scheduleCleanup(broker, minCleanupDelayTimeInSecs);
             case Jittery -> scheduleCleanup(broker, maxCleanupDelayTimeInSecs);
             case Unstable -> {
                 totalInactiveBrokerCleanupIgnoredCnt++;
-                log.error("MetadataState state is unstable. "
-                        + "Ignoring the ownership cleanup request for the reported broker :{}", broker);
+                log.errorf("MetadataState state is unstable. "
+                        + "Ignoring the ownership cleanup request for the reported broker :%s",
+                        broker);
             }
         }
     }
 
-    private void scheduleCleanup(String broker, long delayInSecs) {
-        cleanupJobs.computeIfAbsent(broker, k -> {
-            Executor delayed = CompletableFuture
-                    .delayedExecutor(delayInSecs, TimeUnit.SECONDS, pulsar.getLoadManagerExecutor());
-            totalInactiveBrokerCleanupScheduledCnt++;
-            return CompletableFuture
-                    .runAsync(() -> {
-                                try {
-                                    doCleanup(broker);
-                                } catch (Throwable e) {
-                                    log.error("Failed to run the cleanup job for the broker {}, "
-                                                    + "totalCleanupErrorCnt:{}.",
-                                            broker, totalCleanupErrorCnt.incrementAndGet(), e);
-                                } finally {
-                                    cleanupJobs.remove(broker);
+    private boolean channelDisabled() {
+        final var channelState = this.channelState;
+        if (channelState == Disabled || channelState == Closed) {
+            log.warn().attr("broker", brokerId).attr("channelState", channelState)
+                    .log("Skip scheduleCleanup because the state is disabled");
+            return true;
+        }
+        return false;
+    }
+
+    @VisibleForTesting
+    void scheduleCleanup(String broker, long delayInSecs) {
+        var scheduled = new MutableObject<CompletableFuture<Void>>();
+        try {
+            if (channelDisabled()) {
+                return;
+            }
+            cleanupJobs.computeIfAbsent(broker, k -> {
+                Executor delayed = CompletableFuture
+                        .delayedExecutor(delayInSecs, TimeUnit.SECONDS, pulsar.getLoadManagerExecutor());
+                totalInactiveBrokerCleanupScheduledCnt++;
+                var future = CompletableFuture
+                        .runAsync(() -> {
+                                    try {
+                                        doCleanup(broker, false);
+                                    } catch (Throwable e) {
+                                        log.error().attr("broker", broker)
+                                                .attr("value", totalCleanupErrorCnt.incrementAndGet())
+                                                .exception(e)
+                                                .log("Failed to run the cleanup job for the broker , "
+                                                        + "totalCleanupErrorCnt");
+                                    }
                                 }
+                                , delayed);
+                scheduled.setValue(future);
+                return future;
+            });
+        } finally {
+            var future = scheduled.get();
+            if (future != null) {
+                future.whenComplete((v, ex) -> {
+                    // The job may have been replaced by a later cleanup schedule before this callback runs.
+                    cleanupJobs.remove(broker, future);
+                });
+            }
+        }
+
+        log.info().attr("broker", broker).attr("delay", delayInSecs).attr("jobs", cleanupJobs.size())
+                .log("Scheduled ownership cleanup for broker: with delay: secs. Pending clean jobs");
+    }
+
+
+    private CompletableFuture<Void> overrideOwnership(String serviceUnit,
+                                                      ServiceUnitStateData orphanData,
+                                                      String inactiveBroker,
+                                                      boolean gracefully) {
+
+        final var version = getNextVersionId(orphanData);
+        return selectBroker(serviceUnit, inactiveBroker)
+                .thenApply(selectedOpt ->
+                        selectedOpt.map(selectedBroker -> {
+                            if (orphanData.state() == Splitting) {
+                                // if Splitting, set orphan.dstBroker() as dst to indicate where it was from.
+                                // (The src broker runs handleSplitEvent.)
+                                return new ServiceUnitStateData(Splitting, orphanData.dstBroker(), selectedBroker,
+                                        Map.copyOf(orphanData.splitServiceUnitToDestBroker()), true, version);
+                            } else if (orphanData.state() == Owned) {
+                                // if Owned, set orphan.dstBroker() as source to clean it up in case it is still
+                                // alive.
+                                var sourceBroker = selectedBroker.equals(orphanData.dstBroker()) ? null :
+                                        orphanData.dstBroker();
+                                // if gracefully, try to release ownership first
+                                var overrideState = gracefully && sourceBroker != null ? Releasing : Owned;
+                                return new ServiceUnitStateData(
+                                        overrideState,
+                                        selectedBroker,
+                                        sourceBroker,
+                                        true, version);
+                            } else {
+                                // if Assigning or Releasing, set orphan.sourceBroker() as source
+                                // to clean it up in case it is still alive.
+                                return new ServiceUnitStateData(Owned, selectedBroker,
+                                        selectedBroker.equals(orphanData.sourceBroker()) ? null :
+                                                orphanData.sourceBroker(),
+                                        true, version);
                             }
-                            , delayed);
-        });
-
-        log.info("Scheduled ownership cleanup for broker:{} with delay:{} secs. Pending clean jobs:{}.",
-                broker, delayInSecs, cleanupJobs.size());
+                            // If no broker is selected(available), free the ownership.
+                            // If the previous owner is still active, it will close the bundle(topic) ownership.
+                        }).orElseGet(() -> new ServiceUnitStateData(Free, null,
+                                orphanData.state() == Owned ? orphanData.dstBroker() : orphanData.sourceBroker(),
+                                true,
+                                version)))
+                .thenCompose(override -> {
+                    log.infof(
+                            "Overriding inactiveBroker:%s, ownership serviceUnit:%s from orphanData:%s to "
+                                    + "overrideData:%s",
+                            inactiveBroker, serviceUnit, orphanData, override);
+                    return publishOverrideEventAsync(serviceUnit, override);
+                });
     }
 
-
-    private ServiceUnitStateData getOverrideInactiveBrokerStateData(ServiceUnitStateData orphanData,
-                                                                    String selectedBroker,
-                                                                    String inactiveBroker) {
-        if (orphanData.state() == Splitting) {
-            return new ServiceUnitStateData(Splitting, orphanData.dstBroker(), selectedBroker,
-                    Map.copyOf(orphanData.splitServiceUnitToDestBroker()),
-                    true, getNextVersionId(orphanData));
-        } else {
-            return new ServiceUnitStateData(Owned, selectedBroker, inactiveBroker,
-                    true, getNextVersionId(orphanData));
-        }
-    }
-
-    private void overrideOwnership(String serviceUnit, ServiceUnitStateData orphanData, String inactiveBroker) {
-        Optional<String> selectedBroker = selectBroker(serviceUnit, inactiveBroker);
-        if (selectedBroker.isPresent()) {
-            var override = getOverrideInactiveBrokerStateData(
-                    orphanData, selectedBroker.get(), inactiveBroker);
-            log.info("Overriding ownership serviceUnit:{} from orphanData:{} to overrideData:{}",
-                    serviceUnit, orphanData, override);
-            publishOverrideEventAsync(serviceUnit, orphanData, override)
-                    .exceptionally(e -> {
-                        log.error(
-                                "Failed to override the ownership serviceUnit:{} orphanData:{}. "
-                                        + "Failed to publish override event. totalCleanupErrorCnt:{}",
-                                serviceUnit, orphanData, totalCleanupErrorCnt.incrementAndGet());
-                        return null;
-                    });
-        } else {
-            log.error("Failed to override the ownership serviceUnit:{} orphanData:{}. Empty selected broker. "
-                            + "totalCleanupErrorCnt:{}",
-                    serviceUnit, orphanData, totalCleanupErrorCnt.incrementAndGet());
-        }
-    }
-
-    private void waitForCleanups(String broker, boolean excludeSystemTopics, int maxWaitTimeInMillis) {
+    private void waitForCleanups(String broker, boolean gracefully, int maxWaitTimeInMillis) {
         long started = System.currentTimeMillis();
         while (System.currentTimeMillis() - started < maxWaitTimeInMillis) {
             boolean cleaned = true;
+            List<CompletableFuture<Void>> overrideFutures = new ArrayList<>();
             for (var etr : tableview.entrySet()) {
                 var serviceUnit = etr.getKey();
                 var data = etr.getValue();
 
-                if (excludeSystemTopics && serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
+                if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
                     continue;
                 }
 
                 if (data.state() == Owned && broker.equals(data.dstBroker())) {
                     cleaned = false;
-                    break;
+                    // An in-flight assignment can win against the initial cleanup override at the same
+                    // version. A successful publish does not mean the override was accepted. Retry using
+                    // the current state, keeping version conflict checks so a new owner's state is safe.
+                    overrideFutures.add(overrideOwnership(serviceUnit, data, broker, gracefully));
+                    tryWaitForOverrides(overrideFutures, false);
                 }
             }
             if (cleaned) {
-                try {
-                    MILLISECONDS.sleep(OWNERSHIP_CLEAN_UP_CONVERGENCE_DELAY_IN_MILLIS);
-                } catch (InterruptedException e) {
-                    log.warn("Interrupted while gracefully waiting for the cleanup convergence.");
-                }
                 break;
             } else {
+                tryWaitForOverrides(overrideFutures, true);
                 try {
-                    MILLISECONDS.sleep(OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS);
+                    tableview.flush(OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS / 2);
+                    Thread.sleep(OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS / 2);
                 } catch (InterruptedException e) {
-                    log.warn("Interrupted while delaying the next service unit clean-up. Cleaning broker:{}",
-                            lookupServiceAddress);
+                    log.warn().attr("broker", brokerId)
+                            .log("Interrupted while delaying the next service unit clean-up. Cleaning broker");
+                } catch (ExecutionException e) {
+                    log.error().exception(e.getCause()).log("Failed to flush table view");
+                } catch (TimeoutException e) {
+                    log.warn().attr("timeoutMs", OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS)
+                            .log("Failed to flush the table view");
                 }
+            }
+        }
+        log.info().attr("broker", brokerId).attr("elapsed", System.currentTimeMillis() - started)
+                .log("Finished cleanup waiting for orphan broker: . Elapsed ms");
+    }
+
+    private CompletableFuture<Void> healthCheckBrokerAsync(String brokerId) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        doHealthCheckBrokerAsyncWithRetries(brokerId, 0, future);
+        return future;
+    }
+
+    private void doHealthCheckBrokerAsyncWithRetries(String brokerId, int retry, CompletableFuture<Void> future) {
+        if (channelDisabled()) {
+            future.complete(null);
+            return;
+        }
+        try {
+            var admin = getPulsarAdmin();
+            admin.brokers().healthcheckAsync(Optional.of(brokerId))
+                    .whenComplete((__, e) -> {
+                        if (e == null) {
+                            log.info().attr("broker", brokerId).exception(e).log("Completed health-check broker");
+                            future.complete(null);
+                            return;
+                        }
+                        if (retry == MAX_BROKER_HEALTH_CHECK_RETRY) {
+                            future.completeExceptionally(FutureUtil.unwrapCompletionException(e));
+                        } else {
+                            pulsar.getExecutor()
+                                    .schedule(() -> doHealthCheckBrokerAsyncWithRetries(brokerId, retry + 1, future),
+                                            Math.min(MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS, retry * retry * 50),
+                                            MILLISECONDS);
+                        }
+                    });
+        } catch (PulsarServerException e) {
+            future.completeExceptionally(e);
+        }
+    }
+
+    private void tryWaitForOverrides(List<CompletableFuture<Void>> overrideFutures, boolean force) {
+        if (overrideFutures.size() >= config.getLoadBalancerServiceUnitStateMaxConcurrentOverrides() || force) {
+            try {
+                FutureUtil.waitForAll(overrideFutures)
+                        .get(config.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+            } catch (Throwable e) {
+                log.error().attr("totalCleanupErrorCnt", totalCleanupErrorCnt.incrementAndGet()).exception(e)
+                        .log("Failed to override ownership: totalCleanupErrorCnt");
+            } finally {
+                overrideFutures.clear();
             }
         }
     }
 
-    private synchronized void doCleanup(String broker)  {
+    private void doCleanup(String broker, boolean gracefully) {
+        try {
+            if (getChannelOwnerAsync().get(MAX_CHANNEL_OWNER_ELECTION_WAITING_TIME_IN_SECS, TimeUnit.SECONDS)
+                    .isEmpty()) {
+                log.error().attr("broker", broker)
+                        .log("Found the channel owner is empty. Skip the inactive broker: 's orphan bundle cleanup");
+                return;
+            }
+        } catch (Exception e) {
+            log.error().attr("broker", broker)
+                    .log("Failed to find the channel owner. Skip the inactive broker: 's orphan bundle cleanup");
+            return;
+        }
+
+
+        // if not gracefully, verify the broker is inactive by health-check.
+        if (!gracefully) {
+            try {
+                healthCheckBrokerAsync(broker).get(
+                        MAX_BROKER_HEALTH_CHECK_DELAY_IN_MILLIS * (MAX_BROKER_HEALTH_CHECK_RETRY + 1)
+                        , MILLISECONDS);
+                log.warn().attr("broker", broker)
+                        .log("Found that the broker to clean is healthy. Skip the broker: 's orphan bundle cleanup");
+                return;
+            } catch (Exception e) {
+                if (debug()) {
+                    if (e instanceof ExecutionException
+                            && e.getCause() instanceof PulsarAdminException.NotFoundException) {
+                        log.info().attr("broker", broker).log("The broker is not healthy because it's not found");
+                    } else {
+                        log.info().attr("broker", broker).exception(e).log("Failed to check broker: health");
+                    }
+                }
+                log.info().attr("broker", broker).log("Checked the broker: health. Continue the orphan bundle cleanup");
+            }
+        }
+
+
         long startTime = System.nanoTime();
-        log.info("Started ownership cleanup for the inactive broker:{}", broker);
+        log.info().attr("broker", broker).log("Started ownership cleanup for the inactive broker");
         int orphanServiceUnitCleanupCnt = 0;
         long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
-        String heartbeatNamespace =
-                NamespaceService.getHeartbeatNamespace(pulsar.getAdvertisedAddress(), pulsar.getConfiguration())
-                        .toString();
-        String heartbeatNamespaceV2 = NamespaceService.getHeartbeatNamespaceV2(pulsar.getAdvertisedAddress(),
-                pulsar.getConfiguration()).toString();
-
+        try {
+            tableview.flush(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
+        } catch (Exception e) {
+            log.error().exception(e).log("Failed to flush");
+        }
+        List<CompletableFuture<Void>> overrideFutures = new ArrayList<>();
         Map<String, ServiceUnitStateData> orphanSystemServiceUnits = new HashMap<>();
-        for (var etr : tableview.entrySet()) {
+        var iter =  tableview.entrySet().iterator();
+        while (iter.hasNext()) {
+            var etr = iter.next();
             var stateData = etr.getValue();
             var serviceUnit = etr.getKey();
             var state = state(stateData);
-            if (StringUtils.equals(broker, stateData.dstBroker())) {
-                if (isActiveState(state)) {
-                    if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
-                        orphanSystemServiceUnits.put(serviceUnit, stateData);
-                    } else if (serviceUnit.startsWith(heartbeatNamespace)
-                            || serviceUnit.startsWith(heartbeatNamespaceV2)) {
-                        // Skip the heartbeat namespace
-                        log.info("Skip override heartbeat namespace bundle"
-                                + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
-                        tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
-                            if (e != null) {
-                                log.error("Failed cleaning the heartbeat namespace ownership serviceUnit:{}, "
-                                                + "stateData:{}, cleanupErrorCnt:{}.",
-                                        serviceUnit, stateData,
-                                        totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
-                            }
-                        });
-                    } else {
-                        overrideOwnership(serviceUnit, stateData, broker);
-                    }
-                    orphanServiceUnitCleanupCnt++;
+            if (Objects.equals(broker, stateData.dstBroker()) && isActiveState(state)
+                    || Objects.equals(broker, stateData.sourceBroker()) && isInFlightState(state)) {
+                if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
+                    orphanSystemServiceUnits.put(serviceUnit, stateData);
+                } else {
+                    overrideFutures.add(overrideOwnership(serviceUnit, stateData, broker, gracefully));
+                    tryWaitForOverrides(overrideFutures, !iter.hasNext());
                 }
-
-            } else if (StringUtils.equals(broker, stateData.sourceBroker())) {
-                if (isInFlightState(state)) {
-                    if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
-                        orphanSystemServiceUnits.put(serviceUnit, stateData);
-                    } else {
-                        overrideOwnership(serviceUnit, stateData, broker);
-                    }
-                    orphanServiceUnitCleanupCnt++;
-                }
+                orphanServiceUnitCleanupCnt++;
             }
         }
 
         try {
-            producer.flush();
-        } catch (PulsarClientException e) {
-            log.error("Failed to flush the in-flight non-system bundle override messages.", e);
+            tableview.flush(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
+        } catch (Exception e) {
+            log.error().exception(e).log("Failed to flush the in-flight non-system bundle override messages");
         }
 
 
@@ -1272,21 +1756,26 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             // can cause the cluster to be temporarily unstable.
             // Hence, we clean the non-system bundles first and gracefully wait for them.
             // After that, we clean the system bundles, if any.
-            waitForCleanups(broker, true, OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
+            waitForCleanups(broker, gracefully, OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
             this.totalOrphanServiceUnitCleanupCnt += orphanServiceUnitCleanupCnt;
             this.totalInactiveBrokerCleanupCnt++;
         }
 
         // clean system bundles in the end
-        for (var orphanSystemServiceUnit : orphanSystemServiceUnits.entrySet()) {
-            log.info("Overriding orphan system service unit:{}", orphanSystemServiceUnit.getKey());
-            overrideOwnership(orphanSystemServiceUnit.getKey(), orphanSystemServiceUnit.getValue(), broker);
+        var orphanSystemServiceUnitIter = orphanSystemServiceUnits.entrySet().iterator();
+        while (orphanSystemServiceUnitIter.hasNext()) {
+            var orphanSystemServiceUnit = orphanSystemServiceUnitIter.next();
+            log.info().attr("unit", orphanSystemServiceUnit.getKey()).log("Overriding orphan system service unit");
+            overrideFutures.add(
+                    overrideOwnership(orphanSystemServiceUnit.getKey(), orphanSystemServiceUnit.getValue(), broker,
+                            gracefully));
+            tryWaitForOverrides(overrideFutures, !orphanSystemServiceUnitIter.hasNext());
         }
 
         try {
-            producer.flush();
-        } catch (PulsarClientException e) {
-            log.error("Failed to flush the in-flight system bundle override messages.", e);
+            tableview.flush(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
+        } catch (Exception e) {
+            log.error().exception(e).log("Failed to flush the in-flight system bundle override messages");
         }
 
         double cleanupTime = TimeUnit.NANOSECONDS
@@ -1296,75 +1785,31 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         getContext().topBundleLoadDataStore().removeAsync(broker);
         getContext().brokerLoadDataStore().removeAsync(broker);
 
-        log.info("Completed a cleanup for the inactive broker:{} in {} ms. "
-                        + "Cleaned up orphan service units: orphanServiceUnitCleanupCnt:{}, "
-                        + "approximate cleanupErrorCnt:{}, metrics:{} ",
-                broker,
-                cleanupTime,
-                orphanServiceUnitCleanupCnt,
-                totalCleanupErrorCntStart - totalCleanupErrorCnt.get(),
-                printCleanupMetrics());
+        log.info().attr("broker", broker).attr("cleanupTimeMs", cleanupTime)
+                .attr("orphanServiceUnitCleanupCnt", orphanServiceUnitCleanupCnt)
+                .attr("cleanupErrorCnt", totalCleanupErrorCnt.get() - totalCleanupErrorCntStart)
+                .attr("metrics", printCleanupMetrics())
+                .log("Completed a cleanup for the inactive broker");
 
     }
 
-    private Optional<String> selectBroker(String serviceUnit, String inactiveBroker) {
-        try {
-            return loadManager.selectAsync(
-                    LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit), Set.of(inactiveBroker))
-                    .get(inFlightStateWaitingTimeInMillis, MILLISECONDS);
-        } catch (Throwable e) {
-            log.error("Failed to select a broker for serviceUnit:{}", serviceUnit);
-        }
-        return Optional.empty();
+    private CompletableFuture<Optional<String>> selectBroker(String serviceUnit, String inactiveBroker) {
+        return getLoadManager().selectAsync(
+                LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit),
+                inactiveBroker == null ? Set.of() : Set.of(inactiveBroker),
+                LookupOptions.builder().build());
     }
 
-    private Optional<ServiceUnitStateData> getRollForwardStateData(String serviceUnit,
-                                                                   String inactiveBroker,
-                                                                   long nextVersionId) {
-        Optional<String> selectedBroker = selectBroker(serviceUnit, inactiveBroker);
-        if (selectedBroker.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(new ServiceUnitStateData(Owned, selectedBroker.get(), true, nextVersionId));
-    }
-
-
-    private Optional<ServiceUnitStateData> getOverrideInFlightStateData(
-            String serviceUnit, ServiceUnitStateData orphanData,
-            Set<String> availableBrokers) {
-        long nextVersionId = getNextVersionId(orphanData);
-        var state = orphanData.state();
-        switch (state) {
-            case Assigning: {
-                return getRollForwardStateData(serviceUnit, orphanData.dstBroker(), nextVersionId);
-            }
-            case Splitting: {
-                return Optional.of(new ServiceUnitStateData(Splitting,
-                        orphanData.dstBroker(), orphanData.sourceBroker(),
-                        Map.copyOf(orphanData.splitServiceUnitToDestBroker()),
-                        true, nextVersionId));
-            }
-            case Releasing: {
-                if (availableBrokers.contains(orphanData.sourceBroker())) {
-                    // rollback to the src
-                    return Optional.of(new ServiceUnitStateData(Owned, orphanData.sourceBroker(), true, nextVersionId));
-                } else {
-                    return getRollForwardStateData(serviceUnit, orphanData.sourceBroker(), nextVersionId);
-                }
-            }
-            default: {
-                var msg = String.format("Failed to get the overrideStateData from serviceUnit=%s, orphanData=%s",
-                        serviceUnit, orphanData);
-                log.error(msg);
-                throw new IllegalStateException(msg);
-            }
-        }
-    }
 
     @VisibleForTesting
     protected void monitorOwnerships(List<String> brokers) {
-        if (!isChannelOwner()) {
-            log.warn("This broker is not the leader now. Skipping ownership monitor.");
+        try {
+            if (!isChannelOwner()) {
+                log.warn("This broker is not the leader now. Skipping ownership monitor.");
+                return;
+            }
+        } catch (Exception e) {
+            log.error().exception(e).log("Failed to monitor ownerships");
             return;
         }
 
@@ -1375,19 +1820,21 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         var metadataState = getMetadataState();
         if (metadataState != Stable) {
-            log.warn("metadata state:{} is not Stable. Skipping ownership monitor.", metadataState);
+            log.warn().attr("state", metadataState).attr("lastMetadataSessionEvent", lastMetadataSessionEvent)
+                    .attr("lastMetadataSessionEventTimestamp", lastMetadataSessionEventTimestamp)
+                    .log("metadata state is not Stable. Skipping ownership monitor");
             return;
         }
 
         var debug = debug();
         if (debug) {
-            log.info("Started the ownership monitor run for activeBrokerCount:{}", brokers.size());
+            log.info().attr("broker", brokers.size()).log("Started the ownership monitor run for activeBrokerCount");
         }
 
         long startTime = System.nanoTime();
         Set<String> inactiveBrokers = new HashSet<>();
         Set<String> activeBrokers = new HashSet<>(brokers);
-        Map<String, ServiceUnitStateData> orphanServiceUnits = new HashMap<>();
+        Map<String, ServiceUnitStateData> timedOutInFlightStateServiceUnits = new HashMap<>();
         int serviceUnitTombstoneCleanupCnt = 0;
         int orphanServiceUnitCleanupCnt = 0;
         long totalCleanupErrorCntStart = totalCleanupErrorCnt.get();
@@ -1399,68 +1846,70 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             String srcBroker = stateData.sourceBroker();
             var state = stateData.state();
 
-            if (isActiveState(state)) {
-                if (StringUtils.isNotBlank(srcBroker) && !activeBrokers.contains(srcBroker)) {
-                    inactiveBrokers.add(srcBroker);
-                } else if (StringUtils.isNotBlank(dstBroker) && !activeBrokers.contains(dstBroker)) {
-                    inactiveBrokers.add(dstBroker);
-                } else if (isInFlightState(state)
-                        && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
-                    orphanServiceUnits.put(serviceUnit, stateData);
-                }
-            } else if (now - stateData.timestamp() > semiTerminalStateWaitingTimeInMillis) {
-                log.info("Found semi-terminal states to tombstone"
-                        + " serviceUnit:{}, stateData:{}", serviceUnit, stateData);
+            if (state == Owned && (StringUtils.isBlank(dstBroker) || !activeBrokers.contains(dstBroker))) {
+                inactiveBrokers.add(dstBroker);
+                continue;
+            }
+
+            if (isInFlightState(state) && StringUtils.isNotBlank(srcBroker) && !activeBrokers.contains(srcBroker)) {
+                inactiveBrokers.add(srcBroker);
+                continue;
+            }
+            if (isInFlightState(state) && StringUtils.isNotBlank(dstBroker) && !activeBrokers.contains(dstBroker)) {
+                inactiveBrokers.add(dstBroker);
+                continue;
+            }
+
+            if (isInFlightState(state)
+                    && now - stateData.timestamp() > inFlightStateWaitingTimeInMillis) {
+                timedOutInFlightStateServiceUnits.put(serviceUnit, stateData);
+                continue;
+            }
+
+
+            if (!isActiveState(state) && now - stateData.timestamp() > stateTombstoneDelayTimeInMillis) {
+                log.infof("Found semi-terminal states to tombstone"
+                        + " serviceUnit:%s, stateData:%s",
+                        serviceUnit, stateData);
                 tombstoneAsync(serviceUnit).whenComplete((__, e) -> {
                     if (e != null) {
-                        log.error("Failed cleaning the ownership serviceUnit:{}, stateData:{}, "
-                                        + "cleanupErrorCnt:{}.",
-                                serviceUnit, stateData,
-                                totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
+                        log.error().attr("serviceUnit", serviceUnit).attr("stateData", stateData)
+                                .attr("cleanupErrorCnt",
+                                        totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart)
+                                .exception(e)
+                                .log("Failed cleaning the ownership");
                     }
                 });
                 serviceUnitTombstoneCleanupCnt++;
             }
         }
 
-        // Skip cleaning orphan bundles if inactiveBrokers exist. This is a bigger problem.
+
         if (!inactiveBrokers.isEmpty()) {
             for (String inactiveBroker : inactiveBrokers) {
                 handleBrokerDeletionEvent(inactiveBroker);
             }
-        } else if (!orphanServiceUnits.isEmpty()) {
-            for (var etr : orphanServiceUnits.entrySet()) {
+        }
+
+        // timedOutInFlightStateServiceUnits are the in-flight ones although their src and dst brokers are known to
+        // be active.
+        if (!timedOutInFlightStateServiceUnits.isEmpty()) {
+            List<CompletableFuture<Void>> overrideFutures = new ArrayList<>();
+            var iter = timedOutInFlightStateServiceUnits.entrySet().iterator();
+            while (iter.hasNext()) {
+                var etr = iter.next();
                 var orphanServiceUnit = etr.getKey();
                 var orphanData = etr.getValue();
-                var overrideData = getOverrideInFlightStateData(
-                        orphanServiceUnit, orphanData, activeBrokers);
-                if (overrideData.isPresent()) {
-                    log.info("Overriding in-flight state ownership serviceUnit:{} "
-                                    + "from orphanData:{} to overrideData:{}",
-                            orphanServiceUnit, orphanData, overrideData);
-                    publishOverrideEventAsync(orphanServiceUnit, orphanData, overrideData.get())
-                            .whenComplete((__, e) -> {
-                                if (e != null) {
-                                    log.error("Failed cleaning the ownership orphanServiceUnit:{}, orphanData:{}, "
-                                                    + "cleanupErrorCnt:{}.",
-                                            orphanServiceUnit, orphanData,
-                                            totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart, e);
-                                }
-                            });
-                    orphanServiceUnitCleanupCnt++;
-                } else {
-                    log.warn("Failed get the overrideStateData from orphanServiceUnit:{}, orphanData:{},"
-                                    + " cleanupErrorCnt:{}. will retry..",
-                            orphanServiceUnit, orphanData,
-                            totalCleanupErrorCnt.incrementAndGet() - totalCleanupErrorCntStart);
-                }
+                overrideFutures.add(overrideOwnership(orphanServiceUnit, orphanData, null, false));
+                tryWaitForOverrides(overrideFutures, !iter.hasNext());
+                orphanServiceUnitCleanupCnt++;
             }
         }
 
         try {
-            producer.flush();
-        } catch (PulsarClientException e) {
-            log.error("Failed to flush the in-flight messages.", e);
+            tableview.flush(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
+        } catch (Exception e) {
+            log.error().exception(e).log("Failed to flush the in-flight messages");
         }
 
         boolean cleaned = false;
@@ -1477,17 +1926,17 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (debug || cleaned) {
             double monitorTime = TimeUnit.NANOSECONDS
                     .toMillis((System.nanoTime() - startTime));
-            log.info("Completed the ownership monitor run in {} ms. "
-                            + "Scheduled cleanups for inactive brokers:{}. inactiveBrokerCount:{}. "
-                            + "Published cleanups for orphan service units, orphanServiceUnitCleanupCnt:{}. "
-                            + "Tombstoned semi-terminal state service units, serviceUnitTombstoneCleanupCnt:{}. "
-                            + "Approximate cleanupErrorCnt:{}, metrics:{}. ",
-                    monitorTime,
-                    inactiveBrokers, inactiveBrokers.size(),
-                    orphanServiceUnitCleanupCnt,
-                    serviceUnitTombstoneCleanupCnt,
-                    totalCleanupErrorCntStart - totalCleanupErrorCnt.get(),
-                    printCleanupMetrics());
+            log.info().attr("monitorTimeMs", monitorTime).attr("inactiveBrokers", inactiveBrokers)
+                    .attr("inactiveBrokerCount", inactiveBrokers.size())
+                    .attr("orphanServiceUnitCleanupCnt", orphanServiceUnitCleanupCnt)
+                    .attr("serviceUnitTombstoneCleanupCnt", serviceUnitTombstoneCleanupCnt)
+                    .attr("cleanupErrorCnt", totalCleanupErrorCnt.get() - totalCleanupErrorCntStart)
+                    .attr("metrics", printCleanupMetrics())
+                    .log("Completed the ownership monitor run. "
+                            + "Scheduled cleanups for inactive brokers. "
+                            + "Published cleanups for orphan service units, orphanServiceUnitCleanupCnt: . "
+                                    + "Tombstoned semi-terminal state service units, serviceUnitTombstoneCleanupCnt: . "
+                                            + "Approximate cleanupErrorCnt: , metrics: .");
         }
 
     }
@@ -1519,10 +1968,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         if (lastOwnEventHandledAt > lastOwnedServiceUnitCountAt
                 || now - lastOwnedServiceUnitCountAt > MAX_OWNED_BUNDLE_COUNT_DELAY_TIME_IN_MILLIS) {
             int cnt = 0;
-            for (var data : tableview.values()) {
-                if (data.state() == Owned && isTargetBroker(data.dstBroker())) {
-                    cnt++;
-                }
+            for (var e : tableview.ownedServiceUnits()) {
+                cnt++;
             }
             lastOwnedServiceUnitCountAt = now;
             totalOwnedServiceUnitCnt = cnt;
@@ -1646,9 +2093,21 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
         var metric = Metrics.create(dimensions);
 
+        var metadataState = getMetadataState();
+        long now = System.currentTimeMillis();
+        long lastSessionEventAgeSeconds =
+                lastMetadataSessionEventTimestamp > 0
+                        ? MILLISECONDS.toSeconds(now - lastMetadataSessionEventTimestamp)
+                        : -1;
+
         metric.put("brk_sunit_state_chn_orphan_su_cleanup_ops_total", totalOrphanServiceUnitCleanupCnt);
         metric.put("brk_sunit_state_chn_su_tombstone_cleanup_ops_total", totalServiceUnitTombstoneCleanupCnt);
         metric.put("brk_sunit_state_chn_owned_su_total", getTotalOwnedServiceUnitCnt());
+        metric.put("brk_sunit_state_chn_metadata_state", metadataState.ordinal());
+        metric.put("brk_sunit_state_chn_last_metadata_session_event_is_reestablished",
+                lastMetadataSessionEvent == SessionReestablished ? 1 : 0);
+        metric.put("brk_sunit_state_chn_last_metadata_session_event_timestamp_ms", lastMetadataSessionEventTimestamp);
+        metric.put("brk_sunit_state_chn_last_metadata_session_event_age_seconds", lastSessionEventAgeSeconds);
         metrics.add(metric);
 
         return metrics;
@@ -1662,10 +2121,33 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     @Override
     public Set<Map.Entry<String, ServiceUnitStateData>> getOwnershipEntrySet() {
+        if (!validateChannelState(Started, true)) {
+            throw new IllegalStateException("Invalid channel state:" + channelState.name());
+        }
         return tableview.entrySet();
+    }
+
+    @Override
+    public Set<NamespaceBundle> getOwnedServiceUnits() {
+        if (!validateChannelState(Started, true)) {
+            throw new IllegalStateException("Invalid channel state:" + channelState.name());
+        }
+        return tableview.ownedServiceUnits();
     }
 
     public static ServiceUnitStateChannel get(PulsarService pulsar) {
         return ExtensibleLoadManagerImpl.get(pulsar.getLoadManager().get()).getServiceUnitStateChannel();
+    }
+
+    @VisibleForTesting
+    protected void disable() {
+        synchronized (pendingAssignPublishes) {
+            channelState = Disabled;
+        }
+    }
+
+    @VisibleForTesting
+    protected void enable() {
+        channelState = Started;
     }
 }

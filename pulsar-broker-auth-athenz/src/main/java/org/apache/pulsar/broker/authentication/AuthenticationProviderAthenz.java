@@ -27,12 +27,13 @@ import java.net.SocketAddress;
 import java.security.PublicKey;
 import java.util.List;
 import javax.naming.AuthenticationException;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("deprecation") // Implements deprecated AuthenticationProvider methods
+@CustomLog
 public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
     private static final String DOMAIN_NAME_LIST = "athenzDomainNames";
@@ -42,6 +43,8 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
     private List<String> domainNameList = null;
     private int allowedOffset = 30;
+
+    private AuthenticationMetrics authenticationMetrics;
 
     public enum ErrorCode {
         UNKNOWN,
@@ -54,6 +57,14 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
+        initialize(Context.builder().config(config).build());
+    }
+
+    @Override
+    public void initialize(Context context) throws IOException {
+        authenticationMetrics = new AuthenticationMetrics(context.getOpenTelemetry(),
+                getClass().getSimpleName(), getAuthMethodName());
+        var config = context.getConfig();
         String domainNames;
         if (config.getProperty(DOMAIN_NAME_LIST) != null) {
             domainNames = (String) config.getProperty(DOMAIN_NAME_LIST);
@@ -64,7 +75,7 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
         }
 
         domainNameList = Lists.newArrayList(domainNames.split(","));
-        log.info("Supported domain names for athenz: {}", domainNameList);
+        log.info().attr("domainNames", domainNameList).log("Supported domain names for Athenz");
 
         if (!StringUtils.isEmpty(System.getProperty(SYS_PROP_ALLOWED_OFFSET))) {
             try {
@@ -78,12 +89,17 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
             }
         }
 
-        log.info("Allowed offset for athenz role token verification: {} sec", allowedOffset);
+        log.info().attr("allowedOffsetSeconds", allowedOffset).log("Allowed offset for athenz role token verification");
     }
 
     @Override
     public String getAuthMethodName() {
         return "athenz";
+    }
+
+    @Override
+    public void incrementFailureMetric(Enum<?> errorCode) {
+        authenticationMetrics.recordFailure(errorCode);
     }
 
     @Override
@@ -117,9 +133,9 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
                 errorCode = ErrorCode.NO_TOKEN;
                 throw new AuthenticationException("Athenz RoleToken is empty, Server is Using Athenz Authentication");
             }
-            if (log.isDebugEnabled()) {
-                log.debug("Athenz RoleToken : [{}] received from Client: {}", roleToken, clientAddress);
-            }
+                log.debug().attr("roleToken", roleToken)
+                        .attr("clientAddress", clientAddress)
+                        .log("Athenz RoleToken received from Client");
 
             RoleToken token = new RoleToken(roleToken);
 
@@ -140,8 +156,10 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
                 }
 
                 if (token.validate(ztsPublicKey, allowedOffset, false, null)) {
-                    log.debug("Athenz Role Token : {}, Authenticated for Client: {}", roleToken, clientAddress);
-                    AuthenticationMetrics.authenticateSuccess(getClass().getSimpleName(), getAuthMethodName());
+                    log.debug().attr("roleToken", roleToken)
+                            .attr("clientAddress", clientAddress)
+                            .log("Athenz Role Token Authenticated for Client");
+                    authenticationMetrics.recordSuccess();
                     return token.getPrincipal();
                 } else {
                     errorCode = ErrorCode.INVALID_TOKEN;
@@ -163,6 +181,4 @@ public class AuthenticationProviderAthenz implements AuthenticationProvider {
     int getAllowedOffset() {
         return this.allowedOffset;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(AuthenticationProviderAthenz.class);
 }

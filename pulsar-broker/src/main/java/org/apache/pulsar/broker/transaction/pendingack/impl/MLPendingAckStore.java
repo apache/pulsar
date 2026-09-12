@@ -23,6 +23,7 @@ import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWrite
 import static org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter.BATCHED_ENTRY_DATA_PREFIX_VERSION_LEN;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ComparisonChain;
+import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.FastThreadLocal;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
@@ -42,8 +44,8 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
@@ -58,20 +60,21 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.transaction.coordinator.impl.TxnBatchedPositionImpl;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterMetricsStats;
 import org.jctools.queues.MessagePassingQueue;
 import org.jctools.queues.SpscArrayQueue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The implement of the pending ack store by manageLedger.
  */
 public class MLPendingAckStore implements PendingAckStore {
 
+    private static final Logger LOG = Logger.get(MLPendingAckStore.class);
+    private final Logger log;
 
     private final ManagedLedger managedLedger;
 
@@ -80,20 +83,20 @@ public class MLPendingAckStore implements PendingAckStore {
     private final SpscArrayQueue<Entry> entryQueue;
 
     //this is for replay
-    private final PositionImpl lastConfirmedEntry;
+    private final Position lastConfirmedEntry;
 
-    private PositionImpl currentLoadPosition;
+    private Position currentLoadPosition;
 
     private final AtomicLong currentIndexLag = new AtomicLong(0);
     private volatile long maxIndexLag;
 
-    protected PositionImpl maxAckPosition = PositionImpl.EARLIEST;
+    protected Position maxAckPosition = PositionFactory.EARLIEST;
     private final LogIndexLagBackoff logIndexBackoff;
 
     /**
-     * If the Batch feature is enabled by {@link #bufferedWriter}, {@link #handleMetadataEntry(PositionImpl, List)} is
+     * If the Batch feature is enabled by {@link #bufferedWriter}, {@link #handleMetadataEntry(Position, List)} is
      * executed after all data in the batch is written, instead of
-     * {@link #handleMetadataEntry(PositionImpl, PendingAckMetadataEntry)} after each data is written. This is because
+     * {@link #handleMetadataEntry(Position, PendingAckMetadataEntry)} after each data is written. This is because
      * method {@link #clearUselessLogData()} deletes the data in the unit of Entry.
      */
     private final ArrayList<PendingAckMetadataEntry> batchedPendingAckLogsWaitingForHandle;
@@ -111,26 +114,31 @@ public class MLPendingAckStore implements PendingAckStore {
      *         If the max position (key) is smaller than the subCursor mark delete position,
      *         the log cursor will mark delete the position before log position (value).
      */
-    final ConcurrentSkipListMap<PositionImpl, PositionImpl> pendingAckLogIndex;
+    final ConcurrentSkipListMap<Position, Position> pendingAckLogIndex;
 
     private final ManagedCursor subManagedCursor;
 
     private TxnLogBufferedWriter<PendingAckMetadataEntry> bufferedWriter;
 
+    @SuppressWarnings("unchecked")
     public MLPendingAckStore(ManagedLedger managedLedger, ManagedCursor cursor,
                              ManagedCursor subManagedCursor, long transactionPendingAckLogIndexMinLag,
                              TxnLogBufferedWriterConfig bufferedWriterConfig,
-                             Timer timer, TxnLogBufferedWriterMetricsStats bufferedWriterMetrics) {
+                             Timer timer, TxnLogBufferedWriterMetricsStats bufferedWriterMetrics, Executor executor) {
         this.managedLedger = managedLedger;
         this.cursor = cursor;
-        this.currentLoadPosition = (PositionImpl) this.cursor.getMarkDeletedPosition();
+        this.log = LOG.with()
+                .attr("managedLedger", managedLedger.getName())
+                .attr("cursor", cursor.getName())
+                .build();
+        this.currentLoadPosition = this.cursor.getMarkDeletedPosition();
         this.entryQueue = new SpscArrayQueue<>(2000);
-        this.lastConfirmedEntry = (PositionImpl) managedLedger.getLastConfirmedEntry();
+        this.lastConfirmedEntry = managedLedger.getLastConfirmedEntry();
         this.pendingAckLogIndex = new ConcurrentSkipListMap<>();
         this.subManagedCursor = subManagedCursor;
         this.logIndexBackoff = new LogIndexLagBackoff(transactionPendingAckLogIndexMinLag, Long.MAX_VALUE, 1);
         this.maxIndexLag = logIndexBackoff.next(0);
-        this.bufferedWriter = new TxnLogBufferedWriter(managedLedger, ((ManagedLedgerImpl) managedLedger).getExecutor(),
+        this.bufferedWriter = new TxnLogBufferedWriter(managedLedger, executor,
                 timer, PendingAckLogSerializer.INSTANCE,
                 bufferedWriterConfig.getBatchedWriteMaxRecords(), bufferedWriterConfig.getBatchedWriteMaxSize(),
                 bufferedWriterConfig.getBatchedWriteMaxDelayInMillis(), bufferedWriterConfig.isBatchEnabled(),
@@ -147,7 +155,7 @@ public class MLPendingAckStore implements PendingAckStore {
     //TODO can control the number of entry to read
     private void readAsync(int numberOfEntriesToRead,
                            AsyncCallbacks.ReadEntriesCallback readEntriesCallback) {
-        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionImpl.LATEST);
+        cursor.asyncReadEntries(numberOfEntriesToRead, readEntriesCallback, System.nanoTime(), PositionFactory.LATEST);
     }
 
     @Override
@@ -160,17 +168,16 @@ public class MLPendingAckStore implements PendingAckStore {
 
                     @Override
                     public void closeComplete(Object ctx) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}][{}] MLPendingAckStore closed successfully！", managedLedger.getName(), ctx);
-                        }
+                        log.debug("MLPendingAckStore closed successfully");
                         bufferedWriter.close();
                         completableFuture.complete(null);
                     }
 
                     @Override
                     public void closeFailed(ManagedLedgerException exception, Object ctx) {
-                        log.error("[{}][{}] MLPendingAckStore closed failed,exception={}", managedLedger.getName(),
-                                ctx, exception);
+                        log.error()
+                                .exceptionMessage(exception)
+                                .log("MLPendingAckStore close failed");
                         completableFuture.completeExceptionally(exception);
                     }
                 }, ctx);
@@ -186,17 +193,18 @@ public class MLPendingAckStore implements PendingAckStore {
 
     @Override
     public CompletableFuture<Void> appendIndividualAck(TxnID txnID,
-                                                       List<MutablePair<PositionImpl, Integer>> positions) {
+                                                       List<MutablePair<Position, Integer>> positions) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.ACK);
         pendingAckMetadataEntry.setAckType(AckType.Individual);
         List<PendingAckMetadata> pendingAckMetadataList = new ArrayList<>();
         positions.forEach(positionIntegerMutablePair -> {
             PendingAckMetadata pendingAckMetadata = new PendingAckMetadata();
-            PositionImpl position = positionIntegerMutablePair.getLeft();
+            Position position = positionIntegerMutablePair.getLeft();
             int batchSize = positionIntegerMutablePair.getRight();
-            if (positionIntegerMutablePair.getLeft().getAckSet() != null) {
-                for (long l : position.getAckSet()) {
+            long[] positionAckSet = AckSetStateUtil.getAckSetArrayOrNull(position);
+            if (positionAckSet != null) {
+                for (long l : positionAckSet) {
                     pendingAckMetadata.addAckSet(l);
                 }
             }
@@ -210,13 +218,14 @@ public class MLPendingAckStore implements PendingAckStore {
     }
 
     @Override
-    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, PositionImpl position) {
+    public CompletableFuture<Void> appendCumulativeAck(TxnID txnID, Position position) {
         PendingAckMetadataEntry pendingAckMetadataEntry = new PendingAckMetadataEntry();
         pendingAckMetadataEntry.setPendingAckOp(PendingAckOp.ACK);
         pendingAckMetadataEntry.setAckType(AckType.Cumulative);
         PendingAckMetadata pendingAckMetadata = new PendingAckMetadata();
-        if (position.getAckSet() != null) {
-            for (long l : position.getAckSet()) {
+        long[] positionAckSet = AckSetStateUtil.getAckSetArrayOrNull(position);
+        if (positionAckSet != null) {
+            for (long l : positionAckSet) {
                 pendingAckMetadata.addAckSet(l);
             }
         }
@@ -250,15 +259,16 @@ public class MLPendingAckStore implements PendingAckStore {
 
             @Override
             public void addComplete(Position position, Object ctx) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] MLPendingAckStore message append success at {} txnId: {}, operation : {}",
-                            managedLedger.getName(), ctx, position, txnID, pendingAckMetadataEntry.getPendingAckOp());
-                }
+                log.debug()
+                        .attr("position", position)
+                        .attr("txnId", txnID)
+                        .attr("operation", pendingAckMetadataEntry.getPendingAckOp())
+                        .log("MLPendingAckStore message append success");
                 currentIndexLag.incrementAndGet();
                 /**
                  * If the Batch feature is enabled by {@link #bufferedWriter},
-                 * {@link #handleMetadataEntry(PositionImpl, List)} is executed after all data in the batch is written,
-                 * instead of {@link #handleMetadataEntry(PositionImpl, PendingAckMetadataEntry)} after each data is
+                 * {@link #handleMetadataEntry(Position, List)} is executed after all data in the batch is written,
+                 * instead of {@link #handleMetadataEntry(Position, PendingAckMetadataEntry)} after each data is
                  * written. This is because method {@link #clearUselessLogData()} deletes the data in the unit of Entry.
                  * {@link TxnLogBufferedWriter.AddDataCallback#addComplete} for elements in a batch is executed
                  * simultaneously and in strict order, so when the last element in a batch is complete, the whole
@@ -267,11 +277,11 @@ public class MLPendingAckStore implements PendingAckStore {
                 if (position instanceof TxnBatchedPositionImpl batchedPosition){
                     batchedPendingAckLogsWaitingForHandle.add(pendingAckMetadataEntry);
                     if (batchedPosition.getBatchIndex() == batchedPosition.getBatchSize() - 1){
-                        handleMetadataEntry((PositionImpl) position, batchedPendingAckLogsWaitingForHandle);
+                        handleMetadataEntry(position, batchedPendingAckLogsWaitingForHandle);
                         batchedPendingAckLogsWaitingForHandle.clear();
                     }
                 } else {
-                    handleMetadataEntry((PositionImpl) position, pendingAckMetadataEntry);
+                    handleMetadataEntry(position, pendingAckMetadataEntry);
                 }
                 completableFuture.complete(null);
                 clearUselessLogData();
@@ -279,8 +289,10 @@ public class MLPendingAckStore implements PendingAckStore {
 
             @Override
             public void addFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("[{}][{}] MLPendingAckStore message append fail exception : {}, operation : {}",
-                        managedLedger.getName(), ctx, exception, pendingAckMetadataEntry.getPendingAckOp());
+                log.error()
+                        .exceptionMessage(exception)
+                        .attr("operation", pendingAckMetadataEntry.getPendingAckOp())
+                        .log("MLPendingAckStore message append failed");
 
                 if (exception instanceof ManagedLedgerException.ManagedLedgerAlreadyClosedException) {
                     managedLedger.readyToCreateNewLedger();
@@ -301,7 +313,7 @@ public class MLPendingAckStore implements PendingAckStore {
      * @param logPosition The position of batch log Entry.
      * @param logList Pending ack log records in a batch log Entry.
      */
-    private void handleMetadataEntry(PositionImpl logPosition,
+    private void handleMetadataEntry(Position logPosition,
                                      List<PendingAckMetadataEntry> logList) {
         Stream<PendingAckMetadata> pendingAckMetaStream = logList.stream()
                 .filter(log -> bothNotAbortAndCommitPredicate.test(log))
@@ -313,7 +325,7 @@ public class MLPendingAckStore implements PendingAckStore {
             pendingAckLog.getPendingAckOp() != PendingAckOp.ABORT
             && pendingAckLog.getPendingAckOp() != PendingAckOp.COMMIT;
 
-    private void handleMetadataEntry(PositionImpl logPosition,
+    private void handleMetadataEntry(Position logPosition,
                                      PendingAckMetadataEntry pendingAckMetadataEntry) {
         // store the persistent position in to memory
         // store the max position of this entry retain
@@ -322,14 +334,14 @@ public class MLPendingAckStore implements PendingAckStore {
         }
     }
 
-    private void handleMetadataEntry(PositionImpl logPosition, Stream<PendingAckMetadata> pendingAckListStream) {
+    private void handleMetadataEntry(Position logPosition, Stream<PendingAckMetadata> pendingAckListStream) {
         // store the persistent position in to memory
         // store the max position of this entry retain
         Optional<PendingAckMetadata> optional = pendingAckListStream
                 .max((o1, o2) -> ComparisonChain.start().compare(o1.getLedgerId(),
                         o2.getLedgerId()).compare(o1.getEntryId(), o2.getEntryId()).result());
         optional.ifPresent(pendingAckMetadata -> {
-            PositionImpl nowPosition = PositionImpl.get(pendingAckMetadata.getLedgerId(),
+            Position nowPosition = PositionFactory.create(pendingAckMetadata.getLedgerId(),
                     pendingAckMetadata.getEntryId());
             if (nowPosition.compareTo(maxAckPosition) > 0) {
                 maxAckPosition = nowPosition;
@@ -346,34 +358,33 @@ public class MLPendingAckStore implements PendingAckStore {
     @VisibleForTesting
     void clearUselessLogData() {
         if (!pendingAckLogIndex.isEmpty()) {
-            PositionImpl deletePosition = null;
+            Position deletePosition = null;
             while (!pendingAckLogIndex.isEmpty()
                     && pendingAckLogIndex.firstKey() != null
                     && subManagedCursor.getPersistentMarkDeletedPosition() != null
                     && pendingAckLogIndex.firstEntry().getKey()
-                    .compareTo((PositionImpl) subManagedCursor.getPersistentMarkDeletedPosition()) <= 0) {
+                    .compareTo(subManagedCursor.getPersistentMarkDeletedPosition()) <= 0) {
                 deletePosition = pendingAckLogIndex.remove(pendingAckLogIndex.firstKey());
             }
 
             if (deletePosition != null) {
                 maxIndexLag = logIndexBackoff.next(pendingAckLogIndex.size());
-                PositionImpl finalDeletePosition = deletePosition;
+                Position finalDeletePosition = deletePosition;
                 cursor.asyncMarkDelete(deletePosition,
                         new AsyncCallbacks.MarkDeleteCallback() {
                             @Override
                             public void markDeleteComplete(Object ctx) {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Transaction pending ack store mark delete position : "
-                                                    + "[{}] success", managedLedger.getName(),
-                                            finalDeletePosition);
-                                }
+                                log.debug()
+                                        .attr("position", finalDeletePosition)
+                                        .log("Transaction pending ack store mark delete position success");
                             }
 
                             @Override
                             public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
-                                log.error("[{}] Transaction pending ack store mark delete position : "
-                                                + "[{}] fail!", managedLedger.getName(),
-                                        finalDeletePosition, exception);
+                                log.error()
+                                        .attr("position", finalDeletePosition)
+                                        .exception(exception)
+                                        .log("Transaction pending ack store mark delete position fail");
                             }
                         }, null);
             }
@@ -396,21 +407,20 @@ public class MLPendingAckStore implements PendingAckStore {
                 if (cursor.isClosed()) {
                     pendingAckReplyCallBack.replayFailed(new ManagedLedgerException
                             .CursorAlreadyClosedException("MLPendingAckStore cursor have been closed."));
-                    log.warn("[{}] MLPendingAckStore cursor have been closed, close replay thread.",
-                            cursor.getManagedLedger().getName());
+                    log.warn("MLPendingAckStore cursor have been closed, close replay thread");
                     return;
                 }
                 while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0 && fillEntryQueueCallback.fillQueue()) {
                     Entry entry = entryQueue.poll();
                     if (entry != null) {
-                        currentLoadPosition = PositionImpl.get(entry.getLedgerId(), entry.getEntryId());
+                        currentLoadPosition = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
                         List<PendingAckMetadataEntry> logs = deserializeEntry(entry);
                         if (logs.isEmpty()){
                             continue;
                         } else if (logs.size() == 1){
                             currentIndexLag.incrementAndGet();
                             PendingAckMetadataEntry log = logs.get(0);
-                            handleMetadataEntry(new PositionImpl(entry.getLedgerId(), entry.getEntryId()), log);
+                            handleMetadataEntry(PositionFactory.create(entry.getLedgerId(), entry.getEntryId()), log);
                             pendingAckReplyCallBack.handleMetadataEntry(log);
                         } else {
                             int batchSize = logs.size();
@@ -419,7 +429,7 @@ public class MLPendingAckStore implements PendingAckStore {
                                 pendingAckReplyCallBack.handleMetadataEntry(log);
                             }
                             currentIndexLag.addAndGet(batchSize);
-                            handleMetadataEntry(new PositionImpl(entry.getLedgerId(), entry.getEntryId()), logs);
+                            handleMetadataEntry(PositionFactory.create(entry.getLedgerId(), entry.getEntryId()), logs);
                         }
                         entry.release();
                         clearUselessLogData();
@@ -428,15 +438,16 @@ public class MLPendingAckStore implements PendingAckStore {
                             Thread.sleep(1);
                         } catch (InterruptedException e) {
                             if (Thread.interrupted()) {
-                                log.error("[{}]Transaction pending "
-                                        + "replay thread interrupt!", managedLedger.getName(), e);
+                                log.error()
+                                        .exception(e)
+                                        .log("Transaction pending replay thread interrupt!");
                             }
                         }
                     }
                 }
             } catch (Exception e) {
                 pendingAckReplyCallBack.replayFailed(e);
-                log.error("[{}] Pending ack recover fail!", subManagedCursor.getManagedLedger().getName(), e);
+                log.error().exception(e).log("Pending ack recover fail");
                 return;
             }
             pendingAckReplyCallBack.replayComplete();
@@ -502,7 +513,7 @@ public class MLPendingAckStore implements PendingAckStore {
                     || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
                 isReadable = false;
             }
-            log.error("MLPendingAckStore of topic [{}] stat reply fail!", managedLedger.getName(), exception);
+            log.error().exception(exception).log("MLPendingAckStore of topic stat reply fail");
             outstandingReadsRequests.decrementAndGet();
         }
 
@@ -513,15 +524,29 @@ public class MLPendingAckStore implements PendingAckStore {
     }
 
     public static String getTransactionPendingAckStoreSuffix(String originTopicName, String subName) {
-        return TopicName.get(originTopicName) + "-" + subName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
+        TopicName origin = TopicName.get(originTopicName);
+        // URL-encode the subscription name so that any '/' characters it contains do not create
+        // extra path segments when the resulting string is parsed as a topic name.  TopicName
+        // always decodes the local-name component on parse (via Codec.decode) and re-encodes it
+        // on output (via getEncodedLocalName / getPersistenceNamingEncoding), so encoding here
+        // produces a valid round-trip with no double-encoding.
+        String encodedSubName = Codec.encode(subName);
+        // Segment topics ("segment://tenant/ns/topic/<hexStart>-<hexEnd>-<segmentId>") cannot
+        // host a derived pending-ack topic in the segment domain — the descriptor parser would
+        // reject any name with extra dashes appended. Map to a flat persistent topic in the same
+        // namespace, encoding the segment descriptor into the local name.
+        if (origin.isSegment()) {
+            return String.format("persistent://%s/%s/%s-%s-%s%s",
+                    origin.getTenant(), origin.getNamespacePortion(),
+                    origin.getLocalName(), origin.getSegmentDescriptor(),
+                    encodedSubName, SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
+        }
+        return origin + "-" + encodedSubName + SystemTopicNames.PENDING_ACK_STORE_SUFFIX;
     }
 
     public static String getTransactionPendingAckStoreCursorName() {
         return SystemTopicNames.PENDING_ACK_STORE_CURSOR_NAME;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(MLPendingAckStore.class);
-
     /**
      * Used only for buffered writer. Since all cmd-writes in buffered writer are in the same thread, so we can use
      * threadLocal variables here. Why need to be on the same thread ?

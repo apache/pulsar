@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
 
 @Test(groups = "broker")
 public class BacklogQuotaManagerConfigurationTest {
@@ -41,6 +40,7 @@ public class BacklogQuotaManagerConfigurationTest {
         pulsarService = getPulsarService();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testBacklogQuotaDefaultLimitGBConversion() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
@@ -50,6 +50,7 @@ public class BacklogQuotaManagerConfigurationTest {
         assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testBacklogQuotaDefaultLimitPrecedence() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
@@ -60,6 +61,7 @@ public class BacklogQuotaManagerConfigurationTest {
         assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testBacklogQuotaDefaultLimitBytes() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(0);

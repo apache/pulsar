@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.broker.web;
 
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.ws.rs.core.MediaType;
 import java.io.IOException;
+import java.util.Locale;
 import java.util.Objects;
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.ws.rs.core.MediaType;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 
 public class ProcessHandlerFilter implements Filter {
@@ -41,8 +41,12 @@ public class ProcessHandlerFilter implements Filter {
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        if (!StringUtils.containsIgnoreCase(request.getContentType(), MediaType.MULTIPART_FORM_DATA)
-                && !StringUtils.containsIgnoreCase(request.getContentType(), MediaType.APPLICATION_OCTET_STREAM)) {
+        String contentType = request.getContentType();
+        if (contentType == null
+                || (!contentType.toLowerCase(Locale.ROOT).contains(
+                        MediaType.MULTIPART_FORM_DATA.toLowerCase(Locale.ROOT))
+                && !contentType.toLowerCase(Locale.ROOT).contains(
+                        MediaType.APPLICATION_OCTET_STREAM.toLowerCase(Locale.ROOT)))) {
             interceptor.onFilter(request, response, chain);
         } else {
             chain.doFilter(request, response);

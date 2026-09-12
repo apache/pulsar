@@ -22,14 +22,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 class ConfigUtils {
-    private static final Logger log = LoggerFactory.getLogger(ConfigUtils.class);
-
     /**
      * Get configured property as a string. If not configured, return null.
      * @param conf - the configuration map
@@ -39,7 +37,7 @@ class ConfigUtils {
     static String getConfigValueAsString(ServiceConfiguration conf,
                                                 String configProp) throws IllegalArgumentException {
         String value = getConfigValueAsStringImpl(conf, configProp);
-        log.info("Configuration for [{}] is [{}]", configProp, value);
+        log.info().attr("property", configProp).attr("value", value).log("Configuration");
         return value;
     }
 
@@ -56,7 +54,7 @@ class ConfigUtils {
         if (value == null) {
             value = defaultValue;
         }
-        log.info("Configuration for [{}] is [{}]", configProp, value);
+        log.info().attr("property", configProp).attr("value", value).log("Configuration");
         return value;
     }
 
@@ -71,11 +69,14 @@ class ConfigUtils {
     static Set<String> getConfigValueAsSet(ServiceConfiguration conf, String configProp) {
         String value = getConfigValueAsStringImpl(conf, configProp);
         if (StringUtils.isBlank(value)) {
-            log.info("Configuration for [{}] is the empty set.", configProp);
+            log.info().attr("property", configProp).log("Configuration is the empty set");
             return Collections.emptySet();
         }
         Set<String> set = Arrays.stream(value.trim().split("\\s*,\\s*")).collect(Collectors.toSet());
-        log.info("Configuration for [{}] is [{}].", configProp, String.join(", ", set));
+        log.info()
+                .attr("property", configProp)
+                .attr("value", String.join(", ", set))
+                .log("Configuration");
         return set;
     }
 
@@ -101,18 +102,25 @@ class ConfigUtils {
     static int getConfigValueAsInt(ServiceConfiguration conf, String configProp, int defaultValue) {
         Object value = conf.getProperty(configProp);
         if (value instanceof Integer) {
-            log.info("Configuration for [{}] is [{}]", configProp, value);
+            log.info().attr("property", configProp).attr("value", value).log("Configuration");
             return (Integer) value;
         } else if (value instanceof String) {
             try {
                 return Integer.parseInt((String) value);
             } catch (NumberFormatException numberFormatException) {
-                log.error("Expected configuration for [{}] to be a long, but got [{}]. Using default value: [{}]",
-                        configProp, value, defaultValue, numberFormatException);
+                log.error()
+                        .attr("property", configProp)
+                        .attr("value", value)
+                        .attr("defaultValue", defaultValue)
+                        .exception(numberFormatException)
+                        .log("Expected configuration to be a long, using default");
                 return defaultValue;
             }
         } else {
-            log.info("Configuration for [{}] is using the default value: [{}]", configProp, defaultValue);
+            log.info()
+                    .attr("property", configProp)
+                    .attr("defaultValue", defaultValue)
+                    .log("Configuration is using the default value");
             return defaultValue;
         }
     }
@@ -129,14 +137,17 @@ class ConfigUtils {
     static boolean getConfigValueAsBoolean(ServiceConfiguration conf, String configProp, boolean defaultValue) {
         Object value = conf.getProperty(configProp);
         if (value instanceof Boolean) {
-            log.info("Configuration for [{}] is [{}]", configProp, value);
+            log.info().attr("property", configProp).attr("value", value).log("Configuration");
             return (boolean) value;
         } else if (value instanceof String) {
             boolean result = Boolean.parseBoolean((String) value);
-            log.info("Configuration for [{}] is [{}]", configProp, result);
+            log.info().attr("property", configProp).attr("value", result).log("Configuration");
             return result;
         } else {
-            log.info("Configuration for [{}] is using the default value: [{}]", configProp, defaultValue);
+            log.info()
+                    .attr("property", configProp)
+                    .attr("defaultValue", defaultValue)
+                    .log("Configuration is using the default value");
             return defaultValue;
         }
     }

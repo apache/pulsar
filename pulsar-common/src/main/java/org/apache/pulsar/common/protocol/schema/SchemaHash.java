@@ -45,7 +45,7 @@ public class SchemaHash {
         this.schemaType = schemaType;
     }
 
-    public static SchemaHash of(Schema schema) {
+    public static SchemaHash of(Schema<?> schema) {
         if (schema == null || schema.getSchemaInfo() == null) {
             return EMPTY_SCHEMA_HASH;
         }

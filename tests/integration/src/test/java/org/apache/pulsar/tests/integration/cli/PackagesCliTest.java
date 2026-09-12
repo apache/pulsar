@@ -18,29 +18,28 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
 
 public class PackagesCliTest extends TestRetrySupport {
 
     private static final String clusterNamePrefix = "packages-service";
     private PulsarCluster pulsarCluster;
 
+    @SuppressWarnings("deprecation")
     @BeforeClass(alwaysRun = true)
     public final void setup() throws Exception {
         incrementSetupNumber();
@@ -84,6 +83,7 @@ public class PackagesCliTest extends TestRetrySupport {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 60000 * 8)
     public void testPackagesOperationsWithUploadingPackages() throws Exception {
         String testPackageName = "function://public/default/test@v1";

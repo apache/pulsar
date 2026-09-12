@@ -21,7 +21,6 @@ package org.apache.pulsar;
 import static org.apache.commons.io.FileUtils.cleanDirectory;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
@@ -31,6 +30,7 @@ import org.apache.bookkeeper.util.IOUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.bookkeeper.BKCluster;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -46,7 +46,9 @@ public class PulsarStandaloneTest {
     @Test
     public void testStandaloneWithRocksDB() throws Exception {
         String[] args = new String[]{"--config",
-                "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf"};
+                "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf",
+                "-nss",
+                "-nfw"};
         final int bookieNum = 3;
         final File tempDir = IOUtils.createTempDir("standalone", "test");
 
@@ -64,10 +66,12 @@ public class PulsarStandaloneTest {
         List<ServerConfiguration> secondBsConfs = standalone.bkCluster.getBsConfs();
         Assert.assertEquals(secondBsConfs.size(), bookieNum);
 
+        // Cookies must be preserved across restart (otherwise bookie startup would have failed
+        // with InvalidCookieException). The bookieId is the persistent identity.
         for (int i = 0; i < bookieNum; i++) {
             ServerConfiguration conf1 = firstBsConfs.get(i);
             ServerConfiguration conf2 = secondBsConfs.get(i);
-            Assert.assertEquals(conf1.getBookiePort(), conf2.getBookiePort());
+            Assert.assertEquals(conf1.getBookieId(), conf2.getBookieId());
         }
         standalone.close();
         cleanDirectory(tempDir);
@@ -94,7 +98,7 @@ public class PulsarStandaloneTest {
         standalone.start();
 
         @Cleanup PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl("http://localhost:8080")
+                .serviceHttpUrl(standalone.getWebServiceUrl())
                 .authentication(new MockTokenAuthenticationProvider.MockAuthentication())
                 .build();
         if (enableBrokerClientAuth) {
@@ -104,8 +108,8 @@ public class PulsarStandaloneTest {
         } else {
             assertTrue(admin.clusters().getClusters().isEmpty());
             admin.clusters().createCluster("test_cluster", ClusterData.builder()
-                    .serviceUrl("http://localhost:8080/")
-                    .brokerServiceUrl("pulsar://localhost:6650/")
+                    .serviceUrl(standalone.getWebServiceUrl())
+                    .brokerServiceUrl(standalone.getBrokerServiceUrl())
                     .build());
             assertTrue(admin.tenants().getTenants().isEmpty());
             admin.tenants().createTenant("public", TenantInfo.builder()
@@ -124,5 +128,39 @@ public class PulsarStandaloneTest {
         standalone.close();
         cleanDirectory(bkDir);
         cleanDirectory(metadataDir);
+    }
+
+
+    @Test
+    public void testShutdownHookClosesBkCluster() throws Exception {
+        File dataDir = IOUtils.createTempDir("data", "");
+        File metadataDir = new File(dataDir, "metadata");
+        File bkDir = new File(dataDir, "bookkeeper");
+        @Cleanup
+        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(new String[] {
+                "--config",
+                "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf",
+                "-nss",
+                "-nfw",
+                "--metadata-dir",
+                metadataDir.getAbsolutePath(),
+                "--bookkeeper-dir",
+                bkDir.getAbsolutePath()
+        });
+        standalone.setTestMode(true);
+        standalone.start();
+        BKCluster bkCluster = standalone.bkCluster;
+        standalone.runShutdownHook();
+        assertTrue(bkCluster.isClosed());
+    }
+
+    @Test
+    public void testWipeData() throws Exception {
+        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(new String[] {
+                "--config",
+                "./src/test/resources/configurations/standalone_no_client_auth.conf",
+                "--wipe-data"
+        });
+        assertTrue(standalone.isWipeData());
     }
 }

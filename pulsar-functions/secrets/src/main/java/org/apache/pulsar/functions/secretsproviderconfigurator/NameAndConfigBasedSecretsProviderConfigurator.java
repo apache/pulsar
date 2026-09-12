@@ -22,7 +22,7 @@ import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import java.lang.reflect.Type;
 import java.util.Map;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 /**
  * This is a very simple secrets provider which wires in a given secrets provider classname/config
@@ -36,12 +36,12 @@ public class NameAndConfigBasedSecretsProviderConfigurator implements SecretsPro
         this.config = config;
     }
     @Override
-    public String getSecretsProviderClassName(Function.FunctionDetails functionDetails) {
+    public String getSecretsProviderClassName(FunctionDetails functionDetails) {
         return className;
     }
 
     @Override
-    public Map<String, String> getSecretsProviderConfig(Function.FunctionDetails functionDetails) {
+    public Map<String, String> getSecretsProviderConfig(FunctionDetails functionDetails) {
         return config;
     }
 
@@ -52,13 +52,13 @@ public class NameAndConfigBasedSecretsProviderConfigurator implements SecretsPro
     // of a pod and kubernetes magically makes the secret pointed to by this combination available as a env variable.
     @Override
     public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
-                                                          Function.FunctionDetails functionDetails) {
+                                                          FunctionDetails functionDetails) {
         // noop
     }
 
     @Override
     public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
-                                                       Function.FunctionDetails functionDetails) {
+                                                       FunctionDetails functionDetails) {
         // noop
     }
 

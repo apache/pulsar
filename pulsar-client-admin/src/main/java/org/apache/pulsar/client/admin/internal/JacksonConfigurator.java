@@ -21,8 +21,8 @@ package org.apache.pulsar.client.admin.internal;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import javax.ws.rs.ext.ContextResolver;
-import javax.ws.rs.ext.Provider;
+import jakarta.ws.rs.ext.ContextResolver;
+import jakarta.ws.rs.ext.Provider;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 

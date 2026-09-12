@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.util;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-
 import org.testng.annotations.Test;
 
 public class TestStatsBuckets {
@@ -109,7 +108,7 @@ public class TestStatsBuckets {
         StatsBuckets stats2 = new StatsBuckets(10, 20, 30);
         stats2.addAll(stats);
         stats2.refresh();
-        assertEquals(stats2.getSum(),3);
-        assertEquals(stats2.getCount(),2);
+        assertEquals(stats2.getSum(), 3);
+        assertEquals(stats2.getCount(), 2);
     }
 }

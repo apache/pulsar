@@ -36,17 +36,16 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * This class is responsible for providing JVM metrics.
  */
+@CustomLog
 public class JvmMetrics {
 
-    private static final Logger log = LoggerFactory.getLogger(JvmMetrics.class);
     private final JvmGCMetricsLogger gcLogger;
 
     private final String componentName;
@@ -66,8 +65,10 @@ public class JvmMetrics {
                 gcLoggerImpl = (JvmGCMetricsLogger) Class.forName(gcLoggerImplClassName)
                         .getDeclaredConstructor().newInstance();
             } catch (Exception e) {
-                log.error("Failed to initialize jvmGCMetricsLogger {} due to {}", jvmGCMetricsLoggerClassName,
-                        e.getMessage(), e);
+                log.error()
+                        .attr("className", jvmGCMetricsLoggerClassName)
+                        .exception(e)
+                        .log("Failed to initialize jvmGCMetricsLogger");
             }
         }
         return new JvmMetrics(executor, componentName,
@@ -141,9 +142,7 @@ public class JvmMetrics {
         if (usedDirectMemory != -1L) {
             return usedDirectMemory;
         }
-        if (log.isDebugEnabled()) {
-            log.debug("Failed to get netty-direct-memory used count.");
-        }
+        log.debug("Failed to get netty-direct-memory used count");
 
         List<BufferPoolMXBean> pools = ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
         for (BufferPoolMXBean pool : pools) {

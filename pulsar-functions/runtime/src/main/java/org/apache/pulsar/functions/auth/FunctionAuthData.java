@@ -21,11 +21,11 @@ package org.apache.pulsar.functions.auth;
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * A wrapper for authentication data for functions.
+ */
 @Data
 @Builder
-/**
- * A wrapper for authentication data for functions
- */
 public class FunctionAuthData {
     /**
      * function authentication related data that the function authentication provider

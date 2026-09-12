@@ -30,17 +30,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.BitRateUnit;
 
-@Slf4j
+@CustomLog
 public class LinuxInfoUtils {
 
     // CGROUP
@@ -54,7 +55,8 @@ public class LinuxInfoUtils {
     // NIC type
     private static final int ARPHRD_ETHER = 1;
     private static final String NIC_SPEED_TEMPLATE = "/sys/class/net/%s/speed";
-
+    private static final long errLogPrintedFrequencyInReadingNicLimits = 1000;
+    private static final AtomicLong failedCounterInReadingNicLimits = new AtomicLong(0);
     private static Object /*jdk.internal.platform.Metrics*/ metrics;
     private static Method getMetricsProviderMethod;
     private static Method getCpuQuotaMethod;
@@ -76,7 +78,7 @@ public class LinuxInfoUtils {
                 getCpuUsageMethod.setAccessible(true);
             }
         } catch (Throwable e) {
-            log.warn("Failed to get runtime metrics", e);
+            log.warn().exception(e).log("Failed to get runtime metrics");
         }
     }
 
@@ -97,10 +99,10 @@ public class LinuxInfoUtils {
                 return Files.exists(Paths.get(CGROUPS_CPU_USAGE_PATH));
             }
             String provider = (String) getMetricsProviderMethod.invoke(metrics);
-            log.info("[LinuxInfo] The system metrics provider is: {}", provider);
+            log.info().attr("provider", provider).log("The system metrics provider");
             return provider.contains("cgroup");
         } catch (Exception e) {
-            log.warn("[LinuxInfo] Failed to check cgroup CPU: {}", e.getMessage());
+            log.warn().exceptionMessage(e).log("Failed to check cgroup CPU");
             return false;
         }
     }
@@ -127,7 +129,7 @@ public class LinuxInfoUtils {
                     return 100.0 * quota / period;
                 }
             } catch (Exception e) {
-                log.warn("[LinuxInfo] Failed to read CPU quotas from cgroup", e);
+                log.warn().exception(e).log("Failed to read CPU quotas from cgroup");
                 // Fallback to availableProcessors
             }
         }
@@ -146,7 +148,7 @@ public class LinuxInfoUtils {
             }
             return readLongFromFile(Paths.get(CGROUPS_CPU_USAGE_PATH));
         } catch (Exception e) {
-            log.error("[LinuxInfo] Failed to read CPU usage from cgroup", e);
+            log.error().exception(e).log("Failed to read CPU usage from cgroup");
             return -1;
         }
     }
@@ -161,13 +163,14 @@ public class LinuxInfoUtils {
      * </pre>
      * <p>
      * Line is split in "words", filtering the first. The sum of all numbers give the amount of cpu cycles used this
-     * far. Real CPU usage should equal the sum subtracting the idle cycles, this would include iowait, irq and steal.
+     * far. Real CPU usage should equal the sum substracting the idle cycles(that is idle+iowait), this would include
+     * cpu, user, nice, system, irq, softirq, steal, guest and guest_nice.
      */
     public static ResourceUsage getCpuUsageForEntireHost() {
         try (Stream<String> stream = Files.lines(Paths.get(PROC_STAT_PATH))) {
             Optional<String> first = stream.findFirst();
             if (!first.isPresent()) {
-                log.error("[LinuxInfo] Failed to read CPU usage from /proc/stat, because of empty values.");
+                log.error("Failed to read CPU usage from /proc/stat, empty values");
                 return ResourceUsage.empty();
             }
             String[] words = first.get().split("\\s+");
@@ -175,13 +178,13 @@ public class LinuxInfoUtils {
                     .filter(s -> !s.contains("cpu"))
                     .mapToLong(Long::parseLong)
                     .sum();
-            long idle = Long.parseLong(words[4]);
+            long idle = Long.parseLong(words[4]) + Long.parseLong(words[5]);
             return ResourceUsage.builder()
                     .usage(total - idle)
                     .idle(idle)
                     .total(total).build();
         } catch (IOException e) {
-            log.error("[LinuxInfo] Failed to read CPU usage from /proc/stat", e);
+            log.error().exception(e).log("Failed to read CPU usage from /proc/stat");
             return ResourceUsage.empty();
         }
     }
@@ -197,12 +200,16 @@ public class LinuxInfoUtils {
                 return false;
             }
             // Check the type to make sure it's ethernet (type "1")
-            String type = readTrimStringFromFile(nicPath.resolve("type"));
+            final Path nicTypePath = nicPath.resolve("type");
+            if (!Files.exists(nicTypePath)) {
+                log.debug().attr("nicTypePath", nicTypePath)
+                        .log("Failed to read NIC type, the expected linux type file does not exist");
+               return false;
+            }
             // wireless NICs don't report speed, ignore them.
-            return Integer.parseInt(type) == ARPHRD_ETHER;
-        } catch (Exception e) {
-            log.warn("[LinuxInfo] Failed to read {} NIC type, the detail is: {}", nicPath, e.getMessage());
-            // Read type got error.
+            return Integer.parseInt(readTrimStringFromFile(nicTypePath)) == ARPHRD_ETHER;
+        } catch (Exception ex) {
+            log.debug().attr("nicPath", nicPath).exception(ex).log("Failed to read NIC type");
             return false;
         }
     }
@@ -225,7 +232,8 @@ public class LinuxInfoUtils {
                     return false;
             }
         } catch (Exception e) {
-            log.warn("[LinuxInfo] Failed to read {} NIC operstate, the detail is: {}", nicPath, e.getMessage());
+            log.warn().attr("nicPath", nicPath).exceptionMessage(e)
+                    .log("Failed to read NIC operstate");
             // Read operstate got error.
             return false;
         }
@@ -242,7 +250,13 @@ public class LinuxInfoUtils {
             try {
                 return readDoubleFromFile(getReplacedNICPath(NIC_SPEED_TEMPLATE, nicPath));
             } catch (IOException e) {
-                log.error("[LinuxInfo] Failed to get total nic limit.", e);
+                // ERROR-level logs about NIC rate limiting reading failures are periodically printed but not
+                // continuously printed
+                if (failedCounterInReadingNicLimits.getAndIncrement() % errLogPrintedFrequencyInReadingNicLimits == 0) {
+                    log.error().attr("nicPath", nicPath).exception(e).log("Failed to get the nic limit");
+                } else {
+                    log.debug().attr("nicPath", nicPath).exception(e).log("Failed to get the nic limit");
+                }
                 return 0d;
             }
         }).sum(), BitRateUnit.Megabit);
@@ -260,7 +274,7 @@ public class LinuxInfoUtils {
             try {
                 return readDoubleFromFile(getReplacedNICPath(type.template, nic));
             } catch (IOException e) {
-                log.error("[LinuxInfo] Failed to read {} bytes for NIC {} ", type, nic, e);
+                log.error().attr("type", type).attr("nic", nic).exception(e).log("Failed to read bytes for NIC");
                 return 0d;
             }
         }).sum(), BitRateUnit.Byte);
@@ -277,7 +291,7 @@ public class LinuxInfoUtils {
                     .map(path -> path.getFileName().toString())
                     .collect(Collectors.toList());
         } catch (IOException e) {
-            log.error("[LinuxInfo] Failed to find NICs", e);
+            log.error().exception(e).log("Failed to find NICs");
             return Collections.emptyList();
         }
     }

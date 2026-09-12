@@ -18,10 +18,15 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.createPositionWithAckSet;
+import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.getAckSetArrayOrNull;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.andAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.compareToWithAckSet;
 import static org.apache.bookkeeper.mledger.util.PositionAckSetUtil.isAckSetOverlap;
 import com.google.common.annotations.VisibleForTesting;
+import io.github.merlimat.slog.Logger;
+import io.netty.util.Timer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,16 +40,18 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.impl.AckSetState;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Consumer;
@@ -53,21 +60,26 @@ import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
 import org.apache.pulsar.common.stats.PositionInPendingAckStats;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.RecoverTimeRecord;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 
 /**
  * The default implementation of {@link PendingAckHandle}.
  */
-@Slf4j
 public class PendingAckHandleImpl extends PendingAckHandleState implements PendingAckHandle {
+
+    private static final Logger LOG = Logger.get(PendingAckHandleImpl.class);
+    private final Logger log;
 
     /**
      * The map is for transaction with position witch was individual acked by this transaction.
@@ -78,7 +90,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
      *     If the position is batch position and it exits the map, will do operation `and` for this
      *     two positions bit set.
      */
-    private LinkedMap<TxnID, HashMap<PositionImpl, PositionImpl>> individualAckOfTransaction;
+    private LinkedMap<TxnID, HashMap<Position, Position>> individualAckOfTransaction;
 
     /**
      * The map is for individual ack of positions for transaction.
@@ -98,13 +110,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
      *     <p>
      *         If it does not exits the map, the position will be added to the map.
      */
-    private ConcurrentSkipListMap<PositionImpl, MutablePair<PositionImpl, Integer>> individualAckPositions;
+    private ConcurrentSkipListMap<Position, MutablePair<Position, Integer>> individualAckPositions;
 
     /**
      * The map is for transaction with position witch was cumulative acked by this transaction.
      * Only one cumulative ack position was acked by one transaction at the same time.
      */
-    private Pair<TxnID, PositionImpl> cumulativeAckOfTransaction;
+    private Pair<TxnID, Position> cumulativeAckOfTransaction;
 
     private final String topicName;
 
@@ -134,26 +146,35 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     public final RecoverTimeRecord recoverTime = new RecoverTimeRecord();
 
+    private final long pendingAckInitFailureBackoffInitialTimeInMs = 100;
+
+    public final Backoff backoff = Backoff.builder()
+            .initialDelay(Duration.ofMillis(pendingAckInitFailureBackoffInitialTimeInMs))
+            .build();
+
+    private final Timer transactionOpTimer;
 
     public PendingAckHandleImpl(PersistentSubscription persistentSubscription) {
         super(State.None);
         this.topicName = persistentSubscription.getTopicName();
         this.subName = persistentSubscription.getName();
         this.persistentSubscription = persistentSubscription;
-        internalPinnedExecutor = persistentSubscription
-                .getTopic()
-                .getBrokerService()
-                .getPulsar()
-                .getTransactionExecutorProvider()
-                .getExecutor(this);
+        this.log = LOG.with()
+                .attr("topic", topicName)
+                .attr("subscription", subName)
+                .build();
+        var pulsar = persistentSubscription.getTopic().getBrokerService().getPulsar();
+        internalPinnedExecutor = pulsar.getTransactionExecutorProvider().getExecutor(this);
 
-        ServiceConfiguration config = persistentSubscription.getTopic().getBrokerService().pulsar().getConfig();
-        boolean exposeTopicLevelMetrics = config.isExposeTopicLevelMetricsInPrometheus();
-        this.handleStats = PendingAckHandleStats.create(topicName, subName, exposeTopicLevelMetrics);
+        this.handleStats = PendingAckHandleStats.create(
+                topicName, subName, pulsar.getConfig().isExposeTopicLevelMetricsInPrometheus());
 
-        this.pendingAckStoreProvider = this.persistentSubscription.getTopic()
-                        .getBrokerService().getPulsar().getTransactionPendingAckStoreProvider();
+        this.pendingAckStoreProvider = pulsar.getTransactionPendingAckStoreProvider();
+        transactionOpTimer = pulsar.getTransactionTimer();
+        init();
+    }
 
+    private void init() {
         pendingAckStoreProvider.checkInitializedBefore(persistentSubscription)
                 .thenAcceptAsync(init -> {
                     if (init) {
@@ -164,9 +185,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 }, internalPinnedExecutor)
                 .exceptionallyAsync(e -> {
                     Throwable t = FutureUtil.unwrapCompletionException(e);
-                    changeToErrorState();
+                    // Handling the exceptions in `exceptionHandleFuture`,
+                    // it will be helpful to make the exception handling clearer.
                     exceptionHandleFuture(t);
-                    this.pendingAckStoreFuture.completeExceptionally(t);
                     return null;
                 }, internalPinnedExecutor);
     }
@@ -180,9 +201,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     recoverTime.setRecoverStartTime(System.currentTimeMillis());
                     pendingAckStore.replayAsync(this, internalPinnedExecutor);
                 }).exceptionallyAsync(e -> {
-                    handleCacheRequest();
-                    changeToErrorState();
-                    log.error("PendingAckHandleImpl init fail! TopicName : {}, SubName: {}", topicName, subName, e);
+                    // Handling the exceptions in `exceptionHandleFuture`,
+                    // it will be helpful to make the exception handling clearer.
                     exceptionHandleFuture(e.getCause());
                     return null;
                 }, internalPinnedExecutor);
@@ -191,12 +211,12 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     private void addIndividualAcknowledgeMessageRequest(TxnID txnID,
-                                                        List<MutablePair<PositionImpl, Integer>> positions,
+                                                        List<MutablePair<Position, Integer>> positions,
                                                         CompletableFuture<Void> completableFuture) {
         acceptQueue.add(() -> internalIndividualAcknowledgeMessage(txnID, positions, completableFuture));
     }
 
-    public void internalIndividualAcknowledgeMessage(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions,
+    public void internalIndividualAcknowledgeMessage(TxnID txnID, List<MutablePair<Position, Integer>> positions,
                                                      CompletableFuture<Void> completableFuture) {
         if (txnID == null) {
             completableFuture.completeExceptionally(new NotAllowedException("txnID can not be null."));
@@ -211,19 +231,16 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
                 pendingAckStore.appendIndividualAck(txnID, positions).thenAccept(v -> {
                     synchronized (org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl.this) {
-                        for (MutablePair<PositionImpl, Integer> positionIntegerMutablePair : positions) {
-
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] individualAcknowledgeMessage position: [{}], "
-                                                + "txnId: [{}], subName: [{}]", topicName,
-                                        positionIntegerMutablePair.left, txnID, subName);
-                            }
-                            PositionImpl position = positionIntegerMutablePair.left;
+                        for (MutablePair<Position, Integer> positionIntegerMutablePair : positions) {
+                                log.debug()
+                                        .attr("position", positionIntegerMutablePair.left)
+                                        .attr("txnId", txnID)
+                                        .log("individualAcknowledgeMessage");
+                                                        Position position = positionIntegerMutablePair.left;
 
                             // If try to ack message already acked by committed transaction or
                             // normal acknowledge,throw exception.
-                            if (((ManagedCursorImpl) persistentSubscription.getCursor())
-                                    .isMessageDeleted(position)) {
+                            if (persistentSubscription.getCursor().isMessageDeleted(position)) {
                                 String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
                                         + " try to ack message:" + position + " already acked before.";
                                 log.error(errorMsg);
@@ -232,20 +249,20 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                                 return;
                             }
 
-                            if (position.hasAckSet()) {
+                            long[] positionAckSet = getAckSetArrayOrNull(position);
+                            if (positionAckSet != null) {
                                 //in order to jude the bit set is over lap, so set the covering
                                 // the batch size bit to 1,should know the two
                                 // bit set don't have the same point is 0
                                 BitSetRecyclable bitSetRecyclable =
-                                        BitSetRecyclable.valueOf(position.getAckSet());
+                                        BitSetRecyclable.valueOf(positionAckSet);
                                 if (positionIntegerMutablePair.right > bitSetRecyclable.size()) {
                                     bitSetRecyclable.set(positionIntegerMutablePair.right);
                                 }
                                 bitSetRecyclable.set(positionIntegerMutablePair.right, bitSetRecyclable.size());
                                 long[] ackSetOverlap = bitSetRecyclable.toLongArray();
                                 bitSetRecyclable.recycle();
-                                if (isAckSetOverlap(ackSetOverlap,
-                                        ((ManagedCursorImpl) persistentSubscription.getCursor())
+                                if (isAckSetOverlap(ackSetOverlap, persistentSubscription.getCursor()
                                                 .getBatchPositionAckSet(position))) {
                                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:"
                                             + txnID + " try to ack message:"
@@ -258,8 +275,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
                                 if (individualAckPositions != null
                                         && individualAckPositions.containsKey(position)
-                                        && isAckSetOverlap(individualAckPositions
-                                        .get(position).getLeft().getAckSet(), ackSetOverlap)) {
+                                        && isAckSetOverlap(getAckSetArrayOrNull(individualAckPositions
+                                        .get(position).getLeft()), ackSetOverlap)) {
                                     String errorMsg = "[" + topicName + "][" + subName + "] Transaction:"
                                             + txnID + " try to ack batch message:"
                                             + position + " in pending ack status.";
@@ -303,7 +320,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     @Override
     public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
-                                                                List<MutablePair<PositionImpl, Integer>> positions) {
+                                                                List<MutablePair<Position, Integer>> positions) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
@@ -333,13 +350,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     private void addCumulativeAcknowledgeMessageRequest(TxnID txnID,
-                                                        List<PositionImpl> positions,
+                                                        List<Position> positions,
                                                         CompletableFuture<Void> completableFuture) {
         acceptQueue.add(() -> internalCumulativeAcknowledgeMessage(txnID, positions, completableFuture));
     }
 
     public void internalCumulativeAcknowledgeMessage(TxnID txnID,
-                                                     List<PositionImpl> positions,
+                                                     List<Position> positions,
                                                      CompletableFuture<Void> completableFuture) {
         if (txnID == null) {
             completableFuture.completeExceptionally(new NotAllowedException("TransactionID can not be null."));
@@ -358,16 +375,15 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             return;
         }
 
-        PositionImpl position = positions.get(0);
+        Position position = positions.get(0);
 
         this.pendingAckStoreFuture.thenAccept(pendingAckStore ->
                 pendingAckStore.appendCumulativeAck(txnID, position).thenAccept(v -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] cumulativeAcknowledgeMessage position: [{}], "
-                                + "txnID:[{}], subName: [{}].", topicName, txnID, position, subName);
-                    }
-
-                    if (position.compareTo((PositionImpl) persistentSubscription.getCursor()
+                        log.debug()
+                                .attr("txnId", txnID)
+                                .attr("position", position)
+                                .log("cumulativeAcknowledgeMessage");
+                                        if (position.compareTo(persistentSubscription.getCursor()
                             .getMarkDeletedPosition()) <= 0) {
                         String errorMsg = "[" + topicName + "][" + subName + "] Transaction:" + txnID
                                 + " try to cumulative ack position: " + position + " within range of cursor's "
@@ -405,7 +421,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<PositionImpl> positions) {
+    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<Position> positions) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         internalPinnedExecutor.execute(() -> {
             if (!checkIfReady()) {
@@ -448,18 +464,24 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             if (cumulativeAckOfTransaction.getKey().equals(txnID)) {
                 pendingAckStoreFuture.thenAccept(pendingAckStore -> pendingAckStore
                         .appendCommitMark(txnID, AckType.Cumulative).thenAccept(v -> {
-                            if (log.isDebugEnabled()) {
-                                log.debug("[{}] Transaction pending ack store commit txnId : [{}] "
-                                        + "success! subName: [{}]", topicName, txnID, subName);
-                            }
-                            persistentSubscription.acknowledgeMessage(
-                                    Collections.singletonList(cumulativeAckOfTransaction.getValue()),
-                                    AckType.Cumulative, properties);
-                            cumulativeAckOfTransaction = null;
-                            commitFuture.complete(null);
+                            log.debug()
+                                    .attr("txnId", txnID)
+                                    .log("Transaction pending ack store commit cumulative success");
+                            persistentSubscription.acknowledgeMessageAsync(
+                                            Collections.singletonList(cumulativeAckOfTransaction.getValue()),
+                                            AckType.Cumulative, properties)
+                                    .thenRun(() -> {
+                                        cumulativeAckOfTransaction = null;
+                                        commitFuture.complete(null);
+                                    }).exceptionally(ackError -> {
+                                        commitFuture.completeExceptionally(ackError);
+                                        return null;
+                                    });
                         }).exceptionally(e -> {
-                            log.error("[{}] Transaction pending ack store commit txnId : [{}] fail!",
-                                    topicName, txnID, e);
+                            log.error()
+                                    .attr("txnId", txnID)
+                                    .exception(e)
+                                    .log("Transaction pending ack store commit fail!");
                             commitFuture.completeExceptionally(e);
                             return null;
                         })).exceptionally(e -> {
@@ -474,22 +496,28 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     pendingAckStore.appendCommitMark(txnID, AckType.Individual).thenAccept(v -> {
                         synchronized (PendingAckHandleImpl.this) {
                             if (individualAckOfTransaction != null && individualAckOfTransaction.containsKey(txnID)) {
-                                HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
+                                HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                                         individualAckOfTransaction.get(txnID);
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Transaction pending ack store commit txnId : "
-                                            + "[{}] success! subName: [{}]", topicName, txnID, subName);
-                                }
-                                individualAckCommitCommon(txnID, pendingAckMessageForCurrentTxn, properties);
-                                commitFuture.complete(null);
-                                handleLowWaterMark(txnID, lowWaterMark);
+                                    log.debug()
+                                            .attr("txnId", txnID)
+                                            .log("Transaction pending ack store commit individual success");
+                                individualAckCommitCommon(txnID, pendingAckMessageForCurrentTxn, properties)
+                                        .thenRun(() -> {
+                                            commitFuture.complete(null);
+                                            handleLowWaterMark(txnID, lowWaterMark);
+                                        }).exceptionally(ackError -> {
+                                            commitFuture.completeExceptionally(ackError);
+                                            return null;
+                                        });
                             } else {
                                 commitFuture.complete(null);
                             }
                         }
                     }).exceptionally(e -> {
-                        log.error("[{}] Transaction pending ack store commit txnId : [{}] fail!",
-                                topicName, txnID, e);
+                        log.error()
+                                .attr("txnId", txnID)
+                                .exception(e)
+                                .log("Transaction pending ack store commit fail!");
                         commitFuture.completeExceptionally(e.getCause());
                         return null;
                     })).exceptionally(e -> {
@@ -541,11 +569,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         if (this.cumulativeAckOfTransaction != null) {
             pendingAckStoreFuture.thenAccept(pendingAckStore ->
                     pendingAckStore.appendAbortMark(txnId, AckType.Cumulative).thenAccept(v -> {
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] Transaction pending ack store abort txnId : [{}] success! subName: [{}]",
-                                    topicName, txnId, subName);
-                        }
-                        if (cumulativeAckOfTransaction.getKey().equals(txnId)) {
+                            log.debug()
+                                    .attr("txnId", txnId)
+                                    .log("Transaction pending ack store abort cumulative success");
+                                                if (cumulativeAckOfTransaction.getKey().equals(txnId)) {
                             cumulativeAckOfTransaction = null;
                         }
                         abortFuture.complete(null);
@@ -553,8 +580,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                         // in cumulative ack with transaction, don't depend on server redeliver message,
                         // it will cause the messages to be out of order
                     }).exceptionally(e -> {
-                        log.error("[{}] Transaction pending ack store abort txnId : [{}] fail!",
-                                topicName, txnId, e);
+                        log.error()
+                                .attr("txnId", txnId)
+                                .exception(e)
+                                .log("Transaction pending ack store abort fail!");
                         abortFuture.completeExceptionally(e);
                         return null;
                     })
@@ -566,14 +595,14 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             pendingAckStoreFuture.thenAccept(pendingAckStore ->
                     pendingAckStore.appendAbortMark(txnId, AckType.Individual).thenAccept(v -> {
                         synchronized (PendingAckHandleImpl.this) {
-                            HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
+                            HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                                     individualAckOfTransaction.get(txnId);
                             if (pendingAckMessageForCurrentTxn != null) {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}] Transaction pending ack store abort txnId : [{}] success! "
-                                            + "subName: [{}]", topicName, txnId, subName);
-                                }
-                                individualAckAbortCommon(txnId, pendingAckMessageForCurrentTxn);
+                                    log.debug()
+                                            .attr("txnId", txnId)
+                                            .log("Transaction pending ack store abort individual success");
+                                                                individualAckAbortCommon(txnId,
+                                                                        pendingAckMessageForCurrentTxn);
                                 persistentSubscription.redeliverUnacknowledgedMessages(consumer,
                                         new ArrayList<>(pendingAckMessageForCurrentTxn.values()));
                                 abortFuture.complete(null);
@@ -583,13 +612,15 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                             }
                         }
                     }).exceptionally(e -> {
-                        log.error("[{}] Transaction pending ack store abort txnId : [{}] fail!",
-                                topicName, txnId, e);
+                        log.error()
+                                .attr("txnId", txnId)
+                                .exception(e)
+                                .log("Transaction pending ack store abort fail!");
                         abortFuture.completeExceptionally(e);
                         return null;
                     })
             ).exceptionally(e -> {
-                log.error("[{}] abortTxn", txnId, e);
+                log.error().attr("txnId", txnId).exception(e).log("abortTxn");
                 abortFuture.completeExceptionally(e);
                 return null;
             });
@@ -644,12 +675,16 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 Long lowWaterMarkOfFirstTxnId = lowWaterMarks.get(tCId);
                 if (lowWaterMarkOfFirstTxnId != null && firstTxn.getLeastSigBits() <= lowWaterMarkOfFirstTxnId) {
                     abortTxn(firstTxn, null, lowWaterMarkOfFirstTxnId).thenRun(() -> {
-                        log.warn("[{}] Transaction pending ack handle low water mark success! txnId : [{}], "
-                                + "lowWaterMark : [{}]", topicName, firstTxn, lowWaterMarkOfFirstTxnId);
+                        log.warn()
+                                .attr("txnId", firstTxn)
+                                .attr("lowWatermark", lowWaterMarkOfFirstTxnId)
+                                .log("Transaction pending ack handle low water mark success");
                         handleLowWaterMark.release();
                     }).exceptionally(ex -> {
-                        log.warn("[{}] Transaction pending ack handle low water mark fail! txnId : [{}], "
-                                + "lowWaterMark : [{}]", topicName, firstTxn, lowWaterMarkOfFirstTxnId);
+                        log.warn()
+                                .attr("txnId", firstTxn)
+                                .attr("lowWatermark", lowWaterMarkOfFirstTxnId)
+                                .log("Transaction pending ack handle low water mark failed");
                         handleLowWaterMark.release();
                         return null;
                     });
@@ -661,7 +696,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public synchronized void syncBatchPositionAckSetForTransaction(PositionImpl position) {
+    public synchronized void syncBatchPositionAckSetForTransaction(Position position) {
         if (individualAckPositions == null) {
             individualAckPositions = new ConcurrentSkipListMap<>();
         }
@@ -675,13 +710,14 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public synchronized boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
+    public synchronized boolean checkIsCanDeleteConsumerPendingAck(Position position) {
         if (!individualAckPositions.containsKey(position)) {
             return true;
         } else {
             position = individualAckPositions.get(position).left;
-            if (position.hasAckSet()) {
-                BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(position.getAckSet());
+            long[] positionAckSet = getAckSetArrayOrNull(position);
+            if (positionAckSet != null) {
+                BitSetRecyclable bitSetRecyclable = BitSetRecyclable.valueOf(positionAckSet);
                 if (bitSetRecyclable.isEmpty()) {
                     bitSetRecyclable.recycle();
                     return true;
@@ -700,7 +736,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             this.cumulativeAckOfTransaction = null;
         } else {
             if (this.individualAckOfTransaction != null) {
-                HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
+                HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                         individualAckOfTransaction.get(txnID);
                 if (pendingAckMessageForCurrentTxn != null) {
                     individualAckAbortCommon(txnID, pendingAckMessageForCurrentTxn);
@@ -709,24 +745,25 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
-    private void individualAckAbortCommon(TxnID txnID, HashMap<PositionImpl, PositionImpl> currentTxn) {
-        for (Map.Entry<PositionImpl, PositionImpl> entry :
+    private void individualAckAbortCommon(TxnID txnID, HashMap<Position, Position> currentTxn) {
+        for (Map.Entry<Position, Position> entry :
                 currentTxn.entrySet()) {
-            if (entry.getValue().hasAckSet()
+            long[] entryValueAckSet = getAckSetArrayOrNull(entry.getValue());
+            if (entryValueAckSet != null
                     && individualAckPositions.containsKey(entry.getValue())) {
                 BitSetRecyclable thisBitSet =
-                        BitSetRecyclable.valueOf(entry.getValue().getAckSet());
+                        BitSetRecyclable.valueOf(entryValueAckSet);
                 int batchSize = individualAckPositions.get(entry.getValue()).right;
                 thisBitSet.flip(0, batchSize);
+                AckSetState individualAckPositionAckSetState =
+                        AckSetStateUtil.getAckSetState(individualAckPositions.get(entry.getValue()).left);
                 BitSetRecyclable otherBitSet =
-                        BitSetRecyclable.valueOf(individualAckPositions
-                                .get(entry.getValue()).left.getAckSet());
+                        BitSetRecyclable.valueOf(individualAckPositionAckSetState.getAckSet());
                 otherBitSet.or(thisBitSet);
                 if (otherBitSet.cardinality() == batchSize) {
                     individualAckPositions.remove(entry.getValue());
                 } else {
-                    individualAckPositions.get(entry.getKey())
-                            .left.setAckSet(otherBitSet.toLongArray());
+                    individualAckPositionAckSetState.setAckSet(otherBitSet.toLongArray());
                 }
                 otherBitSet.recycle();
                 thisBitSet.recycle();
@@ -740,14 +777,14 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     protected void handleCommit(TxnID txnID, AckType ackType, Map<String, Long> properties) {
         if (ackType == AckType.Cumulative) {
             if (this.cumulativeAckOfTransaction != null) {
-                persistentSubscription.acknowledgeMessage(
+                persistentSubscription.acknowledgeMessageAsync(
                         Collections.singletonList(this.cumulativeAckOfTransaction.getValue()),
                         AckType.Cumulative, properties);
             }
             this.cumulativeAckOfTransaction = null;
         } else {
             if (this.individualAckOfTransaction != null) {
-                HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
+                HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                         individualAckOfTransaction.get(txnID);
                 if (pendingAckMessageForCurrentTxn != null) {
                     individualAckCommitCommon(txnID, pendingAckMessageForCurrentTxn, null);
@@ -756,23 +793,26 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
-    private void individualAckCommitCommon(TxnID txnID,
-                                           HashMap<PositionImpl, PositionImpl> currentTxn,
-                                           Map<String, Long> properties) {
+    private CompletableFuture<Void> individualAckCommitCommon(TxnID txnID,
+                                                              HashMap<Position, Position> currentTxn,
+                                                              Map<String, Long> properties) {
         if (currentTxn != null) {
-            persistentSubscription.acknowledgeMessage(new ArrayList<>(currentTxn.values()),
-                    AckType.Individual, properties);
-            individualAckOfTransaction.remove(txnID);
+            return persistentSubscription.acknowledgeMessageAsync(new ArrayList<>(currentTxn.values()),
+                    AckType.Individual, properties).thenRun(() -> {
+                        individualAckOfTransaction.remove(txnID);
+                    });
+        } else {
+            return CompletableFuture.completedFuture(null);
         }
     }
 
-    private void handleIndividualAck(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions) {
+    private void handleIndividualAck(TxnID txnID, List<MutablePair<Position, Integer>> positions) {
         for (int i = 0; i < positions.size(); i++) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] TxnID:[{}] Individual acks on {}", topicName,
-                        subName, txnID.toString(), positions);
-            }
-            if (individualAckOfTransaction == null) {
+                log.debug()
+                        .attr("txnId", txnID.toString())
+                        .attr("positions", positions)
+                        .log("Individual acks");
+                        if (individualAckOfTransaction == null) {
                 individualAckOfTransaction = new LinkedMap<>();
             }
 
@@ -780,11 +820,11 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 individualAckPositions = new ConcurrentSkipListMap<>();
             }
 
-            PositionImpl position = positions.get(i).left;
+            Position position = positions.get(i).left;
+            long[] positionAckSet = getAckSetArrayOrNull(position);
+            if (positionAckSet != null) {
 
-            if (position.hasAckSet()) {
-
-                HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
+                HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                         individualAckOfTransaction.computeIfAbsent(txnID, txn -> new HashMap<>());
 
                 if (pendingAckMessageForCurrentTxn.containsKey(position)) {
@@ -803,20 +843,21 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                      *  individualAckPositions{@link individualAckPositions} can't include the same position
                      *  object on individualAckOfTransaction {@link individualAckOfTransaction}
                      */
-                    MutablePair<PositionImpl, Integer> positionPair = positions.get(i);
-                    positionPair.left = PositionImpl.get(positionPair.getLeft().getLedgerId(),
-                            positionPair.getLeft().getEntryId(),
-                            Arrays.copyOf(positionPair.left.getAckSet(), positionPair.left.getAckSet().length));
-                    this.individualAckPositions.put(position, positions.get(i));
+                    MutablePair<Position, Integer> positionPair = positions.get(i);
+                    long[] positionPairLeftAckSet = getAckSetArrayOrNull(positionPair.left);
+                    positionPair.left = createPositionWithAckSet(positionPair.left.getLedgerId(),
+                            positionPair.left.getEntryId(),
+                            Arrays.copyOf(positionPairLeftAckSet, positionPairLeftAckSet.length));
+                    this.individualAckPositions.put(position, positionPair);
                 } else {
-                    MutablePair<PositionImpl, Integer> positionPair =
+                    MutablePair<Position, Integer> positionPair =
                             this.individualAckPositions.get(position);
                     positionPair.setRight(positions.get(i).right);
                     andAckSet(positionPair.getLeft(), position);
                 }
 
             } else {
-                HashMap<PositionImpl, PositionImpl> pendingAckMessageForCurrentTxn =
+                HashMap<Position, Position> pendingAckMessageForCurrentTxn =
                         individualAckOfTransaction.computeIfAbsent(txnID, txn -> new HashMap<>());
                 pendingAckMessageForCurrentTxn.put(position, position);
                 this.individualAckPositions.putIfAbsent(position, positions.get(i));
@@ -824,7 +865,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
-    private void handleCumulativeAck(TxnID txnID, PositionImpl position) {
+    private void handleCumulativeAck(TxnID txnID, Position position) {
         if (this.cumulativeAckOfTransaction == null) {
             this.cumulativeAckOfTransaction = MutablePair.of(txnID, position);
         } else if (this.cumulativeAckOfTransaction.getKey().equals(txnID)
@@ -833,8 +874,8 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
-    protected void handleCumulativeAckRecover(TxnID txnID, PositionImpl position) {
-        if ((position.compareTo((PositionImpl) persistentSubscription.getCursor()
+    protected void handleCumulativeAckRecover(TxnID txnID, Position position) {
+        if ((position.compareTo(persistentSubscription.getCursor()
                 .getMarkDeletedPosition()) > 0) && (cumulativeAckOfTransaction == null
                 || (cumulativeAckOfTransaction.getKey().equals(txnID)
                 && compareToWithAckSet(position, cumulativeAckOfTransaction.getValue()) > 0))) {
@@ -842,23 +883,24 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         }
     }
 
-    protected void handleIndividualAckRecover(TxnID txnID, List<MutablePair<PositionImpl, Integer>> positions) {
-        for (MutablePair<PositionImpl, Integer> positionIntegerMutablePair : positions) {
-            PositionImpl position = positionIntegerMutablePair.left;
+    protected void handleIndividualAckRecover(TxnID txnID, List<MutablePair<Position, Integer>> positions) {
+        for (MutablePair<Position, Integer> positionIntegerMutablePair : positions) {
+            Position position = positionIntegerMutablePair.left;
 
             // If try to ack message already acked by committed transaction or
             // normal acknowledge,throw exception.
-            if (((ManagedCursorImpl) persistentSubscription.getCursor())
-                    .isMessageDeleted(position)) {
+            if (persistentSubscription.getCursor().isMessageDeleted(position)) {
                 return;
             }
 
-            if (position.hasAckSet()) {
+            long[] positionAckSet = getAckSetArrayOrNull(position);
+
+            if (positionAckSet != null) {
                 //in order to jude the bit set is over lap, so set the covering
                 // the batch size bit to 1,should know the two
                 // bit set don't have the same point is 0
                 BitSetRecyclable bitSetRecyclable =
-                        BitSetRecyclable.valueOf(position.getAckSet());
+                        BitSetRecyclable.valueOf(positionAckSet);
                 if (positionIntegerMutablePair.right > bitSetRecyclable.size()) {
                     bitSetRecyclable.set(positionIntegerMutablePair.right);
                 }
@@ -866,15 +908,13 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 long[] ackSetOverlap = bitSetRecyclable.toLongArray();
                 bitSetRecyclable.recycle();
                 if (isAckSetOverlap(ackSetOverlap,
-                        ((ManagedCursorImpl) persistentSubscription.getCursor())
-                                .getBatchPositionAckSet(position))) {
+                        persistentSubscription.getCursor().getBatchPositionAckSet(position))) {
                     return;
                 }
 
                 if (individualAckPositions != null
-                        && individualAckPositions.containsKey(position)
-                        && isAckSetOverlap(individualAckPositions
-                        .get(position).getLeft().getAckSet(), ackSetOverlap)) {
+                        && individualAckPositions.containsKey(position) && isAckSetOverlap(
+                        getAckSetArrayOrNull(individualAckPositions.get(position).getLeft()), ackSetOverlap)) {
                     return;
                 }
             } else {
@@ -901,12 +941,10 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             return;
         }
 
-        if (position instanceof PositionImpl) {
-            individualAckPositions.remove(position);
-        }
+        individualAckPositions.remove(position);
 
         while (individualAckPositions.firstEntry() != null) {
-            if (individualAckPositions.firstKey().compareTo((PositionImpl) persistentSubscription
+            if (individualAckPositions.firstKey().compareTo(persistentSubscription
                     .getCursor().getMarkDeletedPosition()) < 0) {
                 individualAckPositions.remove(individualAckPositions.firstKey());
             } else {
@@ -945,24 +983,59 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     public void exceptionHandleFuture(Throwable t) {
-        final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(t);
+        if (isRetryableException(t)) {
+            this.state = State.None;
+            long retryTime = backoff.next().toMillis();
+            log.warn()
+                    .attr("name", persistentSubscription.getTopic().getName())
+                    .attr("retryTimeMs", retryTime)
+                    .exception(t)
+                    .log("Failed to init transaction pending ack. It will be retried");
+            transactionOpTimer.newTimeout((timeout) -> init(), retryTime, TimeUnit.MILLISECONDS);
+            return;
+        }
+        log.error()
+                .exception(t)
+                .log("PendingAckHandleImpl init fail!");
+        handleCacheRequest();
+        changeToErrorState();
+        // ToDo: Add a new serverError `TransactionComponentLoadFailedException`
+        //  and before that a `Unknown` will be returned first.
+        this.pendingAckStoreFuture = FutureUtil.failedFuture(new BrokerServiceException(
+                        String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
+        final boolean completedNow = this.pendingAckHandleCompletableFuture.completeExceptionally(
+                new BrokerServiceException(
+                String.format("[%s][%s] Failed to init transaction pending ack.", topicName, subName)));
         if (completedNow) {
             recoverTime.setRecoverEndTime(System.currentTimeMillis());
         }
+    }
+
+    private static boolean isRetryableException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return (realCause instanceof ManagedLedgerException
+                && !(realCause instanceof ManagedLedgerException.ManagedLedgerFencedException)
+                && !(realCause instanceof ManagedLedgerException.NonRecoverableLedgerException))
+                || realCause instanceof PulsarClientException.BrokerPersistenceException
+                || realCause instanceof PulsarClientException.LookupException
+                || realCause instanceof PulsarClientException.ConnectException
+                || realCause instanceof MetadataStoreException
+                || realCause instanceof BKException;
     }
 
     @Override
     public TransactionInPendingAckStats getTransactionInPendingAckStats(TxnID txnID) {
         TransactionInPendingAckStats transactionInPendingAckStats = new TransactionInPendingAckStats();
         if (cumulativeAckOfTransaction != null && cumulativeAckOfTransaction.getLeft().equals(txnID)) {
-            PositionImpl position = cumulativeAckOfTransaction.getRight();
+            Position position = cumulativeAckOfTransaction.getRight();
             StringBuilder stringBuilder = new StringBuilder()
                     .append(position.getLedgerId())
                     .append(':')
                     .append(position.getEntryId());
-            if (cumulativeAckOfTransaction.getRight().hasAckSet()) {
+            long[] positionAckSet = getAckSetArrayOrNull(position);
+            if (positionAckSet != null) {
                 BitSetRecyclable bitSetRecyclable =
-                        BitSetRecyclable.valueOf(cumulativeAckOfTransaction.getRight().getAckSet());
+                        BitSetRecyclable.valueOf(positionAckSet);
                 if (!bitSetRecyclable.isEmpty()) {
                     stringBuilder.append(":").append(bitSetRecyclable.nextSetBit(0) - 1);
                 }
@@ -970,6 +1043,11 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
             transactionInPendingAckStats.cumulativeAckPosition = stringBuilder.toString();
         }
         return transactionInPendingAckStats;
+    }
+
+    @Override
+    public PendingAckHandleStats getPendingAckHandleStats() {
+        return handleStats;
     }
 
     @Override
@@ -1018,17 +1096,17 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public PositionInPendingAckStats checkPositionInPendingAckState(PositionImpl position, Integer batchIndex) {
+    public PositionInPendingAckStats checkPositionInPendingAckState(Position position, Integer batchIndex) {
         if (!state.equals(State.Ready)) {
             return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAckNotReady);
         }
         if (persistentSubscription.getCursor().getPersistentMarkDeletedPosition() != null && position.compareTo(
-                        (PositionImpl) persistentSubscription.getCursor().getPersistentMarkDeletedPosition()) <= 0) {
+                        persistentSubscription.getCursor().getPersistentMarkDeletedPosition()) <= 0) {
             return new PositionInPendingAckStats(PositionInPendingAckStats.State.MarkDelete);
         } else if (individualAckPositions == null) {
             return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
         }
-        MutablePair<PositionImpl, Integer> positionIntegerMutablePair = individualAckPositions.get(position);
+        MutablePair<Position, Integer> positionIntegerMutablePair = individualAckPositions.get(position);
         if (positionIntegerMutablePair != null) {
             if (batchIndex == null) {
                 return new PositionInPendingAckStats(PositionInPendingAckStats.State.PendingAck);
@@ -1037,7 +1115,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                     return new PositionInPendingAckStats(PositionInPendingAckStats.State.InvalidPosition);
                 }
                 BitSetRecyclable bitSetRecyclable = BitSetRecyclable
-                        .valueOf(positionIntegerMutablePair.left.getAckSet());
+                        .valueOf(getAckSetArrayOrNull(positionIntegerMutablePair.left));
                 if (bitSetRecyclable.get(batchIndex)) {
                     bitSetRecyclable.recycle();
                     return new PositionInPendingAckStats(PositionInPendingAckStats.State.NotInPendingAck);
@@ -1052,7 +1130,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @VisibleForTesting
-    public Map<PositionImpl, MutablePair<PositionImpl, Integer>> getIndividualAckPositions() {
+    public Map<Position, MutablePair<Position, Integer>> getIndividualAckPositions() {
         return individualAckPositions;
     }
 
@@ -1062,9 +1140,9 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
-    public PositionImpl getPositionInPendingAck(PositionImpl position) {
+    public Position getPositionInPendingAck(Position position) {
         if (individualAckPositions != null) {
-            MutablePair<PositionImpl, Integer> positionPair = this.individualAckPositions.get(position);
+            MutablePair<Position, Integer> positionPair = this.individualAckPositions.get(position);
             if (positionPair != null) {
                 return positionPair.getLeft();
             }

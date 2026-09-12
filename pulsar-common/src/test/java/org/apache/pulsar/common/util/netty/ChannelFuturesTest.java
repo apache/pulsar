@@ -19,15 +19,13 @@
 package org.apache.pulsar.common.util.netty;
 
 import static org.mockito.Mockito.when;
-
 import io.netty.channel.Channel;
 import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.DefaultEventLoop;
-
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.testng.Assert;
@@ -68,9 +66,16 @@ public class ChannelFuturesTest {
         channelFuture = new DefaultChannelPromise(channel);
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test
     public void toCompletableFuture_shouldRequireNonNullArgument() {
-        ChannelFutures.toCompletableFuture(null);
+        CompletableFuture<Channel> future = ChannelFutures.toCompletableFuture(null);
+        Assert.assertTrue(future.isCompletedExceptionally());
+        try {
+            future.join();
+            Assert.fail("Expected NullPointerException");
+        } catch (CompletionException e) {
+            Assert.assertTrue(e.getCause() instanceof NullPointerException);
+        }
     }
 
     @Test

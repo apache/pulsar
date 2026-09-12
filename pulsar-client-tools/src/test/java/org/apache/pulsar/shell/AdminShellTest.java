@@ -48,13 +48,15 @@ public class AdminShellTest {
         final PulsarAdmin admin = mock(PulsarAdmin.class);
         when(builder.build()).thenReturn(admin);
         when(admin.topics()).thenReturn(mock(Topics.class));
-        adminShell.setPulsarAdminSupplier(new PulsarAdminSupplier(builder, adminShell.getRootParams()));
+        PulsarAdminSupplier pulsarAdminSupplier = adminShell.getPulsarAdminSupplier();
+        pulsarAdminSupplier.setAdminBuilder(builder);
         assertTrue(run(new String[]{"topics", "list", "public/default"}));
-        verify(builder).build();
+        verify(builder, times(1)).build();
         assertTrue(run(new String[]{"topics", "list", "public/default"}));
-        verify(builder).build();
+        verify(builder, times(1)).build();
         assertTrue(run(new String[]{"--admin-url", "http://localhost:8081",
                 "topics", "list", "public/default"}));
+        verify(builder, times(2)).build();
         assertTrue(run(new String[]{"topics", "list", "public/default"}));
         verify(builder, times(3)).build();
         assertTrue(run(new String[]{"--admin-url", "http://localhost:8080",
@@ -62,11 +64,7 @@ public class AdminShellTest {
         verify(builder, times(3)).build();
     }
 
-    private boolean run(String[] args) throws Exception {
-        try {
-            return adminShell.runCommand(args);
-        } finally {
-            adminShell.cleanupState(props);
-        }
+    private boolean run(String[] args) {
+        return adminShell.runCommand(args);
     }
 }

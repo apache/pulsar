@@ -22,7 +22,7 @@ import com.google.common.collect.Sets;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -41,7 +41,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-@Slf4j
+@CustomLog
 public class MaxMessageSizeTest {
 
     PulsarService pulsar;
@@ -54,7 +54,7 @@ public class MaxMessageSizeTest {
     @BeforeMethod
     void setup() {
         try {
-            bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+            bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
             ServerConfiguration conf = new ServerConfiguration();
             conf.setNettyMaxFrameSizeBytes(10 * 1024 * 1024 + 10 * 1024);
             bkEnsemble.startStandalone(conf, false);
@@ -91,8 +91,18 @@ public class MaxMessageSizeTest {
     @AfterMethod(alwaysRun = true)
     void shutdown() {
         try {
-            pulsar.close();
-            bkEnsemble.stop();
+            if (admin != null) {
+                admin.close();
+                admin = null;
+            }
+            if (pulsar != null) {
+                pulsar.close();
+                pulsar = null;
+            }
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } catch (Throwable t) {
             t.printStackTrace();
         }

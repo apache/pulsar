@@ -22,7 +22,7 @@ import com.github.zafarkhaja.semver.Version;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterBadVersionException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -33,7 +33,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 /**
  * Filter by broker version.
  */
-@Slf4j
+@CustomLog
 public class BrokerVersionFilter implements BrokerFilter {
 
     public static final String FILTER_NAME = "broker_version_filter";
@@ -58,11 +58,9 @@ public class BrokerVersionFilter implements BrokerFilter {
         Version latestVersion;
         try {
             latestVersion = getLatestVersionNumber(brokers);
-            if (log.isDebugEnabled()) {
-                log.debug("Latest broker version found was [{}]", latestVersion);
-            }
+            log.debug().attr("version", latestVersion).log("Latest broker version found");
         } catch (Exception ex) {
-            log.warn("Disabling PreferLaterVersions feature; reason: " + ex.getMessage());
+            log.warn().exceptionMessage(ex).log("Disabling PreferLaterVersions feature");
             return FutureUtil.failedFuture(
                     new BrokerFilterBadVersionException("Cannot determine newest broker version: " + ex.getMessage()));
         }
@@ -77,17 +75,20 @@ public class BrokerVersionFilter implements BrokerFilter {
             String version = next.getValue().brokerVersion();
             Version brokerVersionVersion = Version.valueOf(version);
             if (brokerVersionVersion.equals(latestVersion)) {
-                log.debug("Broker [{}] is running the latest version ([{}])", brokerId, version);
+                log.debug().attr("broker", brokerId).attr("version", version)
+                        .log("Broker is running the latest version");
                 numBrokersLatestVersion++;
             } else {
-                log.info("Broker [{}] is running an older version ([{}]); latest version is [{}]",
-                        brokerId, version, latestVersion);
+                log.info().attr("broker", brokerId).attr("brokerVersion", version)
+                        .attr("latestVersion", latestVersion)
+                        .log("Broker is running an older version");
                 numBrokersOlderVersion++;
                 brokerIterator.remove();
             }
         }
         if (numBrokersOlderVersion == 0) {
-            log.info("All {} brokers are running the latest version [{}]", numBrokersLatestVersion, latestVersion);
+            log.info().attr("brokerCount", numBrokersLatestVersion).attr("version", latestVersion)
+                    .log("All brokers are running the latest version");
         }
         return CompletableFuture.completedFuture(brokers);
     }
@@ -116,8 +117,8 @@ public class BrokerVersionFilter implements BrokerFilter {
             String brokerId = entry.getKey();
             String version = entry.getValue().brokerVersion();
             if (null == version || version.length() == 0) {
-                log.warn("No version string in lookup data for broker [{}]; disabling PreferLaterVersions feature",
-                        brokerId);
+                log.warn().attr("broker", brokerId)
+                        .log("No version string in lookup data for broker; disabling PreferLaterVersions feature");
                 // Trigger the load manager to reset all the brokers to the original set
                 throw new BrokerFilterBadVersionException("No version string in lookup data for broker \""
                         + brokerId + "\"");
@@ -126,9 +127,9 @@ public class BrokerVersionFilter implements BrokerFilter {
             try {
                 brokerVersionVersion = Version.valueOf(version);
             } catch (Exception x) {
-                log.warn("Invalid version string in lookup data for broker [{}]: [{}];"
-                                + " disabling PreferLaterVersions feature",
-                        brokerId, version);
+                log.warn().attr("broker", brokerId).attr("version", version)
+                        .log("Invalid version string in lookup data for broker;"
+                                + " disabling PreferLaterVersions feature");
                 // Trigger the load manager to reset all the brokers to the original set
                 throw new BrokerFilterBadVersionException("Invalid version string in lookup data for broker \""
                         + brokerId + "\": \"" + version + "\")");

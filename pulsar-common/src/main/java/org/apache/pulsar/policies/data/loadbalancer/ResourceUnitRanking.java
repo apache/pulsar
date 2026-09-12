@@ -26,7 +26,7 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
  * The class containing information about system resources, allocated quota, and loaded bundles.
  */
 @EqualsAndHashCode
-public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
+public class ResourceUnitRanking {
 
     private static final long KBITS_TO_BYTES = 1024 / 8;
     private static final double PERCENTAGE_DIFFERENCE_THRESHOLD = 5.0;
@@ -129,7 +129,13 @@ public class ResourceUnitRanking implements Comparable<ResourceUnitRanking> {
 
     }
 
-    public int compareTo(ResourceUnitRanking other) {
+    /**
+     * Compares to another ranking. Please note that this cannot be used to sort the rankings since the results
+     * of this method don't satify the contract of {@link Comparable#compareTo(Object)}
+     * @param other other ranking to compare to
+     * @return negative if this is less than other, 0 if they are equal, positive if this is greater than other
+     */
+    public int compareToOtherRanking(ResourceUnitRanking other) {
         if (Math.abs(this.estimatedLoadPercentage - other.estimatedLoadPercentage) > PERCENTAGE_DIFFERENCE_THRESHOLD) {
             return Double.compare(this.estimatedLoadPercentage, other.estimatedLoadPercentage);
         }

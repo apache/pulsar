@@ -23,19 +23,18 @@ import java.lang.reflect.InvocationTargetException;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 import java.util.function.Predicate;
+import lombok.CustomLog;
 import org.apache.commons.lang3.ClassUtils;
 import org.apache.commons.lang3.ThreadUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Cleanup Thread Local state attach to Netty's FastThreadLocal.
  *
  * This is not thread-safe, but that aspect is ignored.
  */
+@CustomLog
 public final class FastThreadLocalStateCleaner {
-    private static final Logger LOG = LoggerFactory.getLogger(FastThreadLocalStateCleaner.class);
     private static final ThreadLocal<?> SLOW_THREAD_LOCAL_MAP = lookupSlowThreadLocalMap();
     private static final Class<?> FAST_THREAD_LOCAL_CLASS;
     private static final Field THREAD_LOCAL_MAP_FIELD;
@@ -60,7 +59,7 @@ public final class FastThreadLocalStateCleaner {
                 unsetObject = unsetField.get(null);
             } catch (ClassNotFoundException | IllegalAccessException e) {
                 // ignore
-                LOG.debug("Ignoring exception", e);
+                log.debug().exception(e).log("Ignoring exception");
                 clazz = null;
                 threadLocalMapField = null;
                 indexedVariablesField = null;
@@ -83,12 +82,12 @@ public final class FastThreadLocalStateCleaner {
             if (slowThreadLocalMapField != null) {
                 return (ThreadLocal<?>) slowThreadLocalMapField.get(null);
             } else {
-                LOG.warn("Cannot find InternalThreadLocalMap.slowThreadLocalMap field."
+                log.warn("Cannot find InternalThreadLocalMap.slowThreadLocalMap field."
                         + " This might be due to using an unsupported netty-common version.");
                 return null;
             }
         } catch (IllegalAccessException | ClassNotFoundException e) {
-            LOG.warn("Cannot find InternalThreadLocalMap.slowThreadLocalMap thread local", e);
+            log.warn().exception(e).log("Cannot find InternalThreadLocalMap.slowThreadLocalMap thread local");
             return null;
         }
     }
@@ -122,7 +121,7 @@ public final class FastThreadLocalStateCleaner {
                 }
             }
         } catch (IllegalAccessException | InvocationTargetException e) {
-            LOG.warn("Cannot reset state for FastLocalThread {}", thread, e);
+            log.warn().attr("thread", thread).exception(e).log("Cannot reset state for FastLocalThread");
         }
     }
 

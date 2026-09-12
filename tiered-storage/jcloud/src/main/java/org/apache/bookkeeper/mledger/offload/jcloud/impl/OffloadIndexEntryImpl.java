@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
+import java.util.Objects;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 
 /**
@@ -64,6 +65,20 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry {
     public String toString() {
         return String.format("[eid:%d, part:%d, offset:%d, doffset:%d]",
                 entryId, partId, offset, getDataOffset());
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (!(o instanceof OffloadIndexEntryImpl that)) {
+            return false;
+        }
+        return entryId == that.entryId && partId == that.partId && offset == that.offset
+                && blockHeaderSize == that.blockHeaderSize;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(entryId, partId, offset, blockHeaderSize);
     }
 }
 

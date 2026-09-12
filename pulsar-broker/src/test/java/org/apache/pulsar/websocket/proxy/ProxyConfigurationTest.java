@@ -68,7 +68,7 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
         config.setServiceUrl("http://localhost:8080");
         config.getProperties().setProperty("brokerClient_lookupTimeoutMs", "100");
         WebSocketService service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
                 .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         service.start();
 

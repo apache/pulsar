@@ -25,6 +25,8 @@ import java.util.Optional;
  * For backwards compatibility purposes.
  */
 public interface ServiceLookupData {
+    String getBrokerId();
+
     String getWebServiceUrl();
 
     String getWebServiceUrlTls();

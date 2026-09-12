@@ -20,10 +20,10 @@ package org.apache.pulsar.broker.web;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import javax.servlet.ServletContext;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Feature;
-import javax.ws.rs.core.FeatureContext;
+import jakarta.servlet.ServletContext;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Feature;
+import jakarta.ws.rs.core.FeatureContext;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.glassfish.jersey.server.ResourceConfig;

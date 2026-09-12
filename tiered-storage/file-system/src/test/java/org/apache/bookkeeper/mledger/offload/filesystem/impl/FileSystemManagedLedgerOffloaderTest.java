@@ -19,6 +19,16 @@
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import java.io.IOException;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
+import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
@@ -33,20 +43,12 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.pulsar.common.naming.TopicName;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
-    private final PulsarMockBookKeeper bk;
+    private PulsarMockBookKeeper bk;
     private String managedLedgerName = "public/default/persistent/testOffload";
     private String topicName = TopicName.fromPersistenceNamingEncoding(managedLedgerName);
     private String storagePath = createStoragePath(managedLedgerName);
@@ -55,20 +57,30 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     private final int numberOfEntries = 601;
     private  Map<String, String> map = new HashMap<>();
 
-    public FileSystemManagedLedgerOffloaderTest() throws Exception {
+    @Override
+    public void init() throws Exception {
+        super.init();
         this.bk = new PulsarMockBookKeeper(scheduler);
         this.toWrite = buildReadHandle();
         map.put("ManagedLedgerName", managedLedgerName);
     }
 
+    @Override
+    public void cleanup() throws IOException {
+        if (bk != null) {
+            bk.shutdown();
+        }
+        super.cleanup();
+    }
+
     private ReadHandle buildReadHandle() throws Exception {
 
-        lh = bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
+        lh = bk.createLedger(1, 1, 1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
 
         int i = 0;
         int blocksWritten = 1;
         while (blocksWritten <= numberOfEntries) {
-            byte[] entry = ("foobar"+i).getBytes();
+            byte[] entry = ("foobar" + i).getBytes();
             blocksWritten++;
             lh.addEntry(entry);
             i++;
@@ -85,6 +97,12 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         super.start();
     }
 
+    @AfterMethod(alwaysRun = true)
+    @Override
+    public void tearDown() throws Exception {
+        super.tearDown();
+    }
+
     @Test
     public void testOffloadAndRead() throws Exception {
         LedgerOffloader offloader = fileSystemManagedLedgerOffloader;
@@ -93,10 +111,10 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, map).get();
         assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
         LedgerEntries toTestEntries = toTest.read(0, numberOfEntries - 1);
-        LedgerEntries toWriteEntries = toWrite.read(0,numberOfEntries - 1);
+        LedgerEntries toWriteEntries = toWrite.read(0, numberOfEntries - 1);
         Iterator<LedgerEntry> toTestIter = toTestEntries.iterator();
         Iterator<LedgerEntry> toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
@@ -105,11 +123,13 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
             assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
             assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
         }
+        toTestEntries.close();
+        toWriteEntries.close();
         toTestEntries = toTest.read(1, numberOfEntries - 1);
-        toWriteEntries = toWrite.read(1,numberOfEntries - 1);
+        toWriteEntries = toWrite.read(1, numberOfEntries - 1);
         toTestIter = toTestEntries.iterator();
         toWriteIter = toWriteEntries.iterator();
-        while(toTestIter.hasNext()) {
+        while (toTestIter.hasNext()) {
             LedgerEntry toWriteEntry = toWriteIter.next();
             LedgerEntry toTestEntry = toTestIter.next();
 
@@ -118,6 +138,8 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
             assertEquals(toWriteEntry.getLength(), toTestEntry.getLength());
             assertEquals(toWriteEntry.getEntryBuffer(), toTestEntry.getEntryBuffer());
         }
+        toTestEntries.close();
+        toWriteEntries.close();
     }
 
     @Test
@@ -138,6 +160,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         while (toTestIter.hasNext()) {
             LedgerEntry toTestEntry = toTestIter.next();
         }
+        toTestEntries.close();
 
         assertTrue(offloaderStats.getReadOffloadError(topicName) == 0);
         assertTrue(offloaderStats.getReadOffloadBytes(topicName) > 0);
@@ -151,10 +174,11 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, map).get();
         Configuration configuration = new Configuration();
+        @Cleanup
         FileSystem fileSystem = FileSystem.get(new URI(getURI()), configuration);
         assertTrue(fileSystem.exists(new Path(createDataFilePath(storagePath, lh.getId(), uuid))));
         assertTrue(fileSystem.exists(new Path(createIndexFilePath(storagePath, lh.getId(), uuid))));
-        offloader.deleteOffloaded(lh.getId(), uuid, map);
+        offloader.deleteOffloaded(lh.getId(), uuid, map).get();
         assertFalse(fileSystem.exists(new Path(createDataFilePath(storagePath, lh.getId(), uuid))));
         assertFalse(fileSystem.exists(new Path(createIndexFilePath(storagePath, lh.getId(), uuid))));
     }

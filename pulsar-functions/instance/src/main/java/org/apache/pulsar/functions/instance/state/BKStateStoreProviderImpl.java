@@ -27,7 +27,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.api.StorageClient;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.clients.StorageClientBuilder;
@@ -45,20 +45,19 @@ import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
 import org.apache.bookkeeper.stream.proto.StorageType;
 import org.apache.bookkeeper.stream.proto.StreamConfiguration;
 import org.apache.pulsar.functions.api.StateStore;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
 /**
  * The state store provider that provides bookkeeper table backed state stores.
  */
-@Slf4j
+@CustomLog
 public class BKStateStoreProviderImpl implements StateStoreProvider {
 
     private String stateStorageServiceUrl;
     private Map<String, StorageClient> clients;
 
     @Override
-    public void init(Map<String, Object> config, FunctionDetails functionDetails) throws Exception {
+    public void init(Map<String, Object> config) throws Exception {
         stateStorageServiceUrl = (String) config.get(STATE_STORAGE_SERVICE_URL);
         clients = new HashMap<>();
     }
@@ -102,11 +101,10 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
         try (StorageAdminClient storageAdminClient = new SimpleStorageAdminClientImpl(
              StorageClientSettings.newBuilder().serviceUri(stateStorageServiceUrl).build(),
              ClientResources.create().scheduler())){
-            StreamConfiguration streamConf = StreamConfiguration.newBuilder(DEFAULT_STREAM_CONF)
+            StreamConfiguration streamConf = new StreamConfiguration().copyFrom(DEFAULT_STREAM_CONF)
                 .setInitialNumRanges(4)
                 .setMinNumRanges(4)
-                .setStorageType(StorageType.TABLE)
-                .build();
+                .setStorageType(StorageType.TABLE);
             Stopwatch elapsedWatch = Stopwatch.createStarted();
 
             Exception lastException = null;
@@ -116,14 +114,17 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                     return;
                 } catch (NamespaceNotFoundException nnfe) {
                     try {
-                        result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
-                                .setDefaultStreamConf(streamConf)
-                                .build()));
+                        NamespaceConfiguration nsConf = new NamespaceConfiguration();
+                        nsConf.setDefaultStreamConf().copyFrom(streamConf);
+                        result(storageAdminClient.createNamespace(tableNs, nsConf));
                     } catch (Exception e) {
                         // there might be two clients conflicting at creating table, so let's retrieve the table again
                         // to make sure the table is created.
                         lastException = e;
-                        log.warn("Encountered exception when creating namespace {} for state table", tableName, e);
+                        log.warn()
+                                .attr("tableName", tableName)
+                                .exception(e)
+                                .log("Encountered exception when creating namespace for state table");
                     }
                     try {
                         result(storageAdminClient.createStream(tableNs, tableName, streamConf));
@@ -131,7 +132,11 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                         // there might be two clients conflicting at creating table, so let's retrieve the table again
                         // to make sure the table is created.
                         lastException = e;
-                        log.warn("Encountered exception when creating table {}/{}", tableNs, tableName, e);
+                        log.warn()
+                                .attr("tableNs", tableNs)
+                                .attr("tableName", tableName)
+                                .exception(e)
+                                .log("Encountered exception when creating table");
                     }
                 } catch (StreamNotFoundException snfe) {
                     try {
@@ -140,12 +145,17 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                         // there might be two client conflicting at creating table, so let's retrieve it to make
                         // sure the table is created.
                         lastException = e;
-                        log.warn("Encountered exception when creating table {}/{}", tableNs, tableName, e);
+                        log.warn()
+                                .attr("tableNs", tableNs)
+                                .attr("tableName", tableName)
+                                .exception(e)
+                                .log("Encountered exception when creating table");
                     }
                 } catch (ClientException ce) {
-                    log.warn(
-                            "Encountered issue {} on fetching state stable metadata, re-attempting in 100 milliseconds",
-                            ce.getMessage());
+                    log.warn()
+                            .attr("message", ce.getMessage())
+                            .log("Encountered issue on fetching state stable metadata,"
+                                    + " re-attempting in 100 milliseconds");
                     TimeUnit.MILLISECONDS.sleep(100);
                 }
             }
@@ -160,7 +170,11 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                                                    String name) throws Exception {
         StorageClient client = getStorageClient(tenant, namespace);
 
-        log.info("Opening state table for function {}/{}/{}", tenant, namespace, name);
+        log.info()
+                .attr("tenant", tenant)
+                .attr("namespace", namespace)
+                .attr("name", name)
+                .log("Opening state table for function");
         // NOTE: this is a workaround until we bump bk version to 4.9.0
         // table might just be created above, so it might not be ready for serving traffic
         Stopwatch openSw = Stopwatch.createStarted();
@@ -168,10 +182,13 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
             try {
                 return result(client.openTable(name), 1, TimeUnit.MINUTES);
             } catch (InternalServerException ise) {
-                log.warn(
-                        "Encountered internal server on opening state table '{}/{}/{}', "
-                                + " re-attempt in 100 milliseconds : {}",
-                        tenant, namespace, name, ise.getMessage());
+                log.warn()
+                        .attr("tenant", tenant)
+                        .attr("namespace", namespace)
+                        .attr("name", name)
+                        .attr("message", ise.getMessage())
+                        .log("Encountered internal server on opening state table,"
+                                + " re-attempt in 100 milliseconds");
                 TimeUnit.MILLISECONDS.sleep(100);
             } catch (TimeoutException e) {
                 throw new RuntimeException(
@@ -182,6 +199,7 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
         throw new IOException("Failed to open state table for function " + tenant + "/" + namespace + "/" + name);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends StateStore> T getStateStore(String tenant, String namespace, String name) throws Exception {
         // we defer creation of the state table until a java instance is running here.
@@ -191,10 +209,43 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
     }
 
     @Override
+    public void cleanUp(String tenant, String namespace, String name) throws Exception {
+        StorageAdminClient storageAdminClient = new SimpleStorageAdminClientImpl(
+                StorageClientSettings.newBuilder().serviceUri(stateStorageServiceUrl).build(),
+                ClientResources.create().scheduler());
+        String tableNs = FunctionCommon.getStateNamespace(tenant, namespace);
+        storageAdminClient.deleteStream(tableNs, name).whenComplete((res, throwable) -> {
+            if ((throwable == null && res)
+                    || ((throwable instanceof NamespaceNotFoundException
+                    || throwable instanceof StreamNotFoundException))) {
+                log.info()
+                        .attr("tableNs", tableNs)
+                        .attr("name", name)
+                        .log("Table deleted successfully");
+            } else {
+                if (throwable != null) {
+                    log.error()
+                            .attr("tableNs", tableNs)
+                            .attr("name", name)
+                            .exception(throwable)
+                            .log("Table deletion failed but moving on");
+                } else {
+                    log.error()
+                            .attr("tableNs", tableNs)
+                            .attr("name", name)
+                            .log("Table deletion failed but moving on");
+                }
+            }
+        });
+        storageAdminClient.close();
+    }
+
+
+    @Override
     public void close() {
         clients.forEach((name, client) -> client.closeAsync()
             .exceptionally(cause -> {
-                log.warn("Failed to close state storage client", cause);
+                log.warn().exception(cause).log("Failed to close state storage client");
                 return null;
             })
         );

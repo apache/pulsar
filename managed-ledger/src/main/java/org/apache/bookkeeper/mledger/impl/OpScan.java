@@ -23,16 +23,16 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ScanCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.ScanOutcome;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.PositionBound;
 
-@Slf4j
+@CustomLog
 class OpScan implements ReadEntriesCallback {
     private final ManagedCursorImpl cursor;
     private final ManagedLedgerImpl ledger;
@@ -44,11 +44,11 @@ class OpScan implements ReadEntriesCallback {
     private final long startTime = System.currentTimeMillis();
     private final int batchSize;
 
-    PositionImpl searchPosition;
+    Position searchPosition;
     Position lastSeenPosition = null;
 
     public OpScan(ManagedCursorImpl cursor, int batchSize,
-                  PositionImpl startPosition, Predicate<Entry> condition,
+                  Position startPosition, Predicate<Entry> condition,
                   ScanCallback callback, Object ctx, long maxEntries, long timeOutMs) {
         this.batchSize = batchSize;
         if (batchSize <= 0) {
@@ -69,38 +69,32 @@ class OpScan implements ReadEntriesCallback {
         try {
             Position lastPositionForBatch = entries.get(entries.size() - 1).getPosition();
             lastSeenPosition = lastPositionForBatch;
-            // filter out the entry if it has been already deleted
-            // filterReadEntries will call entry.release if the entry is filtered out
-            List<Entry> entriesFiltered = this.cursor.filterReadEntries(entries);
-            int skippedEntries = entries.size() - entriesFiltered.size();
-            remainingEntries.addAndGet(-skippedEntries);
-            if (!entriesFiltered.isEmpty()) {
-                for (Entry entry : entriesFiltered) {
-                    if (remainingEntries.decrementAndGet() <= 0) {
-                        log.warn("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
-                        callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
-                        return;
-                    }
-                    if (!condition.test(entry)) {
-                        log.warn("[{}] Scan abort due to user code", OpScan.this.cursor);
-                        callback.scanComplete(lastSeenPosition, ScanOutcome.USER_INTERRUPTED, OpScan.this.ctx);
-                        return;
-                    }
+            for (Entry entry : entries) {
+                if (remainingEntries.getAndDecrement() <= 0) {
+                    log.info().attr("cursor", OpScan.this.cursor).log("Scan abort after reading too many entries");
+                    callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
+                    return;
+                }
+                if (!condition.test(entry)) {
+                    log.info().attr("cursor", OpScan.this.cursor).log("Scan abort due to user code");
+                    callback.scanComplete(lastSeenPosition, ScanOutcome.USER_INTERRUPTED, OpScan.this.ctx);
+                    return;
                 }
             }
-            searchPosition = ledger.getPositionAfterN((PositionImpl) lastPositionForBatch, 1,
+            searchPosition = ledger.getPositionAfterN(lastPositionForBatch, 1,
                     PositionBound.startExcluded);
-            if (log.isDebugEnabled()) {
-                log.debug("readEntryComplete {} at {} next is {}", lastPositionForBatch, searchPosition);
-            }
+            log.debug().attr("cursor", OpScan.this.cursor)
+                    .attr("lastPosition", lastPositionForBatch)
+                    .attr("nextPosition", searchPosition)
+                    .log("readEntryComplete");
 
-            if (searchPosition.compareTo((PositionImpl) lastPositionForBatch) == 0) {
+            if (searchPosition.compareTo(lastPositionForBatch) == 0) {
                 // we have reached the end of the ledger, as we are not doing progress
                 callback.scanComplete(lastSeenPosition, ScanOutcome.COMPLETED, OpScan.this.ctx);
                 return;
             }
         } catch (Throwable t) {
-            log.error("Unhandled error", t);
+            log.error().exception(t).log("Unhandled error");
             callback.scanFailed(ManagedLedgerException.getManagedLedgerException(t),
                     Optional.ofNullable(lastSeenPosition), OpScan.this.ctx);
             return;
@@ -117,18 +111,18 @@ class OpScan implements ReadEntriesCallback {
 
     public void find() {
         if (remainingEntries.get() <= 0) {
-            log.warn("[{}] Scan abort after reading too many entries", OpScan.this.cursor);
+            log.info().attr("cursor", OpScan.this.cursor).log("Scan abort after reading too many entries");
             callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
             return;
         }
         if (System.currentTimeMillis() - startTime > timeOutMs) {
-            log.warn("[{}] Scan abort after hitting the deadline", OpScan.this.cursor);
+            log.info().attr("cursor", OpScan.this.cursor).log("Scan abort after hitting the deadline");
             callback.scanComplete(lastSeenPosition, ScanOutcome.ABORTED, OpScan.this.ctx);
             return;
         }
         if (cursor.hasMoreEntries(searchPosition)) {
             OpReadEntry opReadEntry = OpReadEntry.create(cursor, searchPosition, batchSize,
-            this, OpScan.this.ctx, null, null);
+            this, OpScan.this.ctx, null, null, false);
             ledger.asyncReadEntries(opReadEntry);
         } else {
             callback.scanComplete(lastSeenPosition, ScanOutcome.COMPLETED, OpScan.this.ctx);

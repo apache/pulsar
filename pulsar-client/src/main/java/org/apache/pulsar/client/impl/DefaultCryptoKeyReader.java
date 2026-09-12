@@ -22,17 +22,15 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URLConnection;
 import java.util.Map;
+import lombok.CustomLog;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.url.URL;
 import org.apache.pulsar.client.impl.conf.DefaultCryptoKeyReaderConfigurationData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class DefaultCryptoKeyReader implements CryptoKeyReader {
-
-    private static final Logger LOG = LoggerFactory.getLogger(DefaultCryptoKeyReader.class);
 
     private static final String APPLICATION_X_PEM_FILE = "application/x-pem-file";
 
@@ -59,12 +57,12 @@ public class DefaultCryptoKeyReader implements CryptoKeyReader {
         String publicKey = publicKeys.getOrDefault(keyName, defaultPublicKey);
 
         if (publicKey == null) {
-            LOG.warn("Public key named {} is not set", keyName);
+            log.warn().attr("keyName", keyName).log("Public key is not set");
         } else {
             try {
                 keyInfo.setKey(loadKey(publicKey));
             } catch (Exception e) {
-                LOG.error("Failed to load public key named {}", keyName, e);
+                log.error().attr("keyName", keyName).exception(e).log("Failed to load public key");
             }
         }
 
@@ -77,12 +75,12 @@ public class DefaultCryptoKeyReader implements CryptoKeyReader {
         String privateKey = privateKeys.getOrDefault(keyName, defaultPrivateKey);
 
         if (privateKey == null) {
-            LOG.warn("Private key named {} is not set", keyName);
+            log.warn().attr("keyName", keyName).log("Private key is not set");
         } else {
             try {
                 keyInfo.setKey(loadKey(privateKey));
             } catch (Exception e) {
-                LOG.error("Failed to load private key named {}", keyName, e);
+                log.error().attr("keyName", keyName).exception(e).log("Failed to load private key");
             }
         }
 

@@ -45,6 +45,7 @@ public class ConsumerConfig {
     private Map<String, String> consumerProperties = new HashMap<>();
     private Integer receiverQueueSize;
     private CryptoConfig cryptoConfig;
+    private MessagePayloadProcessorConfig messagePayloadProcessorConfig;
     private boolean poolMessages;
 
     public ConsumerConfig(String schemaType) {

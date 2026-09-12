@@ -20,10 +20,10 @@ package org.apache.pulsar.common.functions;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Worker information.
@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor
 @ToString
-@Slf4j
+@CustomLog
 public class WorkerInfo {
     private String workerId;
     private String workerHostname;
@@ -55,7 +55,7 @@ public class WorkerInfo {
 
             return new WorkerInfo(workerId, workerHostname, port);
         } catch (NumberFormatException nfe) {
-            log.warn("Invalid worker info : {}", str);
+            log.warn().attr("workerInfo", str).log("Invalid worker info");
             throw nfe;
         }
     }

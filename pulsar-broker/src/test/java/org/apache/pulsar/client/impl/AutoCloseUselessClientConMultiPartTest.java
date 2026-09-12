@@ -34,17 +34,17 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-impl")
 public class AutoCloseUselessClientConMultiPartTest extends AutoCloseUselessClientConSupports {
 
-    private static String topicName = UUID.randomUUID().toString().replaceAll("-","");
-    private static String topicFullName = "persistent://public/default/" + topicName;
+    private static final String TOPIC_NAME = UUID.randomUUID().toString().replaceAll("-", "");
+    private static final String TOPIC_FULL_NAME = "persistent://public/default/" + TOPIC_NAME;
 
     @BeforeMethod
     public void before() throws PulsarAdminException {
         // Create Topics
-        PulsarAdmin pulsarAdmin_0 = super.getAllAdmins().get(0);
-        List<String> topicList = pulsarAdmin_0.topics().getList("public/default");
-        if (!topicList.contains(topicName) && !topicList.contains(topicFullName + "-partition-0")
-                && !topicList.contains(topicFullName)){
-            pulsarAdmin_0.topics().createPartitionedTopic(topicFullName, 2);
+        PulsarAdmin pulsarAdmin0 = super.getAllAdmins().get(0);
+        List<String> topicList = pulsarAdmin0.topics().getList("public/default");
+        if (!topicList.contains(TOPIC_NAME) && !topicList.contains(TOPIC_FULL_NAME + "-partition-0")
+                && !topicList.contains(TOPIC_FULL_NAME)){
+            pulsarAdmin0.topics().createPartitionedTopic(TOPIC_FULL_NAME, 2);
         }
     }
 
@@ -53,11 +53,11 @@ public class AutoCloseUselessClientConMultiPartTest extends AutoCloseUselessClie
         // Init clients
         PulsarClientImpl pulsarClient = (PulsarClientImpl) super.getAllClients().get(0);
         Consumer consumer = pulsarClient.newConsumer()
-                .topic(topicName)
+                .topic(TOPIC_NAME)
                 .subscriptionName("my-subscription-x")
                 .subscribe();
         Producer producer = pulsarClient.newProducer()
-                .topic(topicName)
+                .topic(TOPIC_NAME)
                 .create();
         // Ensure producer and consumer works
         ensureProducerAndConsumerWorks(producer, consumer);
@@ -70,7 +70,7 @@ public class AutoCloseUselessClientConMultiPartTest extends AutoCloseUselessClie
             // When consumer reconnect failure, create a new one.
             consumer.close();
             consumer = pulsarClient.newConsumer(Schema.BYTES)
-                    .topic(topicName)
+                    .topic(TOPIC_NAME)
                     .isAckReceiptEnabled(true)
                     .subscriptionName("my-subscription-x")
                     .subscribe();
@@ -82,7 +82,7 @@ public class AutoCloseUselessClientConMultiPartTest extends AutoCloseUselessClie
             // When producer reconnect failure, create a new one.
             producer.close();
             producer = pulsarClient.newProducer(Schema.BYTES)
-                    .topic(topicName)
+                    .topic(TOPIC_NAME)
                     .create();
         }
         // Assert "auto release works"

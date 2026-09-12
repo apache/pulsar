@@ -20,6 +20,12 @@ package org.apache.pulsar.tests.integration.cli;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
 import org.apache.pulsar.tests.integration.containers.ProxyContainer;
@@ -28,12 +34,6 @@ import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.messaging.TopicMessagingBase;
 import org.testng.annotations.Test;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class ClientToolTest extends TopicMessagingBase {
 
@@ -69,7 +69,8 @@ public class ClientToolTest extends TopicMessagingBase {
         return IntStream.range(0, MESSAGE_COUNT).mapToObj(i -> randomName(10)).collect(Collectors.toList());
     }
 
-    private void produce(ChaosContainer<?> container, String url, String topic, List<String> messages) throws Exception {
+    private void produce(ChaosContainer<?> container, String url, String topic, List<String> messages)
+            throws Exception {
         ContainerExecResult result = container.execCmd("bin/pulsar-client", "--url", url, "produce", topic,
                 "-m", String.join(",", messages));
         if (result.getExitCode() != 0) {
@@ -86,13 +87,14 @@ public class ClientToolTest extends TopicMessagingBase {
                     + "\nError output:\n" + result.getStderr());
         }
         String output = result.getStdout();
-        Pattern message = Pattern.compile("----- got message -----\nkey:\\[null\\], properties:\\[\\], content:(.*)");
+        Pattern message = Pattern.compile(
+                "----- got message -----\npublishTime:\\[(.*)\\], eventTime:\\[(.*)\\], key:\\[null\\], "
+                        + "properties:\\[\\], content:(.*)");
         Matcher matcher = message.matcher(output);
         List<String> received = new ArrayList<>(MESSAGE_COUNT);
         while (matcher.find()) {
-            received.add(matcher.group(1));
+            received.add(matcher.group(3));
         }
         return received;
     }
-
 }

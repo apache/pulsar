@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.tests;
 
+import java.util.List;
+import lombok.CustomLog;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.testng.ITestClass;
 
 /**
  * Cleanup Mockito's Thread Local state that leaks memory
@@ -30,8 +31,8 @@ import org.slf4j.LoggerFactory;
  * Separate forks {@code testForkCount > 1} controlled with Maven Surefire is the recommended solution
  * for parallel test execution and that is fine.
  */
+@CustomLog
 public class MockitoCleanupListener extends BetweenTestClassesListenerAdapter {
-    private static final Logger LOG = LoggerFactory.getLogger(MockitoCleanupListener.class);
     private static final boolean MOCKITO_CLEANUP_ENABLED = Boolean.parseBoolean(
             System.getProperty("testMockitoCleanup", "true"));
 
@@ -39,11 +40,11 @@ public class MockitoCleanupListener extends BetweenTestClassesListenerAdapter {
             "Cleaning up Mockito's ThreadSafeMockingProgress.MOCKING_PROGRESS_PROVIDER thread local state.";
 
     @Override
-    protected void onBetweenTestClasses(Class<?> endedTestClass, Class<?> startedTestClass) {
+    protected void onBetweenTestClasses(List<ITestClass> testClasses) {
         if (MOCKITO_CLEANUP_ENABLED) {
             try {
                 if (MockitoThreadLocalStateCleaner.INSTANCE.isEnabled()) {
-                    LOG.info(MOCKITO_CLEANUP_INFO);
+                    log.info(MOCKITO_CLEANUP_INFO);
                     MockitoThreadLocalStateCleaner.INSTANCE.cleanup();
                 }
             } finally {

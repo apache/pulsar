@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.packages.management.core.common;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.net.UrlEscapers;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
@@ -107,6 +109,18 @@ public class PackageName {
             String.format("%s://%s/%s/%s@%s", type.toString(), tenant, namespace, name, version);
     }
 
+    @VisibleForTesting
+    PackageName(PackageType type, String tenant, String namespace, String name, String version) {
+        this.type = type;
+        this.tenant = tenant;
+        this.namespace = namespace;
+        this.name = name;
+        this.version = version;
+        this.completeName = String.format("%s/%s/%s", tenant, namespace, name);
+        this.completePackageName =
+                String.format("%s://%s/%s/%s@%s", type.toString(), tenant, namespace, name, version);
+    }
+
     public PackageType getPkgType() {
         return this.type;
     }
@@ -136,7 +150,14 @@ public class PackageName {
     }
 
     public String toRestPath() {
-        return String.format("%s/%s/%s/%s/%s", type, tenant, namespace, name, version);
+        // Use Guava's URL path segment escaper to safely encode each segment and prevent path traversal (CWE-22).
+        var escaper = UrlEscapers.urlPathSegmentEscaper();
+        return String.format("%s/%s/%s/%s/%s",
+                type.toString(),
+                escaper.escape(tenant),
+                escaper.escape(namespace),
+                escaper.escape(name),
+                escaper.escape(version));
     }
 
     @Override

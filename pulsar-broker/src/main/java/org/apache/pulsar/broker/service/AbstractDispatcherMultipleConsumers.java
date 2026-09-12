@@ -24,10 +24,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.persistent.PersistentStickyKeyDispatcherMultipleConsumers;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -35,7 +32,8 @@ import org.slf4j.LoggerFactory;
 public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDispatcher {
 
     protected final CopyOnWriteArrayList<Consumer> consumerList = new CopyOnWriteArrayList<>();
-    protected final ObjectSet<Consumer> consumerSet = new ObjectHashSet<>();
+    private final ObjectHashSet<Consumer> consumerSetImpl = new ObjectHashSet<>();
+    protected final ObjectSet<Consumer> consumerSet = consumerSetImpl;
     protected volatile int currentConsumerRoundRobinIndex = 0;
 
     protected static final int FALSE = 0;
@@ -61,6 +59,18 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
         return consumerList.size() == 1 && consumerSet.contains(consumer);
     }
 
+    /**
+     * Checks whether the exact Consumer instance is still connected.
+     *
+     * <p>This differs from {@link ObjectSet#contains(Object)}, which uses {@link Consumer#equals(Object)} and can
+     * match a replacement Consumer that reuses the same protocol identity.
+     * The caller must hold the dispatcher monitor while checking membership and acting on the result.
+     */
+    protected final boolean containsConsumerInstance(Consumer consumer) {
+        int index = consumerSetImpl.indexOf(consumer);
+        return consumerSetImpl.indexExists(index) && consumerSetImpl.indexGet(index) == consumer;
+    }
+
     public boolean isClosed() {
         return isClosed == TRUE;
     }
@@ -71,6 +81,10 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
 
     public abstract boolean isConsumerAvailable(Consumer consumer);
 
+    /**
+     * Cancel a possible pending read that is a Managed Cursor waiting to be notified for more entries.
+     * This won't cancel any other pending reads that are currently in progress.
+     */
     protected void cancelPendingRead() {}
 
     /**
@@ -238,8 +252,5 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
         }
         return -1;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PersistentStickyKeyDispatcherMultipleConsumers.class);
-
 
 }

@@ -22,14 +22,17 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -40,7 +43,7 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 @Getter
 @ToString
 @EqualsAndHashCode
-@Slf4j
+@CustomLog
 public class TopKBundles {
 
     // temp array for sorting
@@ -66,14 +69,27 @@ public class TopKBundles {
     public void update(Map<String, NamespaceBundleStats> bundleStats, int topk) {
         arr.clear();
         try {
+            var conf = pulsar.getConfiguration();
             var isLoadBalancerSheddingBundlesWithPoliciesEnabled =
-                    pulsar.getConfiguration().isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+                    conf.isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+            Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
             for (var etr : bundleStats.entrySet()) {
                 String bundle = etr.getKey();
-                if (bundle.startsWith(NamespaceName.SYSTEM_NAMESPACE.toString())) {
+                var stat = etr.getValue();
+
+                // skip zero traffic bundles
+                if (stat.msgThroughputIn + stat.msgThroughputOut == 0) {
+                    continue;
+                }
+                // TODO: do not filter system topic while shedding
+                String namespace = NamespaceBundle.getBundleNamespace(bundle);
+                if (NamespaceService.isSystemServiceNamespace(namespace)) {
                     continue;
                 }
                 if (!isLoadBalancerSheddingBundlesWithPoliciesEnabled && hasPolicies(bundle)) {
+                    continue;
+                }
+                if (sheddingExcludedNamespaces.contains(namespace)) {
                     continue;
                 }
                 arr.add(etr);
@@ -96,7 +112,8 @@ public class TopKBundles {
         }
     }
 
-    static void partitionSort(List<Map.Entry<String, ? extends Comparable>> arr, int k) {
+    @SuppressWarnings("unchecked")
+    public static void partitionSort(List<Map.Entry<String, ? extends Comparable>> arr, int k) {
         int start = 0;
         int end = arr.size() - 1;
         int target = k - 1;
@@ -145,7 +162,7 @@ public class TopKBundles {
                 return true;
             }
         } catch (MetadataStoreException e) {
-            log.error("Failed to get localPolicies for bundle:{}.", bundle, e);
+            log.error().attr("bundle", bundle).exception(e).log("Failed to get localPolicies for bundle");
             throw new RuntimeException(e);
         }
         return false;

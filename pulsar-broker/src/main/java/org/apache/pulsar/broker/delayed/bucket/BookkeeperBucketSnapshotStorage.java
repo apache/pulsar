@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.delayed.bucket;
 
-import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
@@ -28,8 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.validation.constraints.NotNull;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -39,10 +38,12 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
+import org.apache.pulsar.broker.delayed.proto.SnapshotSegmentMetadata;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.jspecify.annotations.NonNull;
 
-@Slf4j
+@CustomLog
 public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
 
     private static final byte[] LedgerPassword = "".getBytes();
@@ -107,7 +108,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                 pulsar.getIoEventLoopGroup(),
                 Optional.empty(),
                 null
-        );
+        ).get();
     }
 
     @Override
@@ -135,13 +136,18 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         return FutureUtil.waitForAll(addFutures);
     }
 
-    private SnapshotMetadata parseSnapshotMetadataEntry(LedgerEntry ledgerEntry) {
+    @VisibleForTesting
+    public SnapshotMetadata parseSnapshotMetadataEntry(LedgerEntry ledgerEntry) {
         ByteBuf entryBuffer = null;
         try {
             entryBuffer = ledgerEntry.getEntryBuffer();
-            return SnapshotMetadata.parseFrom(entryBuffer.nioBuffer());
-        } catch (InvalidProtocolBufferException e) {
-            throw new BucketSnapshotSerializationException(e);
+            SnapshotMetadata metadata = new SnapshotMetadata();
+            metadata.parseFrom(entryBuffer, entryBuffer.readableBytes());
+            for (int i = 0; i < metadata.getMetadataListCount(); i++) {
+                SnapshotSegmentMetadata segment = metadata.getMetadataAt(i);
+                segment.forEachDelayedIndexBitMap(segment::putDelayedIndexBitMap);
+            }
+            return metadata;
         } finally {
             if (entryBuffer != null) {
                 entryBuffer.release();
@@ -165,24 +171,28 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         return snapshotMetadataList;
     }
 
-    @NotNull
+    @NonNull
     private CompletableFuture<LedgerHandle> createLedger(String bucketKey, String topicName, String cursorName) {
         CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
         Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey,
                 topicName, cursorName);
-        bookKeeper.asyncCreateLedger(
-                config.getManagedLedgerDefaultEnsembleSize(),
-                config.getManagedLedgerDefaultWriteQuorum(),
-                config.getManagedLedgerDefaultAckQuorum(),
-                BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
-                LedgerPassword,
-                (rc, handle, ctx) -> {
-                    if (rc != BKException.Code.OK) {
-                        future.completeExceptionally(bkException("Create ledger", rc, -1));
+        bookKeeper.newCreateLedgerOp()
+                .withEnsembleSize(config.getManagedLedgerDefaultEnsembleSize())
+                .withWriteQuorumSize(config.getManagedLedgerDefaultWriteQuorum())
+                .withAckQuorumSize(config.getManagedLedgerDefaultAckQuorum())
+                .withDigestType(config.getManagedLedgerDigestType())
+                .withPassword(LedgerPassword)
+                .withCustomMetadata(metadata)
+                .withLoggerContext(log.with().attr("topic", topicName).attr("cursor", cursorName).build())
+                .execute()
+                .whenComplete((writeHandle, ex) -> {
+                    if (ex != null) {
+                        future.completeExceptionally(bkException("Create ledger",
+                                BKException.getExceptionCode(ex), -1));
                     } else {
-                        future.complete(handle);
+                        future.complete((LedgerHandle) writeHandle);
                     }
-                }, null, metadata);
+                });
         return future;
     }
 
@@ -205,12 +215,15 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
                 BookKeeper.DigestType.fromApiDigestType(config.getManagedLedgerDigestType()),
                 LedgerPassword,
                 (rc, handle, ctx) -> {
-                    if (rc != BKException.Code.OK) {
+                    if (rc == BKException.Code.NoSuchLedgerExistsException) {
+                        // If the ledger does not exist, throw BucketNotExistException
+                        future.completeExceptionally(noSuchLedgerException("Open ledger", ledgerId));
+                    } else if (rc != BKException.Code.OK) {
                         future.completeExceptionally(bkException("Open ledger", rc, ledgerId));
                     } else {
                         future.complete(handle);
                     }
-                }, null
+                }, null, true
         );
         return future;
     }
@@ -219,7 +232,7 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         CompletableFuture<Void> future = new CompletableFuture<>();
         ledgerHandle.asyncClose((rc, handle, ctx) -> {
             if (rc != BKException.Code.OK) {
-                log.warn("Failed to close a Ledger Handle: {}", ledgerHandle.getId());
+                log.warn().attr("handle", ledgerHandle.getId()).log("Failed to close a Ledger Handle");
                 future.completeExceptionally(bkException("Close ledger", rc, ledgerHandle.getId()));
             } else {
                 future.complete(null);
@@ -265,10 +278,11 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     private CompletableFuture<Void> deleteLedger(long ledgerId) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         bookKeeper.asyncDeleteLedger(ledgerId, (int rc, Object cnx) -> {
-            if (rc != BKException.Code.OK) {
-                future.completeExceptionally(bkException("Delete ledger", rc, ledgerId));
-            } else {
+            if (rc == BKException.Code.NoSuchLedgerExistsException || rc == BKException.Code.OK) {
+                // If the ledger does not exist or has been deleted, we can treat it as success
                 future.complete(null);
+            } else  {
+                future.completeExceptionally(bkException("Delete ledger", rc, ledgerId));
             }
         }, null);
         return future;
@@ -278,5 +292,11 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
         String message = BKException.getMessage(rc)
                 + " -  ledger=" + ledgerId + " - operation=" + operation;
         return new BucketSnapshotPersistenceException(message);
+    }
+
+    private static BucketNotExistException noSuchLedgerException(String operation, long ledgerId) {
+        String message = BKException.getMessage(BKException.Code.NoSuchLedgerExistsException)
+                + " - ledger=" + ledgerId + " - operation=" + operation;
+        return new BucketNotExistException(message);
     }
 }

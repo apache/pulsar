@@ -1,0 +1,34 @@
+# CA Private Key
+openssl ecparam -name secp256r1 -genkey  -out ca.key.pem
+# Request certificate
+openssl req -x509 -new -nodes -key ca.key.pem -subj "/CN=CARoot" -days 3650 -out ca.cert.pem
+
+# Server Private Key
+openssl ecparam -name secp256r1 -genkey  -out server.key.pem
+# Convert to pkcs8
+openssl pkcs8 -topk8 -inform PEM -outform PEM -in server.key.pem -out server.key-pk8.pem -nocrypt
+# Request certificate  
+openssl req -new -config server.conf -key server.key.pem -out server.csr.pem -sha256
+# Sign with CA
+openssl x509 -req -in server.csr.pem -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -out server.cert.pem -days 3650 -extensions v3_ext -extfile server.conf -sha256
+
+# Broker internal client Private Key
+openssl ecparam -name secp256r1 -genkey  -out broker_client.key.pem
+# Convert to pkcs8
+openssl pkcs8 -topk8 -inform PEM -outform PEM -in broker_client.key.pem -out broker_client.key-pk8.pem -nocrypt
+# Request certificate
+openssl req -new -subj "/CN=broker_client" -key broker_client.key.pem -out broker_client.csr.pem -sha256
+# Sign with CA
+openssl x509 -req -in broker_client.csr.pem -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -out broker_client.cert.pem -days 3650 -sha256
+
+
+# Client Private Key
+openssl ecparam -name secp256r1 -genkey  -out client.key.pem
+# Convert to pkcs8
+openssl pkcs8 -topk8 -inform PEM -outform PEM -in client.key.pem -out client.key-pk8.pem -nocrypt
+# Request certificate
+openssl req -new -subj "/CN=client" -key client.key.pem -out client.csr.pem -sha256
+# Sign with CA
+openssl x509 -req -in client.csr.pem -CA ca.cert.pem -CAkey ca.key.pem -CAcreateserial -out client.cert.pem -days 3650 -sha256
+
+

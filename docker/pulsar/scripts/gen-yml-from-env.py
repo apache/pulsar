@@ -50,6 +50,9 @@ SET_KEYS = [
     'brokerClientTlsProtocols',
     'webServiceTlsCiphers',
     'webServiceTlsProtocols',
+    'additionalJavaRuntimeArguments',
+    'additionalEnabledConnectorUrlPatterns',
+    'additionalEnabledFunctionsUrlPatterns'
 ]
 
 PF_ENV_PREFIX = 'PF_'

@@ -23,18 +23,23 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.stats.JvmMetrics.getJvmDirectMemoryUsed;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
+import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
 import io.prometheus.client.hotspot.DefaultExports;
+import jakarta.servlet.Servlet;
+import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.util.datetime.FixedDateFormat;
@@ -42,7 +47,12 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletUtils;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -51,59 +61,77 @@ import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.proxy.stats.ProxyStats;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
+import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
-import org.eclipse.jetty.proxy.ProxyServlet;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.jetty.ee10.proxy.ProxyServlet;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee10.websocket.server.config.JettyWebSocketServletContainerInitializer;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 /**
  * Starts an instance of the Pulsar ProxyService.
  */
+@CustomLog
+@Command(name = "proxy", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class ProxyServiceStarter {
 
-    @Parameter(names = { "-c", "--config" }, description = "Configuration file path", required = true)
+    @Option(names = { "-c", "--config" }, description = "Configuration file path", required = true)
     private String configFile;
 
     @Deprecated
-    @Parameter(names = { "-zk", "--zookeeper-servers" },
+    @Option(names = { "-zk", "--zookeeper-servers" },
             description = "Local zookeeper connection string, please use --metadata-store instead")
     private String zookeeperServers = "";
-    @Parameter(names = { "-md", "--metadata-store" }, description = "Metadata Store service url. eg: zk:my-zk:2181")
+    @Option(names = { "-md", "--metadata-store" }, description = "Metadata Store service url. eg: zk:my-zk:2181")
     private String metadataStoreUrl = "";
 
     @Deprecated
-    @Parameter(names = { "-gzk", "--global-zookeeper-servers" },
+    @Option(names = { "-gzk", "--global-zookeeper-servers" },
             description = "Global zookeeper connection string, please use --configuration-metadata-store instead")
     private String globalZookeeperServers = "";
 
     @Deprecated
-    @Parameter(names = { "-cs", "--configuration-store-servers" },
+    @Option(names = { "-cs", "--configuration-store-servers" },
                     description = "Configuration store connection string, "
                             + "please use --configuration-metadata-store instead")
     private String configurationStoreServers = "";
-    @Parameter(names = { "-cms", "--configuration-metadata-store" },
+    @Option(names = { "-cms", "--configuration-metadata-store" },
             description = "The metadata store URL for the configuration data")
     private String configurationMetadataStoreUrl = "";
 
-    @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+    @Option(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
-    @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+    @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
     private boolean generateDocs = false;
 
     private ProxyConfiguration config;
 
     @Getter
+    private Authentication proxyClientAuthentication;
+
+    @Getter
     private ProxyService proxyService;
 
     private WebServer server;
+    private WebSocketService webSocketService;
     private static boolean metricsInitialized;
+    private boolean embeddedMode;
 
     public ProxyServiceStarter(String[] args) throws Exception {
+        this(args, null, false);
+    }
+
+    @SuppressWarnings("deprecation")
+    public ProxyServiceStarter(String[] args, Consumer<ProxyConfiguration> proxyConfigurationCustomizer,
+                               boolean embeddedMode) throws Exception {
+        this.embeddedMode = embeddedMode;
         try {
             DateFormat dateFormat = new SimpleDateFormat(
                 FixedDateFormat.FixedFormat.ISO8601_OFFSET_DATE_TIME_HHMM.getPattern());
@@ -113,28 +141,38 @@ public class ProxyServiceStarter {
                 exception.printStackTrace(System.out);
             });
 
-            JCommander jcommander = new JCommander();
+            CommandLine commander = new CommandLine(this);
             try {
-                jcommander.addObject(this);
-                jcommander.parse(args);
+                commander.parseArgs(args);
                 if (help || isBlank(configFile)) {
-                    jcommander.usage();
+                    commander.usage(commander.getOut());
                     return;
                 }
 
                 if (this.generateDocs) {
                     CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-                    cmd.addCommand("proxy", this);
+                    cmd.addCommand("proxy", commander);
                     cmd.run(null);
-                    System.exit(0);
+                    if (embeddedMode) {
+                        return;
+                    } else {
+                        System.exit(0);
+                    }
                 }
             } catch (Exception e) {
-                jcommander.usage();
-                System.exit(1);
+                commander.getErr().println(e);
+                if (embeddedMode) {
+                    return;
+                } else {
+                    System.exit(1);
+                }
             }
 
             // load config file
             config = PulsarConfigurationLoader.create(configFile, ProxyConfiguration.class);
+            if (proxyConfigurationCustomizer != null) {
+                proxyConfigurationCustomizer.accept(config);
+            }
 
             if (!isBlank(zookeeperServers)) {
                 // Use zookeeperServers from command line
@@ -159,11 +197,28 @@ public class ProxyServiceStarter {
             if (isNotBlank(config.getBrokerServiceURL())) {
                 checkArgument(config.getBrokerServiceURL().startsWith("pulsar://"),
                         "brokerServiceURL must start with pulsar://");
+                ensureUrlNotContainsComma("brokerServiceURL", config.getBrokerServiceURL());
             }
-
             if (isNotBlank(config.getBrokerServiceURLTLS())) {
                 checkArgument(config.getBrokerServiceURLTLS().startsWith("pulsar+ssl://"),
                         "brokerServiceURLTLS must start with pulsar+ssl://");
+                ensureUrlNotContainsComma("brokerServiceURLTLS", config.getBrokerServiceURLTLS());
+            }
+
+            if (isNotBlank(config.getBrokerWebServiceURL())) {
+                ensureUrlNotContainsComma("brokerWebServiceURL", config.getBrokerWebServiceURL());
+            }
+            if (isNotBlank(config.getBrokerWebServiceURLTLS())) {
+                ensureUrlNotContainsComma("brokerWebServiceURLTLS", config.getBrokerWebServiceURLTLS());
+            }
+
+            if (isNotBlank(config.getFunctionWorkerWebServiceURL())) {
+                ensureUrlNotContainsComma("functionWorkerWebServiceURLTLS",
+                        config.getFunctionWorkerWebServiceURL());
+            }
+            if (isNotBlank(config.getFunctionWorkerWebServiceURLTLS())) {
+                ensureUrlNotContainsComma("functionWorkerWebServiceURLTLS",
+                        config.getFunctionWorkerWebServiceURLTLS());
             }
 
             if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
@@ -179,9 +234,14 @@ public class ProxyServiceStarter {
             }
 
         } catch (Exception e) {
-            log.error("Failed to start pulsar proxy service. error msg " + e.getMessage(), e);
+            log.error().exception(e).log("Failed to start pulsar proxy service");
             throw new PulsarServerException(e);
         }
+    }
+
+    private void ensureUrlNotContainsComma(String paramName, String paramValue) {
+        checkArgument(!paramValue.contains(","), paramName + " does not support multi urls yet,"
+                + " it should point to the discovery service provider.");
     }
 
     public static void main(String[] args) throws Exception {
@@ -189,7 +249,7 @@ public class ProxyServiceStarter {
         try {
             serviceStarter.start();
         } catch (Throwable t) {
-            log.error("Failed to start proxy.", t);
+            log.error().exception(t).log("Failed to start proxy.");
             ShutdownUtil.triggerImmediateForcefulShutdown();
         }
     }
@@ -197,38 +257,82 @@ public class ProxyServiceStarter {
     public void start() throws Exception {
         AuthenticationService authenticationService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(config));
-        // create proxy service
-        proxyService = new ProxyService(config, authenticationService);
-        // create a web-service
-        server = new WebServer(config, authenticationService);
 
-        Runtime.getRuntime().addShutdownHook(new Thread(this::close));
+        if (config.getBrokerClientAuthenticationPlugin() != null) {
+            proxyClientAuthentication = AuthenticationFactory.create(config.getBrokerClientAuthenticationPlugin(),
+                    config.getBrokerClientAuthenticationParameters());
+            Objects.requireNonNull(proxyClientAuthentication, "No supported auth found for proxy");
+            try {
+                proxyClientAuthentication.start();
+            } catch (Exception e) {
+                try {
+                    proxyClientAuthentication.close();
+                } catch (IOException ioe) {
+                    log.error().exception(ioe).log("Failed to close the authentication service");
+                }
+                throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
+            }
+        } else {
+            proxyClientAuthentication = AuthenticationDisabled.INSTANCE;
+        }
+
+        // create proxy service
+        proxyService = new ProxyService(config, authenticationService, proxyClientAuthentication);
+        // create a web-service (PIP-478: share the proxy's OpenTelemetry root so the WEB-purpose TLS factory
+        // emits pulsar.tls.reload instead of a no-op)
+        server = new WebServer(config, authenticationService, proxyService.getOpenTelemetry().getOpenTelemetry());
+
+        if (!embeddedMode) {
+            Runtime.getRuntime().addShutdownHook(new Thread(this::close));
+        }
 
         proxyService.start();
 
         if (!metricsInitialized) {
             // Setup metrics
             DefaultExports.initialize();
+            CollectorRegistry registry = CollectorRegistry.defaultRegistry;
 
             // Report direct memory from Netty counters
-            Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
-                @Override
-                public double get() {
-                    return getJvmDirectMemoryUsed();
-                }
-            }).register(CollectorRegistry.defaultRegistry);
+            Collector jvmMemoryDirectBytesUsed =
+                    Gauge.build("jvm_memory_direct_bytes_used", "-").create().setChild(new Child() {
+                        @Override
+                        public double get() {
+                            return getJvmDirectMemoryUsed();
+                        }
+                    });
+            try {
+                registry.register(jvmMemoryDirectBytesUsed);
+            } catch (IllegalArgumentException e) {
+                // workaround issue in tests where the metric is already registered
+                log.debug()
+                        .exceptionMessage(e)
+                        .log("Failed to register jvm_memory_direct_bytes_used");
+            }
 
-            Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
-                @Override
-                public double get() {
-                    return DirectMemoryUtils.jvmMaxDirectMemory();
-                }
-            }).register(CollectorRegistry.defaultRegistry);
+            Collector jvmMemoryDirectBytesMax =
+                    Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
+                        @Override
+                        public double get() {
+                            return DirectMemoryUtils.jvmMaxDirectMemory();
+                        }
+                    });
+            try {
+                registry.register(jvmMemoryDirectBytesMax);
+            } catch (IllegalArgumentException e) {
+                // workaround issue in tests where the metric is already registered
+                log.debug()
+                        .exceptionMessage(e)
+                        .log("Failed to register jvm_memory_direct_bytes_max");
+            }
 
             metricsInitialized = true;
         }
 
-        addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider());
+        AtomicReference<WebSocketService> webSocketServiceRef = new AtomicReference<>();
+        addWebServerHandlers(server, config, proxyService, proxyService.getDiscoveryProvider(), webSocketServiceRef,
+                proxyClientAuthentication);
+        webSocketService = webSocketServiceRef.get();
 
         // start web-service
         server.start();
@@ -242,34 +346,67 @@ public class ProxyServiceStarter {
             if (server != null) {
                 server.stop();
             }
+            if (webSocketService != null) {
+                webSocketService.close();
+            }
+            if (proxyClientAuthentication != null) {
+                proxyClientAuthentication.close();
+            }
         } catch (Exception e) {
-            log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
+            log.warn()
+                    .exception(e)
+                    .log("server couldn't stop gracefully");
         } finally {
-            LogManager.shutdown();
+            if (!embeddedMode) {
+                LogManager.shutdown();
+            }
         }
     }
 
     public static void addWebServerHandlers(WebServer server,
-                                     ProxyConfiguration config,
-                                     ProxyService service,
-                                     BrokerDiscoveryProvider discoveryProvider) throws Exception {
-        if (service != null) {
-            PrometheusMetricsServlet metricsServlet = service.getMetricsServlet();
-            if (metricsServlet != null) {
-                server.addServlet("/metrics", new ServletHolder(metricsServlet),
-                        Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
+                                            ProxyConfiguration config,
+                                            ProxyService service,
+                                            BrokerDiscoveryProvider discoveryProvider,
+                                            Authentication proxyClientAuthentication) throws Exception {
+        addWebServerHandlers(server, config, service, discoveryProvider, null, proxyClientAuthentication);
+    }
+
+    public static void addWebServerHandlers(WebServer server,
+                                            ProxyConfiguration config,
+                                            ProxyService service,
+                                            BrokerDiscoveryProvider discoveryProvider,
+                                            AtomicReference<WebSocketService> webSocketServiceRef,
+                                            Authentication proxyClientAuthentication) throws Exception {
+        // We can make 'status.html' publicly accessible without authentication since
+        // it does not contain any sensitive data.
+        server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(),
+                VipStatus.class, false);
+        if (config.isEnableProxyStatsEndpoints()) {
+            server.addRestResource("/proxy-stats", ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service,
+                    ProxyStats.class);
+            if (service != null) {
+                PrometheusMetricsServlet metricsServlet = service.getMetricsServlet();
+                if (metricsServlet != null) {
+                    server.addServlet("/metrics", new ServletHolder(metricsServlet),
+                            Collections.emptyList(), config.isAuthenticateMetricsEndpoint());
+                }
             }
         }
-        server.addRestResource("/", VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath(), VipStatus.class);
-        server.addRestResource("/proxy-stats", ProxyStats.ATTRIBUTE_PULSAR_PROXY_NAME, service, ProxyStats.class);
 
-        AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider);
+        // PIP-478: thread the proxy's OpenTelemetry root so the admin handler's BROKER_CLIENT TLS factory
+        // emits pulsar.tls.reload (no-op when no ProxyService is available, e.g. in tests).
+        io.opentelemetry.api.OpenTelemetry telemetryRoot = service != null
+                ? service.getOpenTelemetry().getOpenTelemetry() : io.opentelemetry.api.OpenTelemetry.noop();
+        AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider,
+                proxyClientAuthentication, telemetryRoot);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
         server.addServlet("/admin", servletHolder);
         server.addServlet("/lookup", servletHolder);
 
         for (ProxyConfiguration.HttpReverseProxyConfig revProxy : config.getHttpReverseProxyConfigs()) {
-            log.debug("Adding reverse proxy with config {}", revProxy);
+            log.debug()
+                    .attr("revProxy", revProxy)
+                    .log("Adding reverse proxy with config");
             ServletHolder proxyHolder = new ServletHolder(ProxyServlet.Transparent.class);
             proxyHolder.setInitParameter("proxyTo", revProxy.getProxyTo());
             proxyHolder.setInitParameter("prefix", "/");
@@ -282,9 +419,31 @@ public class ProxyServiceStarter {
                     service.getProxyAdditionalServlets().getServlets().values();
             for (AdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
                 servletWithClassLoader.loadConfig(config);
-                server.addServlet(servletWithClassLoader.getBasePath(), servletWithClassLoader.getServletHolder(),
+                // Legacy javax.servlet handlers are adapted to jakarta.servlet so that every additional servlet
+                // is registered in the same Jetty environment and goes through the proxy filter chain (PIP-472).
+                Servlet servlet;
+                try {
+                    servlet = AdditionalServletUtils.toJakartaServlet(servletWithClassLoader);
+                } catch (IllegalArgumentException e) {
+                    log.error()
+                            .attr("servletWithClassLoader", servletWithClassLoader)
+                            .exception(e)
+                            .log("AdditionalServletWithClassLoader has an unusable servlet instance. Skipping.");
+                    try {
+                        servletWithClassLoader.close();
+                    } catch (Exception closeException) {
+                        log.error()
+                                .attr("servletWithClassLoader", servletWithClassLoader)
+                                .exception(closeException)
+                                .log("Failed to close servlet");
+                    }
+                    continue;
+                }
+                server.addServlet(servletWithClassLoader.getBasePath(), new ServletHolder(servlet),
                         Collections.emptyList(), config.isAuthenticationEnabled());
-                log.info("proxy add additional servlet basePath {} ", servletWithClassLoader.getBasePath());
+                log.info()
+                        .attr("servletWithClassLoader", servletWithClassLoader.getBasePath())
+                        .log("proxy add additional servlet basePath");
             }
         }
 
@@ -295,24 +454,29 @@ public class ProxyServiceStarter {
             serviceConfiguration.setBrokerClientTlsEnabled(config.isTlsEnabledWithBroker());
             WebSocketService webSocketService = new WebSocketService(createClusterData(config), serviceConfiguration);
             webSocketService.start();
-            final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
-            server.addServlet(WebSocketProducerServlet.SERVLET_PATH,
-                    new ServletHolder(producerWebSocketServlet));
-            server.addServlet(WebSocketProducerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(producerWebSocketServlet));
+            if (webSocketServiceRef != null) {
+                webSocketServiceRef.set(webSocketService);
+            }
+            final JettyWebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
+            addWebSocketServlet(server, WebSocketProducerServlet.SERVLET_PATH, producerWebSocketServlet);
 
-            final WebSocketServlet consumerWebSocketServlet = new WebSocketConsumerServlet(webSocketService);
-            server.addServlet(WebSocketConsumerServlet.SERVLET_PATH,
-                    new ServletHolder(consumerWebSocketServlet));
-            server.addServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
-                    new ServletHolder(consumerWebSocketServlet));
+            final JettyWebSocketServlet consumerWebSocketServlet = new WebSocketConsumerServlet(webSocketService);
+            addWebSocketServlet(server, WebSocketConsumerServlet.SERVLET_PATH, consumerWebSocketServlet);
 
-            final WebSocketServlet readerWebSocketServlet = new WebSocketReaderServlet(webSocketService);
-            server.addServlet(WebSocketReaderServlet.SERVLET_PATH,
-                    new ServletHolder(readerWebSocketServlet));
-            server.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
-                    new ServletHolder(readerWebSocketServlet));
+            final JettyWebSocketServlet readerWebSocketServlet = new WebSocketReaderServlet(webSocketService);
+            addWebSocketServlet(server, WebSocketReaderServlet.SERVLET_PATH, readerWebSocketServlet);
+
+            final WebSocketMultiTopicConsumerServlet multiTopicConsumerWebSocketServlet =
+                    new WebSocketMultiTopicConsumerServlet(webSocketService);
+            addWebSocketServlet(server, WebSocketMultiTopicConsumerServlet.SERVLET_PATH,
+                    multiTopicConsumerWebSocketServlet);
         }
+    }
+
+    private static void addWebSocketServlet(WebServer server, String servletPath,
+                                            JettyWebSocketServlet producerWebSocketServlet) {
+        JettyWebSocketServletContainerInitializer.configure(server.addServlet(servletPath,
+                new ServletHolder(producerWebSocketServlet)), null);
     }
 
     private static ClusterData createClusterData(ProxyConfiguration config) {
@@ -342,7 +506,5 @@ public class ProxyServiceStarter {
     public WebServer getServer() {
         return server;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyServiceStarter.class);
 
 }

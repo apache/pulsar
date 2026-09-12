@@ -23,14 +23,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.ToString;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Class working with file's modified time.
  */
+@CustomLog
 @ToString
 public class FileModifiedTimeUpdater {
     @Getter
@@ -49,7 +49,7 @@ public class FileModifiedTimeUpdater {
             try {
                 return Files.getLastModifiedTime(p);
             } catch (IOException e) {
-                LOG.error("Unable to fetch lastModified time for file {}: ", fileName, e);
+                log.error().attr("file", fileName).exception(e).log("Unable to fetch lastModified time for file");
             }
         }
         return null;
@@ -64,5 +64,4 @@ public class FileModifiedTimeUpdater {
         return false;
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(FileModifiedTimeUpdater.class);
 }

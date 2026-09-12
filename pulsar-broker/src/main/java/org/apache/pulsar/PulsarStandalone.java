@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar;
 
+import static org.apache.commons.io.FileUtils.cleanDirectory;
 import static org.apache.pulsar.common.naming.NamespaceName.SYSTEM_NAMESPACE;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
-import com.beust.jcommander.Parameter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.internal.PlatformDependent;
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
@@ -52,8 +53,12 @@ import org.apache.pulsar.metadata.bookkeeper.BKCluster;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.packages.management.storage.filesystem.FileSystemPackagesStorageProvider;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
-@Slf4j
+@CustomLog
+@Command(name = "standalone", showDefaultValues = true, scope = ScopeType.INHERIT)
 public class PulsarStandalone implements AutoCloseable {
 
     private static final String PULSAR_STANDALONE_USE_ZOOKEEPER = "PULSAR_STANDALONE_USE_ZOOKEEPER";
@@ -77,10 +82,6 @@ public class PulsarStandalone implements AutoCloseable {
 
     public void setBkEnsemble(LocalBookkeeperEnsemble bkEnsemble) {
         this.bkEnsemble = bkEnsemble;
-    }
-
-    public void setBkPort(int bkPort) {
-        this.bkPort = bkPort;
     }
 
     public void setBkDir(String bkDir) {
@@ -167,10 +168,6 @@ public class PulsarStandalone implements AutoCloseable {
         return zkPort;
     }
 
-    public int getBkPort() {
-        return bkPort;
-    }
-
     public String getZkDir() {
         return zkDir;
     }
@@ -211,64 +208,62 @@ public class PulsarStandalone implements AutoCloseable {
         return help;
     }
 
-    @Parameter(names = { "-c", "--config" }, description = "Configuration file path")
+    @Option(names = { "-c", "--config" }, description = "Configuration file path")
     private String configFile;
 
-    @Parameter(names = { "--wipe-data" }, description = "Clean up previous ZK/BK data")
+    @Option(names = { "--wipe-data" }, description = "Clean up previous ZK/BK data")
     private boolean wipeData = false;
 
-    @Parameter(names = { "--num-bookies" }, description = "Number of local Bookies")
+    @Option(names = { "--num-bookies" }, description = "Number of local Bookies")
     private int numOfBk = 1;
 
-    @Parameter(names = { "--metadata-dir" },
+    @Option(names = { "--metadata-dir" },
             description = "Directory for storing metadata")
     private String metadataDir = "data/metadata";
 
-    @Parameter(names = { "--metadata-url" },
+    @Option(names = { "--metadata-url" },
             description = "Metadata store url")
     private String metadataStoreUrl = "";
 
-    @Parameter(names = {"--zookeeper-port"}, description = "Local zookeeper's port",
+    @Option(names = {"--zookeeper-port"}, description = "Local zookeeper's port",
             hidden = true)
     private int zkPort = 2181;
 
-    @Parameter(names = { "--bookkeeper-port" }, description = "Local bookies base port")
-    private int bkPort = 3181;
-
-    @Parameter(names = { "--zookeeper-dir" },
+    @Option(names = { "--zookeeper-dir" },
             description = "Local zooKeeper's data directory",
             hidden = true)
     private String zkDir = "data/standalone/zookeeper";
 
-    @Parameter(names = { "--bookkeeper-dir" }, description = "Local bookies base data directory")
+    @Option(names = { "--bookkeeper-dir" }, description = "Local bookies base data directory")
     private String bkDir = "data/standalone/bookkeeper";
 
-    @Parameter(names = { "--no-broker" }, description = "Only start ZK and BK services, no broker")
+    @Option(names = { "--no-broker" }, description = "Only start ZK and BK services, no broker")
     private boolean noBroker = false;
 
-    @Parameter(names = { "--only-broker" }, description = "Only start Pulsar broker service (no ZK, BK)")
+    @Option(names = { "--only-broker" }, description = "Only start Pulsar broker service (no ZK, BK)")
     private boolean onlyBroker = false;
 
-    @Parameter(names = {"-nfw", "--no-functions-worker"}, description = "Run functions worker with Broker")
+    @Option(names = {"-nfw", "--no-functions-worker"}, description = "Run functions worker with Broker")
     private boolean noFunctionsWorker = false;
 
-    @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
+    @Option(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
     private String fnWorkerConfigFile = "conf/functions_worker.yml";
 
-    @Parameter(names = {"-nss", "--no-stream-storage"}, description = "Disable stream storage")
+    @Option(names = {"-nss", "--no-stream-storage"}, description = "Disable stream storage")
     private boolean noStreamStorage = false;
 
-    @Parameter(names = { "--stream-storage-port" }, description = "Local bookies stream storage port")
+    @Option(names = { "--stream-storage-port" }, description = "Local bookies stream storage port")
     private int streamStoragePort = 4181;
 
-    @Parameter(names = { "-a", "--advertised-address" }, description = "Standalone broker advertised address")
+    @Option(names = { "-a", "--advertised-address" }, description = "Standalone broker advertised address")
     private String advertisedAddress = null;
 
-    @Parameter(names = { "-h", "--help" }, description = "Show this help message")
+    @Option(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
 
     private boolean usingNewDefaultsPIP117;
 
+    @SuppressWarnings("deprecation")
     public void start() throws Exception {
         if (config == null) {
             log.error("Failed to load configuration");
@@ -345,7 +340,7 @@ public class PulsarStandalone implements AutoCloseable {
         broker = new PulsarService(config,
                 workerConfig,
                 Optional.ofNullable(fnWorkerService),
-                PulsarStandalone::processTerminator);
+                this::processTerminator);
         broker.start();
 
         final String cluster = config.getClusterName();
@@ -393,7 +388,12 @@ public class PulsarStandalone implements AutoCloseable {
                 admin.namespaces().createNamespace(ns.toString(), config.getDefaultNumberOfNamespaceBundles());
             }
         } catch (PulsarAdminException e) {
-            log.error("Failed to create namespace {} on cluster {} and tenant {}", ns, cluster, publicTenant, e);
+            log.error()
+                    .attr("namespace", ns)
+                    .attr("cluster", cluster)
+                    .attr("tenant", publicTenant)
+                    .exception(e)
+                    .log("Failed to create namespace on cluster and tenant");
         }
     }
 
@@ -417,21 +417,25 @@ public class PulsarStandalone implements AutoCloseable {
         try {
             if (fnWorkerService != null) {
                 fnWorkerService.stop();
+                fnWorkerService = null;
             }
 
             if (broker != null) {
                 broker.close();
+                broker = null;
             }
 
             if (bkCluster != null) {
                 bkCluster.close();
+                bkCluster = null;
             }
 
             if (bkEnsemble != null) {
                 bkEnsemble.stop();
+                bkEnsemble = null;
             }
         } catch (Exception e) {
-            log.error("Shutdown failed: {}", e.getMessage(), e);
+            log.error().exception(e).log("Shutdown failed");
         }
     }
 
@@ -439,9 +443,14 @@ public class PulsarStandalone implements AutoCloseable {
     void startBookieWithMetadataStore() throws Exception {
         if (StringUtils.isBlank(metadataStoreUrl)){
             log.info("Starting BK with RocksDb metadata store");
-            metadataStoreUrl = "rocksdb://" + Paths.get(metadataDir).toAbsolutePath();
+            Path metadataDirPath = Paths.get(metadataDir);
+            metadataStoreUrl = "rocksdb://" + metadataDirPath.toAbsolutePath();
+            if (wipeData && Files.exists(metadataDirPath)) {
+                log.info().attr("metadataStoreUrl", metadataStoreUrl).log("Wiping RocksDb metadata store");
+                cleanDirectory(metadataDirPath.toFile());
+            }
         } else {
-            log.info("Starting BK with metadata store: {}", metadataStoreUrl);
+            log.info().attr("metadataStoreUrl", metadataStoreUrl).log("Starting BK with metadata store");
         }
 
         ServerConfiguration bkServerConf = new ServerConfiguration();
@@ -450,7 +459,6 @@ public class PulsarStandalone implements AutoCloseable {
         bkCluster = BKCluster.builder()
                 .baseServerConfiguration(bkServerConf)
                 .metadataServiceUri(metadataStoreUrl)
-                .bkPort(bkPort)
                 .numBookies(numOfBk)
                 .dataDir(bkDir)
                 .clearOldData(wipeData)
@@ -464,9 +472,9 @@ public class PulsarStandalone implements AutoCloseable {
         ServerConfiguration bkServerConf = new ServerConfiguration();
         bkServerConf.loadConf(new File(configFile).toURI().toURL());
         calculateCacheSize(bkServerConf);
-        // Start LocalBookKeeper
+        // Start LocalBookKeeper. Bookies bind to kernel-assigned ports.
         bkEnsemble = new LocalBookkeeperEnsemble(
-                this.getNumOfBk(), this.getZkPort(), this.getBkPort(), this.getStreamStoragePort(), this.getZkDir(),
+                this.getNumOfBk(), this.getZkPort(), this.getStreamStoragePort(), this.getZkDir(),
                 this.getBkDir(), this.isWipeData(), "127.0.0.1");
         bkEnsemble.startStandalone(bkServerConf, !this.isNoStreamStorage());
         config.setMetadataStoreUrl("zk:127.0.0.1:" + zkPort);
@@ -488,10 +496,16 @@ public class PulsarStandalone implements AutoCloseable {
         }
     }
 
-    private static void processTerminator(int exitCode) {
-        log.info("Halting standalone process with code {}", exitCode);
+    protected void processTerminator(int exitCode) {
+        log.info().attr("exitCode", exitCode).log("Halting standalone process");
         ShutdownUtil.triggerImmediateForcefulShutdown(exitCode);
     }
 
+    public String getBrokerServiceUrl() {
+        return broker.getBrokerServiceUrl();
+    }
 
+    public String getWebServiceUrl() {
+        return broker.getWebServiceAddress();
+    }
 }

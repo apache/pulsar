@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
@@ -29,7 +32,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
 
@@ -73,4 +76,29 @@ public class PulsarServiceCloseTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test(timeOut = 60_000)
+    public void testWaitUntilClosedConcurrentWithCloseAsync() throws Exception {
+        // Start closeAsync() - it initiates close and returns a future
+        CompletableFuture<Void> closeFuture = pulsar.closeAsync();
+
+        // Start waitUntilClosed() in a separate thread BEFORE close completes.
+        // This thread will enter mutex.lock() -> await() and block there,
+        // relying on signalAll() to be woken up when close finishes.
+        CompletableFuture<Void> waitFuture = CompletableFuture.runAsync(() -> {
+            try {
+                pulsar.waitUntilClosed();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+        });
+
+        try {
+            closeFuture.get(30, TimeUnit.SECONDS);
+            waitFuture.get(30, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            fail("Should not throw exception");
+        }
+        log.info("waitUntilClosed() returned successfully while closeAsync() was in progress");
+    }
 }

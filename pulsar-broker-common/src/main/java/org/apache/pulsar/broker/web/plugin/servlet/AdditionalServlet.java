@@ -20,13 +20,27 @@ package org.apache.pulsar.broker.web.plugin.servlet;
 
 import com.google.common.annotations.Beta;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-import org.eclipse.jetty.servlet.ServletHolder;
 
 /**
  * The additional servlet interface for support additional servlet.
  */
 @Beta
 public interface AdditionalServlet extends AutoCloseable {
+    /**
+     * The servlet implementation type enum.
+     * <p>
+     * {@link AdditionalServletType#JAKARTA_SERVLET} servlets implement {@code jakarta.servlet.Servlet}, the
+     * servlet API of the Jetty environment the broker and the proxy run, and are the preferred style going
+     * forward. {@link AdditionalServletType#JAVAX_SERVLET} servlets implement the legacy
+     * {@code javax.servlet.Servlet} interface and are adapted to {@code jakarta.servlet.Servlet} before they are
+     * registered, so that plugins built against the {@code javax.servlet} API keep working without
+     * recompilation. Both styles can coexist within a single broker/proxy and both go through the same filter
+     * chain. See PIP-472.
+     */
+    enum AdditionalServletType {
+        JAVAX_SERVLET,
+        JAKARTA_SERVLET
+    }
 
     /**
      * load plugin config.
@@ -43,11 +57,26 @@ public interface AdditionalServlet extends AutoCloseable {
     String getBasePath();
 
     /**
-     * Get the servlet holder.
-     *
-     * @return the servlet holder
+     * Get the servlet type that this implementation uses.
      */
-    ServletHolder getServletHolder();
+    default AdditionalServletType getServletType() {
+        return AdditionalServletType.JAVAX_SERVLET;
+    }
+
+    /**
+     * Retrieves the servlet instance for this additional servlet implementation.
+     * <p>
+     * The returned object's type must be compatible with the servlet interface class
+     * specified by the {@link AdditionalServletType} returned from {@link #getServletType()}.
+     * For example, if {@link #getServletType()} returns {@link AdditionalServletType#JAVAX_SERVLET},
+     * the returned object must implement {@code javax.servlet.Servlet}; if it returns
+     * {@link AdditionalServletType#JAKARTA_SERVLET}, the returned object must implement
+     * {@code jakarta.servlet.Servlet}.
+     * </p>
+     *
+     * @return the servlet instance implementing the appropriate servlet interface
+     */
+    Object getServletInstance();
 
     @Override
     void close();

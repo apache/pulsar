@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import com.fasterxml.jackson.databind.ObjectReader;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.loadbalance.LoadReport;
 import org.apache.pulsar.broker.loadbalance.ResourceDescription;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
@@ -28,12 +29,9 @@ import org.apache.pulsar.broker.loadbalance.ServiceRequest;
 import org.apache.pulsar.broker.loadbalance.ServiceUnit;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class PulsarLoadReportImpl implements LoadReport {
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarLoadReportImpl.class);
     public Map<ServiceUnit, ServiceRequest> requestPerServiceUnit;
     private SimpleResourceUnit resourceUnit = null;
     private PulsarResourceDescription resourceDescription = null;
@@ -73,7 +71,7 @@ public class PulsarLoadReportImpl implements LoadReport {
                     pulsarLoadReport.resourceDescription);
 
         } catch (Exception e) {
-            log.warn("Failed Parsing Load Report from JSON string", e);
+            log.warn().exception(e).log("Failed Parsing Load Report from JSON string");
         }
         return pulsarLoadReport;
     }

@@ -22,7 +22,7 @@ import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.models.V1PodSpec;
 import java.lang.reflect.Type;
 import java.util.Map;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 
 /**
@@ -33,7 +33,7 @@ import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
  */
 public class DefaultSecretsProviderConfigurator implements SecretsProviderConfigurator {
     @Override
-    public String getSecretsProviderClassName(Function.FunctionDetails functionDetails) {
+    public String getSecretsProviderClassName(FunctionDetails functionDetails) {
         switch (functionDetails.getRuntime()) {
             case JAVA:
                 return ClearTextSecretsProvider.class.getName();
@@ -47,19 +47,19 @@ public class DefaultSecretsProviderConfigurator implements SecretsProviderConfig
     }
 
     @Override
-    public Map<String, String> getSecretsProviderConfig(Function.FunctionDetails functionDetails) {
+    public Map<String, String> getSecretsProviderConfig(FunctionDetails functionDetails) {
         return null;
     }
 
     @Override
     public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
-                                                          Function.FunctionDetails functionDetails) {
+                                                          FunctionDetails functionDetails) {
         // noop
     }
 
     @Override
     public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
-                                                       Function.FunctionDetails functionDetails) {
+                                                       FunctionDetails functionDetails) {
         // noop
     }
 

@@ -17,22 +17,23 @@
 # under the License.
 #
 
-# build go lang examples first in a separate layer
+ARG PULSAR_IMAGE
+ARG GOLANG_IMAGE
 
-FROM golang:1.15.8 as pulsar-function-go
+# build go lang examples first in a separate layer
+FROM $GOLANG_IMAGE as pulsar-function-go
 
 COPY target/pulsar-function-go/ /go/src/github.com/apache/pulsar/pulsar-function-go
+COPY go-examples/exceptionFunc/ /go/src/github.com/apache/pulsar/pulsar-function-go/examples/exceptionFunc/
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go && go install ./...
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/pf && go install
 RUN cd /go/src/github.com/apache/pulsar/pulsar-function-go/examples && go install ./...
 
-# Reference pulsar-all to copy connectors from there
-FROM apachepulsar/pulsar-all:latest as pulsar-all
 
 ########################################
 ###### Main image build
 ########################################
-FROM apachepulsar/pulsar:latest
+FROM $PULSAR_IMAGE
 
 # Switch to run as the root user to simplify building container and then running
 # supervisord. Each of the pulsar components are spawned by supervisord and their
@@ -40,26 +41,15 @@ FROM apachepulsar/pulsar:latest
 # However, any processes exec'ing into the containers will run as root, by default.
 USER root
 
-# We need to define the user in order for supervisord to work correctly
-# We don't need a user defined in the public docker image, though.
-RUN adduser -u 10000 --gid 0 --disabled-login --disabled-password --gecos '' pulsar
-
-RUN rm -rf /var/lib/apt/lists/* && apt update
-
-RUN apt-get clean && apt-get update && apt-get install -y supervisor vim procps curl
+RUN apk add --no-cache supervisor procps curl jq
 
 RUN mkdir -p /var/log/pulsar && mkdir -p /var/run/supervisor/
 
-COPY conf/supervisord.conf /etc/supervisord.conf
-COPY conf/global-zk.conf conf/local-zk.conf conf/bookie.conf conf/broker.conf conf/functions_worker.conf \
-     conf/proxy.conf conf/presto_worker.conf conf/websocket.conf /etc/supervisord/conf.d/
+COPY conf /etc/supervisord/conf.d/
+RUN mv /etc/supervisord/conf.d/supervisord.conf /etc/supervisord.conf
 
-COPY scripts/init-cluster.sh scripts/run-global-zk.sh scripts/run-local-zk.sh \
-     scripts/run-bookie.sh scripts/run-broker.sh scripts/run-functions-worker.sh scripts/run-proxy.sh scripts/run-presto-worker.sh \
-     scripts/run-standalone.sh scripts/run-websocket.sh \
-     /pulsar/bin/
-
-COPY conf/presto/jvm.config /pulsar/trino/conf
+COPY scripts /pulsar/bin/
+RUN chmod a+rx /pulsar/bin/*
 
 # copy python test examples
 RUN mkdir -p /pulsar/instances/deps
@@ -69,9 +59,13 @@ COPY python-examples/exclamation.zip /pulsar/examples/python-examples/
 COPY python-examples/producer_schema.py /pulsar/examples/python-examples/
 COPY python-examples/consumer_schema.py /pulsar/examples/python-examples/
 COPY python-examples/exception_function.py /pulsar/examples/python-examples/
+RUN chmod g+rx /pulsar/examples/python-examples/
 
 # copy java test examples
 COPY target/java-test-functions.jar /pulsar/examples/
+
+# copy buildtools.jar to /pulsar/lib so that org.apache.pulsar.tests.ExtendedNettyLeakDetector can be used
+COPY target/buildtools.jar /pulsar/lib/
 
 # copy go test examples
 COPY --from=pulsar-function-go /go/bin /pulsar/examples/go-examples
@@ -83,32 +77,25 @@ COPY target/certificate-authority /pulsar/certificate-authority/
 # copy broker plugins
 COPY target/plugins/ /pulsar/examples/
 
-# Include all offloaders
-COPY --from=pulsar-all /pulsar/offloaders /pulsar/offloaders
+# Add the filesystem offloader NAR as an overlay (it is excluded from the base image, but the
+# filesystem offload integration tests require it).
+COPY target/offloaders/ /pulsar/offloaders/
 
-# Include only the connectors needed by integration tests
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-cassandra-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-debezium-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-elastic-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-hdfs*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-jdbc-postgres-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-kafka-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-rabbitmq-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-batch-data-generator-*.nar /pulsar/connectors/
-COPY --from=pulsar-all /pulsar/connectors/pulsar-io-kinesis-*.nar /pulsar/connectors/
+# Fix permissions for filesystem offloader
+RUN mkdir -p pulsar
+RUN chmod g+rwx pulsar
 
-# download Oracle JDBC driver for Oracle Debezium Connector tests
-RUN mkdir -p META-INF/bundled-dependencies
-RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/oracle/ojdbc/ojdbc8/19.3.0.0/ojdbc8-19.3.0.0.jar
-RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/oracle/ojdbc/ucp/19.3.0.0/ucp-19.3.0.0.jar
-RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/oracle/ojdbc/oraclepki/19.3.0.0/oraclepki-19.3.0.0.jar
-RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/oracle/ojdbc/osdt_cert/19.3.0.0/osdt_cert-19.3.0.0.jar
-RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/oracle/ojdbc/osdt_core/19.3.0.0/osdt_core-19.3.0.0.jar
-RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/oracle/ojdbc/simplefan/19.3.0.0/simplefan-19.3.0.0.jar
-RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/oracle/ojdbc/orai18n/19.3.0.0/orai18n-19.3.0.0.jar
-RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/oracle/ojdbc/xdb/19.3.0.0/xdb-19.3.0.0.jar
-RUN cd META-INF/bundled-dependencies && curl -sSLO https://search.maven.org/remotecontent?filepath=com/oracle/ojdbc/xmlparserv2/19.3.0.0/xmlparserv2-19.3.0.0.jar
-
-RUN jar uf connectors/pulsar-io-debezium-oracle-*.nar META-INF/bundled-dependencies/ojdbc8-19.3.0.0.jar META-INF/bundled-dependencies/ucp-19.3.0.0.jar META-INF/bundled-dependencies/oraclepki-19.3.0.0.jar META-INF/bundled-dependencies/osdt_cert-19.3.0.0.jar META-INF/bundled-dependencies/osdt_core-19.3.0.0.jar META-INF/bundled-dependencies/simplefan-19.3.0.0.jar META-INF/bundled-dependencies/orai18n-19.3.0.0.jar META-INF/bundled-dependencies/xdb-19.3.0.0.jar META-INF/bundled-dependencies/xmlparserv2-19.3.0.0.jar
+ARG INSTALL_ASYNC_PROFILER=false
+ARG ASYNC_PROFILER_VERSION=4.5
+# install async-profiler from https://github.com/async-profiler/async-profiler/releases to /opt/async-profiler
+RUN if [ "${INSTALL_ASYNC_PROFILER}" = "true" ]; then \
+    mkdir -p /opt/async-profiler \
+    && cd /opt/async-profiler \
+    && curl -L \
+    "https://github.com/async-profiler/async-profiler/releases/download/v${ASYNC_PROFILER_VERSION}/async-profiler-${ASYNC_PROFILER_VERSION}-linux-$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "x64").tar.gz" \
+    | tar -zxvf - --strip-components=1; \
+    else \
+    echo "async-profiler installation skipped"; \
+    fi
 
 CMD bash

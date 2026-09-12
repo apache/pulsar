@@ -16,70 +16,154 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.service;
 
-import java.util.concurrent.atomic.LongAdder;
+import com.google.common.annotations.VisibleForTesting;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
+import org.apache.pulsar.broker.qos.MonotonicClock;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
+import org.jctools.queues.MessagePassingQueue;
+import org.jctools.queues.MpscUnboundedArrayQueue;
 
+@CustomLog
 public class PublishRateLimiterImpl implements PublishRateLimiter {
-    protected volatile int publishMaxMessageRate = 0;
-    protected volatile long publishMaxByteRate = 0;
-    protected volatile boolean publishThrottlingEnabled = false;
-    protected volatile boolean publishRateExceeded = false;
-    protected volatile LongAdder currentPublishMsgCount = new LongAdder();
-    protected volatile LongAdder currentPublishByteCount = new LongAdder();
+    private volatile AsyncTokenBucket tokenBucketOnMessage;
+    private volatile AsyncTokenBucket tokenBucketOnByte;
+    private final MonotonicClock monotonicClock;
 
-    public PublishRateLimiterImpl(Policies policies, String clusterName) {
-        update(policies, clusterName);
+    private final MessagePassingQueue<Producer> unthrottlingQueue = new MpscUnboundedArrayQueue<>(1024);
+
+    private final AtomicInteger throttledProducersCount = new AtomicInteger(0);
+    private final AtomicBoolean processingQueuedProducers = new AtomicBoolean(false);
+
+    /**
+     * Executor used for the last {@link #scheduleUnthrottling} from this limiter (set when throttling starts).
+     * Used to schedule an immediate follow-up run after publish-rate limits change.
+     */
+    private volatile ScheduledExecutorService lastUnthrottleExecutor;
+    private final Consumer<Producer> throttleAction;
+    private final Consumer<Producer> unthrottleAction;
+
+    public PublishRateLimiterImpl(MonotonicClock monotonicClock, Consumer<Producer> throttleAction,
+                                  Consumer<Producer> unthrottleAction) {
+        this.monotonicClock = monotonicClock;
+        this.throttleAction = throttleAction;
+        this.unthrottleAction = unthrottleAction;
     }
 
-    public PublishRateLimiterImpl(PublishRate maxPublishRate) {
-        update(maxPublishRate);
-    }
-
+    /**
+     * {@inheritDoc}
+     */
     @Override
-    public void checkPublishRate() {
-        if (this.publishThrottlingEnabled && !publishRateExceeded) {
-            if (this.publishMaxByteRate > 0) {
-                long currentPublishByteRate = this.currentPublishByteCount.sum();
-                if (currentPublishByteRate > this.publishMaxByteRate) {
-                    publishRateExceeded = true;
-                    return;
+    public void handlePublishThrottling(Producer producer, int numOfMessages,
+                                        long msgSizeInBytes) {
+        boolean shouldThrottle = false;
+        AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
+        if (currentTokenBucketOnMessage != null) {
+            // consume tokens from the token bucket for messages
+            // we should throttle if it returns false since the token bucket is empty in that case
+            shouldThrottle = !currentTokenBucketOnMessage.consumeTokensAndCheckIfContainsTokens(numOfMessages);
+        }
+        AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
+        if (currentTokenBucketOnByte != null) {
+            // consume tokens from the token bucket for bytes
+            // we should throttle if it returns false since the token bucket is empty in that case
+            shouldThrottle |= !currentTokenBucketOnByte.consumeTokensAndCheckIfContainsTokens(msgSizeInBytes);
+        }
+        if (shouldThrottle) {
+            // throttle the producer by incrementing the throttle count
+            throttleAction.accept(producer);
+            // schedule decrementing the throttle count to possibly unthrottle the producer after the
+            // throttling period
+            scheduleDecrementThrottleCount(producer);
+        }
+    }
+
+    private void scheduleDecrementThrottleCount(Producer producer) {
+        // add the producer to the queue of producers to be unthrottled
+        unthrottlingQueue.offer(producer);
+        // schedule unthrottling when the throttling count is incremented to 1
+        // this is to avoid scheduling unthrottling multiple times for concurrent producers
+        if (throttledProducersCount.incrementAndGet() == 1) {
+            ScheduledExecutorService executor = producer.getCnx().getBrokerService().executor().next();
+            lastUnthrottleExecutor = executor;
+            scheduleUnthrottling(executor, calculateThrottlingDurationNanos());
+        }
+    }
+
+    /**
+     * Schedules the unthrottling operation after a throttling period.
+     *
+     * This method will usually be called only once at a time. However, in a multi-threaded environment,
+     * it's possible for concurrent threads to call this method simultaneously. This is acceptable and does not
+     * disrupt the functionality, as the method is designed to handle such scenarios gracefully.
+     *
+     * The solution avoids using locks and this nonblocking approach requires allowing concurrent calls to this method.
+     * The implementation intends to prevent skipping of scheduling as a result of a race condition, which could
+     * result in a producer never being unthrottled.
+     *
+     * The solution for skipping of scheduling is to allow 2 threads to schedule unthrottling when the throttling
+     * count is exactly 1 when unthrottleQueuedProducers checks whether there's a need to reschedule. There might
+     * be another thread that added it and also scheduled unthrottling. This is acceptable and intended for resolving
+     * the race condition.
+     *
+     * @param executor The executor service used to schedule the unthrottling operation.
+     * @param delayNanos
+     */
+    private void scheduleUnthrottling(ScheduledExecutorService executor, long delayNanos) {
+        executor.schedule(() -> this.unthrottleQueuedProducers(executor), delayNanos,
+                TimeUnit.NANOSECONDS);
+    }
+
+    private long calculateThrottlingDurationNanos() {
+        AsyncTokenBucket currentTokenBucketOnMessage = tokenBucketOnMessage;
+        long throttlingDurationNanos = 0L;
+        if (currentTokenBucketOnMessage != null) {
+            throttlingDurationNanos = currentTokenBucketOnMessage.calculateThrottlingDuration();
+        }
+        AsyncTokenBucket currentTokenBucketOnByte = tokenBucketOnByte;
+        if (currentTokenBucketOnByte != null) {
+            throttlingDurationNanos = Math.max(throttlingDurationNanos,
+                    currentTokenBucketOnByte.calculateThrottlingDuration());
+        }
+        return throttlingDurationNanos;
+    }
+
+    private void unthrottleQueuedProducers(ScheduledExecutorService executor) {
+        if (!processingQueuedProducers.compareAndSet(false, true)) {
+            // another thread is already processing unthrottling
+            return;
+        }
+        try {
+            Producer producer;
+            long throttlingDuration = 0L;
+            // unthrottle as many producers as possible while there are token available
+            while ((throttlingDuration = calculateThrottlingDurationNanos()) == 0L
+                    && (producer = unthrottlingQueue.poll()) != null) {
+                try {
+                    final Producer producerFinal = producer;
+                    producer.getCnx().execute(() -> unthrottleAction.accept(producerFinal));
+                } catch (Exception e) {
+                    log.error().attr("producer", producer).exception(e).log("Failed to unthrottle producer");
                 }
+                throttledProducersCount.decrementAndGet();
             }
-
-            if (this.publishMaxMessageRate > 0) {
-                long currentPublishMsgRate = this.currentPublishMsgCount.sum();
-                if (currentPublishMsgRate > this.publishMaxMessageRate) {
-                    publishRateExceeded = true;
-                }
+            // if there are still producers to be unthrottled, schedule unthrottling again
+            // after another throttling period
+            if (throttledProducersCount.get() > 0) {
+                scheduleUnthrottling(executor, throttlingDuration);
             }
+        } finally {
+            processingQueuedProducers.set(false);
         }
-    }
-
-    @Override
-    public void incrementPublishCount(int numOfMessages, long msgSizeInBytes) {
-        if (this.publishThrottlingEnabled) {
-            this.currentPublishMsgCount.add(numOfMessages);
-            this.currentPublishByteCount.add(msgSizeInBytes);
-        }
-    }
-
-    @Override
-    public boolean resetPublishCount() {
-        if (this.publishThrottlingEnabled) {
-            this.currentPublishMsgCount.reset();
-            this.currentPublishByteCount.reset();
-            this.publishRateExceeded = false;
-            return true;
-        }
-        return false;
-    }
-
-    @Override
-    public boolean isPublishRateExceeded() {
-        return publishRateExceeded;
     }
 
     @Override
@@ -90,27 +174,46 @@ public class PublishRateLimiterImpl implements PublishRateLimiter {
         update(maxPublishRate);
     }
 
-    public void update(PublishRate maxPublishRate) {
-        if (maxPublishRate != null
-            && (maxPublishRate.publishThrottlingRateInMsg > 0 || maxPublishRate.publishThrottlingRateInByte > 0)) {
-            this.publishThrottlingEnabled = true;
-            this.publishMaxMessageRate = Math.max(maxPublishRate.publishThrottlingRateInMsg, 0);
-            this.publishMaxByteRate = Math.max(maxPublishRate.publishThrottlingRateInByte, 0);
-        } else {
-            this.publishMaxMessageRate = 0;
-            this.publishMaxByteRate = 0;
-            this.publishThrottlingEnabled = false;
+    private void scheduleImmediateUnthrottling() {
+        ScheduledExecutorService executor = lastUnthrottleExecutor;
+        if (executor != null) {
+            scheduleUnthrottling(executor, 0L);
         }
-        resetPublishCount();
     }
 
-    @Override
-    public boolean tryAcquire(int numbers, long bytes) {
-        return false;
+    public void update(PublishRate maxPublishRate) {
+        if (maxPublishRate != null) {
+            updateTokenBuckets(maxPublishRate.publishThrottlingRateInMsg, maxPublishRate.publishThrottlingRateInByte);
+        } else {
+            updateTokenBuckets(0L, 0L);
+        }
     }
 
-    @Override
-    public void close() {
-        // no-op
+    protected void updateTokenBuckets(long publishThrottlingRateInMsg, long publishThrottlingRateInByte) {
+        if (publishThrottlingRateInMsg > 0) {
+            tokenBucketOnMessage =
+                    AsyncTokenBucket.builder().rate(publishThrottlingRateInMsg).clock(monotonicClock).build();
+        } else {
+            tokenBucketOnMessage = null;
+        }
+        if (publishThrottlingRateInByte > 0) {
+            tokenBucketOnByte =
+                    AsyncTokenBucket.builder().rate(publishThrottlingRateInByte).clock(monotonicClock).build();
+        } else {
+            tokenBucketOnByte = null;
+        }
+        // After any bucket rebuild, wake unthrottling:
+        // old scheduled delay may be invalid and cause unnecessary wait time for producers to be unthrottled.
+        scheduleImmediateUnthrottling();
+    }
+
+    @VisibleForTesting
+    public AsyncTokenBucket getTokenBucketOnMessage() {
+        return tokenBucketOnMessage;
+    }
+
+    @VisibleForTesting
+    public AsyncTokenBucket getTokenBucketOnByte() {
+        return tokenBucketOnByte;
     }
 }

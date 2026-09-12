@@ -45,6 +45,7 @@ public abstract class CoordinatorException extends Exception {
      * Exception is thrown when transaction coordinator not found.
      */
     public static class CoordinatorNotFoundException extends CoordinatorException {
+        private static final long serialVersionUID = 1L;
 
         public CoordinatorNotFoundException(String msg) {
             super(msg);

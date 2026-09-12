@@ -25,7 +25,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.UUID;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.BookieException;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.discover.BookieServiceInfo;
@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test of {@link RegistrationManager}.
  */
-@Slf4j
+@CustomLog
 public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
 
     private MetadataStoreExtended store;
@@ -95,7 +95,7 @@ public class PulsarRegistrationManagerTest extends BaseMetadataStoreTest {
         registrationManager.initNewCluster();
         String instanceId = registrationManager.getClusterInstanceId();
         UUID uuid = UUID.fromString(instanceId);
-        log.info("Cluster instance id : {}", uuid);
+        log.info().attr("instanceId", uuid).log("Cluster instance id");
     }
 
     @Test(dataProvider = "impl")

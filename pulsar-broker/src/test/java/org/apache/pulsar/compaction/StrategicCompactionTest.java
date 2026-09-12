@@ -18,62 +18,93 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.MSG_COMPRESSION_TYPE;
+import static org.testng.Assert.assertEquals;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
-public class StrategicCompactionTest extends CompactionTest {
+public class StrategicCompactionTest extends MockedPulsarServiceBaseTest {
+
+    protected ScheduledExecutorService compactionScheduler;
+    protected BookKeeper bk;
     private TopicCompactionStrategy strategy;
     private StrategicTwoPhaseCompactor compactor;
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     public void setup() throws Exception {
-        super.setup();
-        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler, 1);
+        super.internalSetup();
+
+        admin.clusters().createCluster("test",
+                ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.tenants().createTenant("my-property",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns");
+
+        compactionScheduler = Executors.newSingleThreadScheduledExecutor(
+                new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null).get();
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         strategy = new TopicCompactionStrategyTest.DummyTopicCompactionStrategy();
     }
 
+    @AfterClass(alwaysRun = true)
     @Override
-    protected long compact(String topic) throws ExecutionException, InterruptedException {
+    public void cleanup() throws Exception {
+        super.internalCleanup();
+        bk.close();
+        if (compactionScheduler != null) {
+            compactionScheduler.shutdownNow();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private long compact(String topic) throws ExecutionException, InterruptedException {
         return (long) compactor.compact(topic, strategy).get();
     }
-
-    @Override
-    protected long compact(String topic, CryptoKeyReader cryptoKeyReader)
-            throws ExecutionException, InterruptedException {
-        return (long) compactor.compact(topic, strategy, cryptoKeyReader).get();
-    }
-
-    @Override
-    protected TwoPhaseCompactor getCompactor() {
-        return compactor;
-    }
-
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     @Test
     public void testNumericOrderCompaction() throws Exception {
 
         strategy = new NumericOrderCompactionStrategy();
 
-        String topic = "persistent://my-property/use/my-ns/my-topic1";
+        String topic = "persistent://my-property/my-ns/numeric-order-compaction";
         final int numMessages = 50;
         final int maxKeys = 5;
 
@@ -116,7 +147,8 @@ public class StrategicCompactionTest extends CompactionTest {
 
         Map<String, Integer> expectedCopy = new HashMap<>(expected);
         // consumer with readCompacted enabled only get compacted entries
-        try (Consumer<Integer> consumer = pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
+        try (Consumer<Integer> consumer =
+                     pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             while (!expected.isEmpty()) {
                 Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
@@ -126,7 +158,8 @@ public class StrategicCompactionTest extends CompactionTest {
         }
 
         // can get full backlog if read compacted disabled
-        try (Consumer<Integer> consumer = pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
+        try (Consumer<Integer> consumer =
+                     pulsarClient.newConsumer(strategy.getSchema()).topic(topic).subscriptionName("sub1")
                 .readCompacted(false).subscribe()) {
             while (true) {
                 Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
@@ -148,5 +181,59 @@ public class StrategicCompactionTest extends CompactionTest {
         Assert.assertEquals(tableView.entrySet(), expectedCopy.entrySet());
     }
 
+    @Test(timeOut = 20000)
+    @SuppressWarnings("unchecked")
+    public void testSameBatchCompactToSameBatch() throws Exception {
+        final String topic =
+                "persistent://my-property/my-ns/testSameBatchCompactToSameBatch" + UUID.randomUUID();
 
+        // Use odd number to make sure the last message is flush by `reader.hasNext() == false`.
+        final int messages = 11;
+
+        // 1.create producer and publish message to the topic.
+        ProducerBuilder<Integer> builder = pulsarClient.newProducer(Schema.INT32)
+                .compressionType(MSG_COMPRESSION_TYPE).topic(topic);
+        builder.batchingMaxMessages(2)
+                .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS);
+
+        Producer<Integer> producer = builder.create();
+
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            futures.add(producer.newMessage().key(String.valueOf(i))
+                    .value(i)
+                    .sendAsync());
+        }
+        FutureUtil.waitForAll(futures).get();
+
+        // 2.compact the topic.
+        StrategicTwoPhaseCompactor compactor =
+                new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic, strategy).get();
+
+        // consumer with readCompacted enabled only get compacted entries
+        try (Consumer<Integer> consumer = pulsarClient
+                .newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .readCompacted(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
+            int received = 0;
+            while (true) {
+                Message<Integer> m = consumer.receive(2, TimeUnit.SECONDS);
+                if (m == null) {
+                    break;
+                }
+                MessageIdAdv messageId = (MessageIdAdv) m.getMessageId();
+                if (received < messages - 1) {
+                    assertEquals(messageId.getBatchSize(), 2);
+                } else {
+                    assertEquals(messageId.getBatchSize(), 0);
+                }
+                received++;
+            }
+            assertEquals(received, messages);
+        }
+
+    }
 }

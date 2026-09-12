@@ -19,14 +19,12 @@
 package org.apache.pulsar.functions.instance.stats;
 
 import com.google.common.collect.EvictingQueue;
+import com.google.common.util.concurrent.RateLimiter;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import lombok.Getter;
-import org.apache.pulsar.common.util.RateLimiter;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.FunctionStatus;
 
 public class SinkStatsManager extends ComponentStatsManager {
 
@@ -83,11 +81,9 @@ public class SinkStatsManager extends ComponentStatsManager {
     private Counter.Child statTotalSinkExceptionsChild1min;
     private Counter.Child statTotalWrittenChild1min;
 
-    @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions =
+    private EvictingQueue<FunctionStatus.ExceptionInformation> latestSystemExceptions =
             EvictingQueue.create(10);
-    @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSinkExceptions =
+    private EvictingQueue<FunctionStatus.ExceptionInformation> latestSinkExceptions =
             EvictingQueue.create(10);
 
     private final RateLimiter sysExceptionRateLimiter;
@@ -196,18 +192,8 @@ public class SinkStatsManager extends ComponentStatsManager {
                 .help("Exception from sink.")
                 .create());
 
-        sysExceptionRateLimiter = RateLimiter.builder()
-                .scheduledExecutorService(scheduledExecutorService)
-                .permits(5)
-                .rateTime(1)
-                .timeUnit(TimeUnit.MINUTES)
-                .build();
-        sinkExceptionRateLimiter = RateLimiter.builder()
-                .scheduledExecutorService(scheduledExecutorService)
-                .permits(5)
-                .rateTime(1)
-                .timeUnit(TimeUnit.MINUTES)
-                .build();
+        sysExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
+        sinkExceptionRateLimiter = RateLimiter.create(5.0d / 60.0d);
     }
 
     @Override
@@ -243,7 +229,7 @@ public class SinkStatsManager extends ComponentStatsManager {
         statTotalSysExceptions1minChild.inc();
 
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
+        FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSystemExceptions.add(info);
 
         // report exception throw prometheus
@@ -269,7 +255,7 @@ public class SinkStatsManager extends ComponentStatsManager {
         statTotalSinkExceptionsChild1min.inc();
 
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
+        FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSinkExceptions.add(info);
 
         // report exception throw prometheus
@@ -290,13 +276,9 @@ public class SinkStatsManager extends ComponentStatsManager {
         statlastInvocationChild.set(ts);
     }
 
-    @Override
-    public void processTimeStart() {
-        //no-op
-    }
 
     @Override
-    public void processTimeEnd() {
+    public void processTimeEnd(long startTime) {
         //no-op
     }
 
@@ -356,22 +338,22 @@ public class SinkStatsManager extends ComponentStatsManager {
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestUserExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestUserExceptions() {
         return emptyQueue;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSystemExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestSystemExceptions() {
         return latestSystemExceptions;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
         return emptyQueue;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSinkExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestSinkExceptions() {
         return latestSinkExceptions;
     }
 }

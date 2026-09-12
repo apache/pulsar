@@ -19,14 +19,13 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import java.util.concurrent.atomic.AtomicReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  * Represents a task which reads load report from zookeeper for all the brokers and updates the ranking.
  */
+@CustomLog
 public class LoadReportUpdaterTask implements Runnable {
-    private static final Logger LOG = LoggerFactory.getLogger(LoadReportUpdaterTask.class);
     private final AtomicReference<LoadManager> loadManager;
 
     public LoadReportUpdaterTask(AtomicReference<LoadManager> manager) {
@@ -38,7 +37,7 @@ public class LoadReportUpdaterTask implements Runnable {
         try {
             loadManager.get().writeLoadReportOnZookeeper();
         } catch (Exception e) {
-            LOG.warn("Unable to write load report on Zookeeper", e);
+            log.warn().exception(e).log("Unable to write load report on Zookeeper");
         }
     }
 }

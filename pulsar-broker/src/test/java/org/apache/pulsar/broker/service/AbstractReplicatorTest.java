@@ -22,50 +22,64 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import io.netty.channel.DefaultEventLoop;
 import io.netty.util.internal.DefaultPriorityQueue;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class AbstractReplicatorTest {
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
     public void testRetryStartProducerStoppedByTopicRemove() throws Exception {
         final String localCluster = "localCluster";
         final String remoteCluster = "remoteCluster";
         final String topicName = "remoteTopicName";
         final String replicatorPrefix = "pulsar.repl";
+        @Cleanup("shutdownNow")
         final DefaultEventLoop eventLoopGroup = new DefaultEventLoop();
         // Mock services.
         final ServiceConfiguration pulsarConfig = mock(ServiceConfiguration.class);
         final PulsarService pulsar = mock(PulsarService.class);
         final BrokerService broker = mock(BrokerService.class);
         final Topic localTopic = mock(Topic.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
         final PulsarClientImpl localClient = mock(PulsarClientImpl.class);
+        when(localClient.getCnxPool()).thenReturn(connectionPool);
         final PulsarClientImpl remoteClient = mock(PulsarClientImpl.class);
-        final ProducerBuilder producerBuilder = mock(ProducerBuilder.class);
-        final ConcurrentOpenHashMap<String, CompletableFuture<Optional<Topic>>> topics = new ConcurrentOpenHashMap<>();
+        when(remoteClient.getCnxPool()).thenReturn(connectionPool);
+        final ProducerConfigurationData producerConf = new ProducerConfigurationData();
+        final ProducerBuilderImpl producerBuilder = mock(ProducerBuilderImpl.class);
+        final var topics = new ConcurrentHashMap<String, CompletableFuture<Optional<Topic>>>();
         when(broker.executor()).thenReturn(eventLoopGroup);
         when(broker.getTopics()).thenReturn(topics);
         when(remoteClient.newProducer(any(Schema.class))).thenReturn(producerBuilder);
@@ -80,15 +94,26 @@ public class AbstractReplicatorTest {
         when(producerBuilder.sendTimeout(anyInt(), any())).thenReturn(producerBuilder);
         when(producerBuilder.maxPendingMessages(anyInt())).thenReturn(producerBuilder);
         when(producerBuilder.producerName(anyString())).thenReturn(producerBuilder);
+        when(producerBuilder.getConf()).thenReturn(producerConf);
         // Mock create producer fail.
         when(producerBuilder.create()).thenThrow(new RuntimeException("mocked ex"));
         when(producerBuilder.createAsync())
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("mocked ex")));
+
+        @Cleanup
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        Topics adminTopics = mock(Topics.class);
+        doReturn(adminTopics).when(admin).topics();
+        doReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(0))).when(adminTopics)
+                .getPartitionedTopicMetadataAsync(anyString());
+        doReturn(CompletableFuture.completedFuture(null)).when(adminTopics)
+                .createNonPartitionedTopicAsync(anyString());
+
         // Make race condition: "retry start producer" and "close replicator".
         final ReplicatorInTest replicator = new ReplicatorInTest(localCluster, localTopic, remoteCluster, topicName,
-                replicatorPrefix, broker, remoteClient);
+                replicatorPrefix, broker, remoteClient, admin);
         replicator.startProducer();
-        replicator.disconnect();
+        replicator.terminate();
 
         // Verify task will done.
         Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -108,13 +133,54 @@ public class AbstractReplicatorTest {
         });
     }
 
+    /**
+     * {@link AbstractReplicator#getRemoteCluster(String, String)} must be the exact inverse of
+     * {@link AbstractReplicator#getReplicatorName(String, String)} for every legal cluster name. Cluster names
+     * may contain dots ({@code NamedEntity#NAMED_ENTITY_PATTERN} allows {@code -=:.} plus word characters), so
+     * taking the segment after the last dot resolved {@code us-east.prod} to {@code prod}.
+     */
+    @Test
+    public void testGetRemoteClusterRoundTripsClusterNamesContainingDots() {
+        for (String replicatorPrefix : new String[]{"pulsar.repl", "repl", "my.custom.repl"}) {
+            for (String cluster : new String[]{"us-west", "us-east.prod", "a.b.c", "cluster:1", "r3"}) {
+                String cursorName = AbstractReplicator.getReplicatorName(replicatorPrefix, cluster);
+                Assert.assertEquals(AbstractReplicator.getRemoteCluster(replicatorPrefix, cursorName),
+                        Optional.of(cluster),
+                        "remote cluster not recovered from cursor name " + cursorName);
+            }
+        }
+    }
+
+    /**
+     * An empty result is what tells a caller that the name is an ordinary subscription rather than a
+     * replicator's, so a name must match the prefix <b>and</b> the {@code '.'} separator to be accepted. A
+     * name that merely starts with the prefix characters, such as {@code pulsar.replication-state} against
+     * the prefix {@code pulsar.repl}, belongs to a subscription and must not be mistaken for a replicator.
+     */
+    @Test
+    public void testGetRemoteClusterIsEmptyForNamesThatAreNotReplicators() {
+        final String replicatorPrefix = "pulsar.repl";
+        for (String notAReplicator : new String[]{
+                "my-subscription",              // an ordinary subscription
+                "other.prefix.us-east",         // a different prefix entirely
+                "pulsar.replication-state",     // starts with the prefix, but the separator does not follow
+                "pulsar.repl",                  // the bare prefix, with no separator and no cluster
+                "pulsar.rep",                   // shorter than the prefix
+                ""}) {
+            Assert.assertEquals(AbstractReplicator.getRemoteCluster(replicatorPrefix, notAReplicator),
+                    Optional.empty(),
+                    "name wrongly resolved to a replicator: " + notAReplicator);
+        }
+    }
+
     private static class ReplicatorInTest extends AbstractReplicator {
 
         public ReplicatorInTest(String localCluster, Topic localTopic, String remoteCluster, String remoteTopicName,
                                 String replicatorPrefix, BrokerService brokerService,
-                                PulsarClientImpl replicationClient) throws PulsarServerException {
+                                PulsarClientImpl replicationClient, PulsarAdmin replicationAdmin)
+                throws PulsarServerException {
             super(localCluster, localTopic, remoteCluster, remoteTopicName, replicatorPrefix, brokerService,
-                    replicationClient);
+                    replicationClient, replicationAdmin);
         }
 
         @Override
@@ -123,17 +189,40 @@ public class AbstractReplicatorTest {
         }
 
         @Override
-        protected void readEntries(Producer<byte[]> producer) {
+        protected void setProducerAndTriggerReadEntries(Producer<byte[]> producer) {
 
         }
 
         @Override
         protected Position getReplicatorReadPosition() {
-            return PositionImpl.EARLIEST;
+            return PositionFactory.EARLIEST;
         }
 
         @Override
-        protected long getNumberOfEntriesInBacklog() {
+        public ReplicatorStatsImpl computeStats() {
+            return null;
+        }
+
+        @Override
+        public ReplicatorStatsImpl getStats() {
+            return null;
+        }
+
+        @Override
+        public void updateRates() {
+
+        }
+
+        @Override
+        public boolean isConnected() {
+            return false;
+        }
+
+        @Override
+        protected void beforeTerminate() {}
+
+        @Override
+        public long getNumberOfEntriesInBacklog() {
             return 0;
         }
 

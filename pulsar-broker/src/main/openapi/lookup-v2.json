@@ -1,0 +1,16 @@
+{
+  "info": {
+    "title": "Pulsar Lookup REST API",
+    "description": "This provides the REST API for lookup operations",
+    "version": "v2",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "http://www.apache.org/licenses/LICENSE-2.0.html"
+    }
+  },
+  "servers": [
+    {
+      "url": "/lookup"
+    }
+  ]
+}

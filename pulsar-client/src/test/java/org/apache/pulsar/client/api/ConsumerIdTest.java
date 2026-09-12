@@ -20,12 +20,9 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-
-import org.testng.annotations.Test;
-
-import org.apache.pulsar.client.impl.ConsumerId;
-
 import java.util.Objects;
+import org.apache.pulsar.client.impl.ConsumerId;
+import org.testng.annotations.Test;
 
 public class ConsumerIdTest {
     private static final String TOPIC_TEST = "my-topic-1";

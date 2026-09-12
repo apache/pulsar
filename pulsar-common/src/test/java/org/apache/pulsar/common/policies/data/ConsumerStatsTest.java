@@ -20,7 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.testng.annotations.Test;
 
@@ -32,34 +31,34 @@ public class ConsumerStatsTest {
         assertNull(stats.getAddress());
         assertNull(stats.getClientVersion());
         assertNull(stats.getConnectedSince());
-        
+
         stats.setAddress("address");
         assertEquals(stats.getAddress(), "address");
         stats.setAddress("address1");
         assertEquals(stats.getAddress(), "address1");
-        
+
         stats.setClientVersion("version");
         assertEquals(stats.getClientVersion(), "version");
         assertEquals(stats.getAddress(), "address1");
-        
+
         stats.setConnectedSince("connected");
         assertEquals(stats.getConnectedSince(), "connected");
         assertEquals(stats.getAddress(), "address1");
         assertEquals(stats.getClientVersion(), "version");
-        
+
         stats.setAddress(null);
         assertNull(stats.getAddress());
-        
+
         stats.setConnectedSince("");
         assertEquals(stats.getConnectedSince(), "");
-        
+
         stats.setClientVersion("version2");
         assertEquals(stats.getClientVersion(), "version2");
 
         assertNull(stats.getAddress());
-        
+
         assertEquals(stats.getClientVersion(), "version2");
-        
+
         stats.setConnectedSince(null);
         stats.setClientVersion(null);
         assertNull(stats.getConnectedSince());

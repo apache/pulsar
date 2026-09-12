@@ -26,9 +26,13 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.ImmutableSet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.nio.file.Files;
@@ -39,11 +43,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.security.auth.login.Configuration;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
+import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
@@ -58,6 +64,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationSasl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.SaslConstants;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -66,7 +73,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.CollectionUtils;
 
-@Slf4j
+@CustomLog
 public class SaslAuthenticateTest extends ProducerConsumerBase {
     public static File kdcDir;
     public static File kerberosWorkDir;
@@ -76,7 +83,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     private static Properties properties;
 
     private static String localHostname = "localhost";
-    private static Authentication authSasl;
+    private Authentication authSasl;
 
     @BeforeClass
     public static void startMiniKdc() throws Exception {
@@ -145,17 +152,11 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         System.setProperty("java.security.krb5.conf", krb5file.getAbsolutePath());
         Configuration.getConfiguration().refresh();
 
-        // Client config
-        Map<String, String> clientSaslConfig = new HashMap<>();
-        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
-        clientSaslConfig.put("serverType", "broker");
-        log.info("set client jaas section name: PulsarClient");
-        authSasl = AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig);
-        log.info("created AuthenticationSasl");
+
     }
 
     @AfterClass(alwaysRun = true)
-    public static void stopMiniKdc() {
+    public static void stopMiniKdc() throws IOException {
         System.clearProperty("java.security.auth.login.config");
         System.clearProperty("java.security.krb5.conf");
         if (kdc != null) {
@@ -167,12 +168,21 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         assertFalse(kerberosWorkDir.exists());
     }
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        log.info("-- {} --, start at host: {}", methodName, localHostname);
+        log.info().attr("method", methodName).attr("host", localHostname).log("start at host");
         // use http lookup to verify HttpClient works well.
         isTcpLookup = false;
+
+        // Client config
+        Map<String, String> clientSaslConfig = new HashMap<>();
+        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
+        clientSaslConfig.put("serverType", "broker");
+        log.info("set client jaas section name: PulsarClient");
+        authSasl = AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig);
+        log.info("created AuthenticationSasl");
 
         conf.setAdvertisedAddress(localHostname);
         conf.setAuthenticationEnabled(true);
@@ -186,7 +196,9 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         conf.setAuthenticationProviders(providers);
         conf.setClusterName("test");
         conf.setSuperUserRoles(ImmutableSet.of("client" + "@" + kdc.getRealm()));
-
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationSasl.class.getName());
+        conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory
+                .getMapper().getObjectMapper().writeValueAsString(clientSaslConfig));
         super.init();
 
         lookupUrl = new URI(pulsar.getWebServiceAddress());
@@ -197,15 +209,13 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             .authentication(authSasl));
 
         // set admin auth, to verify admin web resources
-        Map<String, String> clientSaslConfig = new HashMap<>();
-        clientSaslConfig.put("saslJaasClientSectionName", "PulsarClient");
-        clientSaslConfig.put("serverType", "broker");
         log.info("set client jaas section name: PulsarClient");
+        closeAdmin();
         admin = PulsarAdmin.builder()
             .serviceHttpUrl(brokerUrl.toString())
             .authentication(AuthenticationFactory.create(AuthenticationSasl.class.getName(), clientSaslConfig))
             .build();
-        log.info("-- {} --, end.", methodName);
+        log.info().attr("value", methodName).log("----, end.");
 
         super.producerBaseSetup();
     }
@@ -221,7 +231,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     // Test could verify with kerberos configured.
     @Test
     public void testProducerAndConsumerPassed() throws Exception {
-        log.info("-- {} -- start", methodName);
+        log.info().attr("value", methodName).log("---- start");
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topic("persistent://my-property/my-ns/my-topic")
@@ -236,7 +246,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
-            log.info("Produced message: [{}]", message);
+            log.info().attr("value", message).log("Produced message: []");
         }
 
         Message<byte[]> msg = null;
@@ -244,7 +254,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.info().attr("value", receivedMessage).log("Received message: []");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -252,13 +262,14 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         consumer.acknowledgeCumulative(msg);
         consumer.close();
 
-        log.info("-- {} -- end", methodName);
+        log.info().attr("value", methodName).log("---- end");
     }
 
     // Test sasl server/client auth.
+    @SuppressWarnings("deprecation")
     @Test
     public void testSaslServerAndClientAuth() throws Exception {
-        log.info("-- {} -- start", methodName);
+        log.info().attr("value", methodName).log("---- start");
         String hostName = "localhost";
 
         // prepare client and server side resource
@@ -298,13 +309,17 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             // expected
         }
 
-        log.info("-- {} -- end", methodName);
+        log.info().attr("value", methodName).log("---- end");
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSaslOnlyAuthFirstStage() throws Exception {
-        AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
-                .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
+        @Cleanup
+        AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
+        // The cache expiration time is set to 500ms. Residual auth info should be cleaned up
+        conf.setInflightSaslContextExpiryMs(500);
+        saslServer.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
         doReturn("Init").when(servletRequest).getHeader("State");
@@ -321,9 +336,6 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         field.setAccessible(true);
         Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
         assertEquals(cache.asMap().size(), 10);
-        // The cache expiration time is set to 1ms. Residual auth info should be cleaned up
-        conf.setInflightSaslContextExpiryMs(1);
-        saslServer.initialize(conf);
         // Add more auth info into memory
         for (int i = 0; i < 10; i++) {
             AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
@@ -335,7 +347,7 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
         }
         long start = System.currentTimeMillis();
         while (true) {
-            if (System.currentTimeMillis() - start > 10_00) {
+            if (System.currentTimeMillis() - start > 5000) {
                 fail();
             }
             cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
@@ -343,33 +355,83 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             if (CollectionUtils.hasElements(cache.asMap())) {
                 break;
             }
-            Thread.yield();
+            Thread.sleep(5);
         }
     }
 
     @Test
     public void testMaxInflightContext() throws Exception {
-        AuthenticationProviderSasl saslServer = (AuthenticationProviderSasl) pulsar.getBrokerService()
-                .getAuthenticationService().getAuthenticationProvider(SaslConstants.AUTH_METHOD_NAME);
+        @Cleanup
+        AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
-        doReturn("Init").when(servletRequest).getHeader("State");
+        doReturn(SaslConstants.SASL_STATE_CLIENT_INIT).when(servletRequest).getHeader(SaslConstants.SASL_HEADER_STATE);
         conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
         conf.setMaxInflightSaslContext(1);
-        saslServer.initialize(conf);
+        saslServer.initialize(AuthenticationProvider.Context.builder().config(conf).build());
         // add 10 inflight sasl context
         for (int i = 0; i < 10; i++) {
             AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
             AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
             doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
-                    servletRequest).getHeader("SASL-Token");
-            doReturn(String.valueOf(i)).when(servletRequest).getHeader("SASL-Server-ID");
+                    servletRequest).getHeader(SaslConstants.SASL_AUTH_TOKEN);
+            doReturn(String.valueOf(i)).when(servletRequest).getHeader(SaslConstants.SASL_STATE_SERVER);
             saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
         }
-        Field field = AuthenticationProviderSasl.class.getDeclaredField("authStates");
-        field.setAccessible(true);
-        Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
+        Cache<Long, AuthenticationState> cache = saslServer.getAuthStates();
         //only 1 context was left in the memory
-        assertEquals(cache.asMap().size(), 1);
+        // Caffeine may perform size-based eviction asynchronously, so force maintenance before asserting.
+        cache.cleanUp();
+        assertEquals(cache.asMap().size(), conf.getMaxInflightSaslContext());
     }
 
+    @Test
+    public void testMaxInflightContextWithDelayedCaffeineMaintenance() throws Exception {
+        @Cleanup
+        AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
+        doReturn(SaslConstants.SASL_STATE_CLIENT_INIT).when(servletRequest).getHeader(SaslConstants.SASL_HEADER_STATE);
+        conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
+        conf.setMaxInflightSaslContext(1);
+        saslServer.initialize(AuthenticationProvider.Context.builder().config(conf).build());
+
+        CountDownLatch maintenanceStarted = new CountDownLatch(1);
+        CountDownLatch allowMaintenance = new CountDownLatch(1);
+        @Cleanup("shutdownNow")
+        ExecutorService maintenanceExecutor = Executors.newSingleThreadExecutor();
+        Cache<Long, AuthenticationState> delayedMaintenanceCache = Caffeine.newBuilder()
+                .maximumSize(conf.getMaxInflightSaslContext())
+                .expireAfterWrite(conf.getInflightSaslContextExpiryMs(), TimeUnit.MILLISECONDS)
+                .executor(command -> maintenanceExecutor.execute(() -> {
+                    maintenanceStarted.countDown();
+                    try {
+                        allowMaintenance.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    command.run();
+                }))
+                .build();
+        saslServer.setAuthStates(delayedMaintenanceCache);
+
+        try {
+            for (int i = 0; i < 10; i++) {
+                AuthenticationDataProvider dataProvider = authSasl.getAuthData("localhost");
+                AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+                doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
+                        servletRequest).getHeader(SaslConstants.SASL_AUTH_TOKEN);
+                doReturn(String.valueOf(i)).when(servletRequest).getHeader(SaslConstants.SASL_STATE_SERVER);
+                saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
+            }
+            assertTrue(maintenanceStarted.await(5, TimeUnit.SECONDS));
+
+            Cache<Long, AuthenticationState> cache = saslServer.getAuthStates();
+            assertTrue(cache.asMap().size() > conf.getMaxInflightSaslContext());
+
+            // Caffeine may perform size-based eviction asynchronously, so force maintenance before asserting.
+            cache.cleanUp();
+            assertEquals(cache.asMap().size(), conf.getMaxInflightSaslContext());
+        } finally {
+            allowMaintenance.countDown();
+        }
+    }
 }

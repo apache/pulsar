@@ -30,6 +30,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable
+@SuppressWarnings("deprecation")
 public interface MultiTopicConsumerStats extends ConsumerStats {
 
     /**

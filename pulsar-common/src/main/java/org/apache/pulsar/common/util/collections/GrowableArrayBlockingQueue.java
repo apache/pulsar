@@ -32,7 +32,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Consumer;
-import javax.annotation.Nullable;
+import java.util.function.Predicate;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This implements a {@link BlockingQueue} backed by an array with no fixed capacity.
@@ -83,10 +84,17 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
     @Override
     public T poll() {
+        return pollIf(v -> true);
+    }
+
+    public T pollIf(Predicate<T> predicate) {
         headLock.lock();
         try {
             if (SIZE_UPDATER.get(this) > 0) {
                 T item = data[headIndex.value];
+                if (!predicate.test(item)) {
+                    return null;
+                }
                 data[headIndex.value] = null;
                 headIndex.value = (headIndex.value + 1) & (data.length - 1);
                 SIZE_UPDATER.decrementAndGet(this);
@@ -186,6 +194,9 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
         try {
             while (SIZE_UPDATER.get(this) == 0) {
+                if (terminated) {
+                    throw new InterruptedException("Queue is terminated");
+                }
                 isNotEmpty.await();
             }
 
@@ -210,6 +221,9 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
             long timeoutNanos = unit.toNanos(timeout);
             while (SIZE_UPDATER.get(this) == 0) {
                 if (timeoutNanos <= 0) {
+                    return null;
+                }
+                if (terminated) {
                     return null;
                 }
 
@@ -414,7 +428,8 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     }
 
     /**
-     * Make the queue not accept new items. if there are still new data trying to enter the queue, it will be handed
+     * Make the queue not accept new items and waking up blocked consume.
+     * if there are still new data trying to enter the queue, it will be handed
      * by {@param itemAfterTerminatedHandler}.
      */
     public void terminate(@Nullable Consumer<T> itemAfterTerminatedHandler) {
@@ -427,6 +442,14 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
             }
         } finally {
             tailLock.unlockWrite(stamp);
+        }
+
+        // Signal waiting consumer threads to prevent indefinite blocking after termination
+        headLock.lock();
+        try {
+            isNotEmpty.signalAll();
+        } finally {
+            headLock.unlock();
         }
     }
 

@@ -174,7 +174,15 @@ public interface ProducerBuilder<T> extends Cloneable {
      * the client application. Until the producer gets a successful acknowledgment back from the broker,
      * it will keep in memory (direct memory pool) all the messages in the pending queue.
      *
-     * <p>Default is 0, which disables the pending messages check.
+     * <p>Default is 0, which disables the pending messages check. Disabling it only removes the
+     * message-count limit; the memory the pending queue may hold is then bounded by the client
+     * memory limit ({@link ClientBuilder#memoryLimit(long, SizeUnit)}) instead.
+     *
+     * <p>On a client whose memory limit is disabled there would be no backpressure left at all, so a
+     * producer that does not configure this setting falls back to a default queue size of 1000 rather
+     * than buffering without limit. Calling this method always wins over that default, so passing 0
+     * explicitly is how an application asks for a producer with no message-count limit, on a
+     * partitioned topic as well.
      *
      * @param maxPendingMessages
      *            the max size of the pending messages queue for the producer
@@ -190,7 +198,10 @@ public interface ProducerBuilder<T> extends Cloneable {
      * The purpose of this setting is to have an upper-limit on the number
      * of pending messages when publishing on a partitioned topic.
      *
-     * <p>Default is 0, which disables the pending messages across partitions check.
+     * <p>Default is 0, which disables the pending messages across partitions check. As with
+     * {@link #maxPendingMessages(int)}, a producer that does not configure this setting on a client
+     * whose memory limit is disabled falls back to a default budget of 50000 instead, since no
+     * backpressure would otherwise be left, and calling this method always wins over that default.
      *
      * <p>If publishing at a high rate over a topic with many partitions (especially when publishing messages without a
      * partitioning key), it might be beneficial to increase this parameter to allow for more pipelining within the
@@ -246,7 +257,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      * <p>Default routing mode is to round-robin across the available partitions.
      *
      * <p>This logic is applied when the application is not setting a key on a
-     * particular message. If the key is set with {@link MessageBuilder#setKey(String)},
+     * particular message. If the key is set with {@link TypedMessageBuilder#key(String)},
      * then the hash of the key will be used to select a partition for the message.
      *
      * @param messageRoutingMode
@@ -294,6 +305,19 @@ public interface ProducerBuilder<T> extends Cloneable {
     ProducerBuilder<T> compressionType(CompressionType compressionType);
 
     /**
+     * Sets the minimum uncompressed message body size required to enable compression.
+     * <p>
+     * When a message's body size exceeds this threshold (in bytes), compression will be applied
+     * using the configured {@link #compressionType(CompressionType)}. Messages smaller than this
+     * threshold will not be compressed.
+     * <p>
+     * Default: 4 KB
+     *
+     * @param compressionMinMsgBodySize the minimum uncompressed message body size required to enable compression
+     */
+    ProducerBuilder<T> compressionMinMsgBodySize(int compressionMinMsgBodySize);
+
+    /**
      * Set a custom message routing policy by passing an implementation of MessageRouter.
      *
      * @param messageRouter
@@ -328,12 +352,11 @@ public interface ProducerBuilder<T> extends Cloneable {
      * of the pulsar producer and consumer is recommended to use this feature:
      *
      * <pre>
-     * 1. This feature is currently only supported for non-shared subscriptions and persistent topics.
-     * 2. Disable batching to use chunking feature.
-     * 3. Pulsar-client stores published messages in buffer cache until it receives acknowledgement from the broker.
+     * 1. Disable batching to use chunking feature.
+     * 2. Pulsar-client stores published messages in buffer cache until it receives acknowledgement from the broker.
      * Therefore, it's best practice to reduce the "maxPendingMessages" size to avoid the producer occupying large
      * amounts of memory with buffered messages.
-     * 4. Set message-ttl on the namespace to clean up incomplete chunked messages.
+     * 3. Set message-ttl on the namespace to clean up incomplete chunked messages.
      * (If a producer fails to publish an entire large message, the consumer will be unable to consume and acknowledge
      * those messages. These messages can only be discarded by message TTL or by configuring
      * {@link ConsumerBuilder#expireTimeOfIncompleteChunkedMessage}.
@@ -398,7 +421,7 @@ public interface ProducerBuilder<T> extends Cloneable {
      *            MessageCrypto object
      * @return the producer builder instance
      */
-    ProducerBuilder<T> messageCrypto(MessageCrypto messageCrypto);
+    ProducerBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto);
 
     /**
      * Add public encryption key, used by producer to encrypt the data key.

@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 public class MockTokenAuthenticationProvider implements AuthenticationProvider {
 
     public static final String KEY = "role";
+    @SuppressWarnings("deprecation")
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
@@ -43,6 +44,7 @@ public class MockTokenAuthenticationProvider implements AuthenticationProvider {
     public String getAuthMethodName() {
         return "mock";
     }
+    @SuppressWarnings("deprecation")
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
@@ -60,6 +62,7 @@ public class MockTokenAuthenticationProvider implements AuthenticationProvider {
     public void close() throws IOException {
         // No ops
     }
+    @SuppressWarnings("deprecation")
 
     public static class MockAuthentication implements Authentication {
 

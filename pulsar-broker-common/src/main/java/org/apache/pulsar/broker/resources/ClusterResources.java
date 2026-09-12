@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -39,10 +40,19 @@ public class ClusterResources extends BaseResources<ClusterData> {
 
     @Getter
     private FailureDomainResources failureDomainResources;
+    @Getter
+    private ClusterPoliciesResources clusterPoliciesResources;
 
-    public ClusterResources(MetadataStore store, int operationTimeoutSec) {
-        super(store, ClusterData.class, operationTimeoutSec);
-        this.failureDomainResources = new FailureDomainResources(store, FailureDomainImpl.class, operationTimeoutSec);
+    public ClusterResources(MetadataStore localStore, MetadataStore configurationStore, int operationTimeoutSec) {
+        super(configurationStore, ClusterData.class, operationTimeoutSec);
+        this.failureDomainResources = new FailureDomainResources(configurationStore, FailureDomainImpl.class,
+                operationTimeoutSec);
+        if (localStore != null) {
+            this.clusterPoliciesResources = new ClusterPoliciesResources(localStore, ClusterPoliciesImpl.class,
+                    operationTimeoutSec);
+        } else {
+            this.clusterPoliciesResources = null;
+        }
     }
 
     public CompletableFuture<Set<String>> listAsync() {
@@ -214,6 +224,28 @@ public class ClusterResources extends BaseResources<ClusterData> {
                     listener.accept(n);
                 }
             });
+        }
+    }
+
+    public static class ClusterPoliciesResources extends BaseResources<ClusterPoliciesImpl> {
+        public static final String LOCAL_POLICIES_PATH = "policies";
+
+        public ClusterPoliciesResources(MetadataStore store, Class<ClusterPoliciesImpl> clazz,
+                int operationTimeoutSec) {
+            super(store, clazz, operationTimeoutSec);
+        }
+
+        public Optional<ClusterPoliciesImpl> getClusterPolicies(String clusterName) throws MetadataStoreException {
+            return get(joinPath(BASE_CLUSTERS_PATH, clusterName, LOCAL_POLICIES_PATH));
+        }
+
+        public CompletableFuture<Optional<ClusterPoliciesImpl>> getClusterPoliciesAsync(String clusterName) {
+            return getAsync(joinPath(BASE_CLUSTERS_PATH, clusterName, LOCAL_POLICIES_PATH));
+        }
+
+        public CompletableFuture<Void> setPoliciesWithCreateAsync(String clusterName,
+                Function<Optional<ClusterPoliciesImpl>, ClusterPoliciesImpl> createFunction) {
+            return setWithCreateAsync(joinPath(BASE_CLUSTERS_PATH, clusterName, LOCAL_POLICIES_PATH), createFunction);
         }
     }
 }

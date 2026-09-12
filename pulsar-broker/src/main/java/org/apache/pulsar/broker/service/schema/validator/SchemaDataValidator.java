@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema.validator;
 
+import io.github.merlimat.slog.Logger;
 import org.apache.pulsar.broker.service.schema.KeyValueSchemaCompatibilityCheck;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -28,18 +29,34 @@ import org.apache.pulsar.common.schema.KeyValue;
  */
 public interface SchemaDataValidator {
 
+    Logger LOGGER = Logger.get(SchemaDataValidator.class);
+
     /**
      * Validate if the schema data is well formed.
+     * Uses strict Avro-only validation for SchemaType.JSON (no legacy Jackson fallback).
      *
      * @param schemaData schema data to validate
      * @throws InvalidSchemaDataException if the schema data is not in a valid form.
      */
     static void validateSchemaData(SchemaData schemaData) throws InvalidSchemaDataException {
+        validateSchemaData(schemaData, false);
+    }
+
+    /**
+     * Validate if the schema data is well formed.
+     *
+     * @param schemaData schema data to validate
+     * @param allowLegacyJacksonFormat if true, allows legacy Jackson JsonSchema format for SchemaType.JSON
+     *                                  for backward compatibility with pre-2.1 schemas (PIP-464)
+     * @throws InvalidSchemaDataException if the schema data is not in a valid form.
+     */
+    static void validateSchemaData(SchemaData schemaData,
+                                   boolean allowLegacyJacksonFormat) throws InvalidSchemaDataException {
         switch (schemaData.getType()) {
             case AVRO:
             case JSON:
             case PROTOBUF:
-                StructSchemaDataValidator.of().validate(schemaData);
+                StructSchemaDataValidator.of(allowLegacyJacksonFormat).validate(schemaData);
                 break;
             case PROTOBUF_NATIVE:
                 ProtobufNativeSchemaDataValidator.of().validate(schemaData);
@@ -65,7 +82,8 @@ public interface SchemaDataValidator {
                 break;
             case NONE:
             case BYTES:
-                // `NONE` and `BYTES` schema is not stored
+            case EXTERNAL:
+                // `NONE`, `BYTES` and `EXTERNAL` schema is not stored
                 break;
             case AUTO:
             case AUTO_CONSUME:
@@ -75,8 +93,8 @@ public interface SchemaDataValidator {
             case KEY_VALUE:
                 KeyValue<SchemaData, SchemaData> kvSchema =
                     KeyValueSchemaCompatibilityCheck.decodeKeyValueSchemaData(schemaData);
-                validateSchemaData(kvSchema.getKey());
-                validateSchemaData(kvSchema.getValue());
+                validateSchemaData(kvSchema.getKey(), allowLegacyJacksonFormat);
+                validateSchemaData(kvSchema.getValue(), allowLegacyJacksonFormat);
                 break;
             default:
                 throw new InvalidSchemaDataException("Unknown schema type : " + schemaData.getType());

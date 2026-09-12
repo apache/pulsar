@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.auth;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
 public class InvalidBrokerConfigForAuthorizationTest extends MockedPulsarServiceBaseTest {
@@ -47,6 +48,8 @@ public class InvalidBrokerConfigForAuthorizationTest extends MockedPulsarService
 
     }
 
+
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         internalCleanup();

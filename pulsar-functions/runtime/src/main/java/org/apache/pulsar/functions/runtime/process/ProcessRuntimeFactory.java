@@ -22,11 +22,11 @@ import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuth
 import com.google.common.annotations.VisibleForTesting;
 import java.nio.file.Paths;
 import java.util.Optional;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -42,7 +42,7 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 /**
  * Thread based function container factory implementation.
  */
-@Slf4j
+@CustomLog
 @NoArgsConstructor
 @Data
 public class ProcessRuntimeFactory implements RuntimeFactory {
@@ -143,8 +143,9 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         if (this.javaInstanceJarFile == null) {
             String envJavaInstanceJarLocation = System.getProperty(FunctionCacheEntry.JAVA_INSTANCE_JAR_PROPERTY);
             if (null != envJavaInstanceJarLocation) {
-                log.info("Java instance jar location is not defined,"
-                        + " using the location defined in system environment : {}", envJavaInstanceJarLocation);
+                log.info().attr("location", envJavaInstanceJarLocation)
+                        .log("Java instance jar location is not defined,"
+                                + " using the location defined in system environment");
                 this.javaInstanceJarFile = envJavaInstanceJarLocation;
             } else {
                 throw new RuntimeException("No JavaInstanceJar specified");
@@ -154,8 +155,9 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         if (this.pythonInstanceFile == null) {
             String envPythonInstanceLocation = System.getProperty("pulsar.functions.python.instance.file");
             if (null != envPythonInstanceLocation) {
-                log.info("Python instance file location is not defined"
-                        + " using the location defined in system environment : {}", envPythonInstanceLocation);
+                log.info().attr("location", envPythonInstanceLocation)
+                        .log("Python instance file location is not defined,"
+                                + " using the location defined in system environment");
                 this.pythonInstanceFile = envPythonInstanceLocation;
             } else {
                 throw new RuntimeException("No PythonInstanceFile specified");
@@ -177,8 +179,9 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
             String envProcessContainerExtraDependenciesDir =
                     System.getProperty("pulsar.functions.extra.dependencies.dir");
             if (null != envProcessContainerExtraDependenciesDir) {
-                log.info("Extra dependencies location is not defined using"
-                        + " the location defined in system environment : {}", envProcessContainerExtraDependenciesDir);
+                log.info().attr("location", envProcessContainerExtraDependenciesDir)
+                        .log("Extra dependencies location is not defined,"
+                                + " using the location defined in system environment");
                 this.extraDependenciesDir = envProcessContainerExtraDependenciesDir;
             } else {
                 log.info("No extra dependencies location is defined in either"
