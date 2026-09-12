@@ -267,7 +267,7 @@ public class ScalableTopicControllerTest {
         assertThrows(IllegalStateException.class,
                 () -> controller.registerConsumer(
                         "sub", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)));
-        assertThrows(IllegalStateException.class, () -> controller.unregisterConsumer("sub", "c1"));
+        assertThrows(IllegalStateException.class, () -> controller.unregisterConsumer("sub", "c1", 1L));
     }
 
     // --- Consumer registration ---
@@ -307,7 +307,7 @@ public class ScalableTopicControllerTest {
         controller.registerConsumer("sub-a", "c2", 2L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
         assertEquals(resources.listConsumersAsync(topicName, "sub-a").get().size(), 2);
 
-        controller.unregisterConsumer("sub-a", "c1").get();
+        controller.unregisterConsumer("sub-a", "c1", 1L).get();
         assertEquals(resources.listConsumersAsync(topicName, "sub-a").get(),
                 List.of("c2"));
     }
@@ -316,7 +316,7 @@ public class ScalableTopicControllerTest {
     public void testUnregisterConsumerUnknownSubscriptionIsNoop() throws Exception {
         controller.initialize().get();
         // No subscription 'ghost' exists; call should complete without error.
-        controller.unregisterConsumer("ghost", "c1").get();
+        controller.unregisterConsumer("ghost", "c1", 1L).get();
     }
 
     @Test

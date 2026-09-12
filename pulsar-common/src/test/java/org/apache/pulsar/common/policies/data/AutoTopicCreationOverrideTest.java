@@ -73,7 +73,28 @@ public class AutoTopicCreationOverrideTest {
     }
 
     @Test
-    public void testNumPartitionsOnNonPartitioned() {
+    public void testNumPartitionsOnNonPartitionedZeroAllowed() {
+        AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType(TopicType.NON_PARTITIONED.toString())
+                .defaultNumPartitions(0)
+                .build();
+        assertTrue(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
+    }
+
+    @Test
+    public void testNumPartitionsOnNonPartitionedOneAllowed() {
+        AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType(TopicType.NON_PARTITIONED.toString())
+                .defaultNumPartitions(1)
+                .build();
+        assertTrue(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
+    }
+
+
+    @Test
+    public void testNumPartitionsOnNonPartitionedTooHighRejected() {
         AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(true)
                 .topicType(TopicType.NON_PARTITIONED.toString())
@@ -81,4 +102,5 @@ public class AutoTopicCreationOverrideTest {
                 .build();
         assertFalse(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
+
 }

@@ -69,6 +69,17 @@ public class AuthenticationKeyStoreTls implements Authentication, EncodedAuthent
         return AUTH_NAME;
     }
 
+    /**
+     * The configured keystore parameters (type / path / password). Exposed so the v5 client builder can
+     * fold a bridged {@code AuthenticationKeyStoreTls}'s mTLS material into the client's TLS policy on the
+     * new PIP-478 TLS path.
+     *
+     * @return the keystore params, or {@code null} if not configured
+     */
+    public KeyStoreParams getKeyStoreParams() {
+        return keyStoreParams;
+    }
+
     @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {

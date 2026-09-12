@@ -109,6 +109,44 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     )
     private int maxPendingMessagesAcrossPartitions = DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 
+    /**
+     * Whether the application configured {@link #maxPendingMessages}, and whether it configured
+     * {@link #maxPendingMessagesAcrossPartitions}.
+     *
+     * <p>The unset value of both limits is {@code 0}, which is also a meaningful explicit value ("no
+     * message-count limit" and "no across-partitions budget"), so the value alone cannot tell the two
+     * apart. Recording it here rather than on the builder lets everything that resolves these limits
+     * read the same answer, including {@code PartitionedProducerImpl}, which only sees the
+     * configuration.
+     *
+     * <p>Setting either limit through its setter marks it as configured, so a configuration populated
+     * directly rather than through {@code ProducerBuilderImpl} behaves the same way.
+     *
+     * <p>Deliberately not part of the serialized configuration: {@code loadConf} rebuilds the instance
+     * by replaying every property through its setters, which would mark both limits as configured
+     * whatever the application passed, so {@code ProducerBuilderImpl} restores them across that
+     * round-trip. {@code PulsarClientImpl} likewise restores them after filling in a default, which is
+     * not application input.
+     */
+    @JsonIgnore
+    private boolean maxPendingMessagesConfigured;
+    @JsonIgnore
+    private boolean maxPendingMessagesAcrossPartitionsConfigured;
+
+    /**
+     * Whether every message was already admitted against the client memory limit before it reaches this
+     * producer, so the producer only accounts for the bytes and never blocks or rejects a send on that
+     * limit itself.
+     *
+     * <p>Set by the V5 client on its per-segment producers: it applies {@link #blockIfQueueFull} on the
+     * caller's thread before a message enters its per-segment dispatch chain, whose links may run on an
+     * IO thread where blocking is not an option. Incompatible with a {@link #maxPendingMessages}
+     * limit, whose permit would be released without ever being taken; {@code ProducerImpl} rejects
+     * the combination. Internal, not application-configurable.
+     */
+    @JsonIgnore
+    private boolean memoryLimitAdmittedUpstream;
+
     @Schema(
             name = "messageRoutingMode",
             description = "Message routing logic for producers on [partitioned topics]"
@@ -250,12 +288,22 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     public void setMaxPendingMessages(int maxPendingMessages) {
         checkArgument(maxPendingMessages >= 0, "maxPendingMessages needs to be >= 0");
         this.maxPendingMessages = maxPendingMessages;
+        this.maxPendingMessagesConfigured = true;
     }
 
+    /**
+     * The across-partitions budget used to be rejected when it was below {@link #maxPendingMessages},
+     * which made the two setters order-dependent: it depended on which of them had been called first,
+     * and it made {@code loadConf} fail outright for any positive {@code maxPendingMessages}, since
+     * that replays every property through the setters in an order the caller does not control. The
+     * relationship is enforced where it is used instead — {@code PartitionedProducerImpl} lowers the
+     * per-partition limit to the share of the budget when a budget is set.
+     */
     public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
-        checkArgument(maxPendingMessagesAcrossPartitions >= maxPendingMessages,
-                "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages");
+        checkArgument(maxPendingMessagesAcrossPartitions >= 0,
+                "maxPendingMessagesAcrossPartitions needs to be >= 0");
         this.maxPendingMessagesAcrossPartitions = maxPendingMessagesAcrossPartitions;
+        this.maxPendingMessagesAcrossPartitionsConfigured = true;
     }
 
     public void setBatchingMaxMessages(int batchingMaxMessages) {

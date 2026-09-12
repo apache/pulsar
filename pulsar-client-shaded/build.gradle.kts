@@ -60,6 +60,16 @@ dependencies {
     // does not force a protobuf version on consumers. Anyone using Schema.PROTOBUF / PROTOBUF_NATIVE
     // must add protobuf-java themselves — matching the `provided` scope of the pre-Gradle Maven build.
     "shadowApi"(project(":pulsar-client-api"))
+    // PIP-478: the bundled implementation classes reference these three API modules on their exported
+    // ABI — ClientConfigurationData exposes PulsarTlsFactory / Map<TlsPurpose, TlsPolicy>, the built-in
+    // v4 auth plugins implement V5AuthenticationProvider, and FrameworkHttpClientFactory implements
+    // PulsarHttpClientFactory. They are declared rather than bundled, for the same reason
+    // pulsar-client-api is: a plugin author writing a PulsarTlsFactory or a v5 Authentication compiles
+    // against these coordinates, and bundling a second copy inside the shaded jar would put two
+    // versions of the same interface on their class path.
+    "shadowApi"(project(":pulsar-client-api-v5"))
+    "shadowApi"(project(":pulsar-tls-factory-api"))
+    "shadowApi"(project(":pulsar-http-client-api"))
     "shadowApi"(libs.opentelemetry.api)
     "shadow"(libs.jackson.annotations)
     "shadow"(libs.bcprov.jdk18on)

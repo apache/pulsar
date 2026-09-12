@@ -24,8 +24,10 @@ import org.apache.pulsar.client.api.v5.Producer;
 /**
  * Asynchronous view of a {@link Producer}.
  *
- * <p>All operations return {@link CompletableFuture} and never block.
- * Obtained via {@link Producer#async()}.
+ * <p>All operations return {@link CompletableFuture} and never wait for the broker. The one thing
+ * a call may wait for is room under the client memory limit, and never when issued from code chained
+ * on one of these futures, which runs on the client's IO threads; see
+ * {@link AsyncMessageBuilder#send()}. Obtained via {@link Producer#async()}.
  *
  * @param <T> the type of message values this producer sends
  */

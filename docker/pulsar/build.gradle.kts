@@ -28,11 +28,11 @@ val useWolfi = providers.gradleProperty("docker.wolfi").isPresent
 // Resolvable configurations for cross-project artifact dependencies.
 // Using configurations instead of direct task references (project().tasks.named())
 // ensures compatibility with Gradle's configure-on-demand feature.
-val serverDist by configurations.creating {
+val serverDist = configurations.create("serverDist") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }
-val offloaderDist by configurations.creating {
+val offloaderDist = configurations.create("offloaderDist") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }
@@ -43,18 +43,18 @@ dependencies {
 }
 
 // Copy the server tarball into target/ (Docker build context)
-val copyTarball by tasks.registering(Copy::class) {
+val copyTarball = tasks.register<Copy>("copyTarball") {
     from(serverDist)
     into(layout.buildDirectory.dir("target"))
 }
 
 // Copy offloader tarball into build context
-val copyOffloaderTarball by tasks.registering(Copy::class) {
+val copyOffloaderTarball = tasks.register<Copy>("copyOffloaderTarball") {
     from(offloaderDist)
     into(layout.buildDirectory.dir("target"))
 }
 
-val dockerBuild by tasks.registering(Exec::class) {
+val dockerBuild = tasks.register<Exec>("dockerBuild") {
     group = "docker"
     description = "Build the Pulsar Docker image. Use -Pdocker.push to push the image to registry."
 

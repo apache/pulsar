@@ -44,9 +44,13 @@ public class ProxyProtocolTest extends TlsProducerConsumerBase {
     @Test
     public void testSniProxyProtocol() throws Exception {
 
-        // Client should try to connect to proxy and pass broker-url as SNI header
+        // Client should try to connect to proxy and pass broker-url as SNI header.
+        // The broker service URL host must be present in the broker certificate's SAN so that
+        // (now default-on) hostname verification passes: broker.cert.pem carries
+        // DNS:unresolvable-broker-address. The host is never resolved because SNI routing sends
+        // the connection to the proxy; it only needs to match the presented certificate.
         String proxyUrl = pulsar.getBrokerServiceUrlTls();
-        String brokerServiceUrl = "pulsar+ssl://unresolvable-address:6651";
+        String brokerServiceUrl = "pulsar+ssl://unresolvable-broker-address:6651";
         String topicName = "persistent://my-property/my-ns/my-topic1";
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceUrl)

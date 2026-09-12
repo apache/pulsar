@@ -51,6 +51,7 @@ public class Reflections {
         PRIMITIVE_NAME_TYPE_MAP.put("long", Long.TYPE);
         PRIMITIVE_NAME_TYPE_MAP.put("float", Float.TYPE);
         PRIMITIVE_NAME_TYPE_MAP.put("double", Double.TYPE);
+        PRIMITIVE_NAME_TYPE_MAP.put("void", Void.TYPE);
     }
 
     /**

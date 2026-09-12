@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.carrotsearch.hppc.ObjectSet;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -43,11 +46,170 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
 @Test(groups = "broker-api")
 public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseTest {
+
+    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
+    public void testReadMoreEntriesConflatesConcurrentRequests(boolean classic) throws Exception {
+        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
+        CountDownLatch[] passStarted = {new CountDownLatch(1), new CountDownLatch(1)};
+        CountDownLatch[] releasePass = {new CountDownLatch(1), new CountDownLatch(1)};
+        AtomicInteger passes = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            assertThat(Thread.holdsLock(dispatcher)).isTrue();
+            int pass = passes.getAndIncrement();
+            if (pass < passStarted.length) {
+                passStarted[pass].countDown();
+                assertThat(releasePass[pass].await(10, TimeUnit.SECONDS)).isTrue();
+            }
+            return true;
+        }).when(cursor).isClosed();
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> owner = executor.submit(dispatcher::readMoreEntries);
+            for (int pass = 0; pass < passStarted.length; pass++) {
+                assertThat(passStarted[pass].await(10, TimeUnit.SECONDS)).isTrue();
+                // All callers must return while the owner still holds the dispatcher monitor.
+                executor.submit(() -> {
+                    for (int request = 0; request < 100; request++) {
+                        dispatcher.readMoreEntries();
+                    }
+                }).get(10, TimeUnit.SECONDS);
+                assertThat(passes.get()).isEqualTo(pass + 1);
+                releasePass[pass].countDown();
+            }
+            owner.get(10, TimeUnit.SECONDS);
+            assertThat(passes.get()).isEqualTo(3);
+            dispatcher.readMoreEntries();
+            assertThat(passes.get()).isEqualTo(4);
+        } finally {
+            for (CountDownLatch latch : releasePass) {
+                latch.countDown();
+            }
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
+    public void testReadMoreEntriesConflatesReentrantRequests(boolean classic) throws Exception {
+        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
+        AtomicInteger passes = new AtomicInteger();
+        AtomicInteger depth = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            assertThat(depth.incrementAndGet()).isEqualTo(1);
+            try {
+                if (passes.incrementAndGet() < 1000) {
+                    dispatcher.readMoreEntries();
+                    dispatcher.readMoreEntries();
+                }
+                return true;
+            } finally {
+                depth.decrementAndGet();
+            }
+        }).when(cursor).isClosed();
+
+        dispatcher.readMoreEntries();
+        assertThat(passes.get()).isEqualTo(1000);
+    }
+
+    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
+    public void testReadMoreEntriesRecoversAfterFailure(boolean classic) throws Exception {
+        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
+        IllegalStateException failure = new IllegalStateException("read failed");
+        Mockito.doThrow(failure).when(cursor).isClosed();
+        assertThatThrownBy(dispatcher::readMoreEntries).isSameAs(failure);
+
+        Mockito.doReturn(true).when(cursor).isClosed();
+        Mockito.clearInvocations(cursor);
+        dispatcher.readMoreEntries();
+        Mockito.verify(cursor).isClosed();
+    }
+
+    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
+    public void testReadMoreEntriesRunsReentrantRequestsAfterFailure(boolean classic) throws Exception {
+        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
+        IllegalStateException failure = new IllegalStateException("read failed");
+        IllegalStateException followUpFailure = new IllegalStateException("follow-up read failed");
+        AtomicInteger passes = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            int pass = passes.incrementAndGet();
+            if (pass <= 3) {
+                dispatcher.readMoreEntries();
+                // Reusing the first exception must not cause self-suppression.
+                throw pass == 2 ? followUpFailure : failure;
+            }
+            return true;
+        }).when(cursor).isClosed();
+
+        assertThatThrownBy(dispatcher::readMoreEntries).isSameAs(failure);
+        assertThat(passes.get()).as("Registered follow-ups run before propagating the failure").isEqualTo(4);
+        assertThat(failure.getSuppressed()).containsExactly(followUpFailure);
+        dispatcher.readMoreEntries();
+        assertThat(passes.get()).isEqualTo(5);
+    }
+
+    @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
+    public void testReadMoreEntriesRunsConcurrentRequestAfterFailure(boolean classic) throws Exception {
+        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
+        IllegalStateException failure = new IllegalStateException("read failed");
+        CountDownLatch passStarted = new CountDownLatch(1);
+        CountDownLatch releasePass = new CountDownLatch(1);
+        AtomicInteger passes = new AtomicInteger();
+        Mockito.doAnswer(inv -> {
+            if (passes.incrementAndGet() == 1) {
+                passStarted.countDown();
+                assertThat(releasePass.await(10, TimeUnit.SECONDS)).isTrue();
+                throw failure;
+            }
+            return true;
+        }).when(cursor).isClosed();
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> owner = executor.submit(dispatcher::readMoreEntries);
+            assertThat(passStarted.await(10, TimeUnit.SECONDS)).isTrue();
+            executor.submit(dispatcher::readMoreEntries).get(10, TimeUnit.SECONDS);
+            releasePass.countDown();
+            assertThatThrownBy(() -> owner.get(10, TimeUnit.SECONDS)).hasCause(failure);
+            assertThat(passes.get()).as("The registered follow-up runs without a new caller").isEqualTo(2);
+            dispatcher.readMoreEntries();
+            assertThat(passes.get()).isEqualTo(3);
+        } finally {
+            releasePass.countDown();
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    @DataProvider
+    public Object[][] readConflationDispatcherTypes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    private AbstractPersistentDispatcherMultipleConsumers createReadConflationDispatcher(ManagedCursor cursor,
+                                                                                       boolean classic)
+            throws Exception {
+        String topicName = newTopicName();
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, "s1", MessageId.earliest);
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+        Mockito.doReturn("s1").when(cursor).getName();
+        Subscription subscription = Mockito.mock(PersistentSubscription.class);
+        Mockito.doReturn(topic).when(subscription).getTopic();
+        return classic ? new PersistentDispatcherMultipleConsumersClassic(topic, cursor, subscription)
+                : new PersistentDispatcherMultipleConsumers(topic, cursor, subscription);
+    }
 
     @Test(timeOut = 30 * 1000)
     public void testTopicDeleteIfConsumerSetMismatchConsumerList() throws Exception {

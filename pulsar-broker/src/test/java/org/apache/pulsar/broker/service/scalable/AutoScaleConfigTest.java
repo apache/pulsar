@@ -129,6 +129,33 @@ public class AutoScaleConfigTest {
         negativeCooldown.setScalableTopicSplitCooldownSeconds(-1);
         assertThrows(IllegalArgumentException.class,
                 () -> AutoScaleConfig.fromBrokerConfig(negativeCooldown));
+
+        // Negative rebucket cooldown: would silently disable the rollover throttle.
+        ServiceConfiguration negativeRebucket = new ServiceConfiguration();
+        negativeRebucket.setScalableTopicRebucketCooldownSeconds(-1);
+        assertThrows(IllegalArgumentException.class,
+                () -> AutoScaleConfig.fromBrokerConfig(negativeRebucket));
+
+        // Negative or NaN split-vs-rebucket floor: breaks lane selection.
+        ServiceConfiguration negativeFloor = new ServiceConfiguration();
+        negativeFloor.setScalableTopicSplitVsRebucketMinMsgRateInThreshold(-1);
+        assertThrows(IllegalArgumentException.class,
+                () -> AutoScaleConfig.fromBrokerConfig(negativeFloor));
+        ServiceConfiguration nanFloor = new ServiceConfiguration();
+        nanFloor.setScalableTopicSplitVsRebucketMinMsgRateInThreshold(Double.NaN);
+        assertThrows(IllegalArgumentException.class,
+                () -> AutoScaleConfig.fromBrokerConfig(nanFloor));
+
+        // Bucket ceiling outside [1, ring size]: 0 rejects every rebucket, beyond the 16-bit
+        // ring the split points would collide.
+        ServiceConfiguration zeroCeiling = new ServiceConfiguration();
+        zeroCeiling.setScalableTopicEntryBucketMaxPerSegment(0);
+        assertThrows(IllegalArgumentException.class,
+                () -> AutoScaleConfig.fromBrokerConfig(zeroCeiling));
+        ServiceConfiguration hugeCeiling = new ServiceConfiguration();
+        hugeCeiling.setScalableTopicEntryBucketMaxPerSegment(1 << 20);
+        assertThrows(IllegalArgumentException.class,
+                () -> AutoScaleConfig.fromBrokerConfig(hugeCeiling));
     }
 
     @Test

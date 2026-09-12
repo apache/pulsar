@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -27,6 +28,8 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.Unpooled;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -228,6 +231,54 @@ public class RangeCacheTest {
         cache.clear();
         assertEquals(cache.getSize(), 0);
         assertEquals(cache.getNumberOfEntries(), 0);
+    }
+
+    @Test
+    public void visitRangeReleasesReferencesAndPreservesOrder() {
+        RangeCache cache = new RangeCache(createRemovalQueue());
+        ReferenceCountedEntry first = createCachedEntry(1, "one");
+        ReferenceCountedEntry last = createCachedEntry(3, "three");
+        assertTrue(cache.put(first.getPosition(), first));
+        assertTrue(cache.put(last.getPosition(), last));
+        try {
+            List<Position> visited = new ArrayList<>();
+            cache.forEachInRange(createPosition(1), createPosition(3), entry -> {
+                assertEquals(entry.refCnt(), 2);
+                visited.add(entry.getPosition());
+            });
+            assertThat(visited).containsExactly(createPosition(1), createPosition(3));
+            assertEquals(first.refCnt(), 1);
+            assertEquals(last.refCnt(), 1);
+            cache.forEachInRange(createPosition(4), createPosition(5), entry -> fail("Unexpected cache hit"));
+
+            RuntimeException failure = new RuntimeException("visitor failed");
+            assertThatThrownBy(() -> cache.forEachInRange(createPosition(1), createPosition(3), entry -> {
+                throw failure;
+            })).isSameAs(failure);
+            assertEquals(first.refCnt(), 1);
+            assertEquals(last.refCnt(), 1);
+        } finally {
+            cache.clear();
+        }
+        assertEquals(first.refCnt(), 0);
+        assertEquals(last.refCnt(), 0);
+    }
+
+    @Test
+    public void visitRangeKeepsEntryAliveDuringEviction() {
+        RangeCache cache = new RangeCache(createRemovalQueue());
+        ReferenceCountedEntry entry = createCachedEntry(1, "one");
+        assertTrue(cache.put(entry.getPosition(), entry));
+        try {
+            cache.forEachInRange(createPosition(1), createPosition(1), value -> {
+                cache.clear();
+                assertEquals(value.refCnt(), 1);
+                assertEquals(new String(value.getData()), "one");
+            });
+            assertEquals(entry.refCnt(), 0);
+        } finally {
+            cache.clear();
+        }
     }
 
     @Test

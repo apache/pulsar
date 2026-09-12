@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.io.IOException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
 import org.apache.pulsar.client.api.MessageId;
@@ -32,14 +33,25 @@ public class OffloadProcessStatusImpl extends LongRunningProcessStatus implement
     public OffloadProcessStatusImpl() {
         status = Status.NOT_RUN;
         lastError = "";
-        firstUnoffloadedMessage = (MessageIdImpl) MessageId.earliest;
+        firstUnoffloadedMessage = new MessageIdImpl(-1, -1, -1);
     }
 
     public OffloadProcessStatusImpl(Status status, String lastError,
                                  MessageId firstUnoffloadedMessage) {
         this.status = status;
         this.lastError = lastError;
-        this.firstUnoffloadedMessage = (MessageIdImpl) firstUnoffloadedMessage;
+        if (firstUnoffloadedMessage == null || firstUnoffloadedMessage instanceof MessageIdImpl) {
+            this.firstUnoffloadedMessage = (MessageIdImpl) firstUnoffloadedMessage;
+        } else {
+            try {
+                // The API may have been initialized by an unshaded client. Cross the
+                // implementation boundary through the message ID's stable wire format.
+                this.firstUnoffloadedMessage = (MessageIdImpl) MessageIdImpl.fromByteArray(
+                        firstUnoffloadedMessage.toByteArray());
+            } catch (IOException e) {
+                throw new IllegalArgumentException("Invalid first unoffloaded message ID", e);
+            }
+        }
     }
 
     @Override

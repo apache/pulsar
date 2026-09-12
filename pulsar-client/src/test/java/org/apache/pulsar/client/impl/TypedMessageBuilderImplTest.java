@@ -300,4 +300,59 @@ public class TypedMessageBuilderImplTest {
         assertEquals(message.getValue(), data);
     }
 
+    @Test
+    public void testMetadataRemainsIndependentWhenBuilderIsReused() {
+        TypedMessageBuilderImpl<byte[]> builder = new TypedMessageBuilderImpl<>(null, Schema.BYTES);
+        builder.value(new byte[] {1});
+        MessageImpl<byte[]> first = (MessageImpl<byte[]>) builder.getMessage();
+        MessageImpl<byte[]> second = null;
+        MessageImpl<byte[]> third = null;
+        try {
+            // Producer-generated metadata on an emitted message must not become builder state.
+            first.getMessageBuilder().setPublishTime(1234);
+            builder.key("key").property("name", "value").sequenceId(5);
+            second = (MessageImpl<byte[]>) builder.getMessage();
+            assertFalse(first.hasKey());
+            assertTrue(first.getProperties().isEmpty());
+            assertEquals(first.getPublishTime(), 1234L);
+            assertEquals(second.getKey(), "key");
+            assertEquals(second.getProperty("name"), "value");
+            assertEquals(second.getSequenceId(), 5L);
+            assertFalse(second.getMessageBuilder().hasPublishTime());
+
+            // A retained metadata accessor still updates future messages, not already emitted ones.
+            var metadata = builder.getMetadataBuilder();
+            metadata.setPartitionKey("changed");
+            third = (MessageImpl<byte[]>) builder.getMessage();
+            assertEquals(second.getKey(), "key");
+            assertEquals(third.getKey(), "changed");
+            assertFalse(third.getMessageBuilder().hasPublishTime());
+        } finally {
+            first.getDataBuffer().release();
+            first.recycle();
+            if (second != null) {
+                second.getDataBuffer().release();
+                second.recycle();
+            }
+            if (third != null) {
+                third.getDataBuffer().release();
+                third.recycle();
+            }
+        }
+    }
+
+    @Test
+    public void testNullValueMaterializesMetadata() {
+        TypedMessageBuilderImpl<byte[]> builder = new TypedMessageBuilderImpl<>(null, Schema.BYTES);
+        builder.value(null);
+        MessageImpl<byte[]> message = (MessageImpl<byte[]>) builder.getMessage();
+        try {
+            assertTrue(message.getMessageBuilder().isNullValue());
+            assertFalse(message.hasKey());
+        } finally {
+            message.getDataBuffer().release();
+            message.recycle();
+        }
+    }
+
 }

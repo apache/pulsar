@@ -149,7 +149,7 @@ public class PulsarCluster {
                     .withEnv("pulsarNode", appendClusterName("pulsar-broker-0"));
             metadataStoreUrl = appendClusterName(ZKContainer.NAME);
             configurationMetadataStoreUrl = CSContainer.NAME + ":" + CS_PORT;
-            zkContainer.setEnableAsyncProfiler(spec.profileZookeeper);
+            configureProfiling(zkContainer, spec.profileZookeeper);
         }
 
         this.csContainer = csContainer;
@@ -164,7 +164,7 @@ public class PulsarCluster {
                 .withEnv("metadataStoreUrl", metadataStoreUrl)
                 .withEnv("configurationMetadataStoreUrl", configurationMetadataStoreUrl)
                 .withEnv("clusterName", clusterName);
-        proxyContainer.setEnableAsyncProfiler(spec.profileProxy);
+        configureProfiling(proxyContainer, spec.profileProxy);
 
         // enable mTLS
         if (spec.enableTls) {
@@ -182,6 +182,15 @@ public class PulsarCluster {
                             "/pulsar/certificate-authority/client-keys/admin.cert.pem",
                             "/pulsar/certificate-authority/client-keys/admin.key-pk8.pem"))
                     .withEnv("tlsEnabledWithBroker", "true")
+                    // The proxy discovers brokers through the metadata store and connects to each broker's
+                    // advertised address, which in this docker topology is the broker container's network
+                    // alias (e.g. "pulsar-broker-<cluster>"). That alias is not — and cannot statically be —
+                    // in the shared test broker certificate's SubjectAltName. TLS hostname verification is on
+                    // by default since Pulsar 5.0 (PIP-478), so verify the internal proxy->broker hop against
+                    // the alias would fail with "No name matching ... found". This relaxes verification only
+                    // for that internal, not-under-test hop; the client-under-test connections (client/admin
+                    // -> proxy and -> broker over loopback) still verify against the localhost SAN.
+                    .withEnv("tlsHostnameVerificationEnabled", "false")
                     .withEnv("brokerClientTrustCertsFilePath", "/pulsar/certificate-authority/certs/ca.cert.pem")
                     .withEnv("brokerClientCertificateFilePath",
                             "/pulsar/certificate-authority/server-keys/proxy.cert.pem")
@@ -222,7 +231,7 @@ public class PulsarCluster {
                     if (spec.bookieAdditionalPorts != null) {
                         spec.bookieAdditionalPorts.forEach(bookieContainer::addExposedPort);
                     }
-                    bookieContainer.setEnableAsyncProfiler(spec.profileBookie);
+                    configureProfiling(bookieContainer, spec.profileBookie);
                     return bookieContainer;
                 })
         );
@@ -271,7 +280,7 @@ public class PulsarCluster {
                             if (spec.brokerAdditionalPorts() != null) {
                                 spec.brokerAdditionalPorts().forEach(brokerContainer::addExposedPort);
                             }
-                            brokerContainer.setEnableAsyncProfiler(spec.profileBroker);
+                            configureProfiling(brokerContainer, spec.profileBroker);
                             return brokerContainer;
                         }
                 ));
@@ -566,8 +575,20 @@ public class PulsarCluster {
                 .withEnv("zkServers", ZKContainer.NAME)
                 .withEnv(functionWorkerEnvs)
                 .withExposedPorts(functionWorkerAdditionalPorts.toArray(new Integer[0]));
-        workerContainer.setEnableAsyncProfiler(spec.profileFunctionWorker);
+        configureProfiling(workerContainer, spec.profileFunctionWorker);
         return workerContainer;
+    }
+
+    /**
+     * Applies the spec's profiling settings to a container. The output directory is set alongside
+     * the enable flag rather than at each call site, so that the two cannot drift apart.
+     *
+     * @param container the container to configure
+     * @param enabled whether this component is profiled
+     */
+    private void configureProfiling(PulsarContainer<?> container, boolean enabled) {
+        container.setEnableAsyncProfiler(enabled);
+        container.setProfileDirectory(spec.profileDirectory);
     }
 
     private void startFunctionWorkersWithThreadContainerFactory(String suffix, int numFunctionWorkers) {

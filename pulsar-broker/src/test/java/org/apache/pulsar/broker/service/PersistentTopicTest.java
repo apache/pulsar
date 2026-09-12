@@ -385,7 +385,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentDispatcherSingleActiveConsumer dispatcher = new PersistentDispatcherSingleActiveConsumer(cursor,
                 SubType.Exclusive, 1, topic, null);
         Consumer consumer = mock(Consumer.class);
-        dispatcher.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), consumer);
+        dispatcher.readEntriesFailed(new ManagedLedgerException.InvalidCursorPositionException("failed"), consumer, 0L);
         verify(topic, atLeast(1)).getBrokerService();
     }
 

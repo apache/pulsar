@@ -26,13 +26,12 @@ import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
 import org.apache.bookkeeper.client.api.BKException;
@@ -123,6 +122,11 @@ public class RangeEntryCacheImpl implements EntryCache {
         return ml.getConfig();
     }
 
+    @VisibleForTesting
+    RangeCache getEntries() {
+        return entries;
+    }
+
     @Override
     public String getName() {
         return ml.getName();
@@ -152,9 +156,17 @@ public class RangeEntryCacheImpl implements EntryCache {
         }
 
         Position position = entry.getPosition();
-        ReferenceCountedEntry cacheEntry =
+        // A MessageMetadata instance keeps a reference to the buffer it was parsed from and decodes its string and
+        // bytes fields from it lazily, so it may only be shared with the cached entry when that entry keeps the
+        // same buffer alive. When the payload is copied into a cache owned buffer, the source buffer is released
+        // while the cached entry is still in the cache, so the metadata has to be parsed from the copy instead.
+        EntryImpl cacheEntry =
                 EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler(),
-                            entry.getMessageMetadata());
+                            copyEntries ? null : entry.getMessageMetadata());
+        if (ml.getConfig().isPulsarMessageEntries()) {
+            // Parse the message metadata once at insert time so that cache reads don't have to do it lazily
+            cacheEntry.initializeMessageMetadataIfNeeded(ml.getName());
+        }
         cachedData.release();
         if (entries.put(position, cacheEntry, entryLength)) {
             totalAddedEntriesSize.add(entryLength);
@@ -359,12 +371,13 @@ public class RangeEntryCacheImpl implements EntryCache {
                 if (!entries.isEmpty()) {
                     // release permits only when entries have been handled
                     AtomicInteger remainingCount = new AtomicInteger(entries.size());
+                    Runnable releasePermits = () -> {
+                        if (remainingCount.decrementAndGet() <= 0) {
+                            pendingReadsLimiter.release(handle);
+                        }
+                    };
                     for (Entry entry : entries) {
-                        ((EntryImpl) entry).onDeallocate(() -> {
-                            if (remainingCount.decrementAndGet() <= 0) {
-                                pendingReadsLimiter.release(handle);
-                            }
-                        });
+                        ((EntryImpl) entry).onDeallocate(releasePermits);
                     }
                 } else {
                     pendingReadsLimiter.release(handle);
@@ -385,39 +398,29 @@ public class RangeEntryCacheImpl implements EntryCache {
     void doAsyncReadEntriesByPosition(ReadHandle lh, Position firstPosition, Position lastPosition, int numberOfEntries,
                                       IntSupplier expectedReadCount, final ReadEntriesCallback callback,
                                       Object ctx) {
-        Collection<ReferenceCountedEntry> cachedEntries;
+        CachedEntries cachedEntries = new CachedEntries(firstPosition.getEntryId(), numberOfEntries);
         if (firstPosition.compareTo(lastPosition) == 0) {
             ReferenceCountedEntry cachedEntry = entries.get(firstPosition);
-            if (cachedEntry == null) {
-                cachedEntries = Collections.emptyList();
-            } else {
-                cachedEntries = Collections.singleton(cachedEntry);
+            if (cachedEntry != null) {
+                try {
+                    cachedEntries.accept(cachedEntry);
+                } finally {
+                    cachedEntry.release();
+                }
             }
         } else {
-            cachedEntries = entries.getRange(firstPosition, lastPosition);
+            entries.forEachInRange(firstPosition, lastPosition, cachedEntries);
         }
 
-        if (cachedEntries.size() > 0) {
-            long totalCachedSize = 0;
-            final List<Entry> entriesToReturn = new ArrayList<>(numberOfEntries);
-            for (int i = 0; i < numberOfEntries; i++) {
-                entriesToReturn.add(null); // Initialize with nulls
-            }
-
-            for (Entry entry : cachedEntries) {
-                int index = (int) (entry.getPosition().getEntryId() - firstPosition.getEntryId());
-                entriesToReturn.set(index, EntryImpl.create(entry));
-                totalCachedSize += entry.getLength();
-                entry.release();
-            }
-
-            manager.getMlFactoryMBean().recordCacheHits(cachedEntries.size(), totalCachedSize);
+        if (cachedEntries.count > 0) {
+            final List<Entry> entriesToReturn = cachedEntries.entries;
+            manager.getMlFactoryMBean().recordCacheHits(cachedEntries.count, cachedEntries.totalSize);
             log.debug().attr("numberOfEntries", numberOfEntries)
                     .attr("firstPosition", firstPosition)
                     .attr("lastPosition", lastPosition)
                     .log("Cache hit for entries");
 
-            if (cachedEntries.size() == numberOfEntries) {
+            if (cachedEntries.count == numberOfEntries) {
                 callback.readEntriesComplete(entriesToReturn, ctx);
             } else {
                 // read missing ranges
@@ -495,6 +498,34 @@ public class RangeEntryCacheImpl implements EntryCache {
         }
     }
 
+    /** Builds the final sparse result directly, allocating its list only after the first cache hit. */
+    static final class CachedEntries implements Consumer<ReferenceCountedEntry> {
+        private final long firstEntryId;
+        private final int numberOfEntries;
+        List<Entry> entries;
+        private int count;
+        private long totalSize;
+
+        CachedEntries(long firstEntryId, int numberOfEntries) {
+            this.firstEntryId = firstEntryId;
+            this.numberOfEntries = numberOfEntries;
+        }
+
+        @Override
+        public void accept(ReferenceCountedEntry entry) {
+            if (entries == null) {
+                entries = new ArrayList<>(numberOfEntries);
+                for (int i = 0; i < numberOfEntries; i++) {
+                    entries.add(null);
+                }
+            }
+            int index = (int) (entry.getPosition().getEntryId() - firstEntryId);
+            entries.set(index, EntryImpl.create(entry));
+            count++;
+            totalSize += entry.getLength();
+        }
+    }
+
     private CompletableFuture<List<Entry>> readMissingEntriesAsync(ReadHandle lh,
                                                                    long firstEntry, long lastEntry,
                                                                    IntSupplier expectedReadCount, Object ctx) {
@@ -548,7 +579,9 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 final List<Entry> entriesToReturn = new ArrayList<>(entriesToRead);
                                 for (LedgerEntry e : ledgerEntries) {
                                     EntryImpl entry = EntryImpl.create(e, interceptor, expectedReadCountVal);
-                                    entry.initializeMessageMetadataIfNeeded(ml.getName());
+                                    if (ml.getConfig().isPulsarMessageEntries()) {
+                                        entry.initializeMessageMetadataIfNeeded(ml.getName());
+                                    }
                                     entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
                                     if (expectedReadCountVal > 0) {

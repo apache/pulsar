@@ -19,8 +19,10 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import java.util.HashMap;
 import java.util.Map;
+import org.jclouds.domain.Credentials;
 import org.testng.annotations.Test;
 
 public class JCloudBlobStoreProviderTest {
@@ -129,5 +131,49 @@ public class JCloudBlobStoreProviderTest {
         map.put("managedLedgerOffloadServiceEndpoint", "http://s3.service");
         TieredStorageConfiguration configuration = new TieredStorageConfiguration(map);
         configuration.getProvider().validate(configuration);
+    }
+
+    // Offload policies (OffloadPoliciesImpl) carry credentials under the
+    // s3-prefixed keys for every S3-compatible driver
+    private TieredStorageConfiguration credentialConfig(String driver, String id, String secret) {
+        Map<String, String> map = new HashMap<>();
+        map.put("managedLedgerOffloadDriver", driver);
+        map.put("managedLedgerOffloadServiceEndpoint", "http://storage.service");
+        map.put("managedLedgerOffloadBucket", "test-bucket");
+        if (id != null) {
+            map.put("s3ManagedLedgerOffloadCredentialId", id);
+        }
+        if (secret != null) {
+            map.put("s3ManagedLedgerOffloadCredentialSecret", secret);
+        }
+        return new TieredStorageConfiguration(map);
+    }
+
+    private void assertCredentialsFromConfig(String driver) {
+        TieredStorageConfiguration configuration =
+                credentialConfig(driver, "config-access-id", "config-access-secret");
+        configuration.getProvider().buildCredentials(configuration);
+        assertNotNull(configuration.getProviderCredentials());
+        Credentials credentials = configuration.getProviderCredentials().get();
+        assertEquals(credentials.identity, "config-access-id");
+        assertEquals(credentials.credential, "config-access-secret");
+    }
+
+    @Test
+    public void s3CredentialsFromConfigTest() {
+        assertCredentialsFromConfig("S3");
+    }
+
+    @Test
+    public void aliyunOssCredentialsFromConfigTest() {
+        assertCredentialsFromConfig("aliyun-oss");
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+        expectedExceptionsMessageRegExp = "Both s3ManagedLedgerOffloadCredentialId and "
+                + "s3ManagedLedgerOffloadCredentialSecret must be set.*")
+    public void s3PartialCredentialsFromConfigTest() {
+        TieredStorageConfiguration configuration = credentialConfig("S3", "config-access-id", null);
+        configuration.getProvider().buildCredentials(configuration);
     }
 }

@@ -26,14 +26,18 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.BoundType;
+import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
@@ -56,16 +60,22 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.BundleSplitStrategy;
 import org.apache.pulsar.broker.loadbalance.LoadBalancerTestingUtils;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
 import org.apache.pulsar.client.admin.Namespaces;
@@ -87,12 +97,14 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
@@ -102,6 +114,7 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.apache.pulsar.utils.ResourceUtils;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -143,6 +156,74 @@ public class ModularLoadManagerImplTest {
     private ModularLoadManagerImpl secondaryLoadManager;
 
     private ExecutorService executor;
+
+    public static class RecordingLoadSheddingStrategy implements LoadSheddingStrategy, ModularLoadManagerStrategy {
+        private static final AtomicReference<RecordingLoadSheddingStrategy> INSTANCE = new AtomicReference<>();
+
+        private volatile Multimap<String, String> bundlesToUnload = ImmutableMultimap.of();
+        private volatile boolean failPlanning;
+        private final AtomicReference<String> bundlePassedToSelector = new AtomicReference<>();
+        private final AtomicInteger completedAttempts = new AtomicInteger();
+
+        public RecordingLoadSheddingStrategy() {
+            INSTANCE.set(this);
+        }
+
+        static void reset() {
+            INSTANCE.set(null);
+        }
+
+        static RecordingLoadSheddingStrategy getInstance() {
+            return INSTANCE.get();
+        }
+
+        void setBundlesToUnload(String source, String bundle) {
+            bundlesToUnload = ImmutableMultimap.of(source, bundle);
+        }
+
+        String getBundlePassedToSelector() {
+            return bundlePassedToSelector.get();
+        }
+
+        void failNextPlanning() {
+            failPlanning = true;
+        }
+
+        int getCompletedAttempts() {
+            return completedAttempts.get();
+        }
+
+        @Override
+        public Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf) {
+            if (failPlanning) {
+                failPlanning = false;
+                throw new IllegalStateException("Expected planning failure");
+            }
+            return bundlesToUnload;
+        }
+
+        @Override
+        public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData loadData,
+                                             ServiceConfiguration conf) {
+            throw new AssertionError("Expected selectBrokerForBundle to be used");
+        }
+
+        @Override
+        public Optional<String> selectBrokerForBundle(Set<String> candidates, String bundle,
+                                                       BundleData bundleToAssign, LoadData loadData,
+                                                       ServiceConfiguration conf) {
+            bundlePassedToSelector.set(bundle);
+            return Optional.empty();
+        }
+
+        @Override
+        public void onActiveBrokersChange(Set<String> activeBrokers) {}
+
+        @Override
+        public void onUnloadAttemptCompleted() {
+            completedAttempts.incrementAndGet();
+        }
+    }
 
     // Invoke non-overloaded method.
     private Object invokeSimpleMethod(final Object instance, final String methodName, final Object... args)
@@ -293,6 +374,202 @@ public class ModularLoadManagerImplTest {
 
     private String mockBundleName(final int i) {
         return String.format("%d/%d/0x00000000_0xffffffff", i, i);
+    }
+
+    @Test
+    public void testFollowerSkipsLoadShedding() {
+        Awaitility.await().until(() -> pulsar1.getLeaderElectionService().isLeader()
+                || pulsar2.getLeaderElectionService().isLeader());
+
+        ModularLoadManagerImpl followerLoadManager = pulsar1.getLeaderElectionService().isLeader()
+                ? secondaryLoadManager : primaryLoadManager;
+
+        LoadSheddingStrategy loadSheddingStrategy = Mockito.mock(LoadSheddingStrategy.class);
+        followerLoadManager.setLoadSheddingStrategy(loadSheddingStrategy);
+
+        followerLoadManager.doLoadShedding();
+
+        verifyNoInteractions(loadSheddingStrategy);
+    }
+
+    @Test
+    public void testMetadataSessionDisconnectionInvalidatesLeadershipAndLogsOnce() throws Exception {
+        Awaitility.await().until(() -> pulsar1.getLeaderElectionService().isLeader()
+                || pulsar2.getLeaderElectionService().isLeader());
+
+        ModularLoadManagerImpl leaderLoadManager = spy(pulsar1.getLeaderElectionService().isLeader()
+                ? primaryLoadManager : secondaryLoadManager);
+        assertTrue(leaderLoadManager.isLeader());
+
+        try (TestLogAppender appender = TestLogAppender.create(ModularLoadManagerImpl.class)) {
+            leaderLoadManager.handleMetadataSessionEvent(SessionEvent.ConnectionLost);
+            leaderLoadManager.handleMetadataSessionEvent(SessionEvent.SessionLost);
+
+            assertFalse(leaderLoadManager.isLeader());
+            assertEquals(appender.getEvents().stream()
+                    .filter(event -> event.getLevel() == Level.WARN)
+                    .filter(event -> event.getMessage().getFormattedMessage()
+                            .contains("leader-only operations will be skipped"))
+                    .count(), 1L);
+        }
+    }
+
+    @Test
+    public void testLoadSheddingStopsWhenLeadershipChangesBeforeUnload() throws Exception {
+        Awaitility.await().until(() -> primaryLoadManager.getAvailableBrokers().size() > 1);
+
+        AtomicBoolean leader = new AtomicBoolean(true);
+        ModularLoadManagerImpl loadManagerSpy = spy(primaryLoadManager);
+        doAnswer(invocation -> leader.get()).when(loadManagerSpy).isLeader();
+
+        LoadSheddingStrategy loadSheddingStrategy = Mockito.mock(LoadSheddingStrategy.class);
+        loadManagerSpy.setLoadSheddingStrategy(loadSheddingStrategy);
+        when(loadSheddingStrategy.findBundlesForUnloading(any(), any()))
+                .thenReturn(ImmutableMultimap.of(primaryBrokerId, mockBundleName(1),
+                        primaryBrokerId, mockBundleName(2)));
+        doAnswer(invocation -> true).when(loadManagerSpy).shouldNamespacePoliciesUnload(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        doAnswer(invocation -> true).when(loadManagerSpy).shouldAntiAffinityNamespaceUnload(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        doAnswer(invocation -> {
+            leader.set(false);
+            return Optional.of(secondaryBrokerId);
+        }).when(loadManagerSpy).selectBroker(any());
+        doNothing().when(loadManagerSpy).unloadNamespaceBundle(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+
+        loadManagerSpy.doLoadShedding();
+
+        verify(loadSheddingStrategy).onUnloadAttemptCompleted();
+
+        verify(loadManagerSpy, Mockito.times(1)).selectBroker(any());
+        verify(loadManagerSpy, Mockito.never()).unloadNamespaceBundle(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+    }
+
+    @Test
+    public void testLoadSheddingPublishesMetricsWhenLeadershipChangesAfterUnload() throws Exception {
+        Awaitility.await().until(() -> primaryLoadManager.getAvailableBrokers().size() > 1);
+
+        String firstBundle = mockBundleName(1);
+        String secondBundle = mockBundleName(2);
+        AtomicBoolean leader = new AtomicBoolean(true);
+        ModularLoadManagerImpl loadManagerSpy = spy(primaryLoadManager);
+        doAnswer(invocation -> leader.get()).when(loadManagerSpy).isLeader();
+
+        LoadSheddingStrategy loadSheddingStrategy = Mockito.mock(LoadSheddingStrategy.class);
+        loadManagerSpy.setLoadSheddingStrategy(loadSheddingStrategy);
+        when(loadSheddingStrategy.findBundlesForUnloading(any(), any()))
+                .thenReturn(ImmutableMultimap.of(primaryBrokerId, firstBundle, primaryBrokerId, secondBundle));
+        doAnswer(invocation -> true).when(loadManagerSpy).shouldNamespacePoliciesUnload(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        doAnswer(invocation -> true).when(loadManagerSpy).shouldAntiAffinityNamespaceUnload(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        doAnswer(invocation -> Optional.of(secondaryBrokerId)).when(loadManagerSpy).selectBroker(any());
+        doAnswer(invocation -> {
+            leader.set(false);
+            return null;
+        }).when(loadManagerSpy).unloadNamespaceBundle(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+
+        loadManagerSpy.doLoadShedding();
+
+        verify(loadSheddingStrategy).onUnloadAttemptCompleted();
+
+        verify(loadManagerSpy, Mockito.times(1)).unloadNamespaceBundle(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+        assertTrue(loadManagerSpy.getLoadData().getRecentlyUnloadedBundles().containsKey(firstBundle));
+        assertFalse(loadManagerSpy.getLoadData().getRecentlyUnloadedBundles().containsKey(secondBundle));
+        Metrics unloadMetrics = loadManagerSpy.getLoadBalancingMetrics().stream()
+                .filter(metric -> "bundleUnloading".equals(metric.getDimension("metric")))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(unloadMetrics.getMetrics().get("brk_lb_unload_broker_total"), 1L);
+        assertEquals(unloadMetrics.getMetrics().get("brk_lb_unload_bundle_total"), 1L);
+    }
+
+    @Test
+    public void testBundleSplitDoesNotCleanUpWhenLeadershipIsLostBeforeSplit() throws Exception {
+        Awaitility.await().until(() -> primaryLoadManager.getAvailableBrokers().size() > 1);
+        pulsar1.getConfiguration().setLoadBalancerAutoBundleSplitEnabled(true);
+        pulsar1.getConfiguration().setLoadBalancerAutoUnloadSplitBundlesEnabled(true);
+        primaryLoadManager.updateAll();
+
+        String tenant = "split-leadership-loss";
+        String namespace = "test";
+        admin1.clusters().createCluster("use", ClusterData.builder()
+                .serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.tenants().createTenant(tenant,
+                new TenantInfoImpl(Set.of("appid1"), Set.of("use")));
+        admin1.namespaces().createNamespace(tenant + "/" + namespace);
+
+        String topic = "persistent://" + tenant + "/" + namespace + "/topic";
+        String bundle = pulsar1.getNamespaceService().getBundle(TopicName.get(topic)).toString();
+        BundleData bundleData = new BundleData(10, 1000);
+        primaryLoadManager.getLoadData().getBundleData().put(bundle, bundleData);
+        String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundle);
+        MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
+        metadataCache.create(bundleDataPath, bundleData).join();
+
+        ModularLoadManagerImpl loadManagerSpy = spy(primaryLoadManager);
+        BundleSplitStrategy splitStrategy = (__, ___) -> Map.of(bundle, primaryBrokerId);
+        loadManagerSpy.setBundleSplitStrategy(splitStrategy);
+        AtomicBoolean leader = new AtomicBoolean(true);
+        doAnswer(invocation -> leader.get()).when(loadManagerSpy).isLeader();
+        doAnswer(invocation -> {
+            leader.set(false);
+            return true;
+        }).when(loadManagerSpy).shouldNamespacePoliciesUnload(
+                Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+
+        loadManagerSpy.checkNamespaceBundleSplit();
+
+        assertTrue(loadManagerSpy.getLoadData().getBundleData().containsKey(bundle));
+        assertTrue(metadataCache.get(bundleDataPath).join().isPresent());
+    }
+
+    @Test
+    public void testBundleDataWriteStopsWhenLeadershipChangesBeforeMetadataWrite() throws Exception {
+        String bundle = mockBundleName(99);
+        BundleData bundleData = new BundleData(10, 1000);
+        String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundle);
+        MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
+        metadataCache.create(bundleDataPath, bundleData).join();
+
+        Awaitility.await().until(() -> primaryLoadManager.getLoadData().getBrokerData().containsKey(primaryBrokerId));
+        AtomicInteger leaderChecks = new AtomicInteger();
+        ModularLoadManagerImpl loadManagerSpy = spy(primaryLoadManager);
+        LoadData loadData = loadManagerSpy.getLoadData();
+        loadData.getBundleData().clear();
+        loadData.getBundleData().put(bundle, bundleData);
+        loadData.getBrokerData().get(primaryBrokerId).getLocalData().getLastStats()
+                .put(bundle, new NamespaceBundleStats());
+        doAnswer(invocation -> leaderChecks.getAndIncrement() < 2).when(loadManagerSpy).isLeader();
+
+        loadManagerSpy.writeBundleDataOnZooKeeper();
+
+        assertEquals(metadataCache.getWithStats(bundleDataPath).get().get().getStat().getVersion(), 0);
+    }
+
+    @Test
+    public void testBundleDataAggregationDoesNotDeleteAfterLeadershipLoss() throws Exception {
+        String bundle = mockBundleName(100);
+        BundleData bundleData = new BundleData(10, 1000);
+        String bundleDataPath = String.format("%s/%s", BUNDLE_DATA_BASE_PATH, bundle);
+        MetadataCache<BundleData> metadataCache = pulsar1.getLocalMetadataStore().getMetadataCache(BundleData.class);
+        metadataCache.create(bundleDataPath, bundleData).join();
+
+        Awaitility.await().until(() -> primaryLoadManager.getLoadData().getBrokerData().containsKey(primaryBrokerId));
+        AtomicInteger leaderChecks = new AtomicInteger();
+        ModularLoadManagerImpl loadManagerSpy = spy(primaryLoadManager);
+        LoadData loadData = loadManagerSpy.getLoadData();
+        loadData.getBundleData().clear();
+        loadData.getBundleData().put(bundle, bundleData);
+        doAnswer(invocation -> leaderChecks.getAndIncrement() == 0).when(loadManagerSpy).isLeader();
+
+        loadManagerSpy.writeBundleDataOnZooKeeper();
+
+        assertTrue(metadataCache.get(bundleDataPath).join().isPresent());
     }
 
     // Test disabled since it's depending on CPU usage in the machine
@@ -606,6 +883,79 @@ public class ModularLoadManagerImplTest {
         // The bundle shouldn't be unloaded because the broker is the same.
         verify(namespacesSpy1, Mockito.times(4))
                 .unloadNamespaceBundle(Mockito.anyString(), Mockito.anyString(), Mockito.anyString());
+    }
+
+    @Test
+    public void testLoadSheddingPassesBundleNameAndCompletesAttempt() throws Exception {
+        RecordingLoadSheddingStrategy.reset();
+        String strategyClass = RecordingLoadSheddingStrategy.class.getName();
+        pulsar3.getConfiguration().setLoadBalancerEnabled(true);
+        pulsar3.getConfiguration().setLoadBalancerLoadPlacementStrategy(strategyClass);
+        pulsar3.getConfiguration().setLoadBalancerLoadSheddingStrategy(strategyClass);
+        pulsar3.start();
+
+        ModularLoadManagerWrapper loadManagerWrapper = (ModularLoadManagerWrapper) pulsar3.getLoadManager().get();
+        ModularLoadManagerImpl loadManager = spy((ModularLoadManagerImpl) loadManagerWrapper.getLoadManager());
+        doAnswer(invocation -> true).when(loadManager).isLeader();
+        Awaitility.await().untilAsserted(() -> assertTrue(loadManager.getAvailableBrokers().size() > 1));
+
+        NamespaceBundle bundle = makeBundle("test", "load-shedding-strategy");
+        RecordingLoadSheddingStrategy strategy = RecordingLoadSheddingStrategy.getInstance();
+        assertTrue(strategy != null);
+        strategy.setBundlesToUnload(primaryBrokerId, bundle.toString());
+
+        loadManager.doLoadShedding();
+
+        assertEquals(strategy.getBundlePassedToSelector(), bundle.toString());
+        assertEquals(strategy.getCompletedAttempts(), 1);
+
+        strategy.failNextPlanning();
+        expectThrows(IllegalStateException.class, loadManager::doLoadShedding);
+        assertEquals(strategy.getCompletedAttempts(), 2);
+    }
+
+    @Test
+    public void testOverloadRetryUsesBundleAwareSelectionWithoutRemovingCandidates() throws Exception {
+        // Force every populated broker report through the overload retry branch without mutating live load data.
+        pulsar1.getConfiguration().setLoadBalancerBrokerOverloadedThresholdPercentage(-1);
+        LoadData loadData = primaryLoadManager.getLoadData();
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(primaryLoadManager.getAvailableBrokers().size() > 1);
+            assertTrue(loadData.getBrokerData().keySet().containsAll(primaryLoadManager.getAvailableBrokers()));
+        });
+        AtomicInteger bundleAwareSelectionCount = new AtomicInteger();
+        AtomicInteger legacySelectionCount = new AtomicInteger();
+        AtomicReference<String> firstSelectedBroker = new AtomicReference<>();
+        AtomicReference<Set<String>> retryCandidates = new AtomicReference<>();
+        ModularLoadManagerStrategy strategy = new ModularLoadManagerStrategy() {
+            @Override
+            public Optional<String> selectBroker(Set<String> candidates, BundleData bundleToAssign, LoadData data,
+                                                 ServiceConfiguration conf) {
+                legacySelectionCount.incrementAndGet();
+                return Optional.empty();
+            }
+
+            @Override
+            public Optional<String> selectBrokerForBundle(Set<String> candidates, String bundle,
+                                                           BundleData bundleToAssign, LoadData data,
+                                                           ServiceConfiguration conf) {
+                if (bundleAwareSelectionCount.incrementAndGet() == 1) {
+                    String broker = candidates.iterator().next();
+                    firstSelectedBroker.set(broker);
+                    return Optional.of(broker);
+                }
+                retryCandidates.set(Set.copyOf(candidates));
+                return Optional.of(firstSelectedBroker.get());
+            }
+        };
+        primaryLoadManager.setPlacementStrategy(strategy);
+
+        Optional<String> selectedBroker = primaryLoadManager.selectBroker(makeBundle("test", "overload-retry"));
+
+        assertEquals(bundleAwareSelectionCount.get(), 2);
+        assertEquals(legacySelectionCount.get(), 0);
+        assertTrue(retryCandidates.get().contains(firstSelectedBroker.get()));
+        assertEquals(selectedBroker, Optional.of(firstSelectedBroker.get()));
     }
 
     @Test

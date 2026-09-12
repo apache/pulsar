@@ -149,6 +149,30 @@ public class CommandUtilsTest {
     }
 
     @Test
+    public void testAddBrokerEntryMetadataLargePayload() throws Exception {
+        int mockBatchSize = 10;
+        byte[] data = new byte[Commands.BROKER_ENTRY_METADATA_COPY_THRESHOLD + 1];
+        for (int i = 0; i < data.length; i++) {
+            data[i] = (byte) i;
+        }
+        ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length, data.length);
+        byteBuf.writeBytes(data);
+        ByteBuf dataWithBrokerEntryMetadata =
+                Commands.addBrokerEntryMetadata(byteBuf, getBrokerEntryMetadataInterceptors(), mockBatchSize);
+        assertTrue(dataWithBrokerEntryMetadata instanceof CompositeByteBuf);
+
+        BrokerEntryMetadata brokerMetadata =
+                Commands.parseBrokerEntryMetadataIfExist(dataWithBrokerEntryMetadata);
+        assertEquals(brokerMetadata.getIndex(), mockBatchSize - 1);
+        assertEquals(data.length, dataWithBrokerEntryMetadata.readableBytes());
+
+        byte[] content = new byte[dataWithBrokerEntryMetadata.readableBytes()];
+        dataWithBrokerEntryMetadata.readBytes(content);
+        assertEquals(content, data);
+        dataWithBrokerEntryMetadata.release();
+    }
+
+    @Test
     public void testSkipBrokerEntryMetadata() throws Exception {
         String data = "test-message";
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
