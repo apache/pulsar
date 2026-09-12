@@ -26,11 +26,13 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Method;
@@ -42,11 +44,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 import lombok.CustomLog;
 import lombok.val;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -64,6 +69,7 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.mockito.invocation.Invocation;
 import org.testng.Assert;
@@ -174,6 +180,43 @@ public class SchedulerManagerTest {
     public void stop() {
         schedulerManager.close();
         this.executor.shutdownNow();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testCloseDoesNotBlockMembershipChecksWhileWaitingForScheduler() throws Exception {
+        doReturn(List.of(WorkerInfo.of("worker-1", "localhost", 5000)))
+                .when(membershipManager).getCurrentMembership();
+        schedulerManager.initialize(producer);
+        ReentrantLock schedulerLock = (ReentrantLock) schedulerManager.getSchedulerLock();
+        AtomicReference<Thread> closingThread = new AtomicReference<>();
+        ExecutorService closeExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("scheduler-close"));
+        Future<?> closeFuture = null;
+        schedulerLock.lock();
+        try {
+            closeFuture = closeExecutor.submit(() -> {
+                closingThread.set(Thread.currentThread());
+                schedulerManager.close();
+            });
+            Awaitility.await().until(() -> closingThread.get() != null
+                    && schedulerLock.hasQueuedThread(closingThread.get()));
+
+            // A scheduler holding schedulerLock must still be able to read membership while close waits.
+            // Use a separate task with a bounded wait so a regression can release the lock during cleanup.
+            executor.submit(() -> assertThrows(SchedulerManager.TooFewWorkersException.class,
+                    () -> schedulerManager.rebalanceIfNotInprogress())).get(5, TimeUnit.SECONDS);
+            verify(producer, never()).close();
+        } finally {
+            schedulerLock.unlock();
+            try {
+                if (closeFuture != null) {
+                    closeFuture.get(5, TimeUnit.SECONDS);
+                }
+            } finally {
+                closeExecutor.shutdownNow();
+            }
+        }
+        verify(producer).close();
     }
 
     @Test
