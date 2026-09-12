@@ -92,6 +92,19 @@ public final class ServerCnxThrottleTracker {
      *
      * <p>Some types support reentrant behavior (can be activated multiple times concurrently),
      * while others are non-reentrant (single activation only).
+     *
+     * <h3>Ordinal stability contract</h3>
+     * <p>The {@code states[]} array in {@link ServerCnxThrottleTracker} is indexed by
+     * {@link #ordinal()}.  <strong>Ordinal values are an internal implementation detail
+     * and MUST NOT be serialised, persisted, or sent over the wire.</strong>
+     * New constants MUST be appended at the end of the enum body, and existing constants
+     * MUST NOT be reordered or removed without a careful migration.
+     * {@link #AdaptivePublishRate} was intentionally placed last so that the ordinals of
+     * all pre-existing constants (0–6) remain unchanged.
+     *
+     * <p>A companion test ({@code ThrottleTypeEnumTest}) asserts the minimum constant
+     * count and that {@link #AdaptivePublishRate} is the last entry; it will fail fast
+     * if this contract is accidentally broken.
      */
     public enum ThrottleType {
 
@@ -188,7 +201,30 @@ public final class ServerCnxThrottleTracker {
          *
          * <p><b>Type:</b> Non-reentrant
          */
-        ConnectionPauseReceivingCooldownRateLimit(false);
+        ConnectionPauseReceivingCooldownRateLimit(false),
+
+        /**
+         * Throttling applied by the adaptive publish rate controller.
+         *
+         * <p>Activated when the broker-level {@link AdaptivePublishThrottleController} determines
+         * that a topic is under memory or backlog pressure and instructs its per-topic
+         * {@link AdaptivePublishRateLimiter} to restrict the publish rate.
+         *
+         * <p>A dedicated type (rather than reusing {@link #TopicPublishRate}) ensures that
+         * adaptive and static rate-limiter activations are independently reference-counted,
+         * so {@link ServerCnxThrottleTracker#throttledCount()} correctly reflects both
+         * when they are simultaneously active on the same connection.
+         *
+         * <p><b>Type:</b> Reentrant (supports multiple concurrent activations)
+         * <br><b>Reason for reentrancy:</b> Multiple producers on the same topic share a single
+         * {@link AdaptivePublishRateLimiter}; each triggers throttling independently, requiring
+         * a reference count to track all affected producers on the connection.
+         *
+         * <p><b>Configuration:</b> Enabled when {@code adaptivePublisherThrottlingEnabled=true}.
+         * Appended last to preserve the ordinals of all pre-existing constants; see the
+         * ordinal stability contract on the enclosing enum.
+         */
+        AdaptivePublishRate(true);
 
         @Getter
         final boolean reentrant;
