@@ -30,12 +30,16 @@ public interface AutoTopicCreationOverride {
 
     Integer getDefaultNumPartitions();
 
+    Integer getSystemTopicDefaultNumPartitions();
+
     interface Builder {
         Builder allowAutoTopicCreation(boolean allowTopicCreation);
 
         Builder topicType(String topicType);
 
         Builder defaultNumPartitions(Integer defaultNumPartition);
+
+        Builder systemTopicDefaultNumPartitions(Integer systemTopicDefaultNumPartitions);
 
         AutoTopicCreationOverride build();
     }
