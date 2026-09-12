@@ -20,10 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBufAllocator;
@@ -230,4 +233,136 @@ public class BatchMessageContainerImplTest {
         batchMessageContainer.clear();
         messages.forEach(ReferenceCountUtil::safeRelease);
     }
+
+    /**
+     * A batch carries one transaction id in its metadata, so every message in it inherits that transaction.
+     * Mixing a plain message into a transactional batch therefore silently enrolls it in the transaction: it
+     * stays invisible until commit and is dropped on abort, even though the application never sent it inside
+     * a transaction.
+     */
+    @Test
+    public void testPlainMessageIsNotBatchedWithTransactionalMessages() throws Exception {
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(createTestProducer());
+        try {
+            container.add(newMessage(1L, 7L, 13L), null);
+
+            assertFalse(container.hasSameTxn(newMessage(2L, null, null)),
+                    "a plain message was accepted into a transactional batch");
+        } finally {
+            container.discard(null);
+        }
+    }
+
+    /**
+     * The mirror image: a transactional message joining a batch that already holds plain messages stamps its
+     * transaction id onto the whole batch, retroactively pulling those plain messages into the transaction.
+     */
+    @Test
+    public void testTransactionalMessageIsNotBatchedWithPlainMessages() throws Exception {
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(createTestProducer());
+        try {
+            container.add(newMessage(1L, null, null), null);
+
+            assertFalse(container.hasSameTxn(newMessage(2L, 7L, 13L)),
+                    "a transactional message was accepted into a plain batch");
+        } finally {
+            container.discard(null);
+        }
+    }
+
+    /**
+     * Key-based batching fails the other way round: the guard reads the outer container's transaction state
+     * while the batch metadata is built by the per-key inner container, so a transactional message landing in
+     * a key bucket whose first message was plain is published with no transaction id at all — outside the
+     * transaction, and not rolled back on abort.
+     */
+    @Test
+    public void testKeyBasedContainerKeepsTransactionalAndPlainMessagesApart() throws Exception {
+        BatchMessageKeyBasedContainer container = new BatchMessageKeyBasedContainer();
+        container.setProducer(createTestProducer());
+        try {
+            container.add(newMessage(1L, null, null), null);
+
+            assertFalse(container.hasSameTxn(newMessage(2L, 7L, 13L)),
+                    "a transactional message was accepted into a plain key-based batch");
+        } finally {
+            container.discard(null);
+        }
+    }
+
+    /** Messages of the same transaction must still batch together, and two different transactions must not. */
+    @Test
+    public void testSameTransactionStillBatchesTogether() throws Exception {
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(createTestProducer());
+        try {
+            container.add(newMessage(1L, 7L, 13L), null);
+
+            assertTrue(container.hasSameTxn(newMessage(2L, 7L, 13L)),
+                    "two messages of the same transaction were split across batches");
+            assertFalse(container.hasSameTxn(newMessage(3L, 7L, 14L)),
+                    "messages of two different transactions were put in one batch");
+        } finally {
+            container.discard(null);
+        }
+    }
+
+    /** Plain messages must still batch with each other. */
+    @Test
+    public void testPlainMessagesStillBatchTogether() throws Exception {
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(createTestProducer());
+        try {
+            container.add(newMessage(1L, null, null), null);
+
+            assertTrue(container.hasSameTxn(newMessage(2L, null, null)),
+                    "two plain messages were split across batches");
+        } finally {
+            container.discard(null);
+        }
+    }
+
+    private static MessageImpl<byte[]> newMessage(long sequenceId, Long txnIdMostBits, Long txnIdLeastBits) {
+        MessageMetadata metadata = new MessageMetadata();
+        metadata.setSequenceId(sequenceId);
+        metadata.setProducerName("producer1");
+        metadata.setPublishTime(System.currentTimeMillis());
+        if (txnIdMostBits != null) {
+            metadata.setTxnidMostBits(txnIdMostBits);
+            metadata.setTxnidLeastBits(txnIdLeastBits);
+        }
+        ByteBuffer payload = ByteBuffer.wrap(("payload-" + sequenceId).getBytes(StandardCharsets.UTF_8));
+        return MessageImpl.create(metadata, payload, Schema.BYTES, null);
+    }
+
+    /**
+     * An inner batch whose first add fails to allocate clears itself and stays empty, so the outer container's
+     * message count is never incremented and the outer is not cleared either. Any transaction identity captured
+     * for that failed message must therefore not survive into the next first message, or a later message of that
+     * transaction would be admitted into a plain batch and published outside its transaction. Allocation failure
+     * is a recoverable path the client already handles.
+     */
+    @Test
+    public void testKeyBasedContainerDropsTheTransactionIdentityOfAFailedFirstAdd() throws Exception {
+        ProducerImpl<?> producer = createTestProducer();
+        MemoryLimitController memoryLimitController = producer.client.getMemoryLimitController();
+        // fail only the first inner-batch allocation
+        doThrow(new OutOfMemoryError("test")).doNothing()
+                .when(memoryLimitController).forceReserveMemory(anyLong());
+
+        BatchMessageKeyBasedContainer container = new BatchMessageKeyBasedContainer();
+        container.setProducer(producer);
+        try {
+            container.add(newMessage(1L, 7L, 13L), null);
+            assertEquals(container.getNumMessagesInBatch(), 0,
+                    "the failed add should have left the container empty");
+
+            container.add(newMessage(2L, null, null), null);
+
+            assertFalse(container.hasSameTxn(newMessage(3L, 7L, 13L)),
+                    "a transactional message was admitted into a plain batch through the transaction identity"
+                            + " left behind by a failed add");
+        } finally {
+            container.discard(null);
+        }
+    }
+
 }
