@@ -84,8 +84,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     static final int AsyncOperationTimeoutSeconds = 60;
 
-    private static final Long INVALID_BUCKET_ID = -1L;
-
     private static final int MAX_MERGE_NUM = 4;
 
     private final long minIndexCountPerBucket;
@@ -354,7 +352,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     immutableBucket);
 
             immutableBucket.getSnapshotCreateFuture().ifPresent(createFuture -> {
-                CompletableFuture<Long> future = createFuture.handle((bucketId, ex) -> {
+                CompletableFuture<Long> future = createFuture.whenComplete((bucketId, ex) -> {
                     if (ex == null) {
                         immutableBucket.setSnapshotSegments(null);
                         immutableBucket.asyncUpdateSnapshotLength()
@@ -369,8 +367,7 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.create,
                                 System.currentTimeMillis() - startTime);
-
-                        return bucketId;
+                        return;
                     }
 
                     log.error()
@@ -397,7 +394,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         snapshotSegmentLastIndexMap.remove(
                                 new SnapshotKey(lastDelayedIndex.getLedgerId(), lastDelayedIndex.getEntryId()));
                     }
-                    return INVALID_BUCKET_ID;
                 });
                 immutableBucket.setSnapshotCreateFuture(future);
             });
@@ -559,16 +555,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 buckets.stream().map(bucket -> bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE))
                         .toList();
 
-        return FutureUtil.waitForAll(createFutures).thenCompose(bucketId -> {
-            if (createFutures.stream().anyMatch(future -> INVALID_BUCKET_ID.equals(future.join()))) {
-                return FutureUtil.failedFuture(new RuntimeException("Can't merge buckets due to bucket create failed"));
-            }
-
+        return FutureUtil.waitForAll(createFutures).thenCompose(__ -> {
             List<CompletableFuture<List<SnapshotSegment>>> getAllSnapshotFutures =
                     buckets.stream().map(ImmutableBucket::getAllSnapshotSegments).toList();
 
             return FutureUtil.waitForAll(getAllSnapshotFutures)
-                    .thenApply(__ -> {
+                    .thenApply(ignore -> {
                         return CombinedSegmentDelayedIndexQueue.wrap(
                                 getAllSnapshotFutures.stream().map(CompletableFuture::join).toList());
                     })
@@ -675,21 +667,20 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
         while (n > 0 && !sharedBucketPriorityQueue.isEmpty()) {
             long timestamp = sharedBucketPriorityQueue.peekN1();
-            long ledgerId = sharedBucketPriorityQueue.peekN2();
-            long entryId = sharedBucketPriorityQueue.peekN3();
-            if (firstLiveLedgerId != null && ledgerId < firstLiveLedgerId) {
-                sharedBucketPriorityQueue.pop();
-                removeIndexBit(ledgerId, entryId);
-                continue;
-            }
             if (timestamp > cutoffTime) {
                 break;
             }
 
-            SnapshotKey snapshotKey = new SnapshotKey(ledgerId, entryId);
+            long ledgerId = sharedBucketPriorityQueue.peekN2();
+            long entryId = sharedBucketPriorityQueue.peekN3();
 
+            boolean orphaned = firstLiveLedgerId != null && ledgerId < firstLiveLedgerId;
+            SnapshotKey snapshotKey = new SnapshotKey(ledgerId, entryId);
             ImmutableBucket bucket = snapshotSegmentLastIndexMap.get(snapshotKey);
-            if (bucket != null && immutableBuckets.asMapOfRanges().containsValue(bucket)) {
+            boolean shouldLoadNextSegment = bucket != null
+                    && immutableBuckets.asMapOfRanges().containsValue(bucket)
+                    && (!orphaned || bucket.getEndLedgerId() >= firstLiveLedgerId);
+            if (shouldLoadNextSegment) {
                 // All message of current snapshot segment are scheduled, try load next snapshot segment
                 if (bucket.merging) {
                     log.info()
@@ -765,6 +756,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             }
 
             sharedBucketPriorityQueue.pop();
+
+            if (orphaned) {
+                removeIndexBit(ledgerId, entryId);
+                continue;
+            }
+
             // Dedup: queue may carry the same position twice (initial seal + merge); only the
             // first delivery of each position decrements the counter via removeIndexBit.
             if (removeIndexBit(ledgerId, entryId)) {
@@ -801,6 +798,18 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 .exceptionally(t -> {
                     log.warn().exception(t).log("Trim/merge buckets failed, but still clear");
                     return null;
+                })
+                .thenCompose(__ -> {
+                    CompletableFuture<Void> load;
+                    synchronized (BucketDelayedDeliveryTracker.this) {
+                        load = pendingLoad;
+                    }
+                    return (load == null ? CompletableFuture.completedFuture(null) : load)
+                            .exceptionally(t -> {
+                                log.warn().exception(t)
+                                        .log("Failed to load bucket snapshot segment during clear, ignore");
+                                return null;
+                            });
                 })
                 .thenCompose(__ -> {
                     synchronized (BucketDelayedDeliveryTracker.this) {
@@ -901,18 +910,12 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
     }
 
     private CompletableFuture<Void> deleteBucketSnapshot(String ledgerName,
-                                                          Range<Long> range, ImmutableBucket bucket) {
-        // The bucket id is only known once the snapshot creation completes, so wait for an in-flight
-        // creation before deleting. When the creation failed the bucket has already been removed and
-        // downgraded to memory mode, so there is no snapshot left to delete.
-        return bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)
-                .thenCompose(bucketId -> INVALID_BUCKET_ID.equals(bucketId)
-                        ? CompletableFuture.<Void>completedFuture(null)
-                        : doDeleteBucketSnapshot(ledgerName, range, bucket));
-    }
-
-    private CompletableFuture<Void> doDeleteBucketSnapshot(String ledgerName,
                                                            Range<Long> range, ImmutableBucket bucket) {
+        synchronized (this) {
+            if (!isCurrentBucket(range, bucket)) {
+                return CompletableFuture.completedFuture(null);
+            }
+        }
         return bucket.asyncDeleteBucketSnapshot(stats)
                 .handle((__, t) -> {
                     if (t != null) {
@@ -922,6 +925,9 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                         throw new CompletionException(t);
                     }
                     synchronized (this) {
+                        if (!isCurrentBucket(range, bucket)) {
+                            return null;
+                        }
                         snapshotSegmentLastIndexMap.entrySet().removeIf(entry -> entry.getValue() == bucket);
                         removeBucket(range);
                         bucket.getDelayedIndexBitMap().forEach((ledgerId, bitmap) ->
@@ -929,6 +935,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                     }
                     return null;
                 });
+    }
+
+    private boolean isCurrentBucket(Range<Long> range, ImmutableBucket expectedBucket) {
+        ImmutableBucket currentBucket = immutableBuckets.asMapOfRanges().get(range);
+        return currentBucket == expectedBucket;
     }
 
     private Long firstActiveLedgerId() {
