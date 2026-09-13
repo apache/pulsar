@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,7 +66,9 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
         Map<String, BrokerInterceptorWithClassLoader> listenerMap = new HashMap<>();
         BrokerInterceptor interceptor = new ExceptionsBrokerInterceptor();
-        NarClassLoader narClassLoader = mock(NarClassLoader.class);
+        // The filter chain uses this context class loader for resource and service-provider lookup.
+        NarClassLoader narClassLoader = mock(NarClassLoader.class,
+                delegatesTo(new URLClassLoader(new URL[0], getClass().getClassLoader())));
         listenerMap.put(interceptorName, new BrokerInterceptorWithClassLoader(interceptor, narClassLoader));
         pulsarTestContextBuilder.brokerInterceptor(new BrokerInterceptors(listenerMap));
     }
