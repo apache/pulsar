@@ -53,6 +53,8 @@ dependencies {
 }
 
 tasks.named<Test>("test") {
+    // Each worker executes the full XML suite, so do not split it into class batches.
+    forkEvery = 0
     useTestNG {
         suiteXmlFiles = listOf(file("src/test/resources/pulsar.xml"))
     }

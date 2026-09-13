@@ -41,7 +41,6 @@ public class TestBrokerInterceptors extends TopicMessagingBase {
 
     @Override
     public void setupCluster() throws Exception {
-        brokerEnvs.put(PREFIX + "disableBrokerInterceptors", "false");
         brokerEnvs.put(PREFIX + "brokerInterceptorsDirectory", "/pulsar/examples");
         brokerEnvs.put(PREFIX + "brokerInterceptors", "loggingInterceptor");
         super.setupCluster();

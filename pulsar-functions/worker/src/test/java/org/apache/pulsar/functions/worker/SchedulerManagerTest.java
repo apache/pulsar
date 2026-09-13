@@ -24,6 +24,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -41,12 +42,14 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.CustomLog;
 import lombok.val;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -949,6 +952,51 @@ public class SchedulerManagerTest {
                     .orElse(null);
             Assert.assertTrue(matchedWorker != null);
         }
+    }
+
+    @Test(timeOut = 60000)
+    public void testCloseInterruptsStuckSchedulingRound() throws Exception {
+        List<FunctionMetaData> functionMetaDataList = new LinkedList<>();
+        functionMetaDataList.add(createFunctionMetaData("tenant-1", "namespace-1", "func-1", 1, 1));
+        doReturn(functionMetaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
+        ThreadRuntimeFactory factory = mock(ThreadRuntimeFactory.class);
+        doReturn(factory).when(functionRuntimeManager).getRuntimeFactory();
+        doReturn(new HashMap<>()).when(functionRuntimeManager).getCurrentAssignments();
+        List<WorkerInfo> workerInfoList = new LinkedList<>();
+        workerInfoList.add(WorkerInfo.of("worker-1", "workerHostname-1", 5000));
+        doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
+        doReturn(true).when(leaderService).isLeader();
+
+        // processing the new assignment blocks until interrupted, like a function package download that never
+        // completes
+        CountDownLatch roundStuck = new CountDownLatch(1);
+        AtomicBoolean roundInterrupted = new AtomicBoolean();
+        doAnswer(invocation -> {
+            roundStuck.countDown();
+            try {
+                new CountDownLatch(1).await();
+            } catch (InterruptedException e) {
+                roundInterrupted.set(true);
+                throw new RuntimeException(e);
+            }
+            return null;
+        }).when(functionRuntimeManager).processAssignment(any(Assignment.class));
+
+        schedulerManager.setCloseSchedulingRoundTimeoutMs(500);
+        schedulerManager.initialize(schedulerManager.acquireExclusiveWrite(() -> true));
+        schedulerManager.schedule();
+        assertTrue(roundStuck.await(30, TimeUnit.SECONDS));
+
+        long closeStart = System.nanoTime();
+        schedulerManager.close();
+        long closeDurationMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - closeStart);
+        assertTrue(closeDurationMs < 10000, "close() took " + closeDurationMs + " ms");
+        assertTrue(roundInterrupted.get());
+        verify(producer, times(1)).close();
+        // the failure of the interrupted scheduling round is not a worker error
+        verify(errorNotifier, times(0)).triggerError(any());
+        assertTrue(schedulerManager.getSchedulerLock().tryLock(30, TimeUnit.SECONDS));
+        schedulerManager.getSchedulerLock().unlock();
     }
 
     private void callSchedule() throws InterruptedException,

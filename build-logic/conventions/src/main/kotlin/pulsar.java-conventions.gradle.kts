@@ -195,6 +195,8 @@ dependencies {
     "testImplementation"(catalog.findLibrary("awaitility").get())
     "testImplementation"(catalog.findLibrary("system-lambda").get())
     "testImplementation"(catalog.findLibrary("slf4j-api").get())
+    // log4j-jul is needed at test runtime to support the JUL bridge JVM argument below
+    "testRuntimeOnly"(catalog.findLibrary("log4j-jul").get())
 }
 
 // Allow overriding the JDK used for running tests via -PtestJavaVersion=17
@@ -234,8 +236,9 @@ tasks.withType<Test>().configureEach {
         showExceptions = true
         showCauses = true
     }
-    maxHeapSize = "1300m"
-    maxParallelForks = 4
+    maxHeapSize = providers.gradleProperty("testMaxHeapSize").getOrElse("1300m")
+    maxParallelForks = providers.gradleProperty("testMaxParallelForks").map { it.toInt() }.getOrElse(4)
+    forkEvery = providers.gradleProperty("testForkEvery").map { it.toLong() }.getOrElse(0L)
     val failFastValue = providers.gradleProperty("testFailFast").getOrElse("true").toBoolean()
     failFast = failFastValue
     val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.getOrElse(false)
@@ -243,6 +246,8 @@ tasks.withType<Test>().configureEach {
     systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse(defaultTestRetryCount))
     systemProperty("testFailFast", failFastValue.toString())
     jvmArgs(
+        "-XX:+HeapDumpOnOutOfMemoryError",
+        "-XX:HeapDumpPath=${providers.gradleProperty("testHeapDumpPath").getOrElse("/tmp")}",
         "--add-opens", "java.base/jdk.internal.loader=ALL-UNNAMED",
         "--add-opens", "java.base/java.lang=ALL-UNNAMED",
         "--add-opens", "java.base/java.io=ALL-UNNAMED",
@@ -260,6 +265,9 @@ tasks.withType<Test>().configureEach {
         "-Dpulsar.allocator.exit_on_oom=false",
         "-Dpulsar.allocator.out_of_memory_policy=FallbackToHeap",
         "-Dpulsar.test.preventExit=true",
+        // Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+        // (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration
+        "-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager",
         // Force IPv4 to match Pulsar's runtime scripts (bin/pulsar, bin/bookkeeper). BookKeeper's
         // BookieId validation rejects IPv6 zone identifiers (e.g. fe80::1%lo0), so on hosts where the
         // loopback interface resolves to an IPv6 link-local address (notably macOS) bookies bound to
@@ -363,6 +371,7 @@ if (asyncProfilerEnabled) {
         systemProperty("pulsar.test.enableManualTest", "true")
         // One test JVM at a time and no retries, so that a run produces a single comparable profile.
         maxParallelForks = 1
+        forkEvery = 0
         systemProperty("testRetryCount", "0")
         // A profiling run has to actually run the tests, even when the task is up-to-date. Don't
         // "fix" this by declaring inputs: the point is to re-run, not to track a missing input. The
