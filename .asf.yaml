@@ -40,6 +40,9 @@ github:
     squash: true
     merge: false
     rebase: false
+  pull_requests:
+    # Show the "Update branch" button on pull requests that are behind the base branch.
+    allow_update_branch: true
   protected_branches:
     master:
       required_status_checks:
