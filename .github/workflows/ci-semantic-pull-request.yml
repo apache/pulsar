@@ -29,6 +29,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event.number }}
   cancel-in-progress: true
 
+permissions:
+  pull-requests: read
+
 jobs:
   main:
     name: Check pull request title
