@@ -1691,6 +1691,173 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testPropertiesSnapshotsAreDetached() throws Exception {
+        ManagedLedger ledger = factory.open("properties-snapshot-test");
+        ledger.setProperties(Map.of("key1", "value1"));
+
+        Map<String, String> firstSnapshot = ledger.getProperties();
+        firstSnapshot.put("external", "value");
+        assertEquals(ledger.getProperties(), Map.of("key1", "value1"));
+
+        ledger.close();
+        ledger = factory.open("properties-snapshot-test");
+        assertEquals(ledger.getProperties(), Map.of("key1", "value1"));
+
+        CountDownLatch callbackCompleted = new CountDownLatch(1);
+        ledger.asyncSetProperty("key2", "value2", new AsyncCallbacks.UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                properties.put("callback", "value");
+                callbackCompleted.countDown();
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                callbackCompleted.countDown();
+            }
+        }, null);
+
+        assertTrue(callbackCompleted.await(5, TimeUnit.SECONDS));
+        assertEquals(ledger.getProperties(), Map.of("key1", "value1", "key2", "value2"));
+        assertEquals(firstSnapshot, Map.of("key1", "value1", "external", "value"));
+    }
+
+    @Test
+    public void testFailedPropertiesUpdateDoesNotChangeInMemoryState() throws Exception {
+        String ledgerName = "properties-failure-test";
+        ManagedLedger ledger = factory.open(ledgerName);
+        ledger.setProperty("existing", "value");
+
+        metadataStore.failConditional(new MetadataStoreException("injected failure"),
+                (operation, path) -> operation == FaultInjectionMetadataStore.OperationType.PUT
+                        && path.equals("/managed-ledgers/" + ledgerName));
+
+        CompletableFuture<ManagedLedgerException> failure = new CompletableFuture<>();
+        ledger.asyncSetProperty("failed", "value", new AsyncCallbacks.UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                failure.completeExceptionally(new AssertionError("The properties update should fail"));
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                failure.complete(exception);
+            }
+        }, null);
+
+        assertNotNull(failure.get(5, TimeUnit.SECONDS));
+        assertEquals(ledger.getProperties(), Map.of("existing", "value"));
+
+        ledger.setProperty("after-failure", "value");
+        assertEquals(ledger.getProperties(), Map.of("existing", "value", "after-failure", "value"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testPropertiesRemainUnchangedUntilMetadataUpdateCompletes() throws Exception {
+        String ledgerName = "properties-pending-update-test";
+        String ledgerPath = "/managed-ledgers/" + ledgerName;
+        CompletableFuture<Void> releaseUpdate = new CompletableFuture<>();
+        CountDownLatch updateIntercepted = new CountDownLatch(1);
+        AtomicBoolean interceptNextPut = new AtomicBoolean(false);
+
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (ledgerPath.equals(invocation.getArgument(0))
+                    && interceptNextPut.compareAndSet(true, false)) {
+                updateIntercepted.countDown();
+                CompletableFuture<Stat> realResult = (CompletableFuture<Stat>) invocation.callRealMethod();
+                CompletableFuture<Stat> gatedResult = new CompletableFuture<>();
+                realResult.whenComplete((stat, error) -> releaseUpdate.whenComplete((ignored, releaseError) -> {
+                    if (error != null) {
+                        gatedResult.completeExceptionally(error);
+                    } else {
+                        gatedResult.complete(stat);
+                    }
+                }));
+                return gatedResult;
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(ledgerPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl gatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        try {
+            ManagedLedger ledger = gatedFactory.open(ledgerName);
+            ledger.setProperties(Map.of("key1", "old", "key2", "old"));
+
+            Map<String, String> update = new HashMap<>();
+            update.put("key1", "new");
+            update.put("key2", "new");
+            CompletableFuture<Void> updateResult = new CompletableFuture<>();
+            interceptNextPut.set(true);
+            ledger.asyncSetProperties(update, new AsyncCallbacks.UpdatePropertiesCallback() {
+                @Override
+                public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                    updateResult.complete(null);
+                }
+
+                @Override
+                public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                    updateResult.completeExceptionally(exception);
+                }
+            }, null);
+
+            assertTrue(updateIntercepted.await(5, TimeUnit.SECONDS));
+            update.put("late-change", "value");
+            assertEquals(ledger.getProperties(), Map.of("key1", "old", "key2", "old"));
+
+            releaseUpdate.complete(null);
+            updateResult.get(5, TimeUnit.SECONDS);
+            assertEquals(ledger.getProperties(), Map.of("key1", "new", "key2", "new"));
+        } finally {
+            releaseUpdate.complete(null);
+            gatedFactory.shutdown();
+        }
+    }
+
+    @Test
+    public void testPropertiesCallbackExceptionDoesNotKeepMetadataMutexLocked() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("properties-callback-exception-test");
+        CountDownLatch firstCallbackInvoked = new CountDownLatch(1);
+        ledger.asyncSetProperty("key1", "value1", new AsyncCallbacks.UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                firstCallbackInvoked.countDown();
+                throw new RuntimeException("injected callback failure");
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                firstCallbackInvoked.countDown();
+            }
+        }, null);
+
+        assertTrue(firstCallbackInvoked.await(5, TimeUnit.SECONDS));
+
+        CountDownLatch secondCallbackCompleted = new CountDownLatch(1);
+        AtomicReference<ManagedLedgerException> secondFailure = new AtomicReference<>();
+        ledger.asyncSetProperty("key2", "value2", new AsyncCallbacks.UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                secondCallbackCompleted.countDown();
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                secondFailure.set(exception);
+                secondCallbackCompleted.countDown();
+            }
+        }, null);
+
+        assertTrue(secondCallbackCompleted.await(5, TimeUnit.SECONDS));
+        assertNull(secondFailure.get());
+        assertEquals(ledger.getProperties(), Map.of("key1", "value1", "key2", "value2"));
+        assertTrue(ledger.metadataMutex.tryLock());
+        assertFalse(ledger.metadataMutex.tryLock());
+        ledger.metadataMutex.unlock();
+    }
+
+    @Test
     public void testConcurrentAsyncSetProperties() throws Exception {
         final CountDownLatch latch = new CountDownLatch(1000);
         ManagedLedger ledger = factory.open("my_test_ledger",
