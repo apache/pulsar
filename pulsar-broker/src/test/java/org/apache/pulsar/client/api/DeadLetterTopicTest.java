@@ -1336,10 +1336,9 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
             assertTrue(admin.namespaces().getTopics(getNamespace()).contains(deadLetterTopic));
             assertTrue(admin.topics().getSubscriptions(deadLetterTopic).contains(dlqInitialSub));
+            // Each consumer creates its DLQ producer asynchronously after its final redelivery.
+            assertEquals(admin.topics().getStats(deadLetterTopic).getPublishers().size(), 2);
         });
-
-        // We should assert that all consumers are able to produce messages to DLQ
-        assertEquals(admin.topics().getStats(deadLetterTopic).getPublishers().size(), 2);
 
         Consumer<byte[]> deadLetterConsumer = newPulsarClient.newConsumer(Schema.BYTES)
                 .topic(deadLetterTopic)
