@@ -115,8 +115,13 @@ jobs:
           echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '25'}}" >> $GITHUB_OUTPUT
 
       - name: checkout
-        if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v6
+
+      - name: Check ASF action allowlist
+        if: ${{ (github.event.pull_request.base.repo.owner.login || github.repository_owner) == 'apache' }}
+        uses: apache/infrastructure-actions/allowlist-check@main
+        with:
+          scan-glob: '.github/**/*.y*ml'
 
       - name: Detect changed files
         if: ${{ github.event_name == 'pull_request' }}
