@@ -58,7 +58,7 @@ import org.testng.annotations.Test;
 public class ManagedLedgerFactoryShutdownTest {
 
     private final String ledgerName = UUID.randomUUID().toString();
-    private final CountDownLatch slowZk = new CountDownLatch(1);
+    private CompletableFuture<Void> metadataReadGate;
 
     private MetadataStoreExtended metadataStore;
     private BookKeeper bookKeeper;
@@ -69,6 +69,7 @@ public class ManagedLedgerFactoryShutdownTest {
         final long version = 0;
         final long createTimeMillis = System.currentTimeMillis();
 
+        metadataReadGate = new CompletableFuture<>();
         metadataStore = mock(MetadataStoreExtended.class);
         bookKeeper = mock(BookKeeper.class);
 
@@ -85,12 +86,7 @@ public class ManagedLedgerFactoryShutdownTest {
                         .setEntries(0)
                         .setTimestamp(System.currentTimeMillis());
                 Stat stat = new Stat(path, version, createTimeMillis, createTimeMillis, false, false);
-                return CompletableFuture.supplyAsync(() -> {
-                    try {
-                        slowZk.await();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                return metadataReadGate.thenApplyAsync(__ -> {
                     log.info().attr("path", path).attr("managedLedgerInfo", mli)
                             .attr("stat", stat).log("metadataStore.get returned");
                     return Optional.of(new GetResult(mli.toByteArray(), stat));
@@ -102,12 +98,7 @@ public class ManagedLedgerFactoryShutdownTest {
                         .setMarkDeleteLedgerId(0)
                         .setMarkDeleteLedgerId(-1);
                 Stat stat = new Stat(path, version, createTimeMillis, createTimeMillis, false, false);
-                return CompletableFuture.supplyAsync(() -> {
-                    try {
-                        slowZk.await();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                return metadataReadGate.thenApplyAsync(__ -> {
                     log.info().attr("path", path).attr("managedCursorInfo", mci)
                             .attr("stat", stat).log("metadataStore.get returned");
                     return Optional.of(new GetResult(mci.toByteArray(), stat));
@@ -186,8 +177,8 @@ public class ManagedLedgerFactoryShutdownTest {
 
 
         factory.shutdownAsync().get();
-        //make zk returned after factory shutdown
-        slowZk.countDown();
+        // Complete delayed metadata reads only after shutdown, without blocking common-pool workers.
+        metadataReadGate.complete(null);
 
         //
         Assert.assertTrue(callbackInvoked.await(5, TimeUnit.SECONDS));
