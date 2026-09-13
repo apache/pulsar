@@ -213,6 +213,9 @@ tasks.withType<Test>().configureEach {
         })
     }
     useTestNG {
+        // Group classes and factory instances so their fixtures are released promptly.
+        isPreserveOrder = true
+        isGroupByInstances = true
         listeners.addAll(listOf(
             "org.apache.pulsar.tests.PulsarTestListener",
             "org.apache.pulsar.tests.AnnotationListener",
