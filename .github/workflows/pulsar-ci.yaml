@@ -284,8 +284,8 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
-      - name: Clean Disk when tracing test resource cleanup
-        if: ${{ env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
+      - name: Clean Disk for replication tests or resource tracing
+        if: ${{ matrix.group == 'BROKER_GROUP_5' || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
         uses: ./.github/actions/clean-disk
 
       - name: Setup ssh access to build runner VM
