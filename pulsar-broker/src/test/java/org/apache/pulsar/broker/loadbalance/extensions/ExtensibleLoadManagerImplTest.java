@@ -123,6 +123,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -1034,6 +1035,21 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
         assertTrue(bundlesData.getBoundaries().contains(midBundle));
         assertTrue(bundlesData.getBoundaries().contains(highBundle));
     }
+
+    @Test(timeOut = 30 * 1000)
+    public void testSplitBundleWithFlowOrQpsAdminAPINoValidBoundary() throws Exception {
+        String namespace = "public/test-split-with-flow-or-qps";
+        String topic = "persistent://" + namespace + "/test-split-with-flow-or-qps";
+        admin.namespaces().createNamespace(namespace, 1);
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.lookups().lookupTopic(topic);
+
+        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true,
+                NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE);
+
+        assertEquals(admin.namespaces().getBundles(namespace).getNumBundles(), 1);
+    }
+
     @Test(timeOut = 30 * 1000)
     public void testDeleteNamespaceBundle() throws Exception {
         final String namespace = "public/testDeleteNamespaceBundle";
