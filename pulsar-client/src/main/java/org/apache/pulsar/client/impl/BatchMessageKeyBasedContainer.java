@@ -46,6 +46,19 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
                     .attr("producerName", producer.getProducerName())
                     .attr("numMessagesInBatch", numMessagesInBatch)
                     .log("add message to batch");
+        if (numMessagesInBatch == 0) {
+            // The whole container shares one transaction identity; hasSameTxn keeps later messages consistent
+            // with it. Capturing it here rather than in hasSameTxn keeps that check side-effect free.
+            //
+            // Both fields are assigned unconditionally, so a plain first message resets them. An inner batch
+            // whose first add fails to allocate clears itself and stays empty, which leaves the count at zero
+            // without clearing this container: a leftover transaction id would then be inherited by the next,
+            // plain, first message and would wrongly admit later messages of that transaction.
+            boolean msgHasTxn = msg.getMessageBuilder().hasTxnidMostBits()
+                    && msg.getMessageBuilder().hasTxnidLeastBits();
+            currentTxnidMostBits = msgHasTxn ? msg.getMessageBuilder().getTxnidMostBits() : -1L;
+            currentTxnidLeastBits = msgHasTxn ? msg.getMessageBuilder().getTxnidLeastBits() : -1L;
+        }
         String key = getKey(msg);
         final BatchMessageContainerImpl batchMessageContainer = batches.computeIfAbsent(key,
                 __ -> new BatchMessageContainerImpl(producer));

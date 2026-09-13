@@ -120,14 +120,28 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
         this.maxBytesInBatch = producer.getConfiguration().getBatchingMaxBytes();
     }
 
+    /**
+     * Whether {@code msg} belongs to the same transaction as the messages already in this batch.
+     *
+     * <p>A batch carries a single transaction id in its metadata, so every message in it inherits that
+     * transaction. "No transaction" is therefore an identity of its own and is not compatible with any
+     * transaction: mixing the two in one batch would either enroll a plain message in a transaction (invisible
+     * until commit, dropped on abort) or publish a transactional message outside its transaction.
+     *
+     * <p>This is a pure query. The batch adopts its transaction id from its first message in {@code add}.
+     */
     @Override
     public boolean hasSameTxn(MessageImpl<?> msg) {
-        if (!msg.getMessageBuilder().hasTxnidMostBits() || !msg.getMessageBuilder().hasTxnidLeastBits()) {
+        if (numMessagesInBatch == 0) {
             return true;
         }
-        if (currentTxnidMostBits == -1 || currentTxnidLeastBits == -1) {
-            currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
-            currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
+        boolean msgHasTxn = msg.getMessageBuilder().hasTxnidMostBits()
+                && msg.getMessageBuilder().hasTxnidLeastBits();
+        boolean batchHasTxn = currentTxnidMostBits != -1L && currentTxnidLeastBits != -1L;
+        if (msgHasTxn != batchHasTxn) {
+            return false;
+        }
+        if (!msgHasTxn) {
             return true;
         }
         return currentTxnidMostBits == msg.getMessageBuilder().getTxnidMostBits()
