@@ -200,6 +200,12 @@ jobs:
       - name: Check that project's public libraries can be published to a Maven repository
         run: ./gradlew publishAllPublicationsToLocalDeployRepository
 
+      - name: Check API/SPI publication dependency closure with a custom group
+        # Validate generated POMs and Gradle metadata, including the BOM, without uploading artifacts.
+        run: >-
+          ./gradlew validateApiSpiPublication
+          -PpublishApiAndSpiOnly=true -Pgroup=myorg.pulsar
+
       - name: Upload Gradle reports
         uses: actions/upload-artifact@v4
         if: ${{ !success() }}

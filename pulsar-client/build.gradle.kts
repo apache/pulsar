@@ -164,7 +164,7 @@ tasks.named("compileTestJava") { dependsOn(generateTestAvro) }
 run {
     val fromGroup = "it.unimi.dsi"
     val fromName = "fastutil"
-    val toGroup = "org.apache.pulsar"
+    val toGroup = project.group.toString()
     val toName = "pulsar-client-fastutil-minimized"
     val toVersion = version.toString()
 
