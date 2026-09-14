@@ -44,6 +44,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.ScheduledFuture;
@@ -686,6 +687,60 @@ public class ProducerImplTest {
                 "the memory reserved for the message must be released");
         assertEquals(producer.availableSendPermitsForTesting(), maxPermits,
                 "the permits pre-acquired for the never-built chunks must be released");
+    }
+
+    /**
+     * The client memory for a chunked message is reserved once, by canEnqueueRequest before the chunk loop,
+     * but released per chunk operation (every release site releases op.uncompressedSize). Every chunk op used
+     * to carry the full message size, so each of the N chunk acks released the whole reservation again and the
+     * memory gauge drifted low by (N - 1) sizes - silently disabling the client memory limit for chunked
+     * producers. Only the last chunk's op may carry the size: the ops of one message must carry the
+     * reservation exactly once in total.
+     */
+    @Test
+    public void chunkedOpsCarryTheMemoryReservationExactlyOnce() throws Exception {
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatchingEnabled(false);
+        conf.setChunkingEnabled(true);
+        conf.setCompressMinMsgBodySize(0);
+        conf.setMaxPendingMessages(100);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(new MemoryLimitController(1024 * 1024));
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(ProducerImpl.State.Ready);
+        // A small max message size forces the 10 KB payload into several chunks.
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.getMaxMessageSize()).thenReturn(1024);
+        doReturn(connectionHandler).when(producer).getConnectionHandler();
+        doAnswer(invocation -> invocation.getArgument(0)).when(producer).applyCompression(any());
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
+        doAnswer(invocation -> {
+            ByteBuf payload = invocation.getArgument(5);
+            ByteBuf header = Unpooled.buffer();
+            header.writeInt(4 + 4 + payload.readableBytes());
+            header.writeInt(0);
+            return ByteBufPair.get(header, payload);
+        }).when(producer).sendMessage(anyLong(), anyLong(), anyInt(), any(), any(), any());
+        List<ProducerImpl.OpSendMsg> ops = new ArrayList<>();
+        doAnswer(invocation -> {
+            ops.add(invocation.getArgument(0));
+            return null;
+        }).when(producer).processOpSendMsg(any());
+
+        int payloadSize = 10 * 1024;
+        producer.sendAsync(newMessage(new byte[payloadSize]), mock(SendCallback.class));
+
+        assertTrue(ops.size() > 1, "the payload must actually be split into chunks");
+        for (int i = 0; i < ops.size(); i++) {
+            ProducerImpl.OpSendMsg op = ops.get(i);
+            boolean isLastChunk = op.chunkId == op.totalChunks - 1;
+            assertEquals(op.uncompressedSize, isLastChunk ? payloadSize : 0,
+                    "chunk " + op.chunkId + " of " + op.totalChunks
+                            + " must carry the reservation only if it is the last chunk");
+        }
+        assertEquals(ops.stream().mapToLong(op -> op.uncompressedSize).sum(), payloadSize,
+                "the chunk ops must carry the message's reservation exactly once in total");
+        ops.forEach(op -> ReferenceCountUtil.safeRelease(op.cmd));
     }
 
     /**

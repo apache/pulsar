@@ -898,6 +898,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (totalChunks > 1) {
                 op.totalChunks = totalChunks;
                 op.chunkId = chunkId;
+                if (chunkId != totalChunks - 1) {
+                    // The message's memory was reserved once by canEnqueueRequest, and every release site
+                    // (per-op ack, failPendingMessages, terminal state) releases op.uncompressedSize: only
+                    // the last chunk's op may carry the size, or each chunk ack would release it again.
+                    op.uncompressedSize = 0;
+                }
             }
             op.chunkedMessageCtx = chunkedMessageCtx;
             lastSendFuture = callback.getFuture();
