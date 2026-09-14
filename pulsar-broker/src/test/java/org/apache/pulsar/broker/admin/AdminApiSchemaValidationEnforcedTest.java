@@ -70,6 +70,29 @@ public class AdminApiSchemaValidationEnforcedTest extends MockedPulsarServiceBas
     }
 
     @Test
+    public void testGetTopicSchemaValidationEnforcedAppliedWhenBrokerEnabled() throws Exception {
+        String namespace = "schema-validation-enforced/topicApplied";
+        String topicName = "persistent://" + namespace + "/test";
+        admin.namespaces().createNamespace(namespace);
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().setSchemaValidationEnforced(topicName, false);
+
+        boolean previousValue = conf.isSchemaValidationEnforced();
+        try {
+            conf.setSchemaValidationEnforced(false);
+            admin.namespaces().setSchemaValidationEnforced(namespace, true);
+            assertFalse(admin.topics().getSchemaValidationEnforced(topicName, false));
+            assertFalse(admin.topics().getSchemaValidationEnforced(topicName, true));
+
+            conf.setSchemaValidationEnforced(true);
+            assertFalse(admin.topics().getSchemaValidationEnforced(topicName, false));
+            assertTrue(admin.topics().getSchemaValidationEnforced(topicName, true));
+        } finally {
+            conf.setSchemaValidationEnforced(previousValue);
+        }
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     public void testDisableSchemaValidationEnforcedNoSchema() throws Exception {
         admin.namespaces().createNamespace("schema-validation-enforced/default-no-schema");

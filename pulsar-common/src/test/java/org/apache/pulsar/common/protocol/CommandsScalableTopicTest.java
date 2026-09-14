@@ -170,6 +170,15 @@ public class CommandsScalableTopicTest {
     }
 
     @Test
+    public void testNewScalableTopicUnsubscribe() {
+        BaseCommand cmd = parseFrame(Commands.newScalableTopicUnsubscribe(42L, 7L));
+        assertEquals(cmd.getType(), BaseCommand.Type.SCALABLE_TOPIC_UNSUBSCRIBE);
+        assertTrue(cmd.hasScalableTopicUnsubscribe());
+        assertEquals(cmd.getScalableTopicUnsubscribe().getRequestId(), 42L);
+        assertEquals(cmd.getScalableTopicUnsubscribe().getConsumerId(), 7L);
+    }
+
+    @Test
     public void testNewScalableTopicSubscribeResponseSuccess() {
         ScalableConsumerAssignment assignment = new ScalableConsumerAssignment().setLayoutEpoch(3L);
         assignment.addSegment()

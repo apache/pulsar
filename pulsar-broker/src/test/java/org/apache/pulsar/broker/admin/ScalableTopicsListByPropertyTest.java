@@ -20,12 +20,21 @@ package org.apache.pulsar.broker.admin;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.testng.annotations.Test;
 
 /**
@@ -88,5 +97,55 @@ public class ScalableTopicsListByPropertyTest extends SharedPulsarBaseTest {
         Set<String> all = new HashSet<>(admin.scalableTopics().listScalableTopics(namespace()));
         assertTrue(all.containsAll(Set.of(aliceTopic, bobTopic, carolTopic)),
                 "expected all three created topics to appear in the unfiltered list, got " + all);
+    }
+
+    /**
+     * A scalable topic created with trailing whitespace could never be reached: clients trim topic names, so
+     * they would look up the trimmed name instead. The admin client must reject it with a 412
+     * (PreconditionFailedException) on its fast-fail path.
+     */
+    @Test
+    public void testCreateScalableTopicWithSurroundingWhitespaceIsRejected() throws Exception {
+        String topicWithWhitespace = "topic://" + namespace() + "/scalable-with-whitespace-"
+                + UUID.randomUUID().toString().substring(0, 8) + " ";
+        PulsarAdminException.PreconditionFailedException e = expectThrows(
+                PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.scalableTopics().createScalableTopic(topicWithWhitespace, 1,
+                        Map.of("owner", "test")));
+        assertTrue(e.getMessage().contains("whitespace"), "expected the surrounding-whitespace rejection, got: "
+                + e.getMessage());
+    }
+
+    /**
+     * The admin client rejects trailing whitespace client-side, so a raw HTTP request is needed to exercise the
+     * server. A percent-encoded trailing space must be decoded by the server and rejected with a 412.
+     */
+    @Test
+    public void testCreateScalableTopicServerSideRejectsEncodedWhitespace() {
+        NamespaceName ns = NamespaceName.get(namespace());
+        String encodedTopic = "scalable-encoded-whitespace-" + UUID.randomUUID().toString().substring(0, 8) + "%20";
+        String url = getWebServiceUrl() + "/admin/v2/scalable/" + ns.getTenant() + "/" + ns.getLocalName()
+                + "/" + encodedTopic;
+        @Cleanup
+        Client client = ClientBuilder.newClient();
+        try (Response response = client.target(url)
+                .request(MediaType.APPLICATION_JSON)
+                .put(Entity.json(Map.of("owner", "test")))) {
+            assertEquals(response.getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+            assertTrue(response.readEntity(String.class).contains("whitespace"));
+        }
+    }
+
+    /**
+     * The transaction-internal-name rule is specific to persistent topics. The shared whitespace validation
+     * must not extend it to non-persistent or scalable topics.
+     */
+    @Test
+    public void testTransactionInternalSuffixIsNotRejectedForNonPersistentOrScalableTopics() throws Exception {
+        String ns = namespace();
+        admin.nonPersistentTopics().createPartitionedTopic(
+                "non-persistent://" + ns + "/foo__transaction_pending_ack", 1);
+        admin.scalableTopics().createScalableTopic(
+                "topic://" + ns + "/foo__transaction_pending_ack", 1, Map.of("owner", "test"));
     }
 }

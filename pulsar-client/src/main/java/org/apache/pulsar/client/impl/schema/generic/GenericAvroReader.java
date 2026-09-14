@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.io.BinaryEncoder;
@@ -87,7 +88,11 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
                     null,
                     decoder);
             return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
-        } catch (IOException | IndexOutOfBoundsException e) {
+        } catch (IOException | IndexOutOfBoundsException | AvroRuntimeException e) {
+            // Avro 1.12.1 enabled the fast reader by default (AVRO-3230). It reports malformed data as
+            // AvroTypeException (e.g. "Enumeration out of range") where the classic path raised an
+            // IndexOutOfBoundsException, so catch AvroRuntimeException too and keep reporting decoding
+            // failures as SchemaSerializationException.
             throw new SchemaSerializationException(e);
         }
     }
@@ -101,7 +106,10 @@ public class GenericAvroReader implements SchemaReader<GenericRecord> {
                             null,
                             decoder);
             return new GenericAvroRecord(schemaVersion, schema, fields, avroRecord);
-        } catch (IOException | IndexOutOfBoundsException e) {
+        } catch (IOException | IndexOutOfBoundsException | AvroRuntimeException e) {
+            // See the byte[] overload above: the fast reader, on by default since Avro 1.12.1, reports
+            // malformed data as AvroTypeException. This is the overload consumers actually reach, via
+            // MessageImpl.decodeBySchema -> AbstractStructSchema.decode -> AbstractMultiVersionReader.
             throw new SchemaSerializationException(e);
         } finally {
             try {

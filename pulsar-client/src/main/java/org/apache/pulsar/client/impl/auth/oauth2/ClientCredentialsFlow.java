@@ -66,9 +66,9 @@ class ClientCredentialsFlow extends FlowBase {
     public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope,
                                  Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
                                  String certFile, String keyFile, Duration autoCertRefreshDuration,
-                                 String wellKnownMetadataPath) {
+                                 String wellKnownMetadataPath, String jsseProvider, String jcaProvider) {
         super(issuerUrl, connectTimeout, readTimeout, trustCertsFilePath, certFile, keyFile, autoCertRefreshDuration,
-                wellKnownMetadataPath);
+                wellKnownMetadataPath, jsseProvider, jcaProvider);
         this.audience = audience;
         this.privateKey = privateKey;
         this.scope = scope;
@@ -94,6 +94,10 @@ class ClientCredentialsFlow extends FlowBase {
         String keyFile = params.get(CONFIG_PARAM_TLS_KEY_FILE);
         Duration autoCertRefreshDuration = parseParameterDuration(params, CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION);
         String wellKnownMetadataPath = params.get(CONFIG_PARAM_WELL_KNOWN_METADATA_PATH);
+        // PIP-478: the IdP leg's own provider pins. Explicit parameters win over anything inherited from the
+        // owning client, and are the only source on the standalone path, which has no client to inherit from.
+        String jsseProvider = params.get(CONFIG_PARAM_JSSE_PROVIDER);
+        String jcaProvider = params.get(CONFIG_PARAM_JCA_PROVIDER);
 
         return ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
@@ -107,6 +111,8 @@ class ClientCredentialsFlow extends FlowBase {
                 .keyFile(keyFile)
                 .autoCertRefreshDuration(autoCertRefreshDuration)
                 .wellKnownMetadataPath(wellKnownMetadataPath)
+                .jsseProvider(jsseProvider)
+                .jcaProvider(jcaProvider)
                 .build();
     }
 

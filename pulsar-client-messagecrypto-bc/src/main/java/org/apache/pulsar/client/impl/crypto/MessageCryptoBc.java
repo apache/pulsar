@@ -64,7 +64,7 @@ import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.common.api.proto.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.tls.JcaProviders;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
@@ -93,15 +93,16 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     public static final String AESGCM = "AES/GCM/NoPadding";
 
     // BouncyCastle JCA provider, resolved lazily on first use via the initialization-on-demand holder
-    // idiom. Resolution is delegated to SecurityUtility.getProvider() — the same FIPS-agnostic lookup
-    // used elsewhere in Pulsar (e.g. TLS) — so message crypto uses whichever BouncyCastle provider is
-    // present on the classpath: the non-FIPS "BC" (org.bouncycastle.jce.provider.BouncyCastleProvider)
+    // idiom. Resolution is delegated to JcaProviders.requireBouncyCastleProvider() — the same
+    // FIPS-agnostic lookup used elsewhere in Pulsar (e.g. TLS) — so message crypto uses whichever
+    // BouncyCastle provider is present on the classpath: the non-FIPS "BC"
+    // (org.bouncycastle.jce.provider.BouncyCastleProvider)
     // or the FIPS "BCFIPS" (org.bouncycastle.jcajce.provider.BouncyCastleFipsProvider), rather than
     // hardcoding one. The resolved provider is passed directly to the JCA getInstance(...) calls.
     // Deferring the lookup to first use (asymmetric key wrapping with RSA-OAEP/ECIES, or EC key
     // loading) keeps any resolution failure out of class loading.
     private static final class BcProviderHolder {
-        static final Provider PROVIDER = SecurityUtility.getProvider();
+        static final Provider PROVIDER = JcaProviders.requireBouncyCastleProvider().provider();
     }
 
     private static Provider bcProvider() {
@@ -123,10 +124,33 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
     private static final SecureRandom secureRandom;
     static {
         SecureRandom rand;
-        try {
-            rand = SecureRandom.getInstance("NativePRNGNonBlocking");
-        } catch (NoSuchAlgorithmException nsa) {
-            rand = new SecureRandom();
+        Provider bcfips = Security.getProvider("BCFIPS");
+        if (bcfips != null) {
+            // When the BC-FIPS provider is registered, source randomness from its SP 800-90A
+            // DRBG so data-key and IV generation stays within the FIPS-validated module.
+            // Only registered providers are consulted here to avoid triggering BouncyCastle
+            // classpath resolution during class loading (see BcProviderHolder above).
+            try {
+                rand = SecureRandom.getInstance("DEFAULT", bcfips);
+            } catch (NoSuchAlgorithmException nsa) {
+                // Deliberately fatal rather than falling back: new SecureRandom() resolves by provider
+                // search order and may land outside the validated module, which is exactly what this
+                // branch exists to prevent. Registering BCFIPS is an operator asking for FIPS-approved
+                // randomness, and a data key or GCM IV drawn from anywhere else leaves no trace at run
+                // time -- SP 800-38D only permits a random 96-bit GCM IV from an approved DRBG. Failing
+                // class initialization surfaces the misconfiguration at the point it can still be fixed.
+                throw new IllegalStateException("The BCFIPS provider is registered but its DEFAULT SP "
+                        + "800-90A DRBG could not be obtained; refusing to fall back to a non-FIPS "
+                        + "SecureRandom for data-key and IV generation.", nsa);
+            }
+        } else {
+            try {
+                rand = SecureRandom.getInstance("NativePRNGNonBlocking");
+            } catch (NoSuchAlgorithmException nsa) {
+                // Unchanged: on a JVM without NativePRNGNonBlocking the platform default is the
+                // long-standing behaviour, and no FIPS guarantee was being claimed on this path.
+                rand = new SecureRandom();
+            }
         }
         secureRandom = rand;
 

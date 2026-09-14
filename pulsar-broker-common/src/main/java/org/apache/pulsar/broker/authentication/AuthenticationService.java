@@ -156,7 +156,7 @@ public class AuthenticationService implements Closeable {
             if (!providers.isEmpty()) {
                 if (StringUtils.isNotBlank(anonymousUserRole)) {
                     request.setAttribute(AuthenticatedRoleAttributeName, anonymousUserRole);
-                    request.setAttribute(AuthenticatedDataAttributeName, new AuthenticationDataHttps(request));
+                    request.setAttribute(AuthenticatedDataAttributeName, AuthenticationDataAnonymous.INSTANCE);
                     return true;
                 }
                 // If at least a provider was configured, then the authentication needs to be provider

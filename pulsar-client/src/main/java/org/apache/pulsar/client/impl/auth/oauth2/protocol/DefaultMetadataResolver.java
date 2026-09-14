@@ -19,17 +19,15 @@
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
 import com.fasterxml.jackson.databind.ObjectReader;
-import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderValues;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.concurrent.ExecutionException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.Response;
+import org.apache.pulsar.http.HttpRequest;
+import org.apache.pulsar.http.HttpResponse;
+import org.apache.pulsar.http.PulsarHttpClient;
 
 /**
  * Resolves OAuth 2.0 authorization server metadata as described in RFC 8414.
@@ -45,9 +43,9 @@ public class DefaultMetadataResolver implements MetadataResolver {
 
     private final URL metadataUrl;
     private final ObjectReader objectReader;
-    private final AsyncHttpClient httpClient;
+    private final PulsarHttpClient httpClient;
 
-    public DefaultMetadataResolver(URL metadataUrl, AsyncHttpClient httpClient) {
+    public DefaultMetadataResolver(URL metadataUrl, PulsarHttpClient httpClient) {
         this.metadataUrl = metadataUrl;
         this.objectReader = ObjectMapperFactory.getMapper().reader().forType(Metadata.class);
         this.httpClient = httpClient;
@@ -61,7 +59,7 @@ public class DefaultMetadataResolver implements MetadataResolver {
      * @param wellKnownMetadataPath The well-known metadata path (must start with "/.well-known/")
      * @return a resolver
      */
-    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, AsyncHttpClient httpClient,
+    public static DefaultMetadataResolver fromIssuerUrl(URL issuerUrl, PulsarHttpClient httpClient,
                                                         String wellKnownMetadataPath) {
         return new DefaultMetadataResolver(getWellKnownMetadataUrl(issuerUrl, wellKnownMetadataPath), httpClient);
     }
@@ -106,17 +104,11 @@ public class DefaultMetadataResolver implements MetadataResolver {
     public Metadata resolve() throws IOException {
 
         try {
-            Response response = httpClient.prepareGet(metadataUrl.toString())
-                    .addHeader(HttpHeaderNames.ACCEPT, HttpHeaderValues.APPLICATION_JSON)
-                    .execute()
-                    .toCompletableFuture()
-                    .get();
-
-            Metadata metadata;
-            try (InputStream inputStream = response.getResponseBodyAsStream()) {
-                metadata = this.objectReader.readValue(inputStream);
-            }
-            return metadata;
+            HttpRequest request = HttpRequest.builder(HttpRequest.Method.GET, URI.create(metadataUrl.toString()))
+                    .header("Accept", "application/json")
+                    .build();
+            HttpResponse response = httpClient.execute(request).get();
+            return this.objectReader.readValue(response.body());
 
         } catch (IOException | InterruptedException | ExecutionException e) {
             if (e instanceof InterruptedException) {

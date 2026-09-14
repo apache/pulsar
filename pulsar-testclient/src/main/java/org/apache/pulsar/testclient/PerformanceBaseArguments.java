@@ -21,6 +21,7 @@ package org.apache.pulsar.testclient;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import picocli.CommandLine.Option;
 
 /**
@@ -44,15 +45,6 @@ public abstract class PerformanceBaseArguments extends CmdBase{
                     + "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}\".", descriptionKey = "authParams")
     public String authParams;
 
-    @Option(names = { "--ssl-factory-plugin" }, description = "Pulsar SSL Factory plugin class name",
-            descriptionKey = "sslFactoryPlugin")
-    public String sslfactoryPlugin;
-
-    @Option(names = { "--ssl-factory-plugin-params" },
-            description = "Pulsar SSL Factory Plugin parameters in the format: "
-                    + "\"{\"key1\":\"val1\",\"key2\":\"val2\"}\".", descriptionKey = "sslFactoryPluginParams")
-    public String sslFactoryPluginParams;
-
     @Option(names = {
             "--trust-cert-file" }, description = "Path for the trusted TLS certificate file",
             descriptionKey = "tlsTrustCertsFilePath")
@@ -67,6 +59,19 @@ public abstract class PerformanceBaseArguments extends CmdBase{
             "--tls-enable-hostname-verification" }, description = "Enable TLS hostname verification",
             descriptionKey = "tlsEnableHostnameVerification")
     public Boolean tlsHostnameVerificationEnable = null;
+
+    @Option(names = {
+            "--jsse-provider" }, description = "PIP-478: JSSE (SSLContext) java.security.Provider name, e.g. "
+            + "BCJSSE for FIPS. Also readable from client.conf.",
+            descriptionKey = "jsseProvider")
+    public String jsseProvider = null;
+
+    @Option(names = {
+            "--jca-provider" }, description = "PIP-478: JCA (material) java.security.Provider name for the "
+            + "KeyStore/CertificateFactory/KeyFactory engines that parse the TLS material, e.g. BCFIPS for "
+            + "FIPS alongside --jsse-provider=BCJSSE. Also readable from client.conf.",
+            descriptionKey = "jcaProvider")
+    public String jcaProvider = null;
 
     @Option(names = { "-c",
             "--max-connections" }, description = "Max number of TCP connections to a single broker")
@@ -106,9 +111,21 @@ public abstract class PerformanceBaseArguments extends CmdBase{
     @Option(names = { "--auth_plugin" }, description = "Authentication plugin class name", hidden = true)
     public String deprecatedAuthPluginClassName;
 
+    /**
+     * Default Pulsar client memory limit for the performance tools: half of the JVM's max direct memory.
+     *
+     * <p>The performance tools do not use direct memory for anything other than Netty, so bounding the client
+     * at a fraction of what the JVM can actually allocate keeps the tool from dying with
+     * {@code OutOfDirectMemoryError} while still letting it use the memory it was given. Being proportional
+     * rather than a fixed value also avoids silently changing results for runs that were sized with a larger
+     * {@code -XX:MaxDirectMemorySize}.
+     */
+    public static final long DEFAULT_MEMORY_LIMIT_BYTES = (long) (0.5d * DirectMemoryUtils.jvmMaxDirectMemory());
+
     @Option(names = { "-ml", "--memory-limit", }, description = "Configure the Pulsar client memory limit "
-            + "(eg: 32M, 64M)", converter = ByteUnitToLongConverter.class)
-    public long memoryLimit;
+            + "(eg: 32M, 64M). Defaults to half of the JVM's max direct memory. Use 0 to disable the limit.",
+            converter = ByteUnitToLongConverter.class)
+    public long memoryLimit = DEFAULT_MEMORY_LIMIT_BYTES;
     public PerformanceBaseArguments(String cmdName) {
         super(cmdName);
     }

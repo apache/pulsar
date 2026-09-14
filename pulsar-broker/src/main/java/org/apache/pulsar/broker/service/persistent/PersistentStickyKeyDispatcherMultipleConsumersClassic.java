@@ -554,8 +554,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
 
     @Override
     protected synchronized NavigableSet<Position> filterOutEntriesWillBeDiscarded(NavigableSet<Position> src) {
-        // The variable "hashesToBeBlocked" and "recentlyJoinedConsumers" will be null if "isAllowOutOfOrderDelivery()",
-        // So skip this filter out.
+        // Keep the classic out-of-order behavior: replay positions are not filtered before reading.
         if (isAllowOutOfOrderDelivery()) {
             return src;
         }
@@ -603,8 +602,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
      */
     @Override
     protected boolean hasConsumersNeededNormalRead() {
-        // The variable "hashesToBeBlocked" and "recentlyJoinedConsumers" will be null if "isAllowOutOfOrderDelivery()",
-        // So the method "filterOutEntriesWillBeDiscarded" will filter out nothing, just return "true" here.
+        // Classic out-of-order replay filtering is bypassed, so normal reads do not need the ordered-mode escape check.
         if (isAllowOutOfOrderDelivery()) {
             return true;
         }
@@ -641,8 +639,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
     }
 
     public boolean hasSameKeySharedPolicy(KeySharedMeta ksm) {
+        // PIP-486 entry-bucket subscriptions always use the modern dispatcher: never let an
+        // entryBucketDispatch consumer reuse a (possibly consumer-less) classic dispatcher.
         return (ksm.getKeySharedMode() == this.keySharedMode
-                && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery);
+                && ksm.isAllowOutOfOrderDelivery() == this.allowOutOfOrderDelivery
+                && !ksm.isEntryBucketDispatch());
     }
 
     public synchronized LinkedHashMap<Consumer, Position> getRecentlyJoinedConsumers() {

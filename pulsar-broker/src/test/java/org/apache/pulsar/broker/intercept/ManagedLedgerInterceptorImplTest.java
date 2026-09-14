@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
@@ -28,9 +29,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.Cleanup;
@@ -42,18 +46,21 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.intercept.AppendBrokerTimestampMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
 import org.apache.pulsar.common.intercept.ManagedLedgerPayloadProcessor;
 import org.apache.pulsar.common.protocol.Commands;
 import org.jspecify.annotations.Nullable;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -245,6 +252,110 @@ public class ManagedLedgerInterceptorImplTest  extends MockedBookKeeperTestCase 
 
         cursor.close();
         ledger.close();
+    }
+
+    @DataProvider(name = "interceptorSetsWithoutIndexInterceptor")
+    public Object[][] interceptorSetsWithoutIndexInterceptor() {
+        return new Object[][]{
+                // brokerEntryMetadataInterceptors holds only the timestamp interceptor
+                {Set.of(new AppendBrokerTimestampMetadataInterceptor())},
+                // brokerEntryMetadataInterceptors is empty: the interceptor is installed because
+                // brokerEntryPayloadProcessors is configured
+                {Collections.<BrokerEntryMetadataInterceptor>emptySet()}
+        };
+    }
+
+    /**
+     * When no AppendIndexMetadataInterceptor is configured there is no index generator to recover into, so
+     * reading the last entry must be skipped altogether. Reading it used to dereference the null
+     * appendIndexMetadataInterceptor whenever the last entry still carried a BrokerEntryMetadata index,
+     * which failed the managed ledger initialization with a ManagedLedgerInterceptException.
+     */
+    @Test(dataProvider = "interceptorSetsWithoutIndexInterceptor", timeOut = 30000)
+    public void testLastLedgerInitializeSkipsIndexRecoveryWithoutIndexInterceptor(
+            Set<BrokerEntryMetadataInterceptor> interceptors) throws Exception {
+        ManagedLedgerInterceptorImpl interceptor = new ManagedLedgerInterceptorImpl(interceptors, null);
+        ByteBuf lastEntryBuffer = lastEntryBufferWithIndex();
+        try {
+            AtomicBoolean lastEntryRead = new AtomicBoolean();
+            interceptor.onManagedLedgerLastLedgerInitialize("my_test_ledger", () -> {
+                lastEntryRead.set(true);
+                return CompletableFuture.completedFuture(
+                        Optional.of(EntryImpl.create(1L, 0L, lastEntryBuffer)));
+            }).get(5, TimeUnit.SECONDS);
+
+            assertThat(lastEntryRead).as("last entry was read").isFalse();
+            assertThat(interceptor.getIndex()).as("recovered index").isEqualTo(-1L);
+        } finally {
+            lastEntryBuffer.release();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testLastLedgerInitializeRecoversIndexWithIndexInterceptor() throws Exception {
+        ManagedLedgerInterceptorImpl interceptor =
+                new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(), null);
+        ByteBuf lastEntryBuffer = lastEntryBufferWithIndex();
+        try {
+            AtomicBoolean lastEntryRead = new AtomicBoolean();
+            interceptor.onManagedLedgerLastLedgerInitialize("my_test_ledger", () -> {
+                lastEntryRead.set(true);
+                return CompletableFuture.completedFuture(
+                        Optional.of(EntryImpl.create(1L, 0L, lastEntryBuffer)));
+            }).get(5, TimeUnit.SECONDS);
+
+            assertThat(lastEntryRead).as("last entry was read").isTrue();
+            assertThat(interceptor.getIndex()).as("recovered index").isEqualTo(99L);
+        } finally {
+            lastEntryBuffer.release();
+        }
+    }
+
+    /**
+     * Reopens a managed ledger whose entries were written while AppendIndexMetadataInterceptor was
+     * configured, with a configuration where it no longer is. This is how the null
+     * appendIndexMetadataInterceptor is reached in production.
+     */
+    @Test(timeOut = 30000)
+    public void testRecoveryIndexAfterIndexInterceptorRemovedFromConfiguration() throws Exception {
+        final int mockBatchSize = 2;
+        final String ledgerName = "my_recovery_index_without_index_interceptor";
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setManagedLedgerInterceptor(
+                new ManagedLedgerInterceptorImpl(getBrokerEntryMetadataInterceptors(), null));
+        ManagedLedger ledger = factory.open(ledgerName, config);
+        ledger.addEntry("dummy-entry-1".getBytes(StandardCharsets.UTF_8), mockBatchSize);
+        assertThat(((ManagedLedgerInterceptorImpl) ledger.getManagedLedgerInterceptor()).getIndex())
+                .as("index of the entry written with the index interceptor configured")
+                .isEqualTo(mockBatchSize - 1);
+        ledger.close();
+
+        // reopen with AppendIndexMetadataInterceptor removed from the configuration while the last entry of
+        // the ledger still carries a BrokerEntryMetadata index
+        ManagedLedgerInterceptorImpl interceptorWithoutIndex = new ManagedLedgerInterceptorImpl(
+                Set.of(new AppendBrokerTimestampMetadataInterceptor()), null);
+        ManagedLedgerConfig configWithoutIndex = new ManagedLedgerConfig();
+        configWithoutIndex.setManagedLedgerInterceptor(interceptorWithoutIndex);
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedger reopenedLedger = factory2.open(ledgerName, configWithoutIndex);
+        assertThat(reopenedLedger.getNumberOfEntries()).as("entries in the reopened ledger").isEqualTo(1L);
+        assertThat(interceptorWithoutIndex.getIndex()).as("recovered index").isEqualTo(-1L);
+        reopenedLedger.close();
+    }
+
+    // builds an entry buffer carrying a BrokerEntryMetadata index, as a broker configured with
+    // AppendIndexMetadataInterceptor would have written it (100 messages in the entry means index 99)
+    private static ByteBuf lastEntryBufferWithIndex() {
+        ByteBuf entryBuffer = Commands.addBrokerEntryMetadata(
+                Unpooled.wrappedBuffer("message".getBytes(StandardCharsets.UTF_8)),
+                getBrokerEntryMetadataInterceptors(), 100);
+        BrokerEntryMetadata metadata = Commands.peekBrokerEntryMetadataIfExist(entryBuffer);
+        assertThat(metadata).as("broker entry metadata of the entry under test").isNotNull();
+        assertThat(metadata.getIndex()).as("index written into the broker entry metadata").isEqualTo(99L);
+        return entryBuffer;
     }
 
     @Test

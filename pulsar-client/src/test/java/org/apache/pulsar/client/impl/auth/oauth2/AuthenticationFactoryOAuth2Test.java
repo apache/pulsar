@@ -62,21 +62,19 @@ public class AuthenticationFactoryOAuth2Test {
         String audience = "audience";
         String scope = "scope";
         Duration autoCertRefreshDuration = Duration.ofSeconds(123);
-        OAuth2MockHttpClient.withMockedSslFactory(() -> {
-            try (Authentication authentication =
-                         AuthenticationFactoryOAuth2.clientCredentialsBuilder().issuerUrl(issuerUrl)
-                                 .tokenEndpointAuthMethod(TokenEndpointAuthMethod.TLS_CLIENT_AUTH)
-                                 .clientId(clientId)
-                                 .tlsCertFile(tlsCertFile)
-                                 .tlsKeyFile(tlsKeyFile)
-                                 .audience(audience)
-                                 .scope(scope)
-                                 .autoCertRefreshDuration(autoCertRefreshDuration)
-                                 .build()) {
-                assertTrue(authentication instanceof AuthenticationOAuth2);
-                assertEquals(((AuthenticationOAuth2) authentication).flow.getClass(), TlsClientAuthFlow.class);
-            }
-        });
+        try (Authentication authentication =
+                     AuthenticationFactoryOAuth2.clientCredentialsBuilder().issuerUrl(issuerUrl)
+                             .tokenEndpointAuthMethod(TokenEndpointAuthMethod.TLS_CLIENT_AUTH)
+                             .clientId(clientId)
+                             .tlsCertFile(tlsCertFile)
+                             .tlsKeyFile(tlsKeyFile)
+                             .audience(audience)
+                             .scope(scope)
+                             .autoCertRefreshDuration(autoCertRefreshDuration)
+                             .build()) {
+            assertTrue(authentication instanceof AuthenticationOAuth2);
+            assertEquals(((AuthenticationOAuth2) authentication).flow.getClass(), TlsClientAuthFlow.class);
+        }
     }
 
     @Test

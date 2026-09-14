@@ -54,6 +54,36 @@ import org.testng.annotations.Test;
 public class MessageImplTest {
 
     @Test
+    public void testOutgoingBrokerMetadataBeforeAndAfterRecycle() {
+        MessageImpl<byte[]> message = MessageImpl.create(new MessageMetadata(),
+                ByteBuffer.wrap(new byte[1]), Schema.BYTES, "test-topic");
+        try {
+            assertFalse(message.hasBrokerPublishTime());
+            assertFalse(message.hasIndex());
+            assertTrue(message.getBrokerPublishTime().isEmpty());
+            assertTrue(message.getIndex().isEmpty());
+            message.setBrokerEntryMetadata(new BrokerEntryMetadata().setBrokerTimestamp(123).setIndex(456));
+            assertEquals(message.getBrokerPublishTime().orElseThrow().longValue(), 123L);
+            assertEquals(message.getIndex().orElseThrow().longValue(), 456L);
+        } finally {
+            message.getDataBuffer().release();
+            message.recycle();
+        }
+
+        MessageImpl<byte[]> next = MessageImpl.create(new MessageMetadata(),
+                ByteBuffer.wrap(new byte[1]), Schema.BYTES, "test-topic");
+        try {
+            assertFalse(next.hasBrokerPublishTime());
+            assertFalse(next.hasIndex());
+            assertTrue(next.getBrokerPublishTime().isEmpty());
+            assertTrue(next.getIndex().isEmpty());
+        } finally {
+            next.getDataBuffer().release();
+            next.recycle();
+        }
+    }
+
+    @Test
     public void testGetSequenceIdNotAssociated() {
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
         MessageImpl<?> msg = MessageImpl.create(new MessageMetadata(), payload, Schema.BYTES, null);

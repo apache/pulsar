@@ -297,10 +297,11 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--retainOrdering",
                 description = "Function consumes and processes messages in order", hidden = true)
         protected Boolean deprecatedRetainOrdering;
-        @Option(names = "--retain-ordering", description = "Function consumes and processes messages in order #Java")
+        @Option(names = "--retain-ordering",
+                description = "Function consumes and processes messages in order #Java, Python, Go")
         protected Boolean retainOrdering;
         @Option(names = "--retain-key-ordering",
-                description = "Function consumes and processes messages in key order #Java")
+                description = "Function consumes and processes messages in key order #Java, Python, Go")
         protected Boolean retainKeyOrdering;
         @Option(names = "--batch-builder", description = "BatcherBuilder provides two types of "
                 + "batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")

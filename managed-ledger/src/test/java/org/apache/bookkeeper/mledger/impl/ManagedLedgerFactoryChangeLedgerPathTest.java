@@ -59,9 +59,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(1)
             .setWriteQuorumSize(1)
-            .setAckQuorumSize(1)
-            .setMetadataAckQuorumSize(1)
-            .setMetadataAckQuorumSize(1);
+            .setAckQuorumSize(1);
         ManagedLedger ledger = factory.open("test-ledger" + testName, config);
         ManagedCursor cursor = ledger.openCursor("test-c1" + testName);
 
@@ -96,9 +94,7 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setEnsembleSize(1)
                 .setWriteQuorumSize(1)
-                .setAckQuorumSize(1)
-                .setMetadataAckQuorumSize(1)
-                .setMetadataAckQuorumSize(1);
+                .setAckQuorumSize(1);
         ManagedLedger ledger = factory.open("test-ledger" + testName, config);
         ManagedCursor cursor = ledger.openCursor("test-c1" + testName);
 

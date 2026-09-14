@@ -146,6 +146,7 @@ public class ScalableTopicService {
         ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
                 numInitialSegments,
                 brokerService.getPulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                brokerService.getPulsar().getConfiguration().getScalableTopicEntryBucketMaxPerSegment(),
                 properties);
 
         // Write the scalable metadata FIRST, then materialize the underlying segment topics.
@@ -177,6 +178,16 @@ public class ScalableTopicService {
     public CompletableFuture<Void> splitSegment(TopicName topic, long segmentId) {
         return getOrCreateController(topic)
                 .thenCompose(controller -> controller.splitSegment(segmentId))
+                .thenApply(__ -> null);
+    }
+
+    /**
+     * Rebucket a segment (delegates to controller). Same leader contract as
+     * {@link #splitSegment(TopicName, long)}.
+     */
+    public CompletableFuture<Void> rebucketSegment(TopicName topic, long segmentId, int bucketCount) {
+        return getOrCreateController(topic)
+                .thenCompose(controller -> controller.rebucketSegment(segmentId, bucketCount))
                 .thenApply(__ -> null);
     }
 
@@ -314,6 +325,23 @@ public class ScalableTopicService {
             future.thenAccept(c -> c.onConsumerDisconnect(subscription, consumerName))
                     .exceptionally(ex -> null);
         }
+    }
+
+    /**
+     * Explicit clean leave: forwards to the locally-held controller, which deletes the
+     * persisted registration and rebalances the remaining consumers immediately. No-op when
+     * no controller entry exists here — which happens only for a consumer that never
+     * registered on this broker, a deleted topic, or a shutting-down service. (A deposed
+     * leader keeps its entry and fails via {@code checkLeader()}, taking the error path
+     * instead, which preserves the caller's registration ref and grace fallback.)
+     */
+    public CompletableFuture<Void> unregisterConsumer(TopicName topic, String subscription,
+                                                      String consumerName, long consumerId) {
+        CompletableFuture<ScalableTopicController> future = controllers.get(topic.toString());
+        if (future == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return future.thenCompose(c -> c.unregisterConsumer(subscription, consumerName, consumerId));
     }
 
     // --- Internal helpers ---

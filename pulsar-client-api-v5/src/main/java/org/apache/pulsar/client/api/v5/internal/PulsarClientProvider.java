@@ -99,7 +99,7 @@ public interface PulsarClientProvider {
 
     Authentication authenticationToken(Supplier<String> tokenSupplier);
 
-    Authentication authenticationTls(String certFilePath, String keyFilePath);
+    Authentication authenticationTls();
 
     Authentication createAuthentication(String className, String params) throws PulsarClientException;
 
@@ -119,7 +119,8 @@ public interface PulsarClientProvider {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "No PulsarClientProvider found on the classpath. "
-                                + "Add pulsar-client to your dependencies."));
+                                + "Add pulsar-client-v5, pulsar-client-v5-all, "
+                                + "or pulsar-client-v5-shaded to your dependencies."));
 
         private Holder() {
         }

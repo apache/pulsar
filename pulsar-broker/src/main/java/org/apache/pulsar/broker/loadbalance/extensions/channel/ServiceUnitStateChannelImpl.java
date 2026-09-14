@@ -87,6 +87,7 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Schema;
@@ -145,6 +146,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private long totalInactiveBrokerCleanupIgnoredCnt = 0;
     private long totalInactiveBrokerCleanupCancelledCnt = 0;
     private volatile ChannelState channelState;
+    private final Set<CompletableFuture<Void>> pendingAssignPublishes = new HashSet<>();
     private volatile long lastOwnEventHandledAt = 0;
     private long lastOwnedServiceUnitCountAt = 0;
     private int totalOwnedServiceUnitCnt = 0;
@@ -242,6 +244,16 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return cleanupJobs;
     }
 
+    @VisibleForTesting
+    ServiceUnitStateTableView getTableView() {
+        return tableview;
+    }
+
+    @VisibleForTesting
+    void setTableView(ServiceUnitStateTableView tableview) {
+        this.tableview = tableview;
+    }
+
     @Override
     public void scheduleOwnershipMonitor() {
         if (monitorTask == null) {
@@ -271,6 +283,20 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     @Override
     public void cleanOwnerships() {
         disable();
+        List<CompletableFuture<Void>> pending;
+        synchronized (pendingAssignPublishes) {
+            pending = List.copyOf(pendingAssignPublishes);
+        }
+        try {
+            // A lookup may have selected a broker before disable(). Finish accepted assignment writes
+            // before scanning ownership, while rejecting any new assignments after disable().
+            FutureUtil.waitForAll(pending).get(config.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn().exception(e).log("Interrupted while waiting for in-flight assignment writes");
+        } catch (ExecutionException | TimeoutException e) {
+            log.warn().exception(e).log("Failed to finish in-flight assignment writes before ownership cleanup");
+        }
         doCleanup(brokerId, true);
     }
 
@@ -657,25 +683,48 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     @Override
     public CompletableFuture<String> publishAssignEventAsync(String serviceUnit, String brokerId) {
-        if (!validateChannelState(Started, true)) {
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException("Invalid channel state:" + channelState.name()));
+        CompletableFuture<Void> published = new CompletableFuture<>();
+        synchronized (pendingAssignPublishes) {
+            if (channelState != Started) {
+                return CompletableFuture.failedFuture(
+                        new IllegalStateException("Invalid channel state:" + channelState.name()));
+            }
+            pendingAssignPublishes.add(published);
         }
+        published.whenComplete((__, ex) -> {
+            synchronized (pendingAssignPublishes) {
+                pendingAssignPublishes.remove(published);
+            }
+        });
         EventType eventType = Assign;
         eventCounters.get(eventType).getTotal().incrementAndGet();
-        CompletableFuture<String> getOwnerRequest = dedupeGetOwnerRequest(serviceUnit);
+        CompletableFuture<String> getOwnerRequest;
+        try {
+            getOwnerRequest = dedupeGetOwnerRequest(serviceUnit);
+        } catch (Throwable e) {
+            published.complete(null);
+            eventCounters.get(eventType).getFailure().incrementAndGet();
+            return CompletableFuture.failedFuture(e);
+        }
 
-        pubAsync(serviceUnit,
-                new ServiceUnitStateData(Assigning, brokerId, getNextVersionId(serviceUnit)))
-                .whenComplete((__, ex) -> {
-                    if (ex != null) {
-                        getOwnerRequests.remove(serviceUnit, getOwnerRequest);
-                        if (!getOwnerRequest.isCompletedExceptionally()) {
-                            getOwnerRequest.completeExceptionally(ex);
-                        }
-                        eventCounters.get(eventType).getFailure().incrementAndGet();
-                    }
-                });
+        CompletableFuture<Void> publishFuture;
+        try {
+            publishFuture = pubAsync(serviceUnit,
+                    new ServiceUnitStateData(Assigning, brokerId, getNextVersionId(serviceUnit)));
+        } catch (Throwable e) {
+            publishFuture = CompletableFuture.failedFuture(e);
+        }
+        publishFuture.whenComplete((__, ex) -> {
+            // Complete outside the lock: completion may run the waiting cleanup's callbacks.
+            published.complete(null);
+            if (ex != null) {
+                getOwnerRequests.remove(serviceUnit, getOwnerRequest);
+                if (!getOwnerRequest.isCompletedExceptionally()) {
+                    getOwnerRequest.completeExceptionally(ex);
+                }
+                eventCounters.get(eventType).getFailure().incrementAndGet();
+            }
+        });
 
         return getOwnerRequest;
     }
@@ -1085,12 +1134,28 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         long startTime = System.nanoTime();
         MutableInt unloadedTopics = new MutableInt();
         NamespaceBundle bundle = LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit);
+        // Capture the topic futures for this bundle once, before unloading starts, and reuse the same snapshot
+        // both to close the topics below and to clean up afterward, so the cleanup is identity-safe: a stale
+        // cleanup call must only remove what this snapshot observed, never a newer ownership generation's topic
+        // installed for the same bundle in the meantime.
+        //
+        // A straggler topic loaded into BrokerService's topic cache for this bundle *after* the snapshot is
+        // taken is deliberately left alone: neither closed below nor evicted by the cleanup. The alternative —
+        // force-evicting whatever is in the cache at cleanup time regardless of identity — could yank a topic
+        // that was never closed, letting a second, independent instance for the same name be created on the
+        // next load. A straggler surviving the unload does not need this unload to fix it: new connections
+        // converge through the normal lookup path once ownership has actually moved, and BookKeeper's ledger
+        // fencing (see ManagedLedgerImpl#addEntryFailedDueToConcurrentlyModified) is what prevents it from
+        // silently double-writing if a new owner's ManagedLedger instance does start writing the same topic.
+        Map<String, CompletableFuture<Optional<Topic>>> topicFutures =
+                pulsar.getBrokerService().getTopicFuturesInBundle(bundle);
         return pulsar.getBrokerService().unloadServiceUnit(
                         bundle,
                         disconnectClients,
                         true,
                         pulsar.getConfig().getNamespaceBundleUnloadingTimeoutMs(),
-                        TimeUnit.MILLISECONDS)
+                        TimeUnit.MILLISECONDS,
+                        topicFutures)
                 .thenApply(numUnloadedTopics -> {
                     unloadedTopics.setValue(numUnloadedTopics);
                     return numUnloadedTopics;
@@ -1098,7 +1163,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 .whenComplete((__, ex) -> {
                     if (disconnectClients) {
                         // clean up topics that failed to unload from the broker ownership cache
-                        pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                        pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
                     }
                     pulsar.getNamespaceService().onNamespaceBundleUnload(bundle);
                     double unloadBundleTime = TimeUnit.NANOSECONDS
@@ -1108,7 +1173,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                 .exception(ex)
                                 .log("Failed to close topics under bundle");
                         if (!disconnectClients) {
-                            pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle);
+                            pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
                         }
                     } else {
                         log.info().attr("bundle", bundle).attr("topicCount", unloadedTopics)
@@ -1519,31 +1584,35 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 });
     }
 
-    private void waitForCleanups(String broker, boolean excludeSystemTopics, int maxWaitTimeInMillis) {
+    private void waitForCleanups(String broker, boolean gracefully, int maxWaitTimeInMillis) {
         long started = System.currentTimeMillis();
         while (System.currentTimeMillis() - started < maxWaitTimeInMillis) {
             boolean cleaned = true;
+            List<CompletableFuture<Void>> overrideFutures = new ArrayList<>();
             for (var etr : tableview.entrySet()) {
                 var serviceUnit = etr.getKey();
                 var data = etr.getValue();
 
-                if (excludeSystemTopics && serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
+                if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
                     continue;
                 }
 
                 if (data.state() == Owned && broker.equals(data.dstBroker())) {
                     cleaned = false;
-                    log.info().attr("broker", broker).attr("bundle", serviceUnit).attr("data", data)
-                            .log("Bundle is still owned by this broker");
-                    break;
+                    // An in-flight assignment can win against the initial cleanup override at the same
+                    // version. A successful publish does not mean the override was accepted. Retry using
+                    // the current state, keeping version conflict checks so a new owner's state is safe.
+                    overrideFutures.add(overrideOwnership(serviceUnit, data, broker, gracefully));
+                    tryWaitForOverrides(overrideFutures, false);
                 }
             }
             if (cleaned) {
                 break;
             } else {
+                tryWaitForOverrides(overrideFutures, true);
                 try {
                     tableview.flush(OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS / 2);
-                    Thread.sleep(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS / 2);
+                    Thread.sleep(OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS / 2);
                 } catch (InterruptedException e) {
                     log.warn().attr("broker", brokerId)
                             .log("Interrupted while delaying the next service unit clean-up. Cleaning broker");
@@ -1687,7 +1756,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             // can cause the cluster to be temporarily unstable.
             // Hence, we clean the non-system bundles first and gracefully wait for them.
             // After that, we clean the system bundles, if any.
-            waitForCleanups(broker, true, OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
+            waitForCleanups(broker, gracefully, OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
             this.totalOrphanServiceUnitCleanupCnt += orphanServiceUnitCleanupCnt;
             this.totalInactiveBrokerCleanupCnt++;
         }
@@ -2072,7 +2141,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
 
     @VisibleForTesting
     protected void disable() {
-        channelState = Disabled;
+        synchronized (pendingAssignPublishes) {
+            channelState = Disabled;
+        }
     }
 
     @VisibleForTesting

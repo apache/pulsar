@@ -38,12 +38,12 @@ pluginManager.withPlugin("java-library") {
         isFailOnError = false
     }
 
-    val sourcesJar by tasks.registering(Jar::class) {
+    val sourcesJar = tasks.register<Jar>("sourcesJar") {
         archiveClassifier.set("sources")
         from(sourceSets["main"].allJava)
     }
 
-    val javadocJar by tasks.registering(Jar::class) {
+    val javadocJar = tasks.register<Jar>("javadocJar") {
         archiveClassifier.set("javadoc")
         from(tasks.named(JavaPlugin.JAVADOC_TASK_NAME))
     }

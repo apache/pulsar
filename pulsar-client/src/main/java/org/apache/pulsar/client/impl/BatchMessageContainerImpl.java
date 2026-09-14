@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.ToIntFunction;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
@@ -64,29 +63,17 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
     // keep track of callbacks for individual messages being published in a batch
     protected SendCallback firstCallback;
 
-    // PIP-486: when set, createOpSendMsg() stamps entry_hash_min/max on the batch metadata from the
-    // min/max entry-bucket hash of the batch's messages. Null for non-scalable producers (no stamping,
-    // so the path is byte-identical to before).
-    private ToIntFunction<MessageImpl<?>> entryBucketHashFn;
+    // PIP-486: createOpSendMsg() stamps the min/max entry-bucket hash maintained by the three-argument add.
+    private int minEntryBucketHash = Integer.MAX_VALUE;
+    private int maxEntryBucketHash = Integer.MIN_VALUE;
 
-    void setEntryBucketHashFn(ToIntFunction<MessageImpl<?>> entryBucketHashFn) {
-        this.entryBucketHashFn = entryBucketHashFn;
-    }
-
-    /** PIP-486: stamp the effective entry-bucket hash range (min/max over the batch's messages). */
+    /** PIP-486: stamp the entry-bucket hash range maintained while messages are added to the batch. */
     private void stampEntryBucketRange() {
-        if (entryBucketHashFn == null || messages.isEmpty()) {
+        if (minEntryBucketHash > maxEntryBucketHash) {
             return;
         }
-        int min = Integer.MAX_VALUE;
-        int max = Integer.MIN_VALUE;
-        for (int i = 0; i < messages.size(); i++) {
-            int h = entryBucketHashFn.applyAsInt(messages.get(i));
-            min = Math.min(min, h);
-            max = Math.max(max, h);
-        }
-        messageMetadata.setEntryHashMin(min);
-        messageMetadata.setEntryHashMax(max);
+        messageMetadata.setEntryHashMin(minEntryBucketHash);
+        messageMetadata.setEntryHashMax(maxEntryBucketHash);
     }
 
     protected final ByteBufAllocator allocator;
@@ -113,10 +100,10 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
-            log.debug().attr("topic", topicName)
-                    .attr("producerName", () -> producer != null ? producer.getProducerName() : null)
-                    .attr("numMessagesInBatch", numMessagesInBatch)
-                    .log("add message to batch");
+        log.debug().attr("topic", topicName)
+                .attr("producerName", () -> producer != null ? producer.getProducerName() : null)
+                .attr("numMessagesInBatch", numMessagesInBatch)
+                .log("add message to batch");
 
         if (++numMessagesInBatch == 1) {
             try {
@@ -164,6 +151,19 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         }
 
         return isBatchFull();
+    }
+
+    /**
+     * Adds a message whose entry-bucket hash has already been computed, avoiding a second hash
+     * calculation when the send operation is created.
+     */
+    boolean add(MessageImpl<?> msg, SendCallback callback, int entryBucketHash) {
+        boolean isBatchFull = add(msg, callback);
+        if (!isEmpty()) {
+            minEntryBucketHash = Math.min(minEntryBucketHash, entryBucketHash);
+            maxEntryBucketHash = Math.max(maxEntryBucketHash, entryBucketHash);
+        }
+        return isBatchFull;
     }
 
     protected ByteBuf getCompressedBatchMetadataAndPayload() {
@@ -252,6 +252,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
         currentBatchSizeBytes = 0;
         lowestSequenceId = -1L;
         highestSequenceId = -1L;
+        minEntryBucketHash = Integer.MAX_VALUE;
+        maxEntryBucketHash = Integer.MIN_VALUE;
         batchedMessageMetadataAndPayload = null;
         currentTxnidMostBits = -1L;
         currentTxnidLeastBits = -1L;

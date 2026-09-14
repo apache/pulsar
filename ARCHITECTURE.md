@@ -20,6 +20,8 @@ accordingly:
 
 - **`pulsar-client-api`, `pulsar-client-admin-api`** — public, backward-compatible interfaces only.
   `pulsar-client-api-v5` / `pulsar-client-v5` are the newer V5 client API (PIP-466/468).
+  Applications using either v4 or v5 can use [`pulsar-client-v5-all`](pulsar-client-v5-all/README.md)
+  for the unshaded client and admin together, or `pulsar-client-v5-shaded` for the combined shaded jar.
 - **`pulsar-client` (`:pulsar-client-original`)** — the Java client implementation
   (producer/consumer/reader, connection pooling). `pulsar-client-admin` implements the admin REST
   client.
@@ -92,7 +94,7 @@ concurrency model.
 ## Build infrastructure
 
 Apache Pulsar uses a **Gradle** build (migrated from Maven via PIP-463; some older tooling and docs
-elsewhere still reference Maven). The wrapper `./gradlew` requires **JDK 21 or 25** (bytecode targets
+elsewhere still reference Maven). The wrapper `./gradlew` requires **JDK 21, 25 or 26** (bytecode targets
 Java 17). See [`CONTRIBUTING.md` → Building](CONTRIBUTING.md#building) for the build and lint commands.
 
 - `settings.gradle.kts` — all modules, organized in dependency tiers (Tier 0 has no internal deps,
@@ -133,7 +135,10 @@ When editing `build-logic/`, `settings.gradle.kts`, a module `build.gradle.kts`,
   sources, and verify with `--configuration-cache`. Tasks reached by the common flows (`assemble`,
   `test`, `integrationTest`, `rat` / `spotlessCheck` / `checkstyle*`, `checkBinaryLicense`, `docker*`)
   must be compatible; one-off tooling tasks not part of those flows (e.g. `verifyTestGroups`, ad-hoc
-  report tasks) may be exempt.
+  report tasks) may be exempt. When a third-party plugin is incompatible and cannot be fixed locally,
+  opt its tasks out with `notCompatibleWithConfigurationCache("<reason>")` (see
+  `tests/pulsar-client-native-image/build.gradle.kts` for the GraalVM native-build-tools case) so the
+  build degrades to running without the cache instead of failing.
 - **Published modules must not depend on internal modules** at compile/runtime scope — the artifact
   would be unresolvable from Maven Central. A module is published only when it applies
   `pulsar.public-java-library-conventions`.

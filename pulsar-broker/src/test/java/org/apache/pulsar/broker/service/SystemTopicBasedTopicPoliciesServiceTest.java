@@ -899,4 +899,69 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         // No policy-cache reader was created as a side effect, which is what would recurse.
         Assertions.assertThat(service.getReaderCaches()).doesNotContainKey(namespace);
     }
+
+    @Test(timeOut = 120_000)
+    public void testGetTopicPoliciesWhenBundleBounceReplacesPolicyCacheGeneration() throws Exception {
+        // getTopicPoliciesAsync awaits prepareInitPoliciesCacheAsync (which really does wait for the namespace's
+        // __change_events reader to drain), then hops threads and re-derives that guarantee from policyCacheInitMap.
+        // A namespace-bundle bounce landing inside the hop wipes the cached policies and installs a new, still-loading
+        // generation, so the re-derivation must not accept the mere presence of an init future: the read has to retry
+        // instead of serving the wiped cache of a generation nobody awaited.
+        //
+        // The fixture makes that interleaving exact rather than likely: the read is held until the replacement
+        // generation is installed with its reader gated -- the wipe closed the old reader and the new one has read
+        // nothing, so the caches hold nothing for the namespace -- and the gate is released only once the read has
+        // been observed to retry or to answer. Neither the outcome nor the counters below therefore depend on how
+        // fast that reader is.
+        pulsar.getTopicPoliciesService().close();
+        StaleCacheGenerationInjectingTopicPoliciesService injectingService =
+                new StaleCacheGenerationInjectingTopicPoliciesService(pulsar);
+        pulsar.setTopicPoliciesService(injectingService);
+        // Unlike the spies installed elsewhere in this class, the replacement has to receive the bundle-ownership
+        // callbacks the production service receives, so it is started as PulsarService starts the original.
+        injectingService.start(pulsar);
+
+        admin.namespaces().createNamespace(NAMESPACE5);
+        final NamespaceName namespace = NamespaceName.get(NAMESPACE5);
+        final TopicName topicName = TopicName.get("persistent://" + NAMESPACE5 + "/test" + UUID.randomUUID());
+        admin.topics().createNonPartitionedTopic(topicName.toString());
+        admin.topicPolicies().setMaxConsumersPerSubscription(topicName.toString(), 1);
+
+        // The stale read is only reachable for a caller that awaited a COMPLETE generation, so let generation 1
+        // finish loading the policy before arming.
+        injectingService.awaitGenerationLoaded(namespace, topicName);
+
+        // The budget is capped so a broker that retries out of the stale read converges: each retry opens at most one
+        // further window, and once the budget is gone no further window opens.
+        injectingService.arm(namespace, 4);
+        final Optional<TopicPolicies> policies;
+        try {
+            policies = injectingService.getTopicPoliciesAsync(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
+                    .get(60, TimeUnit.SECONDS);
+        } finally {
+            injectingService.disarm();
+        }
+
+        Assertions.assertThat(injectingService.staleWindowCount())
+                .describedAs("no stale-read window was opened, so the read never ran in the interleaving under test"
+                        + " and the assertions below would hold vacuously")
+                .isPositive();
+        Assertions.assertThat(policies)
+                .describedAs("getTopicPoliciesAsync returned Optional.empty() for a topic that has a policy: a"
+                        + " namespace-bundle bounce replaced the namespace's policy-cache generation while the read"
+                        + " was hopping threads, and the read served the wiped cache of the new, still-loading"
+                        + " generation instead of retrying")
+                .isPresent();
+        Assertions.assertThat(policies.get().getMaxConsumersPerSubscription())
+                .describedAs("the policy returned by the read is not the one that was set on the topic")
+                .isEqualTo(1);
+        Assertions.assertThat(injectingService.readsServedInsideStaleWindow())
+                .describedAs("a read was answered from the cache of a generation that was still loading, which is the"
+                        + " defect itself: the wiped cache of a replacement generation nobody awaited")
+                .isZero();
+        Assertions.assertThat(injectingService.retriesInsideStaleWindow())
+                .describedAs("no read inside a stale-read window took the retry branch, so the correct policy above"
+                        + " came from somewhere other than the behaviour under test")
+                .isPositive();
+    }
 }

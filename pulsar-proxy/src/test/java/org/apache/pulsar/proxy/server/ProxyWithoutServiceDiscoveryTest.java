@@ -63,6 +63,8 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
 
         // enable tls and auth&auth at broker
         conf.setAuthenticationEnabled(true);
+        // TLS client certificates are authenticated by the proxy, which forwards the original principal.
+        conf.setAuthenticateOriginalAuthData(false);
         conf.setAuthorizationEnabled(true);
 
         conf.setBrokerServicePortTls(Optional.of(0));
@@ -105,6 +107,11 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         proxyConfig.setServicePortTls(Optional.of(0));
         proxyConfig.setWebServicePort(Optional.of(0));
         proxyConfig.setWebServicePortTls(Optional.of(0));
+        // Advertise over loopback so the client->proxy service URL host (localhost) matches the proxy server
+        // certificate's SubjectAltName (proxy.cert.pem carries DNS:localhost, IP:127.0.0.1). TLS hostname
+        // verification is on by default (PIP-478), and the default advertised address resolves to
+        // the machine's canonical hostname/IP, which is not in the cert SAN. This keeps verification enabled.
+        proxyConfig.setAdvertisedAddress("localhost");
         proxyConfig.setTlsEnabledWithBroker(true);
         proxyConfig.setClusterName(CLUSTER_NAME);
 

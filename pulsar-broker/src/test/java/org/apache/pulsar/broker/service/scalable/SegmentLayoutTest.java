@@ -154,6 +154,49 @@ public class SegmentLayoutTest {
     }
 
     @Test
+    public void testRebucketSegment() {
+        // 1 segment, budget 4 -> the initial segment has N=4 buckets.
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, 4, Map.of());
+        SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
+
+        SegmentLayout after = layout.rebucketSegment(0, EntryBucketSplits.equalWidth(8), 123L);
+
+        assertEquals(after.getEpoch(), 1);
+        assertEquals(after.getActiveSegments().size(), 1);
+        assertEquals(after.getAllSegments().size(), 2);
+
+        SegmentInfo sealed = after.getAllSegments().get(0L);
+        assertTrue(sealed.isSealed());
+        assertEquals(sealed.childIds(), List.of(1L));
+        assertEquals(sealed.sealedAtMs(), 123L);
+
+        // The successor keeps the range and carries the new bucketing.
+        SegmentInfo successor = after.getAllSegments().get(1L);
+        assertTrue(successor.isActive());
+        assertEquals(successor.parentIds(), List.of(0L));
+        assertEquals(successor.hashRange(), sealed.hashRange());
+        assertEquals(successor.bucketCount(), 8);
+        assertEquals(successor.createdAtMs(), 123L);
+    }
+
+    @Test
+    public void testRebucketRejectsInvalidTargets() {
+        ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, 4, Map.of());
+        SegmentLayout layout = SegmentLayout.fromMetadata(metadata);
+
+        // Unknown segment.
+        assertThrows(IllegalArgumentException.class,
+                () -> layout.rebucketSegment(99, EntryBucketSplits.equalWidth(8), 0L));
+        // Unchanged bucketing (initial segment already has N=4).
+        assertThrows(IllegalArgumentException.class,
+                () -> layout.rebucketSegment(0, EntryBucketSplits.equalWidth(4), 0L));
+        // Sealed segment.
+        SegmentLayout afterSplit = layout.splitSegment(0, 0L);
+        assertThrows(IllegalArgumentException.class,
+                () -> afterSplit.rebucketSegment(0, EntryBucketSplits.equalWidth(8), 0L));
+    }
+
+    @Test
     public void testSplitRecordsWallClockTimestamps() {
         ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(1, 4, Map.of());
         SegmentLayout layout = SegmentLayout.fromMetadata(metadata);

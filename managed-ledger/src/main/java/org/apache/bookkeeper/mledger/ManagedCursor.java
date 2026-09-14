@@ -18,12 +18,14 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.Range;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -880,6 +882,20 @@ public interface ManagedCursor {
     ManagedLedger getManagedLedger();
 
     /**
+     * Schedule a continuation of a read callback.
+     *
+     * <p>Implementations that deliver read callbacks on a dedicated execution context should override this method
+     * to run the continuation on that same execution context.
+     *
+     * @param callback the callback continuation
+     * @param delay the delay before executing the continuation
+     * @param unit the time unit of the delay
+     */
+    default void scheduleReadCallback(Runnable callback, long delay, TimeUnit unit) {
+        CompletableFuture.delayedExecutor(delay, unit).execute(catchingAndLoggingThrowables(callback));
+    }
+
+    /**
      * Get last individual deleted range.
      * @return range
      */
@@ -894,6 +910,14 @@ public interface ManagedCursor {
      * Get deleted batch indexes list for a batch message.
      */
     long[] getDeletedBatchIndexesAsLongArray(Position position);
+
+    /**
+     * Get deleted batch indexes using ledger and entry IDs. Implementations may avoid creating a position when
+     * no batch-index acknowledgements are recorded. The default preserves existing cursor implementations.
+     */
+    default long[] getDeletedBatchIndexesAsLongArray(long ledgerId, long entryId) {
+        return getDeletedBatchIndexesAsLongArray(PositionFactory.create(ledgerId, entryId));
+    }
 
     /**
      * @return the managed cursor stats MBean

@@ -27,7 +27,7 @@ dependencies {
     api(project(":pulsar-client-api"))
     // MessageCryptoBc uses BouncyCastle types directly: bcpkix for PEM parsing (PEMParser,
     // JcaPEMKeyConverter) and bcprov for the EC/IES key specs and ASN.1 types used in key handling.
-    // The JCA provider itself is resolved at runtime via SecurityUtility (pulsar-common), not here.
+    // The JCA provider itself is resolved at runtime via JcaProviders (pulsar-common), not here.
     implementation(libs.bcpkix.jdk18on)
     api(libs.bcprov.jdk18on)
     implementation(libs.guava)

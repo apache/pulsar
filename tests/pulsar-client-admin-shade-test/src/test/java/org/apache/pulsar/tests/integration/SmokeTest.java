@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -47,6 +49,14 @@ public class SmokeTest extends TestRetrySupport {
         incrementSetupNumber();
         pulsarContainer = new PulsarContainer();
         pulsarContainer.start();
+    }
+
+    @Test
+    public void checkAuthenticationPluginName() throws Exception {
+        try (Authentication authentication = AuthenticationFactory.create(
+                "org.apache.pulsar.client.impl.auth.AuthenticationToken", "test-token")) {
+            Assert.assertEquals(authentication.getAuthMethodName(), "token");
+        }
     }
 
     @Test

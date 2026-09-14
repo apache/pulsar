@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
-import java.lang.reflect.Field;
 import java.util.Properties;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -30,12 +29,10 @@ public class TestCmdConsume {
     CmdConsume cmdConsume;
 
     @BeforeMethod
-    public void setUp() throws Exception {
+    public void setUp() {
         cmdConsume = new CmdConsume();
         cmdConsume.updateConfig(null, null, "ws://localhost:8080/");
-        Field subscriptionNameField = CmdConsume.class.getDeclaredField("subscriptionName");
-        subscriptionNameField.setAccessible(true);
-        subscriptionNameField.set(cmdConsume, "my-sub");
+        cmdConsume.subscriptionName = "my-sub";
     }
 
     @Test

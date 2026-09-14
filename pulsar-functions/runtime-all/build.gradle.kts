@@ -36,6 +36,8 @@ dependencies {
     implementation(libs.log4j.slf4j2.impl)
     implementation(libs.log4j.api)
     implementation(libs.log4j.core)
+    // log4j-jul is needed to support the JUL-to-Log4j2 bridge in function instance JVMs
+    implementation(libs.log4j.jul)
 }
 
 // Build a fat JAR as java-instance.jar using the Shadow plugin.
@@ -44,13 +46,20 @@ dependencies {
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     archiveFileName.set("java-instance.jar")
     mergeServiceFiles()
+    // See pulsar.shadow-conventions: the default EXCLUDE strategy drops duplicates of
+    // transformer-owned paths before the transformers can merge them.
+    val transformedPaths = listOf("META-INF/services/**", "META-INF/*.kotlin_module")
+    filesMatching(transformedPaths) {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    inputs.property("transformedPathsDuplicatesStrategy", "$transformedPaths=INCLUDE")
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
 
 // Consumable configuration exposing the shadow jar for cross-project dependencies.
 // Unlike pulsar.shadow-conventions (which replaces runtimeElements), this project
 // uses the Shadow plugin directly, so we create a dedicated configuration.
-val shadowJarElements by configurations.creating {
+val shadowJarElements = configurations.create("shadowJarElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     outgoing {

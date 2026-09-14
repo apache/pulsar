@@ -1,5 +1,43 @@
 # Pulsar Functions Python Runtime
 
+### Producer configuration
+
+Both producers the runtime creates — the sink (output topic) producer in `python_instance.py` and the
+producers behind `context.publish()` in `contextimpl.py` — are configured from the `producerSpec` of
+the function's sink, which reaches the instance inside the `FunctionDetails` protobuf. The
+translation lives in `util.producer_config_from_function_details()`.
+
+| `ProducerSpec` field | `Client.create_producer()` keyword |
+|---|---|
+| `maxPendingMessages` | `max_pending_messages` |
+| `maxPendingMessagesAcrossPartitions` | `max_pending_messages_across_partitions` |
+| `batchBuilder` | `batching_type` |
+| `compressionType` | `compression_type` (sink producer only; `context.publish()` takes a per-call value) |
+| `cryptoSpec` | `crypto_key_reader`, `encryption_key` (sink producer only) |
+| `batchingSpec.enabled` | `batching_enabled` |
+| `batchingSpec.batchingMaxPublishDelayMs` | `batching_max_publish_delay_ms` |
+| `batchingSpec.batchingMaxMessages` | `batching_max_messages` |
+| `batchingSpec.batchingMaxBytes` | `batching_max_allowed_size_in_bytes` |
+| `batchingSpec.batchBuilder` | `batching_type` (takes precedence over `ProducerSpec.batchBuilder`) |
+
+These are the same settings a user configures through `producerConfig` on the function config, which
+PIP-401 extended with `batchingConfig`.
+
+A few rules keep the behaviour aligned with the Java runtime
+(`ProducerBuilderFactory` and `BatchingUtils`):
+
+- **A field that is unset or non-positive in the spec is left out**, so the Python client's own
+  default applies rather than an explicit zero.
+- **A sink with no `producerSpec`, or a `producerSpec` with no `batchingSpec`, gets batching enabled
+  with a 10ms maximum publish delay.** This is the long-standing default and must not change: it is
+  what functions written before batching became configurable already run with.
+- **`batchingSpec.batchBuilder` wins over `ProducerSpec.batchBuilder`**, because the Java runtime
+  applies them in that order.
+
+`batchingSpec.roundRobinRouterBatchingPartitionSwitchFrequency` has no equivalent in the Python
+client and is ignored. `block_if_queue_full` is fixed at `True`, matching the Java runtime, which
+also hardcodes `blockIfQueueFull(true)` and exposes no configuration for it.
+
 ### Updating Protobuf and gRPC generated stubs
 
 When using generated Protobuf and gRPC stubs (`*_pb2.py`, `*_pb2_gprc.py`), the generated code should be 
