@@ -1074,17 +1074,13 @@ public class ProducerImplTest {
     @Test
     @SuppressWarnings("unchecked")
     public void processOpSendMsgCatchReleasesCmdAndRemovesTheOpFromTheQueue() throws Exception {
-        ProducerImpl<byte[]> producer = Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
-        Mockito.doReturn(false).when(producer).isBatchMessagingEnabled();
-        Mockito.doReturn(HandlerState.State.Ready).when(producer).getState();
-        Mockito.doNothing().when(producer).semaphoreRelease(Mockito.anyInt());
-        // The catch logs through the instance logger, which a mock does not initialize.
-        FieldUtils.writeField(producer, "log",
-                Mockito.mock(io.github.merlimat.slog.Logger.class, Mockito.RETURNS_DEEP_STUBS), true);
-        PulsarClientImpl client = Mockito.mock(PulsarClientImpl.class);
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatchingEnabled(false);
+        PulsarClientImpl client = mockedPulsarClient();
         Mockito.when(client.getMemoryLimitController())
                 .thenReturn(Mockito.mock(MemoryLimitController.class));
-        FieldUtils.writeField(producer, "client", client, true);
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(ProducerImpl.State.Ready);
 
         // The event loop rejects every task: the deferred release falls back to inline.
         EventLoop eventLoop = Mockito.mock(EventLoop.class);
@@ -1098,8 +1094,7 @@ public class ProducerImplTest {
         Mockito.when(cnx.ctx()).thenReturn(ctx);
         Mockito.doReturn(cnx).when(producer).getCnxIfReady();
 
-        OpSendMsgQueue pendingQueue = new OpSendMsgQueue();
-        FieldUtils.writeField(producer, "pendingMessages", pendingQueue, true);
+        OpSendMsgQueue pendingQueue = producer.pendingMessages;
 
         ByteBufPair cmd = ByteBufPair.get(
                 Unpooled.buffer().writeBytes("frame-header".getBytes(StandardCharsets.UTF_8)),
@@ -1133,16 +1128,13 @@ public class ProducerImplTest {
     @Test
     @SuppressWarnings("unchecked")
     public void processOpSendMsgCatchSurvivesAThrowingCallback() throws Exception {
-        ProducerImpl<byte[]> producer = Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
-        Mockito.doReturn(false).when(producer).isBatchMessagingEnabled();
-        Mockito.doReturn(HandlerState.State.Ready).when(producer).getState();
-        Mockito.doNothing().when(producer).semaphoreRelease(Mockito.anyInt());
-        FieldUtils.writeField(producer, "log",
-                Mockito.mock(io.github.merlimat.slog.Logger.class, Mockito.RETURNS_DEEP_STUBS), true);
-        PulsarClientImpl client = Mockito.mock(PulsarClientImpl.class);
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatchingEnabled(false);
+        PulsarClientImpl client = mockedPulsarClient();
         Mockito.when(client.getMemoryLimitController())
                 .thenReturn(Mockito.mock(MemoryLimitController.class));
-        FieldUtils.writeField(producer, "client", client, true);
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(ProducerImpl.State.Ready);
 
         EventLoop eventLoop = Mockito.mock(EventLoop.class);
         Mockito.doThrow(new RejectedExecutionException("mocked event loop shutdown"))
@@ -1155,8 +1147,7 @@ public class ProducerImplTest {
         Mockito.when(cnx.ctx()).thenReturn(ctx);
         Mockito.doReturn(cnx).when(producer).getCnxIfReady();
 
-        OpSendMsgQueue pendingQueue = new OpSendMsgQueue();
-        FieldUtils.writeField(producer, "pendingMessages", pendingQueue, true);
+        OpSendMsgQueue pendingQueue = producer.pendingMessages;
 
         ByteBufPair cmd = ByteBufPair.get(
                 Unpooled.buffer().writeBytes("frame-header".getBytes(StandardCharsets.UTF_8)),
