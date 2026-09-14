@@ -614,6 +614,11 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
             if (STATE_UPDATER.compareAndSet(this, OperationState.None, OperationState.Operating)) {
                 //Double-check. Avoid NoSuchElementException due to the first task is completed by other thread.
                 if (taskQueue.isEmpty()) {
+                    STATE_UPDATER.compareAndSet(this, OperationState.Operating, OperationState.None);
+                    // An append may have observed Operating between the empty check and releasing ownership.
+                    if (!taskQueue.isEmpty()) {
+                        executeTask();
+                    }
                     return;
                 }
                 Pair<OperationType, Pair<CompletableFuture<Void>, Supplier<CompletableFuture<Void>>>> firstTask =
@@ -630,12 +635,14 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
                     } else {
                         firstTask.getRight().getKey().complete(null);
                         taskQueue.removeFirst();
-                        //Execute the next task in the other thread.
-                        topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
-                                .getExecutor(this).submit(this::executeTask);
                     }
                     STATE_UPDATER.compareAndSet(this, OperationState.Operating,
                             OperationState.None);
+                    if (throwable == null) {
+                        // Release the operation before scheduling: the executor may run the next task immediately.
+                        topic.getBrokerService().getPulsar().getTransactionExecutorProvider()
+                                .getExecutor(this).submit(this::executeTask);
+                    }
                 });
             }
         }
