@@ -594,7 +594,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // If a message has a delayed delivery time, we'll always send it individually
         if (!isBatchMessagingEnabled() || msgMetadata.hasDeliverAtTime()) {
             if (payload.readableBytes() > conf.getCompressMinMsgBodySize()) {
-                compressedPayload = applyCompressionOrReleaseSource(payload);
+                try {
+                    compressedPayload = applyCompressionOrReleaseSource(payload);
+                } catch (Throwable t) {
+                    // canEnqueueRequest has already acquired the send permit and reserved the memory for this
+                    // message, and the failure happened before an op existed to release them through the send
+                    // lifecycle. Without this, repeated compression failures exhaust the producer queue and the
+                    // client memory limit, and the returned future is left incomplete.
+                    completeCallbackAndReleaseSemaphore(uncompressedSize, callback,
+                            new PulsarClientException(t, msg.getSequenceId()));
+                    return;
+                }
                 compressed = true;
 
                 // validate msg-size (For batching this will be check at the batch completion size)
@@ -720,6 +730,21 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         // alive until their operations complete.
                         if (totalChunks > 1 && chunkId != totalChunks - 1 && TopicName.get(topic).isPersistent()) {
                             ReferenceCountUtil.safeRelease(compressedPayload);
+                        }
+                        if (totalChunks > 1) {
+                            // The chunks after the failing one will never be built. In non-blocking mode their
+                            // send permits were pre-acquired up front (and the failing chunk's own permit is
+                            // released by the outer catch's completeCallbackAndReleaseSemaphore), and the
+                            // chunked-message context holds one claim per never-built chunk: release both here or
+                            // every failed chunked send permanently shrinks the producer queue and leaks the
+                            // context. The earlier chunks' permits and claims are released through their own
+                            // operations' lifecycle.
+                            if (!conf.isBlockIfQueueFull()) {
+                                semaphoreRelease(totalChunks - chunkId - 1);
+                            }
+                            for (int i = chunkId; i < totalChunks; i++) {
+                                ReferenceCountUtil.safeRelease(chunkedMessageCtx);
+                            }
                         }
                         throw t;
                     }
@@ -1553,6 +1578,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         semaphore.ifPresent(Semaphore::release);
         client.getMemoryLimitController().releaseMemory(payloadSize);
         callback.sendComplete(exception, null);
+    }
+
+    /**
+     * The send permits currently available on the producer queue ({@code Integer.MAX_VALUE} when the queue is
+     * unbounded). Visible for testing: the queue-accounting assertions on the send failure paths read it to
+     * confirm the permits acquired by {@code canEnqueueRequest} return to their starting point.
+     */
+    @VisibleForTesting
+    int availableSendPermitsForTesting() {
+        return semaphore.map(Semaphore::availablePermits).orElse(Integer.MAX_VALUE);
     }
 
     /**

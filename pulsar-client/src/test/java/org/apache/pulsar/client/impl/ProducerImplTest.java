@@ -496,16 +496,19 @@ public class ProducerImplTest {
         ProducerImpl<byte[]> producer = constructProducer(client, conf);
         producer.setState(ProducerImpl.State.Ready);
 
-        // A failing compression stage must release the message payload. sendAsync() runs this stage on the
-        // caller thread and lets the runtime error propagate; the wiring under test is the buffer release.
+        // A failing compression stage must release the message payload and complete the callback: the stage
+        // runs after canEnqueueRequest has acquired the send permit and reserved the memory, but before an op
+        // exists to release them, so both the buffer release and the callback are part of the wiring under
+        // test (leaving the future incomplete is the alternative this pins away).
         doThrow(new RuntimeException("mocked compression failure"))
                 .when(producer).applyCompression(any());
         MessageImpl<byte[]> first = newMessage("first");
         SendCallback firstCallback = mock(SendCallback.class);
-        assertThatThrownBy(() -> producer.sendAsync(first, firstCallback))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessageContaining("mocked compression failure");
-        verify(firstCallback, never()).sendComplete(any(), any());
+        producer.sendAsync(first, firstCallback);
+        ArgumentCaptor<Throwable> compressionFailure = ArgumentCaptor.forClass(Throwable.class);
+        verify(firstCallback).sendComplete(compressionFailure.capture(), any());
+        assertTrue(String.valueOf(compressionFailure.getValue()).contains("mocked compression failure"),
+                "the callback must be failed with the compression failure");
         assertEquals(first.getDataBuffer().refCnt(), 0,
                 "the payload must be released by the compression stage");
 
@@ -603,6 +606,86 @@ public class ProducerImplTest {
         verify(callback).sendComplete(any(), any());
         // The failing chunk's retained slice and the base payload's own claim must both be released.
         assertEquals(compressed.refCnt(), 0, "the compressed base payload must be released on a chunk failure");
+    }
+
+    /**
+     * A compression failure on the non-batch path happens after canEnqueueRequest has already acquired the
+     * send permit and reserved the message size in the client memory controller, but before any op exists to
+     * release them through the send lifecycle. The failure must still complete the callback (otherwise the
+     * returned future hangs) and return the accounting to its starting point, or repeated compression
+     * failures exhaust the producer queue and the client memory limit.
+     */
+    @Test
+    public void compressionFailureBeforeAnOpExistsReleasesPermitAndMemory() throws Exception {
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatchingEnabled(false);
+        conf.setCompressMinMsgBodySize(0);
+        // The default of 0 means an unbounded queue with no permit accounting to assert on.
+        conf.setMaxPendingMessages(100);
+        PulsarClientImpl client = mockedPulsarClient();
+        MemoryLimitController memoryLimitController = new MemoryLimitController(1024 * 1024);
+        when(client.getMemoryLimitController()).thenReturn(memoryLimitController);
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(ProducerImpl.State.Ready);
+        doThrow(new RuntimeException("mocked compression failure"))
+                .when(producer).applyCompression(any());
+
+        int maxPermits = producer.availableSendPermitsForTesting();
+        SendCallback callback = mock(SendCallback.class);
+        producer.sendAsync(newMessage(new byte[16]), callback);
+
+        ArgumentCaptor<Throwable> throwableCaptor = ArgumentCaptor.forClass(Throwable.class);
+        verify(callback).sendComplete(throwableCaptor.capture(), any());
+        assertTrue(String.valueOf(throwableCaptor.getValue()).contains("mocked compression failure"),
+                "the callback must be failed with the compression failure");
+        assertEquals(memoryLimitController.currentUsage(), 0,
+                "the memory reserved by canEnqueueRequest must be released");
+        assertEquals(producer.availableSendPermitsForTesting(), maxPermits,
+                "the send permit acquired by canEnqueueRequest must be released");
+    }
+
+    /**
+     * In non-blocking mode (the default) the chunk loop pre-acquires a send permit for every chunk of the
+     * message before building any of them. A chunk-build failure used to strand the permits of the chunks
+     * that were never going to be built — and their claims on the chunked-message context — permanently
+     * shrinking the producer queue (failing the first of N chunks cost N - 1 permits). The failure handling
+     * must return every pre-acquired permit: the failing chunk's own permit is released by the outer catch,
+     * and the never-built chunks' permits here.
+     */
+    @Test
+    public void chunkedNonBlockingFailureReturnsThePreAcquiredPermits() throws Exception {
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatchingEnabled(false);
+        conf.setChunkingEnabled(true);
+        conf.setCompressMinMsgBodySize(0);
+        // The default of 0 means an unbounded queue: the permits this test asserts on only exist with a bound.
+        conf.setMaxPendingMessages(100);
+        PulsarClientImpl client = mockedPulsarClient();
+        MemoryLimitController memoryLimitController = new MemoryLimitController(1024 * 1024);
+        when(client.getMemoryLimitController()).thenReturn(memoryLimitController);
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(ProducerImpl.State.Ready);
+        // A small max message size forces the 10 KB payload into several chunks.
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.getMaxMessageSize()).thenReturn(1024);
+        doReturn(connectionHandler).when(producer).getConnectionHandler();
+        doAnswer(invocation -> invocation.getArgument(0)).when(producer).applyCompression(any());
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
+        doThrow(new RuntimeException("mocked chunk serialization failure"))
+                .when(producer).sendMessage(anyLong(), anyLong(), anyInt(), any(), any(), any());
+
+        int maxPermits = producer.availableSendPermitsForTesting();
+        SendCallback callback = mock(SendCallback.class);
+        producer.sendAsync(newMessage(new byte[10 * 1024]), callback);
+
+        ArgumentCaptor<Throwable> chunkFailure = ArgumentCaptor.forClass(Throwable.class);
+        verify(callback).sendComplete(chunkFailure.capture(), any());
+        assertTrue(String.valueOf(chunkFailure.getValue()).contains("mocked chunk serialization failure"),
+                "the chunk-build path must be the one that failed: " + chunkFailure.getValue());
+        assertEquals(memoryLimitController.currentUsage(), 0,
+                "the memory reserved for the message must be released");
+        assertEquals(producer.availableSendPermitsForTesting(), maxPermits,
+                "the permits pre-acquired for the never-built chunks must be released");
     }
 
     /**
