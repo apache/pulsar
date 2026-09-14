@@ -389,14 +389,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.clock = getConfig().getClock();
         this.lastActive = this.clock.millis();
         this.lastLedgerSwitchTimestamp = this.clock.millis();
-        updateRolloverThresholds(getConfig());
-
-        if (getConfig().getThrottleMarkDelete() > 0.0) {
-            markDeleteLimiter = RateLimiter.create(getConfig().getThrottleMarkDelete());
-        } else {
-            // Disable mark-delete rate limiter
-            markDeleteLimiter = null;
-        }
+        configUpdated();
         this.mbean = new ManagedCursorMXBeanImpl(this);
         this.ledgerForceRecovery = getConfig().isLedgerForceRecovery();
     }
@@ -4007,12 +4000,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         return state.toString();
     }
 
-    @Override
     public double getThrottleMarkDelete() {
         return this.markDeleteLimiter.getRate();
     }
 
-    @Override
     public void setThrottleMarkDelete(double throttleMarkDelete) {
         if (throttleMarkDelete > 0.0) {
             if (markDeleteLimiter == null) {
@@ -4027,10 +4018,18 @@ public class ManagedCursorImpl implements ManagedCursor {
     }
 
     /**
-     * Recalculate cached cursor-ledger rollover thresholds from {@code config}.
-     * Adds up to 5% jitter so multiple cursors do not rollover at the same time.
+     * Apply the current managed-ledger config to this cursor.
+     * 1. Recalculates cursor-ledger rollover thresholds with up to 5% jitter so multiple
+     * cursors do not rollover at the same time.
+     * 2. updates the mark-delete throttle.
      */
-    void updateRolloverThresholds(ManagedLedgerConfig config) {
+    void configUpdated() {
+        updateRolloverThresholds();
+        setThrottleMarkDelete(getConfig().getThrottleMarkDelete());
+    }
+
+    private void updateRolloverThresholds() {
+        ManagedLedgerConfig config = getConfig();
         this.maximumLedgerRolloverTimeMs = getMaximumRolloverTimeMs(config);
         this.maximumLedgerRolloverEntries = getMaximumRolloverEntries(config);
     }
