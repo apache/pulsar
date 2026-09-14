@@ -336,18 +336,21 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
             if (firstCallback != null) {
                 firstCallback.sendComplete(ex, null);
             }
-            if (batchPayloadOwned && batchedMessageMetadataAndPayload != null) {
-                ReferenceCountUtil.safeRelease(batchedMessageMetadataAndPayload);
-            }
-            batchPayloadOwned = false;
         } catch (Throwable t) {
             log.warn().attr("topic", topicName)
                     .attr("producerName", producer.getProducerName())
                     .attr("lowestSequenceId", lowestSequenceId)
                     .exception(t)
                     .log("Got exception while completing the callback for msg");
+        } finally {
+            // In the finally: the callback is application code, and an exception escaping it must not
+            // skip the release - clear() below drops the reference without freeing the buffer.
+            if (batchPayloadOwned && batchedMessageMetadataAndPayload != null) {
+                ReferenceCountUtil.safeRelease(batchedMessageMetadataAndPayload);
+            }
+            batchPayloadOwned = false;
+            clear();
         }
-        clear();
     }
 
     @Override

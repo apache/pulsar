@@ -56,6 +56,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.CompressionType;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -604,6 +605,44 @@ public class BatchMessageContainerImplTest {
             container.clear();
         } finally {
             messages.forEach(ReferenceCountUtil::safeRelease);
+        }
+    }
+
+    /**
+     * discard() invokes the application callback before releasing the batch buffer. The callback is application
+     * code (future handlers run inside sendComplete), so it can throw; the release must not be skipped when it
+     * does, or clear() drops the buffer's reference without freeing it and every failed batch with a throwing
+     * handler leaks its off-heap memory.
+     */
+    @Test
+    public void discardReleasesTheBatchBufferWhenTheCallbackThrows() throws Exception {
+        ProducerImpl<?> producer = createTestProducer(CompressionType.NONE);
+        List<ReleaseCountingByteBuf> containerBuffers = new ArrayList<>();
+        ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ReleaseCountingByteBuf buffer =
+                    new ReleaseCountingByteBuf(Unpooled.buffer((int) invocation.getArgument(0)));
+            containerBuffers.add(buffer);
+            return buffer;
+        }).when(recordingAllocator).buffer(anyInt());
+
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(recordingAllocator);
+        container.setProducer(producer);
+        SendCallback throwingCallback = mock(SendCallback.class);
+        doThrow(new RuntimeException("mocked application callback failure"))
+                .when(throwingCallback).sendComplete(any(), any());
+
+        MessageImpl<?> message = createMessage(0);
+        try {
+            container.add(message, throwingCallback);
+            container.discard(new PulsarClientException("mocked discard"));
+
+            assertEquals(containerBuffers.size(), 1, "the batch buffer is the container's only allocation");
+            assertEquals(containerBuffers.get(0).refCnt(), 0,
+                    "the batch buffer must be released even when the callback throws");
+            assertTrue(container.isEmpty(), "the container must still be cleared");
+        } finally {
+            ReferenceCountUtil.safeRelease(message);
         }
     }
 
