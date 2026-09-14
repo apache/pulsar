@@ -216,3 +216,52 @@ func TestInstanceControlMetrics(t *testing.T) {
 		assert.EqualValuesf(t, value+1, metrics.UserMetrics[label], "user metric %s != %d", label, value+1)
 	}
 }
+
+func TestGetMetricsRegistry_CustomCollector(t *testing.T) {
+	gi := newGoInstance()
+	metricsServicer := NewMetricsServicer(gi)
+	metricsServicer.serve()
+
+	// A Counter is something the user_metric Summary cannot express.
+	customCounter := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "pulsar_function_go_test_custom_counter_total",
+		Help: "A user-registered counter exposed via FunctionContext.GetMetricsRegistry.",
+	})
+	err := gi.context.GetMetricsRegistry().Register(customCounter)
+	assert.NoError(t, err)
+	defer gi.context.GetMetricsRegistry().Unregister(customCounter)
+	customCounter.Add(42)
+
+	time.Sleep(time.Second * 1)
+	resp, err := http.Get(fmt.Sprintf("http://localhost:%d/metrics", gi.context.GetMetricsPort()))
+	assert.Equal(t, nil, err)
+	assert.NotEqual(t, nil, resp)
+	assert.Equal(t, 200, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	assert.Equal(t, nil, err)
+	assert.Containsf(t, string(body), "\npulsar_function_go_test_custom_counter_total 42\n",
+		"custom collector should be exposed on /metrics")
+	resp.Body.Close()
+
+	gi.close()
+	metricsServicer.close()
+}
+
+func TestGetMetricsRegistry_NameCollision(t *testing.T) {
+	gi := newGoInstance()
+
+	// Collides with the built-in received_total gauge registered on reg in init().
+	colliding := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: PulsarFunctionMetricsPrefix + TotalReceived,
+		Help: "collector whose name collides with a built-in SDK metric",
+	})
+
+	// Register is the documented safe path: it returns an error, it does not panic.
+	err := gi.context.GetMetricsRegistry().Register(colliding)
+	assert.Error(t, err)
+
+	// MustRegister panics on the same collision.
+	assert.Panics(t, func() {
+		gi.context.GetMetricsRegistry().MustRegister(colliding)
+	})
+}
