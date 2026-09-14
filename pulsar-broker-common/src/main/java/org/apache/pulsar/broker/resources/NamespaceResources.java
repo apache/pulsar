@@ -153,13 +153,16 @@ public class NamespaceResources extends BaseResources<Policies> {
     }
 
     public static boolean pathIsFromNamespace(String path) {
-        return path.startsWith(BASE_POLICIES_PATH + "/")
-                && path.substring(BASE_POLICIES_PATH.length() + 1).contains("/");
+        return pathHasNestedSegmentUnderRoot(path, BASE_POLICIES_PATH);
     }
 
     public static boolean pathIsNamespaceLocalPolicies(String path) {
-        return path.startsWith(LOCAL_POLICIES_ROOT + "/")
-                && path.substring(LOCAL_POLICIES_ROOT.length() + 1).contains("/");
+        return pathHasNestedSegmentUnderRoot(path, LOCAL_POLICIES_ROOT);
+    }
+
+    private static boolean pathHasNestedSegmentUnderRoot(String path, String rootPath) {
+        return path.startsWith(rootPath + "/")
+                && path.substring(rootPath.length() + 1).contains("/");
     }
 
     /**
