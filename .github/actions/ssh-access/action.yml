@@ -17,6 +17,13 @@
 # under the License.
 #
 
+# CI_ENABLE_SSH=true or false explicitly enables or disables both start and wait.
+# In particular, false disables SSH even for public repositories.
+# Without an override, public workflow repositories are enabled; private, internal,
+# and unknown visibility are disabled. The calling workflows map the repository
+# variable CI_ENABLE_SSH into the environment; job/step environment overrides win.
+# Callers still control when this action runs and which GitHub users' keys are allowed.
+
 name: ssh access
 description: Sets up SSH access to build VM with upterm
 inputs:
@@ -47,27 +54,43 @@ inputs:
 runs:
   using: composite
   steps:
-    - run: |
+    - name: Configure SSH access
+      env:
+        SSH_ACCESS_ENABLED: ${{ env.CI_ENABLE_SSH || (github.event.repository.visibility == 'public' && 'true' || 'false') }}
+      run: |
+        case "$SSH_ACCESS_ENABLED" in
+          false)
+            echo "SSH access is disabled. Set CI_ENABLE_SSH=true to enable it."
+            exit 0
+            ;;
+          true) ;;
+          *)
+            echo "::error::CI_ENABLE_SSH must be true or false."
+            exit 1
+            ;;
+        esac
         if [[ "${{ inputs.action }}" == "start" ]]; then
             echo "::group::Installing upterm & tmux"
             if [[ "$OSTYPE" == "linux-gnu"* ]]; then
                 # install upterm
-                curl -sL https://github.com/owenthereal/upterm/releases/download/v0.20.0/upterm_linux_amd64.tar.gz | tar zxvf - -C /tmp upterm && sudo install /tmp/upterm /usr/local/bin/ && rm -rf /tmp/upterm
+                curl -fsSL https://github.com/owenthereal/upterm/releases/download/v0.27.0/upterm_linux_amd64.tar.gz | tar zxvf - -C /tmp upterm && sudo install /tmp/upterm /usr/local/bin/ && rm -rf /tmp/upterm
 
                 # install tmux if it's not present
                 if ! command -v tmux &>/dev/null; then
                     sudo apt-get -y install tmux
                 fi
             elif [[ "$OSTYPE" == "darwin"* ]]; then
-                brew install --cask owenthereal/upterm/upterm
+                # Fully qualifying the cask grants trust to this item; suppress installation prompts in CI.
+                HOMEBREW_NO_ASK=1 brew install --cask owenthereal/upterm/upterm
                 # install tmux if it's not present
                 if ! command -v tmux &>/dev/null; then
-                    brew install tmux
+                    HOMEBREW_NO_ASK=1 brew install tmux
                 fi
             else
                 echo "Unsupported $OSTYPE"
                 exit 0
             fi
+            upterm version
             echo '::endgroup::'
             echo "::group::Configuring ssh and ssh keys"
             # generate ssh key
