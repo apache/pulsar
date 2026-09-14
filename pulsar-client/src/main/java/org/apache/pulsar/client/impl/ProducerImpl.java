@@ -706,8 +706,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 if (chunkId > 0 && conf.isBlockIfQueueFull() && !canEnqueueRequest(callback,
                         message.getSequenceId(), 0 /* The memory was already reserved */)) {
                     compressedPayload.release();
-                    client.getMemoryLimitController().releaseMemory(uncompressedSize - readStartIndex);
-                    semaphoreRelease(totalChunks - chunkId);
+                    // In blocking mode canEnqueueRequest only fails on interruption, before taking this
+                    // chunk's permit (and the memory was reserved once for the whole message, the ops of the
+                    // earlier chunks carry no share): release the full reservation here and no permits -
+                    // the permits of the already-built chunks are released by their own operations.
+                    client.getMemoryLimitController().releaseMemory(uncompressedSize);
                     return;
                 }
                 synchronized (this) {
@@ -1575,6 +1578,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     private void completeCallbackAndReleaseSemaphore(long payloadSize, SendCallback callback, Exception exception) {
+        // The unconditional release is safe: with memoryLimitAdmittedUpstream the constructor forbids a
+        // maxPendingMessages limit, so there is no semaphore to release a never-acquired permit from.
         semaphore.ifPresent(Semaphore::release);
         client.getMemoryLimitController().releaseMemory(payloadSize);
         callback.sendComplete(exception, null);

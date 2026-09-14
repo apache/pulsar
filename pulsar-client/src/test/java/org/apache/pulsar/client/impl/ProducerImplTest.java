@@ -744,6 +744,72 @@ public class ProducerImplTest {
     }
 
     /**
+     * In blocking mode the per-chunk canEnqueueRequest only fails on interruption, before taking that chunk's
+     * permit and after the whole message's memory was reserved once. The failure branch used to release only
+     * uncompressedSize - readStartIndex (leaking the already-chunked bytes on the memory gauge, since the
+     * earlier chunk ops carry no share) and N - chunkId permits that were never acquired in blocking mode.
+     * Triggered by setting the interrupt flag while chunk 0's command is being built: Semaphore.acquire()
+     * throws immediately on an interrupt flag even with permits available.
+     */
+    @Test
+    public void chunkedBlockingInterruptionReleasesTheWholeReservationAndNoForeignPermits() throws Exception {
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatchingEnabled(false);
+        conf.setChunkingEnabled(true);
+        conf.setCompressMinMsgBodySize(0);
+        conf.setMaxPendingMessages(100);
+        conf.setBlockIfQueueFull(true);
+        PulsarClientImpl client = mockedPulsarClient();
+        MemoryLimitController memoryLimitController = new MemoryLimitController(1024 * 1024);
+        when(client.getMemoryLimitController()).thenReturn(memoryLimitController);
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(ProducerImpl.State.Ready);
+        // A small max message size forces the 10 KB payload into several chunks.
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.getMaxMessageSize()).thenReturn(1024);
+        doReturn(connectionHandler).when(producer).getConnectionHandler();
+        doAnswer(invocation -> invocation.getArgument(0)).when(producer).applyCompression(any());
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
+        AtomicInteger sendCalls = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (sendCalls.incrementAndGet() == 1) {
+                // Chunk 0 is built normally; chunk 1's enqueue must observe the interrupt flag.
+                Thread.currentThread().interrupt();
+            }
+            ByteBuf payload = invocation.getArgument(5);
+            ByteBuf header = Unpooled.buffer();
+            header.writeInt(4 + 4 + payload.readableBytes());
+            header.writeInt(0);
+            return ByteBufPair.get(header, payload);
+        }).when(producer).sendMessage(anyLong(), anyLong(), anyInt(), any(), any(), any());
+        List<ProducerImpl.OpSendMsg> ops = new ArrayList<>();
+        doAnswer(invocation -> {
+            ops.add(invocation.getArgument(0));
+            return null;
+        }).when(producer).processOpSendMsg(any());
+
+        int maxPermits = producer.availableSendPermitsForTesting();
+        SendCallback callback = mock(SendCallback.class);
+        try {
+            producer.sendAsync(newMessage(new byte[10 * 1024]), callback);
+        } finally {
+            // canEnqueueRequest's interrupt handler restores the interrupt status; don't leak it to other tests.
+            Thread.interrupted();
+        }
+
+        assertEquals(ops.size(), 1, "chunk 0 must have been built before the interruption failed chunk 1");
+        verify(callback).sendComplete(any(), any());
+        assertEquals(memoryLimitController.currentUsage(), 0,
+                "the whole memory reservation must be released, including the already-chunked bytes");
+        assertEquals(producer.availableSendPermitsForTesting(), maxPermits - 1,
+                "only the built chunk's permit may still be held (by its own operation)");
+        producer.releaseSemaphoreForSendOp(ops.get(0));
+        assertEquals(producer.availableSendPermitsForTesting(), maxPermits,
+                "completing the built chunk's op must return the queue to its starting point");
+        ops.forEach(op -> ReferenceCountUtil.safeRelease(op.cmd));
+    }
+
+    /**
      * A message whose schema is not yet registered goes through the deferred-command branch of the real send
      * path: the op holds the encrypted payload (pendingPayload) instead of a command and builds it later via
      * rePopulate(). A failed first build must keep the payload with the op for the resend, and failing the op

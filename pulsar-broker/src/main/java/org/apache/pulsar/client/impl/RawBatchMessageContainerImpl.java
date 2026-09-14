@@ -91,8 +91,9 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
             // Never orphan the compressed payload or a partially built encrypted buffer when encryption fails,
             // whatever the failure is (e.g. an OOM while allocating the encrypted buffer or an unexpected
             // runtime exception from the crypto provider). Unlike the PulsarClientException branch, the batch is
-            // deliberately not discarded here: the caller owns recovery (StrategicTwoPhaseCompactor discards the
-            // container on any Throwable from toByteBuf()), so the batch is failed exactly once at the call site.
+            // deliberately not discarded here: this failure escapes toByteBuf() before its serialization try
+            // (whose finally clears the container), so the caller owns the recovery — StrategicTwoPhaseCompactor
+            // discards the container on it.
             ReferenceCountUtil.safeRelease(encryptedPayload);
             ReferenceCountUtil.safeRelease(compressedPayload);
             throw t;
