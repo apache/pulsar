@@ -2046,6 +2046,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return op;
         }
 
+        public boolean remove(OpSendMsg o) {
+            boolean removed = delegate.remove(o);
+            if (!removed && postponedOpSendMgs != null) {
+                removed = postponedOpSendMgs.remove(o);
+            }
+            if (removed) {
+                messagesCount.addAndGet(-o.numMessagesInBatch);
+            }
+            return removed;
+        }
+
         public OpSendMsg peek() {
             return delegate.peek();
         }
@@ -2791,10 +2802,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             .log("Connection is not ready -- sequenceId");
             }
         } catch (Throwable t) {
+            // The op may already sit in pendingMessages (e.g. the event loop rejected the write task on
+            // shutdown, after the op was queued): take it back out, or the recycled op would dangle in the
+            // queue and the resend would operate on a pooled instance.
+            pendingMessages.remove(op);
             releaseSemaphoreForSendOp(op);
             log.warn()
                     .exception(t).log("error while closing out batch");
             op.sendComplete(new PulsarClientException(t, op.sequenceId));
+            if (op.writeEventLoop != null) {
+                // The cmd was retained for a write that never got queued: that reference has no owner
+                // anymore, so drop it on top of the op's own release.
+                ReferenceCountUtil.safeRelease(op.cmd);
+            }
+            releaseOpCmdAndRecycle(op);
         }
     }
 
@@ -2932,6 +2953,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 checkState(op.rePopulate != null);
                 op.rePopulate.run();
                 if (isMessageSizeExceeded(op)) {
+                    // isMessageSizeExceeded already released the accounting and completed the callback:
+                    // take the op out of the queue and release its freshly built command too, or it stays
+                    // pending until the send timeout fails it - releasing the accounting a second time.
+                    msgIterator.remove();
+                    releaseOpCmdAndRecycle(op);
                     continue;
                 }
             }

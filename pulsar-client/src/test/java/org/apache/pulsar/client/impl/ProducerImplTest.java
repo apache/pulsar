@@ -1065,6 +1065,67 @@ public class ProducerImplTest {
     }
 
     /**
+     * If the connection's event loop rejects the write task (shutting down during a producer close or
+     * reconnect), the catch of processOpSendMsg used to release only the permit and the memory: the cmd -
+     * retained for a write that never got queued - leaked together with the chunked-message context claim,
+     * and the op stayed in pendingMessages unrecycled. The catch must take the op back out of the queue,
+     * drop the orphaned write reference, and release the op's own command.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void processOpSendMsgCatchReleasesCmdAndRemovesTheOpFromTheQueue() throws Exception {
+        ProducerImpl<byte[]> producer = Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
+        Mockito.doReturn(false).when(producer).isBatchMessagingEnabled();
+        Mockito.doReturn(HandlerState.State.Ready).when(producer).getState();
+        Mockito.doNothing().when(producer).semaphoreRelease(Mockito.anyInt());
+        // The catch logs through the instance logger, which a mock does not initialize.
+        FieldUtils.writeField(producer, "log",
+                Mockito.mock(io.github.merlimat.slog.Logger.class, Mockito.RETURNS_DEEP_STUBS), true);
+        PulsarClientImpl client = Mockito.mock(PulsarClientImpl.class);
+        Mockito.when(client.getMemoryLimitController())
+                .thenReturn(Mockito.mock(MemoryLimitController.class));
+        FieldUtils.writeField(producer, "client", client, true);
+
+        // The event loop rejects every task: the deferred release falls back to inline.
+        EventLoop eventLoop = Mockito.mock(EventLoop.class);
+        Mockito.doThrow(new RejectedExecutionException("mocked event loop shutdown"))
+                .when(eventLoop).execute(any(Runnable.class));
+        Channel channel = Mockito.mock(Channel.class);
+        Mockito.when(channel.eventLoop()).thenReturn(eventLoop);
+        ChannelHandlerContext ctx = Mockito.mock(ChannelHandlerContext.class);
+        Mockito.when(ctx.channel()).thenReturn(channel);
+        ClientCnx cnx = Mockito.mock(ClientCnx.class);
+        Mockito.when(cnx.ctx()).thenReturn(ctx);
+        Mockito.doReturn(cnx).when(producer).getCnxIfReady();
+
+        OpSendMsgQueue pendingQueue = new OpSendMsgQueue();
+        FieldUtils.writeField(producer, "pendingMessages", pendingQueue, true);
+
+        ByteBufPair cmd = ByteBufPair.get(
+                Unpooled.buffer().writeBytes("frame-header".getBytes(StandardCharsets.UTF_8)),
+                Unpooled.buffer().writeBytes("batch-payload".getBytes(StandardCharsets.UTF_8)));
+        MessageImpl<?> msg = Mockito.mock(MessageImpl.class);
+        Mockito.when(msg.getUncompressedSize()).thenReturn(10);
+        SendCallback callback = Mockito.mock(SendCallback.class);
+        OpSendMsg op = OpSendMsg.create(
+                Mockito.mock(LatencyHistogram.class), msg, cmd, 1L, callback);
+        op.totalChunks = 1;
+        op.chunkId = 0;
+        op.numMessagesInBatch = 1;
+        // Bypass the message-dependent paths (batch scheduling / schema registration / size checks) so the test
+        // focuses on the write hand-off.
+        op.msg = null;
+
+        producer.processOpSendMsg(op);
+
+        assertEquals(pendingQueue.size(), 0, "the failed op must be taken back out of the pending queue");
+        assertEquals(pendingQueue.messagesCount(), 0, "the queue's message accounting must follow");
+        assertEquals(cmd.refCnt(), 0,
+                "both the op's reference and the orphaned write reference must be released");
+        verify(callback).sendComplete(any(), any());
+    }
+
+    /**
      * Regression test for the stale write-callback window: an op is handed to connection A's event loop, then
      * re-sent on connection B after a reconnect (so {@code op.writeEventLoop} now points to B's loop), and the
      * send timeout disposes it deferred on B's loop while the callback queued on A's loop has still not run.
