@@ -38,6 +38,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.CompactionReaderImpl;
@@ -457,7 +458,9 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
 
         } catch (Throwable t) {
             log.error("Failed to add entry", t);
-            batchMessageContainer.discard((Exception) t);
+            // discard(Exception) cannot take an Error: wrap non-Exception Throwables so the batch container is
+            // always cleared here and stays reusable after a failed flush.
+            batchMessageContainer.discard(t instanceof Exception ? (Exception) t : new PulsarClientException(t));
             bkf.completeExceptionally(t);
             return bkf;
         }

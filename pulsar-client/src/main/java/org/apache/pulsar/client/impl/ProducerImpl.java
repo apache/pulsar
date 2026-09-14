@@ -515,7 +515,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * @param payload
      * @return a new payload
      */
-    private ByteBuf applyCompression(ByteBuf payload) {
+    @VisibleForTesting
+    public ByteBuf applyCompression(ByteBuf payload) {
         ByteBuf compressedPayload = compressor.encode(payload);
         payload.release();
         return compressedPayload;
@@ -571,7 +572,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // Batch will be compressed when closed
         // If a message has a delayed delivery time, we'll always send it individually
         if (!isBatchMessagingEnabled() || msgMetadata.hasDeliverAtTime()) {
-            compressedPayload = applyCompression(payload);
+            try {
+                compressedPayload = applyCompressionOrReleaseSource(payload);
+            } catch (Throwable t) {
+                // canEnqueueRequest has already acquired the send permit and reserved the memory, and no
+                // op exists to release them through the send lifecycle.
+                completeCallbackAndReleaseSemaphore(uncompressedSize, callback,
+                        new PulsarClientException(t, msg.getSequenceId()));
+                return;
+            }
             compressed = true;
 
             // validate msg-size (For batching this will be check at the batch completion size)
@@ -671,8 +680,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 if (chunkId > 0 && conf.isBlockIfQueueFull() && !canEnqueueRequest(callback,
                         message.getSequenceId(), 0 /* The memory was already reserved */)) {
                     compressedPayload.release();
-                    client.getMemoryLimitController().releaseMemory(uncompressedSize - readStartIndex);
-                    semaphoreRelease(totalChunks - chunkId);
+                    // In blocking mode canEnqueueRequest only fails on interruption, before taking this
+                    // chunk's permit (and the memory was reserved once for the whole message, the ops of the
+                    // earlier chunks carry no share): release the full reservation here and no permits -
+                    // the permits of the already-built chunks are released by their own operations.
+                    client.getMemoryLimitController().releaseMemory(uncompressedSize);
                     return;
                 }
                 synchronized (this) {
@@ -681,9 +693,33 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     final long sequenceId = updateMessageMetadataSequenceId(msgMetadata);
                     String uuid = totalChunks > 1 ? String.format("%s-%d", producerName, sequenceId) : null;
 
-                    serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
-                            readStartIndex, payloadChunkSize, compressedPayload, compressed,
-                            compressedPayload.readableBytes(), callback, chunkedMessageCtx, messageId);
+                    try {
+                        serializeAndSendMessage(msg, payload, sequenceId, uuid, chunkId, totalChunks,
+                                readStartIndex, payloadChunkSize, compressedPayload, compressed,
+                                compressedPayload.readableBytes(), callback, chunkedMessageCtx, messageId);
+                    } catch (Throwable t) {
+                        // For chunked persistent messages the last chunk's slice is never retained, so the base
+                        // payload's own ref-count claim is the vehicle that releases it. A failure on any earlier
+                        // chunk orphans that claim (the failing chunk's retained slice is already released by the
+                        // send-path helper); release it here. Earlier chunks' retained slices keep the memory
+                        // alive until their operations complete.
+                        if (totalChunks > 1 && chunkId != totalChunks - 1 && TopicName.get(topic).isPersistent()) {
+                            ReferenceCountUtil.safeRelease(compressedPayload);
+                        }
+                        if (totalChunks > 1) {
+                            // The chunks after the failing one will never be built: return their pre-acquired
+                            // permits (non-blocking mode acquires them up front) and their claims on the chunked
+                            // context, which only created ops release. The failing chunk's own permit goes through
+                            // the outer catch, the earlier chunks' through their own operations.
+                            if (!conf.isBlockIfQueueFull()) {
+                                semaphoreRelease(totalChunks - chunkId - 1);
+                            }
+                            for (int i = chunkId; i < totalChunks; i++) {
+                                ReferenceCountUtil.safeRelease(chunkedMessageCtx);
+                            }
+                        }
+                        throw t;
+                    }
                     readStartIndex = ((chunkId + 1) * payloadChunkSize);
                 }
             }
@@ -808,9 +844,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // in this case compression has not been applied by the caller
             // but we have to compress the payload if compression is configured
             if (!compressed) {
-                chunkPayload = applyCompression(chunkPayload);
+                chunkPayload = applyCompressionOrReleaseSource(chunkPayload);
             }
-            ByteBuf encryptedPayload = encryptMessage(msgMetadata, chunkPayload);
+            ByteBuf encryptedPayload = encryptMessageOrReleaseSource(msgMetadata, chunkPayload);
 
             // When publishing during replication, we need to set the correct number of message in batch
             // This is only used in tracking the publish rate stats
@@ -819,28 +855,29 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     : 1;
             final OpSendMsg op;
             if (msg.getSchemaState() == MessageImpl.SchemaState.Ready) {
-                ByteBufPair cmd = sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata,
-                        encryptedPayload);
+                ByteBufPair cmd = sendMessageOrReleasePayload(producerId, sequenceId, numMessages, messageId,
+                        msgMetadata, encryptedPayload);
                 op = OpSendMsg.create(rpcLatencyHistogram, msg, cmd, sequenceId, callback);
             } else {
                 op = OpSendMsg.create(rpcLatencyHistogram, msg, null, sequenceId, callback);
+                // Hold on to the payload until the deferred command is built; if the op is failed before
+                // that happens, recycle() releases it instead of orphaning the buffer.
+                op.pendingPayload = encryptedPayload;
                 final MessageMetadata finalMsgMetadata = msgMetadata;
-                op.rePopulate = () -> {
-                    if (msgMetadata.hasChunkId()) {
-                        // The message metadata is shared between all chunks in a large message
-                        // We need to reset the chunk id for each call of this method
-                        // It's safe to do that because there is only 1 thread to manipulate this message metadata
-                        finalMsgMetadata.setChunkId(chunkId);
-                    }
-                    op.cmd = sendMessage(producerId, sequenceId, numMessages, messageId, finalMsgMetadata,
-                            encryptedPayload);
-                };
+                op.rePopulate = () -> buildDeferredCommand(op, finalMsgMetadata, producerId, sequenceId,
+                        numMessages, messageId, chunkId);
             }
             op.setNumMessagesInBatch(numMessages);
             op.setBatchSizeByte(encryptedPayload.readableBytes());
             if (totalChunks > 1) {
                 op.totalChunks = totalChunks;
                 op.chunkId = chunkId;
+                if (chunkId != totalChunks - 1) {
+                    // The message's memory was reserved once by canEnqueueRequest, and every release site
+                    // (per-op ack, failPendingMessages, terminal state) releases op.uncompressedSize: only
+                    // the last chunk's op may carry the size, or each chunk ack would release it again.
+                    op.uncompressedSize = 0;
+                }
             }
             op.chunkedMessageCtx = chunkedMessageCtx;
             lastSendFuture = callback.getFuture();
@@ -965,9 +1002,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             return compressedPayload;
         }
 
+        // Nulled out on a successful hand-off: the finally-block releases the encrypted buffer whenever it was
+        // not returned to the caller (a crypto failure of any kind, or a failure while building it).
+        ByteBuf encryptedPayload = null;
         try {
             int maxSize = msgCrypto.getMaxOutputSize(compressedPayload.readableBytes());
-            ByteBuf encryptedPayload = PulsarByteBufAllocator.DEFAULT.buffer(maxSize);
+            encryptedPayload = allocateEncryptedBuffer(maxSize);
             ByteBuffer targetBuffer = encryptedPayload.nioBuffer(0, maxSize);
 
             msgCrypto.encrypt(conf.getEncryptionKeys(), conf.getCryptoKeyReader(), () -> msgMetadata,
@@ -975,7 +1015,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
             encryptedPayload.writerIndex(targetBuffer.remaining());
             compressedPayload.release();
-            return encryptedPayload;
+            ByteBuf result = encryptedPayload;
+            encryptedPayload = null;
+            return result;
         } catch (PulsarClientException e) {
             // Unless config is set to explicitly publish un-encrypted message upon failure, fail the request
             if (conf.getCryptoFailureAction() == ProducerCryptoFailureAction.SEND) {
@@ -984,7 +1026,75 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 return compressedPayload;
             }
             throw e;
+        } finally {
+            ReferenceCountUtil.safeRelease(encryptedPayload);
         }
+    }
+
+    ByteBuf allocateEncryptedBuffer(int maxSize) {
+        return PulsarByteBufAllocator.DEFAULT.buffer(maxSize);
+    }
+
+    /**
+     * Builds the send command and, when the serialization fails, releases the payload instead of orphaning
+     * it. For chunked messages this also returns the slice's claim on the shared payload buffer.
+     */
+    ByteBufPair sendMessageOrReleasePayload(long producerId, long sequenceId, int numMessages,
+                                            MessageId messageId, MessageMetadata msgMetadata, ByteBuf payload) {
+        try {
+            return sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata, payload);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(payload);
+            throw t;
+        }
+    }
+
+    /**
+     * Applies compression and, when the codec fails, releases the source payload instead of orphaning it:
+     * applyCompression() releases its input only after the codec succeeds. For chunked messages this also
+     * returns the slice's claim on the shared payload buffer.
+     */
+    ByteBuf applyCompressionOrReleaseSource(ByteBuf source) {
+        try {
+            return applyCompression(source);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(source);
+            throw t;
+        }
+    }
+
+    /**
+     * Applies encryption and, when the crypto fails, releases the source payload instead of orphaning it:
+     * encryptMessage() leaves the source with the caller on failure (its internal partial output buffer is
+     * released inside). For chunked messages this also returns the slice's claim on the shared payload
+     * buffer.
+     */
+    ByteBuf encryptMessageOrReleaseSource(MessageMetadata msgMetadata, ByteBuf source)
+            throws PulsarClientException {
+        try {
+            return encryptMessage(msgMetadata, source);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(source);
+            throw t;
+        }
+    }
+
+    /**
+     * Builds the command of an op whose serialization was deferred until the schema registration completed.
+     * The deferred payload stays owned by the op ({@code pendingPayload}) until the command is built: a
+     * failed construction must not release it, because the op remains pending and the next resend rebuilds
+     * from the same buffer; {@code recycle()} releases it when the op is failed instead.
+     */
+    void buildDeferredCommand(OpSendMsg op, MessageMetadata msgMetadata, long producerId, long sequenceId,
+                              int numMessages, MessageId messageId, int chunkId) {
+        if (msgMetadata.hasChunkId()) {
+            // The message metadata is shared between all chunks in a large message. We need to reset the
+            // chunk id for each call of this method. It's safe to do that because there is only 1 thread
+            // to manipulate this message metadata.
+            msgMetadata.setChunkId(chunkId);
+        }
+        op.cmd = sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata, op.pendingPayload);
+        op.pendingPayload = null;
     }
 
     protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages,
@@ -1414,6 +1524,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     /**
+     * The send permits currently available on the producer queue ({@code Integer.MAX_VALUE} when the queue is
+     * unbounded). Visible for testing: the queue-accounting assertions on the send failure paths read it to
+     * confirm the permits acquired by {@code canEnqueueRequest} return to their starting point.
+     */
+    @VisibleForTesting
+    int availableSendPermitsForTesting() {
+        return semaphore.map(Semaphore::availablePermits).orElse(Integer.MAX_VALUE);
+    }
+
+    /**
      * Checks message checksum to retry if message was corrupted while sending to broker. Recomputes checksum of the
      * message header-payload again.
      * <ul>
@@ -1573,6 +1693,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // Volatile so a stale WriteInEventLoopCallback on an older connection's event loop can never observe
         // cmd == this after the disposal has released it; the disposal also clears this field before releasing.
         volatile ByteBufPair cmd;
+        ByteBuf pendingPayload;
         SendCallback callback;
         Runnable rePopulate;
         ChunkedMessageCtx chunkedMessageCtx;
@@ -1602,6 +1723,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             msg = null;
             msgs = null;
             cmd = null;
+            pendingPayload = null;
             callback = null;
             rePopulate = null;
             writeEventLoop = null;
@@ -1734,6 +1856,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         void recycle() {
             ReferenceCountUtil.safeRelease(chunkedMessageCtx);
+            ReferenceCountUtil.safeRelease(pendingPayload);
             initialize();
             recyclerHandle.recycle(this);
         }
@@ -1855,6 +1978,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 messagesCount.addAndGet(-op.numMessagesInBatch);
             }
             return op;
+        }
+
+        public boolean remove(OpSendMsg o) {
+            boolean removed = delegate.remove(o);
+            if (!removed && postponedOpSendMgs != null) {
+                removed = postponedOpSendMgs.remove(o);
+            }
+            if (removed) {
+                messagesCount.addAndGet(-o.numMessagesInBatch);
+            }
+            return removed;
         }
 
         public OpSendMsg peek() {
@@ -2587,9 +2721,26 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 }
             }
         } catch (Throwable t) {
+            // The op may already sit in pendingMessages (e.g. the event loop rejected the write task on
+            // shutdown, after the op was queued): take it back out, or the recycled op would dangle in the
+            // queue and the resend would operate on a pooled instance.
+            pendingMessages.remove(op);
             releaseSemaphoreForSendOp(op);
             log.warn("[{}] [{}] error while closing out batch -- {}", topic, producerName, t);
-            op.sendComplete(new PulsarClientException(t, op.sequenceId));
+            try {
+                // The callback runs application future handlers and can throw (every other sendComplete call
+                // site guards against this); the releases below must still run.
+                op.sendComplete(new PulsarClientException(t, op.sequenceId));
+            } catch (Throwable callbackEx) {
+                log.warn("[{}] [{}] Got exception while completing the callback for msg {}:", topic,
+                        producerName, op.sequenceId, callbackEx);
+            }
+            if (op.writeEventLoop != null) {
+                // The cmd was retained for a write that never got queued: that reference has no owner
+                // anymore, so drop it on top of the op's own release.
+                ReferenceCountUtil.safeRelease(op.cmd);
+            }
+            releaseOpCmdAndRecycle(op);
         }
     }
 
@@ -2715,6 +2866,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 checkState(op.rePopulate != null);
                 op.rePopulate.run();
                 if (isMessageSizeExceeded(op)) {
+                    // isMessageSizeExceeded already released the accounting and completed the callback:
+                    // take the op out of the queue and release its freshly built command too, or it stays
+                    // pending until the send timeout fails it - releasing the accounting a second time.
+                    msgIterator.remove();
+                    releaseOpCmdAndRecycle(op);
                     continue;
                 }
             }
