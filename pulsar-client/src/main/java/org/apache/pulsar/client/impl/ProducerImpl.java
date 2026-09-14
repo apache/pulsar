@@ -2809,7 +2809,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             releaseSemaphoreForSendOp(op);
             log.warn()
                     .exception(t).log("error while closing out batch");
-            op.sendComplete(new PulsarClientException(t, op.sequenceId));
+            try {
+                // The callback runs application future handlers and can throw (every other sendComplete call
+                // site guards against this); the releases below must still run.
+                op.sendComplete(new PulsarClientException(t, op.sequenceId));
+            } catch (Throwable callbackEx) {
+                log.warn()
+                        .attr("sequenceId", op.sequenceId)
+                        .exception(callbackEx)
+                        .log("Got exception while completing the callback for msg");
+            }
             if (op.writeEventLoop != null) {
                 // The cmd was retained for a write that never got queued: that reference has no owner
                 // anymore, so drop it on top of the op's own release.

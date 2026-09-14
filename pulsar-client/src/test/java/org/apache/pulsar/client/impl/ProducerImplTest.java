@@ -1126,6 +1126,62 @@ public class ProducerImplTest {
     }
 
     /**
+     * The same failure path with a callback that throws: sendComplete runs application future handlers, and
+     * the exception escaping it must not skip the cmd/op cleanup that follows - by then the op is already out
+     * of the queue with its accounting released, so a skip would strand the buffers for good.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void processOpSendMsgCatchSurvivesAThrowingCallback() throws Exception {
+        ProducerImpl<byte[]> producer = Mockito.mock(ProducerImpl.class, Mockito.CALLS_REAL_METHODS);
+        Mockito.doReturn(false).when(producer).isBatchMessagingEnabled();
+        Mockito.doReturn(HandlerState.State.Ready).when(producer).getState();
+        Mockito.doNothing().when(producer).semaphoreRelease(Mockito.anyInt());
+        FieldUtils.writeField(producer, "log",
+                Mockito.mock(io.github.merlimat.slog.Logger.class, Mockito.RETURNS_DEEP_STUBS), true);
+        PulsarClientImpl client = Mockito.mock(PulsarClientImpl.class);
+        Mockito.when(client.getMemoryLimitController())
+                .thenReturn(Mockito.mock(MemoryLimitController.class));
+        FieldUtils.writeField(producer, "client", client, true);
+
+        EventLoop eventLoop = Mockito.mock(EventLoop.class);
+        Mockito.doThrow(new RejectedExecutionException("mocked event loop shutdown"))
+                .when(eventLoop).execute(any(Runnable.class));
+        Channel channel = Mockito.mock(Channel.class);
+        Mockito.when(channel.eventLoop()).thenReturn(eventLoop);
+        ChannelHandlerContext ctx = Mockito.mock(ChannelHandlerContext.class);
+        Mockito.when(ctx.channel()).thenReturn(channel);
+        ClientCnx cnx = Mockito.mock(ClientCnx.class);
+        Mockito.when(cnx.ctx()).thenReturn(ctx);
+        Mockito.doReturn(cnx).when(producer).getCnxIfReady();
+
+        OpSendMsgQueue pendingQueue = new OpSendMsgQueue();
+        FieldUtils.writeField(producer, "pendingMessages", pendingQueue, true);
+
+        ByteBufPair cmd = ByteBufPair.get(
+                Unpooled.buffer().writeBytes("frame-header".getBytes(StandardCharsets.UTF_8)),
+                Unpooled.buffer().writeBytes("batch-payload".getBytes(StandardCharsets.UTF_8)));
+        MessageImpl<?> msg = Mockito.mock(MessageImpl.class);
+        Mockito.when(msg.getUncompressedSize()).thenReturn(10);
+        SendCallback callback = Mockito.mock(SendCallback.class);
+        Mockito.doThrow(new RuntimeException("mocked application callback failure"))
+                .when(callback).sendComplete(any(), any());
+        OpSendMsg op = OpSendMsg.create(
+                Mockito.mock(LatencyHistogram.class), msg, cmd, 1L, callback);
+        op.totalChunks = 1;
+        op.chunkId = 0;
+        op.numMessagesInBatch = 1;
+        op.msg = null;
+
+        producer.processOpSendMsg(op);
+
+        assertEquals(pendingQueue.size(), 0, "the failed op must be taken back out of the pending queue");
+        assertEquals(cmd.refCnt(), 0,
+                "the cleanup must still run after the throwing callback");
+        verify(callback).sendComplete(any(), any());
+    }
+
+    /**
      * Regression test for the stale write-callback window: an op is handed to connection A's event loop, then
      * re-sent on connection B after a reconnect (so {@code op.writeEventLoop} now points to B's loop), and the
      * send timeout disposes it deferred on B's loop while the callback queued on A's loop has still not run.
