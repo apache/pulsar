@@ -597,10 +597,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 try {
                     compressedPayload = applyCompressionOrReleaseSource(payload);
                 } catch (Throwable t) {
-                    // canEnqueueRequest has already acquired the send permit and reserved the memory for this
-                    // message, and the failure happened before an op existed to release them through the send
-                    // lifecycle. Without this, repeated compression failures exhaust the producer queue and the
-                    // client memory limit, and the returned future is left incomplete.
+                    // canEnqueueRequest has already acquired the send permit and reserved the memory, and no
+                    // op exists to release them through the send lifecycle.
                     completeCallbackAndReleaseSemaphore(uncompressedSize, callback,
                             new PulsarClientException(t, msg.getSequenceId()));
                     return;
@@ -732,13 +730,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             ReferenceCountUtil.safeRelease(compressedPayload);
                         }
                         if (totalChunks > 1) {
-                            // The chunks after the failing one will never be built. In non-blocking mode their
-                            // send permits were pre-acquired up front (and the failing chunk's own permit is
-                            // released by the outer catch's completeCallbackAndReleaseSemaphore), and the
-                            // chunked-message context holds one claim per never-built chunk: release both here or
-                            // every failed chunked send permanently shrinks the producer queue and leaks the
-                            // context. The earlier chunks' permits and claims are released through their own
-                            // operations' lifecycle.
+                            // The chunks after the failing one will never be built: return their pre-acquired
+                            // permits (non-blocking mode acquires them up front) and their claims on the chunked
+                            // context, which only created ops release. The failing chunk's own permit goes through
+                            // the outer catch, the earlier chunks' through their own operations.
                             if (!conf.isBlockIfQueueFull()) {
                                 semaphoreRelease(totalChunks - chunkId - 1);
                             }
@@ -1124,7 +1119,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             msgMetadata.setChunkId(chunkId);
         }
         op.cmd = sendMessage(producerId, sequenceId, numMessages, messageId, msgMetadata, op.pendingPayload);
-        // The payload's ownership moved into the command.
         op.pendingPayload = null;
     }
 

@@ -279,7 +279,6 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
      */
     void releaseOrphanedOpCmd(ProducerImpl.OpSendMsg op) {
         if (batchPayloadOwned) {
-            // Extract the container's payload claim from the pair before releasing it.
             op.cmd.getSecond().retain();
         }
         op.cmd.release();
@@ -389,9 +388,8 @@ class BatchMessageContainerImpl extends AbstractBatchMessageContainer {
 
             // handle mgs size check as non-batched in `ProducerImpl.isMessageSizeExceeded`
             if (op.getMessageHeaderAndPayloadSize() > getMaxMessageSize()) {
-                // The pair took the payload without retaining it, so its release is the release of the
-                // container's claim too: drop the ownership before releasing, or discard() would release
-                // the already-freed buffer a second time.
+                // The pair took the payload without retaining it, so cmd.release() also releases the
+                // container's claim: clear the ownership flag first, or discard() would double-release.
                 batchPayloadOwned = false;
                 cmd.release();
                 producer.semaphoreRelease(1);
