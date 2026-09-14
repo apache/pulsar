@@ -3185,7 +3185,7 @@ public class ManagedCursorImpl implements ManagedCursor {
      * Manually acknowledge all entries from startPosition to endPosition.
      * - Since this is an uncommon event, we focus on maintainability. So we do not modify
      *   {@link #individualDeletedMessages} and {@link #batchDeletedIndexes}, but call
-     *   {@link #asyncDelete(Position, AsyncCallbacks.DeleteCallback, Object)}.
+     *   {@link #asyncDelete(Iterable, AsyncCallbacks.DeleteCallback, Object)}.
      * - This method is valid regardless of the consumer ACK type.
      * - If there is a consumer ack request after this event, it will also work.
      */
@@ -3202,33 +3202,26 @@ public class ManagedCursorImpl implements ManagedCursor {
             return;
         }
 
-        lock.writeLock().lock();
         log.warn()
                 .attr("ledgerId", ledgerId)
                 .attr("startEntryId", startEntryId)
                 .attr("endEntryId", endEntryId)
                 .log("Entries are lost, auto-acknowledging in subscription (autoSkipNonRecoverableData=true)");
-        try {
-            for (long i = startEntryId; i < endEntryId; i++) {
-                if (!individualDeletedMessages.contains(ledgerId, i)) {
-                    asyncDelete(PositionFactory.create(ledgerId, i), new AsyncCallbacks.DeleteCallback() {
-                        @Override
-                        public void deleteComplete(Object ctx) {
-                            // ignore.
-                        }
+        asyncDelete(() -> LongStream.range(startEntryId, endEntryId)
+                        .mapToObj(i -> PositionFactory.create(ledgerId, i)).iterator(),
+                new AsyncCallbacks.DeleteCallback() {
+                    @Override
+                    public void deleteComplete(Object ctx) {
+                        // ignore.
+                    }
 
-                        @Override
-                        public void deleteFailed(ManagedLedgerException ex, Object ctx) {
-                            // The method internalMarkDelete already handled the failure operation. We only need to
-                            // make sure the memory state is updated.
-                            // If the broker crashed, the non-recoverable ledger will be detected again.
-                        }
-                    }, null);
-                }
-            }
-        } finally {
-            lock.writeLock().unlock();
-        }
+                    @Override
+                    public void deleteFailed(ManagedLedgerException ex, Object ctx) {
+                        // The method internalMarkDelete already handled the failure operation. We only need to
+                        // make sure the memory state is updated.
+                        // If the broker crashed, the non-recoverable ledger will be detected again.
+                    }
+                }, null);
     }
 
     // //////////////////////////////////////////////////
