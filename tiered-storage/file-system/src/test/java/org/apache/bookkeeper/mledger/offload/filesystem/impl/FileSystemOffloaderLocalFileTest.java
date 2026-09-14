@@ -34,6 +34,7 @@ import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.pulsar.common.naming.TopicName;
@@ -44,11 +45,14 @@ import org.testng.annotations.Test;
 
 public class FileSystemOffloaderLocalFileTest {
     private OrderedScheduler scheduler;
+    private OrderedExecutor bkExecutor;
     private LedgerOffloaderStats offloaderStats;
 
     @BeforeClass
     public void setup() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
+        // The mock BookKeeper client needs an OrderedExecutor (not an OrderedScheduler) as its main worker pool.
+        bkExecutor = OrderedExecutor.newBuilder().numThreads(1).name("offloader-bk").build();
         offloaderStats = LedgerOffloaderStats.create(true, true, scheduler, 60);
     }
 
@@ -56,6 +60,9 @@ public class FileSystemOffloaderLocalFileTest {
     public void cleanup() throws Exception {
         if (scheduler != null) {
             scheduler.shutdown();
+        }
+        if (bkExecutor != null) {
+            bkExecutor.shutdownNow();
         }
         if (offloaderStats != null) {
             offloaderStats.close();
@@ -83,7 +90,7 @@ public class FileSystemOffloaderLocalFileTest {
 
         // prepare the data in bookkeeper
         @Cleanup
-        BookKeeper bk = new PulsarMockBookKeeper(scheduler);
+        BookKeeper bk = new PulsarMockBookKeeper(bkExecutor);
         LedgerHandle lh = bk.createLedger(1, 1, 1, BookKeeper.DigestType.CRC32, "".getBytes());
         for (int i = 0; i <  numberOfEntries; i++) {
             byte[] entry = ("foobar" + i).getBytes();

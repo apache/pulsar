@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
@@ -53,6 +54,7 @@ public abstract class MockedBookKeeperTestCase {
     protected ClientConfiguration baseClientConf = new ClientConfiguration();
 
     protected OrderedScheduler executor;
+    protected OrderedExecutor bkExecutor;
     protected ExecutorService cachedExecutor;
 
     public MockedBookKeeperTestCase() {
@@ -98,12 +100,15 @@ public abstract class MockedBookKeeperTestCase {
     @BeforeClass(alwaysRun = true)
     public void setUpClass() {
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(2).name("test").build();
+        // The mock BookKeeper client needs an OrderedExecutor (not an OrderedScheduler) as its main worker pool.
+        bkExecutor = OrderedExecutor.newBuilder().numThreads(2).name("test-bk").build();
         cachedExecutor = Executors.newCachedThreadPool();
     }
 
     @AfterClass(alwaysRun = true)
     public void tearDownClass() {
         executor.shutdownNow();
+        bkExecutor.shutdownNow();
         cachedExecutor.shutdownNow();
     }
 
@@ -120,7 +125,7 @@ public abstract class MockedBookKeeperTestCase {
 
         metadataStore.put("/ledgers/LAYOUT", "1\nflat:1".getBytes(), Optional.empty()).join();
 
-        bkc = new PulsarMockBookKeeper(executor);
+        bkc = new PulsarMockBookKeeper(bkExecutor);
     }
 
     protected void stopBookKeeper() throws Exception {
