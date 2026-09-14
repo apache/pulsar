@@ -5637,6 +5637,44 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
+    @Test(timeOut = 20000)
+    public void testSkipNonRecoverableEntriesDoesNotHoldCursorLockWhilePersisting() throws Exception {
+        ManagedLedger ledger = factory.open("testSkipNonRecoverableEntriesDoesNotHoldCursorLockWhilePersisting",
+                new ManagedLedgerConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("my-cursor");
+        Position firstPosition = ledger.addEntry("entry-0".getBytes(Encoding));
+        Position nextPosition = ledger.addEntry("entry-1".getBytes(Encoding));
+
+        AtomicBoolean readLockAvailable = new AtomicBoolean();
+        Thread skipThread = new Thread(
+                () -> cursor.skipNonRecoverableEntries(firstPosition, nextPosition),
+                "skip-non-recoverable-entries");
+        synchronized (cursor.pendingMarkDeleteOps) {
+            skipThread.start();
+            Awaitility.await().atMost(Duration.ofSeconds(5))
+                    .until(() -> skipThread.getState() == Thread.State.BLOCKED
+                            && Arrays.stream(skipThread.getStackTrace())
+                                    .anyMatch(frame -> frame.getMethodName().equals("internalAsyncMarkDelete")));
+            if (cursor.lock.readLock().tryLock()) {
+                try {
+                    readLockAvailable.set(true);
+                } finally {
+                    cursor.lock.readLock().unlock();
+                }
+            }
+        }
+
+        skipThread.join(TimeUnit.SECONDS.toMillis(5));
+        assertFalse(skipThread.isAlive(), "skip thread did not finish");
+        Awaitility.await().atMost(Duration.ofSeconds(5))
+                .until(() -> cursor.getStats().getPersistLedgerSucceed() > 0);
+        assertTrue(readLockAvailable.get(),
+                "skipNonRecoverableEntries must not hold the cursor lock while waiting to persist mark-delete");
+
+        cursor.close();
+        ledger.close();
+    }
+
     @Test
     public void testRecoverCursorWithTerminateManagedLedger() throws Exception {
         String mlName = "my_test_ledger";
