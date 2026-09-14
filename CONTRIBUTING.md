@@ -63,6 +63,11 @@ For the Gradle build infrastructure and how to change build files (convention pl
 catalog, configuration-cache rules), see
 [`ARCHITECTURE.md` → Build infrastructure](ARCHITECTURE.md#build-infrastructure).
 
+### Publishing artifacts
+
+See [Publishing Maven artifacts](build-logic/PUBLISHING.md) for ordinary publishing, the
+API/SPI subset, custom repositories, groups and credentials.
+
 ## Running tests
 
 Most of these per-module "unit tests" are actually **integration-style** — they start a real in-JVM
