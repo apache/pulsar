@@ -137,7 +137,7 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testDynamicMetricsConfiguration() throws Exception {
-        String topic = "persistent://my-property/my-ns/dynamic-metrics";
+        String topic = "persistent://prop/ns-abc/dynamic-metrics";
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                      .producerName("dynamic-producer").create();
              Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
