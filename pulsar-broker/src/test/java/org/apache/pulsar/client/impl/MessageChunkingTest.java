@@ -365,6 +365,44 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         assertNull(consumer.receive(5, TimeUnit.SECONDS));
     }
 
+    /**
+     * A non-persistent topic cannot carry chunked messages: the slicing block in
+     * {@code ProducerImpl.serializeAndSendMessage} is skipped for them, but {@code totalChunks} was computed
+     * from the payload size alone, so the send loop still ran once per "chunk" — publishing the whole payload
+     * that many times, and releasing the payload buffer more often than it was retained.
+     */
+    @Test
+    public void testLargeMessageOnNonPersistentTopicIsSentOnceWithoutChunking() throws Exception {
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunking";
+        final String subName = "my-subscriber-name";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                // small enough that the payload below would otherwise be split into several chunks
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        String payload = "a".repeat(500);
+        producer.newMessage().value(payload).send();
+
+        Message<String> received = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(received, "the message was not delivered");
+        assertEquals(received.getValue(), payload);
+
+        // Without the fix the same payload is published once per computed chunk, so more messages follow.
+        assertNull(consumer.receive(3, TimeUnit.SECONDS),
+                "the payload was published more than once on a non-persistent topic");
+    }
+
     @Test
     public void testResendChunkMessagesWithoutAckHole() throws Exception {
         log.info().attr("method", methodName).log("Starting test");
