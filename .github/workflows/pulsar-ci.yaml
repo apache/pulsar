@@ -76,8 +76,16 @@ env:
   ARTIFACT_RETENTION_DAYS: 3
   JDK_DISTRIBUTION: corretto
 
+# Do not depend on the repository or enterprise default token permissions.
+permissions:
+  contents: read
+
 jobs:
   preconditions:
+    permissions:
+      contents: read
+      pull-requests: read # List changed files and check whether the PR is ready.
+      actions: write # Cancel scheduled runs in forks.
     name: Preconditions
     runs-on: ubuntu-24.04
     outputs:
@@ -107,8 +115,13 @@ jobs:
           echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '25'}}" >> $GITHUB_OUTPUT
 
       - name: checkout
-        if: ${{ github.event_name == 'pull_request' }}
         uses: actions/checkout@v6
+
+      - name: Check ASF action allowlist
+        if: ${{ (github.event.pull_request.base.repo.owner.login || github.repository_owner) == 'apache' }}
+        uses: apache/infrastructure-actions/allowlist-check@main
+        with:
+          scan-glob: '.github/**/*.y*ml'
 
       - name: Detect changed files
         if: ${{ github.event_name == 'pull_request' }}
@@ -276,8 +289,8 @@ jobs:
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
-      - name: Clean Disk when tracing test resource cleanup
-        if: ${{ env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
+      - name: Clean Disk for replication tests or resource tracing
+        if: ${{ matrix.group == 'BROKER_GROUP_5' || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
         uses: ./.github/actions/clean-disk
 
       - name: Setup ssh access to build runner VM
@@ -553,7 +566,7 @@ jobs:
       # which requires a GraalVM JDK. This overrides JAVA_HOME for that matrix entry only.
       - name: Set up GraalVM
         if: ${{ matrix.group == 'NATIVE_IMAGE' }}
-        uses: graalvm/setup-graalvm@329c42c5f4c343bceb505f0b28cc8499bc2bf174 # v1.5.4
+        uses: graalvm/setup-graalvm@0426e2e191540e8514dff98dc52a5f5146a2a276 # v1.6.6
         with:
           distribution: 'graalvm-community'
           java-version: 25 # always use GraalVM 25.x
@@ -638,6 +651,9 @@ jobs:
           action: wait
 
   pulsar-test-latest-version-image:
+    permissions:
+      contents: read
+      security-events: write # Upload scheduled container scan results.
     name: Build pulsar-test-latest-version Docker image
     runs-on: ubuntu-24.04
     timeout-minutes: 60
@@ -855,7 +871,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     needs: ['preconditions', 'unit-tests']
-    if: ${{ (needs.preconditions.outputs.java_non_tests == 'true' || github.event_name != 'pull_request') && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
+    # Private repositories need Code Security enabled before opting in.
+    if: ${{ (github.event.repository.visibility == 'public' || vars.CI_ENABLE_CODEQL == 'true') && (needs.preconditions.outputs.java_non_tests == 'true' || github.event_name != 'pull_request') && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
     permissions:
       actions: read
       contents: read
@@ -916,6 +933,8 @@ jobs:
   # protected_branches section for master branch required_status_checks.
   # It depends on all other jobs in this workflow.
   pulsar-ci-checks-completed:
+    permissions:
+      actions: write # Delete intermediate build artifacts.
     name: "Pulsar CI checks completed"
     # run always, but skip for other repositories than apache/pulsar when a scheduled workflow is cancelled
     # this is to allow the workflow scheduled jobs to show as cancelled instead of failed since scheduled

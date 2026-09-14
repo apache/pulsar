@@ -254,9 +254,18 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         }
     }
 
+    /**
+     * Whether unacknowledged messages should be tracked so that the ack timeout can redeliver them.
+     * Overridden by {@link ConsumerImpl} to exclude non-persistent topics, where the broker keeps nothing to
+     * replay and a timeout can therefore never produce a redelivery.
+     */
+    protected boolean isAckTimeoutTrackingEnabled() {
+        return conf.getAckTimeoutMillis() > 0;
+    }
+
     // if listener is not null, we will track unAcked msg in callMessageListener
     protected void trackUnAckedMsgIfNoListener(MessageId messageId, int redeliveryCount) {
-        if (listener == null) {
+        if (listener == null && isAckTimeoutTrackingEnabled()) {
             unAckedMessageTracker.add(messageId, redeliveryCount);
         }
     }
@@ -1286,7 +1295,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
             } else {
                 id = msg.getMessageId();
             }
-            unAckedMessageTracker.add(id, msg.getRedeliveryCount());
+            if (isAckTimeoutTrackingEnabled()) {
+                unAckedMessageTracker.add(id, msg.getRedeliveryCount());
+            }
             beforeConsume(msg);
             Optional<EncryptionContext> encryptionCtx = msg.getEncryptionCtx();
             if (decryptFailListener != null && encryptionCtx.isPresent() && encryptionCtx.get().isEncrypted()) {

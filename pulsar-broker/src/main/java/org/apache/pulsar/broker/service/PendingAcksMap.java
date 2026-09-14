@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import it.unimi.dsi.fastutil.longs.Long2LongAVLTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2LongMap;
-import it.unimi.dsi.fastutil.longs.Long2LongRBTreeMap;
 import it.unimi.dsi.fastutil.longs.Long2LongSortedMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
@@ -511,7 +511,7 @@ public class PendingAcksMap {
     }
 
     private static Long2LongSortedMap newLedgerPendingAcks() {
-        Long2LongRBTreeMap ledgerPendingAcks = new Long2LongRBTreeMap();
+        Long2LongAVLTreeMap ledgerPendingAcks = new Long2LongAVLTreeMap();
         ledgerPendingAcks.defaultReturnValue(PendingAckValues.PACKED_NOT_FOUND);
         return ledgerPendingAcks;
     }

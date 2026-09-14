@@ -56,19 +56,19 @@ public class ReflectionUtils {
 
     @SuppressWarnings("unchecked")
     static <T> Class<T> newClassInstance(String className) {
-        try {
-            try {
-                // when the API is loaded in the same classloader as the impl
-                return (Class<T>) DefaultImplementation.class.getClassLoader().loadClass(className);
-            } catch (Exception e) {
-                // when the API is loaded in a separate classloader as the impl
-                // the classloader that loaded the impl needs to be a child classloader of the classloader
-                // that loaded the API
-                return (Class<T>) Thread.currentThread().getContextClassLoader().loadClass(className);
+        ClassLoader[] loaders = {DefaultImplementation.class.getClassLoader(),
+                Thread.currentThread().getContextClassLoader()};
+        ClassNotFoundException failure = null;
+        for (String candidate : new String[]{className, "org.apache.pulsar.shade." + className}) {
+            for (ClassLoader loader : loaders) {
+                try {
+                    return (Class<T>) Class.forName(candidate, false, loader);
+                } catch (ClassNotFoundException e) {
+                    failure = e;
+                }
             }
-        } catch (ClassNotFoundException | NoClassDefFoundError e) {
-            throw new RuntimeException(e);
         }
+        throw new RuntimeException(failure);
     }
 
     static <T> Constructor<T> getConstructor(String className, Class<?>... argTypes) {

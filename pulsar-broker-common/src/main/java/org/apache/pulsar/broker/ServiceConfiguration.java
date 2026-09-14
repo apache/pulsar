@@ -2219,8 +2219,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "If this flag is set then the broker authenticates the original Auth data"
-            + " else it just accepts the originalPrincipal and authorizes it (if required)")
-    private boolean authenticateOriginalAuthData = false;
+            + " else it just accepts the originalPrincipal and authorizes it (if required)."
+            + " Set false for TLS client-certificate authentication through a proxy, since the broker"
+            + " receives the proxy certificate rather than the client certificate."
+            + " Also set false for SASL authentication through a proxy, since the client-proxy handshake"
+            + " cannot be replayed as a separate client-broker handshake.")
+    private boolean authenticateOriginalAuthData = true;
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
@@ -3851,9 +3855,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean authenticateMetricsEndpoint = false;
     @FieldContext(
         category = CATEGORY_METRICS,
+        dynamic = true,
         doc = "If true, export topic level metrics otherwise namespace level"
     )
-    private boolean exposeTopicLevelMetricsInPrometheus = true;
+    private volatile boolean exposeTopicLevelMetricsInPrometheus = true;
     @FieldContext(
             category = CATEGORY_METRICS,
             doc = "Set to true to enable the broker to cache the metrics response; the default is false. "
@@ -3863,24 +3868,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean metricsBufferResponse = false;
     @FieldContext(
         category = CATEGORY_METRICS,
+        dynamic = true,
         doc = "If true, export consumer level metrics otherwise namespace level"
     )
-    private boolean exposeConsumerLevelMetricsInPrometheus = false;
+    private volatile boolean exposeConsumerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "If true, export producer level metrics otherwise namespace level"
     )
-    private boolean exposeProducerLevelMetricsInPrometheus = false;
+    private volatile boolean exposeProducerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "If true, export managed ledger metrics (aggregated by namespace)"
     )
-    private boolean exposeManagedLedgerMetricsInPrometheus = true;
+    private volatile boolean exposeManagedLedgerMetricsInPrometheus = true;
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "If true, export managed cursor metrics"
     )
-    private boolean exposeManagedCursorMetricsInPrometheus = false;
+    private volatile boolean exposeManagedCursorMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
@@ -3888,11 +3897,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_METRICS,
+        dynamic = true,
         doc = "Enable expose the precise backlog stats.\n"
                 + " Set false to use published counter and consumed counter to calculate,\n"
                 + " this would be more efficient but may be inaccurate. Default is false."
     )
-    private boolean exposePreciseBacklogInPrometheus = false;
+    private volatile boolean exposePreciseBacklogInPrometheus = false;
 
     @FieldContext(
         category = CATEGORY_METRICS,
@@ -3904,10 +3914,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "Enable expose the backlog size for each subscription when generating stats.\n"
                     + " Locking is used for fetching the status so default to false."
     )
-    private boolean exposeSubscriptionBacklogSizeInPrometheus = false;
+    private volatile boolean exposeSubscriptionBacklogSizeInPrometheus = false;
 
     @FieldContext(
             category = CATEGORY_METRICS,
