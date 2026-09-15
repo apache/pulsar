@@ -35,13 +35,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntSupplier;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -234,7 +234,7 @@ public class RangeEntryCacheImplTest {
     @Test
     public void testReadFromStorageDoesNotShareSourceMetadataWithTheCopiedCacheEntry() {
         RangeEntryCacheImpl copyingCache = createRangeEntryCache(true);
-        when(mockManagedLedger.getExecutor()).thenReturn(mock(ExecutorService.class));
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ThreadBoundExecutor.class));
         // without ledger info, ReadEntryUtils reads through ReadHandle#readAsync
         when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
 
@@ -333,7 +333,7 @@ public class RangeEntryCacheImplTest {
 
     @Test
     public void testReadFromStorageDoesNotParseMessageMetadataWhenTheEntriesArentPulsarMessages() {
-        when(mockManagedLedger.getExecutor()).thenReturn(mock(ExecutorService.class));
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ThreadBoundExecutor.class));
         // without ledger info, ReadEntryUtils reads through ReadHandle#readAsync
         when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
         managedLedgerConfig.setPulsarMessageEntries(false);
@@ -501,7 +501,7 @@ public class RangeEntryCacheImplTest {
         when(mockManagedLedger.getMbean()).thenReturn(mockManagedLedgerMBean);
         when(mockManagedLedger.getName()).thenReturn("testManagedLedger");
         when(mockManagedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
-        when(mockManagedLedger.getExecutor()).thenReturn(mock(java.util.concurrent.ExecutorService.class));
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ThreadBoundExecutor.class));
         when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
         RangeCacheRemovalQueue mockRangeCacheRemovalQueue = mock(RangeCacheRemovalQueue.class);
         when(mockRangeCacheRemovalQueue.addEntry(any())).thenReturn(true);

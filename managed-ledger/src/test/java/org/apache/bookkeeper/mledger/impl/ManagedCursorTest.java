@@ -102,6 +102,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -4540,7 +4541,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
         when(ledger.getLogger()).thenReturn(log);
         OrderedScheduler scheduledExecutor = mock(OrderedScheduler.class);
-        ExecutorService executor = mock(ExecutorService.class);
+        ThreadBoundExecutor executor = mock(ThreadBoundExecutor.class);
         when(ledger.getScheduledExecutor()).thenReturn(scheduledExecutor);
         when(ledger.getExecutor()).thenReturn(executor);
         ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c1");
