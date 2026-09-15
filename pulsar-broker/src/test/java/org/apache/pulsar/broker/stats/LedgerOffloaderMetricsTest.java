@@ -135,4 +135,22 @@ public class LedgerOffloaderMetricsTest extends BrokerTestBase {
         }
     }
 
+    @Test
+    public void testReadOffloadCacheMetrics() throws Exception {
+        conf.setExposeTopicLevelMetricsInPrometheus(true);
+        super.baseSetup();
+
+        String topicName = "persistent://prop/ns-abc1/testMetrics" + UUID.randomUUID();
+
+        LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) pulsar.getOffloaderStats();
+        offloaderStats.recordReadOffloadCacheHit(topicName, 10);
+        offloaderStats.recordReadOffloadCacheMiss(topicName, 20);
+        offloaderStats.recordReadOffloadCacheMiss(topicName, 30);
+
+        assertEquals(offloaderStats.getReadOffloadCacheOps(topicName, true), 1);
+        assertEquals(offloaderStats.getReadOffloadCacheBytes(topicName, true), 10);
+        assertEquals(offloaderStats.getReadOffloadCacheOps(topicName, false), 2);
+        assertEquals(offloaderStats.getReadOffloadCacheBytes(topicName, false), 50);
+    }
+
 }
