@@ -26,6 +26,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.common.schema.AvroSchemaCompat;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -130,7 +131,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
     private static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
         final org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
         parser.setValidateDefaults(false);
-        return parser.parse(schemaJson);
+        return parser.parse(AvroSchemaCompat.normalizeNamedTypeReferences(schemaJson));
     }
 
     @Override

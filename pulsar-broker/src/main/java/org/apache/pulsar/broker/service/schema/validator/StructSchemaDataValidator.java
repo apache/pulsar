@@ -26,6 +26,7 @@ import org.apache.avro.NameValidator;
 import org.apache.avro.Schema;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.schema.AvroSchemaCompat;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -61,9 +62,7 @@ public class StructSchemaDataValidator implements SchemaDataValidator {
         byte[] data = schemaData.getData();
 
         try {
-            Schema.Parser avroSchemaParser = new Schema.Parser(COMPATIBLE_NAME_VALIDATOR);
-            avroSchemaParser.setValidateDefaults(false);
-            Schema schema = avroSchemaParser.parse(new String(data, UTF_8));
+            Schema schema = parseAvroSchema(new String(data, UTF_8), false);
             if (SchemaType.AVRO.equals(schemaData.getType())) {
                 checkAvroSchemaTypeSupported(schema);
             }
@@ -84,6 +83,20 @@ public class StructSchemaDataValidator implements SchemaDataValidator {
                 throwInvalidSchemaDataException(schemaData, e);
             }
         }
+    }
+
+    /**
+     * Parse an Avro schema definition the way the broker accepts it: with the compatible name validator and
+     * with named type references in the pre Avro 1.12.2 object form.
+     *
+     * @param schemaDefinition the schema definition as JSON
+     * @param validateDefaults whether to validate the default values of the schema
+     * @return the parsed schema
+     */
+    public static Schema parseAvroSchema(String schemaDefinition, boolean validateDefaults) {
+        Schema.Parser parser = new Schema.Parser(COMPATIBLE_NAME_VALIDATOR);
+        parser.setValidateDefaults(validateDefaults);
+        return parser.parse(AvroSchemaCompat.normalizeNamedTypeReferences(schemaDefinition));
     }
 
     static void checkAvroSchemaTypeSupported(Schema schema) throws InvalidSchemaDataException {
