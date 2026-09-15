@@ -610,8 +610,8 @@ public class Consumer {
         // Non-txn path needs plain positions for acknowledgeMessageAsync.
         List<Position> nonTxnPositions = hasTxn ? null : new ArrayList<>(ack.getMessageIdsCount());
         // Deferred completions for non-txn (applied after persistence).
-        List<PendingAckCompletion> pendingAckCompletions =
-                hasTxn ? null : new ArrayList<>(ack.getMessageIdsCount());
+        PendingAckCompletions pendingAckCompletions =
+                hasTxn ? null : new PendingAckCompletions(ack.getMessageIdsCount());
         long totalAckCount = 0;
 
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
@@ -677,8 +677,7 @@ public class Consumer {
                 long ackedCount = computeAckedCount(msgId, position, ackOwnerConsumer, batchSize);
 
                 nonTxnPositions.add(position);
-                pendingAckCompletions.add(new PendingAckCompletion(ackOwnerConsumer, position,
-                        hasAckSet, ackedCount));
+                pendingAckCompletions.add(ackOwnerConsumer, position, hasAckSet, ackedCount);
                 totalAckCount += ackedCount;
             }
 
@@ -741,20 +740,67 @@ public class Consumer {
     }
 
 
-    private record PendingAckCompletion(Consumer consumer, Position position, boolean hasAckSet, long ackedCount) {
+    /**
+     * A command-local snapshot, independent of the position list passed to the subscription.
+     * Built before starting persistence and never mutated or reused once its callback can run.
+     */
+    @VisibleForTesting
+    static final class PendingAckCompletions {
+        private final Consumer[] consumers;
+        private final Position[] positions;
+        private long[] batchAckedCounts;
+        private int size;
+
+        PendingAckCompletions(int capacity) {
+            consumers = new Consumer[capacity];
+            positions = new Position[capacity];
+        }
+
+        void add(Consumer consumer, Position position, boolean hasAckSet, long ackedCount) {
+            consumers[size] = consumer;
+            positions[size] = position;
+            if (hasAckSet) {
+                if (batchAckedCounts == null) {
+                    batchAckedCounts = new long[positions.length];
+                }
+                // Zero denotes a whole-entry ACK. Non-positive batch deltas must not remove the entry.
+                batchAckedCounts[size] = ackedCount > 0 ? ackedCount : -1;
+            }
+            size++;
+        }
+
+        int size() {
+            return size;
+        }
+
+        Consumer consumerAt(int index) {
+            return consumers[index];
+        }
+
+        Position positionAt(int index) {
+            return positions[index];
+        }
+
+        boolean hasAckSetAt(int index) {
+            return batchAckedCounts != null && batchAckedCounts[index] != 0;
+        }
+
+        long ackedCountAt(int index) {
+            return batchAckedCounts[index];
+        }
     }
 
-    private void applyPendingAckCompletions(List<PendingAckCompletion> pendingAckCompletions) {
-        for (PendingAckCompletion pendingAckCompletion : pendingAckCompletions) {
-            Consumer ackOwnerConsumer = pendingAckCompletion.consumer();
-            Position position = pendingAckCompletion.position();
+    private void applyPendingAckCompletions(PendingAckCompletions pendingAckCompletions) {
+        for (int i = 0; i < pendingAckCompletions.size(); i++) {
+            Consumer ackOwnerConsumer = pendingAckCompletions.consumerAt(i);
+            Position position = pendingAckCompletions.positionAt(i);
 
-            if (pendingAckCompletion.hasAckSet()) {
-                if (pendingAckCompletion.ackedCount() > 0) {
+            if (pendingAckCompletions.hasAckSetAt(i)) {
+                if (pendingAckCompletions.ackedCountAt(i) > 0) {
                     boolean updated = ackOwnerConsumer.updateRemainingUnacked(
-                            position.getLedgerId(), position.getEntryId(), (int) pendingAckCompletion.ackedCount());
+                            position.getLedgerId(), position.getEntryId(), (int) pendingAckCompletions.ackedCountAt(i));
                     if (updated) {
-                        addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) pendingAckCompletion.ackedCount());
+                        addAndGetUnAckedMsgs(ackOwnerConsumer, -(int) pendingAckCompletions.ackedCountAt(i));
                     }
                 }
             } else {
