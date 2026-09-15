@@ -690,8 +690,16 @@ public class ManagedCursorImpl implements ManagedCursor {
             }, null);
         };
         try {
-            bookkeeper.asyncOpenLedger(ledgerId, digestType, getConfig().getPassword(), openCallback,
-                    null, true);
+            bookkeeper.newOpenLedgerOp()
+                    .withRecovery(true)
+                    .withLedgerId(ledgerId)
+                    .withDigestType(digestType.toApiDigestType())
+                    .withPassword(getConfig().getPassword())
+                    .withKeepUpdateMetadata(true)
+                    .withLoggerContext(log)
+                    .execute()
+                    .whenComplete((rh, ex) ->
+                            ManagedLedgerImpl.completeOpenCallback(log, ledgerId, openCallback, rh, ex));
         } catch (Throwable t) {
             log.error().attr("ledgerId", ledgerId).exception(t).log("Encountered error on opening cursor ledger");
             openCallback.openComplete(BKException.Code.UnexpectedConditionException, null, null);

@@ -508,7 +508,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     log.debug().attr("ledgerId", id).log("Opening ledger");
                     mbean.startDataLedgerOpenOp();
-                    bookKeeper.asyncOpenLedger(id, digestType, config.getPassword(), opencb, null, true);
+                    bookKeeper.newOpenLedgerOp()
+                            .withRecovery(true)
+                            .withLedgerId(id)
+                            .withDigestType(config.getDigestType())
+                            .withPassword(config.getPassword())
+                            .withKeepUpdateMetadata(true)
+                            .withLoggerContext(log)
+                            .execute()
+                            .whenComplete((rh, ex) -> completeOpenCallback(log, id, opencb, rh, ex));
                 } else {
                     initializeBookKeeper(callback);
                 }
@@ -1911,7 +1919,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         ledgerRecheckInProgress = new ImmutablePair<>(currentLedger.getId(), new CompletableFuture<>());
-        bookKeeper.asyncOpenLedger(currentLedger.getId(), digestType, config.getPassword(), (rc, lh, ctx) -> {
+        OpenCallback opencb = (rc, lh, ctx) -> {
             ledgerRecheckInProgress.getRight().complete(rc);
             if (rc == Code.OK) {
                 log.info().attr("ledgerId", lh.getId())
@@ -1934,7 +1942,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 handleBadVersion(new BadVersionException("the current ledger " + currentLedger.getId()
                     + " was concurrent modified by a other bookie client. The error code is: " + errorCode));
             }
-        }, null, true);
+        };
+        bookKeeper.newOpenLedgerOp()
+                .withRecovery(true)
+                .withLedgerId(currentLedger.getId())
+                .withDigestType(config.getDigestType())
+                .withPassword(config.getPassword())
+                .withKeepUpdateMetadata(true)
+                .withLoggerContext(log)
+                .execute()
+                .whenComplete((rh, ex) -> completeOpenCallback(log, currentLedger.getId(), opencb, rh, ex));
     }
 
     synchronized void ledgerClosed(final LedgerHandle lh) {
@@ -4607,6 +4624,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         default:
             return false;
+        }
+    }
+
+    /**
+     * Completes a legacy {@link OpenCallback} from the future of a builder-based ledger open. The callback runs on
+     * the thread that completed the open; whatever it throws is logged here, because the stage returned by
+     * {@code whenComplete} would otherwise swallow it.
+     */
+    static void completeOpenCallback(Logger log, long ledgerId, OpenCallback callback, ReadHandle handle,
+                                     Throwable ex) {
+        try {
+            callback.openComplete(BKException.getExceptionCode(ex), (LedgerHandle) handle, null);
+        } catch (Throwable t) {
+            log.error().attr("ledgerId", ledgerId).exception(t).log("Ledger open callback failed");
         }
     }
 
