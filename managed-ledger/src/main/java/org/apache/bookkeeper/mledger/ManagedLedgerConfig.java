@@ -92,10 +92,12 @@ public class ManagedLedgerConfig {
     /**
      * Enable the BookKeeper batch read API when reading entries from bookkeeper: a single RPC fetches multiple
      * entries, reducing network overhead. Each batch read request is bounded by the size limit of the read that
-     * triggered it. Batch read is only used for non-striped ledgers (ensembleSize equals writeQuorumSize).
+     * triggered it. Batch read is only used for non-striped ledgers (ensembleSize equals writeQuorumSize) and
+     * requires a BookKeeper client using the v2 wire protocol: the broker enables it through
+     * {@code managedLedgerBatchReadEnabled} after checking the protocol, so it is off by default here.
      */
     @Setter
-    private boolean batchReadEnabled = true;
+    private boolean batchReadEnabled = false;
 
     /**
      * Returns whether batch read is enabled for this managed ledger: {@link #batchReadEnabled} must be set and the
