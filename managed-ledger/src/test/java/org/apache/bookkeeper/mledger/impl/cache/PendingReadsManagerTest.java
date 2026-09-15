@@ -37,8 +37,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -50,6 +48,8 @@ import lombok.CustomLog;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -72,20 +72,23 @@ public class PendingReadsManagerTest  {
     static final Object CTX2 = "far";
     static final long LEDGER_ID = 123414L;
     private final Map<Pair<Long, Long>, AtomicInteger> entryRangeReadCount = new ConcurrentHashMap<>();
-    ExecutorService orderedExecutor;
+    OrderedExecutor executorPool;
+    ThreadBoundExecutor orderedExecutor;
 
     PendingReadsManagerTest() {
     }
 
     @BeforeClass(alwaysRun = true)
     void before() {
-        orderedExecutor = Executors.newSingleThreadExecutor();
+        executorPool = OrderedExecutor.newBuilder().numThreads(1).name("test").build();
+        orderedExecutor = (ThreadBoundExecutor) executorPool.chooseThread();
     }
 
     @AfterClass(alwaysRun = true)
     void after() {
-        if (orderedExecutor != null) {
-            orderedExecutor.shutdown();
+        if (executorPool != null) {
+            executorPool.shutdown();
+            executorPool = null;
             orderedExecutor = null;
         }
     }

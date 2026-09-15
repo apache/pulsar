@@ -240,8 +240,9 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         if (rc != BKException.Code.OK || timeoutTriggered.get()) {
             handleAddFailure(lh, rc);
         } else {
-            // Trigger addComplete callback in a thread hashed on the managed ledger name
-            ml.getExecutor().execute(this);
+            // Complete on the managed ledger thread. The ledger callbacks are pinned to that thread, so this normally
+            // runs inline instead of going through the executor queue.
+            ml.getExecutor().executeOrRun(this);
         }
     }
 

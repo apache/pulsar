@@ -697,6 +697,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     .withPassword(getConfig().getPassword())
                     .withKeepUpdateMetadata(true)
                     .withLoggerContext(log)
+                    .withOrderingKey(ledger.getName())
                     .execute()
                     .whenComplete((rh, ex) ->
                             ManagedLedgerImpl.completeOpenCallback(log, ledgerId, openCallback, rh, ex));

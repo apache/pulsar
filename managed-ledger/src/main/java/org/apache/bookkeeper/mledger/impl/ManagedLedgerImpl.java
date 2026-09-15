@@ -83,6 +83,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.common.util.Retries;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -331,7 +332,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final OrderedScheduler scheduledExecutor;
 
     @Getter
-    protected final ExecutorService executor;
+    protected final ThreadBoundExecutor executor;
 
     @Getter
     private final ManagedLedgerFactoryImpl factory;
@@ -392,7 +393,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.ledgerMetadata = LedgerMetadataUtils.buildBaseManagedLedgerMetadata(name);
         this.digestType = BookKeeper.DigestType.fromApiDigestType(config.getDigestType());
         this.scheduledExecutor = scheduledExecutor;
-        this.executor = bookKeeper.getMainWorkerPool().chooseThread(name);
+        // The main worker pool is an OrderedExecutor whose threads implement ThreadBoundExecutor (the BookKeeper client
+        // relies on the same cast for its ledger handles). The ledger callbacks are pinned to this thread through
+        // withOrderingKey, so their processing can run inline with executeOrRun() instead of re-queueing.
+        this.executor = (ThreadBoundExecutor) bookKeeper.getMainWorkerPool().chooseThread(name);
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
@@ -515,6 +519,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             .withPassword(config.getPassword())
                             .withKeepUpdateMetadata(true)
                             .withLoggerContext(log)
+                            .withOrderingKey(name)
                             .execute()
                             .whenComplete((rh, ex) -> completeOpenCallback(log, id, opencb, rh, ex));
                 } else {
@@ -1950,6 +1955,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 .withPassword(config.getPassword())
                 .withKeepUpdateMetadata(true)
                 .withLoggerContext(log)
+                .withOrderingKey(name)
                 .execute()
                 .whenComplete((rh, ex) -> completeOpenCallback(log, currentLedger.getId(), opencb, rh, ex));
     }
@@ -2263,9 +2269,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .getManagedLedgerOffloadedReadPriority() == OffloadedReadPriority.BOOKKEEPER_FIRST
                     && info != null && info.hasOffloadContext()
                     && !info.getOffloadContext().isBookkeeperDeleted()) {
-                openFuture = bookKeeper.newOpenLedgerOp().withRecovery(!isReadOnly()).withLedgerId(ledgerId)
-                        .withDigestType(config.getDigestType()).withPassword(config.getPassword())
-                        .withLoggerContext(log).execute();
+                openFuture = bookKeeper.newOpenLedgerOp()
+                        .withRecovery(!isReadOnly())
+                        .withLedgerId(ledgerId)
+                        .withDigestType(config.getDigestType())
+                        .withPassword(config.getPassword())
+                        .withLoggerContext(log)
+                        .withOrderingKey(name)
+                        .execute();
 
             } else if (info != null && info.hasOffloadContext() && info.getOffloadContext().isComplete()) {
 
@@ -2279,9 +2290,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 openFuture = config.getLedgerOffloader().readOffloaded(ledgerId, uid,
                         offloadDriverMetadata);
             } else {
-                openFuture = bookKeeper.newOpenLedgerOp().withRecovery(!isReadOnly()).withLedgerId(ledgerId)
-                        .withDigestType(config.getDigestType()).withPassword(config.getPassword())
-                        .withLoggerContext(log).execute();
+                openFuture = bookKeeper.newOpenLedgerOp()
+                        .withRecovery(!isReadOnly())
+                        .withLedgerId(ledgerId)
+                        .withDigestType(config.getDigestType())
+                        .withPassword(config.getPassword())
+                        .withLoggerContext(log)
+                        .withOrderingKey(name)
+                        .execute();
             }
             openFuture.whenCompleteAsync((res, ex) -> {
                 mbean.endDataLedgerOpenOp();
@@ -4714,6 +4730,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .withPassword(config.getPassword())
                     .withCustomMetadata(finalMetadata)
                     .withLoggerContext(ctxLogger)
+                    .withOrderingKey(name)
                     .execute()
                     .whenComplete((writeHandle, ex) -> {
                         if (ex != null) {

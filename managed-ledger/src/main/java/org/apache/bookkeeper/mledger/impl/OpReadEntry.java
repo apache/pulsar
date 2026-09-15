@@ -269,7 +269,8 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     private void complete(Object ctx) {
-        cursor.ledger.getExecutor().execute(() -> {
+        // Runs inline when the read completed on the managed ledger thread
+        cursor.ledger.getExecutor().executeOrRun(() -> {
             try {
                 callback.readEntriesComplete(entries, ctx);
                 recycle();
