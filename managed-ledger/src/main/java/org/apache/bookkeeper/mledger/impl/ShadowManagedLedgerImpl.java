@@ -163,7 +163,14 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                     }
                 });
                 //open ledger in readonly mode.
-                bookKeeper.asyncOpenLedgerNoRecovery(lastLedgerId, digestType, config.getPassword(), opencb, null);
+                bookKeeper.newOpenLedgerOp()
+                        .withRecovery(false)
+                        .withLedgerId(lastLedgerId)
+                        .withDigestType(config.getDigestType())
+                        .withPassword(config.getPassword())
+                        .execute()
+                        .whenComplete((rh, ex) ->
+                                opencb.openComplete(BKException.getExceptionCode(ex), (LedgerHandle) rh, null));
 
             }
 
@@ -345,8 +352,15 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             ledgers.put(lastLedgerId, newLedgerInfos.get(lastLedgerId));
             mbean.startDataLedgerOpenOp();
             //open ledger in readonly mode.
-            bookKeeper.asyncOpenLedgerNoRecovery(lastLedgerId, digestType, config.getPassword(),
-                    (rc, lh, ctx1) -> executor.execute(() -> {
+            bookKeeper.newOpenLedgerOp()
+                    .withRecovery(false)
+                    .withLedgerId(lastLedgerId)
+                    .withDigestType(config.getDigestType())
+                    .withPassword(config.getPassword())
+                    .execute()
+                    .whenComplete((rh, ex) -> executor.execute(() -> {
+                        int rc = BKException.getExceptionCode(ex);
+                        LedgerHandle lh = (LedgerHandle) rh;
                         mbean.endDataLedgerOpenOp();
                         log.debug().attr("name", name).attr("ledgerId", lastLedgerId).log("Opened new source ledger");
                         if (rc == BKException.Code.OK) {
@@ -371,7 +385,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                                     .attr("errorMessage", BKException.getMessage(rc))
                                     .log("Failed to open source ledger");
                         }
-                    }), null);
+                    }));
         }
 
         //handle old ledgers deleted.

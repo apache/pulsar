@@ -508,7 +508,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     log.debug().attr("ledgerId", id).log("Opening ledger");
                     mbean.startDataLedgerOpenOp();
-                    bookKeeper.asyncOpenLedger(id, digestType, config.getPassword(), opencb, null, true);
+                    bookKeeper.newOpenLedgerOp()
+                            .withRecovery(true)
+                            .withLedgerId(id)
+                            .withDigestType(config.getDigestType())
+                            .withPassword(config.getPassword())
+                            .withKeepUpdateMetadata(true)
+                            .withLoggerContext(log)
+                            .execute()
+                            .whenComplete((rh, ex) ->
+                                    opencb.openComplete(BKException.getExceptionCode(ex), (LedgerHandle) rh, null));
                 } else {
                     initializeBookKeeper(callback);
                 }
@@ -1911,7 +1920,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         ledgerRecheckInProgress = new ImmutablePair<>(currentLedger.getId(), new CompletableFuture<>());
-        bookKeeper.asyncOpenLedger(currentLedger.getId(), digestType, config.getPassword(), (rc, lh, ctx) -> {
+        bookKeeper.newOpenLedgerOp()
+                .withRecovery(true)
+                .withLedgerId(currentLedger.getId())
+                .withDigestType(config.getDigestType())
+                .withPassword(config.getPassword())
+                .withKeepUpdateMetadata(true)
+                .withLoggerContext(log)
+                .execute()
+                .whenComplete((rh, ex) -> {
+            int rc = BKException.getExceptionCode(ex);
+            LedgerHandle lh = (LedgerHandle) rh;
             ledgerRecheckInProgress.getRight().complete(rc);
             if (rc == Code.OK) {
                 log.info().attr("ledgerId", lh.getId())
@@ -1934,7 +1953,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 handleBadVersion(new BadVersionException("the current ledger " + currentLedger.getId()
                     + " was concurrent modified by a other bookie client. The error code is: " + errorCode));
             }
-        }, null, true);
+        });
     }
 
     synchronized void ledgerClosed(final LedgerHandle lh) {

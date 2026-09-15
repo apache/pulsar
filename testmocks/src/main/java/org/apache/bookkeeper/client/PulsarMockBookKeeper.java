@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -323,7 +324,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return new OpenBuilderBase() {
             @Override
             public CompletableFuture<ReadHandle> execute() {
-                return getProgrammedFailure().thenCompose(
+                return getProgrammedFailure().thenComposeAsync(
                         (res) -> {
                             int rc = validate();
                             if (rc != BKException.Code.OK) {
@@ -338,11 +339,16 @@ public class PulsarMockBookKeeper extends BookKeeper {
                             } else if (!Arrays.equals(lh.passwd, password)) {
                                 return FutureUtils.exception(new BKException.BKUnauthorizedAccessException());
                             } else {
-                                return FutureUtils.value(new PulsarMockReadHandle(PulsarMockBookKeeper.this, ledgerId,
-                                        lh.getLedgerMetadata(), lh.entries,
-                                        PulsarMockBookKeeper.this::getReadHandleInterceptor, lh.totalLengthCounter));
+                                try {
+                                    return FutureUtils.value(new PulsarMockReadHandle(PulsarMockBookKeeper.this,
+                                            ledgerId, lh.getLedgerMetadata(), lh.digest, lh.passwd, lh.entries,
+                                            PulsarMockBookKeeper.this::getReadHandleInterceptor,
+                                            lh.totalLengthCounter));
+                                } catch (GeneralSecurityException e) {
+                                    return FutureUtils.exception(e);
+                                }
                             }
-                        });
+                        }, executor);
             }
         };
     }
