@@ -742,6 +742,7 @@ public class Consumer {
 
     /**
      * A command-local snapshot, independent of the position list passed to the subscription.
+     * Arrays avoid allocating a completion record per message ID and reduce traversal overhead for grouped ACKs.
      * Built before starting persistence and never mutated or reused once its callback can run.
      */
     @VisibleForTesting
