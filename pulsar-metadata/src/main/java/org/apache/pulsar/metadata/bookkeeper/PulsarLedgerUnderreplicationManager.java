@@ -39,7 +39,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.regex.Matcher;
@@ -60,6 +59,7 @@ import org.apache.bookkeeper.proto.UnderreplicatedLedgerFormat;
 import org.apache.bookkeeper.replication.ReplicationEnableCb;
 import org.apache.bookkeeper.replication.ReplicationException;
 import org.apache.bookkeeper.util.BookKeeperConstants;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -123,7 +123,8 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     // Registered callbacks can perform synchronous metadata-store reads, so run them on a dedicated
     // single-threaded executor instead of the metadata-store notification thread (and outside the lock).
     private final ExecutorService notificationCallbackExecutor =
-            Executors.newSingleThreadExecutor(new DefaultThreadFactory("pulsar-underreplication-notification"));
+            PulsarExecutors.newSingleThreadExecutor(
+                    new DefaultThreadFactory("pulsar-underreplication-notification"), false);
 
     private static class PulsarUnderreplicatedLedger extends UnderreplicatedLedger {
         PulsarUnderreplicatedLedger(long ledgerId) {

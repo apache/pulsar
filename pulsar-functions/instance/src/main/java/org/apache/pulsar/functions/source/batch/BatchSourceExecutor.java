@@ -24,7 +24,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
@@ -33,6 +32,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.io.BatchSourceConfig;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.InstanceUtils;
@@ -76,11 +76,11 @@ public class BatchSourceExecutor<T> implements Source<T> {
     this.sourceContext = sourceContext;
     this.intermediateTopicName = SourceConfigUtils.computeBatchSourceIntermediateTopicName(sourceContext.getTenant(),
       sourceContext.getNamespace(), sourceContext.getSourceName()).toString();
-    this.discoveryThread = Executors.newSingleThreadExecutor(
+    this.discoveryThread = PulsarExecutors.newSingleThreadExecutor(
       new DefaultThreadFactory(
         String.format("%s-batch-source-discovery",
           FunctionCommon.getFullyQualifiedName(
-            sourceContext.getTenant(), sourceContext.getNamespace(), sourceContext.getSourceName()))));
+            sourceContext.getTenant(), sourceContext.getNamespace(), sourceContext.getSourceName()))), false);
     this.getBatchSourceConfigs(config);
     this.initializeBatchSource();
     this.start();

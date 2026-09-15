@@ -32,6 +32,7 @@ import lombok.CustomLog;
 import lombok.Data;
 import lombok.Getter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 
@@ -70,7 +71,7 @@ public class JavaInstance implements AutoCloseable {
 
         this.context = contextImpl;
         this.instanceConfig = instanceConfig;
-        this.executor = Executors.newSingleThreadExecutor();
+        this.executor = PulsarExecutors.newSingleThreadExecutor(Executors.defaultThreadFactory(), false);
 
         asyncPreserveInputOrderForOutputMessages =
                 resolveAsyncPreserveInputOrderForOutputMessages(instanceConfig);
