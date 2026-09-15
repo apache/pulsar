@@ -40,6 +40,8 @@ import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
  * Only queues created by this group participate; ordinary GrowableArrayBlockingQueues are unaffected.
  */
 final class ExecutorQueueTrimmer implements Runnable {
+    private static final double HIGH_WATERMARK_HEAP_FRACTION = 0.05;
+    private static final double LOW_WATERMARK_HEAP_FRACTION = 0.04;
     private static final int MAX_TRIMS_PER_PASS = 64;
     private final long highWatermark;
     private final long lowWatermark;
@@ -52,7 +54,8 @@ final class ExecutorQueueTrimmer implements Runnable {
 
     static ExecutorQueueTrimmer create() {
         long maxHeapElements = Runtime.getRuntime().maxMemory() / referenceBytes();
-        return new ExecutorQueueTrimmer(maxHeapElements / 25, maxHeapElements / 20,
+        return new ExecutorQueueTrimmer((long) (maxHeapElements * LOW_WATERMARK_HEAP_FRACTION),
+                (long) (maxHeapElements * HIGH_WATERMARK_HEAP_FRACTION),
                 task -> CompletableFuture.delayedExecutor(30, TimeUnit.SECONDS, ForkJoinPool.commonPool())
                         .execute(task));
     }
