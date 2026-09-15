@@ -105,7 +105,7 @@ public class PulsarByteBufAllocator {
         return switch (type) {
             case POOLED -> PooledByteBufAllocator.DEFAULT;
             case UNPOOLED -> UnpooledByteBufAllocator.DEFAULT;
-            case ADAPTIVE -> new AdaptiveByteBufAllocator(true);
+            case ADAPTIVE -> new AdaptiveByteBufAllocator();
         };
     }
 
