@@ -71,6 +71,7 @@ import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.ServiceNameResolver;
+import org.apache.pulsar.client.impl.Socks5ProxyChannelConfigurer;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -90,13 +91,10 @@ import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.ListenableFuture;
-import org.asynchttpclient.Realm;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.SslEngineFactory;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
-import org.asynchttpclient.proxy.ProxyServer;
-import org.asynchttpclient.proxy.ProxyType;
 import org.asynchttpclient.uri.Uri;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.ClientRequest;
@@ -733,9 +731,11 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
      * (socks5ProxyAddress / socks5ProxyUsername / socks5ProxyPassword) are shared with the
      * pulsar-client module so that admin and client behave consistently.
      *
-     * <p>async-http-client's {@link ProxyServer} with {@link ProxyType#SOCKS_V5} is backed by
-     * Netty's {@code Socks5ProxyHandler}, which is injected into the channel pipeline when
-     * establishing a new connection.
+     * <p>The SOCKS5 handler is installed directly on the Netty pipeline rather than through AHC's
+     * {@code confBuilder.setProxyServer(...)}, because AHC 2.x never actually installs its SOCKS
+     * handler and silently bypasses the proxy. See
+     * {@link org.apache.pulsar.client.impl.Socks5ProxyChannelConfigurer} for the detailed
+     * analysis and for how HTTPS-over-SOCKS5 ordering is handled.
      */
     @VisibleForTesting
     static void configureSocks5ProxyIfNeeded(DefaultAsyncHttpClientConfig.Builder confBuilder,
@@ -750,18 +750,17 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
         if (!conf.getSocks5ProxyScope().appliesToHttp()) {
             return;
         }
-        ProxyServer.Builder proxyBuilder =
-                new ProxyServer.Builder(socks5Address.getHostString(), socks5Address.getPort())
-                        .setProxyType(ProxyType.SOCKS_V5);
         String socks5Username = conf.getSocks5ProxyUsername();
-        if (StringUtils.isNotBlank(socks5Username)) {
-            Realm realm = new Realm.Builder(socks5Username, conf.getSocks5ProxyPassword())
-                    .setScheme(Realm.AuthScheme.BASIC)
-                    .build();
-            proxyBuilder.setRealm(realm);
-        }
-        confBuilder.setProxyServer(proxyBuilder.build());
-        log.info().attr("proxy", socks5Address).log("Pulsar admin client is using SOCKS5 proxy");
+        String socks5Password = conf.getSocks5ProxyPassword();
+        boolean hasAuth = StringUtils.isNotBlank(socks5Username);
+        // Install the Socks5ProxyHandler at the head of the pipeline so the SOCKS5 handshake
+        // completes before any HTTP bytes are written to the wire, and hold back the connect
+        // promise until that handshake finishes so AHC's TLS handler is inserted behind the
+        // established tunnel instead of in front of it (see Socks5ProxyChannelConfigurer).
+        confBuilder.setHttpAdditionalChannelInitializer(channel ->
+                Socks5ProxyChannelConfigurer.install(channel, socks5Address, socks5Username, socks5Password));
+        log.info().attr("proxy", socks5Address).attr("auth", hasAuth ? "password" : "none")
+                .log("Pulsar admin client is using SOCKS5 proxy");
     }
 
     @Override
