@@ -35,7 +35,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -73,6 +72,7 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
@@ -199,8 +199,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         filterPipeline = new ArrayList<>();
         loadData = new LoadData();
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
-        executors = Executors.newSingleThreadExecutor(
-                new ExecutorProvider.ExtendedThreadFactory("pulsar-modular-load-manager"));
+        executors = PulsarExecutors.newSingleThreadExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-modular-load-manager"), false);
         this.brokerToFailureDomainMap = new HashMap<>();
         this.bundleBrokerAffinityMap = new ConcurrentHashMap<>();
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
