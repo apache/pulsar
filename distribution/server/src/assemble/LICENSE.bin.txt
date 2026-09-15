@@ -358,32 +358,32 @@ The Apache Software License, Version 2.0
     - net.java.dev.jna-jna-jpms-5.19.1.jar
     - net.java.dev.jna-jna-platform-jpms-5.19.1.jar
  * BookKeeper
-    - org.apache.bookkeeper-bookkeeper-common-4.18.0.jar
-    - org.apache.bookkeeper-bookkeeper-common-allocator-4.18.0.jar
-    - org.apache.bookkeeper-bookkeeper-proto-4.18.0.jar
-    - org.apache.bookkeeper-bookkeeper-server-4.18.0.jar
-    - org.apache.bookkeeper-bookkeeper-tools-framework-4.18.0.jar
-    - org.apache.bookkeeper-circe-checksum-4.18.0.jar
-    - org.apache.bookkeeper-cpu-affinity-4.18.0.jar
-    - org.apache.bookkeeper-statelib-4.18.0.jar
-    - org.apache.bookkeeper-stream-storage-api-4.18.0.jar
-    - org.apache.bookkeeper-stream-storage-common-4.18.0.jar
-    - org.apache.bookkeeper-stream-storage-java-client-4.18.0.jar
-    - org.apache.bookkeeper-stream-storage-java-client-base-4.18.0.jar
-    - org.apache.bookkeeper-stream-storage-proto-4.18.0.jar
-    - org.apache.bookkeeper-stream-storage-server-4.18.0.jar
-    - org.apache.bookkeeper-stream-storage-service-api-4.18.0.jar
-    - org.apache.bookkeeper-stream-storage-service-impl-4.18.0.jar
-    - org.apache.bookkeeper.http-http-server-4.18.0.jar
-    - org.apache.bookkeeper.http-vertx-http-server-4.18.0.jar
-    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.18.0.jar
-    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.18.0.jar
-    - org.apache.distributedlog-distributedlog-common-4.18.0.jar
-    - org.apache.distributedlog-distributedlog-core-4.18.0-tests.jar
-    - org.apache.distributedlog-distributedlog-core-4.18.0.jar
-    - org.apache.distributedlog-distributedlog-protocol-4.18.0.jar
-    - org.apache.bookkeeper-native-io-4.18.0.jar
-    - org.apache.bookkeeper-native-library-common-4.18.0.jar
+    - org.apache.bookkeeper-bookkeeper-common-4.18.1.jar
+    - org.apache.bookkeeper-bookkeeper-common-allocator-4.18.1.jar
+    - org.apache.bookkeeper-bookkeeper-proto-4.18.1.jar
+    - org.apache.bookkeeper-bookkeeper-server-4.18.1.jar
+    - org.apache.bookkeeper-bookkeeper-tools-framework-4.18.1.jar
+    - org.apache.bookkeeper-circe-checksum-4.18.1.jar
+    - org.apache.bookkeeper-cpu-affinity-4.18.1.jar
+    - org.apache.bookkeeper-statelib-4.18.1.jar
+    - org.apache.bookkeeper-stream-storage-api-4.18.1.jar
+    - org.apache.bookkeeper-stream-storage-common-4.18.1.jar
+    - org.apache.bookkeeper-stream-storage-java-client-4.18.1.jar
+    - org.apache.bookkeeper-stream-storage-java-client-base-4.18.1.jar
+    - org.apache.bookkeeper-stream-storage-proto-4.18.1.jar
+    - org.apache.bookkeeper-stream-storage-server-4.18.1.jar
+    - org.apache.bookkeeper-stream-storage-service-api-4.18.1.jar
+    - org.apache.bookkeeper-stream-storage-service-impl-4.18.1.jar
+    - org.apache.bookkeeper.http-http-server-4.18.1.jar
+    - org.apache.bookkeeper.http-vertx-http-server-4.18.1.jar
+    - org.apache.bookkeeper.stats-bookkeeper-stats-api-4.18.1.jar
+    - org.apache.bookkeeper.stats-prometheus-metrics-provider-4.18.1.jar
+    - org.apache.distributedlog-distributedlog-common-4.18.1.jar
+    - org.apache.distributedlog-distributedlog-core-4.18.1-tests.jar
+    - org.apache.distributedlog-distributedlog-core-4.18.1.jar
+    - org.apache.distributedlog-distributedlog-protocol-4.18.1.jar
+    - org.apache.bookkeeper-native-io-4.18.1.jar
+    - org.apache.bookkeeper-native-library-common-4.18.1.jar
     - at.yawk.lz4-lz4-java-1.11.2.jar
   * Apache Felix HTTP Wrappers
     - org.apache.felix-org.apache.felix.http.wrappers-1.1.10.jar

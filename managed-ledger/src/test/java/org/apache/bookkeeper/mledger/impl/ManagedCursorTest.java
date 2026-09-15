@@ -6794,7 +6794,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test
     void testForceCursorRecovery() throws Exception {
-        TestPulsarMockBookKeeper bk = new TestPulsarMockBookKeeper(executor);
+        TestPulsarMockBookKeeper bk = new TestPulsarMockBookKeeper(bkExecutor);
         factory.shutdown();
         factory = new ManagedLedgerFactoryImpl(metadataStore, bk);
         ManagedLedgerConfig config = new ManagedLedgerConfig();
