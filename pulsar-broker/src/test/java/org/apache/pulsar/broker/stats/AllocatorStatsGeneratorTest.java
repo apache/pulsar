@@ -58,7 +58,8 @@ public class AllocatorStatsGeneratorTest {
         ByteBuf direct = allocator.directBuffer(128);
         ByteBuf heap = allocator.heapBuffer(128);
         try (MockedStatic<PulsarByteBufAllocator> mocked = Mockito.mockStatic(PulsarByteBufAllocator.class)) {
-            mocked.when(() -> PulsarByteBufAllocator.getAllocatorMetric(DEFAULT_ALLOCATOR_NAME)).thenReturn(allocator.metric());
+            mocked.when(() -> PulsarByteBufAllocator.getAllocatorMetric(DEFAULT_ALLOCATOR_NAME))
+                    .thenReturn(allocator.metric());
             AllocatorStats stats = AllocatorStatsGenerator.generate(DEFAULT_ALLOCATOR_NAME);
             assertThat(stats.usedDirectMemory).isEqualTo(allocator.usedDirectMemory()).isGreaterThanOrEqualTo(128);
             assertThat(stats.usedHeapMemory).isEqualTo(allocator.usedHeapMemory()).isGreaterThanOrEqualTo(128);

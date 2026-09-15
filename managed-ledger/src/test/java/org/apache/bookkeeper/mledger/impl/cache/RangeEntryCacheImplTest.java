@@ -217,7 +217,8 @@ public class RangeEntryCacheImplTest {
         source.readLong();
         EntryImpl entry = EntryImpl.create(1, 50, source);
         source.release();
-        assertThat(PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME)).isNotSameAs(PulsarByteBufAllocator.DEFAULT);
+        assertThat(PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME))
+                .isNotSameAs(PulsarByteBufAllocator.DEFAULT);
         ByteBuf probe = PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME).directBuffer(8, 8);
         try {
             assertThat(copyingCache.insert(entry)).isTrue();

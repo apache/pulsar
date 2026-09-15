@@ -161,7 +161,8 @@ public class OpenTelemetryManagedLedgerCacheStats implements AutoCloseable {
         cacheOperationCounter.record(stats.getCacheMissesTotal(), CacheOperationStatus.MISS.attributes);
         cacheOperationBytesCounter.record(stats.getCacheMissesBytesTotal(), CacheOperationStatus.MISS.attributes);
 
-        var allocatorStats = new ByteBufAllocatorStats(PulsarByteBufAllocator.getAllocatorMetric(ML_CACHE_ALLOCATOR_NAME));
+        var allocatorStats = new ByteBufAllocatorStats(
+                PulsarByteBufAllocator.getAllocatorMetric(ML_CACHE_ALLOCATOR_NAME));
         cachePoolActiveAllocationCounter.record(allocatorStats.activeAllocationsSmall, PoolArenaType.SMALL.attributes);
         cachePoolActiveAllocationCounter.record(allocatorStats.activeAllocationsNormal,
                 PoolArenaType.NORMAL.attributes);
