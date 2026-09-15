@@ -862,19 +862,6 @@ public interface ManagedCursor {
     default void skipNonRecoverableLedger(long ledgerId){}
 
     /**
-     * Returns cursor throttle mark-delete rate.
-     *
-     * @return
-     */
-    double getThrottleMarkDelete();
-
-    /**
-     * Update throttle mark delete rate.
-     *
-     */
-    void setThrottleMarkDelete(double throttleMarkDelete);
-
-    /**
      * Get {@link ManagedLedger} attached with cursor.
      *
      * @return ManagedLedger

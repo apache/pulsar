@@ -1052,16 +1052,6 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
         }
 
         @Override
-        public double getThrottleMarkDelete() {
-            return delegate.getThrottleMarkDelete();
-        }
-
-        @Override
-        public void setThrottleMarkDelete(double throttleMarkDelete) {
-            delegate.setThrottleMarkDelete(throttleMarkDelete);
-        }
-
-        @Override
         public ManagedLedger getManagedLedger() {
             return delegate.getManagedLedger();
         }
