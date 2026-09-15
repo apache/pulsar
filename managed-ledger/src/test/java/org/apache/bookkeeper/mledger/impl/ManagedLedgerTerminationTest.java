@@ -24,14 +24,24 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.UpdatePropertiesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.testng.annotations.Test;
 
 public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
@@ -69,6 +79,87 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
         try {
             ledger.addEntry("entry-1".getBytes());
+            fail("Should have thrown exception");
+        } catch (ManagedLedgerTerminatedException e) {
+            // Expected
+        }
+    }
+
+    @Test(timeOut = 20000)
+    public void terminateRemainsPersistedWhenClosedDuringMetadataUpdate() throws Exception {
+        String ledgerName = "my_test_ledger";
+        ManagedLedger ledger = factory.open(ledgerName);
+        Position p0 = ledger.addEntry("entry-0".getBytes());
+
+        CountDownLatch propertyMetadataPutStarted = new CountDownLatch(1);
+        CountDownLatch allowPropertyMetadataPut = new CountDownLatch(1);
+        String metadataPath = "/managed-ledgers/" + ledgerName;
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException("metadata update blocked"),
+                (operation, path) -> {
+                    if (operation != FaultInjectionMetadataStore.OperationType.PUT || !metadataPath.equals(path)) {
+                        return false;
+                    }
+                    propertyMetadataPutStarted.countDown();
+                    try {
+                        return !allowPropertyMetadataPut.await(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        return true;
+                    }
+                });
+
+        CompletableFuture<Void> propertyUpdateResult = new CompletableFuture<>();
+        CompletableFuture.runAsync(() -> ledger.asyncSetProperty("key", "value", new UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                propertyUpdateResult.complete(null);
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                propertyUpdateResult.completeExceptionally(exception);
+            }
+        }, null));
+        assertTrue(propertyMetadataPutStarted.await(5, TimeUnit.SECONDS));
+
+        CompletableFuture<Position> terminationResult = new CompletableFuture<>();
+        ledger.asyncTerminate(new TerminateCallback() {
+            @Override
+            public void terminateComplete(Position lastCommittedPosition, Object ctx) {
+                terminationResult.complete(lastCommittedPosition);
+            }
+
+            @Override
+            public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                terminationResult.completeExceptionally(exception);
+            }
+        }, null);
+
+        CompletableFuture<Void> closeResult = new CompletableFuture<>();
+        ledger.asyncClose(new CloseCallback() {
+            @Override
+            public void closeComplete(Object ctx) {
+                closeResult.complete(null);
+            }
+
+            @Override
+            public void closeFailed(ManagedLedgerException exception, Object ctx) {
+                closeResult.completeExceptionally(exception);
+            }
+        }, null);
+
+        try {
+            closeResult.get(5, TimeUnit.SECONDS);
+        } finally {
+            allowPropertyMetadataPut.countDown();
+        }
+
+        propertyUpdateResult.get(5, TimeUnit.SECONDS);
+        assertEquals(terminationResult.get(5, TimeUnit.SECONDS), p0);
+
+        ManagedLedger reopenedLedger = factory.open(ledgerName);
+        try {
+            reopenedLedger.addEntry("entry-1".getBytes());
             fail("Should have thrown exception");
         } catch (ManagedLedgerTerminatedException e) {
             // Expected
