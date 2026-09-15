@@ -49,7 +49,8 @@
 #   pooled   - Netty PooledByteBufAllocator; prefers direct buffers (default).
 #   unpooled - Netty UnpooledByteBufAllocator; prefers heap buffers.
 #   adaptive - Netty AdaptiveByteBufAllocator; auto-tunes pooling and prefers direct buffers.
-# pulsar.allocator.type takes precedence over the deprecated pulsar.allocator.pooled property.
+# -Dpulsar.allocator.pooled=true is deprecated; use -Dpulsar.allocator.type=pooled instead.
+# pulsar.allocator.type takes precedence over the legacy pulsar.allocator.pooled property.
 # If pulsar.allocator.type is unset, pulsar.allocator.pooled=true (or unset) selects pooled;
 # other values of pulsar.allocator.pooled select unpooled.
 
