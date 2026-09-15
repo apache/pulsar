@@ -134,8 +134,8 @@ public class JvmMetrics {
             }
         } else {
             totalAllocated = allocatorMetric.usedDirectMemory();
-            // Adaptive and unpooled metrics do not expose the bytes occupied by live buffers.
-            totalUsed = -1;
+            // Report backing memory consumption when chunk occupancy metrics are unavailable.
+            totalUsed = totalAllocated;
         }
 
         m.put(this.componentName + "_default_pool_allocated", totalAllocated);

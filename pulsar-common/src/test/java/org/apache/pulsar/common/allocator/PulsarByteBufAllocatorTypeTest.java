@@ -132,7 +132,7 @@ public class PulsarByteBufAllocatorTypeTest {
             mocked.when(PulsarByteBufAllocator::getDefaultAllocatorMetric).thenReturn(allocator.metric());
             var metrics = new JvmMetrics(null, "test", new JvmDefaultGCMetricsLogger()).generate().get(0).getMetrics();
             assertThat(metrics.get("test_default_pool_allocated")).isEqualTo(allocator.usedDirectMemory());
-            assertThat(metrics.get("test_default_pool_used")).isEqualTo(-1L);
+            assertThat(metrics.get("test_default_pool_used")).isEqualTo(allocator.usedDirectMemory());
         } finally {
             buffer.release();
         }
