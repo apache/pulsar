@@ -2508,6 +2508,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean bookkeeperClientExposeStatsToPrometheus = false;
 
     @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "whether expose metadataStore stats to prometheus"
+    )
+    private boolean metadataStoreExposeStatsToPrometheus = false;
+
+    @FieldContext(
             category = CATEGORY_STORAGE_BK,
             doc = "whether limit per_channel_bookie_client metrics of bookkeeper client stats"
     )

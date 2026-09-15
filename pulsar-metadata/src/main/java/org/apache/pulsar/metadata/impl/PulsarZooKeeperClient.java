@@ -541,7 +541,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     public void multi(final Iterable<Op> ops,
                       final MultiCallback cb,
                       final Object context) {
-        final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, createStats) {
+        final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, multiStats) {
 
             final MultiCallback multiCb = new MultiCallback() {
 
