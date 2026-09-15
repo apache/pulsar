@@ -398,10 +398,10 @@ The Apache Software License, Version 2.0
     - slog-0.10.0.jar
 
  * BookKeeper
-    - bookkeeper-common-allocator-4.18.0.jar
-    - cpu-affinity-4.18.0.jar
-    - circe-checksum-4.18.0.jar
-    - native-library-common-4.18.0.jar
+    - bookkeeper-common-allocator-4.18.1.jar
+    - cpu-affinity-4.18.1.jar
+    - circe-checksum-4.18.1.jar
+    - native-library-common-4.18.1.jar
   * AirCompressor
      - aircompressor-2.0.3.jar
  * AsyncHttpClient

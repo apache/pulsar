@@ -24,7 +24,7 @@ async-profiler = "4.5"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
-bookkeeper = "4.18.0"
+bookkeeper = "4.18.1"
 zookeeper = "3.9.5"
 netty = "4.2.18.Final"
 jetty = "12.1.12"

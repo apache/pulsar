@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import com.google.common.collect.Lists;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.FastThreadLocal;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -331,26 +332,37 @@ public class PulsarMockBookKeeper extends BookKeeper {
         return new OpenBuilderBase() {
             @Override
             public CompletableFuture<ReadHandle> execute() {
-                return getProgrammedFailure().thenCompose(
-                        (res) -> {
-                            int rc = validate();
-                            if (rc != BKException.Code.OK) {
-                                return FutureUtils.exception(BKException.create(rc));
-                            }
+                CompletableFuture<ReadHandle> future = new CompletableFuture<>();
+                // Always complete on the mock executor, also for a programmed failure, like the legacy open path
+                getProgrammedFailure().whenCompleteAsync((res, failure) -> {
+                    if (failure != null) {
+                        future.completeExceptionally(failure);
+                        return;
+                    }
+                    int rc = validate();
+                    if (rc != BKException.Code.OK) {
+                        future.completeExceptionally(BKException.create(rc));
+                        return;
+                    }
 
-                            PulsarMockLedgerHandle lh = ledgers.get(ledgerId);
-                            if (lh == null) {
-                                return FutureUtils.exception(new BKException.BKNoSuchLedgerExistsException());
-                            } else if (lh.digest != DigestType.fromApiDigestType(digestType)) {
-                                return FutureUtils.exception(new BKException.BKDigestMatchException());
-                            } else if (!Arrays.equals(lh.passwd, password)) {
-                                return FutureUtils.exception(new BKException.BKUnauthorizedAccessException());
-                            } else {
-                                return FutureUtils.value(new PulsarMockReadHandle(PulsarMockBookKeeper.this, ledgerId,
-                                        lh.getLedgerMetadata(), lh.entries,
-                                        PulsarMockBookKeeper.this::getReadHandleInterceptor, lh.totalLengthCounter));
-                            }
-                        });
+                    PulsarMockLedgerHandle lh = ledgers.get(ledgerId);
+                    if (lh == null) {
+                        future.completeExceptionally(new BKException.BKNoSuchLedgerExistsException());
+                    } else if (lh.digest != DigestType.fromApiDigestType(digestType)) {
+                        future.completeExceptionally(new BKException.BKDigestMatchException());
+                    } else if (!Arrays.equals(lh.passwd, password)) {
+                        future.completeExceptionally(new BKException.BKUnauthorizedAccessException());
+                    } else {
+                        try {
+                            future.complete(new PulsarMockReadHandle(PulsarMockBookKeeper.this, ledgerId,
+                                    lh.getLedgerMetadata(), lh.digest, lh.passwd, lh.entries,
+                                    PulsarMockBookKeeper.this::getReadHandleInterceptor, lh.totalLengthCounter));
+                        } catch (GeneralSecurityException e) {
+                            future.completeExceptionally(e);
+                        }
+                    }
+                }, executor);
+                return future;
             }
         };
     }
