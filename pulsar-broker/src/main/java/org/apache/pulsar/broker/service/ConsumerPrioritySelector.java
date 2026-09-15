@@ -18,128 +18,151 @@
  */
 package org.apache.pulsar.broker.service;
 
+import com.google.common.annotations.VisibleForTesting;
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.function.ToIntFunction;
+import javax.annotation.concurrent.NotThreadSafe;
+import org.apache.commons.lang3.mutable.MutableInt;
 
 /**
  * Selects from consumers ordered by increasing priority number, with round-robin selection within a priority.
- * The caller owns the cursor and must prevent list mutations during selection, as in the dispatcher.
- * Package-private and generic so tests and microbenchmarks can use lightweight consumers.
+ * The caller owns the cursor and must serialize selection and membership changes using the same lock.
+ * After construction, membership changes must go through this selector; sorting the list is allowed.
+ * Consumer priorities must remain immutable while registered.
+ *
+ * <p>The type parameter lets unit tests and JMH benchmarks use lightweight consumer state to isolate
+ * selection from broker setup and other {@link Consumer} behavior. Production uses {@code Consumer}
+ * with {@link Consumer#getPriorityLevel()} as the priority accessor.
+ *
+ * @param <T> consumer representation: {@code Consumer} in production, lightweight fixtures in tests and benchmarks
  */
+@NotThreadSafe
 final class ConsumerPrioritySelector<T> {
     private final List<T> consumerList;
     private final ToIntFunction<T> priority;
     private final Predicate<T> available;
+    private final Int2ObjectMap<MutableInt> priorityCounts = new Int2ObjectOpenHashMap<>();
 
     ConsumerPrioritySelector(List<T> consumerList, ToIntFunction<T> priority, Predicate<T> available) {
         this.consumerList = consumerList;
         this.priority = priority;
         this.available = available;
+        consumerList.forEach(this::incrementPriorityCount);
+    }
+
+    void add(T consumer) {
+        consumerList.add(consumer);
+        incrementPriorityCount(consumer);
+    }
+
+    void remove(T consumer) {
+        int index = consumerList.indexOf(consumer);
+        if (index >= 0) {
+            // Equality can match a replacement with a different priority. Count the actual removed instance.
+            decrementPriorityCount(consumerList.remove(index));
+        }
+    }
+
+    void removeIf(Predicate<T> predicate) {
+        consumerList.removeIf(predicate);
+        // Bulk removal repairs inconsistent dispatcher membership. Rebuild from survivors so even an
+        // unregistered duplicate in the list cannot leave stale counts or prevent topic deletion.
+        priorityCounts.clear();
+        consumerList.forEach(this::incrementPriorityCount);
+    }
+
+    private void incrementPriorityCount(T consumer) {
+        priorityCounts.compute(priority.applyAsInt(consumer), (level, count) -> {
+            if (count == null) {
+                return new MutableInt(1);
+            }
+            count.increment();
+            return count;
+        });
+    }
+
+    private void decrementPriorityCount(T consumer) {
+        priorityCounts.compute(priority.applyAsInt(consumer),
+                (level, count) -> count.decrementAndGet() == 0 ? null : count);
+    }
+
+    @VisibleForTesting
+    int priorityLevelCount() {
+        return priorityCounts.size();
     }
 
     // The caller supplies an in-range cursor and advances it only after a successful selection.
-    int select(int currentConsumerRoundRobinIndex) {
-        int currentRoundRobinConsumerPriority = priority.applyAsInt(consumerList.get(currentConsumerRoundRobinIndex));
+    int select(int cursor) {
+        if (priorityCounts.size() == 1) {
+            return selectSamePriority(cursor);
+        }
+        T current = consumerList.get(cursor);
+        int targetPriority = priority.applyAsInt(current);
+        int firstOnLevel = 0;
 
-        // first find available-consumer on higher level unless currentIndex is not on highest level which is 0
-        if (currentRoundRobinConsumerPriority != 0) {
-            int higherPriorityConsumerIndex = getConsumerFromHigherPriority(
-                    currentRoundRobinConsumerPriority, currentConsumerRoundRobinIndex);
-            if (higherPriorityConsumerIndex != -1) {
-                return higherPriorityConsumerIndex;
+        if (targetPriority != 0) {
+            // Remember where this level starts so wrapping does not rescan all higher priorities.
+            for (; firstOnLevel < cursor; firstOnLevel++) {
+                T consumer = consumerList.get(firstOnLevel);
+                if (priority.applyAsInt(consumer) >= targetPriority) {
+                    break;
+                }
+                if (available.test(consumer)) {
+                    return firstOnLevel;
+                }
             }
         }
 
-        // currentIndex is already on highest level or couldn't find consumer on higher level so, find consumer on same
-        // or lower level
-        int availableConsumerIndex = getNextConsumerFromSameOrLowerLevel(currentConsumerRoundRobinIndex);
-        if (availableConsumerIndex != -1) {
-            return availableConsumerIndex;
+        if (available.test(current)) {
+            return cursor;
         }
 
-        // couldn't find available consumer
-        return -1;
-    }
-
-    /**
-     * Finds index of first available consumer which has higher priority then given targetPriority.
-     *
-     * @param targetPriority
-     * @return -1 if couldn't find any available consumer
-     */
-    private int getConsumerFromHigherPriority(int targetPriority, int currentConsumerRoundRobinIndex) {
-        for (int i = 0; i < currentConsumerRoundRobinIndex; i++) {
-            T consumer = consumerList.get(i);
-            if (priority.applyAsInt(consumer) < targetPriority) {
-                if (available.test(consumerList.get(i))) {
-                    return i;
-                }
-            } else {
+        int size = consumerList.size();
+        int endOfLevel = cursor + 1;
+        for (; endOfLevel < size; endOfLevel++) {
+            T consumer = consumerList.get(endOfLevel);
+            if (priority.applyAsInt(consumer) != targetPriority) {
                 break;
             }
-        }
-        return -1;
-    }
-
-    /**
-     * Finds index of round-robin available consumer that present on same level as consumer on
-     * currentRoundRobinIndex if doesn't find consumer on same level then it finds first available consumer on lower
-     * priority level else returns
-     * index=-1 if couldn't find any available consumer in the list.
-     *
-     * @param currentRoundRobinIndex
-     * @return
-     */
-    private int getNextConsumerFromSameOrLowerLevel(int currentRoundRobinIndex) {
-        T currentRRConsumer = consumerList.get(currentRoundRobinIndex);
-        if (available.test(currentRRConsumer)) {
-            return currentRoundRobinIndex;
-        }
-
-        // scan the consumerList, if consumer in currentRoundRobinIndex is unavailable
-        int targetPriority = priority.applyAsInt(currentRRConsumer);
-        int scanIndex = currentRoundRobinIndex + 1;
-        int endPriorityLevelIndex = currentRoundRobinIndex;
-        do {
-            T scanConsumer = scanIndex < consumerList.size() ? consumerList.get(scanIndex)
-                    : null /* reached to last consumer of list */;
-
-            // if reached to last consumer of list then check from beginning to currentRRIndex of the list
-            if (scanConsumer == null || priority.applyAsInt(scanConsumer) != targetPriority) {
-                endPriorityLevelIndex = scanIndex; // last consumer on this level
-                scanIndex = getFirstConsumerIndexOfPriority(targetPriority);
-            } else {
-                if (available.test(scanConsumer)) {
-                    return scanIndex;
-                }
-                scanIndex++;
+            if (available.test(consumer)) {
+                return endOfLevel;
             }
-        } while (scanIndex != currentRoundRobinIndex);
+        }
 
-        // it means: didn't find consumer in the same priority-level so, check available consumer lower than this level
-        for (int i = endPriorityLevelIndex; i < consumerList.size(); i++) {
+        if (targetPriority == 0) {
+            // Normally zero is the first level. Preserve the existing treatment of negative priorities too.
+            while (priority.applyAsInt(consumerList.get(firstOnLevel)) != targetPriority) {
+                firstOnLevel++;
+            }
+        }
+        for (int i = firstOnLevel; i < cursor; i++) {
             if (available.test(consumerList.get(i))) {
                 return i;
             }
         }
-
-        return -1;
-    }
-
-    /**
-     * Finds index of first consumer in list which has same priority as given targetPriority.
-     *
-     * @param targetPriority
-     * @return
-     */
-    private int getFirstConsumerIndexOfPriority(int targetPriority) {
-        for (int i = 0; i < consumerList.size(); i++) {
-            if (priority.applyAsInt(consumerList.get(i)) == targetPriority) {
+        for (int i = endOfLevel; i < size; i++) {
+            if (available.test(consumerList.get(i))) {
                 return i;
             }
         }
         return -1;
     }
 
+    private int selectSamePriority(int cursor) {
+        int size = consumerList.size();
+        for (int i = cursor; i < size; i++) {
+            if (available.test(consumerList.get(i))) {
+                return i;
+            }
+        }
+        for (int i = 0; i < cursor; i++) {
+            if (available.test(consumerList.get(i))) {
+                return i;
+            }
+        }
+        return -1;
+    }
 }

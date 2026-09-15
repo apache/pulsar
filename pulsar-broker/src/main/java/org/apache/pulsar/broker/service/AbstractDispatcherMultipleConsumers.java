@@ -23,6 +23,7 @@ import com.carrotsearch.hppc.ObjectSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.Predicate;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 
@@ -31,6 +32,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
  */
 public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDispatcher {
 
+    // Use the membership helpers below for mutations so the selector priority counts stay consistent.
     protected final CopyOnWriteArrayList<Consumer> consumerList = new CopyOnWriteArrayList<>();
     private final ConsumerPrioritySelector<Consumer> consumerPrioritySelector =
             new ConsumerPrioritySelector<>(consumerList, Consumer::getPriorityLevel, this::isConsumerAvailable);
@@ -47,6 +49,19 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
 
     protected AbstractDispatcherMultipleConsumers(Subscription subscription, ServiceConfiguration serviceConfig) {
         super(subscription, serviceConfig);
+    }
+
+    // Keep membership and priority counts under the same monitor used for selection.
+    protected final synchronized void addConsumerToList(Consumer consumer) {
+        consumerPrioritySelector.add(consumer);
+    }
+
+    protected final synchronized void removeConsumerFromList(Consumer consumer) {
+        consumerPrioritySelector.remove(consumer);
+    }
+
+    protected final synchronized void removeConsumersFromList(Predicate<Consumer> predicate) {
+        consumerPrioritySelector.removeIf(predicate);
     }
 
     public boolean isConsumerConnected() {
@@ -127,7 +142,7 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
      *
      * @return nextAvailableConsumer
      */
-    public Consumer getNextConsumer() {
+    public synchronized Consumer getNextConsumer() {
         if (consumerList.isEmpty() || IS_CLOSED_UPDATER.get(this) == TRUE) {
             // abort read if no consumers are connected or if disconnect is initiated
             return null;
