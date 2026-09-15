@@ -21,6 +21,11 @@ plugins {
     id("pulsar.java-conventions")
 }
 
+// External consumers may use the test support classes without publishing them in normal releases.
+if (PulsarApiSpiPublication.isEnabled(project)) {
+    apply(plugin = "pulsar.publish-conventions")
+}
+
 dependencies {
     implementation(libs.slog)
     implementation(libs.snakeyaml)

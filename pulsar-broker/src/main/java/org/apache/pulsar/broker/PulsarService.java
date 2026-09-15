@@ -1228,11 +1228,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     }
 
     private synchronized void createMetricsServlet() {
-        this.metricsServlet = new PulsarPrometheusMetricsServlet(
-                this, config.isExposeTopicLevelMetricsInPrometheus(),
-                config.isExposeConsumerLevelMetricsInPrometheus(),
-                config.isExposeProducerLevelMetricsInPrometheus(),
-                config.isSplitTopicAndPartitionLabelInPrometheus());
+        this.metricsServlet = new PulsarPrometheusMetricsServlet(this);
         if (pendingMetricsProviders != null) {
             pendingMetricsProviders.forEach(provider -> metricsServlet.addRawMetricsProvider(provider));
             this.pendingMetricsProviders = null;
@@ -2381,6 +2377,11 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     @VisibleForTesting
     public void setTransactionBufferProvider(TransactionBufferProvider transactionBufferProvider) {
         this.transactionBufferProvider = transactionBufferProvider;
+    }
+
+    @VisibleForTesting
+    public void setTopicPoliciesService(TopicPoliciesService topicPoliciesService) {
+        this.topicPoliciesService = topicPoliciesService;
     }
 
     private CompactionServiceFactory loadCompactionServiceFactory() {

@@ -63,6 +63,11 @@ For the Gradle build infrastructure and how to change build files (convention pl
 catalog, configuration-cache rules), see
 [`ARCHITECTURE.md` → Build infrastructure](ARCHITECTURE.md#build-infrastructure).
 
+### Publishing artifacts
+
+See [Publishing Maven artifacts](build-logic/PUBLISHING.md) for ordinary publishing, the
+API/SPI subset, custom repositories, groups and credentials.
+
 ## Running tests
 
 Most of these per-module "unit tests" are actually **integration-style** — they start a real in-JVM
@@ -104,6 +109,23 @@ flags tests not covered by any CI group.
 Other test-related properties: `-PtestJavaVersion=17` (run tests on a different JDK toolchain),
 `-PtestRetryCount=N`, `-PtestFailFast=true|false`, `-PprotobufVersion=4.31.1` (protobuf v4
 compatibility tests).
+
+Test JVMs default to a `1300m` heap and up to four forks per task. Override these with
+`-PtestMaxHeapSize=1500m` and `-PtestMaxParallelForks=2`; `--max-workers=2` also limits
+concurrent workers across projects. Task-specific limits, such as the integration tests' single
+fork and `1G` heap, take precedence.
+
+Use `-PtestForkEvery=50` to replace a test JVM after 50 detected test classes, limiting state
+retained across classes. The default is `0` (no class limit). Gradle counts candidate classes
+passed to test workers before TestNG group filtering, so classes excluded by groups still count
+toward each batch. `--tests` can narrow candidates, but wildcard filters may still count classes
+that execute no matching tests. Test methods, data-provider rows and factory instances do not
+count separately.
+Tasks using TestNG XML suites and async-profiler keep recycling disabled; task-specific
+isolation, such as SASL's one class per worker, takes precedence.
+
+Test JVMs write heap dumps on heap exhaustion to `/tmp/java_pid<PID>.hprof`, collected by CI's
+existing failure artifacts. Set `-PtestHeapDumpPath=<existing-directory>` to use another directory.
 
 Failed tests are retried once by default (`testRetryCount=1`; `0` when running inside the IDE). When
 running tests locally, prefer **`-PtestRetryCount=0`** to catch failures (including flakiness) early
@@ -207,6 +229,31 @@ container, and runs
 [`PulsarProfilingTest`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/PulsarProfilingTest.java)
 against it with retries off. That test drives `pulsar-perf` against a single broker.
 
+There are two variants of it, sharing everything but the client generation and the topic domain
+through
+[`AbstractPulsarProfilingTest`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/AbstractPulsarProfilingTest.java).
+`PulsarProfilingTest` — the one the task runs by default — drives a v5 scalable (`topic://`) topic
+with the `produce` / `consume` commands, and
+[`PulsarProfilingV4Test`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/PulsarProfilingV4Test.java)
+drives a classic `persistent://` topic with `produce-v4` / `consume-v4`. The pairing is not a free
+choice: the v4 client rejects the `topic://` domain outright, so it is the v4 client that goes with
+the classic topic. To profile that baseline instead:
+
+```bash
+./gradlew :tests:integration:profilingIntegrationTest --tests "*PulsarProfilingV4Test"
+```
+
+Both variants write into `tests/integration/build/pulsar-profiling`. The v4 run's `pulsar-perf`
+output, latency histograms, topic stats and metrics scrapes are suffixed `-v4` so the two runs can be
+told apart; the `.jfr` recordings instead carry the container name, which embeds the test class name.
+The runs are not otherwise like-for-like: scalable topics split their segments under load
+(`scalableTopicAutoScaleEnabled` defaults to true), so the v5 run profiles a topology that reshapes
+itself while the v4 run's stays fixed.
+
+A run sends a fixed 20 million messages, a bit over a minute of load at the throughput the containers
+sustain, and has to be done inside three minutes. Both `pulsar-perf` commands must then have exited
+zero, so a run that stalls or dies fails the test rather than passing as a finished profile.
+
 **Any other integration test can be profiled without being modified**, by pointing the task at it and
 naming the cluster components to attach the profiler to:
 
@@ -307,6 +354,24 @@ locally. (`integrationTest` also accepts `-PtestGroups` / `-PexcludedTestGroups`
 `-PintegrationTestSuiteFile=<suite>.xml` to pick a specific TestNG suite.)
 
 ### Running the full CI pipeline (Personal CI)
+
+The shared `setup-gradle` action automatically selects a smaller memory profile on Linux runners
+with up to 8 GiB of physical RAM: a `2g` Gradle heap, two workers across projects, up to two test
+forks per task, and new test workers after 50 detected classes. Larger runners retain the usual
+settings. The action's `memory-profile` input accepts `auto` (default), `low-memory` (force the
+smaller profile), or `standard` (leave the memory settings unchanged). Command-line `-Dorg.gradle.jvmargs`,
+`--max-workers` and `-Ptest*` options can override the profile settings.
+
+Develocity injection and build-scan publishing are disabled when the workflow repository is
+private or its visibility is unavailable, even if an access key is configured. Public repositories
+can also disable them with the action's `build-scan-publish: 'false'` input. CodeQL runs by default
+for public repositories; private repositories with GitHub Code Security enabled can opt in by
+setting the repository variable `CI_ENABLE_CODEQL=true`.
+
+The CI workflows declare the token permissions needed by their jobs, including reading PR changes.
+This supports repositories whose organization or enterprise enforces read-only default workflow
+permissions. Explicit permissions do not override restrictions on tokens for fork pull requests or
+enterprise policies that prohibit particular actions.
 
 The full test suite is large and slow to run locally. While iterating on a change, run only the
 narrowly-scoped tests relevant to the change (a single test class or package, see above) rather than
