@@ -161,6 +161,9 @@ public class MessageDeduplication {
         boolean shouldBeEnabled = topic.isDeduplicationEnabled();
         synchronized (this) {
             if (status == Status.Recovering) {
+                if (!shouldBeEnabled) {
+                    return statusChangeFuture.handle((__, e) -> null).thenCompose(__ -> checkStatus());
+                }
                 return statusChangeFuture;
             }
             if (status == Status.Removing) {
@@ -191,7 +194,7 @@ public class MessageDeduplication {
                 }, null);
             }
 
-            if (status == Status.Enabled && !shouldBeEnabled) {
+            if ((status == Status.Enabled || status == Status.Failed) && !shouldBeEnabled) {
                 // Disabled deduping
                 CompletableFuture<Void> future = new CompletableFuture<>();
                 status = Status.Removing;
