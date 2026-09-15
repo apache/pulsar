@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.netty.buffer.AdaptiveByteBufAllocator;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -30,12 +31,32 @@ import org.testng.annotations.Test;
 
 public class AllocatorStatsGeneratorTest {
     @Test
+    public void testUnknownAllocatorIsNotCreated() {
+        assertThatThrownBy(() -> AllocatorStatsGenerator.generate("unknown-allocator"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("unknown-allocator");
+    }
+
+    @Test
+    public void testRegisteredCacheAllocatorMetrics() {
+        var allocator = PulsarByteBufAllocator.getOrCreate("ml-cache");
+        ByteBuf buffer = allocator.directBuffer(128);
+        try {
+            var metric = PulsarByteBufAllocator.getAllocatorMetric("ml-cache");
+            AllocatorStats stats = AllocatorStatsGenerator.generate("ml-cache");
+            assertThat(stats.usedDirectMemory).isEqualTo(metric.usedDirectMemory()).isGreaterThanOrEqualTo(128);
+            assertThat(metric).isNotSameAs(PulsarByteBufAllocator.getDefaultAllocatorMetric());
+        } finally {
+            buffer.release();
+        }
+    }
+
+    @Test
     public void testAdaptiveMetrics() {
         AdaptiveByteBufAllocator allocator = new AdaptiveByteBufAllocator(true);
         ByteBuf direct = allocator.directBuffer(128);
         ByteBuf heap = allocator.heapBuffer(128);
         try (MockedStatic<PulsarByteBufAllocator> mocked = Mockito.mockStatic(PulsarByteBufAllocator.class)) {
-            mocked.when(PulsarByteBufAllocator::getDefaultAllocatorMetric).thenReturn(allocator.metric());
+            mocked.when(() -> PulsarByteBufAllocator.getAllocatorMetric("default")).thenReturn(allocator.metric());
             AllocatorStats stats = AllocatorStatsGenerator.generate("default");
             assertThat(stats.usedDirectMemory).isEqualTo(allocator.usedDirectMemory()).isGreaterThanOrEqualTo(128);
             assertThat(stats.usedHeapMemory).isEqualTo(allocator.usedHeapMemory()).isGreaterThanOrEqualTo(128);
