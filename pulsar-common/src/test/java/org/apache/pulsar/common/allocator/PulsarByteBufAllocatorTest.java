@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.allocator;
 
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.DEFAULT_ALLOCATOR_NAME;
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.ML_CACHE_ALLOCATOR_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.netty.buffer.AdaptiveByteBufAllocator;
@@ -89,14 +91,15 @@ public class PulsarByteBufAllocatorTest {
         properties.setProperty("pulsar.allocator.ml-cache.type", "PoOlEd");
         AllocatorRegistry registry = new AllocatorRegistry(properties::getProperty);
         assertThat(registry.getAllocatorMetric("missing")).isNull();
-        assertThat(registry.getOrCreate("default").isDirectBufferPooled()).isTrue();
-        assertThat(registry.getOrCreate("ml-cache").isDirectBufferPooled()).isTrue();
-        assertThat(registry.getAllocatorMetric("default")).isInstanceOf(AdaptiveByteBufAllocator.class);
-        assertThat(registry.getAllocatorMetric("ml-cache")).isInstanceOf(PooledByteBufAllocatorMetric.class);
+        assertThat(registry.getOrCreate(DEFAULT_ALLOCATOR_NAME).isDirectBufferPooled()).isTrue();
+        assertThat(registry.getOrCreate(ML_CACHE_ALLOCATOR_NAME).isDirectBufferPooled()).isTrue();
+        assertThat(registry.getAllocatorMetric(DEFAULT_ALLOCATOR_NAME)).isInstanceOf(AdaptiveByteBufAllocator.class);
+        assertThat(registry.getAllocatorMetric(ML_CACHE_ALLOCATOR_NAME))
+                .isInstanceOf(PooledByteBufAllocatorMetric.class);
         assertThat(registry.getOrCreate("other").isDirectBufferPooled()).isFalse();
-        ByteBufAllocator cache = registry.getOrCreate("ml-cache");
+        ByteBufAllocator cache = registry.getOrCreate(ML_CACHE_ALLOCATOR_NAME);
         properties.setProperty("pulsar.allocator.ml-cache.type", "invalid");
-        assertThat(registry.getOrCreate("ml-cache")).isSameAs(cache);
+        assertThat(registry.getOrCreate(ML_CACHE_ALLOCATOR_NAME)).isSameAs(cache);
         properties.setProperty("pulsar.allocator.broken.type", "invalid");
         assertThatThrownBy(() -> registry.getOrCreate("broken")).isInstanceOf(IllegalArgumentException.class);
         assertThat(registry.getAllocatorMetric("broken")).isNull();
@@ -137,15 +140,15 @@ public class PulsarByteBufAllocatorTest {
                         .isEqualTo(context.getCount() == 1 ? OutOfMemoryPolicy.FallbackToHeap
                                 : OutOfMemoryPolicy.ThrowException))) {
             AllocatorRegistry registry = new AllocatorRegistry(properties::getProperty);
-            registry.getOrCreate("ml-cache");
-            registry.getOrCreate("default");
+            registry.getOrCreate(ML_CACHE_ALLOCATOR_NAME);
+            registry.getOrCreate(DEFAULT_ALLOCATOR_NAME);
             assertThat(mocked.constructed()).hasSize(2);
         }
     }
 
     @Test
     public void testNamedExitOnOutOfMemory() {
-        assertThat(PulsarByteBufAllocator.DEFAULT).isSameAs(PulsarByteBufAllocator.getOrCreate("default"));
+        assertThat(PulsarByteBufAllocator.DEFAULT).isSameAs(PulsarByteBufAllocator.getOrCreate(DEFAULT_ALLOCATOR_NAME));
         Properties properties = new Properties();
         properties.setProperty("pulsar.allocator.type", "adaptive");
         properties.setProperty("pulsar.allocator.exit_on_oom", "true");
@@ -156,10 +159,10 @@ public class PulsarByteBufAllocatorTest {
                      AdaptiveByteBufAllocator.class, (allocator, context) -> Mockito.when(
                              allocator.directBuffer(Mockito.anyInt(), Mockito.anyInt())).thenThrow(failure))) {
             AllocatorRegistry registry = new AllocatorRegistry(properties::getProperty);
-            ByteBufAllocator cache = registry.getOrCreate("ml-cache");
+            ByteBufAllocator cache = registry.getOrCreate(ML_CACHE_ALLOCATOR_NAME);
             assertThatThrownBy(() -> cache.directBuffer(128)).isSameAs(failure);
             shutdown.verifyNoInteractions();
-            ByteBufAllocator defaultAllocator = registry.getOrCreate("default");
+            ByteBufAllocator defaultAllocator = registry.getOrCreate(DEFAULT_ALLOCATOR_NAME);
             assertThatThrownBy(() -> defaultAllocator.directBuffer(128)).isSameAs(failure);
             shutdown.verify(ShutdownUtil::triggerImmediateForcefulShutdown);
             assertThat(mocked.constructed()).hasSize(2);
@@ -174,7 +177,7 @@ public class PulsarByteBufAllocatorTest {
             Properties properties = new Properties();
             properties.setProperty("pulsar.allocator.leak_detection", "disabled");
             properties.setProperty("pulsar.allocator.ml-cache.leak_detection", "disabled");
-            new AllocatorRegistry(properties::getProperty).getOrCreate("ml-cache");
+            new AllocatorRegistry(properties::getProperty).getOrCreate(ML_CACHE_ALLOCATOR_NAME);
             assertThat(ResourceLeakDetector.getLevel()).isEqualTo(ResourceLeakDetector.Level.PARANOID);
         } finally {
             ResourceLeakDetector.setLevel(previous);

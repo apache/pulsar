@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.DEFAULT_ALLOCATOR_NAME;
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.ML_CACHE_ALLOCATOR_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.netty.buffer.AdaptiveByteBufAllocator;
@@ -38,11 +40,11 @@ public class AllocatorStatsGeneratorTest {
 
     @Test
     public void testRegisteredCacheAllocatorMetrics() {
-        var allocator = PulsarByteBufAllocator.getOrCreate("ml-cache");
+        var allocator = PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME);
         ByteBuf buffer = allocator.directBuffer(128);
         try {
-            var metric = PulsarByteBufAllocator.getAllocatorMetric("ml-cache");
-            AllocatorStats stats = AllocatorStatsGenerator.generate("ml-cache");
+            var metric = PulsarByteBufAllocator.getAllocatorMetric(ML_CACHE_ALLOCATOR_NAME);
+            AllocatorStats stats = AllocatorStatsGenerator.generate(ML_CACHE_ALLOCATOR_NAME);
             assertThat(stats.usedDirectMemory).isEqualTo(metric.usedDirectMemory()).isGreaterThanOrEqualTo(128);
             assertThat(metric).isNotSameAs(PulsarByteBufAllocator.getDefaultAllocatorMetric());
         } finally {
@@ -56,8 +58,8 @@ public class AllocatorStatsGeneratorTest {
         ByteBuf direct = allocator.directBuffer(128);
         ByteBuf heap = allocator.heapBuffer(128);
         try (MockedStatic<PulsarByteBufAllocator> mocked = Mockito.mockStatic(PulsarByteBufAllocator.class)) {
-            mocked.when(() -> PulsarByteBufAllocator.getAllocatorMetric("default")).thenReturn(allocator.metric());
-            AllocatorStats stats = AllocatorStatsGenerator.generate("default");
+            mocked.when(() -> PulsarByteBufAllocator.getAllocatorMetric(DEFAULT_ALLOCATOR_NAME)).thenReturn(allocator.metric());
+            AllocatorStats stats = AllocatorStatsGenerator.generate(DEFAULT_ALLOCATOR_NAME);
             assertThat(stats.usedDirectMemory).isEqualTo(allocator.usedDirectMemory()).isGreaterThanOrEqualTo(128);
             assertThat(stats.usedHeapMemory).isEqualTo(allocator.usedHeapMemory()).isGreaterThanOrEqualTo(128);
             assertThat(stats.directArenas).isEmpty();

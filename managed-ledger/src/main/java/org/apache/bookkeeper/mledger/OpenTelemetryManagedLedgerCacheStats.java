@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.ML_CACHE_ALLOCATOR_NAME;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
@@ -160,7 +161,7 @@ public class OpenTelemetryManagedLedgerCacheStats implements AutoCloseable {
         cacheOperationCounter.record(stats.getCacheMissesTotal(), CacheOperationStatus.MISS.attributes);
         cacheOperationBytesCounter.record(stats.getCacheMissesBytesTotal(), CacheOperationStatus.MISS.attributes);
 
-        var allocatorStats = new ByteBufAllocatorStats(PulsarByteBufAllocator.getAllocatorMetric("ml-cache"));
+        var allocatorStats = new ByteBufAllocatorStats(PulsarByteBufAllocator.getAllocatorMetric(ML_CACHE_ALLOCATOR_NAME));
         cachePoolActiveAllocationCounter.record(allocatorStats.activeAllocationsSmall, PoolArenaType.SMALL.attributes);
         cachePoolActiveAllocationCounter.record(allocatorStats.activeAllocationsNormal,
                 PoolArenaType.NORMAL.attributes);

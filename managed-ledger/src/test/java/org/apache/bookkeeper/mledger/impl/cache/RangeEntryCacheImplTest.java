@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.ML_CACHE_ALLOCATOR_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -216,8 +217,8 @@ public class RangeEntryCacheImplTest {
         source.readLong();
         EntryImpl entry = EntryImpl.create(1, 50, source);
         source.release();
-        assertThat(PulsarByteBufAllocator.getOrCreate("ml-cache")).isNotSameAs(PulsarByteBufAllocator.DEFAULT);
-        ByteBuf probe = PulsarByteBufAllocator.getOrCreate("ml-cache").directBuffer(8, 8);
+        assertThat(PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME)).isNotSameAs(PulsarByteBufAllocator.DEFAULT);
+        ByteBuf probe = PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME).directBuffer(8, 8);
         try {
             assertThat(copyingCache.insert(entry)).isTrue();
             assertThat(entry.getDataBuffer().readerIndex()).isEqualTo(8);

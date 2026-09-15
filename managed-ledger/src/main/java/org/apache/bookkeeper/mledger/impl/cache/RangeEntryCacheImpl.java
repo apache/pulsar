@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.ML_CACHE_ALLOCATOR_NAME;
 import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
@@ -56,7 +57,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  * Cache data payload for entries of all ledgers.
  */
 public class RangeEntryCacheImpl implements EntryCache {
-    private static final ByteBufAllocator ALLOCATOR = PulsarByteBufAllocator.getOrCreate("ml-cache");
+    private static final ByteBufAllocator ALLOCATOR = PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME);
 
     /**
      * Overhead per-entry to take into account the envelope.

@@ -54,6 +54,7 @@ import org.apache.pulsar.common.util.ShutdownUtil;
 public class PulsarByteBufAllocator {
 
     public static final String DEFAULT_ALLOCATOR_NAME = "default";
+    public static final String ML_CACHE_ALLOCATOR_NAME = "ml-cache";
     private static final String PROPERTY_PREFIX = "pulsar.allocator.";
 
     public static final String PULSAR_ALLOCATOR_TYPE = "pulsar.allocator.type";
