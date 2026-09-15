@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.client;
 
+import io.netty.buffer.ByteBuf;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import lombok.CustomLog;
+import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -134,6 +136,33 @@ class PulsarMockReadHandle extends LedgerHandle {
         CompletableFuture<LastConfirmedAndEntry> promise = new CompletableFuture<>();
         promise.completeExceptionally(new UnsupportedOperationException("Long poll not implemented"));
         return promise;
+    }
+
+    // Like ReadOnlyLedgerHandle: a read-only view rejects writes instead of reaching the write path
+
+    @Override
+    public long addEntry(byte[] data) throws InterruptedException, BKException {
+        return addEntry(data, 0, data.length);
+    }
+
+    @Override
+    public long addEntry(byte[] data, int offset, int length) throws InterruptedException, BKException {
+        throw BKException.create(BKException.Code.IllegalOpException);
+    }
+
+    @Override
+    public void asyncAddEntry(byte[] data, AddCallback cb, Object ctx) {
+        asyncAddEntry(data, 0, data.length, cb, ctx);
+    }
+
+    @Override
+    public void asyncAddEntry(byte[] data, int offset, int length, AddCallback cb, Object ctx) {
+        cb.addComplete(BKException.Code.IllegalOpException, this, INVALID_ENTRY_ID, ctx);
+    }
+
+    @Override
+    public void asyncAddEntry(ByteBuf data, AddCallback cb, Object ctx) {
+        cb.addComplete(BKException.Code.IllegalOpException, this, INVALID_ENTRY_ID, ctx);
     }
 
     @Override
