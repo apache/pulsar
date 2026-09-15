@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
+package org.apache.pulsar.common.util;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -27,19 +27,26 @@ import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.pulsar.common.util.PulsarExecutors.AutoShutdownExecutorService;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class AutoShutdownExecutorServiceTest {
-    @Test(timeOut = 15000)
-    public void standardTaskMethodsPreserveResultsAndFailures() throws Exception {
-        ExecutorProvider provider = new ExecutorProvider(1, "array-executor-bulk", true);
-        var executor = provider.getExecutor();
+public class PulsarExecutorsTest {
+    @DataProvider
+    public Object[][] autoShutdownModes() {
+        return new Object[][]{{true}, {false}};
+    }
+
+    @Test(dataProvider = "autoShutdownModes", timeOut = 15000)
+    public void standardTaskMethodsPreserveResultsAndFailures(boolean autoShutdownOnGc) throws Exception {
+        var executor = PulsarExecutors.newSingleThreadExecutor(Executors.defaultThreadFactory(), autoShutdownOnGc);
         try {
             var results = executor.<Integer>invokeAll(List.of(() -> 7, () -> 11));
             assertEquals(results.get(0).get().intValue(), 7);
@@ -50,15 +57,14 @@ public class AutoShutdownExecutorServiceTest {
             assertEquals(successful, 13);
             assertEquals(executor.submit(() -> { }, 17).get().intValue(), 17);
         } finally {
-            provider.shutdownNow();
+            executor.shutdownNow();
         }
     }
 
     @Test(timeOut = 15000)
     public void cleanupDrainsAcceptedTasksWithoutInterruptingWorker() throws Exception {
         AutoShutdownExecutorService executor =
-                new AutoShutdownExecutorService(new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS,
-                        new LinkedBlockingQueue<>()));
+                (AutoShutdownExecutorService) PulsarExecutors.newSingleThreadExecutor();
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch finish = new CountDownLatch(1);
         try {
@@ -83,15 +89,18 @@ public class AutoShutdownExecutorServiceTest {
         }
     }
 
-    @Test(timeOut = 15000)
-    public void providerPreservesLazyWorkerCreationAndOrder() throws Exception {
-        ExecutorProvider.ExtendedThreadFactory factory =
-                new ExecutorProvider.ExtendedThreadFactory("array-executor-test", true);
-        ExecutorProvider provider = new ExecutorProvider(1, "array-executor-test", true,
-                (name, daemon) -> factory);
+    @Test(dataProvider = "autoShutdownModes", timeOut = 15000)
+    public void preservesLazyWorkerCreationAndOrder(boolean autoShutdownOnGc) throws Exception {
+        AtomicReference<Thread> worker = new AtomicReference<>();
+        ThreadFactory factory = task -> {
+            Thread thread = Executors.defaultThreadFactory().newThread(task);
+            worker.set(thread);
+            return thread;
+        };
+        var executor = PulsarExecutors.newSingleThreadExecutor(factory, autoShutdownOnGc);
         try {
-            var executor = provider.getExecutor();
-            assertNull(factory.getThread());
+            assertNull(worker.get());
+            assertSame(executor.submit(Thread::currentThread).get(5, TimeUnit.SECONDS), worker.get());
             AtomicInteger sequence = new AtomicInteger();
             List<Future<Integer>> futures = new ArrayList<>();
             for (int i = 0; i < 100; i++) {
@@ -103,14 +112,13 @@ public class AutoShutdownExecutorServiceTest {
             executor.shutdown();
             assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
         } finally {
-            provider.shutdownNow();
+            executor.shutdownNow();
         }
     }
 
-    @Test(timeOut = 15000)
-    public void shutdownNowReturnsPendingTasksAndInterruptsWorker() throws Exception {
-        ExecutorProvider provider = new ExecutorProvider(1, "array-executor-stop", true);
-        var executor = provider.getExecutor();
+    @Test(dataProvider = "autoShutdownModes", timeOut = 15000)
+    public void shutdownNowReturnsPendingTasksAndInterruptsWorker(boolean autoShutdownOnGc) throws Exception {
+        var executor = PulsarExecutors.newSingleThreadExecutor(Executors.defaultThreadFactory(), autoShutdownOnGc);
         CountDownLatch started = new CountDownLatch(1);
         CountDownLatch blocked = new CountDownLatch(1);
         AtomicInteger queuedExecutions = new AtomicInteger();
@@ -135,7 +143,7 @@ public class AutoShutdownExecutorServiceTest {
             assertEquals(queuedExecutions.get(), 0);
         } finally {
             blocked.countDown();
-            provider.shutdownNow();
+            executor.shutdownNow();
         }
     }
 }
