@@ -168,6 +168,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                         .withLedgerId(lastLedgerId)
                         .withDigestType(config.getDigestType())
                         .withPassword(config.getPassword())
+                        .withOrderingKey(name)
                         .execute()
                         .whenComplete((rh, ex) ->
                                 opencb.openComplete(BKException.getExceptionCode(ex), (LedgerHandle) rh, null));
@@ -357,6 +358,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                     .withLedgerId(lastLedgerId)
                     .withDigestType(config.getDigestType())
                     .withPassword(config.getPassword())
+                    .withOrderingKey(name)
                     .execute()
                     .whenComplete((rh, ex) -> executor.execute(() -> {
                         int rc = BKException.getExceptionCode(ex);
