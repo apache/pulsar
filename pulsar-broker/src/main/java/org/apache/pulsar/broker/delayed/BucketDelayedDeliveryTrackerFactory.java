@@ -25,7 +25,11 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -39,6 +43,7 @@ import org.apache.pulsar.broker.delayed.bucket.RecoverDelayedDeliveryTrackerExce
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 
 @CustomLog
 public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
@@ -58,6 +63,8 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
 
     private int delayedDeliveryMaxIndexesPerBucketSnapshotSegment;
 
+    private ExecutorService snapshotBuildExecutor;
+
     @Override
     public void initialize(PulsarService pulsarService) throws Exception {
         ServiceConfiguration config = pulsarService.getConfig();
@@ -73,6 +80,14 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
                 config.getDelayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds();
         this.delayedDeliveryMaxIndexesPerBucketSnapshotSegment =
                 config.getDelayedDeliveryMaxIndexesPerBucketSnapshotSegment();
+        int snapshotBuildThreads = Math.max(1, config.getNumExecutorThreadPoolSize());
+        // Don't queue detached buckets: they retain off-heap indexes and temporarily delay their delivery.
+        // Saturated submissions are rejected so the tracker can immediately fall back to shared memory mode.
+        BlockingQueue<Runnable> workQueue = new SynchronousQueue<>();
+        this.snapshotBuildExecutor = new ThreadPoolExecutor(snapshotBuildThreads, snapshotBuildThreads,
+                0L, TimeUnit.MILLISECONDS, workQueue,
+                new DefaultThreadFactory("pulsar-delayed-delivery-snapshot-builder"),
+                new ThreadPoolExecutor.AbortPolicy());
     }
 
     @Override
@@ -104,7 +119,8 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
         return new BucketDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
                 isDelayedDeliveryDeliverAtTimeStrict, bucketSnapshotStorage, delayedDeliveryMinIndexCountPerBucket,
                 TimeUnit.SECONDS.toMillis(delayedDeliveryMaxTimeStepPerBucketSnapshotSegmentSeconds),
-                delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets);
+                delayedDeliveryMaxIndexesPerBucketSnapshotSegment, delayedDeliveryMaxNumBuckets,
+                snapshotBuildExecutor);
     }
 
     /**
@@ -133,6 +149,9 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
 
     @Override
     public void close() throws Exception {
+        if (snapshotBuildExecutor != null) {
+            GracefulExecutorServicesShutdown.initiate().shutdown(snapshotBuildExecutor).handle().join();
+        }
         if (bucketSnapshotStorage != null) {
             bucketSnapshotStorage.close();
         }
