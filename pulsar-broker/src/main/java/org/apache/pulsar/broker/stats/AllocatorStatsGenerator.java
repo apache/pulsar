@@ -28,7 +28,6 @@ import io.netty.buffer.PooledByteBufAllocatorMetric;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolArenaStats;
@@ -38,12 +37,8 @@ import org.apache.pulsar.common.stats.AllocatorStats.PoolSubpageStats;
 
 public class AllocatorStatsGenerator {
     public static AllocatorStats generate(String allocatorName) {
-        ByteBufAllocatorMetric metric;
-        if ("default".equals(allocatorName)) {
-            metric = PulsarByteBufAllocator.getDefaultAllocatorMetric();
-        } else if ("ml-cache".equals(allocatorName)) {
-            metric = RangeEntryCacheImpl.ALLOCATOR.metric();
-        } else {
+        ByteBufAllocatorMetric metric = PulsarByteBufAllocator.getAllocatorMetric(allocatorName);
+        if (metric == null) {
             throw new IllegalArgumentException("Invalid allocator name : " + allocatorName);
         }
 

@@ -49,6 +49,15 @@
 #   pooled   - Netty PooledByteBufAllocator; prefers direct buffers (default).
 #   unpooled - Netty UnpooledByteBufAllocator; prefers heap buffers.
 #   adaptive - Netty AdaptiveByteBufAllocator; auto-tunes pooling and prefers direct buffers.
+# Named allocators override each setting independently with pulsar.allocator.<id>.<setting>:
+#   pulsar.allocator.default.type  - allocator used by general Pulsar operations
+#   pulsar.allocator.ml-cache.type - separate allocator used for managed-ledger cache copies
+# Supported settings: type, exit_on_oom (false), out_of_memory_policy (FallbackToHeap or ThrowException).
+# Named settings fall back to the unqualified pulsar.allocator.<setting>, then the built-in default.
+# For example: -Dpulsar.allocator.type=pooled -Dpulsar.allocator.ml-cache.type=adaptive
+# Settings are read when an allocator is first created. default overrides do not apply to other IDs.
+# Leak detection is global: use -Dio.netty.leakDetection.level=disabled|simple|advanced|paranoid.
+# pulsar.allocator.leak_detection and per-allocator leak_detection settings are not supported.
 # -Dpulsar.allocator.pooled=true is deprecated; use -Dpulsar.allocator.type=pooled instead.
 # pulsar.allocator.type takes precedence over the legacy pulsar.allocator.pooled property.
 # If pulsar.allocator.type is unset, pulsar.allocator.pooled=true (or unset) selects pooled;

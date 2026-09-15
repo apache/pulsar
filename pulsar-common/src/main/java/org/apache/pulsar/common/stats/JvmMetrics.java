@@ -21,11 +21,6 @@ package org.apache.pulsar.common.stats;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.netty.buffer.ByteBufAllocatorMetric;
-import io.netty.buffer.PoolArenaMetric;
-import io.netty.buffer.PoolChunkListMetric;
-import io.netty.buffer.PoolChunkMetric;
-import io.netty.buffer.PooledByteBufAllocatorMetric;
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.RuntimeMXBean;
@@ -39,6 +34,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.allocator.ByteBufAllocatorStats;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 
@@ -115,31 +111,9 @@ public class JvmMetrics {
 
         this.gcLogger.logMetrics(m);
 
-        long totalAllocated = 0;
-        long totalUsed = 0;
-
-        ByteBufAllocatorMetric allocatorMetric = PulsarByteBufAllocator.getDefaultAllocatorMetric();
-        if (allocatorMetric instanceof PooledByteBufAllocatorMetric pooledMetric) {
-            for (PoolArenaMetric arena : pooledMetric.directArenas()) {
-                this.gcLogger.logMetrics(m);
-                for (PoolChunkListMetric list : arena.chunkLists()) {
-                    for (PoolChunkMetric chunk : list) {
-                        int size = chunk.chunkSize();
-                        int used = size - chunk.freeBytes();
-
-                        totalAllocated += size;
-                        totalUsed += used;
-                    }
-                }
-            }
-        } else {
-            totalAllocated = allocatorMetric.usedDirectMemory();
-            // Report backing memory consumption when chunk occupancy metrics are unavailable.
-            totalUsed = totalAllocated;
-        }
-
-        m.put(this.componentName + "_default_pool_allocated", totalAllocated);
-        m.put(this.componentName + "_default_pool_used", totalUsed);
+        var allocatorStats = new ByteBufAllocatorStats(PulsarByteBufAllocator.getDefaultAllocatorMetric());
+        m.put(this.componentName + "_default_pool_allocated", allocatorStats.totalAllocated);
+        m.put(this.componentName + "_default_pool_used", allocatorStats.totalUsed);
 
         this.gcLogger.logMetrics(m);
 

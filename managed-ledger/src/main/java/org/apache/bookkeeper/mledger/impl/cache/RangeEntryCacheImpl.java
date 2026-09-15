@@ -21,10 +21,11 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.ML_CACHE_ALLOCATOR_NAME;
 import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.ByteBufAllocator;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -49,24 +50,14 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Cache data payload for entries of all ledgers.
  */
 public class RangeEntryCacheImpl implements EntryCache {
-    /**
-     * The Netty allocator used when managedLedgerCacheCopyEntries=true.
-     */
-    public static final PooledByteBufAllocator ALLOCATOR = new PooledByteBufAllocator(true, // preferDirect
-            0, // nHeapArenas,
-            PooledByteBufAllocator.defaultNumDirectArena(), // nDirectArena
-            PooledByteBufAllocator.defaultPageSize(), // pageSize
-            PooledByteBufAllocator.defaultMaxOrder(), // maxOrder
-            PooledByteBufAllocator.defaultSmallCacheSize(), // smallCacheSize
-            PooledByteBufAllocator.defaultNormalCacheSize(), // normalCacheSize,
-            true // Use cache for all threads
-    );
+    private static final ByteBufAllocator ALLOCATOR = PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME);
 
     /**
      * Overhead per-entry to take into account the envelope.

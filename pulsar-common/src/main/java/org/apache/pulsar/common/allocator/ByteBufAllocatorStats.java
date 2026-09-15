@@ -16,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.mledger.impl.cache;
+package org.apache.pulsar.common.allocator;
 
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.ByteBufAllocatorMetric;
+import io.netty.buffer.PooledByteBufAllocatorMetric;
 import lombok.Value;
 
+/** Snapshot of direct allocation statistics; unsupported allocation counts are {@code -1}. */
 @Value
-public class PooledByteBufAllocatorStats {
+public class ByteBufAllocatorStats {
 
     public long activeAllocations;
     public long activeAllocationsSmall;
@@ -32,7 +34,7 @@ public class PooledByteBufAllocatorStats {
     public long totalAllocated;
     public long totalUsed;
 
-    public PooledByteBufAllocatorStats(PooledByteBufAllocator allocator) {
+    public ByteBufAllocatorStats(ByteBufAllocatorMetric metric) {
         long activeAllocations = 0;
         long activeAllocationsSmall = 0;
         long activeAllocationsNormal = 0;
@@ -40,21 +42,30 @@ public class PooledByteBufAllocatorStats {
         long totalAllocated = 0;
         long totalUsed = 0;
 
-        for (var arena : allocator.metric().directArenas()) {
-            activeAllocations += arena.numActiveAllocations();
-            activeAllocationsSmall += arena.numActiveSmallAllocations();
-            activeAllocationsNormal += arena.numActiveNormalAllocations();
-            activeAllocationsHuge += arena.numActiveHugeAllocations();
+        if (metric instanceof PooledByteBufAllocatorMetric pooledMetric) {
+            for (var arena : pooledMetric.directArenas()) {
+                activeAllocations += arena.numActiveAllocations();
+                activeAllocationsSmall += arena.numActiveSmallAllocations();
+                activeAllocationsNormal += arena.numActiveNormalAllocations();
+                activeAllocationsHuge += arena.numActiveHugeAllocations();
 
-            for (var list : arena.chunkLists()) {
-                for (var chunk : list) {
-                    int size = chunk.chunkSize();
-                    int used = size - chunk.freeBytes();
+                for (var list : arena.chunkLists()) {
+                    for (var chunk : list) {
+                        int size = chunk.chunkSize();
+                        int used = size - chunk.freeBytes();
 
-                    totalAllocated += size;
-                    totalUsed += used;
+                        totalAllocated += size;
+                        totalUsed += used;
+                    }
                 }
             }
+        } else if (metric != null) {
+            totalAllocated = metric.usedDirectMemory();
+            totalUsed = totalAllocated;
+            activeAllocations = -1;
+            activeAllocationsSmall = -1;
+            activeAllocationsNormal = -1;
+            activeAllocationsHuge = -1;
         }
 
         this.activeAllocations = activeAllocations;
