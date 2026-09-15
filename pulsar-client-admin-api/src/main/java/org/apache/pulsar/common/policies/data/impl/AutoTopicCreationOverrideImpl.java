@@ -35,6 +35,7 @@ public final class AutoTopicCreationOverrideImpl implements AutoTopicCreationOve
     private boolean allowAutoTopicCreation;
     private String topicType;
     private Integer defaultNumPartitions;
+    private Integer systemTopicDefaultNumPartitions;
 
     public static ValidateResult validateOverride(AutoTopicCreationOverride override) {
         if (override == null) {
@@ -51,6 +52,14 @@ public final class AutoTopicCreationOverrideImpl implements AutoTopicCreationOve
                 }
                 if (override.getDefaultNumPartitions() <= 0) {
                     return ValidateResult.fail("[defaultNumPartitions] cannot be less than 1 for partition type.");
+                }
+                if (override.getSystemTopicDefaultNumPartitions() == null) {
+                    return ValidateResult.fail(
+                            "[systemTopicDefaultNumPartitions] cannot be null when the type is partitioned.");
+                }
+                if (override.getSystemTopicDefaultNumPartitions() <= 0) {
+                    return ValidateResult.fail(
+                            "[systemTopicDefaultNumPartitions] cannot be less than 1 for partition type.");
                 }
             } else if (TopicType.NON_PARTITIONED.toString().equals(override.getTopicType())) {
                 Integer p = override.getDefaultNumPartitions();
@@ -71,6 +80,7 @@ public final class AutoTopicCreationOverrideImpl implements AutoTopicCreationOve
         private boolean allowAutoTopicCreation;
         private String topicType;
         private Integer defaultNumPartitions;
+        private Integer systemTopicDefaultNumPartitions;
 
         public AutoTopicCreationOverrideImplBuilder allowAutoTopicCreation(boolean allowAutoTopicCreation) {
             this.allowAutoTopicCreation = allowAutoTopicCreation;
@@ -87,8 +97,15 @@ public final class AutoTopicCreationOverrideImpl implements AutoTopicCreationOve
             return this;
         }
 
+        public AutoTopicCreationOverrideImplBuilder systemTopicDefaultNumPartitions(
+                Integer systemTopicDefaultNumPartitions) {
+            this.systemTopicDefaultNumPartitions = systemTopicDefaultNumPartitions;
+            return this;
+        }
+
         public AutoTopicCreationOverrideImpl build() {
-            return new AutoTopicCreationOverrideImpl(allowAutoTopicCreation, topicType, defaultNumPartitions);
+            return new AutoTopicCreationOverrideImpl(allowAutoTopicCreation, topicType, defaultNumPartitions,
+                    systemTopicDefaultNumPartitions);
         }
     }
 }
