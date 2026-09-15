@@ -30,12 +30,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 class ReadEntryUtils {
 
     static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
-                                                      long lastEntry) {
-        return readAsync(ml, handle, firstEntry, lastEntry, false, 0);
-    }
-
-    static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
-                                                      long lastEntry, boolean batchReadEnabled, int batchReadMaxSize) {
+                                                      long lastEntry, boolean batchReadEnabled, long maxSizeBytes) {
         if (ml.getOptionalLedgerInfo(handle.getId()).isEmpty()) {
             // The read handle comes from another managed ledger, in this case, we can only compare the entry range with
             // the LAC of that read handle. Specifically, it happens when this method is called by a
@@ -60,15 +55,16 @@ class ReadEntryUtils {
 
         int numberOfEntries = (int) (lastEntry - firstEntry + 1);
 
-        // Use batch read for multiple entries when enabled.
-        if (batchReadEnabled && numberOfEntries > 1 && batchReadMaxSize > 0) {
-            return batchReadUnconfirmed(handle, firstEntry, numberOfEntries, batchReadMaxSize);
+        // Use batch read for multiple entries when enabled. The size limit of the read bounds each batch read
+        // request; without a limit (0), the BookKeeper client caps a request at its netty max frame size.
+        if (batchReadEnabled && numberOfEntries > 1) {
+            return batchReadUnconfirmed(handle, firstEntry, numberOfEntries, Math.max(maxSizeBytes, 0));
         }
         return handle.readUnconfirmedAsync(firstEntry, lastEntry);
     }
 
     private static CompletableFuture<LedgerEntries> batchReadUnconfirmed(
-            ReadHandle handle, long firstEntry, int maxCount, int maxSize) {
+            ReadHandle handle, long firstEntry, int maxCount, long maxSize) {
         CompletableFuture<LedgerEntries> future = new CompletableFuture<>();
         List<LedgerEntry> receivedEntries = new ArrayList<>(maxCount);
         List<LedgerEntries> ledgerEntries = new ArrayList<>(4);
@@ -76,7 +72,7 @@ class ReadEntryUtils {
         return future;
     }
 
-    private static void doBatchRead(ReadHandle handle, long firstEntry, int maxCount, int maxSize,
+    private static void doBatchRead(ReadHandle handle, long firstEntry, int maxCount, long maxSize,
                                     List<LedgerEntry> receivedEntries, List<LedgerEntries> ledgerEntries,
                                     CompletableFuture<LedgerEntries> future) {
         if (future.isDone()) {

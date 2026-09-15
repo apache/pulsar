@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl.cache;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import io.github.merlimat.slog.Logger;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -30,7 +31,6 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
@@ -83,22 +83,23 @@ public class EntryCacheDisabled implements EntryCache {
     }
 
     @Override
-    public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, IntSupplier expectedReadCount,
-                               final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
+    public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+                               IntSupplier expectedReadCount, final AsyncCallbacks.ReadEntriesCallback callback,
+                               Object ctx) {
         if (inflightReadsLimiter == null || inflightReadsLimiter.isDisabled()) {
-            readEntries(lh, firstEntry, lastEntry, callback, ctx);
+            readEntries(lh, firstEntry, lastEntry, maxSizeBytes, callback, ctx);
             return;
         }
 
         long estimatedReadSize = (lastEntry - firstEntry + 1) * getEstimatedEntrySize(lh);
         Optional<InflightReadsLimiter.Handle> optionalHandle = inflightReadsLimiter.acquire(estimatedReadSize, handle ->
-                ml.getExecutor().execute(() -> readEntriesIfAcquiredPermits(lh, firstEntry, lastEntry, callback,
-                        ctx, estimatedReadSize, handle)));
-        optionalHandle.ifPresent(handle -> readEntriesIfAcquiredPermits(lh, firstEntry, lastEntry, callback, ctx,
-                estimatedReadSize, handle));
+                ml.getExecutor().execute(() -> readEntriesIfAcquiredPermits(lh, firstEntry, lastEntry, maxSizeBytes,
+                        callback, ctx, estimatedReadSize, handle)));
+        optionalHandle.ifPresent(handle -> readEntriesIfAcquiredPermits(lh, firstEntry, lastEntry, maxSizeBytes,
+                callback, ctx, estimatedReadSize, handle));
     }
 
-    private void readEntriesIfAcquiredPermits(ReadHandle lh, long firstEntry, long lastEntry,
+    private void readEntriesIfAcquiredPermits(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                                               AsyncCallbacks.ReadEntriesCallback callback, Object ctx,
                                               long estimatedReadSize, InflightReadsLimiter.Handle handle) {
         if (!handle.success()) {
@@ -112,7 +113,7 @@ public class EntryCacheDisabled implements EntryCache {
             callback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException(message), ctx);
             return;
         }
-        readEntries(lh, firstEntry, lastEntry, new AsyncCallbacks.ReadEntriesCallback() {
+        readEntries(lh, firstEntry, lastEntry, maxSizeBytes, new AsyncCallbacks.ReadEntriesCallback() {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object callbackCtx) {
                 if (entries.isEmpty()) {
@@ -139,13 +140,10 @@ public class EntryCacheDisabled implements EntryCache {
         }, ctx);
     }
 
-    private void readEntries(ReadHandle lh, long firstEntry, long lastEntry,
+    private void readEntries(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                              AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        ManagedLedgerConfig config = ml.getConfig();
-        boolean isBatchReadEnabled = config.isBatchReadEnabled();
-        int batchReadMaxBytes = config.getBatchReadMaxSizeBytes();
-        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry, isBatchReadEnabled, batchReadMaxBytes).thenApplyAsync(
-                ledgerEntries -> {
+        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry, ml.getConfig().isBatchReadEnabled(), maxSizeBytes)
+                .thenApplyAsync(ledgerEntries -> {
                     List<Entry> entries = new ArrayList<>();
                     long totalSize = 0;
                     try {
@@ -199,7 +197,7 @@ public class EntryCacheDisabled implements EntryCache {
     @Override
     public void asyncReadEntry(ReadHandle lh, Position position, AsyncCallbacks.ReadEntryCallback callback,
                                Object ctx) {
-        asyncReadEntry(lh, position.getEntryId(), position.getEntryId(), () -> 0,
+        asyncReadEntry(lh, position.getEntryId(), position.getEntryId(), NO_MAX_SIZE_LIMIT, () -> 0,
                 new AsyncCallbacks.ReadEntriesCallback() {
                     @Override
                     public void readEntriesComplete(List<Entry> entries, Object callbackCtx) {

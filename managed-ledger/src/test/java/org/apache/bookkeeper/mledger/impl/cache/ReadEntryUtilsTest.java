@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -83,6 +84,20 @@ public class ReadEntryUtilsTest {
         }
 
         verify(lh, never()).readUnconfirmedAsync(anyLong(), anyLong());
+    }
+
+    @Test
+    public void testNoSizeLimitLetsBookKeeperCapTheBatch() {
+        LedgerEntries entries = createLedgerEntries(1L, 0, 1, 2, 3, 4);
+        when(lh.batchReadUnconfirmedAsync(eq(0L), eq(5), eq(0L)))
+                .thenReturn(CompletableFuture.completedFuture(entries));
+
+        CompletableFuture<LedgerEntries> future =
+                ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, NO_MAX_SIZE_LIMIT);
+
+        assertThat(future).isCompleted();
+        future.getNow(null).close();
+        verify(lh).batchReadUnconfirmedAsync(0L, 5, 0L);
     }
 
     @Test

@@ -2698,25 +2698,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = true;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
-            doc = "Enable batch read API when reading entries from bookkeeper. "
-                    + "Batch read allows reading multiple entries in a single RPC call, "
-                    + "reducing network overhead for sequential reads. "
-                    + "Batch read requires the v2 wire protocol (bookkeeperUseV2WireProtocol), "
-                    + "it is only used for non-striped ledgers where managedLedgerEnsembleSize "
-                    + "equals managedLedgerWriteQuorumSize (not the default 3/2 ensemble settings), "
-                    + "and all the bookies must support the batch read API: reads from bookies "
-                    + "without batch read support fail instead of falling back to regular reads.")
-    private boolean managedLedgerBatchReadEnabled = false;
-
-    @FieldContext(category = CATEGORY_STORAGE_ML,
-            doc = "Max size in bytes of a single BookKeeper batch read request, used when "
-                    + "managedLedgerBatchReadEnabled is enabled. Reads needing more data are split "
-                    + "into multiple batch read requests. A non-positive value disables batch reads. "
-                    + "The BookKeeper client clamps this value to its netty max frame size "
-                    + "(maxMessageSize plus frame padding), so values above that have no effect "
-                    + "unless maxMessageSize is also increased. "
-                    + "The default value is 25 MB (5 * DEFAULT_MAX_MESSAGE_SIZE).")
-    private int managedLedgerBatchReadMaxSizeInBytes = 5 * Commands.DEFAULT_MAX_MESSAGE_SIZE;
+            doc = "Enable the BookKeeper batch read API when reading entries from bookkeeper: a single RPC "
+                    + "fetches multiple entries, reducing network overhead for sequential reads. Each batch "
+                    + "read request is bounded by the size limit of the dispatcher read that triggered it "
+                    + "(e.g. dispatcherMaxReadSizeBytes). Batch read requires the v2 wire protocol "
+                    + "(bookkeeperUseV2WireProtocol) and is only used for non-striped ledgers, where "
+                    + "managedLedgerDefaultEnsembleSize equals managedLedgerDefaultWriteQuorum. The BookKeeper "
+                    + "client falls back to regular reads on a ledger when a bookie does not support batch reads.")
+    private boolean managedLedgerBatchReadEnabled = true;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"

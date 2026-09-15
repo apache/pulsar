@@ -20,9 +20,11 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.EntryCountEstimator.estimateEntryCountByBytesSize;
 import static org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl.BOOKKEEPER_READ_OVERHEAD_PER_ENTRY;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.assertj.core.api.AssertionsForInterfaceTypes.assertThat;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
@@ -5627,7 +5629,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         };
 
         // op readPosition is bigger than maxReadPosition
-        OpReadEntry opReadEntry = OpReadEntry.create(cursor, ledger.lastConfirmedEntry, 10, callback,
+        OpReadEntry opReadEntry = OpReadEntry.create(cursor, ledger.lastConfirmedEntry, 10, NO_MAX_SIZE_LIMIT, callback,
                 null, PositionFactory.create(lastPosition.getLedgerId(), -1), null, true);
         Field field = ManagedCursorImpl.class.getDeclaredField("readPosition");
         field.setAccessible(true);
@@ -5650,7 +5652,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         };
 
         @Cleanup final MockedStatic<OpReadEntry> mockedStaticOpReadEntry = Mockito.mockStatic(OpReadEntry.class);
-        mockedStaticOpReadEntry.when(() -> OpReadEntry.create(any(), any(), anyInt(), any(),
+        mockedStaticOpReadEntry.when(() -> OpReadEntry.create(any(), any(), anyInt(), anyLong(), any(),
                         any(), any(), any(), anyBoolean())).thenAnswer(__ -> createOpReadEntry.get());
 
         final ManagedLedgerConfig ledgerConfig = new ManagedLedgerConfig();
@@ -6932,7 +6934,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             }
         };
 
-        OpReadEntry opReadEntry = OpReadEntry.create(cursorImpl, readPosition, 5, callback, null, null, null, true);
+        OpReadEntry opReadEntry = OpReadEntry.create(cursorImpl, readPosition, 5, NO_MAX_SIZE_LIMIT, callback, null,
+                null, null, true);
 
         spyLedger.asyncReadEntries(opReadEntry);
 

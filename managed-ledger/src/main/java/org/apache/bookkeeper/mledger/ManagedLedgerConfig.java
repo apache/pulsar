@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.common.protocol.Commands.DEFAULT_MAX_MESSAGE_SIZE;
 import io.github.merlimat.slog.Logger;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -91,30 +90,16 @@ public class ManagedLedgerConfig {
     private boolean cacheEvictionByExpectedReadCount = true;
 
     /**
-     * Enable batch read API when reading entries from bookkeeper.
-     * Batch read allows reading multiple entries in a single RPC call, reducing network overhead.
-     * Note: Batch read is only effective when ensembleSize equals writeQuorumSize (non-striped ledgers).
+     * Enable the BookKeeper batch read API when reading entries from bookkeeper: a single RPC fetches multiple
+     * entries, reducing network overhead. Each batch read request is bounded by the size limit of the read that
+     * triggered it. Batch read is only used for non-striped ledgers (ensembleSize equals writeQuorumSize).
      */
     @Setter
-    private boolean batchReadEnabled = false;
+    private boolean batchReadEnabled = true;
 
     /**
-     * Max size in bytes for per-batch read request. A non-positive value disables batch reads.
-     * Reads needing more data are split into multiple batch read requests.
-     * The BookKeeper client clamps this value to its netty max frame size.
-     * Defaults to 25 MB (5 * DEFAULT_MAX_MESSAGE_SIZE).
-     */
-    @Getter
-    @Setter
-    private int batchReadMaxSizeBytes = 5 * DEFAULT_MAX_MESSAGE_SIZE;
-
-    /**
-     * Returns whether batch read is enabled for this managed ledger.
-     * Batch read is only enabled when both conditions are met:
-     * 1. batchReadEnabled is set to true
-     * 2. ensembleSize equals writeQuorumSize (non-striped ledger)
-     *
-     * @return true if batch read should be used
+     * Returns whether batch read is enabled for this managed ledger: {@link #batchReadEnabled} must be set and the
+     * ledgers must not be striped (ensembleSize equals writeQuorumSize).
      */
     public boolean isBatchReadEnabled() {
         return ensembleSize == writeQuorumSize && batchReadEnabled;

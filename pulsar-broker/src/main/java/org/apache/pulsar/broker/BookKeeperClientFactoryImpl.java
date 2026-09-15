@@ -79,7 +79,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
         }
         if (!bkConf.getUseV2WireProtocol() && bkConf.isBatchReadEnabled()) {
-            log.warn().log("Disabling BookKeeper batch reads because they require the v2 wire protocol");
+            log.debug().log("Disabling BookKeeper batch reads because they require the v2 wire protocol");
             bkConf.setBatchReadEnabled(false);
         }
 

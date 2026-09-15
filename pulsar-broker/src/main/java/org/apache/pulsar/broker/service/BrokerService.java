@@ -2576,7 +2576,6 @@ public class BrokerService implements Closeable {
             }
             managedLedgerConfig.setBatchReadEnabled(
                     serviceConfig.isBookkeeperUseV2WireProtocol() && serviceConfig.isManagedLedgerBatchReadEnabled());
-            managedLedgerConfig.setBatchReadMaxSizeBytes(serviceConfig.getManagedLedgerBatchReadMaxSizeInBytes());
             managedLedgerConfig.setMinimumBacklogCursorsForCaching(
                     serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
             managedLedgerConfig.setMinimumBacklogEntriesForCaching(

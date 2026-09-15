@@ -2476,12 +2476,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (config.getReadEntryTimeoutSeconds() > 0) {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry,
                     opReadEntry, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, readCallback, ctx);
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
+                    readCallback, ctx);
             if (readCallback.registerTimeout()) {
                 factory.getReadEntryTimeoutTracker().add(readCallback);
             }
         } else {
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, opReadEntry, ctx);
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
+                    opReadEntry, ctx);
         }
     }
 
