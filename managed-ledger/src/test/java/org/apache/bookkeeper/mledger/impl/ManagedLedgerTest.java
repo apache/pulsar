@@ -1858,6 +1858,90 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testConcurrentPropertyUpdateDoesNotEraseMigrationMarker() throws Exception {
+        String ledgerName = "properties-migration-race-test";
+        String ledgerPath = "/managed-ledgers/" + ledgerName;
+        CompletableFuture<Void> releasePropertyUpdate = new CompletableFuture<>();
+        CountDownLatch propertyUpdateIntercepted = new CountDownLatch(1);
+        AtomicBoolean interceptNextPut = new AtomicBoolean(false);
+
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            if (ledgerPath.equals(invocation.getArgument(0))
+                    && interceptNextPut.compareAndSet(true, false)) {
+                propertyUpdateIntercepted.countDown();
+                CompletableFuture<Stat> realResult = (CompletableFuture<Stat>) invocation.callRealMethod();
+                CompletableFuture<Stat> gatedResult = new CompletableFuture<>();
+                realResult.whenComplete((stat, error) -> releasePropertyUpdate.whenComplete((ignored, releaseError) -> {
+                    if (error != null) {
+                        gatedResult.completeExceptionally(error);
+                    } else {
+                        gatedResult.complete(stat);
+                    }
+                }));
+                return gatedResult;
+            }
+            return invocation.callRealMethod();
+        }).when(spyStore).put(eq(ledgerPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl gatedFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        CompletableFuture<Void> releaseLedgerClose = new CompletableFuture<>();
+        try {
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) gatedFactory.open(ledgerName);
+            ledger.setProperty("existing", "value");
+
+            LedgerHandle currentLedger = ledger.currentLedger;
+            LedgerHandle spyLedgerHandle = spy(currentLedger);
+            CountDownLatch ledgerCloseIntercepted = new CountDownLatch(1);
+            doAnswer(invocation -> {
+                AsyncCallback.CloseCallback callback = invocation.getArgument(0);
+                Object closeContext = invocation.getArgument(1);
+                currentLedger.asyncClose((rc, lh, ctx) -> {
+                    ledgerCloseIntercepted.countDown();
+                    releaseLedgerClose.whenComplete((ignored, error) ->
+                            callback.closeComplete(rc, spyLedgerHandle, closeContext));
+                }, closeContext);
+                return null;
+            }).when(spyLedgerHandle).asyncClose(any(AsyncCallback.CloseCallback.class), any());
+            ledger.currentLedger = spyLedgerHandle;
+
+            CompletableFuture<Void> propertyResult = new CompletableFuture<>();
+            interceptNextPut.set(true);
+            ledger.asyncSetProperty("pending", "value", new AsyncCallbacks.UpdatePropertiesCallback() {
+                @Override
+                public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                    propertyResult.complete(null);
+                }
+
+                @Override
+                public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                    propertyResult.completeExceptionally(exception);
+                }
+            }, null);
+
+            assertTrue(propertyUpdateIntercepted.await(5, TimeUnit.SECONDS));
+            CompletableFuture<Position> migrationResult = ledger.asyncMigrate();
+
+            releasePropertyUpdate.complete(null);
+            propertyResult.get(5, TimeUnit.SECONDS);
+            assertTrue(ledgerCloseIntercepted.await(5, TimeUnit.SECONDS));
+            releaseLedgerClose.complete(null);
+            migrationResult.get(5, TimeUnit.SECONDS);
+
+            ledger.close();
+            ManagedLedger reopenedLedger = gatedFactory.open(ledgerName);
+            assertTrue(reopenedLedger.isMigrated());
+            assertEquals(reopenedLedger.getProperties(),
+                    Map.of("existing", "value", "pending", "value", "migrated", "true"));
+        } finally {
+            releasePropertyUpdate.complete(null);
+            releaseLedgerClose.complete(null);
+            gatedFactory.shutdown();
+        }
+    }
+
+    @Test
     public void testConcurrentAsyncSetProperties() throws Exception {
         final CountDownLatch latch = new CountDownLatch(1000);
         ManagedLedger ledger = factory.open("my_test_ledger",

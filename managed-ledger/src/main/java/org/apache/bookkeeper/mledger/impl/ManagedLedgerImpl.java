@@ -1398,8 +1398,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public CompletableFuture<Position> asyncMigrate() {
-        propertiesMap.put(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString());
         CompletableFuture<Position> result = new CompletableFuture<>();
+        asyncSetProperty(MIGRATION_STATE_PROPERTY, Boolean.TRUE.toString(), new UpdatePropertiesCallback() {
+            @Override
+            public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                terminateForMigration(result);
+            }
+
+            @Override
+            public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null);
+        return result;
+    }
+
+    private void terminateForMigration(CompletableFuture<Position> result) {
         asyncTerminate(new TerminateCallback() {
 
             @Override
@@ -1415,7 +1429,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 result.completeExceptionally(exception);
             }
         }, null);
-        return result;
     }
 
     @Override
