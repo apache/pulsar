@@ -24,8 +24,10 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -42,6 +44,40 @@ public class PulsarExecutorsTest {
     @DataProvider
     public Object[][] autoShutdownModes() {
         return new Object[][]{{true}, {false}};
+    }
+
+    @Test(dataProvider = "autoShutdownModes", timeOut = 15000)
+    public void unregistersOnlyAfterAcceptedTasksFinish(boolean autoShutdownOnGc) throws Exception {
+        Queue<Runnable> passes = new ArrayDeque<>();
+        ExecutorQueueTrimmer group = new ExecutorQueueTrimmer(1000, 1250, passes::add);
+        var executor = PulsarExecutors.newSingleThreadExecutor(
+                Executors.defaultThreadFactory(), autoShutdownOnGc, group);
+        CountDownLatch started = new CountDownLatch(1);
+        CountDownLatch finish = new CountDownLatch(1);
+        try {
+            Future<?> running = executor.submit(() -> {
+                started.countDown();
+                finish.await();
+                return null;
+            });
+            assertTrue(started.await(5, TimeUnit.SECONDS));
+            for (int i = 0; i < 2048; i++) {
+                executor.execute(() -> { });
+            }
+            executor.shutdown();
+            assertEquals(group.registrations().size(), 1);
+            assertEquals(group.retainedCapacity(), 2048L);
+            finish.countDown();
+            running.get(5, TimeUnit.SECONDS);
+            assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+            assertTrue(group.registrations().isEmpty());
+            assertEquals(group.retainedCapacity(), 0L);
+            passes.remove().run();
+            assertTrue(passes.isEmpty());
+        } finally {
+            finish.countDown();
+            executor.shutdownNow();
+        }
     }
 
     @Test(dataProvider = "autoShutdownModes", timeOut = 15000)
