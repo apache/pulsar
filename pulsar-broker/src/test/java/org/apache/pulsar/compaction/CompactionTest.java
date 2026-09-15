@@ -1087,7 +1087,9 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             .getManagedLedger().getName();
         ManagedLedgerInfo info = pulsar.getDefaultManagedLedgerFactory().getManagedLedgerInfo(managedLedgerName);
         assertEquals(info.ledgers.size(), 2);
-        assertTrue(ledgersOpened.isEmpty()); // no ledgers should have been opened
+        // Reloading the topic opens the last ledger to recover its stats and the cursor ledgers to recover the
+        // cursors, through the same open builder. Only count the ledgers opened by the compaction itself.
+        ledgersOpened.clear();
 
         // compact the topic
         compact(topic);
@@ -1119,7 +1121,7 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
 
         // should only have opened the penultimate ledger to get stat
         assertFalse(ledgersOpened.contains(info.ledgers.get(0).ledgerId));
-        assertFalse(ledgersOpened.contains(info.ledgers.get(1).ledgerId));
+        assertTrue(ledgersOpened.contains(info.ledgers.get(1).ledgerId));
         assertFalse(ledgersOpened.contains(info.ledgers.get(2).ledgerId));
         ledgersOpened.clear();
 
