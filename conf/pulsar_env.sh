@@ -44,10 +44,14 @@
 # Configuration file of settings used in global zookeeper server
 # PULSAR_GLOBAL_ZK_CONF=
 
-# ByteBuf allocator: add -Dpulsar.allocator.type=adaptive to PULSAR_EXTRA_OPTS to opt in.
-# Values are case-insensitive: pooled (default), unpooled (heap preferred), adaptive.
+# Select the ByteBuf allocator by adding -Dpulsar.allocator.type=<value> to PULSAR_EXTRA_OPTS.
+# Supported values (case-insensitive):
+#   pooled   - Netty PooledByteBufAllocator; prefers direct buffers (default).
+#   unpooled - Netty UnpooledByteBufAllocator; prefers heap buffers.
+#   adaptive - Netty AdaptiveByteBufAllocator; auto-tunes pooling and prefers direct buffers.
 # pulsar.allocator.type takes precedence over the deprecated pulsar.allocator.pooled property.
-# When type is unset, pooled=true (or unset) selects pooled; other values select unpooled.
+# If pulsar.allocator.type is unset, pulsar.allocator.pooled=true (or unset) selects pooled;
+# other values of pulsar.allocator.pooled select unpooled.
 
 # Extra options to be passed to the jvm
 PULSAR_MEM=${PULSAR_MEM:-"-Xms2g -Xmx2g -XX:MaxDirectMemorySize=4g"}
