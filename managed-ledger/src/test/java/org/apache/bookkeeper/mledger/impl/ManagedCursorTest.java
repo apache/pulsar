@@ -89,7 +89,6 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
 import lombok.CustomLog;
-import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -98,7 +97,9 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockReadHandleInterceptor;
 import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -7301,22 +7302,24 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             ledgerErrors.put(ledgerId, rc);
         }
 
-        public void asyncOpenLedger(final long lId, final DigestType digestType, final byte[] passwd,
-                final OpenCallback cb, final Object ctx) {
-            if (ledgerErrors.containsKey(lId)) {
-                cb.openComplete(ledgerErrors.get(lId), null, ctx);
-            } else {
-                super.asyncOpenLedger(lId, digestType, passwd, cb, ctx);
-            }
-        }
-
-        public void asyncOpenLedger(final long lId, final DigestType digestType, final byte[] passwd,
-                final OpenCallback cb, final Object ctx, boolean keepMetadataUpdate) {
-            if (ledgerErrors.containsKey(lId)) {
-                cb.openComplete(ledgerErrors.get(lId), null, ctx);
-            } else {
-                super.asyncOpenLedger(lId, digestType, passwd, cb, ctx, keepMetadataUpdate);
-            }
+        @Override
+        public OpenBuilder newOpenLedgerOp() {
+            OpenBuilder delegate = super.newOpenLedgerOp();
+            return new OpenBuilderBase() {
+                @Override
+                public CompletableFuture<ReadHandle> execute() {
+                    if (ledgerErrors.containsKey(ledgerId)) {
+                        return CompletableFuture.failedFuture(BKException.create(ledgerErrors.get(ledgerId)));
+                    }
+                    return delegate
+                            .withLedgerId(ledgerId)
+                            .withDigestType(digestType)
+                            .withPassword(password)
+                            .withRecovery(recovery)
+                            .withKeepUpdateMetadata(keepUpdateMetadata)
+                            .execute();
+                }
+            };
         }
     }
 
