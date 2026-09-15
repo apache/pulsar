@@ -700,7 +700,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     .withOrderingKey(ledger.getName())
                     .execute()
                     .whenComplete((rh, ex) ->
-                            openCallback.openComplete(BKException.getExceptionCode(ex), (LedgerHandle) rh, null));
+                            ManagedLedgerImpl.completeOpenCallback(log, ledgerId, openCallback, rh, ex));
         } catch (Throwable t) {
             log.error().attr("ledgerId", ledgerId).exception(t).log("Encountered error on opening cursor ledger");
             openCallback.openComplete(BKException.Code.UnexpectedConditionException, null, null);

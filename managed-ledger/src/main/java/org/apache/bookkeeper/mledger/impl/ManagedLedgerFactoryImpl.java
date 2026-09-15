@@ -1483,16 +1483,16 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                             .attr("cursorLedgerId", cursorLedgerId)
                                             .log("Cursor meta-data read ledger id");
                                     if (cursorLedgerId != -1) {
+                                        var openLog = log.with().attr("managedLedger", managedLedgerName).build();
                                         bk.newOpenLedgerOp()
                                                 .withRecovery(false)
                                                 .withLedgerId(cursorLedgerId)
                                                 .withDigestType(digestType.toApiDigestType())
                                                 .withPassword(password)
-                                                .withLoggerContext(
-                                                        log.with().attr("managedLedger", managedLedgerName).build())
+                                                .withLoggerContext(openLog)
                                                 .execute()
-                                                .whenComplete((rh, ex) -> cursorLedgerOpenCb.openComplete(
-                                                        BKException.getExceptionCode(ex), (LedgerHandle) rh, null));
+                                                .whenComplete((rh, ex) -> ManagedLedgerImpl.completeOpenCallback(
+                                                        openLog, cursorLedgerId, cursorLedgerOpenCb, rh, ex));
                                     } else {
                                         Position lastAckedMessagePosition = PositionFactory.create(
                                                 info.getMarkDeleteLedgerId(), info.getMarkDeleteEntryId());
