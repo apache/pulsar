@@ -160,7 +160,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassic
                     if (ex != null) {
                         synchronized (PersistentStickyKeyDispatcherMultipleConsumersClassic.this) {
                             consumerSet.removeAll(consumer);
-                            consumerList.remove(consumer);
+                            removeConsumerFromList(consumer);
                         }
                         throw FutureUtil.wrapToCompletionException(ex);
                     }
