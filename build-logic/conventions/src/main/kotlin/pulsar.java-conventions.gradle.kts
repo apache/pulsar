@@ -264,7 +264,7 @@ tasks.withType<Test>().configureEach {
         "-XX:+EnableDynamicAgentLoading",
         "-Xshare:off",
         "-Dio.netty.tryReflectionSetAccessible=true",
-        "-Dpulsar.allocator.pooled=true",
+        "-Dpulsar.allocator.type=pooled",
         "-Dpulsar.allocator.exit_on_oom=false",
         "-Dpulsar.allocator.out_of_memory_policy=FallbackToHeap",
         "-Dpulsar.test.preventExit=true",

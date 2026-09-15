@@ -18,14 +18,18 @@
  */
 package org.apache.pulsar.broker.stats;
 
+import com.google.common.annotations.VisibleForTesting;
+import io.netty.buffer.ByteBufAllocatorMetric;
 import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PoolChunkListMetric;
 import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PoolSubpageMetric;
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocatorMetric;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolArenaStats;
 import org.apache.pulsar.common.stats.AllocatorStats.PoolChunkListStats;
@@ -34,30 +38,40 @@ import org.apache.pulsar.common.stats.AllocatorStats.PoolSubpageStats;
 
 public class AllocatorStatsGenerator {
     public static AllocatorStats generate(String allocatorName) {
-        PooledByteBufAllocator allocator;
+        ByteBufAllocatorMetric metric;
         if ("default".equals(allocatorName)) {
-            allocator = PooledByteBufAllocator.DEFAULT;
+            metric = PulsarByteBufAllocator.getDefaultAllocatorMetric();
         } else if ("ml-cache".equals(allocatorName)) {
-            allocator = RangeEntryCacheImpl.ALLOCATOR;
+            metric = RangeEntryCacheImpl.ALLOCATOR.metric();
         } else {
             throw new IllegalArgumentException("Invalid allocator name : " + allocatorName);
         }
 
+        return generate(metric);
+    }
+
+    @VisibleForTesting
+    static AllocatorStats generate(ByteBufAllocatorMetric metric) {
         AllocatorStats stats = new AllocatorStats();
-        stats.directArenas = allocator.metric().directArenas().stream()
+        stats.usedHeapMemory = metric.usedHeapMemory();
+        stats.usedDirectMemory = metric.usedDirectMemory();
+        stats.directArenas = List.of();
+        stats.heapArenas = List.of();
+        if (!(metric instanceof PooledByteBufAllocatorMetric pooledMetric)) {
+            return stats;
+        }
+        stats.directArenas = pooledMetric.directArenas().stream()
             .map(AllocatorStatsGenerator::newPoolArenaStats)
             .collect(Collectors.toList());
-        stats.heapArenas = allocator.metric().heapArenas().stream()
+        stats.heapArenas = pooledMetric.heapArenas().stream()
             .map(AllocatorStatsGenerator::newPoolArenaStats)
             .collect(Collectors.toList());
 
-        stats.numDirectArenas = allocator.metric().numDirectArenas();
-        stats.numHeapArenas = allocator.metric().numHeapArenas();
-        stats.numThreadLocalCaches = allocator.metric().numThreadLocalCaches();
-        stats.usedHeapMemory = allocator.metric().usedHeapMemory();
-        stats.usedDirectMemory = allocator.metric().usedDirectMemory();
-        stats.normalCacheSize = allocator.metric().normalCacheSize();
-        stats.smallCacheSize = allocator.metric().smallCacheSize();
+        stats.numDirectArenas = pooledMetric.numDirectArenas();
+        stats.numHeapArenas = pooledMetric.numHeapArenas();
+        stats.numThreadLocalCaches = pooledMetric.numThreadLocalCaches();
+        stats.normalCacheSize = pooledMetric.normalCacheSize();
+        stats.smallCacheSize = pooledMetric.smallCacheSize();
         return stats;
     }
 
