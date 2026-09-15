@@ -18,8 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -28,6 +31,11 @@ class ReadEntryUtils {
 
     static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
                                                       long lastEntry) {
+        return readAsync(ml, handle, firstEntry, lastEntry, false, 0);
+    }
+
+    static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
+                                                      long lastEntry, boolean batchReadEnabled, int batchReadMaxSize) {
         if (ml.getOptionalLedgerInfo(handle.getId()).isEmpty()) {
             // The read handle comes from another managed ledger, in this case, we can only compare the entry range with
             // the LAC of that read handle. Specifically, it happens when this method is called by a
@@ -49,6 +57,85 @@ class ReadEntryUtils {
             return CompletableFuture.failedFuture(new ManagedLedgerException("LastConfirmedEntry is "
                     + lastConfirmedEntry + " when reading entry " + lastEntry));
         }
+
+        int numberOfEntries = (int) (lastEntry - firstEntry + 1);
+
+        // Use batch read for multiple entries when enabled.
+        if (batchReadEnabled && numberOfEntries > 1 && batchReadMaxSize > 0) {
+            return batchReadUnconfirmed(handle, firstEntry, numberOfEntries, batchReadMaxSize);
+        }
         return handle.readUnconfirmedAsync(firstEntry, lastEntry);
+    }
+
+    private static CompletableFuture<LedgerEntries> batchReadUnconfirmed(
+            ReadHandle handle, long firstEntry, int maxCount, int maxSize) {
+        CompletableFuture<LedgerEntries> future = new CompletableFuture<>();
+        List<LedgerEntry> receivedEntries = new ArrayList<>(maxCount);
+        List<LedgerEntries> ledgerEntries = new ArrayList<>(4);
+        doBatchRead(handle, firstEntry, maxCount, maxSize, receivedEntries, ledgerEntries, future);
+        return future;
+    }
+
+    private static void doBatchRead(ReadHandle handle, long firstEntry, int maxCount, int maxSize,
+                                    List<LedgerEntry> receivedEntries, List<LedgerEntries> ledgerEntries,
+                                    CompletableFuture<LedgerEntries> future) {
+        if (future.isDone()) {
+            ledgerEntries.forEach(LedgerEntries::close);
+            return;
+        }
+        final CompletableFuture<LedgerEntries> readFuture;
+        try {
+            readFuture = handle.batchReadUnconfirmedAsync(
+                    firstEntry, maxCount - receivedEntries.size(), maxSize);
+        } catch (Throwable error) {
+            onBatchReadComplete(handle, maxCount, receivedEntries, ledgerEntries, future, error);
+            return;
+        }
+        readFuture.whenComplete((entries, error) -> {
+            if (error != null) {
+                onBatchReadComplete(handle, maxCount, receivedEntries, ledgerEntries, future, error);
+                return;
+            }
+            ledgerEntries.add(entries);
+            int previousCount = receivedEntries.size();
+            long nextEntryId = firstEntry;
+            for (LedgerEntry entry : entries) {
+                if (entry.getEntryId() != nextEntryId) {
+                    onBatchReadComplete(handle, maxCount, receivedEntries, ledgerEntries, future,
+                            new ManagedLedgerException("Invalid batch read result for ledger " + handle.getId()
+                                    + ": returned non-contiguous entry " + entry.getEntryId()
+                                    + " while expecting " + nextEntryId));
+                    return;
+                }
+                receivedEntries.add(entry);
+                nextEntryId++;
+            }
+            if (receivedEntries.size() >= maxCount || previousCount == receivedEntries.size()) {
+                onBatchReadComplete(handle, maxCount, receivedEntries, ledgerEntries, future, null);
+                return;
+            }
+            doBatchRead(handle, nextEntryId, maxCount, maxSize, receivedEntries, ledgerEntries, future);
+        });
+    }
+
+    private static void onBatchReadComplete(ReadHandle handle, int maxCount,
+                                            List<LedgerEntry> receivedEntries, List<LedgerEntries> ledgerEntries,
+                                            CompletableFuture<LedgerEntries> future, Throwable error) {
+        if (error != null) {
+            ledgerEntries.forEach(LedgerEntries::close);
+            future.completeExceptionally(error);
+            return;
+        }
+        if (receivedEntries.size() != maxCount) {
+            ledgerEntries.forEach(LedgerEntries::close);
+            future.completeExceptionally(new ManagedLedgerException(
+                    "Batch read returned " + receivedEntries.size() + " entries for ledger " + handle.getId()
+                            + " while " + maxCount + " entries were expected"));
+            return;
+        }
+        LedgerEntries result = CompositeLedgerEntriesImpl.create(receivedEntries, ledgerEntries);
+        if (!future.complete(result)) {
+            result.close();
+        }
     }
 }
