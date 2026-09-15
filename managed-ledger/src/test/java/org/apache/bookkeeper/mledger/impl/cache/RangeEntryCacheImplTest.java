@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.ML_CACHE_ALLOCATOR_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -52,6 +53,7 @@ import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryMBeanImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.BeforeMethod;
@@ -206,6 +208,41 @@ public class RangeEntryCacheImplTest {
         assertThat(cached.getMessageMetadata()).isSameAs(suppliedByTheCaller);
         assertThat(cached.getMessageMetadata().getProducerName()).isEqualTo("from-publish-path");
         cached.release();
+    }
+
+    @Test
+    public void testCopiedEntryUsesRegisteredCacheAllocator() {
+        RangeEntryCacheImpl copyingCache = createRangeEntryCache(true);
+        ByteBuf source = Unpooled.buffer(16).writeLong(123L).writeLong(456L);
+        source.readLong();
+        EntryImpl entry = EntryImpl.create(1, 50, source);
+        source.release();
+        assertThat(PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME))
+                .isNotSameAs(PulsarByteBufAllocator.DEFAULT);
+        ByteBuf probe = PulsarByteBufAllocator.getOrCreate(ML_CACHE_ALLOCATOR_NAME).directBuffer(8, 8);
+        try {
+            assertThat(copyingCache.insert(entry)).isTrue();
+            assertThat(entry.getDataBuffer().readerIndex()).isEqualTo(8);
+            ReferenceCountedEntry cached = copyingCache.getEntries().get(PositionFactory.create(1, 50));
+            try {
+                assertThat(cached).isNotNull();
+                ByteBuf copied = cached.getDataBuffer();
+                assertThat(copied.isDirect()).isTrue();
+                assertThat(copied.alloc()).isSameAs(probe.alloc());
+                assertThat(copied.readableBytes()).isEqualTo(8);
+                assertThat(copied.getLong(copied.readerIndex())).isEqualTo(456L);
+                entry.getDataBuffer().setLong(8, 789L);
+                assertThat(copied.getLong(copied.readerIndex())).isEqualTo(456L);
+            } finally {
+                if (cached != null) {
+                    cached.release();
+                }
+            }
+        } finally {
+            probe.release();
+            entry.release();
+            copyingCache.clear();
+        }
     }
 
     @Test
