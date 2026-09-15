@@ -19,8 +19,12 @@
 package org.apache.pulsar.common.allocator;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.buffer.AdaptiveByteBufAllocator;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufAllocatorMetric;
+import io.netty.buffer.ByteBufAllocatorMetricProvider;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -38,11 +42,20 @@ import org.apache.pulsar.common.util.ShutdownUtil;
 
 /**
  * Holder of a ByteBuf allocator.
+ *
+ * <p>Set {@code pulsar.allocator.type} to {@code pooled}, {@code unpooled}, or {@code adaptive}
+ * (case-insensitive). When unset, the deprecated {@code pulsar.allocator.pooled} property is honored,
+ * defaulting to pooled allocation. All types retain the configured OOM and leak detection policies.
  */
 @CustomLog
 @UtilityClass
 public class PulsarByteBufAllocator {
 
+    public static final String PULSAR_ALLOCATOR_TYPE = "pulsar.allocator.type";
+    /**
+     * @deprecated Use {@link #PULSAR_ALLOCATOR_TYPE}. Ignored when the new property is set.
+     */
+    @Deprecated
     public static final String PULSAR_ALLOCATOR_POOLED = "pulsar.allocator.pooled";
     public static final String PULSAR_ALLOCATOR_EXIT_ON_OOM = "pulsar.allocator.exit_on_oom";
     public static final String PULSAR_ALLOCATOR_LEAK_DETECTION = "pulsar.allocator.leak_detection";
@@ -63,24 +76,64 @@ public class PulsarByteBufAllocator {
         LISTENERS.add(listener);
     }
 
+    private static final ByteBufAllocator NETTY_ALLOCATOR =
+            createNettyAllocator(resolveAllocatorType(System::getProperty));
+
     static {
-        DEFAULT = createByteBufAllocator();
+        DEFAULT = createByteBufAllocator(System::getProperty, NETTY_ALLOCATOR);
+    }
+
+    /**
+     * Returns the metrics of the Netty allocator backing {@link #DEFAULT}.
+     * Adaptive metrics report reserved memory; arena and live-buffer usage details are unavailable.
+     */
+    public static ByteBufAllocatorMetric getDefaultAllocatorMetric() {
+        return ((ByteBufAllocatorMetricProvider) NETTY_ALLOCATOR).metric();
+    }
+
+    @VisibleForTesting
+    static AllocatorType resolveAllocatorType(Function<String, String> propertyResolver) {
+        String type = propertyResolver.apply(PULSAR_ALLOCATOR_TYPE);
+        if (type != null) {
+            return AllocatorType.fromString(type);
+        }
+        String pooled = propertyResolver.apply(PULSAR_ALLOCATOR_POOLED);
+        return pooled == null || "true".equalsIgnoreCase(pooled) ? AllocatorType.POOLED : AllocatorType.UNPOOLED;
+    }
+
+    private static ByteBufAllocator createNettyAllocator(AllocatorType type) {
+        return switch (type) {
+            case POOLED -> PooledByteBufAllocator.DEFAULT;
+            case UNPOOLED -> UnpooledByteBufAllocator.DEFAULT;
+            case ADAPTIVE -> new AdaptiveByteBufAllocator(true);
+        };
     }
 
     @VisibleForTesting
     static ByteBufAllocator createByteBufAllocator() {
-        final boolean isPooled = "true".equalsIgnoreCase(System.getProperty(PULSAR_ALLOCATOR_POOLED, "true"));
-        final boolean isExitOnOutOfMemory = "true".equalsIgnoreCase(
-                System.getProperty(PULSAR_ALLOCATOR_EXIT_ON_OOM, "false"));
-        final OutOfMemoryPolicy outOfMemoryPolicy = OutOfMemoryPolicy.valueOf(
-                System.getProperty(PULSAR_ALLOCATOR_OUT_OF_MEMORY_POLICY, "FallbackToHeap"));
+        return createByteBufAllocator(System::getProperty);
+    }
 
-        final LeakDetectionPolicy leakDetectionPolicy = resolveLeakDetectionPolicyWithHighestLevel(System::getProperty);
-        log.debug().attr("isPooled", isPooled).attr("exitOnOOM", isExitOnOutOfMemory).log("Allocator configuration");
+    @VisibleForTesting
+    static ByteBufAllocator createByteBufAllocator(Function<String, String> propertyResolver) {
+        return createByteBufAllocator(propertyResolver, createNettyAllocator(resolveAllocatorType(propertyResolver)));
+    }
+
+    private static ByteBufAllocator createByteBufAllocator(Function<String, String> propertyResolver,
+                                                          ByteBufAllocator nettyAllocator) {
+        final AllocatorType allocatorType = resolveAllocatorType(propertyResolver);
+        final boolean isExitOnOutOfMemory = "true".equalsIgnoreCase(
+                propertyResolver.apply(PULSAR_ALLOCATOR_EXIT_ON_OOM));
+        final OutOfMemoryPolicy outOfMemoryPolicy = OutOfMemoryPolicy.valueOf(
+                Objects.requireNonNullElse(propertyResolver.apply(PULSAR_ALLOCATOR_OUT_OF_MEMORY_POLICY),
+                        "FallbackToHeap"));
+
+        final LeakDetectionPolicy leakDetectionPolicy = resolveLeakDetectionPolicyWithHighestLevel(propertyResolver);
+        log.debug().attr("type", allocatorType).attr("exitOnOOM", isExitOnOutOfMemory).log("Allocator configuration");
 
         ByteBufAllocatorBuilder builder = ByteBufAllocatorBuilder.create()
                 .leakDetectionPolicy(leakDetectionPolicy)
-                .pooledAllocator(PooledByteBufAllocator.DEFAULT)
+                .pooledAllocator(nettyAllocator)
                 .outOfMemoryListener(oomException -> {
                     // First notify all listeners
                     LISTENERS.forEach(c -> {
@@ -97,7 +150,7 @@ public class PulsarByteBufAllocator {
                     }
                 });
 
-        if (isPooled) {
+        if (allocatorType != AllocatorType.UNPOOLED) {
             builder.poolingPolicy(PoolingPolicy.PooledDirect);
         } else {
             builder.poolingPolicy(PoolingPolicy.UnpooledHeap);
