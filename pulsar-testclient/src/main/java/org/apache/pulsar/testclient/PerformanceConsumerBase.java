@@ -297,6 +297,10 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
     protected void prepareRun() {
     }
 
+    /** Release resources shared by clients after all consumers have stopped. */
+    protected void closeResources() {
+    }
+
     /** Hook for extra lines in the periodic report. */
     protected void reportIntervalExtras(List<ConsumerT> consumers) throws Exception {
     }
@@ -479,6 +483,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
         // Stop driving the consumers before closing the client so receives do not race with close.
         stopConsuming();
         clients.forEach(this::closeClient);
+        closeResources();
         PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
     }
 

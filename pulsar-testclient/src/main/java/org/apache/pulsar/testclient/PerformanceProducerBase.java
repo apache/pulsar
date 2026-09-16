@@ -282,6 +282,14 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
         return this.numProducers;
     }
 
+    /** Prepare resources used by the run before worker clients are created. */
+    protected void prepareRun() {
+    }
+
+    /** Release resources shared by clients after all workers have stopped. */
+    protected void closeResources() {
+    }
+
     /**
      * Create one producer on {@code topic}. {@code producerId} identifies the test thread and is
      * only used to derive a unique producer name from {@code --producer-name}.
@@ -346,6 +354,8 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info().attr("config", w.writeValueAsString(this)).log("Starting Pulsar perf producer with config");
+
+        prepareRun();
 
         // Read payload data from file if needed
         final byte[] payloadBytes = new byte[msgSize];
@@ -511,6 +521,7 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
         }
 
         PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
+        closeResources();
     }
 
     private void executorShutdownNow(ExecutorService executor) {

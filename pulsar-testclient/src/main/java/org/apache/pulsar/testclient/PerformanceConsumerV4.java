@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -69,6 +70,8 @@ public class PerformanceConsumerV4
             converter = PositiveNumberParameterConvert.class)
     public int isolatedClients;
 
+    private PulsarClientSharedResources sharedResources;
+
     /** Receiver-queue depth samples, only allocated when {@code --auto-scaled-receiver-queue-size} is on. */
     private Recorder qRecorder;
     private Histogram qHistogram;
@@ -96,6 +99,24 @@ public class PerformanceConsumerV4
 
     @Override
     protected void prepareRun() {
+        sharedResources = PulsarClientSharedResources.builder()
+                .resourceTypes(PulsarClientSharedResources.SharedResource.EventLoopGroup,
+                        PulsarClientSharedResources.SharedResource.ListenerExecutor,
+                        PulsarClientSharedResources.SharedResource.InternalExecutor,
+                        PulsarClientSharedResources.SharedResource.ScheduledExecutor,
+                        PulsarClientSharedResources.SharedResource.LookupExecutor,
+                        PulsarClientSharedResources.SharedResource.Timer,
+                        PulsarClientSharedResources.SharedResource.DnsResolver)
+                .configureEventLoop(config -> config.numberOfThreads(ioThreads).enableBusyWait(enableBusyWait))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.ListenerExecutor,
+                        config -> config.numberOfThreads(listenerThreads))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.InternalExecutor,
+                        config -> config.numberOfThreads(ioThreads))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.ScheduledExecutor,
+                        config -> config.numberOfThreads(ioThreads))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.LookupExecutor,
+                        config -> config.numberOfThreads(1))
+                .build();
         if (this.autoScaledReceiverQueueSize) {
             // The queue-depth histogram is bounded by the receiver queue size, and the digit count
             // is what dominates an HdrHistogram's footprint, so it uses the same precision as the
@@ -119,7 +140,23 @@ public class PerformanceConsumerV4
     protected PulsarClient createClient() throws PulsarClientException {
         ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(this)
                 .enableTransaction(this.isEnableTransaction);
+        if (sharedResources != null) {
+            clientBuilder.sharedResources(sharedResources);
+        }
         return clientBuilder.build();
+    }
+
+    @Override
+    protected void closeResources() {
+        if (sharedResources != null) {
+            try {
+                sharedResources.close();
+            } catch (PulsarClientException e) {
+                log.warn().exception(e).log("Failed to close shared client resources");
+            } finally {
+                sharedResources = null;
+            }
+        }
     }
 
     @Override

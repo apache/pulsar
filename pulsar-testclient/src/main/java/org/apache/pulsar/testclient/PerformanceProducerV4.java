@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import picocli.CommandLine.Command;
@@ -59,6 +60,8 @@ public class PerformanceProducerV4
             converter = PositiveNumberParameterConvert.class)
     public int isolatedClients;
 
+    private PulsarClientSharedResources sharedResources;
+
     public PerformanceProducerV4() {
         super("produce-v4");
     }
@@ -85,7 +88,45 @@ public class PerformanceProducerV4
     protected PulsarClient createClient() throws PulsarClientException {
         ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(this)
                 .enableTransaction(this.isEnableTransaction);
+        if (sharedResources != null) {
+            clientBuilder.sharedResources(sharedResources);
+        }
         return clientBuilder.build();
+    }
+
+    @Override
+    protected void prepareRun() {
+        sharedResources = PulsarClientSharedResources.builder()
+                .resourceTypes(PulsarClientSharedResources.SharedResource.EventLoopGroup,
+                        PulsarClientSharedResources.SharedResource.ListenerExecutor,
+                        PulsarClientSharedResources.SharedResource.InternalExecutor,
+                        PulsarClientSharedResources.SharedResource.ScheduledExecutor,
+                        PulsarClientSharedResources.SharedResource.LookupExecutor,
+                        PulsarClientSharedResources.SharedResource.Timer,
+                        PulsarClientSharedResources.SharedResource.DnsResolver)
+                .configureEventLoop(config -> config.numberOfThreads(ioThreads).enableBusyWait(enableBusyWait))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.ListenerExecutor,
+                        config -> config.numberOfThreads(listenerThreads))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.InternalExecutor,
+                        config -> config.numberOfThreads(ioThreads))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.ScheduledExecutor,
+                        config -> config.numberOfThreads(ioThreads))
+                .configureThreadPool(PulsarClientSharedResources.SharedResource.LookupExecutor,
+                        config -> config.numberOfThreads(1))
+                .build();
+    }
+
+    @Override
+    protected void closeResources() {
+        if (sharedResources != null) {
+            try {
+                sharedResources.close();
+            } catch (PulsarClientException e) {
+                log.warn().exception(e).log("Failed to close shared client resources");
+            } finally {
+                sharedResources = null;
+            }
+        }
     }
 
     @Override
