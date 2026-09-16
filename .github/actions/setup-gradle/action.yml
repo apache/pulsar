@@ -60,6 +60,8 @@ runs:
         develocity-url: https://develocity.apache.org
         # expected format is develocity.apache.org:<access-key>
         develocity-access-key: ${{ inputs.develocity-access-key }}
+        develocity-plugin-version: '4.5.1'
+        develocity-ccud-plugin-version: '2.8.0'
         build-scan-publish: ${{ inputs.build-scan-publish == 'true' && github.event.repository.visibility == 'public' }}
         cache-read-only: ${{ inputs.cache-read-only }}
         add-job-summary: ${{ inputs.add-job-summary }}
@@ -71,6 +73,8 @@ runs:
         build-scan-publish: ${{ inputs.build-scan-publish == 'true' && github.event.repository.visibility == 'public' }}
         build-scan-terms-of-use-url: 'https://gradle.com/terms-of-service'
         build-scan-terms-of-use-agree: 'yes'
+        develocity-plugin-version: '4.5.1'
+        develocity-ccud-plugin-version: '2.8.0'
         cache-read-only: ${{ inputs.cache-read-only }}
         add-job-summary: ${{ inputs.add-job-summary }}
 
