@@ -88,6 +88,20 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private boolean cacheEvictionByExpectedReadCount = true;
+
+    /**
+     * Enable the BookKeeper batch read API when reading entries from bookkeeper: a single RPC fetches multiple
+     * entries, reducing network overhead. It is only used when the BookKeeper client supports it (v2 wire protocol
+     * with batch reads enabled), which the managed ledger checks when it is opened; the client uses regular reads for
+     * striped ledgers (ensembleSize differs from writeQuorumSize) and for bookies without batch read support. Each
+     * batch read request is bounded by the size limit of the read that triggered it and by the client's max frame
+     * size, a read needing more data being split into sequential requests. Entries read this way are copied when
+     * inserted in the entry cache, since their buffers are slices of a shared response frame.
+     */
+    @Getter
+    @Setter
+    private boolean batchReadEnabled = true;
+
     /**
      * Whether the entries of this managed ledger are Pulsar messages, so that an entry's payload begins with the
      * headers that parse into a {@code MessageMetadata}.

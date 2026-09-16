@@ -287,6 +287,17 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
         return readHandle.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
     }
 
+    @Override
+    public CompletableFuture<LedgerEntries> batchReadAsync(long startEntry, int maxCount, long maxSize) {
+        return readAsync(startEntry, PulsarMockReadHandle.batchReadLastEntry(entries, startEntry, maxCount, maxSize));
+    }
+
+    @Override
+    public CompletableFuture<LedgerEntries> batchReadUnconfirmedAsync(long startEntry, int maxCount, long maxSize) {
+        return readUnconfirmedAsync(startEntry,
+                PulsarMockReadHandle.batchReadLastEntry(entries, startEntry, maxCount, maxSize));
+    }
+
     private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd,
                                                    Map<String, byte[]> customMetadata) {
         List<BookieId> ensemble = new ArrayList<>(PulsarMockBookKeeper.getMockEnsemble());

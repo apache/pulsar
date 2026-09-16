@@ -959,12 +959,20 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         int numOfEntriesToRead = applyMaxSizeCap(numberOfEntriesToRead, maxSizeBytes);
+        readEntriesWithSkip(numOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition, skipCondition);
+    }
 
+    /**
+     * Reads {@code numOfEntriesToRead} entries, a count that the caller already capped with {@code maxSizeBytes}, the
+     * size limit the read carries along to bound its storage requests.
+     */
+    private void readEntriesWithSkip(int numOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                     Object ctx, Position maxPosition, Predicate<Position> skipCondition) {
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         // Skip deleted entries.
         skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
-        OpReadEntry op =
-            OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition, skipCondition, true);
+        OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, maxSizeBytes, callback, ctx,
+                maxPosition, skipCondition, true);
         ledger.asyncReadEntries(op);
     }
 
@@ -1116,12 +1124,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (hasMoreEntries() && maxPosition.compareTo(readPosition) >= 0) {
             // If we have available entries, we can read them immediately
             log.debug("Read entries immediately");
-            asyncReadEntriesWithSkip(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx,
-                    maxPosition, skipCondition);
+            readEntriesWithSkip(numberOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition, skipCondition);
         } else {
             // Skip deleted entries.
             skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
-            OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
+            OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, maxSizeBytes, callback,
                     ctx, maxPosition, skipCondition, true);
             int opReadId = op.id;
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {

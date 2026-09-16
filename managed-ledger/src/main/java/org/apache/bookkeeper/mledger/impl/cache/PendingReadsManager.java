@@ -329,8 +329,8 @@ public class PendingReadsManager {
     }
 
 
-    void readEntries(ReadHandle lh, long firstEntry, long lastEntry, IntSupplier expectedReadCount,
-                     final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
+    void readEntries(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+                     IntSupplier expectedReadCount, final AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
         final PendingReadKey key = new PendingReadKey(firstEntry, lastEntry);
 
         ConcurrentMap<PendingReadKey, PendingRead> pendingReadsForLedger =
@@ -351,9 +351,10 @@ public class PendingReadsManager {
                     continue;
                 }
                 CompletableFuture<List<Entry>> readFromLeftFuture =
-                        recursiveReadMissingEntriesAsync(lh, expectedReadCount, findBestCandidateOutcome.missingOnLeft);
+                        recursiveReadMissingEntriesAsync(lh, maxSizeBytes, expectedReadCount,
+                                findBestCandidateOutcome.missingOnLeft);
                 CompletableFuture<List<Entry>> readFromRightFuture =
-                        recursiveReadMissingEntriesAsync(lh, expectedReadCount,
+                        recursiveReadMissingEntriesAsync(lh, maxSizeBytes, expectedReadCount,
                                 findBestCandidateOutcome.missingOnRight);
                 readFromLeftFuture
                         .thenCombine(readFromMidFuture, (left, mid) -> {
@@ -381,21 +382,22 @@ public class PendingReadsManager {
 
             if (createdByThisThread.get()) {
                 CompletableFuture<List<Entry>> readResult = rangeEntryCache.readFromStorage(lh, firstEntry,
-                        lastEntry, expectedReadCount);
+                        lastEntry, maxSizeBytes, expectedReadCount);
                 pendingRead.attach(readResult);
             }
         }
     }
 
     private CompletableFuture<List<Entry>> recursiveReadMissingEntriesAsync(ReadHandle lh,
+                                                                            long maxSizeBytes,
                                                                             IntSupplier expectedReadCount,
                                                                             PendingReadKey missingKey) {
         CompletableFuture<List<Entry>> future;
         if (missingKey != null) {
             future = new CompletableFuture<>();
             ReadEntriesCallback callback = new ReadEntriesCallback(future);
-            rangeEntryCache.asyncReadEntry0(lh, missingKey.startEntry, missingKey.endEntry, expectedReadCount, callback,
-                    null, false);
+            rangeEntryCache.asyncReadEntry0(lh, missingKey.startEntry, missingKey.endEntry, maxSizeBytes,
+                    expectedReadCount, callback, null, false);
         } else {
             future = CompletableFuture.completedFuture(Collections.emptyList());
         }

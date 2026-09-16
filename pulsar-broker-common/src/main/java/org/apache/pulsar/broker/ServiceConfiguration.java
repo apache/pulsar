@@ -2697,6 +2697,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = true;
 
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
+            doc = "Enable the BookKeeper batch read API when reading entries from bookkeeper: a single RPC "
+                    + "fetches multiple entries, reducing network overhead for sequential reads. Batch read "
+                    + "requires the v2 wire protocol (bookkeeperUseV2WireProtocol) and BookKeeper's own batch "
+                    + "read flag (bookkeeper_batchReadEnabled), checked on the BookKeeper client when a topic is "
+                    + "loaded: regular reads are used otherwise, as well as for striped ledgers (where "
+                    + "managedLedgerDefaultEnsembleSize differs from managedLedgerDefaultWriteQuorum) and for "
+                    + "bookies without batch read support. Each batch read request is bounded by the size limit "
+                    + "of the dispatcher read that triggered it (e.g. dispatcherMaxReadSizeBytes) and by the "
+                    + "BookKeeper client's max frame size (maxMessageSize plus padding); a read needing more "
+                    + "data is split into sequential batch read requests. Entries read this way are copied when "
+                    + "inserted in the entry cache.")
+    private boolean managedLedgerBatchReadEnabled = true;
+
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
                     + " and thus should be set as inactive.\n"
