@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.ML_CACHE_ALLOCATOR_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -82,7 +83,7 @@ public class RangeEntryCacheImplTest {
         ManagedLedgerMBeanImpl mockManagedLedgerMBean = mock(ManagedLedgerMBeanImpl.class);
         when(mockManagedLedger.getMbean()).thenReturn(mockManagedLedgerMBean);
         when(mockManagedLedger.getName()).thenReturn("testManagedLedger");
-        managedLedgerConfig = new ManagedLedgerConfig();
+        managedLedgerConfig = rawEntryConfig();
         when(mockManagedLedger.getConfig()).thenReturn(managedLedgerConfig);
         mockRangeCacheRemovalQueue = mock(RangeCacheRemovalQueue.class);
         when(mockRangeCacheRemovalQueue.addEntry(any())).thenReturn(true);
@@ -173,6 +174,7 @@ public class RangeEntryCacheImplTest {
 
     @Test
     public void testInsertParsesMessageMetadata() {
+        managedLedgerConfig.setPulsarMessageEntries(true);
         ByteBuf headersAndPayload = serializeMessage("producer");
         EntryImpl entry = EntryImpl.create(1, 50, headersAndPayload);
         headersAndPayload.release();
@@ -193,6 +195,7 @@ public class RangeEntryCacheImplTest {
 
     @Test
     public void testInsertReusesTheMessageMetadataTheEntryAlreadyCarries() {
+        managedLedgerConfig.setPulsarMessageEntries(true);
         ByteBuf headersAndPayload = serializeMessage("in-buffer");
         EntryImpl entry = EntryImpl.create(1, 50, headersAndPayload);
         headersAndPayload.release();
@@ -251,6 +254,7 @@ public class RangeEntryCacheImplTest {
 
     @Test
     public void testCachedEntryMetadataStaysReadableWhenEntriesAreCopied() {
+        managedLedgerConfig.setPulsarMessageEntries(true);
         RangeEntryCacheImpl copyingCache = createRangeEntryCache(true);
         ByteBuf headersAndPayload = serializeMessage("producer");
         EntryImpl entry = EntryImpl.create(1, 50, headersAndPayload);
@@ -274,6 +278,7 @@ public class RangeEntryCacheImplTest {
 
     @Test
     public void testReadFromStorageDoesNotShareSourceMetadataWithTheCopiedCacheEntry() {
+        managedLedgerConfig.setPulsarMessageEntries(true);
         RangeEntryCacheImpl copyingCache = createRangeEntryCache(true);
         when(mockManagedLedger.getExecutor()).thenReturn(mock(ExecutorService.class));
         // without ledger info, ReadEntryUtils reads through ReadHandle#readAsync
@@ -545,7 +550,7 @@ public class RangeEntryCacheImplTest {
         ManagedLedgerMBeanImpl mockManagedLedgerMBean = mock(ManagedLedgerMBeanImpl.class);
         when(mockManagedLedger.getMbean()).thenReturn(mockManagedLedgerMBean);
         when(mockManagedLedger.getName()).thenReturn("testManagedLedger");
-        when(mockManagedLedger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(mockManagedLedger.getConfig()).thenReturn(rawEntryConfig());
         when(mockManagedLedger.getExecutor()).thenReturn(mock(java.util.concurrent.ExecutorService.class));
         when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
         RangeCacheRemovalQueue mockRangeCacheRemovalQueue = mock(RangeCacheRemovalQueue.class);
