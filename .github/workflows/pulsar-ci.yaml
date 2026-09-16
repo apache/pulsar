@@ -194,6 +194,9 @@ jobs:
           ./gradlew assemble rat spotlessCheck checkstyleMain checkstyleTest
           --no-configuration-cache
 
+      - name: Test Netty leak report collection
+        run: python3 pulsar-build/tests/test_netty_leak_reports.py
+
       - name: Check binary licenses
         run: ./gradlew checkBinaryLicense --no-configuration-cache
 

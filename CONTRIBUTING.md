@@ -139,7 +139,8 @@ to include test names in leak reports and write `netty_leak_*.txt` files. Set
 
 `NETTY_LEAK_DETECTION=report` (the default) reports leaks without failing tests.
 In CI, `NETTY_LEAK_DETECTION=fail_on_leak` makes the leak-reporting step fail the job when dumps
-are found. For local tests, use `-PtestExitJvmOnLeak=true` to fail the test JVM on a detected leak:
+are found. Unit, integration, and system test jobs collect dumps from both the test JVMs and
+Pulsar Docker containers, including reports generated during container shutdown. For local tests, use `-PtestExitJvmOnLeak=true` to fail the test JVM on a detected leak:
 
 ```bash
 NETTY_LEAK_DUMP_DIR=/tmp/pulsar-netty-leaks ./gradlew :pulsar-client-original:test \
