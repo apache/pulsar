@@ -228,17 +228,21 @@ public class PendingReadsManager {
             this.ledgerCache = ledgerCache;
         }
 
-        public synchronized void attach(CompletableFuture<List<Entry>> handle) {
-            if (state != PendingReadState.INITIALISED) {
-                // this shouldn't ever happen. this is here to prevent misuse in future changes
-                throw new IllegalStateException("Unexpected state " + state + " for PendingRead for key " + key);
+        public void attach(CompletableFuture<List<Entry>> handle) {
+            synchronized (this) {
+                if (state != PendingReadState.INITIALISED) {
+                    // this shouldn't ever happen. this is here to prevent misuse in future changes
+                    throw new IllegalStateException("Unexpected state " + state + " for PendingRead for key " + key);
+                }
+                state = PendingReadState.ATTACHED;
             }
-            state = PendingReadState.ATTACHED;
+            // Registered outside the monitor: an already completed handle runs this callback inline, and the
+            // listeners must never be invoked while holding the lock that addListener takes from other threads
             handle.whenComplete((entriesToReturn, error) -> {
                 // execute in the completing thread and return a copy of the listeners
                 List<ReadEntriesCallbackWithContext> callbacks = completeAndRemoveFromCache();
-                // execute the callbacks in the managed ledger executor
-                rangeEntryCache.getManagedLedger().getExecutor().execute(() -> {
+                // execute the callbacks in the managed ledger executor, inline when the read completed on its thread
+                rangeEntryCache.getManagedLedger().getExecutor().executeOrRun(() -> {
                     if (error != null) {
                         readEntriesFailed(callbacks, error);
                     } else {
