@@ -1933,6 +1933,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 + " position when the ledger was concurrently modified"
                                 + " (the ledger may be closed by auto-replication)");
                 ledgerClosed(currentLedger, lh.getLastAddConfirmed());
+                // Close the abandoned write handle, or it leaks with its periodic explicit-LAC flush task.
+                currentLedger.asyncClose((closeRc, closedLedger, closeCtx) -> {
+                    if (closeRc != Code.OK) {
+                        log.debug().attr("ledgerId", currentLedger.getId())
+                                .attr("status", BKException.getMessage(closeRc))
+                                .log("Error when closing ledger after it was concurrently modified");
+                    }
+                }, null);
             } else {
                 log.error().attr("ledgerId", currentLedger.getId())
                     .attr("lastAddConfirmed", currentLedger.getLastAddConfirmed())
