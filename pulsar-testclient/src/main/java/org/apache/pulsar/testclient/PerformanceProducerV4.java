@@ -80,8 +80,17 @@ public class PerformanceProducerV4
     }
 
     @Override
-    protected int producersPerWorker() {
-        return isolatedClients > 0 ? 1 : super.producersPerWorker();
+    protected int producersForWorker(int workerIndex) {
+        if (isolatedClients <= 0) {
+            return super.producersForWorker(workerIndex);
+        }
+        int base = numProducers / isolatedClients;
+        return base + (workerIndex < numProducers % isolatedClients ? 1 : 0);
+    }
+
+    @Override
+    protected int producerIdForWorker(int workerIndex, int producerIndex) {
+        return isolatedClients > 0 ? workerIndex + producerIndex * isolatedClients : workerIndex;
     }
 
     @Override

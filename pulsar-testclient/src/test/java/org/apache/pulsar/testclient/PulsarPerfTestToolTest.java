@@ -119,6 +119,11 @@ public class PulsarPerfTestToolTest {
         PerformanceConsumerV4 consumer = new PerformanceConsumerV4();
         new CommandLine(consumer).parseArgs("--isolated-clients", "3", "topic");
         assertThat(consumer.isolatedClients).isEqualTo(3);
+
+        PerformanceProducerV4 distributed = new PerformanceProducerV4();
+        new CommandLine(distributed).parseArgs("--isolated-clients", "2", "--num-producers", "5", "topic");
+        assertThat(distributed.producersForWorker(0)).isEqualTo(3);
+        assertThat(distributed.producersForWorker(1)).isEqualTo(2);
     }
 
     /**

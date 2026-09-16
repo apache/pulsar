@@ -282,6 +282,16 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
         return this.numProducers;
     }
 
+    /** Number of producers for a specific worker. */
+    protected int producersForWorker(int workerIndex) {
+        return producersPerWorker();
+    }
+
+    /** Producer identifier for a producer assigned to a worker. */
+    protected int producerIdForWorker(int workerIndex, int producerIndex) {
+        return workerIndex;
+    }
+
     /** Prepare resources used by the run before worker clients are created. */
     protected void prepareRun() {
     }
@@ -630,11 +640,12 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
             for (int i = 0; i < this.numTopics; i++) {
 
                 String topic = this.topics.get(i);
-                log.info().attr("adding", producersPerWorker()).attr("topic", topic)
+                int producersForWorker = producersForWorker(producerId);
+                log.info().attr("adding", producersForWorker).attr("topic", topic)
                         .log("Adding publishers on topic");
 
-                for (int j = 0; j < producersPerWorker(); j++) {
-                    futures.add(createProducerAsync(client, producerId, topic));
+                for (int j = 0; j < producersForWorker; j++) {
+                    futures.add(createProducerAsync(client, producerIdForWorker(producerId, j), topic));
                 }
             }
 
