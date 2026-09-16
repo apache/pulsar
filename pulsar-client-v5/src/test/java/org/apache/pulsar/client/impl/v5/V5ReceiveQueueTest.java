@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -285,6 +286,57 @@ public class V5ReceiveQueueTest {
         // close() must release parked producers so their receive loops observe the close.
         q.close();
         paused.get(5, TimeUnit.SECONDS);
+    }
+
+    @Test
+    public void blockingReceiveDoesNotDependOnTheExecutor() throws Exception {
+        // Stall the executor: nothing posted to it can run until the gate opens.
+        CountDownLatch gate = new CountDownLatch(1);
+        executor.execute(() -> {
+            try {
+                gate.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        try {
+            Message<Integer> m1 = msg(1);
+            Message<Integer> m2 = msg(2);
+            queue.offer(m1);
+            queue.offer(m2);
+            // The blocking receives pull straight from the buffer on the caller thread — no
+            // round trip through the (stalled) executor per message.
+            assertSame(queue.take(), m1);
+            assertSame(queue.poll(Duration.ofSeconds(5)), m2);
+            assertNull(queue.poll(Duration.ofMillis(50)));
+        } finally {
+            gate.countDown();
+        }
+    }
+
+    @Test
+    public void fastPathHoldsUpToTheHighWatermark() throws Exception {
+        // receiverQueueSize=4 -> the fast path (shared completed future, decided on the caller
+        // thread) must apply while the buffer is below 4, not just below the low watermark (2).
+        V5ReceiveQueue<Integer> q = new V5ReceiveQueue<>(executor, timer, 4);
+        CountDownLatch gate = new CountDownLatch(1);
+        executor.execute(() -> {
+            try {
+                gate.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        try {
+            for (int i = 1; i <= 3; i++) {
+                assertTrue(q.offer(msg(i)).isDone(), "offer " + i + " should take the fast path");
+            }
+            // The 4th fills the buffer: the grant is decided on the executor, so it is still
+            // pending while the executor is stalled.
+            assertTrue(!q.offer(msg(4)).isDone());
+        } finally {
+            gate.countDown();
+        }
     }
 
     private static Message<Integer> msg(int id) {
