@@ -3416,6 +3416,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         MockLedgerHandle ledgerHandle = mock(MockLedgerHandle.class);
         final String data = "data";
         doNothing().when(ledgerHandle).asyncAddEntry(data.getBytes(), null, null);
+        doAnswer(invocation -> {
+            org.apache.bookkeeper.client.AsyncCallback.CloseCallback cb = invocation.getArgument(0);
+            cb.closeComplete(BKException.Code.OK, ledgerHandle, invocation.getArgument(1));
+            return null;
+        }).when(ledgerHandle).asyncClose(any(), any());
         AtomicBoolean addSuccess = new AtomicBoolean();
 
         setFieldValue(ManagedLedgerImpl.class, ledger, "currentLedger", ledgerHandle);

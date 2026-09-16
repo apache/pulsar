@@ -37,6 +37,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -592,6 +593,11 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         // even when there are multiple (here, 2) add entry failed ops
         assertEquals(ledger.getLedgersInfoAsList().size(), 1);
 
+        // The failed ledger's handle must be closed, not just abandoned (or it leaks).
+        PulsarMockLedgerHandle mockFirstLedger = (PulsarMockLedgerHandle) firstLedger;
+        Awaitility.await().untilAsserted(() -> assertTrue(mockFirstLedger.getAsyncCloseCount().get() > 0,
+                "the handle of the ledger that failed the write must be closed"));
+
         ledger.addEntry("entry-3".getBytes());
 
         List<Entry> entries = cursor.readEntries(10);
@@ -599,6 +605,56 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         assertEquals(new String(entries.get(0).getData()), "entry-1");
         assertEquals(new String(entries.get(1).getData()), "entry-2");
         assertEquals(new String(entries.get(2).getData()), "entry-3");
+        entries.forEach(Entry::release);
+    }
+
+    @Test
+    public void writeErrorClosesFailedLedgerHandle() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("writeErrorClosesFailedLedgerHandle");
+        ManagedCursor cursor = ledger.openCursor("c1");
+        ledger.addEntry("entry-1".getBytes());
+        LedgerHandle failedLedger = ledger.currentLedger;
+
+        // Fail the next add-entry; the write is retried on a new ledger and the failed handle must be closed.
+        bkc.addEntryFailAfter(0, BKException.Code.BookieHandleNotAvailableException);
+
+        ledger.addEntry("entry-2".getBytes());
+
+        PulsarMockLedgerHandle mockFailedLedger = (PulsarMockLedgerHandle) failedLedger;
+        Awaitility.await().untilAsserted(() -> assertEquals(1, mockFailedLedger.getAsyncCloseCount().get(),
+                "the handle of the ledger that failed the write must be closed exactly once"));
+
+        // The managed ledger recovered on a new ledger and writes continue to work.
+        assertTrue(ledger.currentLedger.getId() != failedLedger.getId());
+        ledger.addEntry("entry-3".getBytes());
+        List<Entry> entries = cursor.readEntries(10);
+        assertEquals(entries.size(), 3);
+        entries.forEach(Entry::release);
+    }
+
+    @Test
+    public void concurrentlyModifiedLedgerHandleIsClosedAndWritesRecover() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
+                .open("concurrentlyModifiedLedgerHandleIsClosedAndWritesRecover");
+        ManagedCursor cursor = ledger.openCursor("c1");
+        ledger.addEntry("entry-1".getBytes());
+        LedgerHandle fencedLedger = ledger.currentLedger;
+
+        // Simulate the ledger being concurrently modified by another client: the write fails with
+        // LedgerFencedException, the ML switches to a new ledger and the abandoned handle must be closed.
+        bkc.addEntryFailAfter(0, BKException.Code.LedgerFencedException);
+
+        ledger.addEntry("entry-2".getBytes());
+
+        PulsarMockLedgerHandle mockFencedLedger = (PulsarMockLedgerHandle) fencedLedger;
+        Awaitility.await().untilAsserted(() -> assertTrue(mockFencedLedger.getAsyncCloseCount().get() > 0,
+                "the handle of the concurrently modified ledger must be closed"));
+
+        // The managed ledger recovered on a new ledger and writes continue to work.
+        assertTrue(ledger.currentLedger.getId() != fencedLedger.getId());
+        ledger.addEntry("entry-3".getBytes());
+        List<Entry> entries = cursor.readEntries(10);
+        assertEquals(entries.size(), 3);
         entries.forEach(Entry::release);
     }
 
