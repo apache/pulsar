@@ -84,7 +84,7 @@ final class PulsarProfilingConfig {
                                     Map.entry("isForceGCAllowWhenNoSpace", "true"),
                                     Map.entry("diskUsageLwmThreshold", "0.75"),
                                     Map.entry("diskCheckInterval", "60"))),
-                    new Load(20_000_000, "200M", "200M", Integer.MAX_VALUE, 128, 20_000, 10),
+                    new Load(20_000_000, "200M", "200M", Integer.MAX_VALUE, 128, 20_000, 10, 0, 0),
                     new Output("build/pulsar-profiling"));
         }
     }
@@ -95,7 +95,8 @@ final class PulsarProfilingConfig {
     }
 
     record Load(long numberOfMessages, String produceMemoryLimit, String consumeMemoryLimit,
-                int produceRate, int messageSize, int maxOutstanding, int statsIntervalSeconds) {
+                int produceRate, int messageSize, int maxOutstanding, int statsIntervalSeconds,
+                int isolatedProducers, int isolatedConsumers) {
     }
 
     record Output(String directory) {

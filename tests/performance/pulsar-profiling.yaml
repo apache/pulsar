@@ -38,5 +38,8 @@ load:
   messageSize: 128
   maxOutstanding: 20000
   statsIntervalSeconds: 10
+  # Used only by produce-v4/consume-v4. A value of 500 creates up to 500 clients.
+  isolatedProducers: 0
+  isolatedConsumers: 0
 output:
   directory: build/pulsar-profiling
