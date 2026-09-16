@@ -79,10 +79,14 @@ class ReadEntryUtils {
             ledgerEntries.forEach(LedgerEntries::close);
             return;
         }
-        final CompletableFuture<LedgerEntries> readFuture;
+        int remainingCount = maxCount - receivedEntries.size();
+        CompletableFuture<LedgerEntries> readFuture;
         try {
-            readFuture = handle.batchReadUnconfirmedAsync(
-                    firstEntry, maxCount - receivedEntries.size(), maxSize);
+            readFuture = handle.batchReadUnconfirmedAsync(firstEntry, remainingCount, maxSize);
+        } catch (UnsupportedOperationException e) {
+            // The BookKeeper client cannot issue batch reads (v3 wire protocol): read the remaining range with a
+            // regular read, whose result is handled below like a batch read result
+            readFuture = handle.readUnconfirmedAsync(firstEntry, firstEntry + remainingCount - 1);
         } catch (Throwable error) {
             onBatchReadComplete(handle, maxCount, receivedEntries, ledgerEntries, future, error);
             return;

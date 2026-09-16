@@ -74,6 +74,8 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
     public ManagedLedgerBkTest() {
         super(2);
+        // Use the v2 wire protocol so that reads exercise the BookKeeper batch read API against real bookies
+        baseClientConf.setUseV2WireProtocol(true);
     }
 
     @Test

@@ -159,14 +159,66 @@ public class ReadEntryUtilsTest {
     @Test
     public void testSynchronousBatchReadFailureIsReturnedInFuture() {
         when(lh.batchReadUnconfirmedAsync(eq(0L), anyInt(), anyLong()))
-                .thenThrow(new UnsupportedOperationException("Batch read is not supported"));
+                .thenThrow(new IllegalStateException("Batch read failed"));
 
         CompletableFuture<LedgerEntries> future =
                 ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, 1024);
 
         assertThat(future).isCompletedExceptionally();
         assertThatThrownBy(future::get)
-                .hasCauseInstanceOf(UnsupportedOperationException.class);
+                .hasCauseInstanceOf(IllegalStateException.class);
+        verify(lh, never()).readUnconfirmedAsync(anyLong(), anyLong());
+    }
+
+    @Test
+    public void testUnsupportedBatchReadFallsBackToRegularRead() {
+        // A v3 wire protocol client rejects batch reads synchronously
+        when(lh.batchReadUnconfirmedAsync(eq(0L), anyInt(), anyLong()))
+                .thenThrow(new UnsupportedOperationException("Unsupported batch read for v3 protocol"));
+        LedgerEntries entries = createLedgerEntries(1L, 0, 1, 2, 3, 4);
+        when(lh.readUnconfirmedAsync(0L, 4L)).thenReturn(CompletableFuture.completedFuture(entries));
+
+        CompletableFuture<LedgerEntries> future =
+                ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, 1024);
+
+        assertThat(future).isCompleted();
+        try (LedgerEntries result = future.getNow(null)) {
+            List<Long> entryIds = new ArrayList<>();
+            for (LedgerEntry e : result) {
+                entryIds.add(e.getEntryId());
+            }
+            assertThat(entryIds).containsExactly(0L, 1L, 2L, 3L, 4L);
+        }
+        verify(lh).readUnconfirmedAsync(0L, 4L);
+    }
+
+    @Test
+    public void testUnsupportedBatchReadAfterPartialReadFallsBackForRemainingRange() {
+        AtomicInteger firstCloseCount = new AtomicInteger();
+        AtomicInteger secondCloseCount = new AtomicInteger();
+        LedgerEntries firstBatch = createLedgerEntries(firstCloseCount, 1L, 0, 1);
+        LedgerEntries remaining = createLedgerEntries(secondCloseCount, 1L, 2, 3, 4);
+        when(lh.batchReadUnconfirmedAsync(0L, 5, 1024L))
+                .thenReturn(CompletableFuture.completedFuture(firstBatch));
+        when(lh.batchReadUnconfirmedAsync(2L, 3, 1024L))
+                .thenThrow(new UnsupportedOperationException("Unsupported batch read for v3 protocol"));
+        when(lh.readUnconfirmedAsync(2L, 4L)).thenReturn(CompletableFuture.completedFuture(remaining));
+
+        CompletableFuture<LedgerEntries> future =
+                ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, 1024);
+
+        assertThat(future).isCompleted();
+        LedgerEntries result = future.getNow(null);
+        List<Long> entryIds = new ArrayList<>();
+        for (LedgerEntry e : result) {
+            entryIds.add(e.getEntryId());
+        }
+        assertThat(entryIds).containsExactly(0L, 1L, 2L, 3L, 4L);
+        assertThat(firstCloseCount).hasValue(0);
+        assertThat(secondCloseCount).hasValue(0);
+        result.close();
+        assertThat(firstCloseCount).hasValue(1);
+        assertThat(secondCloseCount).hasValue(1);
     }
 
     @Test
@@ -176,7 +228,7 @@ public class ReadEntryUtilsTest {
         when(lh.batchReadUnconfirmedAsync(0L, 5, 1024L))
                 .thenReturn(CompletableFuture.completedFuture(firstBatch));
         when(lh.batchReadUnconfirmedAsync(2L, 3, 1024L))
-                .thenThrow(new UnsupportedOperationException("Batch read is not supported"));
+                .thenThrow(new IllegalStateException("Batch read failed"));
 
         CompletableFuture<LedgerEntries> future =
                 ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, 1024);

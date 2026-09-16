@@ -2703,8 +2703,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "read request is bounded by the size limit of the dispatcher read that triggered it "
                     + "(e.g. dispatcherMaxReadSizeBytes). Batch read requires the v2 wire protocol "
                     + "(bookkeeperUseV2WireProtocol) and is only used for non-striped ledgers, where "
-                    + "managedLedgerDefaultEnsembleSize equals managedLedgerDefaultWriteQuorum. The BookKeeper "
-                    + "client falls back to regular reads on a ledger when a bookie does not support batch reads.")
+                    + "managedLedgerDefaultEnsembleSize equals managedLedgerDefaultWriteQuorum; otherwise, or "
+                    + "when a bookie does not support batch reads, reads fall back to regular reads.")
     private boolean managedLedgerBatchReadEnabled = true;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,

@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -249,6 +250,8 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
                 doAnswer((invocation2) -> entries.iterator()).when(ledgerEntries).iterator();
                 return CompletableFuture.completedFuture(ledgerEntries);
             }).when(lh).readUnconfirmedAsync(anyLong(), anyLong());
+        // Batch reads use the ReadHandle default, which delegates to the stubbed readUnconfirmedAsync
+        when(lh.batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong())).thenCallRealMethod();
 
         return lh;
     }

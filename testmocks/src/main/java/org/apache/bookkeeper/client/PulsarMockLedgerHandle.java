@@ -289,12 +289,14 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> batchReadAsync(long startEntry, int maxCount, long maxSize) {
-        return readHandle.batchReadAsync(startEntry, maxCount, maxSize);
+        return readAsync(startEntry, PulsarMockReadHandle.batchReadLastEntry(entries, startEntry, maxCount, maxSize,
+                getLastAddConfirmed()));
     }
 
     @Override
     public CompletableFuture<LedgerEntries> batchReadUnconfirmedAsync(long startEntry, int maxCount, long maxSize) {
-        return readHandle.batchReadUnconfirmedAsync(startEntry, maxCount, maxSize);
+        return readUnconfirmedAsync(startEntry, PulsarMockReadHandle.batchReadLastEntry(entries, startEntry, maxCount,
+                maxSize, getLastAddConfirmed()));
     }
 
     private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd,
