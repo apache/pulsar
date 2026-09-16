@@ -59,6 +59,13 @@ public class PulsarTransactionCoordinatorMetadataSetup {
         }, description = "Num transaction coordinators will assigned in cluster")
         private int numTransactionCoordinators = 16;
 
+        @Option(names = {"-sbn",
+                "--system-namespace-bundle-number"},
+                description = "The bundle numbers for the system namespace (pulsar/system) if it does not exist yet,"
+                        + " default is " + PulsarClusterMetadataSetup.SYSTEM_NAMESPACE_BUNDLE_NUMBER,
+                required = false)
+        private int numberOfSystemNamespaceBundles;
+
         @Option(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
 
@@ -109,7 +116,9 @@ public class PulsarTransactionCoordinatorMetadataSetup {
 
             // Create system namespace
             PulsarClusterMetadataSetup.createNamespaceIfAbsent(pulsarResources, NamespaceName.SYSTEM_NAMESPACE,
-                    arguments.cluster);
+                    arguments.cluster, arguments.numberOfSystemNamespaceBundles > 0
+                            ? arguments.numberOfSystemNamespaceBundles
+                            : PulsarClusterMetadataSetup.SYSTEM_NAMESPACE_BUNDLE_NUMBER);
 
             // Create transaction coordinator assign partitioned topic
             PulsarClusterMetadataSetup.createPartitionedTopic(configStore,

@@ -134,11 +134,12 @@ public class ClusterMetadataSetupTest {
 
     @DataProvider(name = "bundleNumberForDefaultNamespace")
     public static Object[][] bundleNumberForDefaultNamespace() {
-        return new Object[][] { { 0 }, {  128 } };
+        // { --default-namespace-bundle-number, --system-namespace-bundle-number }, 0 = option not given
+        return new Object[][] { { 0, 0 }, { 128, 0 }, { 0, 8 }, { 128, 48 } };
     }
 
     @Test(dataProvider = "bundleNumberForDefaultNamespace")
-    public void testSetBundleNumberForDefaultNamespace(int bundleNumber) throws Exception {
+    public void testSetBundleNumberForDefaultNamespace(int bundleNumber, int systemBundleNumber) throws Exception {
         String[] args = {
                 "--cluster", "testSetDefaultNamespaceBundleNumber-cluster",
                 "--zookeeper", "127.0.0.1:" + localZkS.getZookeeperPort(),
@@ -147,7 +148,8 @@ public class ClusterMetadataSetupTest {
                 "--web-service-url-tls", "https://127.0.0.1:8443",
                 "--broker-service-url", "pulsar://127.0.0.1:6650",
                 "--broker-service-url-tls", "pulsar+ssl://127.0.0.1:6651",
-                "--default-namespace-bundle-number", String.valueOf(bundleNumber)
+                "--default-namespace-bundle-number", String.valueOf(bundleNumber),
+                "--system-namespace-bundle-number", String.valueOf(systemBundleNumber)
         };
         PulsarClusterMetadataSetup.main(args);
         try (ZooKeeper zk = ZooKeeperClient.newBuilder()
@@ -161,7 +163,19 @@ public class ClusterMetadataSetupTest {
             if (bundleNumber > 0) {
                 assertEquals(policies.bundles.getNumBundles(), bundleNumber);
             } else {
-                assertEquals(policies.bundles.getNumBundles(), 16);
+                assertEquals(policies.bundles.getNumBundles(), PulsarClusterMetadataSetup.DEFAULT_BUNDLE_NUMBER);
+            }
+            // the system namespace has its own bundle number and does not follow the default namespace one
+            Policies systemPolicies =
+                    ObjectMapperFactory.getMapper().reader().readValue(
+                            zk.getData("/admin/policies/pulsar/system", false, null),
+                            Policies.class);
+            assertNotNull(systemPolicies);
+            if (systemBundleNumber > 0) {
+                assertEquals(systemPolicies.bundles.getNumBundles(), systemBundleNumber);
+            } else {
+                assertEquals(systemPolicies.bundles.getNumBundles(),
+                        PulsarClusterMetadataSetup.SYSTEM_NAMESPACE_BUNDLE_NUMBER);
             }
         }
     }

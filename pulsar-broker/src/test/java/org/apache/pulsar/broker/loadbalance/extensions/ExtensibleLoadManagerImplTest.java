@@ -1085,6 +1085,15 @@ public class ExtensibleLoadManagerImplTest extends ExtensibleLoadManagerImplBase
     }
 
     @Test(timeOut = 30 * 1000)
+    public void testSystemNamespaceBundleNumber() throws Exception {
+        // the channel creates pulsar/system on start-up (the test setup does not); it must follow
+        // defaultNumberOfSystemNamespaceBundles, not defaultNumberOfNamespaceBundles (1 in the test configuration)
+        assertEquals(pulsar1.getConfiguration().getDefaultNumberOfNamespaceBundles(), 1);
+        assertEquals(admin.namespaces().getBundles(NamespaceName.SYSTEM_NAMESPACE.toString()).getNumBundles(),
+                pulsar1.getConfiguration().getDefaultNumberOfSystemNamespaceBundles());
+    }
+
+    @Test(timeOut = 30 * 1000)
     public void testCheckOwnershipPresentWithSystemNamespace() throws Exception {
         NamespaceBundle namespaceBundle =
                 getBundleAsync(pulsar1, TopicName.get(NamespaceName.SYSTEM_NAMESPACE + "/test")).get();

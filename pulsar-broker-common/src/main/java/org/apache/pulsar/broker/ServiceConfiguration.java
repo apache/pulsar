@@ -69,6 +69,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
      * within a Pulsar cluster.
      */
     public static final String DEFAULT_INTERNAL_LISTENER_NAME = "internal";
+    public static final int DEFAULT_NUMBER_OF_NAMESPACE_BUNDLES = 32;
+    public static final int DEFAULT_NUMBER_OF_SYSTEM_NAMESPACE_BUNDLES = 64;
 
     @Category
     private static final String CATEGORY_SERVER = "Server";
@@ -1025,9 +1027,29 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = "When a namespace is created without specifying the number of bundle, this"
-            + " value will be used as the default")
-    private int defaultNumberOfNamespaceBundles = 4;
+        doc = "When a namespace is created without specifying the number of bundles, this"
+            + " value will be used as the default.\n\n"
+            + "Bundles are the unit of assignment of topics to brokers, so a namespace needs more bundles"
+            + " than there are brokers for its topics to spread across the cluster. Bundles can be split"
+            + " but never merged. Only bundles that have been looked up cost anything (an ownership entry,"
+            + " an entry in the load report and one unload step at broker shutdown); the unused bundles"
+            + " of a small namespace are free. Default is 32 since 5.0.0 (was 4).")
+    private int defaultNumberOfNamespaceBundles = DEFAULT_NUMBER_OF_NAMESPACE_BUNDLES;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "Number of bundles for the pulsar/system namespace when the broker creates it (the extensible"
+            + " load manager creates it on start-up if it is missing) or when pulsar standalone creates it."
+            + " The system namespace holds a small, fixed set of topics (the transaction coordinator"
+            + " partitions, the load balancer's internal topics and the resource usage topic), so it does"
+            + " not follow defaultNumberOfNamespaceBundles. A transaction coordinator is owned by whichever"
+            + " broker owns the bundle of its transaction_coordinator_assign partition, so the bundles decide"
+            + " how far the coordinators can spread: with the default 16 coordinators, 64 is the smallest"
+            + " number of bundles at which every coordinator hashes into its own bundle (16 bundles put them"
+            + " into 8), and bundles that never own a topic cost nothing. The initialize-cluster-metadata and"
+            + " initialize-transaction-coordinator-metadata tools create the namespace with their"
+            + " --system-namespace-bundle-number option, which has the same default.")
+    private int defaultNumberOfSystemNamespaceBundles = DEFAULT_NUMBER_OF_SYSTEM_NAMESPACE_BUNDLES;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
