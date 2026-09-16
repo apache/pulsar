@@ -28,26 +28,27 @@ import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.netty.channel.ChannelPromise;
+import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
@@ -55,13 +56,14 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
 import org.apache.pulsar.broker.service.PulsarCommandSender;
+import org.apache.pulsar.broker.service.PulsarCommandSenderImpl;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
+import org.apache.pulsar.broker.service.RedeliveryTrackerDisabled;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -71,11 +73,55 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.awaitility.Awaitility;
+import org.mockito.Mockito;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
+    private EmbeddedChannel channel;
+
+    @BeforeMethod(alwaysRun = true)
+    public void createPromiseChannel() {
+        channel = new EmbeddedChannel();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void closePromiseChannel() {
+        if (channel != null) {
+            channel.finishAndReleaseAll();
+            channel = null;
+        }
+    }
+
+    /** Owns mocks confined to the calling test thread; shared workers use the real fixtures below. */
+    private static class MockScope implements AutoCloseable {
+        private final List<Object> mocks = new ArrayList<>();
+
+        <T> T mock(Class<T> type) {
+            T mock = Mockito.mock(type);
+            mocks.add(mock);
+            return mock;
+        }
+
+        <T> T spy(T object) {
+            T spy = Mockito.spy(object);
+            mocks.add(spy);
+            return spy;
+        }
+
+        @Override
+        public void close() {
+            try {
+                Mockito.reset(mocks.toArray());
+            } finally {
+                mocks.forEach(mock -> Mockito.framework().clearInlineMock(mock));
+                mocks.clear();
+            }
+        }
+    }
 
     @DataProvider(name = "dispatcherImplementations")
     public Object[][] dispatcherImplementations() {
@@ -105,25 +151,27 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
     @Test(dataProvider = "untrackedSubscriptionVariants", timeOut = 30_000)
     public void testUnrelatedSubscriptionDoesNotAccumulatePendingDispatcherPermits(
             boolean persistent, SubType subType) throws Exception {
-        String topicName = newTopicName();
-        String subscriptionName = "sub";
-        admin.topics().createNonPartitionedTopic(topicName);
-        PersistentTopic persistentTopic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
-        Topic consumerTopic = persistent ? persistentTopic : mock(Topic.class);
-        if (!persistent) {
-            when(consumerTopic.getBrokerService()).thenReturn(persistentTopic.getBrokerService());
-            when(consumerTopic.getHierarchyTopicPolicies())
-                    .thenReturn(persistentTopic.getHierarchyTopicPolicies());
+        try (MockScope mocks = new MockScope()) {
+            String topicName = newTopicName();
+            String subscriptionName = "sub";
+            admin.topics().createNonPartitionedTopic(topicName);
+            PersistentTopic persistentTopic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+            Topic consumerTopic = persistent ? persistentTopic : mocks.mock(Topic.class);
+            if (!persistent) {
+                when(consumerTopic.getBrokerService()).thenReturn(persistentTopic.getBrokerService());
+                when(consumerTopic.getHierarchyTopicPolicies())
+                        .thenReturn(persistentTopic.getHierarchyTopicPolicies());
+            }
+            Subscription subscription = mocks.mock(Subscription.class);
+            when(subscription.getName()).thenReturn(subscriptionName);
+            when(subscription.getTopic()).thenReturn(consumerTopic);
+            Consumer consumer = createConsumer(subscription, subType, topicName, 1);
+
+            consumer.flowPermits(100);
+
+            assertThat(consumer.getAvailablePermits()).isEqualTo(100);
+            assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(100);
         }
-        Subscription subscription = mock(Subscription.class);
-        when(subscription.getName()).thenReturn(subscriptionName);
-        when(subscription.getTopic()).thenReturn(consumerTopic);
-        Consumer consumer = createConsumer(subscription, subType, topicName, 1);
-
-        consumer.flowPermits(100);
-
-        assertThat(consumer.getAvailablePermits()).isEqualTo(100);
-        assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(100);
     }
 
     @Test(dataProvider = "flowRaceDispatcherVariants", timeOut = 30_000)
@@ -183,75 +231,79 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
 
     @Test(dataProvider = "dispatcherImplementations", timeOut = 30_000)
     public void testRejectedFlowStaysPendingAndIsExcludedFromRemoval(boolean classic) throws Exception {
-        String topicName = newTopicName();
-        String subscriptionName = "shared-sub";
-        admin.topics().createNonPartitionedTopic(topicName);
-        PersistentTopic realTopic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
-        BrokerService isolatedBroker = spy(realTopic.getBrokerService());
-        PersistentTopic isolatedTopic = spy(realTopic);
-        doReturn(isolatedBroker).when(isolatedTopic).getBrokerService();
+        try (MockScope mocks = new MockScope()) {
+            String topicName = newTopicName();
+            String subscriptionName = "shared-sub";
+            admin.topics().createNonPartitionedTopic(topicName);
+            PersistentTopic realTopic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+            BrokerService isolatedBroker = mocks.spy(realTopic.getBrokerService());
+            PersistentTopic isolatedTopic = mocks.spy(realTopic);
+            doReturn(isolatedBroker).when(isolatedTopic).getBrokerService();
 
-        EventLoopGroup rejectingExecutor = mock(EventLoopGroup.class);
-        doThrow(new RejectedExecutionException("test rejection"))
-                .when(rejectingExecutor).execute(any(Runnable.class));
-        when(rejectingExecutor.isShuttingDown()).thenReturn(true);
-        doReturn(rejectingExecutor).when(isolatedBroker).executor();
+            EventLoopGroup rejectingExecutor = mocks.mock(EventLoopGroup.class);
+            doThrow(new RejectedExecutionException("test rejection"))
+                    .when(rejectingExecutor).execute(any(Runnable.class));
+            when(rejectingExecutor.isShuttingDown()).thenReturn(true);
+            doReturn(rejectingExecutor).when(isolatedBroker).executor();
 
-        ManagedCursor cursor = mock(ManagedCursorImpl.class);
-        when(cursor.getName()).thenReturn(subscriptionName);
-        when(cursor.isClosed()).thenReturn(true);
-        Subscription subscription = mock(PersistentSubscription.class);
-        when(subscription.getName()).thenReturn(subscriptionName);
-        when(subscription.getTopic()).thenReturn(isolatedTopic);
-        Dispatcher dispatcher = classic
-                ? new PersistentDispatcherMultipleConsumersClassic(isolatedTopic, cursor, subscription)
-                : new PersistentDispatcherMultipleConsumers(isolatedTopic, cursor, subscription);
-        doAnswer(invocation -> {
-            dispatcher.consumerFlow(invocation.getArgument(0), invocation.getArgument(1));
-            return null;
-        }).when(subscription).consumerFlow(any(), anyInt());
+            ManagedCursor cursor = mocks.mock(ManagedCursorImpl.class);
+            when(cursor.getName()).thenReturn(subscriptionName);
+            when(cursor.isClosed()).thenReturn(true);
+            Subscription subscription = mocks.mock(PersistentSubscription.class);
+            when(subscription.getName()).thenReturn(subscriptionName);
+            when(subscription.getTopic()).thenReturn(isolatedTopic);
+            Dispatcher dispatcher = classic
+                    ? new PersistentDispatcherMultipleConsumersClassic(isolatedTopic, cursor, subscription)
+                    : new PersistentDispatcherMultipleConsumers(isolatedTopic, cursor, subscription);
+            doAnswer(invocation -> {
+                dispatcher.consumerFlow(invocation.getArgument(0), invocation.getArgument(1));
+                return null;
+            }).when(subscription).consumerFlow(any(), anyInt());
 
-        Consumer remainingConsumer = createConsumer(subscription, Shared, topicName, 1);
-        Consumer removedConsumer = createConsumer(subscription, Shared, topicName, 2);
-        dispatcher.addConsumer(remainingConsumer).join();
-        dispatcher.addConsumer(removedConsumer).join();
+            Consumer remainingConsumer = createConsumer(subscription, Shared, topicName, 1);
+            Consumer removedConsumer = createConsumer(subscription, Shared, topicName, 2);
+            dispatcher.addConsumer(remainingConsumer).join();
+            dispatcher.addConsumer(removedConsumer).join();
 
-        removedConsumer.flowPermits(100);
+            removedConsumer.flowPermits(100);
 
-        assertThat(removedConsumer.getAvailablePermits()).isEqualTo(100);
-        assertThat(removedConsumer.getAvailablePermitsForDispatcherRemoval()).isZero();
-        assertThat(totalAvailablePermits(dispatcher)).isZero();
-        dispatcher.removeConsumer(removedConsumer);
-        assertThat(dispatcher.getConsumers()).containsExactly(remainingConsumer);
-        assertThat(removedConsumer.getAvailablePermitsForDispatcherRemoval()).isZero();
-        assertThat(totalAvailablePermits(dispatcher)).isZero();
-        verify(rejectingExecutor).execute(any(Runnable.class));
+            assertThat(removedConsumer.getAvailablePermits()).isEqualTo(100);
+            assertThat(removedConsumer.getAvailablePermitsForDispatcherRemoval()).isZero();
+            assertThat(totalAvailablePermits(dispatcher)).isZero();
+            dispatcher.removeConsumer(removedConsumer);
+            assertThat(dispatcher.getConsumers()).containsExactly(remainingConsumer);
+            assertThat(removedConsumer.getAvailablePermitsForDispatcherRemoval()).isZero();
+            assertThat(totalAvailablePermits(dispatcher)).isZero();
+            verify(rejectingExecutor).execute(any(Runnable.class));
+        }
     }
 
     @Test(timeOut = 30_000)
     public void testPendingPermitAccountingSurvivesSignedIntegerWrap() throws Exception {
-        String topicName = newTopicName();
-        String subscriptionName = "shared-sub";
-        admin.topics().createNonPartitionedTopic(topicName);
-        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
-        Subscription subscription = mock(PersistentSubscription.class);
-        when(subscription.getName()).thenReturn(subscriptionName);
-        when(subscription.getTopic()).thenReturn(topic);
-        Consumer consumer = createConsumer(subscription, Shared, topicName, 1);
+        try (MockScope mocks = new MockScope()) {
+            String topicName = newTopicName();
+            String subscriptionName = "shared-sub";
+            admin.topics().createNonPartitionedTopic(topicName);
+            PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+            Subscription subscription = mocks.mock(PersistentSubscription.class);
+            when(subscription.getName()).thenReturn(subscriptionName);
+            when(subscription.getTopic()).thenReturn(topic);
+            Consumer consumer = createConsumer(subscription, Shared, topicName, 1);
 
-        consumer.flowPermits(Integer.MAX_VALUE);
-        consumer.flowPermits(Integer.MAX_VALUE);
-        consumer.flowPermits(Integer.MAX_VALUE);
+            consumer.flowPermits(Integer.MAX_VALUE);
+            consumer.flowPermits(Integer.MAX_VALUE);
+            consumer.flowPermits(Integer.MAX_VALUE);
 
-        assertThat(consumer.getAvailablePermits()).isEqualTo(Integer.MAX_VALUE - 2);
-        assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isZero();
+            assertThat(consumer.getAvailablePermits()).isEqualTo(Integer.MAX_VALUE - 2);
+            assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isZero();
 
-        consumer.completePendingDispatcherFlow(Integer.MAX_VALUE);
-        assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(Integer.MAX_VALUE);
-        consumer.completePendingDispatcherFlow(Integer.MAX_VALUE);
-        assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(-2);
-        consumer.completePendingDispatcherFlow(Integer.MAX_VALUE);
-        assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(Integer.MAX_VALUE - 2);
+            consumer.completePendingDispatcherFlow(Integer.MAX_VALUE);
+            assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(Integer.MAX_VALUE);
+            consumer.completePendingDispatcherFlow(Integer.MAX_VALUE);
+            assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(-2);
+            consumer.completePendingDispatcherFlow(Integer.MAX_VALUE);
+            assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(Integer.MAX_VALUE - 2);
+        }
     }
 
     @Test(dataProvider = "flowRaceDispatcherVariants", timeOut = 30_000)
@@ -419,13 +471,9 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         admin.topics().createNonPartitionedTopic(topicName);
 
         PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
-        ManagedCursor cursor = mock(ManagedCursorImpl.class);
-        when(cursor.getName()).thenReturn(subscriptionName);
-        when(cursor.isClosed()).thenReturn(true);
-        Subscription subscription = mock(PersistentSubscription.class);
-        when(subscription.getName()).thenReturn(subscriptionName);
-        when(subscription.getTopic()).thenReturn(topic);
-
+        ManagedCursor cursor = topic.getManagedLedger().newNonDurableCursor(PositionFactory.EARLIEST);
+        cursor.close();
+        PersistentSubscription subscription = new PersistentSubscription(topic, subscriptionName, cursor, false);
         Dispatcher dispatcher;
         if (subType == Key_Shared) {
             dispatcher = classic
@@ -438,10 +486,7 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
                     ? new PersistentDispatcherMultipleConsumersClassic(topic, cursor, subscription)
                     : new PersistentDispatcherMultipleConsumers(topic, cursor, subscription);
         }
-        doAnswer(invocation -> {
-            dispatcher.consumerFlow(invocation.getArgument(0), invocation.getArgument(1));
-            return null;
-        }).when(subscription).consumerFlow(any(), anyInt());
+        subscription.dispatcher = dispatcher;
 
         Consumer remainingConsumer = createConsumer(subscription, subType, topicName, 1);
         Consumer removedConsumer = createConsumer(subscription, subType, topicName, 2);
@@ -452,27 +497,60 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
     }
 
     private Consumer createConsumer(Subscription subscription, SubType subType, String topicName, long consumerId) {
-        TransportCnx cnx = mock(TransportCnx.class);
-        PulsarCommandSender commandSender = mock(PulsarCommandSender.class);
-        when(cnx.isActive()).thenReturn(true);
-        when(cnx.isWritable()).thenReturn(true);
-        when(cnx.getCommandSender()).thenReturn(commandSender);
-        when(commandSender.sendMessagesToConsumer(anyLong(), anyString(), any(), anyInt(), anyList(),
-                any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class), any(RedeliveryTracker.class), anyLong()))
-                .thenReturn(ImmediateEventExecutor.INSTANCE.newSucceededFuture(null));
+        ServerCnx cnx = new ServerCnx(subscription.getTopic().getBrokerService().getPulsar()) {
+            @Override
+            public boolean equals(Object other) {
+                return this == other;
+            }
+
+            @Override
+            public int hashCode() {
+                return System.identityHashCode(this);
+            }
+
+            @Override
+            public boolean isActive() {
+                return true;
+            }
+
+            @Override
+            public boolean isWritable() {
+                return true;
+            }
+
+            @Override
+            public String clientSourceAddressAndPort() {
+                return "test";
+            }
+
+            @Override
+            public PulsarCommandSender getCommandSender() {
+                return new PulsarCommandSenderImpl(null, this, null) {
+                    @Override
+                    public ChannelPromise sendMessagesToConsumer(long id, String name, Subscription sub,
+                            int partition, List<? extends Entry> entries, EntryBatchSizes sizes,
+                            EntryBatchIndexesAcks indexes, RedeliveryTracker tracker, long epoch) {
+                        entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+                        sizes.recyle();
+                        if (indexes != null) {
+                            indexes.recycle();
+                        }
+                        return new DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE).setSuccess();
+                    }
+                };
+            }
+        };
         return new Consumer(subscription, subType, topicName, consumerId, 0, "consumer-" + consumerId,
                 true, cnx, "role", emptyMap(), false, new KeySharedMeta().setKeySharedMode(AUTO_SPLIT),
                 MessageId.latest, DEFAULT_CONSUMER_EPOCH);
     }
 
     private static void simulateDispatch(Dispatcher dispatcher, Consumer consumer, int permits) {
-        Entry entry = mock(Entry.class);
-        when(entry.getLedgerId()).thenReturn(1L);
-        when(entry.getEntryId()).thenReturn(1L);
+        Entry entry = EntryImpl.create(1, 1, new byte[0]);
         EntryBatchSizes batchSizes = EntryBatchSizes.get(1);
         batchSizes.setBatchSize(0, permits);
         EntryBatchIndexesAcks batchIndexesAcks = EntryBatchIndexesAcks.get(1);
-        RedeliveryTracker redeliveryTracker = mock(RedeliveryTracker.class);
+        RedeliveryTracker redeliveryTracker = RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
         List<Integer> stickyKeyHashes = null;
         if (dispatcher instanceof StickyKeyDispatcher stickyKeyDispatcher) {
             List<Range> ranges = stickyKeyDispatcher.getConsumerKeyHashRanges().get(consumer);
@@ -483,9 +561,6 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         consumer.sendMessages(new ArrayList<>(List.of(entry)), stickyKeyHashes, batchSizes, batchIndexesAcks,
                 permits, 0, 0, redeliveryTracker, DEFAULT_CONSUMER_EPOCH).syncUninterruptibly();
         decrementTotalAvailablePermits(dispatcher, permits);
-
-        batchSizes.recyle();
-        batchIndexesAcks.recycle();
     }
 
     private static void decrementTotalAvailablePermits(Dispatcher dispatcher, int permits) {
