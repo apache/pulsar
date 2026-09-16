@@ -627,11 +627,14 @@ public class RangeEntryCacheImplTest {
         LedgerHandle ledgerHandle = mock(LedgerHandle.class);
         when(ledgerHandle.getId()).thenReturn(1L);
 
-        // Create test entries for batch read
+        // Model BookKeeper batch decoding with slices of one large response buffer.
+        ByteBuf response = Unpooled.buffer(1024 * 1024);
+        response.writeZero(response.capacity());
         List<LedgerEntry> entryList = new ArrayList<>();
         for (long i = 0; i <= 4; i++) {
-            entryList.add(LedgerEntryImpl.create(1L, i, 1, Unpooled.wrappedBuffer(new byte[]{(byte) i})));
+            entryList.add(LedgerEntryImpl.create(1L, i, 1, response.retainedSlice((int) i, 1)));
         }
+        response.release();
         LedgerEntries batchEntries = new LedgerEntries() {
             @Override
             public LedgerEntry getEntry(long entryId) {
@@ -661,15 +664,26 @@ public class RangeEntryCacheImplTest {
         assertThat(future).isCompleted();
         List<Entry> entries = future.getNow(null);
         try {
-            assertThat(entries).hasSize(5);
-            for (int i = 0; i < 5; i++) {
-                assertThat(entries.get(i).getEntryId()).isEqualTo(i);
+            try {
+                assertThat(entries).hasSize(5);
+                for (int i = 0; i < 5; i++) {
+                    assertThat(entries.get(i).getEntryId()).isEqualTo(i);
+                }
+                // Verify batch read was used, not readUnconfirmedAsync
+                verify(ledgerHandle, never()).readUnconfirmedAsync(anyLong(), anyLong());
+            } finally {
+                entries.forEach(Entry::release);
             }
-            // Verify batch read was used, not readUnconfirmedAsync
-            verify(ledgerHandle, never()).readUnconfirmedAsync(anyLong(), anyLong());
+            cache.invalidateEntries(PositionFactory.create(1L, 4L));
+            assertThat(cache.getSize()).isEqualTo(1);
+            assertThat(response.refCnt()).as("cache must not retain the shared batch response").isZero();
+            ReferenceCountedEntry cached = cache.getEntries().get(PositionFactory.create(1L, 4L));
+            try {
+                assertThat(cached.getDataBuffer().getByte(0)).isZero();
+            } finally {
+                cached.release();
+            }
         } finally {
-            entries.forEach(Entry::release);
-            // Release the copies kept by the cache
             cache.clear();
         }
     }

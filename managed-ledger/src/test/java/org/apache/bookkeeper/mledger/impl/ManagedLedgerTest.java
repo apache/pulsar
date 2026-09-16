@@ -5974,6 +5974,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedLedgerImpl disabledLedger = (ManagedLedgerImpl) factory.open("batch_read_disabled", disabled);
         assertFalse(disabledLedger.isBatchReadEnabled());
 
+        bkc.getConf().setBatchReadEnabled(false);
+        ManagedLedgerImpl disabledClientLedger = (ManagedLedgerImpl) factory.open("batch_read_client_disabled");
+        assertFalse(disabledClientLedger.isBatchReadEnabled());
+        bkc.getConf().setBatchReadEnabled(true);
+
         bkc.getConf().setUseV2WireProtocol(false);
         ManagedLedgerImpl v3ClientLedger = (ManagedLedgerImpl) factory.open("batch_read_v3_client");
         assertFalse(v3ClientLedger.isBatchReadEnabled());

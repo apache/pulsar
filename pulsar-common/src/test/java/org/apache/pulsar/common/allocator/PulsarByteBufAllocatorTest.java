@@ -27,6 +27,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufAllocatorMetric;
 import io.netty.buffer.PooledByteBufAllocatorMetric;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.util.ResourceLeakDetector;
 import java.util.ArrayList;
 import java.util.List;
@@ -80,6 +81,54 @@ public class PulsarByteBufAllocatorTest {
         } finally {
             direct.release();
             heap.release();
+        }
+    }
+
+    @DataProvider
+    public Object[][] cacheAllocatorDefaults() {
+        return new Object[][]{
+                {null, null, null, AdaptiveByteBufAllocator.class},
+                {"pooled", null, null, PooledByteBufAllocatorMetric.class},
+                {"unpooled", null, null, UnpooledByteBufAllocator.DEFAULT.metric().getClass()},
+                {null, "true", null, PooledByteBufAllocatorMetric.class},
+                {null, "false", null, UnpooledByteBufAllocator.DEFAULT.metric().getClass()},
+                {"adaptive", "false", null, AdaptiveByteBufAllocator.class},
+                {"pooled", null, "adaptive", AdaptiveByteBufAllocator.class},
+                {"adaptive", null, "pooled", PooledByteBufAllocatorMetric.class},
+                {null, null, "unpooled", UnpooledByteBufAllocator.DEFAULT.metric().getClass()}
+        };
+    }
+
+    @Test(dataProvider = "cacheAllocatorDefaults")
+    public void testCacheAllocatorDefaultAndOverrides(String globalType, String legacyPooled, String cacheType,
+                                                      Class<?> expectedMetricType) {
+        Properties properties = new Properties();
+        if (globalType != null) {
+            properties.setProperty("pulsar.allocator.type", globalType);
+        }
+        if (legacyPooled != null) {
+            properties.setProperty("pulsar.allocator.pooled", legacyPooled);
+        }
+        if (cacheType != null) {
+            properties.setProperty("pulsar.allocator.ml-cache.type", cacheType);
+        }
+        AllocatorRegistry registry = new AllocatorRegistry(properties::getProperty);
+        ByteBufAllocator cache = registry.getOrCreate(ML_CACHE_ALLOCATOR_NAME);
+        assertThat(registry.getAllocatorMetric(ML_CACHE_ALLOCATOR_NAME)).isInstanceOf(expectedMetricType);
+        ByteBuf buffer = cache.directBuffer(100, 100);
+        try {
+            buffer.writeByte(42);
+            assertThat(buffer.isDirect()).isTrue();
+            assertThat(buffer.readByte()).isEqualTo((byte) 42);
+        } finally {
+            buffer.release();
+        }
+        if (globalType == null && legacyPooled == null) {
+            registry.getOrCreate(DEFAULT_ALLOCATOR_NAME);
+            registry.getOrCreate("other");
+            assertThat(registry.getAllocatorMetric(DEFAULT_ALLOCATOR_NAME))
+                    .isInstanceOf(PooledByteBufAllocatorMetric.class);
+            assertThat(registry.getAllocatorMetric("other")).isInstanceOf(PooledByteBufAllocatorMetric.class);
         }
     }
 
