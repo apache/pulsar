@@ -70,6 +70,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.ConsistentHashingStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.DrainingHashesTracker;
 import org.apache.pulsar.broker.service.PendingAcksMap;
@@ -936,14 +937,14 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         2. "consumer" receives BUT DO NOT acknowledge message with key "testMessageKey"
         Example: "consumer" hash range: [0-256]. "testMessage" hash range: [0-256]
 
-        3. Add more consumers until hash range of message with key "testMessageKey" removed from "consumer" hash ranges
-        Example: "consumer" hash range: [0-123]. "consumer N" hash range: [124-136]. "testMessage" hash range: [124-136]
+        3. Add a consumer whose name is chosen so that it takes over the hash of "testMessageKey"
+        Example: "consumer" hash range: [0-123]. "takeover-0" hash range: [124-136]. "testMessage" hash range: [124-136]
 
-        4. Stop the added consumers until message key "testMessageKey" hash range moved to "consumer" hash ranges
+        4. Stop the added consumer so that the hash of "testMessageKey" moves back to "consumer"
         Example: "consumer" hash range: [0-128]. "testMessage" hash range: [0-128]
 
-        5. Add more consumers until hash range of message with key "testMessageKey" removed from "consumer" hash ranges
-        Example: "consumer" hash range: [0-96]. "consumer N" hash range: [121-154]. "testMessage" hash range: [121-154]
+        5. Add such a consumer again so that it takes over the hash of "testMessageKey"
+        Example: "consumer" hash range: [0-96]. "takeover-0" hash range: [121-154]. "testMessage" hash range: [121-154]
 
         6. Stop "consumer"
 
@@ -952,15 +953,13 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
         Expected result:
         The message with key "testMessageKey" received by consumer who owns message's hash range
-        Example: "consumer N" with hash range [121-154] received the message
+        Example: "takeover-0" with hash range [121-154] received the message
 
      */
-    @Test
+    @Test(invocationCount = 250)
     void testMessageDeliveredFromDrainingHashes() throws PulsarClientException {
         String messageKey = "testMessageKey";
         String topic = "testMessageDeliveredFromDrainingHashes" + UUID.randomUUID();
-
-        List<Consumer<Integer>> consumers = new ArrayList<>();
 
         @Cleanup
         Consumer<Integer> consumer = createConsumer(topic);
@@ -978,75 +977,92 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         StickyKeyConsumerSelector selector = dispatcher.getSelector();
         int messageKeyHash = selector.makeStickyKeyHash(messageKey.getBytes(StandardCharsets.UTF_8));
 
+        Consumer<Integer> newOwner = null;
         try {
-            // add new consumers until hash range of the initial message owner moved
-            Pair<String, List<Consumer<Integer>>> addedConsumers = addConsumersUntilOwnerChanged(
-                    topic, initialOwnerName, messageKeyHash, selector
-            );
-            String currentOwnerName = addedConsumers.getKey();
-            consumers.addAll(addedConsumers.getValue());
+            // move the hash of the message key away from the initial owner
+            newOwner = addConsumerThatTakesOverHash(topic, initialOwnerName, messageKeyHash, selector);
 
             // returning hash range to the initial owner
-            for (int i = consumers.size() - 1; i > -1 && !initialOwnerName.equals(currentOwnerName); i--) {
-                consumers.remove(i).close();
-                currentOwnerName = findOwnerName(selector, messageKeyHash);
-            }
+            newOwner.close();
+            assertThat(findOwnerName(selector, messageKeyHash)).isEqualTo(initialOwnerName);
 
-            // add new consumers until hash range of the initial message owner moved
-            Pair<String, List<Consumer<Integer>>> addedConsumersAfter = addConsumersUntilOwnerChanged(
-                    topic, initialOwnerName, messageKeyHash, selector
-            );
-
-            String currentOwnerNameAfter = addedConsumersAfter.getKey();
-            consumers.addAll(addedConsumersAfter.getValue());
+            // move the hash of the message key away from the initial owner again
+            newOwner = addConsumerThatTakesOverHash(topic, initialOwnerName, messageKeyHash, selector);
 
             // remove the initial owner
             consumer.close();
 
             // verify the message sent to new consumer which owns hash range
-            Optional<Consumer<Integer>> theNewOwnerMaybe = consumers
-                    .stream()
-                    .filter(c -> c.getConsumerName().equals(currentOwnerNameAfter))
-                    .findAny();
-
-            assertThat(theNewOwnerMaybe).isPresent();
-
-            Consumer<Integer> theNewOwner = theNewOwnerMaybe.get();
-
-            Message<Integer> message = theNewOwner.receive(5, TimeUnit.SECONDS);
+            Message<Integer> message = newOwner.receive(5, TimeUnit.SECONDS);
             assertThat(message).describedAs("Message with key " + messageKey
-                    + " expected to be delivered to consumer " + theNewOwner.getConsumerName()).isNotNull();
+                    + " expected to be delivered to consumer " + newOwner.getConsumerName()).isNotNull();
             assertThat(message.getKey()).isEqualTo(messageKey);
         } finally {
-            for (Consumer<Integer> c : consumers) {
-                c.close();
+            if (newOwner != null) {
+                newOwner.close();
             }
         }
     }
 
-    private Pair<String, List<Consumer<Integer>>> addConsumersUntilOwnerChanged(
+    private Consumer<Integer> addConsumerThatTakesOverHash(
             String topic,
             String initialOwnerName,
             int messageKeyHash,
             StickyKeyConsumerSelector selector
     ) throws PulsarClientException {
-        String currentOwnerName;
-        List<Consumer<Integer>> consumers = new ArrayList<>();
-        do {
-            Consumer<Integer> addedC = createConsumer(topic);
-            consumers.add(addedC);
-            currentOwnerName = findOwnerName(selector, messageKeyHash);
-        } while (initialOwnerName.equals(currentOwnerName));
-        return Pair.of(currentOwnerName, consumers);
+        String takeoverName = findConsumerNameThatTakesHash(selector, initialOwnerName, messageKeyHash);
+        Consumer<Integer> added = createConsumerWithName(topic, takeoverName);
+        String currentOwnerName = findOwnerName(selector, messageKeyHash);
+        if (!takeoverName.equals(currentOwnerName)) {
+            added.close();
+            fail("Consumer " + takeoverName + " was expected to take over the hash " + messageKeyHash
+                    + ", but the owner is " + currentOwnerName);
+        }
+        return added;
+    }
+
+    /**
+     * Predicts which consumer name will take over the given hash from its current owner once a
+     * consumer with that name joins the subscription.
+     */
+    private String findConsumerNameThatTakesHash(StickyKeyConsumerSelector selector, String initialOwnerName,
+                                                 int messageKeyHash) {
+        Range range = selector.getKeyHashRange();
+        ConsistentHashingStickyKeyConsumerSelector probe = new ConsistentHashingStickyKeyConsumerSelector(
+                conf.getSubscriptionKeySharedConsistentHashingReplicaPoints(), false, range.getEnd());
+        Set<String> existingNames = new HashSet<>();
+        for (var existing : selector.getConsumerKeyHashRanges().keySet()) {
+            existingNames.add(existing.consumerName());
+            probe.addConsumer(mockBrokerConsumer(existing.consumerName())).join();
+        }
+        for (int i = 0; ; i++) {
+            String name = "takeover-" + i;
+            if (!existingNames.add(name)) {
+                continue;
+            }
+            var candidate = mockBrokerConsumer(name);
+            probe.addConsumer(candidate).join();
+            var selected = probe.select(messageKeyHash);
+            if (selected != null && !initialOwnerName.equals(selected.consumerName())) {
+                return name;
+            }
+            probe.removeConsumer(candidate);
+        }
+    }
+
+    private org.apache.pulsar.broker.service.Consumer mockBrokerConsumer(String consumerName) {
+        org.apache.pulsar.broker.service.Consumer consumer =
+                Mockito.mock(org.apache.pulsar.broker.service.Consumer.class);
+        Mockito.when(consumer.consumerName()).thenReturn(consumerName);
+        return consumer;
     }
 
     private String findOwnerName(StickyKeyConsumerSelector selector, int hash) {
-        return selector.getConsumerKeyHashRanges().entrySet().stream()
-                .filter(entry ->
-                        entry.getValue().stream().anyMatch(range -> range.contains(hash))
-                )
-                .findAny().orElseThrow(() -> new IllegalArgumentException("No owner for the hash " + hash))
-                .getKey().consumerName();
+        var owner = selector.select(hash);
+        if (owner == null) {
+            throw new IllegalArgumentException("No owner for the hash " + hash);
+        }
+        return owner.consumerName();
     }
 
     @Test(dataProvider = "currentImplementationType")
@@ -1539,15 +1555,24 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
 
     private Consumer<Integer> createConsumer(String topic, KeySharedPolicy keySharedPolicy)
             throws PulsarClientException {
-        ConsumerBuilder<Integer> builder = pulsarClient.newConsumer(Schema.INT32);
-        builder.topic(topic)
-                .subscriptionName(SUBSCRIPTION_NAME)
-                .subscriptionType(SubscriptionType.Key_Shared)
-                .ackTimeout(3, TimeUnit.SECONDS);
+        ConsumerBuilder<Integer> builder = newConsumerBuilder(topic);
         if (keySharedPolicy != null) {
             builder.keySharedPolicy(keySharedPolicy);
         }
         return builder.subscribe();
+    }
+
+    private Consumer<Integer> createConsumerWithName(String topic, String consumerName)
+            throws PulsarClientException {
+        return newConsumerBuilder(topic).consumerName(consumerName).subscribe();
+    }
+
+    private ConsumerBuilder<Integer> newConsumerBuilder(String topic) {
+        return pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(SUBSCRIPTION_NAME)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .ackTimeout(3, TimeUnit.SECONDS);
     }
 
     private void receive(List<Consumer<?>> consumers) throws PulsarClientException {
