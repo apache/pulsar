@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.lang.ref.Cleaner;
 import java.lang.ref.Reference;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -32,6 +33,8 @@ import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
 /** Factory methods for Pulsar executors. */
 public final class PulsarExecutors {
+    private static final ExecutorQueueTrimmer QUEUE_TRIMMER = ExecutorQueueTrimmer.create();
+
     private PulsarExecutors() {
     }
 
@@ -47,8 +50,12 @@ public final class PulsarExecutors {
     /**
      * Creates an executor with a lazily started worker and an unbounded growable array task queue.
      * Tasks execute sequentially, and the returned executor cannot be reconfigured to use more workers.
-     * The queue reuses slots instead of allocating a linked node per task, but retains its peak array
-     * capacity after tasks are drained.
+     * The queue reuses slots instead of allocating a linked node per task. When estimated backing-array
+     * storage across these executors exceeds 5% of maximum heap, shared background maintenance trims
+     * sparse queues toward a 4% target, retaining at least 64 slots and room for twice the current size.
+     * Maintenance runs at most once every 30 seconds while over budget; live tasks are never discarded.
+     * The budget counts array slots using estimated reference width; headers and task objects are excluded.
+     * This is a retention budget, not a hard memory limit, and reclaiming old arrays depends on GC.
      *
      * <p>As with {@link Executors#newSingleThreadExecutor(ThreadFactory)}, garbage collection of the
      * returned wrapper triggers graceful shutdown as a fallback. This is not an idle timeout, and
@@ -76,8 +83,20 @@ public final class PulsarExecutors {
      * @see #newSingleThreadExecutor(ThreadFactory)
      */
     public static ExecutorService newSingleThreadExecutor(ThreadFactory threadFactory, boolean autoShutdownOnGc) {
-        ThreadPoolExecutor executor = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS,
-                new GrowableArrayBlockingQueue<>(), threadFactory);
+        return newSingleThreadExecutor(threadFactory, autoShutdownOnGc, QUEUE_TRIMMER);
+    }
+
+    @VisibleForTesting
+    static ExecutorService newSingleThreadExecutor(ThreadFactory threadFactory, boolean autoShutdownOnGc,
+                                                   ExecutorQueueTrimmer group) {
+        Objects.requireNonNull(threadFactory);
+        GrowableArrayBlockingQueue<Runnable> queue = group.newQueue();
+        ThreadPoolExecutor executor = new ThreadPoolExecutor(1, 1, 0, TimeUnit.MILLISECONDS, queue, threadFactory) {
+            @Override
+            protected void terminated() {
+                group.unregister(queue);
+            }
+        };
         return autoShutdownOnGc ? new AutoShutdownExecutorService(executor)
                 : Executors.unconfigurableExecutorService(executor);
     }
