@@ -250,7 +250,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
-        placementStrategy = ModularLoadManagerStrategy.create(conf);
+        final LoadBalanceStrategies strategies = createLoadBalanceStrategies(conf);
+        placementStrategy = strategies.placementStrategy();
+        loadSheddingStrategy = strategies.loadSheddingStrategy();
         sheddingExcludedNamespaceSelectionStrategy = new RoundRobinBrokerSelector();
         policies = new SimpleResourceAllocationPolicies(pulsar);
         filterPipeline.add(new BrokerLoadManagerClassFilter());
@@ -263,22 +265,53 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     executors.execute(
                             () -> LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
                 });
+    }
 
+    /**
+     * The placement strategy and the load shedding strategy resolved from the configuration.
+     */
+    record LoadBalanceStrategies(ModularLoadManagerStrategy placementStrategy,
+                                 LoadSheddingStrategy loadSheddingStrategy) {
+    }
+
+    /**
+     * Creates the placement and the load shedding strategy from the configuration and pairs them.
+     * <p>
+     * A placement strategy that is also a load shedding strategy (AvgShedder, the default) plans the destination of
+     * every bundle it unloads, so it is only used when the same class is configured as the shedding strategy. If a
+     * different shedding strategy is configured explicitly, the configured shedder is kept and placement falls back
+     * to {@link LeastLongTermMessageRate}, the default placement strategy before AvgShedder, so configurations that
+     * only set {@code loadBalancerLoadSheddingStrategy} keep the behavior they had.
+     */
+    @VisibleForTesting
+    static LoadBalanceStrategies createLoadBalanceStrategies(ServiceConfiguration conf) {
+        ModularLoadManagerStrategy placementStrategy = ModularLoadManagerStrategy.create(conf);
         if (placementStrategy instanceof LoadSheddingStrategy) {
-            // if the placement strategy is also a load shedding strategy
-            // we need to check two strategies are the same
-            if (!conf.getLoadBalancerLoadSheddingStrategy().equals(
-                    conf.getLoadBalancerLoadPlacementStrategy())) {
-                throw new IllegalArgumentException("The load shedding strategy: "
-                        + conf.getLoadBalancerLoadSheddingStrategy()
-                        + " can't work with the placement strategy: "
-                        + conf.getLoadBalancerLoadPlacementStrategy());
+            if (conf.getLoadBalancerLoadSheddingStrategy().equals(conf.getLoadBalancerLoadPlacementStrategy())) {
+                // bind the load shedding strategy and the placement strategy
+                return new LoadBalanceStrategies(placementStrategy, (LoadSheddingStrategy) placementStrategy);
             }
-            // bind the load shedding strategy and the placement strategy
-            loadSheddingStrategy = (LoadSheddingStrategy) placementStrategy;
-        } else {
-            loadSheddingStrategy = createLoadSheddingStrategy();
+            log.warn()
+                    .attr("sheddingStrategy", conf.getLoadBalancerLoadSheddingStrategy())
+                    .attr("placementStrategy", conf.getLoadBalancerLoadPlacementStrategy())
+                    .attr("fallbackPlacementStrategy", LeastLongTermMessageRate.class.getName())
+                    .log("The configured load shedding strategy cannot be paired with the placement strategy,"
+                            + " which requires the same class as the shedding strategy. Using the fallback"
+                            + " placement strategy instead. Set loadBalancerLoadPlacementStrategy explicitly"
+                            + " to choose the placement strategy");
+            return new LoadBalanceStrategies(new LeastLongTermMessageRate(), createLoadSheddingStrategy(conf));
         }
+        LoadSheddingStrategy loadSheddingStrategy = createLoadSheddingStrategy(conf);
+        if (loadSheddingStrategy instanceof ModularLoadManagerStrategy) {
+            log.warn()
+                    .attr("sheddingStrategy", conf.getLoadBalancerLoadSheddingStrategy())
+                    .attr("placementStrategy", conf.getLoadBalancerLoadPlacementStrategy())
+                    .log("The load shedding strategy also implements bundle placement but a different"
+                            + " placement strategy is configured; bundles it unloads are placed by the"
+                            + " configured placement strategy, not where the shedder planned them. Set"
+                            + " loadBalancerLoadPlacementStrategy to the same class to pair them");
+        }
+        return new LoadBalanceStrategies(placementStrategy, loadSheddingStrategy);
     }
 
     public void handleDataNotification(Notification t) {
@@ -328,7 +361,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         return lastMetadataSessionEvent != null && lastMetadataSessionEvent.isConnected();
     }
 
-    private LoadSheddingStrategy createLoadSheddingStrategy() {
+    private static LoadSheddingStrategy createLoadSheddingStrategy(ServiceConfiguration conf) {
         return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
                 Thread.currentThread().getContextClassLoader());
     }
