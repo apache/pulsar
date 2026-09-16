@@ -272,6 +272,16 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
     /** Close a client built by {@link #createClient()}; must tolerate a {@code null} argument. */
     protected abstract void closeClient(ClientT client);
 
+    /** Number of worker clients used by this command. V4 can use one client per producer. */
+    protected int workerCount() {
+        return this.numTestThreads;
+    }
+
+    /** Number of producers created by each worker. */
+    protected int producersPerWorker() {
+        return this.numProducers;
+    }
+
     /**
      * Create one producer on {@code topic}. {@code producerId} identifies the test thread and is
      * only used to derive a unique producer name from {@code --producer-name}.
@@ -406,12 +416,13 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
             }
         }
 
-        CountDownLatch doneLatch = new CountDownLatch(this.numTestThreads);
+        int workerCount = workerCount();
+        CountDownLatch doneLatch = new CountDownLatch(workerCount);
 
-        final long numMessagesPerThread = this.numMessages / this.numTestThreads;
-        final int msgRatePerThread = this.msgRate / this.numTestThreads;
+        final long numMessagesPerThread = this.numMessages / workerCount;
+        final int msgRatePerThread = this.msgRate / workerCount;
 
-        for (int i = 0; i < this.numTestThreads; i++) {
+        for (int i = 0; i < workerCount; i++) {
             final int threadIdx = i;
             executor.submit(() -> {
                 log.info().attr("thread", threadIdx).log("Started performance test thread");
@@ -608,9 +619,10 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> extends 
             for (int i = 0; i < this.numTopics; i++) {
 
                 String topic = this.topics.get(i);
-                log.info().attr("adding", this.numProducers).attr("topic", topic).log("Adding publishers on topic");
+                log.info().attr("adding", producersPerWorker()).attr("topic", topic)
+                        .log("Adding publishers on topic");
 
-                for (int j = 0; j < this.numProducers; j++) {
+                for (int j = 0; j < producersPerWorker(); j++) {
                     futures.add(createProducerAsync(client, producerId, topic));
                 }
             }

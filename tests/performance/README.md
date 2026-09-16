@@ -57,6 +57,11 @@ PULSAR_PROFILING_LOAD_NUMBER_OF_MESSAGES=1000000 \
 ./gradlew :tests:integration:profilingIntegrationTest --tests "*PulsarProfilingV4Test"
 ```
 
+For the v4 scenario, set `load.isolatedProducers` or `load.isolatedConsumers` to create that many
+independent v4 client instances. The corresponding `pulsar-perf` command receives
+`--isolated-clients`; v5 ignores these fields. The option is mutually exclusive with the regular
+producer test-thread option and with consumer listener-thread expansion.
+
 ## Inspecting recordings
 
 Render the CPU, wall-clock, allocation and lock views with:

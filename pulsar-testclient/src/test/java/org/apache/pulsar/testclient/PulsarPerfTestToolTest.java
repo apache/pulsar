@@ -19,6 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.Arrays;
@@ -61,20 +62,26 @@ public class PulsarPerfTestToolTest {
         });
     }
 
-    /** Each v4 command must offer the same flags as its V5 counterpart, so runs stay comparable. */
+    /** Each v4 command offers the V5 flags, plus v4-only controls where the clients differ. */
     @Test
     public void testV4CommandsOfferTheSameFlagsAsTheirV5Counterparts() throws Exception {
         CommandLine commander = initCommander();
 
         assertThat(optionNames(commander, "produce-v4"))
-                .isEqualTo(optionNames(commander, "produce"));
+                .containsAll(optionNames(commander, "produce"))
+                .contains("--isolated-clients");
+        assertThat(optionNames(commander, "produce")).doesNotContain("--isolated-clients");
         assertThat(optionNames(commander, "read-v4"))
                 .isEqualTo(optionNames(commander, "read"));
         // consume and transaction have V5-only flags that the v4 commands must not advertise.
+        Set<String> consumeV4Options = optionNames(commander, "consume-v4");
+        consumeV4Options.remove("--isolated-clients");
         assertThat(optionNames(commander, "consume"))
-                .containsAll(optionNames(commander, "consume-v4"))
+                .containsAll(consumeV4Options)
                 .contains("--scalable-consumer-type");
         assertThat(optionNames(commander, "consume-v4")).doesNotContain("--scalable-consumer-type");
+        assertThat(optionNames(commander, "consume-v4")).contains("--isolated-clients");
+        assertThat(optionNames(commander, "consume")).doesNotContain("--isolated-clients");
         assertThat(optionNames(commander, "transaction"))
                 .containsAll(optionNames(commander, "transaction-v4"))
                 .contains("--scalable");
@@ -95,6 +102,23 @@ public class PulsarPerfTestToolTest {
 
         assertThat(cmd.serviceURL).isEqualTo("pulsar://from-conf:6650");
         assertThat(cmd.producerAccessMode).isEqualTo(ProducerAccessMode.Exclusive);
+    }
+
+    @Test
+    public void testIsolatedClientsAreV4OnlyAndCannotBeCombinedWithThreads() {
+        PerformanceProducerV4 producer = new PerformanceProducerV4();
+        new CommandLine(producer).parseArgs("--isolated-clients", "3", "topic");
+        assertThat(producer.isolatedClients).isEqualTo(3);
+
+        PerformanceProducerV4 conflictingProducer = new PerformanceProducerV4();
+        new CommandLine(conflictingProducer).parseArgs("--isolated-clients", "3", "-threads", "2", "topic");
+        assertThatThrownBy(conflictingProducer::validate)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cannot be combined");
+
+        PerformanceConsumerV4 consumer = new PerformanceConsumerV4();
+        new CommandLine(consumer).parseArgs("--isolated-clients", "3", "topic");
+        assertThat(consumer.isolatedClients).isEqualTo(3);
     }
 
     /**

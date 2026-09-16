@@ -220,6 +220,11 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
     /** Close a client built by {@link #createClient()}; must tolerate a {@code null} argument. */
     protected abstract void closeClient(ClientT client);
 
+    /** Number of clients used by this command. V4 can use one isolated client per consumer. */
+    protected int isolatedClientCount() {
+        return 0;
+    }
+
     /** Subscribe one consumer to {@code topic} under {@code subscription}. */
     protected abstract CompletableFuture<ConsumerT> subscribeAsync(ClientT client, String topic,
                                                                    String subscription);
@@ -338,7 +343,16 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
         this.testEndTime = startTime + (long) (this.testTime * 1e9);
         this.mainThread = Thread.currentThread();
 
-        this.client = createClient();
+        int isolatedClientCount = isolatedClientCount();
+        List<ClientT> clients = new ArrayList<>(isolatedClientCount > 0 ? isolatedClientCount : 1);
+        if (isolatedClientCount > 0) {
+            for (int i = 0; i < isolatedClientCount; i++) {
+                clients.add(createClient());
+            }
+        } else {
+            clients.add(createClient());
+        }
+        this.client = clients.get(0);
 
         if (this.isEnableTransaction) {
             this.transactionRef = new AtomicReference<>(openFirstTransaction(client));
@@ -350,6 +364,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
         this.messageReceiveLimiter = new Semaphore(this.numMessagesPerTransaction);
 
         List<CompletableFuture<ConsumerT>> futures = new ArrayList<>();
+        int consumerIndex = 0;
         for (int i = 0; i < this.numTopics; i++) {
             final TopicName topicName = TopicName.get(this.topics.get(i));
 
@@ -362,7 +377,8 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
             for (int j = 0; j < this.numSubscriptions; j++) {
                 String subscription = this.subscriptions.get(j);
                 for (int k = 0; k < this.numConsumers; k++) {
-                    futures.add(subscribeAsync(client, topicName.toString(), subscription));
+                    ClientT consumerClient = clients.get(consumerIndex++ % clients.size());
+                    futures.add(subscribeAsync(consumerClient, topicName.toString(), subscription));
                 }
             }
         }
@@ -462,7 +478,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
         }
         // Stop driving the consumers before closing the client so receives do not race with close.
         stopConsuming();
-        closeClient(client);
+        clients.forEach(this::closeClient);
         PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
     }
 

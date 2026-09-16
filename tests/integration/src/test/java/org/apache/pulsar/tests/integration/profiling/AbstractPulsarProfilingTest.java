@@ -164,6 +164,7 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                             + "-u pulsar://" + brokerHostname + ":6650 "
                             + "-st Shared "
                             + "-q 50000 "
+                            + isolatedClientsOption(load.isolatedConsumers())
                             + "-m " + load.numberOfMessages() + " -ml " + load.consumeMemoryLimit() + " "
                             + "--histogram-file=/testoutput/consume" + commandSuffix
                             + ".histogram.$(date +%s).hdr "
@@ -178,6 +179,7 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                             + "-au http://" + brokerHostname + ":8080 "
                             + "-r " + load.produceRate() + " "
                             + "-s " + load.messageSize() + " -db "
+                            + isolatedClientsOption(load.isolatedProducers())
                             // maxOutstanding only applies to the v4 client; the v5 client accepts
                             // the flag for back-compat but ignores it
                             + "-o " + load.maxOutstanding() + " "
@@ -185,6 +187,10 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                             + "--histogram-file=/testoutput/produce" + commandSuffix
                             + ".histogram.$(date +%s).hdr "
                             + "2>&1 | tee /testoutput/produce" + commandSuffix + ".$(date +%s).txt");
+        }
+
+        private String isolatedClientsOption(int count) {
+            return commandSuffix.equals("-v4") && count > 0 ? "--isolated-clients " + count + " " : "";
         }
 
         /**

@@ -54,8 +54,31 @@ public class PerformanceProducerV4
     @Option(names = { "-am", "--access-mode" }, description = "Producer access mode")
     public ProducerAccessMode producerAccessMode = ProducerAccessMode.Shared;
 
+    @Option(names = "--isolated-clients", description = "Create one isolated v4 client per producer; "
+            + "cannot be combined with --num-test-threads",
+            converter = PositiveNumberParameterConvert.class)
+    public int isolatedClients;
+
     public PerformanceProducerV4() {
         super("produce-v4");
+    }
+
+    @Override
+    public void validate() throws Exception {
+        super.validate();
+        if (isolatedClients > 0 && numTestThreads != 1) {
+            throw new IllegalArgumentException("--isolated-clients cannot be combined with --num-test-threads");
+        }
+    }
+
+    @Override
+    protected int workerCount() {
+        return isolatedClients > 0 ? isolatedClients : super.workerCount();
+    }
+
+    @Override
+    protected int producersPerWorker() {
+        return isolatedClients > 0 ? 1 : super.producersPerWorker();
     }
 
     @Override

@@ -64,6 +64,11 @@ public class PerformanceConsumerV4
     @Option(names = { "-sp", "--subscription-position" }, description = "Subscription position")
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
+    @Option(names = "--isolated-clients", description = "Create consumers on this many isolated v4 clients; "
+            + "cannot be combined with --num-listener-threads",
+            converter = PositiveNumberParameterConvert.class)
+    public int isolatedClients;
+
     /** Receiver-queue depth samples, only allocated when {@code --auto-scaled-receiver-queue-size} is on. */
     private Recorder qRecorder;
     private Histogram qHistogram;
@@ -71,6 +76,22 @@ public class PerformanceConsumerV4
 
     public PerformanceConsumerV4() {
         super("consume-v4");
+    }
+
+    @Override
+    public void validate() throws Exception {
+        super.validate();
+        if (isolatedClients > 0 && listenerThreads != 1) {
+            throw new IllegalArgumentException("--isolated-clients cannot be combined with --num-listener-threads");
+        }
+        if (isolatedClients > 0 && isEnableTransaction) {
+            throw new IllegalArgumentException("--isolated-clients cannot be used with transactions");
+        }
+    }
+
+    @Override
+    protected int isolatedClientCount() {
+        return isolatedClients;
     }
 
     @Override
