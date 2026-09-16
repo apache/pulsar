@@ -41,7 +41,7 @@ dependencies {
     implementation(libs.jcl.over.slf4j)
     implementation(libs.commons.lang3)
 
-    // Netty is needed at runtime for ExtendedNettyLeakDetector and FastThreadLocalCleanupListener.
+    // Netty is needed at runtime for ExtendedNettyLeakDetector and FastThreadLocalStateCleaner.
     // Using runtimeOnly so it propagates transitively when other modules depend on buildtools.
     compileOnly(libs.netty.common)
     runtimeOnly(libs.netty.common)

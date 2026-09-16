@@ -220,8 +220,6 @@ tasks.withType<Test>().configureEach {
             "org.apache.pulsar.tests.PulsarTestListener",
             "org.apache.pulsar.tests.AnnotationListener",
             "org.apache.pulsar.tests.FailFastNotifier",
-            "org.apache.pulsar.tests.MockitoCleanupListener",
-            "org.apache.pulsar.tests.FastThreadLocalCleanupListener",
             "org.apache.pulsar.tests.ThreadLeakDetectorListener",
             "org.apache.pulsar.tests.SingletonCleanerListener",
         ))
