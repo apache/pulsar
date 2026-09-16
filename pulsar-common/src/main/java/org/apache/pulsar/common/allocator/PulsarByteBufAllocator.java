@@ -143,6 +143,9 @@ public class PulsarByteBufAllocator {
         if (pooled != null) {
             return "true".equalsIgnoreCase(pooled) ? AllocatorType.POOLED : AllocatorType.UNPOOLED;
         }
+        if (DEFAULT_ALLOCATOR_NAME.equals(id)) {
+            return AllocatorType.POOLED;
+        }
         // Cache copies are commonly small, similarly sized entries. Adaptive reuses freed size-class slots
         // within smaller chunks, limiting fragmentation from entries with different cache lifetimes.
         return ML_CACHE_ALLOCATOR_NAME.equals(id) ? AllocatorType.ADAPTIVE : AllocatorType.POOLED;
