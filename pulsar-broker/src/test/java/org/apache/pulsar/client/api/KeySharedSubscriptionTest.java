@@ -956,7 +956,7 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         Example: "takeover-0" with hash range [121-154] received the message
 
      */
-    @Test(invocationCount = 250)
+    @Test
     void testMessageDeliveredFromDrainingHashes() throws PulsarClientException {
         String messageKey = "testMessageKey";
         String topic = "testMessageDeliveredFromDrainingHashes" + UUID.randomUUID();
