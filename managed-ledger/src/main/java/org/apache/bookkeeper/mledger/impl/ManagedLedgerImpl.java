@@ -333,8 +333,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Getter
     protected final ThreadBoundExecutor executor;
-    /** Nesting depth of read completions running inline on the ledger thread; only touched from that thread. */
-    int inlineReadCompletionDepth;
 
     @Getter
     private final ManagedLedgerFactoryImpl factory;
