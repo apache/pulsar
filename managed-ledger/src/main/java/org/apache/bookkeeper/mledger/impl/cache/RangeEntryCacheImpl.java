@@ -135,11 +135,16 @@ public class RangeEntryCacheImpl implements EntryCache {
     }
 
     /**
-     * Inserts the entry, retaining its buffer or, when {@code copy} is set, copying it into a cache owned buffer:
-     * always when so configured, and for entries read with the BookKeeper batch read API, whose buffers are slices
-     * of a response frame that stays allocated as long as any of its entries is cached.
+     * Inserts the entry, retaining its buffer or, when {@code copy} is set, copying it into a cache owned buffer.
+     * Storage reads copy the entries read with the BookKeeper batch read API, whose buffers are slices of a
+     * response frame that stays allocated as long as any of its entries is cached.
+     *
+     * @param entry the entry to cache
+     * @param copy whether to copy the entry data into a cache owned buffer, always the case when the cache is
+     *             configured to copy entries
+     * @return whether the entry was inserted
      */
-    private boolean insert(Entry entry, boolean copy) {
+    public boolean insert(Entry entry, boolean copy) {
         int entryLength = entryLengthFunction.getEntryLength(ml, entry);
 
         log.debug().attr("position", entry.getPosition())
