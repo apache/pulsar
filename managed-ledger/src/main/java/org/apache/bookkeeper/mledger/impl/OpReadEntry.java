@@ -39,7 +39,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 class OpReadEntry implements ReadEntriesCallback {
 
     /** How deep read completions may nest inline on a ledger thread before one is queued to unwind the stack. */
-    static final int MAX_NESTED_INLINE_COMPLETIONS = 32;
+    static final int MAX_NESTED_INLINE_COMPLETIONS = 10;
 
     /** Nesting depth of read completions running inline on the current thread. */
     private static final FastThreadLocal<int[]> INLINE_COMPLETION_DEPTH = new FastThreadLocal<>() {
