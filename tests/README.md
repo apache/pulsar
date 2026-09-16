@@ -34,4 +34,4 @@ The directories are as follows:
 
 - docker-images/ : Docker images for integration testing.
 - integration/ : The integration tests and utilities themselves.
-
+- performance/ : Scenario files and analysis guidance for repeatable profiling runs.
