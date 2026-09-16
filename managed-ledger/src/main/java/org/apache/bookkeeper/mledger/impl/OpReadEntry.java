@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.CustomLog;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -35,6 +36,9 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 
 @CustomLog
 class OpReadEntry implements ReadEntriesCallback {
+
+    /** How deep read completions may nest inline on the ledger thread before one is queued to unwind the stack. */
+    static final int MAX_NESTED_INLINE_COMPLETIONS = 32;
     static final OpReadEntry WAITING_READ_OP_FOR_CLOSED_CURSOR = new OpReadEntry();
     private static final AtomicInteger opReadIdGenerator = new AtomicInteger(1);
     /**
@@ -269,20 +273,33 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     private void complete(Object ctx) {
-        // Always queue, never run inline: a fully cached read completes synchronously, and callers such as OpScan
-        // and the replicator issue their next read from this callback, so the queue hop is what keeps a long run of
-        // cached batches from nesting on the stack.
-        cursor.ledger.getExecutor().execute(() -> {
+        ManagedLedgerImpl ml = cursor.ledger;
+        ThreadBoundExecutor executor = ml.getExecutor();
+        // Run inline on the ledger thread to skip the queue hop. A fully cached read completes synchronously and
+        // callers such as OpScan and the replicator issue their next read from this callback, so the nesting is
+        // bounded: past MAX_NESTED_INLINE_COMPLETIONS levels the completion is queued once to unwind the stack.
+        if (executor.isCurrentThread() && ml.inlineReadCompletionDepth < MAX_NESTED_INLINE_COMPLETIONS) {
+            ml.inlineReadCompletionDepth++;
             try {
-                callback.readEntriesComplete(entries, ctx);
-                recycle();
-            } catch (Throwable throwable) {
-                log.error().attr("op", this)
-                        .attr("lastPosition", lastEntryPosition())
-                        .exception(throwable)
-                        .log("readEntriesComplete failed");
+                completeNow(ctx);
+            } finally {
+                ml.inlineReadCompletionDepth--;
             }
-        });
+        } else {
+            executor.execute(() -> completeNow(ctx));
+        }
+    }
+
+    private void completeNow(Object ctx) {
+        try {
+            callback.readEntriesComplete(entries, ctx);
+            recycle();
+        } catch (Throwable throwable) {
+            log.error().attr("op", this)
+                    .attr("lastPosition", lastEntryPosition())
+                    .exception(throwable)
+                    .log("readEntriesComplete failed");
+        }
     }
 
     private void fail(ManagedLedgerException e, Object ctx) {

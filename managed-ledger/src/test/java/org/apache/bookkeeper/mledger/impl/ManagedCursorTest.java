@@ -3152,26 +3152,26 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             ledger.addEntry(("a" + i).getBytes(Encoding));
         }
 
-        // Drive a single-entry-batch scan from the managed ledger thread: every batch is a synchronous cache hit,
-        // so each read completion must yield back to the executor before the next batch is issued, instead of
-        // nesting one batch per stack level. The stack depth seen by the last entries would otherwise grow with
-        // the number of batches.
+        // Drive a single-entry-batch scan from the managed ledger thread: every batch is a synchronous cache hit
+        // whose completion runs inline, so without the nesting cap the stack depth seen by the last entries would
+        // grow with the number of batches.
         AtomicInteger seen = new AtomicInteger();
         AtomicInteger firstDepth = new AtomicInteger(-1);
         AtomicInteger maxDepth = new AtomicInteger();
         CompletableFuture<ScanOutcome> outcome = CompletableFuture.supplyAsync(() -> c1.scan(Optional.empty(),
                 entry -> {
-                    if (seen.getAndIncrement() % 100 == 0) {
-                        int depth = Thread.currentThread().getStackTrace().length;
-                        firstDepth.compareAndSet(-1, depth);
-                        maxDepth.accumulateAndGet(depth, Math::max);
-                    }
+                    int depth = Thread.currentThread().getStackTrace().length;
+                    firstDepth.compareAndSet(-1, depth);
+                    maxDepth.accumulateAndGet(depth, Math::max);
+                    seen.incrementAndGet();
                     return true;
                 }, 1, Long.MAX_VALUE, Long.MAX_VALUE), ((ManagedLedgerImpl) ledger).getExecutor())
                 .thenCompose(f -> f);
         assertEquals(outcome.get(30, TimeUnit.SECONDS), ScanOutcome.COMPLETED);
         assertEquals(seen.get(), numEntries);
-        assertTrue(maxDepth.get() < firstDepth.get() + 50,
+        // at most MAX_NESTED_INLINE_COMPLETIONS batches nest before a completion is queued, so the depth is bounded
+        // by that many batches' worth of frames rather than by the number of batches
+        assertTrue(maxDepth.get() - firstDepth.get() < OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS * 40,
                 "stack depth grew from " + firstDepth.get() + " to " + maxDepth.get() + " across batches");
     }
 
