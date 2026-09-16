@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -65,6 +66,10 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
     @VisibleForTesting
     @Getter
     boolean fenced = false;
+    // Number of asyncClose() invocations; used to assert handles are closed instead of leaked.
+    @VisibleForTesting
+    @Getter
+    final AtomicInteger asyncCloseCount = new AtomicInteger(0);
     // Count for total length of the entries
     final AtomicLong totalLengthCounter = new AtomicLong(0);
 
@@ -90,6 +95,7 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
 
     @Override
     public void asyncClose(CloseCallback cb, Object ctx) {
+        asyncCloseCount.incrementAndGet();
         bk.getProgrammedFailure().thenComposeAsync((res) -> {
             fenced = true;
 
@@ -285,6 +291,17 @@ public class PulsarMockLedgerHandle extends LedgerHandle {
                                                                                       long timeOutInMillis,
                                                                                       boolean parallel) {
         return readHandle.readLastAddConfirmedAndEntryAsync(entryId, timeOutInMillis, parallel);
+    }
+
+    @Override
+    public CompletableFuture<LedgerEntries> batchReadAsync(long startEntry, int maxCount, long maxSize) {
+        return readAsync(startEntry, PulsarMockReadHandle.batchReadLastEntry(entries, startEntry, maxCount, maxSize));
+    }
+
+    @Override
+    public CompletableFuture<LedgerEntries> batchReadUnconfirmedAsync(long startEntry, int maxCount, long maxSize) {
+        return readUnconfirmedAsync(startEntry,
+                PulsarMockReadHandle.batchReadLastEntry(entries, startEntry, maxCount, maxSize));
     }
 
     private static LedgerMetadata createMetadata(long id, DigestType digest, byte[] passwd,

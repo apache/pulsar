@@ -116,6 +116,8 @@ public class PulsarMockBookKeeper extends BookKeeper {
         this.orderedExecutor = orderedExecutor;
         this.executor = orderedExecutor.chooseThread();
         scheduler = Executors.newScheduledThreadPool(1, new DefaultThreadFactory("mock-bk-scheduler"));
+        // The mock supports batch reads, which the managed ledger only uses with a v2 wire protocol client
+        getConf().setUseV2WireProtocol(true);
     }
 
     @Override
