@@ -115,7 +115,7 @@ class PulsarMockReadHandle extends LedgerHandle {
         long lastEntry = firstEntry;
         for (long eid = firstEntry; eid <= lastEntryByCount; eid++) {
             long entrySize = entries.get((int) eid).getLength();
-            if (maxSize > 0 && accumulatedSize > 0 && accumulatedSize + entrySize > maxSize) {
+            if (maxSize > 0 && eid > firstEntry && accumulatedSize + entrySize > maxSize) {
                 break;
             }
             accumulatedSize += entrySize;
