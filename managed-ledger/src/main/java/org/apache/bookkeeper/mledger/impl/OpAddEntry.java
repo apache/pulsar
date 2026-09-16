@@ -178,8 +178,11 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
         if (STATE_UPDATER.compareAndSet(OpAddEntry.this, State.OPEN, State.INITIATED)) {
             addOpCount = ManagedLedgerImpl.ADD_OP_COUNT_UPDATER.incrementAndGet(ml);
             lastInitTime = System.nanoTime();
-            //Use entryId in PublishContext and call addComplete directly.
-            this.addComplete(BKException.Code.OK, ledger, ((Position) ctx).getEntryId(), addOpCount);
+            // Use the entryId from the PublishContext. This runs inside the shadow ledger's own synchronized add
+            // path, so the completion is queued on the ledger thread instead of calling addComplete directly:
+            // run() reaches topic-level locks through the AddEntryCallback and must not execute under the monitor.
+            long entryId = ((Position) ctx).getEntryId();
+            ml.getExecutor().execute(() -> addComplete(BKException.Code.OK, ledger, entryId, addOpCount));
         } else {
             log.warn().attr("managedLedger", ml.getName())
                     .attr("state", state)

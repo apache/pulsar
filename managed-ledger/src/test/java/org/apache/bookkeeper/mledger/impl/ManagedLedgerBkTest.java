@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -514,6 +515,46 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         cursor.markDelete(p1);
         Awaitility.await().until(() -> cursor.cursorLedger != null && cursor.cursorLedger.getLastAddConfirmed() >= 0);
         assertEquals(readCallbackThread(cursor.cursorLedger, cursor.cursorLedger.getLastAddConfirmed()), mlThread);
+    }
+
+    @Test
+    public void testInlineAddCompletionsKeepOrder() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig()
+                .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("inline-add-order-" + UUID.randomUUID(), config);
+
+        int entries = 200;
+        List<Position> completed = new CopyOnWriteArrayList<>();
+        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(entries);
+        AddEntryCallback callback = new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                completed.add(position);
+                latch.countDown();
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                failure.compareAndSet(null, exception);
+                latch.countDown();
+            }
+        };
+        // Submit from the managed ledger thread, so the BookKeeper completions and their processing all run
+        // inline on that thread, and check they still complete the adds in submission order
+        ledger.getExecutor().execute(() -> {
+            for (int i = 0; i < entries; i++) {
+                ledger.asyncAddEntry(("entry-" + i).getBytes(StandardCharsets.UTF_8), callback, null);
+            }
+        });
+        assertTrue(latch.await(30, TimeUnit.SECONDS));
+        assertNull(failure.get());
+        assertEquals(completed.size(), entries);
+        for (int i = 1; i < entries; i++) {
+            assertTrue(completed.get(i - 1).compareTo(completed.get(i)) < 0, "completed out of order at " + i);
+        }
     }
 
     private static Thread readCallbackThread(LedgerHandle lh, long entryId) throws Exception {

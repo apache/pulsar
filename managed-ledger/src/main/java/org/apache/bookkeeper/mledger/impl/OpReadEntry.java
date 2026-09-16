@@ -269,8 +269,10 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     private void complete(Object ctx) {
-        // Runs inline when the read completed on the managed ledger thread
-        cursor.ledger.getExecutor().executeOrRun(() -> {
+        // Always queue, never run inline: a fully cached read completes synchronously, and callers such as OpScan
+        // and the replicator issue their next read from this callback, so the queue hop is what keeps a long run of
+        // cached batches from nesting on the stack.
+        cursor.ledger.getExecutor().execute(() -> {
             try {
                 callback.readEntriesComplete(entries, ctx);
                 recycle();
