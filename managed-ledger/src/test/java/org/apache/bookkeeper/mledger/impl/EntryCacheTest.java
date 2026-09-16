@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -63,6 +65,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         when(ml.getExecutor()).thenReturn(executor);
         when(ml.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
         when(ml.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ml.isBatchReadEnabled()).thenReturn(true);
         when(ml.getOptionalLedgerInfo(0L)).thenReturn(Optional.of(mock(
                 ManagedLedgerInfo.LedgerInfo.class)));
     }
@@ -248,6 +251,8 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
                 doAnswer((invocation2) -> entries.iterator()).when(ledgerEntries).iterator();
                 return CompletableFuture.completedFuture(ledgerEntries);
             }).when(lh).readUnconfirmedAsync(anyLong(), anyLong());
+        // Batch reads use the ReadHandle default, which delegates to the stubbed readUnconfirmedAsync
+        when(lh.batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong())).thenCallRealMethod();
 
         return lh;
     }
@@ -256,7 +261,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
                                   IntSupplier expectedReadCount, Consumer<Throwable> assertion)
             throws InterruptedException {
         final var future = new CompletableFuture<List<Entry>>();
-        entryCache.asyncReadEntry(lh, firstEntry, lastEntry, expectedReadCount,
+        entryCache.asyncReadEntry(lh, firstEntry, lastEntry, NO_MAX_SIZE_LIMIT, expectedReadCount,
                 new ReadEntriesCallback() {
                     @Override
                     public void readEntriesComplete(List<Entry> entries, Object ctx) {

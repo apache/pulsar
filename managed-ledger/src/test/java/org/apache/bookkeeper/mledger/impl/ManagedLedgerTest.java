@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -194,18 +195,37 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.entryCache.clear();
         LedgerHandle currentLedger = ml.currentLedger;
         final LedgerHandle spyLedgerHandle = spy(currentLedger);
+        // Storage reads go through batchReadUnconfirmedAsync when batch read is enabled and through
+        // readUnconfirmedAsync otherwise: intercept both entry points.
         doAnswer(invocation -> {
-            long ledgerId = invocation.getArgument(0);
-            long entryId = invocation.getArgument(1);
-            // Evaluate errorOrNot on errorSupplierExecutor. Pass a single-threaded executor when errorOrNot may
-            // block (e.g. it waits on a CountDownLatch) so it doesn't block the calling read thread; pass
-            // MoreExecutors.directExecutor() to evaluate it inline on the calling thread.
-            return CompletableFuture.supplyAsync(errorOrNot, errorSupplierExecutor)
-                    .thenCompose(mightError -> mightError != null
-                            ? CompletableFuture.<LedgerEntries>failedFuture(mightError)
-                            : currentLedger.readUnconfirmedAsync(ledgerId, entryId));
+            long firstEntry = invocation.getArgument(0);
+            long lastEntry = invocation.getArgument(1);
+            return readOrFail(errorOrNot, errorSupplierExecutor,
+                    () -> currentLedger.readUnconfirmedAsync(firstEntry, lastEntry));
         }).when(spyLedgerHandle).readUnconfirmedAsync(anyLong(), anyLong());
+        doAnswer(invocation -> {
+            long startEntry = invocation.getArgument(0);
+            int maxCount = invocation.getArgument(1);
+            long maxSize = invocation.getArgument(2);
+            return readOrFail(errorOrNot, errorSupplierExecutor,
+                    () -> currentLedger.batchReadUnconfirmedAsync(startEntry, maxCount, maxSize));
+        }).when(spyLedgerHandle).batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong());
         ml.currentLedger = spyLedgerHandle;
+    }
+
+    /**
+     * Evaluates {@code errorOrNot} on {@code errorSupplierExecutor} and either fails the read with the error it
+     * supplies or performs {@code read}. Pass a single-threaded executor when errorOrNot may block (e.g. it waits on
+     * a CountDownLatch) so it doesn't block the calling read thread; pass MoreExecutors.directExecutor() to evaluate
+     * it inline on the calling thread.
+     */
+    private static CompletableFuture<LedgerEntries> readOrFail(Supplier<ManagedLedgerException> errorOrNot,
+                                                               Executor errorSupplierExecutor,
+                                                               Supplier<CompletableFuture<LedgerEntries>> read) {
+        return CompletableFuture.supplyAsync(errorOrNot, errorSupplierExecutor)
+                .thenCompose(mightError -> mightError != null
+                        ? CompletableFuture.<LedgerEntries>failedFuture(mightError)
+                        : read.get());
     }
 
     @Data
@@ -709,7 +729,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedCursor c1 = ledger.openCursor("c1");
         Position position = PositionFactory.create(ledgerInfo.getLedgerId(), 0);
         Position maxPosition = PositionFactory.create(ledgerInfo.getLedgerId(), 99);
-        OpReadEntry opReadEntry = OpReadEntry.create((ManagedCursorImpl) c1, position, 20,
+        OpReadEntry opReadEntry = OpReadEntry.create((ManagedCursorImpl) c1, position, 20, NO_MAX_SIZE_LIMIT,
                 new ReadEntriesCallback() {
 
                     @Override
@@ -5936,5 +5956,21 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(advanceCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
         assertEquals(nonDurableCursor.getMarkDeletedPosition(), pos2);
         assertEquals(nonDurableCursor.getProperties(), properties);
+    }
+
+    @Test
+    public void testBatchReadRequiresClientSupport() throws Exception {
+        // The mock BookKeeper client uses the v2 wire protocol with batch reads enabled
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("batch_read_supported");
+        assertTrue(ledger.isBatchReadEnabled());
+
+        ManagedLedgerConfig disabled = new ManagedLedgerConfig();
+        disabled.setBatchReadEnabled(false);
+        ManagedLedgerImpl disabledLedger = (ManagedLedgerImpl) factory.open("batch_read_disabled", disabled);
+        assertFalse(disabledLedger.isBatchReadEnabled());
+
+        bkc.getConf().setUseV2WireProtocol(false);
+        ManagedLedgerImpl v3ClientLedger = (ManagedLedgerImpl) factory.open("batch_read_v3_client");
+        assertFalse(v3ClientLedger.isBatchReadEnabled());
     }
 }
