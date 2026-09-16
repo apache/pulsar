@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.OffloadPrefixTest.assertEventuallyTrue;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -95,7 +96,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
     @Test(dataProvider = "offloadAndDeleteTypes")
     public void testOffloadRead(String offloadType, boolean deleteMl) throws Exception {
         MockLedgerOffloader offloader = spy(MockLedgerOffloader.class);
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -178,7 +179,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         //delete after 5 minutes
         offloader.getOffloadPolicies()
                 .setManagedLedgerOffloadDeletionLagInMillis(300000L);
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -271,7 +272,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
     @Test
     public void testSkipOffloadIfReadOnly() throws Exception {
         LedgerOffloader ol = new NonAppendableLedgerOffloader(spy(MockLedgerOffloader.class));
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);

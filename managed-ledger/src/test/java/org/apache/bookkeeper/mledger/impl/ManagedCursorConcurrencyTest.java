@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -67,7 +68,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
     @Test(dataProvider = "useOpenRangeSet")
     public void testMarkDeleteAndRead(boolean useOpenRangeSet) throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2)
+        ManagedLedgerConfig config = rawEntryConfig().setMaxEntriesPerLedger(2)
                 ;
         ManagedLedger ledger = factory.open("my_test_ledger", config);
 
@@ -127,7 +128,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
     @Test
     public void testCloseAndRead() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger_test_close_and_read",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+                rawEntryConfig().setMaxEntriesPerLedger(2));
 
         final ManagedCursor cursor = ledger.openCursor("c1");
         final CompletableFuture<String> closeFuture = new CompletableFuture<>();
@@ -208,7 +209,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 30000)
     public void testAckAndClose() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger_test_ack_and_close",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
+                rawEntryConfig().setMaxEntriesPerLedger(2));
 
         final ManagedCursor cursor = ledger.openCursor("c1");
 
@@ -262,7 +263,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 30000)
     public void testConcurrentIndividualDeletes() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(100));
+        ManagedLedger ledger = factory.open("my_test_ledger", rawEntryConfig().setMaxEntriesPerLedger(100));
 
         final ManagedCursor cursor = ledger.openCursor("c1");
 
@@ -309,7 +310,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 30000, invocationCount = 10)
     public void testConcurrentReadOfSameEntry() throws Exception {
-        ManagedLedger ledger = factory.open("testConcurrentReadOfSameEntry", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("testConcurrentReadOfSameEntry", rawEntryConfig());
         final int numCursors = 20;
         final List<ManagedCursor> cursors = new ArrayList<>();
         for (int i = 0; i < numCursors; i++) {
@@ -360,7 +361,7 @@ public class ManagedCursorConcurrencyTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 30000)
     public void testConcurrentIndividualDeletesWithGetNthEntry() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger",
-                new ManagedLedgerConfig().setMaxEntriesPerLedger(100).setThrottleMarkDelete(0.5));
+                rawEntryConfig().setMaxEntriesPerLedger(100).setThrottleMarkDelete(0.5));
 
         final ManagedCursor cursor = ledger.openCursor("c1");
 

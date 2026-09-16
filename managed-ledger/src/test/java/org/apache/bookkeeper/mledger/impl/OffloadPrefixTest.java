@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -67,7 +68,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testNullOffloader() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -113,7 +114,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testOffload() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -143,7 +144,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testOffloadFenced() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -185,7 +186,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testPositionOutOfRange() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -221,7 +222,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testPositionOnEdgeOfLedger() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -273,7 +274,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testPositionOnLastEmptyLedger() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -324,7 +325,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 }
             };
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(0, TimeUnit.MINUTES);
@@ -388,7 +389,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 }
             };
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(0, TimeUnit.MINUTES);
@@ -434,7 +435,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testOffloadClosedManagedLedger() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -466,7 +467,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testOffloadSamePositionTwice() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -502,7 +503,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     public void offloadThreeOneFails(int failIndex) throws Exception {
         CompletableFuture<Set<Long>> promise = new CompletableFuture<>();
         MockLedgerOffloader offloader = new ErroringMockLedgerOffloader(promise);
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -554,7 +555,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testOffloadNewML() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -606,7 +607,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                     return super.deleteOffloaded(ledgerId, uuid, offloadDriverMetadata);
                 }
             };
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -658,7 +659,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         Set<Pair<Long, UUID>> failedOffloads = ConcurrentHashMap.newKeySet();
 
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(0, TimeUnit.MINUTES);
@@ -693,7 +694,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testOffloadDeleteClosedLedger() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(0, TimeUnit.MINUTES);
@@ -766,7 +767,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                             });
                 }
             };
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(0, TimeUnit.MINUTES);
@@ -806,7 +807,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testDontOffloadEmpty() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -872,7 +873,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test(dataProvider = "testAutoTriggerOffload")
     public void testAutoTriggerOffload(Long sizeThreshold, Long timeThreshold) throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
@@ -945,7 +946,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 }
             };
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
@@ -1038,7 +1039,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 }
             };
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
@@ -1116,7 +1117,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 }
             };
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
@@ -1205,7 +1206,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 }
             };
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
@@ -1250,7 +1251,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
                 }
             };
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
@@ -1282,7 +1283,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void automaticOffloadWithoutThresholdDoesNotBlockLaterTriggers() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
@@ -1319,7 +1320,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test(dataProvider = "offloadAsSoonAsClosed")
     public void offloadAsSoonAsClosed(Long sizeThreshold, Long timeThreshold) throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setRetentionTime(10, TimeUnit.MINUTES);
         config.setRetentionSizeInMB(10);
@@ -1453,7 +1454,7 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
     @Test
     public void testFailByZk() throws Exception {
         MockLedgerOffloader offloader = new MockLedgerOffloader();
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);

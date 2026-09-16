@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import java.util.UUID;
@@ -37,7 +38,7 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void testGetManagedLedgerInfoWithClose() throws Exception {
-        ManagedLedgerConfig conf = new ManagedLedgerConfig();
+        ManagedLedgerConfig conf = rawEntryConfig();
         conf.setMaxEntriesPerLedger(1);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testGetManagedLedgerInfo", conf);
         ManagedCursor c1 = ledger.openCursor("c1");
@@ -87,7 +88,7 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
     public void testConcurrentCloseLedgerAndSwitchLedgerForReproduceIssue() throws Exception {
         String managedLedgerName = "lg_" + UUID.randomUUID().toString().replaceAll("-", "_");
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setThrottleMarkDelete(1);
         config.setMaximumRolloverTime(Integer.MAX_VALUE, TimeUnit.SECONDS);
         config.setMaxEntriesPerLedger(5);
