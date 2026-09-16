@@ -131,13 +131,22 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @Override
     public boolean insert(Entry entry) {
+        return insert(entry, copyEntries);
+    }
+
+    /**
+     * Inserts the entry, retaining its buffer or, when {@code copy} is set, copying it into a cache owned buffer:
+     * always when so configured, and for entries read with the BookKeeper batch read API, whose buffers are slices
+     * of a response frame that stays allocated as long as any of its entries is cached.
+     */
+    private boolean insert(Entry entry, boolean copy) {
         int entryLength = entryLengthFunction.getEntryLength(ml, entry);
 
         log.debug().attr("position", entry.getPosition())
                 .attr("size", entryLength).log("Adding entry to cache");
 
         ByteBuf cachedData;
-        if (copyEntries) {
+        if (copy) {
             cachedData = copyEntry(entry);
             if (cachedData == null) {
                 return false;
@@ -154,7 +163,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         // while the cached entry is still in the cache, so the metadata has to be parsed from the copy instead.
         EntryImpl cacheEntry =
                 EntryImpl.createWithRetainedDuplicate(position, cachedData, entry.getReadCountHandler(),
-                            copyEntries ? null : entry.getMessageMetadata());
+                            copy ? null : entry.getMessageMetadata());
         if (ml.getConfig().isPulsarMessageEntries()) {
             // Parse the message metadata once at insert time so that cache reads don't have to do it lazily
             cacheEntry.initializeMessageMetadataIfNeeded(ml.getName());
@@ -561,8 +570,9 @@ public class RangeEntryCacheImpl implements EntryCache {
                                                           long maxSizeBytes, IntSupplier expectedReadCount,
                                                           boolean allowRetry) {
         final int entriesToRead = (int) (lastEntry - firstEntry) + 1;
+        final boolean batchRead = ml.isBatchReadEnabled();
         CompletableFuture<List<Entry>> readResult = ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry,
-                        ml.getConfig().isBatchReadEnabled(), maxSizeBytes)
+                        batchRead, maxSizeBytes)
                 .thenApply(
                         ledgerEntries -> {
                             requireNonNull(ml.getName());
@@ -581,7 +591,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                     entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
                                     if (expectedReadCountVal > 0) {
-                                        insert(entry);
+                                        insert(entry, copyEntries || batchRead);
                                     }
                                 }
 

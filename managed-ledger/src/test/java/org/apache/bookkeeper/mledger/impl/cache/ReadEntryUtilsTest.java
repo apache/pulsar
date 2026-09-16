@@ -172,57 +172,6 @@ public class ReadEntryUtilsTest {
     }
 
     @Test
-    public void testUnsupportedBatchReadFallsBackToRegularRead() {
-        // A v3 wire protocol client rejects batch reads synchronously
-        when(lh.batchReadUnconfirmedAsync(eq(0L), anyInt(), anyLong()))
-                .thenThrow(new UnsupportedOperationException("Unsupported batch read for v3 protocol"));
-        LedgerEntries entries = createLedgerEntries(1L, 0, 1, 2, 3, 4);
-        when(lh.readUnconfirmedAsync(0L, 4L)).thenReturn(CompletableFuture.completedFuture(entries));
-
-        CompletableFuture<LedgerEntries> future =
-                ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, 1024);
-
-        assertThat(future).isCompleted();
-        try (LedgerEntries result = future.getNow(null)) {
-            List<Long> entryIds = new ArrayList<>();
-            for (LedgerEntry e : result) {
-                entryIds.add(e.getEntryId());
-            }
-            assertThat(entryIds).containsExactly(0L, 1L, 2L, 3L, 4L);
-        }
-        verify(lh).readUnconfirmedAsync(0L, 4L);
-    }
-
-    @Test
-    public void testUnsupportedBatchReadAfterPartialReadFallsBackForRemainingRange() {
-        AtomicInteger firstCloseCount = new AtomicInteger();
-        AtomicInteger secondCloseCount = new AtomicInteger();
-        LedgerEntries firstBatch = createLedgerEntries(firstCloseCount, 1L, 0, 1);
-        LedgerEntries remaining = createLedgerEntries(secondCloseCount, 1L, 2, 3, 4);
-        when(lh.batchReadUnconfirmedAsync(0L, 5, 1024L))
-                .thenReturn(CompletableFuture.completedFuture(firstBatch));
-        when(lh.batchReadUnconfirmedAsync(2L, 3, 1024L))
-                .thenThrow(new UnsupportedOperationException("Unsupported batch read for v3 protocol"));
-        when(lh.readUnconfirmedAsync(2L, 4L)).thenReturn(CompletableFuture.completedFuture(remaining));
-
-        CompletableFuture<LedgerEntries> future =
-                ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, 1024);
-
-        assertThat(future).isCompleted();
-        LedgerEntries result = future.getNow(null);
-        List<Long> entryIds = new ArrayList<>();
-        for (LedgerEntry e : result) {
-            entryIds.add(e.getEntryId());
-        }
-        assertThat(entryIds).containsExactly(0L, 1L, 2L, 3L, 4L);
-        assertThat(firstCloseCount).hasValue(0);
-        assertThat(secondCloseCount).hasValue(0);
-        result.close();
-        assertThat(firstCloseCount).hasValue(1);
-        assertThat(secondCloseCount).hasValue(1);
-    }
-
-    @Test
     public void testSynchronousFailureAfterPartialReadReleasesEntries() {
         AtomicInteger closeCount = new AtomicInteger();
         LedgerEntries firstBatch = createLedgerEntries(closeCount, 1L, 0, 1);
@@ -426,26 +375,7 @@ public class ReadEntryUtilsTest {
     }
 
     @Test
-    public void testBatchReadFailureWithPartialDataDoesNotFallback() {
-        // First batch succeeds with entries 0-2
-        LedgerEntries firstBatch = createLedgerEntries(1L, 0, 1, 2);
-        when(lh.batchReadUnconfirmedAsync(eq(0L), eq(5), eq(1024L)))
-                .thenReturn(CompletableFuture.completedFuture(firstBatch));
-        // Second batch fails
-        CompletableFuture<LedgerEntries> failedFuture =
-                CompletableFuture.failedFuture(new BKException.BKBookieHandleNotAvailableException());
-        when(lh.batchReadUnconfirmedAsync(eq(3L), eq(2), eq(1024L)))
-                .thenReturn(failedFuture);
-
-        CompletableFuture<LedgerEntries> future =
-                ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, 1024);
-
-        assertThat(future).isCompletedExceptionally();
-        verify(lh, never()).readUnconfirmedAsync(anyLong(), anyLong());
-    }
-
-    @Test
-    public void testBatchReadMidBatchFailurePreservesOriginalException() {
+    public void testBatchReadFailureAfterPartialResultPreservesTheError() {
         // First batch succeeds with entries 0-2
         LedgerEntries firstBatch = createLedgerEntries(1L, 0, 1, 2);
         when(lh.batchReadUnconfirmedAsync(eq(0L), eq(5), eq(1024L)))
@@ -462,6 +392,7 @@ public class ReadEntryUtilsTest {
         assertThat(future).isCompletedExceptionally();
         assertThatThrownBy(future::get)
                 .hasCauseInstanceOf(BKException.class);
+        verify(lh, never()).readUnconfirmedAsync(anyLong(), anyLong());
     }
 
     // --- helpers ---
@@ -477,10 +408,6 @@ public class ReadEntryUtilsTest {
                     Unpooled.wrappedBuffer(new byte[]{(byte) entryId})));
         }
         return wrapLedgerEntries(entries, closeCount);
-    }
-
-    private static LedgerEntries wrapLedgerEntries(List<LedgerEntry> entries) {
-        return wrapLedgerEntries(entries, new AtomicInteger());
     }
 
     private static LedgerEntries wrapLedgerEntries(List<LedgerEntry> entries, AtomicInteger closeCount) {

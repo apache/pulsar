@@ -540,7 +540,7 @@ public class RangeEntryCacheImplTest {
         when(mockEntryCacheManager.getMlFactoryMBean()).thenReturn(mlFactoryMBean);
         ManagedLedgerImpl mockManagedLedger = mock(ManagedLedgerImpl.class);
         ManagedLedgerConfig conf = mock(ManagedLedgerConfig.class);
-        when(conf.isBatchReadEnabled()).thenReturn(false);
+        when(mockManagedLedger.isBatchReadEnabled()).thenReturn(false);
         when(mockManagedLedger.getConfig()).thenReturn(conf);
         ManagedLedgerMBeanImpl mockManagedLedgerMBean = mock(ManagedLedgerMBeanImpl.class);
         when(mockManagedLedger.getMbean()).thenReturn(mockManagedLedgerMBean);
@@ -598,13 +598,13 @@ public class RangeEntryCacheImplTest {
 
         ManagedLedgerImpl mockManagedLedger = mock(ManagedLedgerImpl.class);
         ManagedLedgerConfig conf = mock(ManagedLedgerConfig.class);
-        when(conf.isBatchReadEnabled()).thenReturn(true);
+        when(mockManagedLedger.isBatchReadEnabled()).thenReturn(true);
         when(mockManagedLedger.getConfig()).thenReturn(conf);
 
         ManagedLedgerMBeanImpl mockManagedLedgerMBean = mock(ManagedLedgerMBeanImpl.class);
         when(mockManagedLedger.getMbean()).thenReturn(mockManagedLedgerMBean);
         when(mockManagedLedger.getName()).thenReturn("testManagedLedger");
-        when(mockManagedLedger.getExecutor()).thenReturn(mock(java.util.concurrent.ExecutorService.class));
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ExecutorService.class));
         Position lastConfirmedEntry = PositionFactory.create(1L, 99L);
         when(mockManagedLedger.getLastConfirmedEntry()).thenReturn(lastConfirmedEntry);
         when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn((Optional) Optional.of(new Object()));
@@ -669,6 +669,8 @@ public class RangeEntryCacheImplTest {
             verify(ledgerHandle, never()).readUnconfirmedAsync(anyLong(), anyLong());
         } finally {
             entries.forEach(Entry::release);
+            // Release the copies kept by the cache
+            cache.clear();
         }
     }
 

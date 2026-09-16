@@ -65,6 +65,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
         when(ml.getExecutor()).thenReturn(executor);
         when(ml.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
         when(ml.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ml.isBatchReadEnabled()).thenReturn(true);
         when(ml.getOptionalLedgerInfo(0L)).thenReturn(Optional.of(mock(
                 ManagedLedgerInfo.LedgerInfo.class)));
     }

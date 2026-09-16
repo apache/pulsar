@@ -95,27 +95,22 @@ class PulsarMockReadHandle extends LedgerHandle {
 
     @Override
     public CompletableFuture<LedgerEntries> batchReadAsync(long firstEntry, int maxCount, long maxSize) {
-        return readAsync(firstEntry, batchReadLastEntry(entries, firstEntry, maxCount, maxSize, getLastAddConfirmed()));
+        return readAsync(firstEntry, batchReadLastEntry(entries, firstEntry, maxCount, maxSize));
     }
 
     @Override
     public CompletableFuture<LedgerEntries> batchReadUnconfirmedAsync(long firstEntry, int maxCount, long maxSize) {
-        return readUnconfirmedAsync(firstEntry,
-                batchReadLastEntry(entries, firstEntry, maxCount, maxSize, getLastAddConfirmed()));
+        return readUnconfirmedAsync(firstEntry, batchReadLastEntry(entries, firstEntry, maxCount, maxSize));
     }
 
     /**
-     * Resolves the last entry of a batch read the way a bookie bounds it: at most {@code maxCount} entries, at
-     * most {@code maxSize} bytes (a non-positive size is unlimited) but always at least the first entry, and never
-     * past the last add confirmed. Batch reads then go through the handle's own {@code readAsync} /
-     * {@code readUnconfirmedAsync}, so that stubs installed on a Mockito spy keep intercepting them.
+     * Resolves the last entry of a batch read the way a bookie bounds it: at most {@code maxCount} entries, at most
+     * {@code maxSize} bytes (a non-positive size is unlimited), always at least the first entry, and only entries that
+     * exist. Batch reads then go through the handle's own {@code readAsync} / {@code readUnconfirmedAsync}, so that
+     * stubs installed on a Mockito spy keep intercepting them.
      */
-    static long batchReadLastEntry(List<LedgerEntryImpl> entries, long firstEntry, int maxCount, long maxSize,
-                                   long lastAddConfirmed) {
-        long lastEntryByCount = Math.min(firstEntry + maxCount - 1, lastAddConfirmed);
-        if (lastEntryByCount < firstEntry) {
-            return firstEntry - 1;
-        }
+    static long batchReadLastEntry(List<LedgerEntryImpl> entries, long firstEntry, int maxCount, long maxSize) {
+        long lastEntryByCount = Math.min(firstEntry + maxCount - 1, entries.size() - 1);
         long accumulatedSize = 0;
         long lastEntry = firstEntry;
         for (long eid = firstEntry; eid <= lastEntryByCount; eid++) {

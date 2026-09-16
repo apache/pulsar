@@ -142,7 +142,7 @@ public class EntryCacheDisabled implements EntryCache {
 
     private void readEntries(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                              AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry, ml.getConfig().isBatchReadEnabled(), maxSizeBytes)
+        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry, ml.isBatchReadEnabled(), maxSizeBytes)
                 .thenApplyAsync(ledgerEntries -> {
                     List<Entry> entries = new ArrayList<>();
                     long totalSize = 0;

@@ -76,6 +76,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BKException.Code;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.BookKeeperClientConfigAccessor;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -160,6 +161,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final Logger slog = Logger.get(ManagedLedgerImpl.class);
 
     protected final BookKeeper bookKeeper;
+    /** Whether the BookKeeper client can batch read: the v2 wire protocol with batch reads enabled. */
+    private final boolean batchReadSupported;
     protected final String name;
     protected final Logger log;
 
@@ -385,6 +388,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         this.factory = factory;
         this.bookKeeper = bookKeeper;
+        this.batchReadSupported = BookKeeperClientConfigAccessor.supportsBatchRead(bookKeeper);
         this.config = config;
         this.store = store;
         this.name = name;
@@ -4546,6 +4550,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public ManagedLedgerConfig getConfig() {
         return config;
+    }
+
+    /**
+     * Whether storage reads use the BookKeeper batch read API: it must be enabled in the config and supported by
+     * the BookKeeper client (v2 wire protocol with batch reads enabled in its configuration).
+     */
+    public boolean isBatchReadEnabled() {
+        return batchReadSupported && config.isBatchReadEnabled();
     }
 
     @Override

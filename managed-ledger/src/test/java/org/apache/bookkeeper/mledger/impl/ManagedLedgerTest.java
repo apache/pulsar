@@ -5938,4 +5938,20 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(nonDurableCursor.getMarkDeletedPosition(), pos2);
         assertEquals(nonDurableCursor.getProperties(), properties);
     }
+
+    @Test
+    public void testBatchReadRequiresClientSupport() throws Exception {
+        // The mock BookKeeper client uses the v2 wire protocol with batch reads enabled
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("batch_read_supported");
+        assertTrue(ledger.isBatchReadEnabled());
+
+        ManagedLedgerConfig disabled = new ManagedLedgerConfig();
+        disabled.setBatchReadEnabled(false);
+        ManagedLedgerImpl disabledLedger = (ManagedLedgerImpl) factory.open("batch_read_disabled", disabled);
+        assertFalse(disabledLedger.isBatchReadEnabled());
+
+        bkc.getConf().setUseV2WireProtocol(false);
+        ManagedLedgerImpl v3ClientLedger = (ManagedLedgerImpl) factory.open("batch_read_v3_client");
+        assertFalse(v3ClientLedger.isBatchReadEnabled());
+    }
 }

@@ -959,7 +959,15 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         int numOfEntriesToRead = applyMaxSizeCap(numberOfEntriesToRead, maxSizeBytes);
+        readEntriesWithSkip(numOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition, skipCondition);
+    }
 
+    /**
+     * Reads {@code numOfEntriesToRead} entries, a count that the caller already capped with {@code maxSizeBytes}, the
+     * size limit the read carries along to bound its storage requests.
+     */
+    private void readEntriesWithSkip(int numOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                     Object ctx, Position maxPosition, Predicate<Position> skipCondition) {
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         // Skip deleted entries.
         skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
@@ -1116,8 +1124,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (hasMoreEntries() && maxPosition.compareTo(readPosition) >= 0) {
             // If we have available entries, we can read them immediately
             log.debug("Read entries immediately");
-            asyncReadEntriesWithSkip(numberOfEntriesToRead, maxSizeBytes, callback, ctx,
-                    maxPosition, skipCondition);
+            readEntriesWithSkip(numberOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition, skipCondition);
         } else {
             // Skip deleted entries.
             skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
