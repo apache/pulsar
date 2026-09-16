@@ -58,7 +58,7 @@ import org.testcontainers.containers.GenericContainer;
  * That single task builds the test image with async-profiler in it, relaxes the kernel perf_event
  * limits that the cpu sampling engine needs, and runs {@link PulsarProfilingTest} against the
  * result. Add --tests "*PulsarProfilingV4Test" to profile the v4 variant instead. See
- * CONTRIBUTING.md for the properties that tune it.
+ * {@code tests/performance/README.md} for scenario YAML files and environment overrides.
  * On a Linux host the perf_event limits can also be set persistently with sysctl, in which case
  * -Pinttest.asyncprofiler.skipPerfEventTuning skips the container that sets them:
  * kernel.perf_event_paranoid=1
@@ -80,13 +80,9 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
     // echo madvise | sudo tee /sys/kernel/mm/transparent_hugepage/defrag
     // More info about -XX:+UseTransparentHugePages at
     // https://shipilev.net/jvm/anatomy-quarks/2-transparent-huge-pages/
-    private static final String DEFAULT_PULSAR_MEM = "-Xmx1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch";
     private static final String PERF_PULSAR_MEM =
             "-XX:+UseTransparentHugePages -XX:+AlwaysPreTouch -XX:+HeapDumpOnOutOfMemoryError "
                     + "-XX:HeapDumpPath=/testoutput/%HEAP_DUMP_NAME%";
-    private static final String PRODUCE_MEM_LIMIT = "200M";
-    private static final String CONSUME_MEM_LIMIT = "200M";
-    private static final String BROKER_PULSAR_MEM = "-Xms2g -Xmx2g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch";
 
     /**
      * The topic domain to drive the load against: {@link TopicDomain#topic} for a v5 scalable topic,
@@ -130,24 +126,26 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         return "/admin/v2/" + resource + "/" + topic.getNamespace() + "/" + topic.getLocalName();
     }
 
-    // A container that runs pulsar-perf, arguments are currently hard-coded since this is an example
+    // A container that runs pulsar-perf for the configured profiling scenario.
     static class PulsarPerfContainer extends GenericContainer<PulsarPerfContainer> {
         private final String brokerHostname;
         private final String commandSuffix;
+        private final PulsarProfilingConfig.Load load;
         // Sized to finish well inside the wait in runPulsarPerfBenchmark. The containers sustain
         // roughly 290k msg/s, so this is a bit over a minute of load - long enough for a profile,
         // short enough that a run which does not finish is a real stall rather than the normal end.
-        private final long numberOfMessages = 20_000_000;
 
         public PulsarPerfContainer(File testOutputDir,
                                    String clusterName,
                                    String brokerHostname,
                                    String hostname,
                                    String memArgs,
-                                   String commandSuffix) {
+                                   String commandSuffix,
+                                   PulsarProfilingConfig.Load load) {
             super(PulsarContainer.DEFAULT_IMAGE_NAME);
             this.brokerHostname = brokerHostname;
             this.commandSuffix = commandSuffix;
+            this.load = load;
             withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(hostname);
                 createContainerCmd.withName(clusterName + "-" + hostname);
@@ -166,7 +164,7 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                             + "-u pulsar://" + brokerHostname + ":6650 "
                             + "-st Shared "
                             + "-q 50000 "
-                            + "-m " + numberOfMessages + " -ml " + CONSUME_MEM_LIMIT + " "
+                            + "-m " + load.numberOfMessages() + " -ml " + load.consumeMemoryLimit() + " "
                             + "--histogram-file=/testoutput/consume" + commandSuffix
                             + ".histogram.$(date +%s).hdr "
                             + "2>&1 | tee /testoutput/consume" + commandSuffix + ".$(date +%s).txt");
@@ -178,12 +176,12 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                             + "/pulsar/bin/pulsar-perf produce" + commandSuffix + " " + topicName + " "
                             + "-u pulsar://" + brokerHostname + ":6650 "
                             + "-au http://" + brokerHostname + ":8080 "
-                            + "-r " + Integer.MAX_VALUE + " "
-                            + "-s 128 -db "
+                            + "-r " + load.produceRate() + " "
+                            + "-s " + load.messageSize() + " -db "
                             // maxOutstanding only applies to the v4 client; the v5 client accepts
                             // the flag for back-compat but ignores it
-                            + "-o 20000 "
-                            + "-m " + numberOfMessages + " -ml " + PRODUCE_MEM_LIMIT + " "
+                            + "-o " + load.maxOutstanding() + " "
+                            + "-m " + load.numberOfMessages() + " -ml " + load.produceMemoryLimit() + " "
                             + "--histogram-file=/testoutput/produce" + commandSuffix
                             + ".histogram.$(date +%s).hdr "
                             + "2>&1 | tee /testoutput/produce" + commandSuffix + ".$(date +%s).txt");
@@ -207,7 +205,8 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                         .append(commandSuffix).append(".$(date +%s).txt; ");
             }
             script.append("curl -s ").append(brokerUrl).append("/metrics/ > /testoutput/metrics")
-                    .append(commandSuffix).append(".$(date +%s).txt; sleep 10; done");
+                    .append(commandSuffix).append(".$(date +%s).txt; sleep ")
+                    .append(load.statsIntervalSeconds()).append("; done");
             return DockerUtils.runCommandAsyncWithLogging(getDockerClient(), getContainerId(),
                     "bash", "-c", script.toString());
         }
@@ -240,6 +239,7 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
     private PulsarPerfContainer perfProduce;
     private PulsarPerfContainer printStats;
     private File testOutputDir;
+    private final PulsarProfilingConfig.Config profilingConfig = PulsarProfilingConfig.Config.read();
 
     @Override
     public void setupCluster() throws Exception {
@@ -249,7 +249,7 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
     }
 
     private void createTestOutputDir() {
-        testOutputDir = new File("build/pulsar-profiling");
+        testOutputDir = new File(profilingConfig.output().directory());
         if (!testOutputDir.exists()) {
             if (!testOutputDir.mkdirs()) {
                 throw new IllegalArgumentException("Test output directory + '" + testOutputDir.getAbsolutePath()
@@ -315,58 +315,39 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         specBuilder.profileDirectory(testOutputDir.getAbsolutePath());
 
         // Only run one broker so that all load goes to a single broker
-        specBuilder.numBrokers(1);
+        PulsarProfilingConfig.Cluster cluster = profilingConfig.cluster();
+        specBuilder.numBrokers(cluster.numBrokers());
         // Have 3 bookies to reduce bottleneck on bookie
-        specBuilder.numBookies(3);
+        specBuilder.numBookies(cluster.numBookies());
         // no need for proxy
-        specBuilder.numProxies(0);
+        specBuilder.numProxies(cluster.numProxies());
 
         // Increase memory for brokers and configure more aggressive rollover
-        Map<String, String> brokerEnvs = new HashMap<>();
-        brokerEnvs.put("PULSAR_MEM", BROKER_PULSAR_MEM);
-        brokerEnvs.put("managedLedgerMinLedgerRolloverTimeMinutes", "1");
-        brokerEnvs.put("managedLedgerMaxLedgerRolloverTimeMinutes", "5");
-        brokerEnvs.put("managedLedgerMaxSizePerLedgerMbytes", "512");
-        brokerEnvs.put("managedLedgerDefaultEnsembleSize", "1");
-        brokerEnvs.put("managedLedgerDefaultWriteQuorum", "1");
-        brokerEnvs.put("managedLedgerDefaultAckQuorum", "1");
+        Map<String, String> brokerEnvs = new HashMap<>(cluster.brokerEnvs());
+        brokerEnvs.put("PULSAR_MEM", cluster.brokerMemory());
         //brokerEnvs.put("maxPendingPublishRequestsPerConnection", "1000");
-        brokerEnvs.put("dispatcherRetryBackoffInitialTimeInMs", "0");
-        brokerEnvs.put("dispatcherRetryBackoffMaxTimeInMs", "0");
-        brokerEnvs.put("preciseDispatcherFlowControl", "true");
         //brokerEnvs.put("PULSAR_PREFIX_subscriptionKeySharedUseClassicPersistentImplementation", "true");
         //brokerEnvs.put("PULSAR_PREFIX_subscriptionSharedUseClassicPersistentImplementation", "true");
-        brokerEnvs.put("dispatcherMaxReadBatchSize", "1000");
         //brokerEnvs.put("dispatcherMaxReadSizeBytes", "10000000");
         //brokerEnvs.put("dispatcherDispatchMessagesInSubscriptionThread", "false");
         //brokerEnvs.put("dispatcherMaxRoundRobinBatchSize", "1000");
         specBuilder.brokerEnvs(brokerEnvs);
 
         // Increase memory for bookkeepers and make compaction run more often
-        Map<String, String> bkEnv = new HashMap<>();
-        bkEnv.put("PULSAR_MEM", DEFAULT_PULSAR_MEM);
-        bkEnv.put("dbStorage_writeCacheMaxSizeMb", "64");
-        bkEnv.put("dbStorage_readAheadCacheMaxSizeMb", "96");
-        bkEnv.put("journalMaxSizeMB", "256");
-        bkEnv.put("journalSyncData", "false");
-        bkEnv.put("majorCompactionInterval", "300");
-        bkEnv.put("minorCompactionInterval", "30");
-        bkEnv.put("compactionRateByEntries", "20000");
-        bkEnv.put("gcWaitTime", "30000");
-        bkEnv.put("isForceGCAllowWhenNoSpace", "true");
-        bkEnv.put("diskUsageLwmThreshold", "0.75");
-        bkEnv.put("diskCheckInterval", "60");
+        Map<String, String> bkEnv = new HashMap<>(cluster.bookkeeperEnvs());
+        bkEnv.put("PULSAR_MEM", cluster.bookkeeperMemory());
         specBuilder.bookkeeperEnvs(bkEnv);
 
         // Create pulsar-perf containers
         String brokerHostname = clusterName + "-pulsar-broker-0";
         String commandSuffix = getPerfCommandSuffix();
+        PulsarProfilingConfig.Load load = profilingConfig.load();
         perfProduce = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "perf-produce", "-Xmx2g",
-                commandSuffix);
+                commandSuffix, load);
         perfConsume = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "perf-consume", "-Xmx1g",
-                commandSuffix);
+                commandSuffix, load);
         printStats = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "print-stats", "-Xmx1g",
-                commandSuffix);
+                commandSuffix, load);
         specBuilder.externalServices(Map.of(
                 "pulsar-produce", perfProduce,
                 "pulsar-consume", perfConsume,
