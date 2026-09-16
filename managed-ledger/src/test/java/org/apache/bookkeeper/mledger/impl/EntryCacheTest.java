@@ -44,6 +44,7 @@ import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -62,7 +63,7 @@ public class EntryCacheTest extends MockedBookKeeperTestCase {
     protected void setUpTestCase() throws Exception {
         ml = mock(ManagedLedgerImpl.class);
         when(ml.getName()).thenReturn("name");
-        when(ml.getExecutor()).thenReturn(executor);
+        when(ml.getExecutor()).thenReturn((ThreadBoundExecutor) bkExecutor.chooseThread());
         when(ml.getMbean()).thenReturn(new ManagedLedgerMBeanImpl(ml));
         when(ml.getConfig()).thenReturn(rawEntryConfig());
         when(ml.isBatchReadEnabled()).thenReturn(true);

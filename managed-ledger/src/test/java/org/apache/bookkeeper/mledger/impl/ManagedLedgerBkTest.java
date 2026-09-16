@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,6 +45,7 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarBookKeeperTestClient;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -513,6 +515,80 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertEquals(3, c1.getNumberOfEntries());
         assertEquals(3, c1.getNumberOfEntriesInBacklog(false));
         assertTrue(p1.getLedgerId() != p3.getLedgerId());
+    }
+
+    @Test
+    public void testLedgerCallbacksRunOnManagedLedgerThread() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2)
+                .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ml-thread-callbacks-" + UUID.randomUUID(), config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        Thread mlThread = CompletableFuture.supplyAsync(Thread::currentThread, ledger.getExecutor()).get();
+
+        // Data ledger created with the managed ledger name as ordering key
+        Position p1 = ledger.addEntry("entry-1".getBytes(StandardCharsets.UTF_8));
+        assertEquals(readCallbackThread(ledger.currentLedger, p1.getEntryId()), mlThread);
+
+        // Closed ledger re-opened through getLedgerHandle with the same key
+        ledger.addEntry("entry-2".getBytes(StandardCharsets.UTF_8));
+        Position p3 = ledger.addEntry("entry-3".getBytes(StandardCharsets.UTF_8));
+        assertNotEquals(p3.getLedgerId(), p1.getLedgerId());
+        LedgerHandle reopened = (LedgerHandle) ledger.getLedgerHandle(p1.getLedgerId()).get(10, TimeUnit.SECONDS);
+        assertEquals(readCallbackThread(reopened, p1.getEntryId()), mlThread);
+
+        // Cursor ledger, created through the same create path
+        cursor.markDelete(p1);
+        Awaitility.await().until(() -> cursor.cursorLedger != null && cursor.cursorLedger.getLastAddConfirmed() >= 0);
+        assertEquals(readCallbackThread(cursor.cursorLedger, cursor.cursorLedger.getLastAddConfirmed()), mlThread);
+    }
+
+    @Test
+    public void testInlineAddCompletionsKeepOrder() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig()
+                .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("inline-add-order-" + UUID.randomUUID(), config);
+
+        int entries = 200;
+        List<Position> completed = new CopyOnWriteArrayList<>();
+        AtomicReference<ManagedLedgerException> failure = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(entries);
+        AddEntryCallback callback = new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                completed.add(position);
+                latch.countDown();
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                failure.compareAndSet(null, exception);
+                latch.countDown();
+            }
+        };
+        // Submit from the managed ledger thread, so the BookKeeper completions and their processing all run
+        // inline on that thread, and check they still complete the adds in submission order
+        ledger.getExecutor().execute(() -> {
+            for (int i = 0; i < entries; i++) {
+                ledger.asyncAddEntry(("entry-" + i).getBytes(StandardCharsets.UTF_8), callback, null);
+            }
+        });
+        assertTrue(latch.await(30, TimeUnit.SECONDS));
+        assertNull(failure.get());
+        assertEquals(completed.size(), entries);
+        for (int i = 1; i < entries; i++) {
+            assertTrue(completed.get(i - 1).compareTo(completed.get(i)) < 0, "completed out of order at " + i);
+        }
+    }
+
+    private static Thread readCallbackThread(LedgerHandle lh, long entryId) throws Exception {
+        CompletableFuture<Thread> callbackThread = new CompletableFuture<>();
+        lh.asyncReadEntries(entryId, entryId,
+                (rc, handle, seq, ctx) -> callbackThread.complete(Thread.currentThread()), null);
+        return callbackThread.get(10, TimeUnit.SECONDS);
     }
 
     /**

@@ -105,6 +105,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.OpenBuilderBase;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -3149,6 +3150,38 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         };
     }
 
+    @Test(timeOut = 60000)
+    void testScanFromLedgerThreadOverCachedEntries() throws Exception {
+        ManagedLedger ledger = factory.open("my_test_ledger_scan_inline");
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
+        int numEntries = 2000;
+        for (int i = 0; i < numEntries; i++) {
+            ledger.addEntry(("a" + i).getBytes(Encoding));
+        }
+
+        // Drive a single-entry-batch scan from the managed ledger thread: every batch is a synchronous cache hit
+        // whose completion runs inline, so without the nesting cap the stack depth seen by the last entries would
+        // grow with the number of batches.
+        AtomicInteger seen = new AtomicInteger();
+        AtomicInteger firstDepth = new AtomicInteger(-1);
+        AtomicInteger maxDepth = new AtomicInteger();
+        CompletableFuture<ScanOutcome> outcome = CompletableFuture.supplyAsync(() -> c1.scan(Optional.empty(),
+                entry -> {
+                    int depth = Thread.currentThread().getStackTrace().length;
+                    firstDepth.compareAndSet(-1, depth);
+                    maxDepth.accumulateAndGet(depth, Math::max);
+                    seen.incrementAndGet();
+                    return true;
+                }, 1, Long.MAX_VALUE, Long.MAX_VALUE), ((ManagedLedgerImpl) ledger).getExecutor())
+                .thenCompose(f -> f);
+        assertEquals(outcome.get(30, TimeUnit.SECONDS), ScanOutcome.COMPLETED);
+        assertEquals(seen.get(), numEntries);
+        // at most MAX_NESTED_INLINE_COMPLETIONS batches nest before a completion is queued, so the depth is bounded
+        // by that many batches' worth of frames rather than by the number of batches
+        assertTrue(maxDepth.get() - firstDepth.get() < OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS * 40,
+                "stack depth grew from " + firstDepth.get() + " to " + maxDepth.get() + " across batches");
+    }
+
     @Test(dataProvider = "testScanValues", timeOut = 30000)
     void testScan(int numEntries, int batchSize) throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger_scan_" + numEntries
@@ -4556,7 +4589,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         when(ledger.getConfig()).thenReturn(rawEntryConfig());
         when(ledger.getLogger()).thenReturn(log);
         OrderedScheduler scheduledExecutor = mock(OrderedScheduler.class);
-        ExecutorService executor = mock(ExecutorService.class);
+        ThreadBoundExecutor executor = mock(ThreadBoundExecutor.class);
         when(ledger.getScheduledExecutor()).thenReturn(scheduledExecutor);
         when(ledger.getExecutor()).thenReturn(executor);
         ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c1");

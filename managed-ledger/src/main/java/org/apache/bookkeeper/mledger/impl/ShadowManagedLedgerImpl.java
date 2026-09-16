@@ -168,6 +168,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                         .withLedgerId(lastLedgerId)
                         .withDigestType(config.getDigestType())
                         .withPassword(config.getPassword())
+                        .withOrderingKey(name)
                         .execute()
                         .whenComplete((rh, ex) -> completeOpenCallback(log, lastLedgerId, opencb, rh, ex));
 
@@ -382,6 +383,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                     .withLedgerId(lastLedgerId)
                     .withDigestType(config.getDigestType())
                     .withPassword(config.getPassword())
+                    .withOrderingKey(name)
                     .execute()
                     .whenComplete((rh, ex) -> completeOpenCallback(log, lastLedgerId, opencb, rh, ex));
         }
