@@ -3028,9 +3028,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             doc = "load balance load shedding strategy "
                 + "(It requires broker restart if value is changed using dynamic config). "
-                + "Default is ThresholdShedder since 2.10.0"
+                + "Default is AvgShedder since 5.0.0 (ThresholdShedder was the default from 2.10.0 to 4.x). "
+                + "AvgShedder implements both the shedding and the placement strategy and must be paired with "
+                + "loadBalancerLoadPlacementStrategy=AvgShedder; when a different shedding strategy is configured, "
+                + "an AvgShedder placement strategy falls back to LeastLongTermMessageRate."
     )
-    private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder";
+    private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.AvgShedder";
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
@@ -3041,10 +3044,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
-            doc = "load balance placement strategy"
+            doc = "load balance placement strategy. "
+                    + "Default is AvgShedder since 5.0.0 (LeastLongTermMessageRate before), which binds placement to "
+                    + "the AvgShedder shedding strategy so that unloaded bundles land on the broker the shedder "
+                    + "chose for them. It only takes effect together with "
+                    + "loadBalancerLoadSheddingStrategy=AvgShedder; with any other shedding strategy the broker "
+                    + "falls back to LeastLongTermMessageRate placement and logs a warning."
     )
     private String loadBalancerLoadPlacementStrategy =
-            "org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate";
+            "org.apache.pulsar.broker.loadbalance.impl.AvgShedder";
 
     @FieldContext(
         dynamic = true,
@@ -3087,9 +3095,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "enable/disable distribute bundles evenly"
+            doc = "Enable/disable distributing bundles evenly across brokers when a bundle is assigned. "
+                    + "When enabled, the candidate brokers for a new assignment are first narrowed to those "
+                    + "owning the fewest bundles of that namespace, before the placement strategy runs. This "
+                    + "overrides load-aware placement and can discard the destination the AvgShedder shedding "
+                    + "strategy planned for an unloaded bundle, so it is disabled by default since 5.0.0 "
+                    + "(it was enabled before). Bundles of the system namespace are always distributed evenly."
     )
-    private boolean loadBalancerDistributeBundlesEvenlyEnabled = true;
+    private boolean loadBalancerDistributeBundlesEvenlyEnabled = false;
 
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
@@ -3194,11 +3207,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder and AvgShedder strategy, the maximum unload ratio."
-                    + "For AvgShedder, recommend to set to 0.5, so that it will distribute the load "
-                    + "evenly between the highest and lowest brokers."
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the maximum unload ratio: the share of "
+                    + "the load difference between the highest and the lowest loaded broker that is moved in one "
+                    + "shedding cycle. Default is 0.5 since 5.0.0 (0.2 before), which lets AvgShedder equalize "
+                    + "the load of the two brokers in a single cycle."
     )
-    private double maxUnloadPercentage = 0.2;
+    private double maxUnloadPercentage = 0.5;
 
     @FieldContext(
         dynamic = true,
