@@ -373,6 +373,16 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     }
 
     @Override
+    public Object[] toArray() {
+        return toList().toArray();
+    }
+
+    @Override
+    public <R> R[] toArray(R[] array) {
+        return toList().toArray(array);
+    }
+
+    @Override
     public void forEach(Consumer<? super T> action) {
         long stamp = tailLock.writeLock();
         headLock.lock();

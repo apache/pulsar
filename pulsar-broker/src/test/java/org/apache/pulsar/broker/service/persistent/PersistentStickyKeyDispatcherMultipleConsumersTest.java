@@ -955,7 +955,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 }
 
                 @Override
-                public synchronized void readMoreEntries() {
+                protected synchronized void internalReadMoreEntries() {
                     readMoreEntriesCalled.incrementAndGet();
                 }
 
@@ -976,7 +976,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 }
 
                 @Override
-                public synchronized void readMoreEntries() {
+                protected synchronized void internalReadMoreEntries() {
                     readMoreEntriesCalled.incrementAndGet();
                 }
 

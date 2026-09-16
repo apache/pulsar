@@ -1471,6 +1471,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
+            doc = "Hard ceiling on a single segment's entry-bucket count (PIP-486). Bounds both the "
+                    + "manual rebucket operation and the controller's auto rebucket-up; a segment's "
+                    + "bucket count caps how many consumers can share it."
+    )
+    private int scalableTopicEntryBucketMaxPerSegment = 1024;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
             doc = "Max number of merges allowed in a segment's lineage. Once a segment reaches this depth "
                     + "it stops being a merge candidate (load-driven splits are still allowed), bounding "
                     + "split/merge flip-flopping."
@@ -1485,6 +1494,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "connecting at once)."
     )
     private int scalableTopicSplitCooldownSeconds = 60;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "PIP-486 segments-vs-buckets lever: on consumer-driven scale-up, split only if the "
+                    + "busiest segment's inbound msg/s is at or above this floor; below it the "
+                    + "controller grows the segment's entry-buckets instead (a low-throughput topic "
+                    + "should not materialize physical segments just for consumer count)."
+    )
+    private double scalableTopicSplitVsRebucketMinMsgRateInThreshold = 1_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Minimum time (seconds) between automatic entry-bucket rollovers (rebuckets) on a "
+                    + "topic. Coalesces consumer-join bursts, like the split cooldown."
+    )
+    private int scalableTopicRebucketCooldownSeconds = 60;
 
     @FieldContext(
             dynamic = true,
@@ -1599,7 +1626,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Dispatch messages and execute broker side filters in a per-subscription thread"
     )
-    private boolean dispatcherDispatchMessagesInSubscriptionThread = true;
+    private boolean dispatcherDispatchMessagesInSubscriptionThread = false;
 
     @FieldContext(
         dynamic = false,
@@ -2192,8 +2219,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "If this flag is set then the broker authenticates the original Auth data"
-            + " else it just accepts the originalPrincipal and authorizes it (if required)")
-    private boolean authenticateOriginalAuthData = false;
+            + " else it just accepts the originalPrincipal and authorizes it (if required)."
+            + " Set false for TLS client-certificate authentication through a proxy, since the broker"
+            + " receives the proxy certificate rather than the client certificate."
+            + " Also set false for SASL authentication through a proxy, since the client-proxy handshake"
+            + " cannot be replayed as a separate client-broker handshake.")
+    private boolean authenticateOriginalAuthData = true;
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
@@ -2665,6 +2696,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "Default is true, to behave like a LRU cache."
     )
     private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = true;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
+            doc = "Enable the BookKeeper batch read API when reading entries from bookkeeper: a single RPC "
+                    + "fetches multiple entries, reducing network overhead for sequential reads. Batch read "
+                    + "requires the v2 wire protocol (bookkeeperUseV2WireProtocol) and BookKeeper's own batch "
+                    + "read flag (bookkeeper_batchReadEnabled), checked on the BookKeeper client when a topic is "
+                    + "loaded: regular reads are used otherwise, as well as for striped ledgers (where "
+                    + "managedLedgerDefaultEnsembleSize differs from managedLedgerDefaultWriteQuorum) and for "
+                    + "bookies without batch read support. Each batch read request is bounded by the size limit "
+                    + "of the dispatcher read that triggered it (e.g. dispatcherMaxReadSizeBytes) and by the "
+                    + "BookKeeper client's max frame size (maxMessageSize plus padding); a read needing more "
+                    + "data is split into sequential batch read requests. Entries read this way are copied when "
+                    + "inserted in the entry cache.")
+    private boolean managedLedgerBatchReadEnabled = true;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
@@ -3824,9 +3869,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean authenticateMetricsEndpoint = false;
     @FieldContext(
         category = CATEGORY_METRICS,
+        dynamic = true,
         doc = "If true, export topic level metrics otherwise namespace level"
     )
-    private boolean exposeTopicLevelMetricsInPrometheus = true;
+    private volatile boolean exposeTopicLevelMetricsInPrometheus = true;
     @FieldContext(
             category = CATEGORY_METRICS,
             doc = "Set to true to enable the broker to cache the metrics response; the default is false. "
@@ -3836,24 +3882,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean metricsBufferResponse = false;
     @FieldContext(
         category = CATEGORY_METRICS,
+        dynamic = true,
         doc = "If true, export consumer level metrics otherwise namespace level"
     )
-    private boolean exposeConsumerLevelMetricsInPrometheus = false;
+    private volatile boolean exposeConsumerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "If true, export producer level metrics otherwise namespace level"
     )
-    private boolean exposeProducerLevelMetricsInPrometheus = false;
+    private volatile boolean exposeProducerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "If true, export managed ledger metrics (aggregated by namespace)"
     )
-    private boolean exposeManagedLedgerMetricsInPrometheus = true;
+    private volatile boolean exposeManagedLedgerMetricsInPrometheus = true;
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "If true, export managed cursor metrics"
     )
-    private boolean exposeManagedCursorMetricsInPrometheus = false;
+    private volatile boolean exposeManagedCursorMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
@@ -3861,11 +3911,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_METRICS,
+        dynamic = true,
         doc = "Enable expose the precise backlog stats.\n"
                 + " Set false to use published counter and consumed counter to calculate,\n"
                 + " this would be more efficient but may be inaccurate. Default is false."
     )
-    private boolean exposePreciseBacklogInPrometheus = false;
+    private volatile boolean exposePreciseBacklogInPrometheus = false;
 
     @FieldContext(
         category = CATEGORY_METRICS,
@@ -3877,10 +3928,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "Enable expose the backlog size for each subscription when generating stats.\n"
                     + " Locking is used for fetching the status so default to false."
     )
-    private boolean exposeSubscriptionBacklogSizeInPrometheus = false;
+    private volatile boolean exposeSubscriptionBacklogSizeInPrometheus = false;
 
     @FieldContext(
             category = CATEGORY_METRICS,

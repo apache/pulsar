@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -194,18 +195,37 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ml.entryCache.clear();
         LedgerHandle currentLedger = ml.currentLedger;
         final LedgerHandle spyLedgerHandle = spy(currentLedger);
+        // Storage reads go through batchReadUnconfirmedAsync when batch read is enabled and through
+        // readUnconfirmedAsync otherwise: intercept both entry points.
         doAnswer(invocation -> {
-            long ledgerId = invocation.getArgument(0);
-            long entryId = invocation.getArgument(1);
-            // Evaluate errorOrNot on errorSupplierExecutor. Pass a single-threaded executor when errorOrNot may
-            // block (e.g. it waits on a CountDownLatch) so it doesn't block the calling read thread; pass
-            // MoreExecutors.directExecutor() to evaluate it inline on the calling thread.
-            return CompletableFuture.supplyAsync(errorOrNot, errorSupplierExecutor)
-                    .thenCompose(mightError -> mightError != null
-                            ? CompletableFuture.<LedgerEntries>failedFuture(mightError)
-                            : currentLedger.readUnconfirmedAsync(ledgerId, entryId));
+            long firstEntry = invocation.getArgument(0);
+            long lastEntry = invocation.getArgument(1);
+            return readOrFail(errorOrNot, errorSupplierExecutor,
+                    () -> currentLedger.readUnconfirmedAsync(firstEntry, lastEntry));
         }).when(spyLedgerHandle).readUnconfirmedAsync(anyLong(), anyLong());
+        doAnswer(invocation -> {
+            long startEntry = invocation.getArgument(0);
+            int maxCount = invocation.getArgument(1);
+            long maxSize = invocation.getArgument(2);
+            return readOrFail(errorOrNot, errorSupplierExecutor,
+                    () -> currentLedger.batchReadUnconfirmedAsync(startEntry, maxCount, maxSize));
+        }).when(spyLedgerHandle).batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong());
         ml.currentLedger = spyLedgerHandle;
+    }
+
+    /**
+     * Evaluates {@code errorOrNot} on {@code errorSupplierExecutor} and either fails the read with the error it
+     * supplies or performs {@code read}. Pass a single-threaded executor when errorOrNot may block (e.g. it waits on
+     * a CountDownLatch) so it doesn't block the calling read thread; pass MoreExecutors.directExecutor() to evaluate
+     * it inline on the calling thread.
+     */
+    private static CompletableFuture<LedgerEntries> readOrFail(Supplier<ManagedLedgerException> errorOrNot,
+                                                               Executor errorSupplierExecutor,
+                                                               Supplier<CompletableFuture<LedgerEntries>> read) {
+        return CompletableFuture.supplyAsync(errorOrNot, errorSupplierExecutor)
+                .thenCompose(mightError -> mightError != null
+                        ? CompletableFuture.<LedgerEntries>failedFuture(mightError)
+                        : read.get());
     }
 
     @Data
@@ -709,7 +729,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ManagedCursor c1 = ledger.openCursor("c1");
         Position position = PositionFactory.create(ledgerInfo.getLedgerId(), 0);
         Position maxPosition = PositionFactory.create(ledgerInfo.getLedgerId(), 99);
-        OpReadEntry opReadEntry = OpReadEntry.create((ManagedCursorImpl) c1, position, 20,
+        OpReadEntry opReadEntry = OpReadEntry.create((ManagedCursorImpl) c1, position, 20, NO_MAX_SIZE_LIMIT,
                 new ReadEntriesCallback() {
 
                     @Override
@@ -3434,6 +3454,183 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testManagedLedgerWithConcurrentReadEntryTimeOut() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig()).setReadEntryTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("concurrent_timeout_ledger_test", config);
+
+        Position position1 = ledger.addEntry("entry-1".getBytes());
+        Position position2 = ledger.addEntry("entry-2".getBytes());
+
+        // ensure that the reads aren't cached
+        factory.getEntryCacheManager().clear();
+
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long ledgerId, long firstEntry, long lastEntry,
+                                                                       LedgerEntries entries) {
+                return CompletableFuture.supplyAsync(() -> entries,
+                        CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS));
+            }
+        });
+
+        AtomicReference<ManagedLedgerException> responseException1 = new AtomicReference<>();
+        AtomicReference<ManagedLedgerException> responseException2 = new AtomicReference<>();
+        String ctxStr = "timeoutCtx";
+
+        ledger.asyncReadEntry(position1, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                entry.release();
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                assertEquals(ctxStr, (String) ctx);
+                responseException1.set(exception);
+            }
+        }, ctxStr);
+
+        ledger.asyncReadEntry(position2, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                entry.release();
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                assertEquals(ctxStr, (String) ctx);
+                responseException2.set(exception);
+            }
+        }, ctxStr);
+
+        Awaitility.await().untilAsserted(() -> {
+            assertNotNull(responseException1.get());
+            assertTrue(responseException1.get().getMessage()
+                    .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
+            assertNotNull(responseException2.get());
+            assertTrue(responseException2.get().getMessage()
+                    .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
+        });
+
+        ledger.close();
+    }
+
+    @Test
+    public void testReadEntryTimeoutCallbackRunsOnManagedLedgerExecutor() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig()).setReadEntryTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("timeout_executor_test", config);
+        Position position = ledger.addEntry("entry-1".getBytes());
+
+        factory.getEntryCacheManager().clear();
+
+        bkc.setReadHandleInterceptor(new PulsarMockReadHandleInterceptor() {
+            @Override
+            public CompletableFuture<LedgerEntries> interceptReadAsync(long ledgerId, long firstEntry, long lastEntry,
+                                                                       LedgerEntries entries) {
+                return CompletableFuture.supplyAsync(() -> entries,
+                        CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS));
+            }
+        });
+
+        CountDownLatch executorBlocked = new CountDownLatch(1);
+        CountDownLatch releaseExecutor = new CountDownLatch(1);
+        AtomicReference<ManagedLedgerException> responseException = new AtomicReference<>();
+        try {
+            ledger.getExecutor().execute(() -> {
+                executorBlocked.countDown();
+                try {
+                    releaseExecutor.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            assertTrue(executorBlocked.await(5, TimeUnit.SECONDS));
+
+            ledger.asyncReadEntry(position, new ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    entry.release();
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    responseException.set(exception);
+                }
+            }, null);
+
+            Awaitility.await().untilAsserted(() -> {
+                factory.getReadEntryTimeoutTracker().checkTimeouts();
+                assertEquals(factory.getReadEntryTimeoutTracker().pendingTimeoutCount(), 0);
+            });
+            assertNull(responseException.get());
+
+            releaseExecutor.countDown();
+            Awaitility.await().untilAsserted(() -> {
+                assertNotNull(responseException.get());
+                assertTrue(responseException.get().getMessage()
+                        .startsWith(BKException.getMessage(BKException.Code.TimeoutException)));
+            });
+        } finally {
+            releaseExecutor.countDown();
+            ledger.close();
+        }
+    }
+
+    @Test
+    public void testCompletedReadEntryTimeoutsAreRemovedFromSharedTracker() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(new ManagedLedgerConfig()).setReadEntryTimeoutSeconds(60);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completed_read_timeout_tracker_test", config);
+        Position position = ledger.addEntry("entry-1".getBytes());
+
+        CompletableFuture<Void> readComplete = new CompletableFuture<>();
+        ledger.asyncReadEntry(position, new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                entry.release();
+                readComplete.complete(null);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                readComplete.completeExceptionally(exception);
+            }
+        }, null);
+
+        readComplete.get(5, TimeUnit.SECONDS);
+        factory.getReadEntryTimeoutTracker().checkTimeouts();
+        assertEquals(factory.getReadEntryTimeoutTracker().pendingTimeoutCount(), 0);
+
+        ledger.close();
+    }
+
+    @Test
+    public void testCompletedReadEntryIsNotRegisteredForReadTimeout() throws Exception {
+        Object expectedCtx = new Object();
+        CompletableFuture<Object> callbackContext = new CompletableFuture<>();
+        ReadEntryCallback callback = new ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                callbackContext.complete(ctx);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                callbackContext.complete(ctx);
+            }
+        };
+        ManagedLedgerImpl.ReadEntryCallbackWrapper readCallback = ManagedLedgerImpl.ReadEntryCallbackWrapper.create(
+                mock(ManagedLedgerImpl.class), 1L, 2L, callback, expectedCtx,
+                System.nanoTime() + TimeUnit.SECONDS.toNanos(60));
+
+        readCallback.readEntryFailed(new ManagedLedgerException("completed"), null);
+
+        assertSame(callbackContext.get(5, TimeUnit.SECONDS), expectedCtx);
+        assertTrue(readCallback.isCompleted());
+        assertFalse(readCallback.registerTimeout());
+        assertFalse(readCallback.triggerReadTimeout(new ManagedLedgerException("timeout")));
+    }
+
+    @Test
     public void testAddEntryResponseTimeout() throws Exception {
         // Create ML with feature Add Entry Timeout Check.
         final ManagedLedgerConfig config =
@@ -4831,6 +5028,83 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     /**
+     * Reopening a managed ledger rebuilds the last ledger's LedgerInfo from BookKeeper
+     * (the znode stat is stale while the ledger is the current writing ledger). The rebuild
+     * must only refresh entries/size/timestamp and preserve the fields already persisted in
+     * the znode -- per-ledger properties and the offload context.
+     *
+     * <p>Before the fix, the rebuild created the LedgerInfo from scratch, dropping properties
+     * and offloadContext; the loss was then persisted by the ledger-ids rewrite in
+     * initializeBookKeeper.
+     */
+    @Test(timeOut = 20000)
+    public void testLedgerPropertiesAndOffloadContextPreservedAfterReopen() throws Exception {
+        String name = "testLedgerPropertiesAndOffloadContextPreservedAfterReopen";
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(name);
+
+        // One entry before tagging the ledger, so BK is already ahead of the znode stat.
+        ml.addEntry("entry-1".getBytes(Encoding));
+        long lastLedger = ml.ledgers.lastKey();
+
+        // Simulate a ledger that has been offloaded: inject the offload context into the
+        // in-memory info, then persist it together with a ledger property.
+        LedgerInfo infoWithOffload = new LedgerInfo().setLedgerId(lastLedger);
+        infoWithOffload.setOffloadContext().setUidMsb(11L).setUidLsb(22L).setComplete(true);
+        ml.ledgers.put(lastLedger, infoWithOffload);
+        ml.asyncAddLedgerProperty(lastLedger, "key1", "value1").join();
+
+        // Write more entries after the property write: BK entries/size now lead the znode stat.
+        ml.addEntry("entry-2".getBytes(Encoding));
+        ml.addEntry("entry-3".getBytes(Encoding));
+        ml.close();
+
+        // Reopen: initialize() refreshes the last ledger's stats from BookKeeper.
+        ManagedLedgerImpl mlReopened = (ManagedLedgerImpl) factory.open(name);
+        LedgerInfo info = mlReopened.ledgers.get(lastLedger);
+        Assert.assertNotNull(info);
+
+        // entries/size reflect all the writes recorded by BookKeeper
+        Assert.assertEquals(info.getEntries(), 3L);
+        Assert.assertEquals(info.getSize(),
+                (long) "entry-1".getBytes(Encoding).length + "entry-2".getBytes(Encoding).length
+                        + "entry-3".getBytes(Encoding).length);
+
+        // properties are preserved
+        Assert.assertEquals(info.getPropertiesCount(), 1);
+        Assert.assertEquals(mlReopened.asyncGetLedgerProperty(lastLedger, "key1").join(), "value1");
+
+        // offload context is preserved
+        Assert.assertTrue(info.hasOffloadContext());
+        Assert.assertEquals(info.getOffloadContext().getUidMsb(), 11L);
+        Assert.assertEquals(info.getOffloadContext().getUidLsb(), 22L);
+        Assert.assertTrue(info.getOffloadContext().isComplete());
+        mlReopened.close();
+    }
+
+    /**
+     * Regression: reopening a managed ledger whose last ledger has no properties behaves as
+     * before -- stats are refreshed from BookKeeper and no properties/offload context appear.
+     */
+    @Test(timeOut = 20000)
+    public void testLastLedgerStatsRefreshedAfterReopenWithoutProperties() throws Exception {
+        String name = "testLastLedgerStatsRefreshedAfterReopenWithoutProperties";
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open(name);
+        ml.addEntry("entry-1".getBytes(Encoding));
+        ml.addEntry("entry-2".getBytes(Encoding));
+        long lastLedger = ml.ledgers.lastKey();
+        ml.close();
+
+        ManagedLedgerImpl mlReopened = (ManagedLedgerImpl) factory.open(name);
+        LedgerInfo info = mlReopened.ledgers.get(lastLedger);
+        Assert.assertNotNull(info);
+        Assert.assertEquals(info.getEntries(), 2L);
+        Assert.assertEquals(info.getSize(), (long) "entry-1".getBytes(Encoding).length * 2);
+        Assert.assertEquals(info.getPropertiesCount(), 0);
+        Assert.assertFalse(info.hasOffloadContext());
+        mlReopened.close();
+    }
+
+    /**
      * Verifies that a ledger-property write whose metadata-store callback completes AFTER the ledger
      * has been closed does not regress the closed ledger's entries.
      *
@@ -5682,5 +5956,21 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertTrue(advanceCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
         assertEquals(nonDurableCursor.getMarkDeletedPosition(), pos2);
         assertEquals(nonDurableCursor.getProperties(), properties);
+    }
+
+    @Test
+    public void testBatchReadRequiresClientSupport() throws Exception {
+        // The mock BookKeeper client uses the v2 wire protocol with batch reads enabled
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("batch_read_supported");
+        assertTrue(ledger.isBatchReadEnabled());
+
+        ManagedLedgerConfig disabled = new ManagedLedgerConfig();
+        disabled.setBatchReadEnabled(false);
+        ManagedLedgerImpl disabledLedger = (ManagedLedgerImpl) factory.open("batch_read_disabled", disabled);
+        assertFalse(disabledLedger.isBatchReadEnabled());
+
+        bkc.getConf().setUseV2WireProtocol(false);
+        ManagedLedgerImpl v3ClientLedger = (ManagedLedgerImpl) factory.open("batch_read_v3_client");
+        assertFalse(v3ClientLedger.isBatchReadEnabled());
     }
 }

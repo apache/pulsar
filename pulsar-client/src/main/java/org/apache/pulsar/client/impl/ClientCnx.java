@@ -1468,6 +1468,16 @@ public class ClientCnx extends PulsarHandler {
         return sendRequestAndHandleTimeout(cmd, requestId, RequestType.Command, true);
     }
 
+    /**
+     * Send a scalable-topic session request (PIP-468/486) with the standard request
+     * bookkeeping — pending-request registration, request-timeout tracking, and
+     * write-failure completion — instead of hand-rolling it at the call site. The matching
+     * response handler completes the returned future by request id.
+     */
+    public <T> CompletableFuture<T> sendScalableSessionRequest(ByteBuf requestMessage, long requestId) {
+        return sendRequestAndHandleTimeout(requestMessage, requestId, RequestType.Command, true);
+    }
+
     private <T> void sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,
                                                  RequestType requestType, boolean flush,
                                                  TimedCompletableFuture<T> future) {

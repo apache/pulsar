@@ -25,6 +25,7 @@ import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -488,21 +489,141 @@ public class LongBitmapTest {
 
     @Test
     public void testRangeVsSingleValueEquivalence() {
-        // For any v, add(v, v+1) / contains(v, v+1) / remove(v, v+1) ≡ add(v) / contains(v) / remove(v).
+        // For any v, add(v, v+1) / remove(v, v+1) is equivalent to add(v) / remove(v).
         long[] values = {0, 1, 100, 65535, 65536, 1L << 30, 0xFFFFFFFFL};
         for (long v : values) {
-            LongBitmap bitmap = LongBitmaps.create();
-            bitmap.add(v);
-            assertTrue(bitmap.contains(v));
-            assertEquals(bitmap.cardinality(), 1);
+            LongBitmap viaRange = LongBitmaps.create();
+            LongBitmap viaPoint = LongBitmaps.create();
 
-            bitmap.add(v);  // idempotent
-            assertEquals(bitmap.cardinality(), 1);
+            viaRange.add(v, v + 1);
+            viaPoint.add(v);
+            assertTrue(viaRange.contains(v));
+            assertEquals(viaRange.cardinality(), 1);
+            assertEquals(viaRange.serialize(), viaPoint.serialize());
 
-            bitmap.remove(v);
-            assertFalse(bitmap.contains(v));
-            assertEquals(bitmap.cardinality(), 0);
+            viaRange.add(v, v + 1);  // idempotent
+            viaPoint.add(v);
+            assertEquals(viaRange.cardinality(), 1);
+            assertEquals(viaPoint.cardinality(), 1);
+
+            assertTrue(viaRange.remove(v, v + 1));
+            assertTrue(viaPoint.remove(v));
+            assertFalse(viaRange.contains(v));
+            assertEquals(viaRange.cardinality(), 0);
+            assertEquals(viaRange.serialize(), viaPoint.serialize());
         }
+        // Note: contains(v, v + 1) is deliberately not asserted here — see
+        // testUint32BoundaryRange for the documented false-negative at the uint32 boundary.
+    }
+
+    @Test
+    public void testSingleValueRangeAddMatchesPointAdd() {
+        // add(v, v + 1) must be indistinguishable from add(v) through the whole LongBitmap
+        // surface, including persisted bytes. Each seed crosses the 4096 array-to-bitmap
+        // container conversion, and the last one reaches the uint32 boundary where
+        // (int) from == -1.
+        long[] seeds = {0, 1, 4090, 65530, 1L << 20, 0x7FFFF000L, 0xFFFFFFFFL - 8200};
+        for (long seed : seeds) {
+            LongBitmap viaRange = LongBitmaps.create();
+            LongBitmap viaPoint = LongBitmaps.create();
+            for (int i = 0; i < 8300; i++) {
+                long v = seed + i;
+                if (v > 0xFFFFFFFFL) {
+                    break;
+                }
+                viaRange.add(v, v + 1);
+                viaPoint.add(v);
+                assertEquals(viaRange.cardinality(), viaPoint.cardinality(),
+                        "seed " + seed + " i " + i);
+            }
+            assertEquals(viaRange.serialize(), viaPoint.serialize(), "seed " + seed);
+            assertEquals(viaRange.serializedSize(), viaPoint.serializedSize());
+            assertEquals(viaRange.lastPresentValue(), viaPoint.lastPresentValue());
+            for (int i = 0; i < 8300; i += 97) {
+                long v = seed + i;
+                if (v > 0xFFFFFFFFL) {
+                    break;
+                }
+                assertEquals(viaRange.rank(v + 1), viaPoint.rank(v + 1));
+                assertEquals(viaRange.nextAbsentValue(v), viaPoint.nextAbsentValue(v));
+                assertEquals(viaRange.nextPresentValue(v), viaPoint.nextPresentValue(v));
+            }
+        }
+    }
+
+    @Test
+    public void testCapacitySlackIsNotObservable() {
+        // The backing container is grown geometrically and shrunk on removal, so its capacity
+        // can exceed its cardinality. Nothing observable through LongBitmap may depend on that:
+        // serialization writes exactly `cardinality` values.
+        LongBitmap withSlack = LongBitmaps.create();
+        for (int i = 0; i < 3000; i++) {
+            withSlack.add(i * 2L);
+        }
+        for (int i = 0; i < 1500; i++) {
+            withSlack.remove(i * 2L);
+        }
+        LongBitmap fresh = LongBitmaps.create();
+        for (int i = 1500; i < 3000; i++) {
+            fresh.add(i * 2L);
+        }
+        assertEquals(withSlack.cardinality(), fresh.cardinality());
+        assertEquals(withSlack.serializedSize(), fresh.serializedSize());
+        assertEquals(withSlack.serialize(), fresh.serialize());
+        assertEquals(withSlack.serializeToLongArray(), fresh.serializeToLongArray());
+
+        LongBitmap grown = LongBitmaps.create();
+        for (int i = 0; i < 5000; i++) {
+            grown.add(i, i + 1L);
+        }
+        LongBitmap pointBuilt = LongBitmaps.create();
+        for (int i = 0; i < 5000; i++) {
+            pointBuilt.add(i);
+        }
+        assertEquals(grown.serialize(), pointBuilt.serialize());
+        assertEquals(grown.serializeToLongArray(), pointBuilt.serializeToLongArray());
+    }
+
+    @Test
+    public void testConcurrentSerializeToLongArray() throws Exception {
+        // serializeToLongArray() runs under the READ lock, so concurrent callers must not
+        // interfere. This fails if the implementation ever reintroduces a conversion that
+        // mutates the live bitmap (the previous MutableRoaringBitmap.toRoaringBitmap() advanced
+        // each container's NIO buffer position and produced BufferUnderflowException here).
+        LongBitmap bitmap = LongBitmaps.create();
+        for (int i = 0; i < 60000; i += 2) {
+            bitmap.add(i);
+        }
+        long[] expected = bitmap.serializeToLongArray();
+
+        int threads = 8;
+        int iterations = 4000;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        AtomicInteger errors = new AtomicInteger();
+        AtomicInteger mismatches = new AtomicInteger();
+        CountDownLatch latch = new CountDownLatch(threads);
+        try {
+            for (int t = 0; t < threads; t++) {
+                executor.submit(() -> {
+                    try {
+                        for (int i = 0; i < iterations; i++) {
+                            if (!Arrays.equals(bitmap.serializeToLongArray(), expected)) {
+                                mismatches.incrementAndGet();
+                            }
+                        }
+                    } catch (Throwable e) {
+                        errors.incrementAndGet();
+                    } finally {
+                        latch.countDown();
+                    }
+                });
+            }
+            assertTrue(latch.await(60, TimeUnit.SECONDS));
+        } finally {
+            executor.shutdownNow();
+        }
+        assertEquals(errors.get(), 0, "serializeToLongArray threw under concurrent readers");
+        assertEquals(mismatches.get(), 0, "serializeToLongArray returned a corrupt array");
     }
 
     @Test
@@ -698,7 +819,7 @@ public class LongBitmapTest {
     public void testUint32BoundaryRange() {
         // Verify range APIs handle the uint32 upper boundary correctly.
         // add(MAX_UINT32, MAX_UINT32+1) should add exactly one value: MAX_UINT32.
-        // Note: MutableRoaringBitmap.contains(long, long) has a known issue at this
+        // Note: RoaringBitmap.contains(long, long) has a known issue at this
         // boundary where it returns false even when the value is present, so we only
         // test contains(long) single-value form and cardinality.
         LongBitmap bitmap = LongBitmaps.create();

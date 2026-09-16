@@ -222,7 +222,6 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
     }
 
     private void handleMessage(Message<T> msg) {
-        lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
         try {
             if (msg.hasKey()) {
                 String key = msg.getKey();
@@ -240,6 +239,8 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                                 .attr("value", cur)
                                 .attr("prev", prev)
                                 .log("Skipped the message");
+                        // The retained value is current before notifying the skipped-message callback.
+                        lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
                         compactionStrategy.handleSkippedMessage(key, cur);
                     }
                 }
@@ -253,6 +254,8 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                             data.put(key, cur);
                         }
 
+                        // Refresh must see the updated table, including when called from a listener.
+                        lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
                         for (BiConsumer<String, V> listener : listeners) {
                             try {
                                 listener.accept(key, cur);
@@ -264,6 +267,9 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                         listenersMutex.unlock();
                     }
                 }
+            } else {
+                // Keyless messages also advance the refresh position.
+                lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
             }
             checkAllFreshTask(msg);
         } finally {

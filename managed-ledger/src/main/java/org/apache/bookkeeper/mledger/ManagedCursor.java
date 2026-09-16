@@ -912,6 +912,14 @@ public interface ManagedCursor {
     long[] getDeletedBatchIndexesAsLongArray(Position position);
 
     /**
+     * Get deleted batch indexes using ledger and entry IDs. Implementations may avoid creating a position when
+     * no batch-index acknowledgements are recorded. The default preserves existing cursor implementations.
+     */
+    default long[] getDeletedBatchIndexesAsLongArray(long ledgerId, long entryId) {
+        return getDeletedBatchIndexesAsLongArray(PositionFactory.create(ledgerId, entryId));
+    }
+
+    /**
      * @return the managed cursor stats MBean
      */
     ManagedCursorMXBean getStats();

@@ -64,11 +64,13 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         when(ml1.getExecutor()).thenReturn(executor);
         when(ml1.getFactory()).thenReturn(factory);
         when(ml1.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ml1.isBatchReadEnabled()).thenReturn(true);
 
         ml2 = mock(ManagedLedgerImpl.class);
         when(ml2.getScheduledExecutor()).thenReturn(executor);
         when(ml2.getName()).thenReturn("cache2");
         when(ml2.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ml2.isBatchReadEnabled()).thenReturn(true);
     }
 
     @Test

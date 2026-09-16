@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import java.util.ArrayList;
@@ -46,6 +47,7 @@ class OpReadEntry implements ReadEntriesCallback {
     ManagedCursorImpl cursor;
     Position readPosition;
     private int count;
+    long maxSizeBytes;
     private ReadEntriesCallback callback;
     Object ctx;
 
@@ -58,7 +60,7 @@ class OpReadEntry implements ReadEntriesCallback {
     boolean skipOpenLedgerFullyAcked = false;
 
     public static OpReadEntry create(ManagedCursorImpl cursor, Position readPositionRef, int count,
-                                     ReadEntriesCallback callback, Object ctx, Position maxPosition,
+                                     long maxSizeBytes, ReadEntriesCallback callback, Object ctx, Position maxPosition,
                                      Predicate<Position> skipCondition,
                                      boolean skipOpenLedgerFullyAcked) {
         OpReadEntry op = RECYCLER.get();
@@ -66,6 +68,7 @@ class OpReadEntry implements ReadEntriesCallback {
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
         op.cursor = cursor;
         op.count = count;
+        op.maxSizeBytes = maxSizeBytes;
         op.callback = callback;
         op.entries = new ArrayList<>();
         if (maxPosition == null) {
@@ -256,6 +259,7 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         id = -1;
         count = 0;
+        maxSizeBytes = NO_MAX_SIZE_LIMIT;
         cursor = null;
         readPosition = null;
         callback = null;
