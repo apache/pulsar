@@ -127,16 +127,17 @@ public class ReadEntryUtilsTest {
 
     @Test
     public void testBatchReadReturnsEmptyEntries() {
-        LedgerEntries emptyEntries = wrapLedgerEntries(new ArrayList<>());
+        // An empty result is handed over as-is, like the result of a regular read, for the caller to handle
+        AtomicInteger closeCount = new AtomicInteger();
+        LedgerEntries emptyEntries = wrapLedgerEntries(new ArrayList<>(), closeCount);
         when(lh.batchReadUnconfirmedAsync(eq(0L), anyInt(), anyLong()))
                 .thenReturn(CompletableFuture.completedFuture(emptyEntries));
 
         CompletableFuture<LedgerEntries> future =
                 ReadEntryUtils.readAsync(ml, lh, 0L, 4L, true, 1024);
 
-        assertThat(future).isCompletedExceptionally();
-        assertThatThrownBy(future::get)
-                .hasCauseInstanceOf(ManagedLedgerException.class);
+        assertThat(future).isCompletedWithValue(emptyEntries);
+        assertThat(closeCount).hasValue(0);
         verify(lh, never()).readUnconfirmedAsync(anyLong(), anyLong());
     }
 

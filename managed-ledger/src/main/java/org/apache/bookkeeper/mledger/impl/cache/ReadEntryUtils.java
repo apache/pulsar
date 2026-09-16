@@ -96,6 +96,14 @@ class ReadEntryUtils {
                 onBatchReadComplete(handle, maxCount, receivedEntries, ledgerEntries, future, error);
                 return;
             }
+            if (receivedEntries.isEmpty() && !entries.iterator().hasNext()) {
+                // Nothing was read at all: hand the empty result over as a regular read would, the callers already
+                // cope with a read that returned no entries
+                if (!future.complete(entries)) {
+                    entries.close();
+                }
+                return;
+            }
             ledgerEntries.add(entries);
             int previousCount = receivedEntries.size();
             long nextEntryId = firstEntry;
