@@ -131,6 +131,27 @@ Failed tests are retried once by default (`testRetryCount=1`; `0` when running i
 running tests locally, prefer **`-PtestRetryCount=0`** to catch failures (including flakiness) early
 instead of having retries mask them.
 
+### Netty buffer leak detection
+
+Tests enable Netty's `paranoid` leak detection by default, using `ExtendedNettyLeakDetector`
+to include test names in leak reports and write `netty_leak_*.txt` files. Set
+`NETTY_LEAK_DUMP_DIR` to choose the output directory (the default is the JVM's temporary directory).
+
+`NETTY_LEAK_DETECTION=report` (the default) reports leaks without failing tests.
+In CI, `NETTY_LEAK_DETECTION=fail_on_leak` makes the leak-reporting step fail the job when dumps
+are found. For local tests, use `-PtestExitJvmOnLeak=true` to fail the test JVM on a detected leak:
+
+```bash
+NETTY_LEAK_DUMP_DIR=/tmp/pulsar-netty-leaks ./gradlew :pulsar-client-original:test \
+  --tests "ConsumerBuilderImplTest" -PtestExitJvmOnLeak=true -PtestRetryCount=0
+```
+
+Set `NETTY_LEAK_DETECTION=off` to disable detection, or use
+`-PtestLeakDetectionLevel=simple|advanced|paranoid|disabled` to change its level.
+`-PtestExitJvmOnLeakDelayMillis=1000` controls the delay before exiting on a leak.
+Detection is disabled automatically for `-PtestAsyncProfiler` and `profilingIntegrationTest`
+to avoid distorting profiles.
+
 ### Micro benchmarks (JMH)
 
 For a **micro**-level question — what a single method, data structure or codec costs — write a
