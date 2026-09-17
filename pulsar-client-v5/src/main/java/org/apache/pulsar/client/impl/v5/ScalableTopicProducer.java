@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.pulsar.client.api.EncodeData;
@@ -82,6 +83,8 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private static final int SEND_RETRY_MAX_ATTEMPTS = 10;
     /** Cap on the per-attempt backoff while waiting for the new layout. */
     private static final long SEND_RETRY_MAX_BACKOFF_MS = 500L;
+    /** Failure of a send routed on a layout that changed before its segment producer was created. */
+    private static final String SEGMENT_NOT_ACTIVE = "not found in active segments";
 
     /**
      * Memory charged for each pending message on top of its payload, covering the per-message
@@ -129,6 +132,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      */
     @VisibleForTesting
     volatile Consumer<CompletableFuture<?>> afterV4EnqueueHook;
+
+    /** Test hook: how many per-segment v4 producers have been created so far. */
+    @VisibleForTesting
+    final AtomicInteger segmentProducersCreated = new AtomicInteger();
 
     /**
      * Per-segment v4 producers. Stored as futures so concurrent send-on-cold-segment
@@ -372,6 +379,11 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         return false;
     }
 
+    /** True once this producer or its client is closing: sends are failed rather than retried. */
+    private boolean isShuttingDown() {
+        return closed || client.v4Client().isClosed();
+    }
+
     /** The v4 producer accounts for the payload from now on: drop this layer's share of it. */
     private void releasePayloadShare(PendingSend<T> send) {
         if (send.payloadHeld.compareAndSet(true, false)) {
@@ -412,6 +424,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         try {
             PulsarClientException lastError = null;
             for (int attempt = 0; attempt < SEND_RETRY_MAX_ATTEMPTS; attempt++) {
+                if (isShuttingDown()) {
+                    throw new PulsarClientException.AlreadyClosedException("Producer already closed");
+                }
                 long segmentId = routeMessage(key);
                 try {
                     var producer = getOrCreateSegmentProducer(segmentId);
@@ -432,12 +447,13 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     lastError = new PulsarClientException(e.getMessage(), e);
                 }
                 // The target segment is gone: sealed by a split/merge, or terminated by a
-                // regular-to-scalable migration. Drop the stale per-segment producer and wait
-                // for the DAG watch to deliver the new layout; routeMessage on the next attempt
-                // lands on an active child.
+                // regular-to-scalable migration. Wait for the DAG watch to deliver the new
+                // layout; routeMessage on the next attempt lands on an active child. The dead
+                // per-segment producer stays where it is until applyLayout drops it: a send
+                // routed to the segment in the meantime fails fast on it, instead of re-creating
+                // a producer on a terminated topic for every send that finds it gone.
                 log.debug().attr("segmentId", segmentId).attr("attempt", attempt + 1)
                         .log("Target segment gone, waiting for layout update");
-                segmentProducers.remove(segmentId);
                 // The message stays with this layer while it waits for the new layout.
                 reholdPayloadShare(send);
                 try {
@@ -491,11 +507,13 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             }
             // The per-segment producer-creation path can surface the broker's terminated /
             // already-closed error as a plain (untyped) PulsarClientException whose message
-            // carries the server-side class name; match on that too.
+            // carries the server-side class name; match on that too. A send routed just before
+            // a layout change, whose segment is not in the layout by the time its producer is
+            // created, is gone the same way and lands on an active segment when re-routed.
             String msg = cause.getMessage();
             if (msg != null
                     && (msg.contains("TopicTerminated") || msg.contains("already terminated")
-                        || msg.contains("AlreadyClosed"))) {
+                        || msg.contains("AlreadyClosed") || msg.contains(SEGMENT_NOT_ACTIVE))) {
                 return true;
             }
         }
@@ -545,6 +563,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         if (abandonIfDone(send)) {
             return;
         }
+        if (isShuttingDown()) {
+            finish(send, null, new PulsarClientException.AlreadyClosedException("Producer already closed"));
+            return;
+        }
         long segmentId;
         try {
             segmentId = routeMessage(send.key);
@@ -557,10 +579,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         // Re-dispatch this message on the next attempt. Used when the target segment is gone
         // — sealed by a split/merge or terminated by a regular-to-scalable migration — and
         // the DAG watch is expected to refresh the layout shortly so routeMessage lands on an
-        // active child.
+        // active child. The dead per-segment producer stays where it is until applyLayout drops
+        // it: a send routed to the segment in the meantime fails fast on it, instead of
+        // re-creating a producer on a terminated topic for every send that finds it gone.
         Runnable retry = () -> {
-            segmentProducers.remove(routedSegmentId);
-            dispatchChains.remove(routedSegmentId);
             if (abandonIfDone(send)) {
                 return;
             }
@@ -615,13 +637,14 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     /**
      * Decide whether an async send failure should be retried. If the target segment is gone
      * (a split/merge seal or a migration termination) and the retry budget isn't exhausted,
-     * run {@code retry}; otherwise fail the user-visible future. Covers both the v4 send
-     * failure and the per-segment producer-creation failure.
+     * run {@code retry}; otherwise fail the user-visible future. No new layout is coming once
+     * this producer or its client is closing, so their sends fail right away. Covers both the
+     * v4 send failure and the per-segment producer-creation failure.
      */
     private void handleAsyncSegmentFailure(PendingSend<T> send, long segmentId,
                                            int attempt, Throwable ex, Runnable retry) {
         Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
-        if (isSegmentGoneError(cause) && attempt < SEND_RETRY_MAX_ATTEMPTS) {
+        if (isSegmentGoneError(cause) && attempt < SEND_RETRY_MAX_ATTEMPTS && !isShuttingDown()) {
             log.debug().attr("segmentId", segmentId).attr("attempt", attempt + 1)
                     .log("Target segment gone, retrying async send after layout update");
             retry.run();
@@ -825,10 +848,13 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             if (!newSegmentIds.contains(entry.getKey())) {
                 log.info().attr("segmentId", entry.getKey())
                         .log("Closing producer for sealed segment");
-                entry.getValue()
+                var producerFuture = entry.getValue();
+                producerFuture
                         .thenCompose(p -> p.closeAsync())
                         .whenComplete((__, ex) -> {
-                            if (ex != null) {
+                            // A producer whose creation failed, the segment having been sealed
+                            // before it attached, has nothing to close.
+                            if (ex != null && !producerFuture.isCompletedExceptionally()) {
                                 log.warn().attr("segmentId", entry.getKey())
                                         .exceptionMessage(ex).log("Error closing producer for segment");
                             }
@@ -903,7 +929,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             }
             if (segment == null) {
                 return CompletableFuture.failedFuture(
-                        new PulsarClientException("Segment " + id + " not found in active segments"));
+                        new PulsarClientException("Segment " + id + " " + SEGMENT_NOT_ACTIVE));
             }
 
             PulsarClientImpl v4Client = client.v4Client();
@@ -929,6 +955,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                 segConf.setProducerName(producerConf.getProducerName() + "-seg-" + id);
             }
             applyEntryBucketing(segConf, segment);
+            segmentProducersCreated.incrementAndGet();
             return v4Client.createSegmentProducerAsync(segConf, v4Schema);
         });
     }
