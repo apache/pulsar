@@ -99,6 +99,7 @@ public class OwnershipCacheTest {
         final int port = 8080;
         selfBrokerUrl = "tcp://localhost:" + port;
         pulsar = mock(PulsarService.class);
+        when(pulsar.isRunning()).thenReturn(true);
         config = new ServiceConfiguration();
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
         zookeeperServer = new ZookeeperServerTest(0);
