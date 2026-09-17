@@ -343,6 +343,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         readMoreEntriesAsync();
     }
 
+    @Override
+    public void notifyChannelWritable(Consumer consumer) {
+        // Do not acquire the dispatcher monitor or write from Netty's writability notification stack.
+        // A fresh pass rechecks the current consumers and limits, without waiting for a pending retry timer.
+        readMoreEntriesAsync();
+    }
+
     /**
      * We should not call readMoreEntries() recursively in the same thread as there is a risk of StackOverflowError.
      *
@@ -556,14 +563,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     readBatchSize);
         }
 
-        if (!isConsumerWritable()) {
-            // If the connection is not currently writable, we issue the read request anyway, but for a single
-            // message. The intent here is to keep use the request as a notification mechanism while avoiding to
-            // read and dispatch a big batch of messages which will need to wait before getting written to the
-            // socket.
-            messagesToRead = 1;
-        }
-
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
         // active-cursor reads message from cache rather from bookkeeper (2) if topic has reached message-rate
         // threshold: then schedule the read after MESSAGE_RATE_BACKOFF_MS
@@ -758,6 +757,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             canReadMoreImmediately = true;
         }
         if (triggerReadingMore) {
+            if (entriesProcessed == 0 && !isConsumerWritable()) {
+                // An in-flight read can finish after the channel becomes unwritable. Wait for the
+                // writable notification instead of polling the same backpressured consumers.
+                return;
+            }
             if (canReadMoreImmediately) {
                 // Call readMoreEntries in the same thread to trigger the next read
                 readMoreEntries();
@@ -848,23 +852,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         while (entriesToDispatch > 0 && isAtleastOneConsumerAvailable()) {
             Consumer c = getNextConsumer();
             if (c == null) {
-                // Do nothing, cursor will be rewind at reconnection
-                log.info()
-                        .attr("consumerCount", consumerList.size())
-                        .log("Rewind because no available consumer found");
-                entries.subList(start, entries.size()).forEach(Entry::release);
-                cursor.rewind();
-                lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
-                return false;
+                // Writability can change after the availability check. Preserve the remaining positions
+                // for replay instead of rewinding entries already sent to other consumers.
+                break;
             }
             // round-robin dispatch batch size for this consumer
-            int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
-            if (!c.isWritable()) {
-                log.debug()
-                        .attr("consumer", c)
-                        .attr("availablePermits", c.getAvailablePermits())
-                        .log("Consumer is not writable, dispatching only 1 message");
-            }
+            // Once selected, queue this bounded batch even if a write changes channel writability.
+            int availablePermits = c.getAvailablePermits();
 
             int maxEntriesInThisBatch = getMaxEntriesInThisBatch(
                     remainingMessages, c.getMaxUnackedMessages(), c.getUnackedMessages(), avgBatchSizePerMsg,
@@ -1127,7 +1121,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return 0;
         }
         for (Consumer consumer : consumerList) {
-            if (consumer != null && !consumer.isBlocked() && consumer.cnx().isActive()) {
+            if (consumer != null && !consumer.isBlocked() && consumer.cnx().isActive() && consumer.isWritable()) {
                 int availablePermits = consumer.getAvailablePermits();
                 if (availablePermits > 0) {
                     return availablePermits;
@@ -1143,14 +1137,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 return true;
             }
         }
-        log.debug("Consumer is not writable");
         return false;
     }
 
     @Override
     public boolean isConsumerAvailable(Consumer consumer) {
         return consumer != null && !consumer.isBlocked() && consumer.cnx().isActive()
-                && consumer.getAvailablePermits() > 0;
+                && consumer.isWritable() && consumer.getAvailablePermits() > 0;
     }
 
     @Override
