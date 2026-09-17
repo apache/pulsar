@@ -309,7 +309,14 @@ public class PerfClientUtils {
         // clear interrupted status and restore later
         boolean wasInterrupted = Thread.currentThread().interrupted();
         try {
-            Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
+            try {
+                Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
+            } catch (IllegalStateException e) {
+                // JVM shutdown is already in progress (e.g. Ctrl-C), so the hook is being run by the
+                // JVM itself: just wait for it rather than failing the command with a stack trace.
+                shutdownHookThread.join();
+                return;
+            }
             shutdownHookThread.start();
             shutdownHookThread.join();
         } finally {
