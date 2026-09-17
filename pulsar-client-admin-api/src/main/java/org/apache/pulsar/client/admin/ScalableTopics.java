@@ -25,6 +25,7 @@ import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 
 /**
  * Admin interface for scalable topic management.
@@ -229,18 +230,34 @@ public interface ScalableTopics {
     }
 
     /**
-     * Get aggregated stats for a scalable topic.
+     * Get the stats of a scalable topic as a whole: the segment DAG with per-segment load,
+     * every subscription with its backlog broken down across segments, and the producers
+     * attached to the topic.
      *
      * @param topic Topic name in the format "tenant/namespace/topic"
-     * @return stats including segment counts, per-segment layout info, and per-subscription
-     *         consumer counts
+     * @return the aggregated stats
      */
     ScalableTopicStats getStats(String topic) throws PulsarAdminException;
 
     /**
-     * Get aggregated stats for a scalable topic asynchronously.
+     * Get the stats of a scalable topic as a whole, asynchronously.
      */
     CompletableFuture<ScalableTopicStats> getStatsAsync(String topic);
+
+    /**
+     * Get the stats of a single segment of a scalable topic: the regular {@link TopicStats} of
+     * the topic backing the segment, as served by its owning broker.
+     *
+     * @param topic     Topic name in the format "tenant/namespace/topic"
+     * @param segmentId ID of the segment, as listed in the topic metadata or stats
+     * @return the segment's topic stats
+     */
+    TopicStats getSegmentStats(String topic, long segmentId) throws PulsarAdminException;
+
+    /**
+     * Get the stats of a single segment of a scalable topic, asynchronously.
+     */
+    CompletableFuture<TopicStats> getSegmentStatsAsync(String topic, long segmentId);
 
     /**
      * Create a subscription on a scalable topic. The controller leader propagates the

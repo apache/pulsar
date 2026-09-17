@@ -41,15 +41,21 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
+import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -1153,58 +1159,105 @@ public class ScalableTopicController {
     // --- Stats ---
 
     /**
-     * Build an aggregated snapshot of the scalable topic's state: segment counts, per-segment
-     * layout info, and per-subscription consumer counts (loaded from the persisted
-     * registrations so the numbers are consistent across controller leader failovers).
+     * Build a snapshot of the scalable topic: the segment DAG with the load each segment's
+     * owning broker reports, every subscription with its backlog broken down per segment, and
+     * the producers attached to the segments. The per-segment {@link TopicStats} are collected
+     * in parallel — locally for segments this broker owns, through the segment-stats admin
+     * endpoint otherwise — and a segment whose stats cannot be collected is reported without
+     * load rather than failing the whole snapshot.
+     *
+     * <p>STREAM consumer sessions (connected state, segment assignment) are the leader's
+     * in-memory state, which is why the REST layer routes stats requests to the controller
+     * leader.
      */
-    public CompletableFuture<org.apache.pulsar.common.policies.data.ScalableTopicStats> getStats() {
+    public CompletableFuture<ScalableTopicStats> getStats() {
         SegmentLayout layout = this.currentLayout;
-        var statsBuilder = org.apache.pulsar.common.policies.data.ScalableTopicStats.builder()
-                .epoch(layout.getEpoch());
+        List<CompletableFuture<?>> futures = new ArrayList<>();
 
-        Map<Long, org.apache.pulsar.common.policies.data.ScalableTopicStats.SegmentStats> segmentStats =
-                new java.util.LinkedHashMap<>();
-        int active = 0;
-        int sealed = 0;
+        Map<Long, TopicStats> segmentStats = new ConcurrentHashMap<>();
         for (SegmentInfo segment : layout.getAllSegments().values()) {
-            boolean isActive = segment.state() == org.apache.pulsar.common.scalable.SegmentState.ACTIVE;
-            if (isActive) {
-                active++;
-            } else {
-                sealed++;
-            }
-            String segmentName = SegmentTopicName.fromParent(
-                    topicName, segment.hashRange(), segment.segmentId()).toString();
-            segmentStats.put(segment.segmentId(),
-                    new org.apache.pulsar.common.policies.data.ScalableTopicStats.SegmentStats(
-                            segmentName, segment.state().name()));
+            futures.add(fetchSegmentStats(segment)
+                    .thenAccept(ts -> {
+                        if (ts != null) {
+                            segmentStats.put(segment.segmentId(), ts);
+                        }
+                    })
+                    .exceptionally(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof PulsarAdminException.NotFoundException) {
+                            log.debug().attr("segmentId", segment.segmentId())
+                                    .log("Segment topic not found while collecting stats");
+                        } else {
+                            log.warn().attr("segmentId", segment.segmentId()).exceptionMessage(cause)
+                                    .log("Failed to collect segment stats");
+                        }
+                        return null;
+                    }));
         }
-        statsBuilder
-                .totalSegments(layout.getAllSegments().size())
-                .activeSegments(active)
-                .sealedSegments(sealed)
-                .segments(segmentStats);
 
-        // Load persisted subscription + consumer counts. This gives a consistent picture
-        // regardless of which broker currently holds the controller leadership.
-        return resources.listSubscriptionsAsync(topicName)
-                .thenCompose(subNames -> {
-                    if (subNames.isEmpty()) {
-                        return CompletableFuture.completedFuture(statsBuilder.build());
+        Map<String, ScalableSubscriptionType> persistedTypes = new ConcurrentHashMap<>();
+        futures.add(resources.listSubscriptionsAsync(topicName).thenCompose(subNames -> {
+            CompletableFuture<?>[] typeFutures = subNames.stream()
+                    .map(subName -> resources.getSubscriptionAsync(topicName, subName)
+                            .thenAccept(optMd -> optMd.ifPresent(md -> persistedTypes.put(subName,
+                                    ScalableSubscriptionType.valueOf(md.type().name()))))
+                            .exceptionally(ex -> {
+                                // A subscription node created implicitly by a consumer
+                                // registration carries no metadata record: its type is
+                                // inferred from the controller's state instead.
+                                log.debug().attr("subscription", subName).exceptionMessage(ex)
+                                        .log("No subscription metadata record");
+                                return null;
+                            }))
+                    .toArray(CompletableFuture[]::new);
+            return CompletableFuture.allOf(typeFutures);
+        }));
+
+        Map<String, List<ScalableTopicStatsBuilder.StreamConsumer>> streamConsumers = new LinkedHashMap<>();
+        subscriptions.forEach((subName, coordinator) -> {
+            List<ScalableTopicStatsBuilder.StreamConsumer> consumers = new ArrayList<>();
+            coordinator.currentAssignment().forEach((session, assignment) ->
+                    consumers.add(new ScalableTopicStatsBuilder.StreamConsumer(
+                            session.getConsumerName(),
+                            session.isConnected(),
+                            assignment.assignedSegments().stream()
+                                    .map(ConsumerAssignment.AssignedSegment::segmentId)
+                                    .toList())));
+            streamConsumers.put(subName, consumers);
+        });
+
+        return FutureUtil.waitForAll(futures)
+                .thenApply(__ -> ScalableTopicStatsBuilder.build(
+                        topicName, layout, segmentStats, persistedTypes, streamConsumers));
+    }
+
+    /**
+     * Fetch the {@link TopicStats} of the topic backing {@code segment}: directly when this
+     * broker owns it, otherwise through the segment-stats admin endpoint, which redirects
+     * to the owning broker. Completes with {@code null} for a segment whose backing topic
+     * doesn't exist.
+     */
+    private CompletableFuture<TopicStats> fetchSegmentStats(SegmentInfo segment) {
+        String backingTopic = SegmentTopicName.backingTopicName(topicName, segment);
+        final PulsarAdmin admin;
+        try {
+            admin = brokerService.getPulsar().getAdminClient();
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        return brokerService.getPulsar().getNamespaceService()
+                .isServiceUnitOwnedAsync(TopicName.get(backingTopic))
+                .thenCompose(owned -> {
+                    if (!owned) {
+                        return admin.scalableTopics()
+                                .getSegmentStatsAsync(topicName.toString(), segment.segmentId());
                     }
-                    Map<String, org.apache.pulsar.common.policies.data.ScalableTopicStats.SubscriptionStats>
-                            subStats = new java.util.LinkedHashMap<>();
-                    CompletableFuture<?>[] futures = subNames.stream()
-                            .map(subName -> resources.listConsumersAsync(topicName, subName)
-                                    .thenAccept(consumerNames -> subStats.put(subName,
-                                            new org.apache.pulsar.common.policies.data.ScalableTopicStats
-                                                    .SubscriptionStats(consumerNames.size()))))
-                            .toArray(CompletableFuture[]::new);
-                    return CompletableFuture.allOf(futures)
-                            .thenApply(__ -> {
-                                statsBuilder.subscriptions(subStats);
-                                return statsBuilder.build();
-                            });
+                    return brokerService.getTopicIfExists(backingTopic)
+                            .thenCompose(optTopic -> optTopic.isEmpty()
+                                    ? CompletableFuture.<TopicStats>completedFuture(null)
+                                    : optTopic.get()
+                                            .asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS)
+                                            .thenApply(ts -> (TopicStats) ts));
                 });
     }
 

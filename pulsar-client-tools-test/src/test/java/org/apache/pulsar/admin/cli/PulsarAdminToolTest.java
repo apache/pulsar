@@ -74,6 +74,7 @@ import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.ResourceQuotas;
+import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.TopicPolicies;
@@ -1587,6 +1588,24 @@ public class PulsarAdminToolTest {
                 "endpoint", null, null, null, null, 8, 9,
                 10L, 50L, null, OffloadedReadPriority.TIERED_STORAGE_FIRST);
         verify(mockTopics).setOffloadPolicies("persistent://myprop/ns1/ds2", offloadPolicies2);
+    }
+
+    @Test
+    public void scalableTopicsStats() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        ScalableTopics mockScalableTopics = mock(ScalableTopics.class);
+        when(admin.scalableTopics()).thenReturn(mockScalableTopics);
+
+        CmdScalableTopics cmdScalableTopics = new CmdScalableTopics(() -> admin);
+
+        cmdScalableTopics.run(split("stats myprop/ns1/ds1"));
+        verify(mockScalableTopics).getStats("myprop/ns1/ds1");
+
+        cmdScalableTopics.run(split("segment-stats myprop/ns1/ds1 --segment-id 3"));
+        verify(mockScalableTopics).getSegmentStats("myprop/ns1/ds1", 3L);
+
+        cmdScalableTopics.run(split("segment-stats myprop/ns1/ds1 -s 7"));
+        verify(mockScalableTopics).getSegmentStats("myprop/ns1/ds1", 7L);
     }
 
 

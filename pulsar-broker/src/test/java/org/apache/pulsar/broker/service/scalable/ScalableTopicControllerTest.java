@@ -33,14 +33,18 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.ConsumerRegistration;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
@@ -53,7 +57,9 @@ import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -130,7 +136,24 @@ public class ScalableTopicControllerTest {
         when(scalableTopics.deleteSegmentSubscriptionAsync(anyString(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
+        // Stats: no segment is owned locally, so every segment's stats come back through the
+        // (mocked) segment-stats admin endpoint.
+        NamespaceService namespaceService = mock(NamespaceService.class);
+        when(pulsar.getNamespaceService()).thenReturn(namespaceService);
+        when(namespaceService.isServiceUnitOwnedAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(false));
+        when(scalableTopics.getSegmentStatsAsync(anyString(), anyLong()))
+                .thenAnswer(inv -> CompletableFuture.completedFuture(segmentTopicStats()));
+
         controller = newController(topicName);
+    }
+
+    /** The stats every mocked segment reports: owned by {@code segment-owner}, 1.5 msg/s in. */
+    private static TopicStatsImpl segmentTopicStats() {
+        TopicStatsImpl stats = new TopicStatsImpl();
+        stats.ownerBroker = "segment-owner";
+        stats.msgRateIn = 1.5;
+        return stats;
     }
 
     @AfterMethod(alwaysRun = true)
@@ -449,8 +472,16 @@ public class ScalableTopicControllerTest {
         assertEquals(stats.getActiveSegments(), INITIAL_SEGMENTS);
         assertEquals(stats.getSealedSegments(), 0);
         assertEquals(stats.getSegments().size(), INITIAL_SEGMENTS);
-        // No subscriptions registered yet.
-        assertEquals(stats.getSubscriptions().size(), 0);
+        // Every segment's stats were collected through the admin endpoint and folded in.
+        for (ScalableTopicStats.SegmentStats segment : stats.getSegments().values()) {
+            assertEquals(segment.getOwnerBroker(), "segment-owner");
+            assertEquals(segment.getMsgRateIn(), 1.5);
+        }
+        assertEquals(stats.getMsgRateIn(), 1.5 * INITIAL_SEGMENTS);
+        verify(scalableTopics, times(INITIAL_SEGMENTS)).getSegmentStatsAsync(eq(topicName.toString()), anyLong());
+        // No subscriptions or producers yet.
+        assertTrue(stats.getSubscriptions().isEmpty());
+        assertTrue(stats.getProducers().isEmpty());
     }
 
     @Test
@@ -461,6 +492,8 @@ public class ScalableTopicControllerTest {
         controller.createSubscription("sub-b", SubscriptionType.QUEUE).get();
         controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
         controller.registerConsumer("sub-a", "c2", 2L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
+        // c2 drops its connection: within the grace period it stays registered, disconnected.
+        controller.onConsumerDisconnect("sub-a", "c2");
 
         ScalableTopicStats stats = controller.getStats().get();
 
@@ -469,9 +502,34 @@ public class ScalableTopicControllerTest {
                 "split adds two children, keeps parent as sealed");
         assertEquals(stats.getActiveSegments(), INITIAL_SEGMENTS + 1);
         assertEquals(stats.getSealedSegments(), 1);
-        assertEquals(stats.getSubscriptions().size(), 2);
-        assertEquals(stats.getSubscriptions().get("sub-a").consumerCount(), 2);
-        assertEquals(stats.getSubscriptions().get("sub-b").consumerCount(), 0);
+
+        // The DAG edges of the split are reported on both sides.
+        long child1 = INITIAL_SEGMENTS;
+        long child2 = INITIAL_SEGMENTS + 1;
+        ScalableTopicStats.SegmentStats parent = stats.getSegments().get(0L);
+        assertTrue(parent.isSealed());
+        assertEquals(parent.getChildIds(), List.of(child1, child2));
+        assertEquals(stats.getSegments().get(child1).getParentIds(), List.of(0L));
+        assertTrue(stats.getSegments().get(child2).isActive());
+
+        assertEquals(stats.getSubscriptions().keySet(), Set.of("sub-a", "sub-b"));
+        ScalableTopicStats.SubscriptionStats subA = stats.getSubscriptions().get("sub-a");
+        assertEquals(subA.getType(), ScalableSubscriptionType.STREAM);
+        assertEquals(subA.getConsumers().size(), 2);
+        Map<String, ScalableTopicStats.ConsumerStats> byName = new HashMap<>();
+        Set<Long> assigned = new HashSet<>();
+        for (ScalableTopicStats.ConsumerStats consumer : subA.getConsumers()) {
+            byName.put(consumer.getConsumerName(), consumer);
+            assigned.addAll(consumer.getSegmentIds());
+        }
+        assertTrue(byName.get("c1").isConnected());
+        assertFalse(byName.get("c2").isConnected(), "a consumer in its grace period is listed as disconnected");
+        assertTrue(assigned.containsAll(List.of(1L, 2L, 3L)),
+                "the untouched active segments are assigned across the consumers, got " + assigned);
+
+        ScalableTopicStats.SubscriptionStats subB = stats.getSubscriptions().get("sub-b");
+        assertEquals(subB.getType(), ScalableSubscriptionType.QUEUE);
+        assertTrue(subB.getConsumers().isEmpty());
     }
 
     // --- createInitialMetadata ---

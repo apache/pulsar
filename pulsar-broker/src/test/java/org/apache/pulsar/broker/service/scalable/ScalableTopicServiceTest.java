@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.scalable;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -38,6 +39,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.resources.SubscriptionType;
@@ -49,7 +51,9 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -116,6 +120,14 @@ public class ScalableTopicServiceTest {
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(scalableTopicsAdmin.terminateSegmentAsync(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(null));
+
+        // Stats: no segment is owned locally; the segment-stats admin endpoint is mocked.
+        NamespaceService namespaceService = mock(NamespaceService.class);
+        when(pulsar.getNamespaceService()).thenReturn(namespaceService);
+        when(namespaceService.isServiceUnitOwnedAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(false));
+        when(scalableTopicsAdmin.getSegmentStatsAsync(anyString(), anyLong()))
+                .thenAnswer(inv -> CompletableFuture.completedFuture(new TopicStatsImpl()));
 
         service = new ScalableTopicService(brokerService, resources, coordinationService);
         service.start();
@@ -297,6 +309,8 @@ public class ScalableTopicServiceTest {
         assertEquals(stats.getActiveSegments(), 3);
         assertEquals(stats.getTotalSegments(), 3);
         assertEquals(stats.getSubscriptions().keySet(), java.util.Set.of("sub-a"));
+        assertEquals(stats.getSubscriptions().get("sub-a").getType(), ScalableSubscriptionType.STREAM,
+                "the type recorded by createSubscription is reported");
     }
 
     // --- consumer registration delegation ---

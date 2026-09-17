@@ -114,7 +114,9 @@ public class CmdScalableTopics extends CmdBase {
         }
     }
 
-    @Command(description = "Get aggregated stats for a scalable topic")
+    @Command(description = "Get the stats of a scalable topic as a whole: the segment DAG with"
+            + " per-segment load, the subscriptions with their backlog across segments, and the"
+            + " producers")
     private class GetStatsCmd extends CliCommand {
         @Parameters(description = "tenant/namespace/topic", arity = "1")
         private String topic;
@@ -122,6 +124,22 @@ public class CmdScalableTopics extends CmdBase {
         @Override
         void run() throws Exception {
             prettyPrint(scalableTopics().getStats(topic));
+        }
+    }
+
+    @Command(description = "Get the stats of a single segment of a scalable topic: the regular topic"
+            + " stats of the topic backing the segment")
+    private class GetSegmentStatsCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Option(names = {"-s", "--segment-id"},
+                description = "ID of the segment", required = true)
+        private long segmentId;
+
+        @Override
+        void run() throws Exception {
+            prettyPrint(scalableTopics().getSegmentStats(topic, segmentId));
         }
     }
 
@@ -227,6 +245,7 @@ public class CmdScalableTopics extends CmdBase {
         addCommand("migrate", new MigrateCmd());
         addCommand("get-metadata", new GetMetadataCmd());
         addCommand("stats", new GetStatsCmd());
+        addCommand("segment-stats", new GetSegmentStatsCmd());
         addCommand("delete", new DeleteCmd());
         addCommand("split-segment", new SplitSegmentCmd());
         addCommand("merge-segments", new MergeSegmentsCmd());

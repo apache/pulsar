@@ -35,6 +35,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
@@ -213,6 +214,19 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<ScalableTopicStats> getStatsAsync(String topic) {
         TopicName tn = validateTopic(topic);
         return asyncGetRequest(topicPath(tn).path("stats"), ScalableTopicStats.class);
+    }
+
+    @Override
+    public TopicStats getSegmentStats(String topic, long segmentId) throws PulsarAdminException {
+        return sync(() -> getSegmentStatsAsync(topic, segmentId));
+    }
+
+    @Override
+    public CompletableFuture<TopicStats> getSegmentStatsAsync(String topic, long segmentId) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("segments").path(String.valueOf(segmentId)).path("stats");
+        // TopicStats is an interface; the admin ObjectMapper resolves it to TopicStatsImpl.
+        return asyncGetRequest(path, TopicStats.class);
     }
 
     // --- Subscription operations ---
