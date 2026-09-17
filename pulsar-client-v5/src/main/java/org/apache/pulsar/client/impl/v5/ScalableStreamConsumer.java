@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl.v5;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -327,6 +326,13 @@ final class ScalableStreamConsumer<T>
         }
         var unacked = sharedSegmentUnacked.get(segmentId);
         if (unacked == null) {
+            // The vector names every segment on every message, so all but the message's own
+            // segment usually repeat a position an earlier ack already covered. Skip those rather
+            // than issuing one v4 cumulative ack per segment per message.
+            var last = v4Txn == null ? lastCumulativeAcked.get(segmentId) : null;
+            if (last != null && last.compareTo(position) >= 0) {
+                return;
+            }
             lastCumulativeAcked.merge(segmentId, position,
                     (a, b) -> a.compareTo(b) >= 0 ? a : b);
             trackDrainAck(segmentId, future.thenCompose(c ->
@@ -783,9 +789,9 @@ final class ScalableStreamConsumer<T>
                 unacked.add(v4Msg.getMessageId());
             }
 
-            // Snapshot the position vector (all segments, including this one)
-            Map<Long, org.apache.pulsar.client.api.MessageId> positionVector =
-                    new HashMap<>(latestDelivered);
+            // Snapshot the position vector (all segments, including this one). Already immutable,
+            // so MessageIdV5's own defensive Map.copyOf() returns it as is instead of copying again.
+            Map<Long, org.apache.pulsar.client.api.MessageId> positionVector = Map.copyOf(latestDelivered);
 
             // Create the V5 message with the position vector embedded in the ID
             var msgId = new MessageIdV5(v4Msg.getMessageId(), segmentId, positionVector);
