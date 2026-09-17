@@ -30,7 +30,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
@@ -314,7 +313,6 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
         final Map<Consumer, List<Entry>> entriesByConsumerForDispatching =
                 filterAndGroupEntriesForDispatching(entries, readType, triggerLookAhead);
 
-        AtomicInteger remainingConsumersToFinishSending = new AtomicInteger(entriesByConsumerForDispatching.size());
         for (Map.Entry<Consumer, List<Entry>> current : entriesByConsumerForDispatching.entrySet()) {
             Consumer consumer = current.getKey();
             List<Entry> entriesForConsumer = current.getValue();
@@ -340,9 +338,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
                     sendMessageInfo.getTotalMessages(),
                     sendMessageInfo.getTotalBytes(), sendMessageInfo.getTotalChunkedMessages(),
                     getRedeliveryTracker()).addListener(future -> {
-                if (future.isDone() && remainingConsumersToFinishSending.decrementAndGet() == 0) {
-                    readMoreEntriesAsync();
-                }
+                // One blocked socket must not hold up consumers whose writes have completed.
+                // The conflated read loop rechecks writability and permits before selecting a consumer.
+                readMoreEntriesAsync();
             });
 
             TOTAL_AVAILABLE_PERMITS_UPDATER.getAndAdd(this,
