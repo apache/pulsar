@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -35,6 +37,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -169,5 +172,45 @@ public class TableViewBuilderImplTest {
             tableViewBuilderImpl.topic(TOPIC_NAME).createMappedAsync(null);
 
         assertTrue(future.isCompletedExceptionally());
+    }
+
+    /**
+     * A strategy that loads, so that the builder guard is the only possible source of the rejection.
+     */
+    public static class NoopStrategy implements TopicCompactionStrategy<byte[]> {
+        @Override
+        public Schema<byte[]> getSchema() {
+            return Schema.BYTES;
+        }
+
+        @Override
+        public boolean shouldKeepLeft(byte[] prev, byte[] cur) {
+            return false;
+        }
+    }
+
+    @Test
+    public void testCreateMappedRejectsCompactionStrategy() {
+        TableViewBuilderImpl<byte[]> builder = new TableViewBuilderImpl<>(client, Schema.BYTES);
+        builder.topic(TOPIC_NAME)
+            .loadConf(Map.of("topicCompactionStrategyClassName", NoopStrategy.class.getName()));
+
+        assertThatThrownBy(() -> builder.createMapped(Message::getKey))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("topicCompactionStrategyClassName");
+    }
+
+    @Test
+    public void testCreateMappedAsyncRejectsCompactionStrategy() {
+        TableViewBuilderImpl<byte[]> builder = new TableViewBuilderImpl<>(client, Schema.BYTES);
+        CompletableFuture<TableView<String>> future = builder.topic(TOPIC_NAME)
+            .loadConf(Map.of("topicCompactionStrategyClassName", NoopStrategy.class.getName()))
+            .createMappedAsync(Message::getKey);
+
+        assertThat(future).isCompletedExceptionally();
+        assertThatThrownBy(future::join)
+            .cause()
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("topicCompactionStrategyClassName");
     }
 }

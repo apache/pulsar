@@ -22,20 +22,24 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.api.TableViewBuilder;
+import org.apache.pulsar.client.api.TableViewMessageMapper;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
+
+    private static final String COMPACTION_STRATEGY_UNSUPPORTED =
+            "topicCompactionStrategyClassName is not supported for mapped table views: a "
+                    + "TopicCompactionStrategy compares values of the topic's schema type, not the mapper's "
+                    + "output type";
 
     private final PulsarClientImpl client;
     private final Schema<T> schema;
@@ -69,8 +73,9 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     }
 
     @Override
-    public <V> TableView<V> createMapped(Function<Message<T>, V> mapper) throws PulsarClientException {
+    public <V> TableView<V> createMapped(TableViewMessageMapper<T, V> mapper) throws PulsarClientException {
         checkArgument(mapper != null, "mapper cannot be null");
+        checkArgument(conf.getTopicCompactionStrategyClassName() == null, COMPACTION_STRATEGY_UNSUPPORTED);
         try {
             return createMappedAsync(mapper).get();
         } catch (Exception e) {
@@ -79,11 +84,14 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     }
 
     @Override
-    public <V> CompletableFuture<TableView<V>> createMappedAsync(Function<Message<T>, V> mapper) {
+    public <V> CompletableFuture<TableView<V>> createMappedAsync(TableViewMessageMapper<T, V> mapper) {
         if (mapper == null) {
             return FutureUtil.failedFuture(new IllegalArgumentException("mapper cannot be null"));
         }
-        return new MessageMapperTableViewImpl<>(client, schema, conf, mapper).start();
+        if (conf.getTopicCompactionStrategyClassName() != null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(COMPACTION_STRATEGY_UNSUPPORTED));
+        }
+        return new MappedTableViewImpl<>(client, schema, conf, mapper).start();
     }
 
     @Override

@@ -21,7 +21,6 @@ package org.apache.pulsar.client.api;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -78,46 +77,47 @@ public interface TableViewBuilder<T> {
     CompletableFuture<TableView<T>> createAsync();
 
     /**
-     * Creates a {@link TableView} instance where the values are the result of applying a user-defined
-     * {@code mapper} function to each message.
+     * Creates a {@link TableView} instance where the values are produced by a user-defined
+     * {@link TableViewMessageMapper mapper} from each message.
      *
      * <p>This provides a flexible way to create a key-value view over a topic, allowing users to extract data
-     * from the message payload, properties, and other metadata into a custom object of type {@code V}.
+     * from the message payload, properties, and other metadata into a custom object of type {@code V}. To get
+     * a view of the full {@link Message} objects, use {@code msg -> msg} as the mapper. Message pooling is not
+     * used for mapped table views, so it is safe to keep a reference to the {@link Message} instance passed to
+     * the mapper.
      *
-     * <p>To get a view of the full {@link Message} objects, {@code java.util.function.Function.identity()}
-     * can be used as the mapper. Message pooling is not used for mapped table views, so it is safe to keep
-     * a reference to the {@link Message} instance passed to the mapper.
+     * <p>A keyed message with an empty payload is a tombstone: the key is removed from the view and the mapper
+     * is not called for it. If the mapper returns {@code null}, the message is also treated as a tombstone.
+     * If the mapper throws, the message is skipped and {@link TableViewMessageMapper#onMappingError} is
+     * called; the key keeps its previous value.
      *
-     * <p>If the {@code mapper} function returns {@code null}, it is treated as a tombstone message, and the
-     * corresponding key will be removed from the {@link TableView}.
+     * <p>A {@code topicCompactionStrategyClassName} loaded with {@link #loadConf(Map)} is rejected for
+     * mapped table views: a {@code TopicCompactionStrategy} compares values of the topic's schema type, which
+     * a mapped table view does not store.
      *
-     * @param mapper a function that takes a {@link Message} and returns a custom object of type {@code V}
+     * @param mapper the mapper that produces the value of type {@code V} for each {@link Message}
      * @param <V> the type of the values in the {@link TableView}
      * @return the {@link TableView} instance
      * @throws PulsarClientException
      *              if the tableView creation fails
+     * @throws IllegalArgumentException
+     *              if the mapper is {@code null} or a topic compaction strategy is configured
      */
-    <V> TableView<V> createMapped(Function<Message<T>, V> mapper) throws PulsarClientException;
+    <V> TableView<V> createMapped(TableViewMessageMapper<T, V> mapper) throws PulsarClientException;
 
     /**
-     * Creates a {@link TableView} instance in asynchronous mode where the values are the result of applying
-     * a user-defined {@code mapper} function to each message.
+     * Creates a {@link TableView} instance in asynchronous mode where the values are produced by a
+     * user-defined {@link TableViewMessageMapper mapper} from each message.
      *
-     * <p>This provides a flexible way to create a key-value view over a topic, allowing users to extract data
-     * from the message payload, properties, and other metadata into a custom object of type {@code V}.
+     * <p>See {@link #createMapped(TableViewMessageMapper)} for the mapping contract.
      *
-     * <p>To get a view of the full {@link Message} objects, {@code java.util.function.Function.identity()}
-     * can be used as the mapper. Message pooling is not used for mapped table views, so it is safe to keep
-     * a reference to the {@link Message} instance passed to the mapper.
-     *
-     * <p>If the {@code mapper} function returns {@code null}, it is treated as a tombstone message, and the
-     * corresponding key will be removed from the {@link TableView}.
-     *
-     * @param mapper a function that takes a {@link Message} and returns a custom object of type {@code V}
+     * @param mapper the mapper that produces the value of type {@code V} for each {@link Message}
      * @param <V> the type of the values in the {@link TableView}
-     * @return a future that can be used to access the {@link TableView} instance when it's ready
+     * @return a future that can be used to access the {@link TableView} instance when it's ready; it fails
+     *         with {@link IllegalArgumentException} if the mapper is {@code null} or a topic compaction
+     *         strategy is configured
      */
-    <V> CompletableFuture<TableView<V>> createMappedAsync(Function<Message<T>, V> mapper);
+    <V> CompletableFuture<TableView<V>> createMappedAsync(TableViewMessageMapper<T, V> mapper);
 
     /**
      * Set the topic name of the {@link TableView}.

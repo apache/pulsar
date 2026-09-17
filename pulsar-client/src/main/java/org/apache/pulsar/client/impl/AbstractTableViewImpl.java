@@ -57,7 +57,7 @@ import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
 
     private static final Logger LOG = Logger.get(AbstractTableViewImpl.class);
-    private final Logger log;
+    protected final Logger log;
     private final TableViewConfigurationData conf;
 
     private final ConcurrentMap<String, V> data;
@@ -139,7 +139,12 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
             }
             return this.readAllExistingMessages(reader)
                     .thenRun(() -> readTailMessages(reader));
-        }).thenApply(__ -> this);
+        }).<TableView<V>>thenApply(__ -> this).whenComplete((__, ex) -> {
+            if (ex != null) {
+                // Do not leak the reader when the initial replay fails
+                closeAsync().exceptionally(closeEx -> null);
+            }
+        });
     }
 
     @Override
@@ -224,49 +229,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
     private void handleMessage(Message<T> msg) {
         try {
             if (msg.hasKey()) {
-                String key = msg.getKey();
-                V cur = getValueIfPresent(msg);
-                    log.debug().attr("key", key)
-                            .attr("value", cur)
-                            .log("Applying message");
-
-                boolean update = true;
-                if (compactionStrategy != null) {
-                    V prev = data.get(key);
-                    update = !compactionStrategy.shouldKeepLeft(prev, cur);
-                    if (!update) {
-                        log.info().attr("key", key)
-                                .attr("value", cur)
-                                .attr("prev", prev)
-                                .log("Skipped the message");
-                        // The retained value is current before notifying the skipped-message callback.
-                        lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
-                        compactionStrategy.handleSkippedMessage(key, cur);
-                    }
-                }
-
-                if (update) {
-                    try {
-                        listenersMutex.lock();
-                        if (null == cur) {
-                            data.remove(key);
-                        } else {
-                            data.put(key, cur);
-                        }
-
-                        // Refresh must see the updated table, including when called from a listener.
-                        lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
-                        for (BiConsumer<String, V> listener : listeners) {
-                            try {
-                                listener.accept(key, cur);
-                            } catch (Throwable t) {
-                                log.error().exception(t).log("Table view listener raised an exception");
-                            }
-                        }
-                    } finally {
-                        listenersMutex.unlock();
-                    }
-                }
+                handleKeyedMessage(msg);
             } else {
                 // Keyless messages also advance the refresh position.
                 lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
@@ -279,7 +242,67 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
         }
     }
 
-    private V getValueIfPresent(Message<T> msg) {
+    private void handleKeyedMessage(Message<T> msg) {
+        String key = msg.getKey();
+        V cur;
+        try {
+            cur = getValueIfPresent(msg);
+        } catch (Throwable t) {
+            // The key keeps its previous value. A refresh must still observe this message as processed,
+            // including when refreshAsync() is called from the error callback.
+            lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
+            if (!onMappingError(msg, t)) {
+                log.error().attr("key", key)
+                        .attr("messageId", msg.getMessageId())
+                        .exception(t)
+                        .log("Failed to map message, skipping it");
+            }
+            return;
+        }
+        log.debug().attr("key", key)
+                .attr("value", cur)
+                .log("Applying message");
+
+        boolean update = true;
+        if (compactionStrategy != null) {
+            V prev = data.get(key);
+            update = !compactionStrategy.shouldKeepLeft(prev, cur);
+            if (!update) {
+                log.info().attr("key", key)
+                        .attr("value", cur)
+                        .attr("prev", prev)
+                        .log("Skipped the message");
+                // The retained value is current before notifying the skipped-message callback.
+                lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
+                compactionStrategy.handleSkippedMessage(key, cur);
+            }
+        }
+
+        if (update) {
+            try {
+                listenersMutex.lock();
+                if (null == cur) {
+                    data.remove(key);
+                } else {
+                    data.put(key, cur);
+                }
+
+                // Refresh must see the updated table, including when called from a listener.
+                lastReadPositions.put(msg.getTopicName(), msg.getMessageId());
+                for (BiConsumer<String, V> listener : listeners) {
+                    try {
+                        listener.accept(key, cur);
+                    } catch (Throwable t) {
+                        log.error().exception(t).log("Table view listener raised an exception");
+                    }
+                }
+            } finally {
+                listenersMutex.unlock();
+            }
+        }
+    }
+
+    private V getValueIfPresent(Message<T> msg) throws Exception {
         return msg.size() > 0 ? getValue(msg) : null;
     }
 
@@ -290,8 +313,19 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
      *
      * @param msg the message to convert
      * @return the value to store in the view, or {@code null} to remove the key
+     * @throws Exception if the message cannot be converted; the message is then skipped and
+     *                   {@link #onMappingError(Message, Throwable)} is called
      */
-    protected abstract V getValue(Message<T> msg);
+    protected abstract V getValue(Message<T> msg) throws Exception;
+
+    /**
+     * Called when {@link #getValue(Message)} threw for a message that has been skipped.
+     *
+     * @return {@code true} if the failure has been handled, {@code false} to log it at ERROR level
+     */
+    protected boolean onMappingError(Message<T> msg, Throwable error) {
+        return false;
+    }
 
     @Override
     public CompletableFuture<Void> refreshAsync() {

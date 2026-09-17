@@ -36,11 +36,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
-import java.util.function.Function;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.commons.lang3.RandomUtils;
@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.client.api.TableViewMessageMapper;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -706,7 +707,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         @Cleanup
         TableView<Message<String>> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
                 .topic(topic)
-                .createMapped(Function.identity());
+                .createMapped(msg -> msg);
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> tableView.size() == 1);
 
@@ -717,5 +718,56 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         assertEquals(message.getProperty("myProp"), "myValue");
 
         Assert.assertNull(tableView.get("missingKey"), "Message should be null for missing key");
+    }
+
+    @Test
+    public void testCreateMappedWithFailingMapper() throws Exception {
+        String topic = "persistent://public/default/testCreateMappedWithFailingMapper";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+
+        List<String> failedValues = new CopyOnWriteArrayList<>();
+        TableViewMessageMapper<String, String> mapper = new TableViewMessageMapper<>() {
+            @Override
+            public String map(Message<String> message) throws Exception {
+                if (message.getValue().startsWith("fail")) {
+                    throw new IllegalStateException("cannot map " + message.getValue());
+                }
+                return message.getValue().toUpperCase();
+            }
+
+            @Override
+            public boolean onMappingError(Message<String> message, Throwable error) {
+                failedValues.add(message.getValue() + ":" + error.getMessage());
+                return true;
+            }
+        };
+
+        String testKey = "key1";
+        // A message that fails to map during the initial replay
+        producer.newMessage().key(testKey).value("fail-replay").send();
+
+        @Cleanup
+        TableView<String> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+                .topic(topic)
+                .createMapped(mapper);
+        assertEquals(failedValues, List.of("fail-replay:cannot map fail-replay"));
+        Assert.assertNull(tableView.get(testKey), "A message that fails to map is skipped");
+
+        producer.newMessage().key(testKey).value("value1").send();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> "VALUE1".equals(tableView.get(testKey)));
+
+        // A message that fails to map while tailing keeps the previous value
+        producer.newMessage().key(testKey).value("fail-tail").send();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> failedValues.size() == 2);
+        assertEquals(failedValues.get(1), "fail-tail:cannot map fail-tail");
+        assertEquals(tableView.get(testKey), "VALUE1");
+
+        // The view keeps applying later messages
+        producer.newMessage().key(testKey).value("value2").send();
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> "VALUE2".equals(tableView.get(testKey)));
+        assertEquals(failedValues.size(), 2);
     }
 }
