@@ -18,7 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -33,6 +37,24 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.testng.annotations.Test;
 
 public class EntryImplTest {
+
+    @Test
+    public void testFailedMetadataInitializationIsNotRetried() {
+        ByteBuf bytes = Unpooled.buffer(4).writeInt(-1);
+        EntryImpl entry = EntryImpl.create(1, 0, bytes);
+        bytes.release();
+        entry.data = spy(entry.data);
+        try {
+            entry.initializeMessageMetadataIfNeeded("ledger");
+            entry.initializeMessageMetadataIfNeeded("ledger");
+            assertThat(entry.getMessageMetadata()).isNull();
+            assertThat(entry.getDataBuffer().readerIndex()).isZero();
+            assertThat(entry.getDataBuffer().getInt(0)).isEqualTo(-1);
+            verify(entry.data, times(1)).duplicate();
+        } finally {
+            entry.release();
+        }
+    }
 
     @Test
     public void testCreateWithLedgerIdEntryIdAndByteBuf() {

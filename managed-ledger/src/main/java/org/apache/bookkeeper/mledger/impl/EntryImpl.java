@@ -57,8 +57,10 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     ByteBuf data;
     private EntryReadCountHandler readCountHandler;
     private boolean decreaseReadCountOnRelease = true;
+    // Cache readers publish metadata lazily; entry copies must see a fully initialized instance.
     @Getter @Setter
-    private MessageMetadata messageMetadata;
+    private volatile MessageMetadata messageMetadata;
+    private boolean messageMetadataInitializationFailed;
 
     private Runnable onDeallocate;
 
@@ -290,6 +292,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         readCountHandler = null;
         decreaseReadCountOnRelease = true;
         messageMetadata = null;
+        messageMetadataInitializationFailed = false;
         recyclerHandle.recycle(this);
     }
 
@@ -308,12 +311,14 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     }
 
     public synchronized void initializeMessageMetadataIfNeeded(String managedLedgerName) {
-        if (messageMetadata == null) {
+        if (messageMetadata == null && !messageMetadataInitializationFailed) {
             try {
                 MessageMetadata msgMetadata = new MessageMetadata();
                 Commands.parseMessageMetadata(data.duplicate(), msgMetadata);
                 this.messageMetadata = msgMetadata;
             } catch (Throwable t) {
+                // The entry bytes are immutable; another cache reader cannot make a failed parse succeed.
+                messageMetadataInitializationFailed = true;
                 log.warn().attr("managedLedgerName", managedLedgerName)
                         .attr("ledgerId", ledgerId)
                         .attr("entryId", entryId)
