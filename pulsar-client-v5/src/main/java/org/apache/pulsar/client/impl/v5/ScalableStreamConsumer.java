@@ -119,6 +119,16 @@ final class ScalableStreamConsumer<T>
             new ConcurrentHashMap<>();
 
     /**
+     * Highest position per segment whose plain (non-transactional) cumulative ack has completed
+     * at the v4 consumer. Only this decides whether a later ack is redundant: a transactional
+     * ack may still abort and a failed ack never reached the broker, so neither advances it and
+     * retrying the same position afterwards still goes through. {@link #lastCumulativeAcked}
+     * keeps recording every attempt, which is what the PIP-486 release drain compares against.
+     */
+    private final ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> cumulativeAckWatermark =
+            new ConcurrentHashMap<>();
+
+    /**
      * PIP-486: segments paused for a release — their receive loops stop re-arming so what was
      * already handed to the application can drain before the segment consumer is closed.
      */
@@ -326,18 +336,25 @@ final class ScalableStreamConsumer<T>
         }
         var unacked = sharedSegmentUnacked.get(segmentId);
         if (unacked == null) {
-            // The vector names every segment on every message, so all but the message's own
-            // segment usually repeat a position an earlier ack already covered. Skip those rather
-            // than issuing one v4 cumulative ack per segment per message.
-            var last = v4Txn == null ? lastCumulativeAcked.get(segmentId) : null;
-            if (last != null && last.compareTo(position) >= 0) {
-                return;
+            if (v4Txn == null) {
+                // The vector names every segment on every message, so all but the message's own
+                // segment usually repeat a position an earlier ack already covered. Skip those
+                // rather than issuing one v4 cumulative ack per segment per message.
+                var covered = cumulativeAckWatermark.get(segmentId);
+                if (covered != null && covered.compareTo(position) >= 0) {
+                    return;
+                }
             }
             lastCumulativeAcked.merge(segmentId, position,
                     (a, b) -> a.compareTo(b) >= 0 ? a : b);
-            trackDrainAck(segmentId, future.thenCompose(c ->
+            CompletableFuture<Void> ack = future.thenCompose(c ->
                     v4Txn == null ? c.acknowledgeCumulativeAsync(position)
-                            : c.acknowledgeCumulativeAsync(position, v4Txn)));
+                            : c.acknowledgeCumulativeAsync(position, v4Txn));
+            if (v4Txn == null) {
+                ack.thenRun(() -> cumulativeAckWatermark.merge(segmentId, position,
+                        (a, b) -> a.compareTo(b) >= 0 ? a : b));
+            }
+            trackDrainAck(segmentId, ack);
             return;
         }
         // Redeliveries can enqueue ids out of order, so scan the whole queue rather than stopping at
@@ -438,6 +455,7 @@ final class ScalableStreamConsumer<T>
                     pendingDrainAcks.clear();
                     sharedSegmentUnacked.clear();
                     lastCumulativeAcked.clear();
+                    cumulativeAckWatermark.clear();
                 });
     }
 
@@ -567,6 +585,7 @@ final class ScalableStreamConsumer<T>
                         .whenComplete((__, ___) -> {
                             sharedSegmentUnacked.remove(segmentId);
                             lastCumulativeAcked.remove(segmentId);
+                            cumulativeAckWatermark.remove(segmentId);
                             latestDelivered.remove(segmentId);
                             segmentReceiveEpoch.remove(segmentId);
                         }));
@@ -597,6 +616,7 @@ final class ScalableStreamConsumer<T>
                             // drain that has nothing left to ack.
                             sharedSegmentUnacked.remove(seg.segmentId());
                             lastCumulativeAcked.remove(seg.segmentId());
+                            cumulativeAckWatermark.remove(seg.segmentId());
                             latestDelivered.remove(seg.segmentId());
                         });
                 futures.add(segmentConsumers.computeIfAbsent(seg.segmentId(), id ->
@@ -780,7 +800,13 @@ final class ScalableStreamConsumer<T>
                 return;
             }
             // Update the latest delivered position for this segment
-            latestDelivered.put(segmentId, v4Msg.getMessageId());
+            var previous = latestDelivered.put(segmentId, v4Msg.getMessageId());
+            if (previous != null && previous.compareTo(v4Msg.getMessageId()) >= 0) {
+                // Delivery went backwards: the broker is redelivering (reconnect, seek, nack).
+                // Acks issued before it may never have reached the broker, so forget what this
+                // segment has covered and let the application's re-acks through.
+                cumulativeAckWatermark.remove(segmentId);
+            }
 
             // PIP-486 bucket-shared segment: remember the id so a cumulative ack can be translated
             // into individual acks (Key_Shared consumers cannot ack cumulatively).
@@ -824,6 +850,7 @@ final class ScalableStreamConsumer<T>
                 segmentConsumers.remove(segmentId);
                 sharedSegmentUnacked.remove(segmentId);
                 lastCumulativeAcked.remove(segmentId);
+                            cumulativeAckWatermark.remove(segmentId);
                 latestDelivered.remove(segmentId);
                 segmentReceiveEpoch.remove(segmentId);
                 v4Consumer.closeAsync();
