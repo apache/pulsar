@@ -68,6 +68,7 @@ public class DispatcherSocketPressureTest extends SharedPulsarBaseTest {
             Channel clientChannel = ((ConsumerImpl<byte[]>) consumer).getClientCnx().ctx().channel();
             Awaitility.await().atMost(Duration.ofSeconds(10))
                     .untilAsserted(() -> assertThat(brokerConsumer.getAvailablePermits()).isEqualTo(32768));
+            int originalSendBufferSize = brokerChannel.config().getOption(ChannelOption.SO_SNDBUF);
             brokerChannel.eventLoop().submit(() ->
                     brokerChannel.config().setOption(ChannelOption.SO_SNDBUF, 8192)).sync();
             clientChannel.eventLoop().submit(() -> {
@@ -89,6 +90,10 @@ public class DispatcherSocketPressureTest extends SharedPulsarBaseTest {
                                         dispatcher.cursor.getNumberOfEntriesInBacklog(false))
                                 .isFalse());
                 assertThat(brokerConsumer.getAvailablePermits()).isPositive();
+                // The small send buffer is only needed to create backpressure. Keeping it during drain
+                // makes progress depend on TCP delayed ACK timing and can exceed the test timeout in CI.
+                brokerChannel.eventLoop().submit(() -> brokerChannel.config()
+                        .setOption(ChannelOption.SO_SNDBUF, originalSendBufferSize)).sync();
                 clientChannel.eventLoop().submit(() -> {
                     clientChannel.config().setOption(ChannelOption.SO_RCVBUF, 1024 * 1024);
                     clientChannel.config().setAutoRead(true);
