@@ -387,8 +387,10 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                 return;
             }
             if (newPosition == null) {
-                pendingRemovedCursors.put(cursor.getName(), node);
-                node.pendingRemove = true;
+                if (node.position != null) {
+                    pendingRemovedCursors.put(cursor.getName(), node);
+                    node.pendingRemove = true;
+                }
                 node.pendingPosition = null;
             } else {
                 if (node.pendingRemove) {
@@ -431,6 +433,7 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
         if (!pendingRemovedCursors.isEmpty()) {
             for (Node node : pendingRemovedCursors.values()) {
                 removeNodeFromList(node);
+                node.position = null;
                 node.pendingRemove = false;
             }
             pendingRemovedCursors.clear();
@@ -481,7 +484,12 @@ public class ActiveManagedCursorContainerImpl implements ActiveManagedCursorCont
                 node.position = node.pendingPosition;
                 node.pendingPosition = null;
             }
-            if (node.position != null && !node.pendingRemove) {
+            if (node.pendingRemove) {
+                // Untracked cursors stay in the map and may later be inserted incrementally.
+                node.position = null;
+                node.prev = null;
+                node.next = null;
+            } else if (node.position != null) {
                 activeNodes.add(node);
                 trackedNodeCount++;
             }
