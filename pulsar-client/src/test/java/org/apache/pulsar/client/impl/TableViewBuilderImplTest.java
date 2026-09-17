@@ -23,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -52,6 +53,7 @@ public class TableViewBuilderImplTest {
         Reader reader = mock(Reader.class);
         readNextFuture = new CompletableFuture();
         when(reader.readNextAsync()).thenReturn(readNextFuture);
+        when(reader.getLastMessageIdsAsync()).thenReturn(CompletableFuture.completedFuture(List.of()));
         client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);

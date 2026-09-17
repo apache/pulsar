@@ -23,6 +23,8 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -42,6 +44,7 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -71,6 +74,51 @@ public class TableViewImplTest {
 
         assertNotNull(tableView);
     }
+    @DataProvider
+    public Object[][] topicNames() {
+        return new Object[][]{
+                {"persistent://tenant/ns/topic", true},
+                {"tenant/ns/topic", true},
+                {"topic", true},
+                {"persistent-topic", true},
+                {"non-persistent://tenant/ns/topic", false}
+        };
+    }
+
+    @Test(timeOut = 10_000, dataProvider = "topicNames")
+    @SuppressWarnings("unchecked")
+    public void testTopicDomain(String topic, boolean persistent) throws Exception {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ReaderBuilder<String> builder = mock(ReaderBuilder.class, RETURNS_SELF);
+        Reader<String> reader = mock(Reader.class);
+        when(client.newReader(Schema.STRING)).thenReturn(builder);
+        when(builder.createAsync()).thenReturn(CompletableFuture.completedFuture(reader));
+        when(reader.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        CompletableFuture<List<TopicMessageId>> lastMessageIds =
+                new CompletableFuture<>();
+        when(reader.getLastMessageIdsAsync()).thenReturn(lastMessageIds);
+        when(reader.readNextAsync()).thenReturn(new CompletableFuture<>());
+        TableViewConfigurationData conf = new TableViewConfigurationData();
+        conf.setTopicName(topic);
+        try (TableViewImpl<String> tableView = new TableViewImpl<>(client, Schema.STRING, conf)) {
+            if (persistent) {
+                verify(builder).readCompacted(true);
+            } else {
+                verify(builder, never()).readCompacted(true);
+            }
+            var start = tableView.start();
+            assertEquals(start.isDone(), !persistent,
+                    "Persistent topics must wait for the initial replay");
+            lastMessageIds.complete(List.of());
+            assertEquals(start.get(5, TimeUnit.SECONDS), tableView);
+            if (persistent) {
+                verify(reader).getLastMessageIdsAsync();
+            } else {
+                verify(reader, never()).getLastMessageIdsAsync();
+            }
+        }
+    }
+
     @DataProvider
     public Object[][] skippedMessage() {
         return new Object[][]{{false}, {true}};
