@@ -172,11 +172,6 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     protected void beforeStop() {
         super.beforeStop();
         if (null != getContainerId()) {
-            DockerUtils.dumpContainerDirToTargetCompressed(
-                getDockerClient(),
-                getContainerId(),
-                "/var/log/pulsar"
-            );
             try {
                 // stop the "tail -f ..." commands started in afterStart method
                 // so that shutdown output doesn't clutter logs
@@ -199,26 +194,38 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
     @Override
     protected void doStop() {
-        if (getContainerId() != null) {
-            if (serviceEntryPoint.equals("bin/pulsar")) {
-                // attempt graceful shutdown using "docker stop"
-                dockerClient.stopContainerCmd(getContainerId())
-                        .withTimeout(15)
-                        .exec();
-            } else {
-                // use "supervisorctl stop all" for graceful shutdown
-                try {
-                    ContainerExecResult result = execCmd("/usr/bin/supervisorctl", "stop", "all");
-                    log.info().attr("exitCode", result.getExitCode())
-                            .attr("stdout", result.getStdout())
-                            .attr("stderr", result.getStderr())
-                            .log("Stopped supervisor services");
-                } catch (Exception e) {
-                    log.error().exception(e).log("Cannot run 'supervisorctl stop all'");
+        try {
+            if (getContainerId() != null) {
+                if (serviceEntryPoint.equals("bin/pulsar")) {
+                    // attempt graceful shutdown using "docker stop"
+                    dockerClient.stopContainerCmd(getContainerId())
+                            .withTimeout(15)
+                            .exec();
+                } else {
+                    // use "supervisorctl stop all" for graceful shutdown
+                    try {
+                        ContainerExecResult result = execCmd("/usr/bin/supervisorctl", "stop", "all");
+                        log.info().attr("exitCode", result.getExitCode())
+                                .attr("stdout", result.getStdout())
+                                .attr("stderr", result.getStderr())
+                                .log("Stopped supervisor services");
+                    } catch (Exception e) {
+                        log.error().exception(e).log("Cannot run 'supervisorctl stop all'");
+                    }
                 }
             }
+        } finally {
+            try {
+                if (getContainerId() != null) {
+                    // The leak detector's JVM shutdown hook can produce additional reports. Copy them
+                    // after stopping the services, while the container still exists.
+                    DockerUtils.dumpContainerDirToTargetCompressed(
+                            getDockerClient(), getContainerId(), "/var/log/pulsar");
+                }
+            } finally {
+                super.doStop();
+            }
         }
-        super.doStop();
     }
 
     @Override

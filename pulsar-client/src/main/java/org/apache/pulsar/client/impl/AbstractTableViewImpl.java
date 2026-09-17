@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
 /**
@@ -101,7 +102,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
         this.conf = conf;
         this.log = LOG.with().attr("topic", conf.getTopicName()).build();
         this.poolMessages = poolMessages;
-        this.isPersistentTopic = conf.getTopicName().startsWith(TopicDomain.persistent.toString());
+        this.isPersistentTopic = TopicName.get(conf.getTopicName()).getDomain() == TopicDomain.persistent;
         this.data = new ConcurrentHashMap<>();
         this.immutableData = Collections.unmodifiableMap(data);
         this.listeners = new ArrayList<>();

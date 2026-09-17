@@ -23,7 +23,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /** Configuration for the profiling scenario harness. */
@@ -31,7 +34,7 @@ final class PulsarProfilingConfig {
     static final String CONFIG_ENV = "PULSAR_PROFILING_CONFIG";
     static final String ENV_PREFIX = "PULSAR_PROFILING_";
 
-    record Config(Cluster cluster, Load load, Output output) {
+    record Config(Cluster cluster, Load load, Profiling profiling, Output output) {
         static Config read() {
             String configFile = System.getenv(CONFIG_ENV);
             return read(configFile == null || configFile.isBlank() ? null : Path.of(configFile),
@@ -42,11 +45,7 @@ final class PulsarProfilingConfig {
             ObjectMapper mapper = ObjectMapperFactory.getYamlMapper().getObjectMapper();
             ObjectNode root = mapper.valueToTree(defaults());
             if (configFile != null) {
-                try {
-                    merge(root, mapper.readTree(configFile.toFile()));
-                } catch (IOException e) {
-                    throw new IllegalArgumentException("Cannot read profiling config " + configFile, e);
-                }
+                mergeFile(root, configFile, mapper, new LinkedHashSet<>());
             }
             applyEnvironmentOverrides(root, environment);
             try {
@@ -84,7 +83,9 @@ final class PulsarProfilingConfig {
                                     Map.entry("isForceGCAllowWhenNoSpace", "true"),
                                     Map.entry("diskUsageLwmThreshold", "0.75"),
                                     Map.entry("diskCheckInterval", "60"))),
-                    new Load(20_000_000, "200M", "200M", Integer.MAX_VALUE, 128, 20_000, 10, 0, 0),
+                    new Load(20_000_000, "200M", "200M", Integer.MAX_VALUE, 128, 20_000, 10, 0, 0,
+                            1, 1, 1, 1, SubscriptionType.Shared, 50_000, 180, false),
+                    new Profiling("", ""),
                     new Output("build/pulsar-profiling"));
         }
     }
@@ -96,22 +97,90 @@ final class PulsarProfilingConfig {
 
     record Load(long numberOfMessages, String produceMemoryLimit, String consumeMemoryLimit,
                 int produceRate, int messageSize, int maxOutstanding, int statsIntervalSeconds,
-                int isolatedProducers, int isolatedConsumers) {
+                int isolatedProducers, int isolatedConsumers, int producerCount, int consumerCount,
+                int producerIoThreads, int consumerIoThreads, SubscriptionType subscriptionType,
+                int receiverQueueSize, int timeoutSeconds, boolean batchingEnabled) {
+        Load {
+            if (producerCount < 1 || consumerCount < 1 || producerIoThreads < 1 || consumerIoThreads < 1
+                    || isolatedProducers < 0 || isolatedConsumers < 0 || receiverQueueSize < 1 || timeoutSeconds < 1
+                    || numberOfMessages < 1 || produceRate < 1 || subscriptionType == null) {
+                throw new IllegalArgumentException("Profiling counts, rate, queue size and timeout must be positive");
+            }
+            // pulsar-perf divides the message count and rate between workers using integer division.
+            int workers = Math.max(1, isolatedProducers);
+            if (isolatedProducers > producerCount || isolatedConsumers > consumerCount
+                    || numberOfMessages % workers != 0 || produceRate < workers) {
+                throw new IllegalArgumentException("Isolated clients require at least one producer/consumer "
+                        + "per client, a message count divisible by producer clients, and a rate >= producer clients");
+            }
+            if (subscriptionType == SubscriptionType.Exclusive && consumerCount != 1) {
+                throw new IllegalArgumentException("Exclusive subscriptions require exactly one consumer");
+            }
+        }
     }
 
     record Output(String directory) {
     }
 
-    private static void merge(ObjectNode target, JsonNode source) {
-        if (source == null || !source.isObject()) {
-            return;
+    /** Empty options disable profiling for that client process. */
+    record Profiling(String producerOptions, String consumerOptions) {
+    }
+
+    private static void mergeFile(ObjectNode target, Path file, ObjectMapper mapper, Set<Path> activeFiles) {
+        try {
+            Path path = file.toRealPath();
+            if (!activeFiles.add(path)) {
+                throw new IllegalArgumentException("Profiling config inheritance cycle: "
+                        + activeFiles + " -> " + path);
+            }
+            try {
+                JsonNode source = mapper.readTree(path.toFile());
+                if (!(source instanceof ObjectNode object)) {
+                    throw new IllegalArgumentException("Profiling config must be a YAML mapping: " + path);
+                }
+                JsonNode parents = object.remove("extends");
+                if (parents != null) {
+                    if (parents.isTextual()) {
+                        mergeParent(target, parents, path, mapper, activeFiles);
+                    } else if (parents.isArray()) {
+                        for (JsonNode parent : parents) {
+                            mergeParent(target, parent, path, mapper, activeFiles);
+                        }
+                    } else {
+                        throw new IllegalArgumentException(
+                                "Profiling config 'extends' must be a path or list of paths: " + path);
+                    }
+                }
+                // Apply directly to the accumulated config so inherited nulls also remove earlier values/defaults.
+                merge(target, object);
+            } finally {
+                activeFiles.remove(path);
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Cannot read profiling config " + file, e);
         }
+    }
+
+    private static void mergeParent(ObjectNode target, JsonNode parent, Path file,
+                                    ObjectMapper mapper, Set<Path> activeFiles) {
+        if (!parent.isTextual() || parent.textValue().isBlank()) {
+            throw new IllegalArgumentException("Profiling config 'extends' entries must be non-empty paths: " + file);
+        }
+        mergeFile(target, file.getParent().resolve(parent.textValue()), mapper, activeFiles);
+    }
+
+    private static void merge(ObjectNode target, ObjectNode source) {
         source.properties().forEach(entry -> {
-            JsonNode current = target.get(entry.getKey());
-            if (current != null && current.isObject() && entry.getValue().isObject()) {
-                merge((ObjectNode) current, entry.getValue());
+            String key = entry.getKey();
+            JsonNode value = entry.getValue();
+            if (value.isNull()) {
+                target.remove(key);
+            } else if (value instanceof ObjectNode object) {
+                JsonNode current = target.get(key);
+                ObjectNode child = current instanceof ObjectNode ? (ObjectNode) current : target.putObject(key);
+                merge(child, object);
             } else {
-                target.set(entry.getKey(), entry.getValue());
+                target.set(key, value);
             }
         });
     }
