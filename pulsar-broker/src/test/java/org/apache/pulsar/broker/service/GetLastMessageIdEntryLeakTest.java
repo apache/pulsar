@@ -18,27 +18,18 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.spy;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.commons.lang3.reflect.FieldUtils;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class GetLastMessageIdEntryLeakTest extends SharedPulsarBaseTest {
+public class GetLastMessageIdEntryLeakTest {
 
     /**
      * Reproduces the ByteBuf leak in ServerCnx#getLargestBatchIndexWhenPossible: when
@@ -46,48 +37,51 @@ public class GetLastMessageIdEntryLeakTest extends SharedPulsarBaseTest {
      * its backing ByteBuf) must still be released.
      */
     @Test
-    public void testEntryReleasedWhenParseMetadataThrows() throws Exception {
-        final String topic = newTopicName();
-
-        @Cleanup
-        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
-        producer.send("payload".getBytes());
-
-        @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic).subscriptionName("sub").subscribe();
-
-        PersistentTopic persistentTopic = (PersistentTopic) getTopicReference(topic).get();
-
+    public void testEntryReleasedWhenParseMetadataThrows() {
         // A 2-byte, non-magic buffer: parseMessageMetadata reads it but fails at readUnsignedInt
         // (needs 4 bytes), which is exactly the corrupt-entry case that triggers the leak.
-        ByteBuf corruptBuf = Unpooled.buffer(2);
-        corruptBuf.writeShort(0x0000);
+        EntryImpl entry = EntryImpl.create(1, 0, new byte[2]);
+        ByteBuf buffer = entry.getDataBuffer();
+        try {
+            assertThatThrownBy(() -> ServerCnx.parseBatchSizeAndReleaseEntry(entry))
+                    .isInstanceOf(IndexOutOfBoundsException.class);
+            assertThat(buffer.refCnt()).as("entry's ByteBuf after metadata parsing failed").isZero();
+        } finally {
+            if (buffer.refCnt() > 0) {
+                entry.release();
+            }
+        }
+    }
 
-        // Build the entry eagerly so its retain happens now; then drop our own ref so the entry
-        // "owns" the only ref and we can observe whether the broker releases it.
-        Position lastPosition = ((ManagedLedgerImpl) persistentTopic.getManagedLedger()).getLastConfirmedEntry();
-        EntryImpl corruptEntry =
-                EntryImpl.create(lastPosition.getLedgerId(), lastPosition.getEntryId(), corruptBuf);
-        corruptBuf.release();
-        assertEquals(corruptBuf.refCnt(), 1);
+    @DataProvider
+    public Object[][] batchMetadata() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
 
-        // Spy the real ManagedLedgerImpl so asyncReadEntry hands back our corrupt entry, while
-        // getLastPosition() etc. still delegate to the real ledger.
-        ManagedLedgerImpl spyLedger = spy((ManagedLedgerImpl) persistentTopic.getManagedLedger());
-        doAnswer(inv -> {
-            ReadEntryCallback callback = inv.getArgument(1);
-            callback.readEntryComplete(corruptEntry, inv.getArgument(2));
-            return null;
-        }).when(spyLedger).asyncReadEntry(any(Position.class), any(ReadEntryCallback.class), any());
-
-        FieldUtils.writeField(persistentTopic, "ledger", spyLedger, true);
-
-        // The broker fails the request (MetadataError) - that's expected; the point is the buffer.
-        assertThrows(Exception.class, consumer::getLastMessageId);
-
-        // Before the fix: parseMessageMetadata throws, entry.release() is skipped -> refCnt stays 1.
-        // After the fix: release runs in finally -> refCnt drops to 0.
-        assertEquals(corruptBuf.refCnt(), 0, "entry's ByteBuf leaked when parseMessageMetadata threw");
+    @Test(dataProvider = "batchMetadata")
+    public void testEntryReleasedAfterReadingBatchSize(boolean cachedMetadata, boolean batched) {
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("producer")
+                .setSequenceId(0)
+                .setPublishTime(0);
+        if (batched) {
+            metadata.setNumMessagesInBatch(3);
+        }
+        // An invalid buffer with cached metadata also verifies that parsing the buffer is skipped.
+        ByteBuf buffer = cachedMetadata ? Unpooled.wrappedBuffer(new byte[2])
+                : Commands.serializeMetadataAndPayload(Commands.ChecksumType.None, metadata, Unpooled.EMPTY_BUFFER);
+        EntryImpl entry = EntryImpl.create(1, 0, buffer);
+        buffer.release();
+        if (cachedMetadata) {
+            entry.setMessageMetadata(metadata);
+        }
+        try {
+            assertThat(ServerCnx.parseBatchSizeAndReleaseEntry(entry)).isEqualTo(batched ? 3 : -1);
+            assertThat(buffer.refCnt()).as("entry's ByteBuf after reading batch size").isZero();
+        } finally {
+            if (buffer.refCnt() > 0) {
+                entry.release();
+            }
+        }
     }
 }

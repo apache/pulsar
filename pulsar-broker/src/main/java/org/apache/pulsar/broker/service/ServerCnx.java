@@ -3236,18 +3236,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             }, null);
 
-            CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
-                try {
-                    MessageMetadata metadata = entry.getMessageMetadata();
-                    if (metadata == null) {
-                        metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
-                    }
-                    int batchSize = metadata.getNumMessagesInBatch();
-                    return metadata.hasNumMessagesInBatch() ? batchSize : -1;
-                } finally {
-                    entry.release();
-                }
-            });
+            CompletableFuture<Integer> batchSizeFuture =
+                    entryFuture.thenApply(ServerCnx::parseBatchSizeAndReleaseEntry);
 
             batchSizeFuture.whenComplete((batchSize, e) -> {
                 if (e != null) {
@@ -3276,6 +3266,20 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 }
             });
         });
+    }
+
+    @VisibleForTesting
+    static int parseBatchSizeAndReleaseEntry(Entry entry) {
+        try {
+            MessageMetadata metadata = entry.getMessageMetadata();
+            if (metadata == null) {
+                metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+            }
+            int batchSize = metadata.getNumMessagesInBatch();
+            return metadata.hasNumMessagesInBatch() ? batchSize : -1;
+        } finally {
+            entry.release();
+        }
     }
 
     private void handleLastMessageIdFromCompactionService(PersistentTopic persistentTopic, long requestId,

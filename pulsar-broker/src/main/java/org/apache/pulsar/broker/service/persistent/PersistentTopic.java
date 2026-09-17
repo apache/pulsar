@@ -2407,7 +2407,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
     }
 
-    private void checkMessageExpiryWithoutSharedPosition(int messageTtlInSeconds) {
+    @VisibleForTesting
+    void checkMessageExpiryWithoutSharedPosition(int messageTtlInSeconds) {
         subscriptions.forEach((__, sub) -> {
             // TTL must not advance non-durable reader cursors past unread retained messages.
             if (sub.getCursor().isDurable() && !isCompactionSubscription(sub.getName())
