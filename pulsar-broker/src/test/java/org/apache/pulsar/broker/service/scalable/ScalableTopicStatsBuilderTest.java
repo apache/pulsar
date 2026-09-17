@@ -30,16 +30,12 @@ import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
-import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
-import org.apache.pulsar.common.policies.data.stats.PublisherStatsImpl;
-import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
-import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.testng.annotations.Test;
 
 /**
  * Unit tests for the folding rules of {@link ScalableTopicStatsBuilder}, driven by
- * hand-built per-segment {@link TopicStatsImpl} fixtures.
+ * hand-built per-segment {@link SegmentTopicStats} fixtures.
  */
 public class ScalableTopicStatsBuilderTest {
 
@@ -54,45 +50,45 @@ public class ScalableTopicStatsBuilderTest {
         return SegmentLayout.fromMetadata(md).splitSegment(0, 1_000L);
     }
 
-    private static TopicStatsImpl topicStats(String owner, double msgRateIn, long storageSize) {
-        TopicStatsImpl ts = new TopicStatsImpl();
-        ts.ownerBroker = owner;
-        ts.msgRateIn = msgRateIn;
-        ts.msgThroughputIn = msgRateIn * 100;
-        ts.storageSize = storageSize;
-        ts.backlogSize = storageSize / 2;
+    private static SegmentTopicStats segmentStats(String owner, double msgRateIn, long storageSize) {
+        SegmentTopicStats ts = new SegmentTopicStats();
+        ts.setOwnerBroker(owner);
+        ts.setMsgRateIn(msgRateIn);
+        ts.setByteRateIn(msgRateIn * 100);
+        ts.setStorageSize(storageSize);
+        ts.setBacklogSize(storageSize / 2);
         return ts;
     }
 
-    private static PublisherStatsImpl publisher(String name, double msgRateIn) {
-        PublisherStatsImpl p = new PublisherStatsImpl();
+    private static SegmentTopicStats.ProducerStats producer(String name, double msgRateIn) {
+        SegmentTopicStats.ProducerStats p = new SegmentTopicStats.ProducerStats();
         p.setProducerName(name);
-        p.setSupportsPartialProducer(true);
-        p.msgRateIn = msgRateIn;
-        p.msgThroughputIn = msgRateIn * 50;
+        p.setMsgRateIn(msgRateIn);
+        p.setByteRateIn(msgRateIn * 50);
         p.setAddress("10.0.0.1:1234");
         p.setClientVersion("v5");
         return p;
     }
 
-    private static SubscriptionStatsImpl subscription(long msgBacklog, ConsumerStatsImpl... consumers) {
-        SubscriptionStatsImpl s = new SubscriptionStatsImpl();
-        s.msgBacklog = msgBacklog;
-        s.backlogSize = msgBacklog * 10;
-        s.msgRateOut = msgBacklog;
-        for (ConsumerStatsImpl c : consumers) {
-            s.consumers.add(c);
-            s.unackedMessages += c.unackedMessages;
+    private static SegmentTopicStats.SubscriptionStats subscription(long msgBacklog,
+                                                                     SegmentTopicStats.ConsumerStats... consumers) {
+        SegmentTopicStats.SubscriptionStats s = new SegmentTopicStats.SubscriptionStats();
+        s.setMsgBacklog(msgBacklog);
+        s.setBacklogSize(msgBacklog * 10);
+        s.setMsgRateOut(msgBacklog);
+        for (SegmentTopicStats.ConsumerStats c : consumers) {
+            s.getConsumers().add(c);
+            s.setUnackedMessages(s.getUnackedMessages() + c.getUnackedMessages());
         }
         return s;
     }
 
-    private static ConsumerStatsImpl consumer(String name, int unacked) {
-        ConsumerStatsImpl c = new ConsumerStatsImpl();
-        c.consumerName = name;
-        c.unackedMessages = unacked;
-        c.availablePermits = 100;
-        c.msgRateOut = 1;
+    private static SegmentTopicStats.ConsumerStats consumer(String name, int unacked) {
+        SegmentTopicStats.ConsumerStats c = new SegmentTopicStats.ConsumerStats();
+        c.setConsumerName(name);
+        c.setUnackedMessages(unacked);
+        c.setAvailablePermits(100);
+        c.setMsgRateOut(1);
         c.setAddress("10.0.0.2:5678");
         return c;
     }
@@ -100,10 +96,10 @@ public class ScalableTopicStatsBuilderTest {
     @Test
     public void testDagAndTopicAggregates() {
         SegmentLayout layout = splitLayout();
-        TopicStatsImpl seg1 = topicStats("broker-a", 2.0, 1_000);
-        TopicStatsImpl seg2 = topicStats("broker-b", 4.0, 3_000);
+        SegmentTopicStats seg1 = segmentStats("broker-a", 2.0, 1_000);
+        SegmentTopicStats seg2 = segmentStats("broker-b", 4.0, 3_000);
         // Segment 0 (sealed) and 3 have no stats collected.
-        Map<Long, TopicStats> segmentStats = Map.of(1L, seg1, 2L, seg2);
+        Map<Long, SegmentTopicStats> segmentStats = Map.of(1L, seg1, 2L, seg2);
 
         ScalableTopicStats stats = ScalableTopicStatsBuilder.build(
                 TOPIC, layout, segmentStats, Map.of(), Map.of());
@@ -112,14 +108,14 @@ public class ScalableTopicStatsBuilderTest {
         assertEquals(dag.getEpoch(), 1);
         assertEquals(dag.getSegments().keySet(), Set.of(0L, 1L, 2L, 3L));
 
-        ScalableTopicStats.SegmentStats parent = dag.getSegments().get(0L);
+        ScalableTopicStats.LayoutSegment parent = dag.getSegments().get(0L);
         assertTrue(parent.isSealed());
         assertEquals(parent.getChildIds(), List.of(2L, 3L));
         assertTrue(parent.getParentIds().isEmpty());
         assertEquals(parent.getName(), "segment://tenant/ns/stats-topic/0000-7fff-0");
         assertNull(parent.getOwnerBroker(), "no stats collected → no owner");
 
-        ScalableTopicStats.SegmentStats child = dag.getSegments().get(2L);
+        ScalableTopicStats.LayoutSegment child = dag.getSegments().get(2L);
         assertTrue(child.isActive());
         assertEquals(child.getParentIds(), List.of(0L));
         assertTrue(child.getChildIds().isEmpty());
@@ -139,12 +135,12 @@ public class ScalableTopicStatsBuilderTest {
     @Test
     public void testRatesRoundedToThreeDecimals() {
         SegmentLayout layout = splitLayout();
-        TopicStatsImpl seg1 = topicStats("broker-a", 100.00208351674284, 0);
-        seg1.msgThroughputIn = 5536.915360155018;
-        seg1.addPublisher(publisher("p-seg-1", 33.3333333));
-        seg1.subscriptions.put("s", subscription(0, consumer("c-seg-1", 0)));
-        seg1.subscriptions.get("s").msgRateOut = 1.0006;
-        seg1.subscriptions.get("s").consumers.get(0).msgRateOut = 2.0004;
+        SegmentTopicStats seg1 = segmentStats("broker-a", 100.00208351674284, 0);
+        seg1.setByteRateIn(5536.915360155018);
+        seg1.getProducers().add(producer("p-seg-1", 33.3333333));
+        seg1.getSubscriptions().put("s", subscription(0, consumer("c-seg-1", 0)));
+        seg1.getSubscriptions().get("s").setMsgRateOut(1.0006);
+        seg1.getSubscriptions().get("s").getConsumers().get(0).setMsgRateOut(2.0004);
 
         ScalableTopicStats stats = ScalableTopicStatsBuilder.build(
                 TOPIC, layout, Map.of(1L, seg1), Map.of(), Map.of());
@@ -163,13 +159,13 @@ public class ScalableTopicStatsBuilderTest {
     @Test
     public void testProducersFoldedAcrossSegments() {
         SegmentLayout layout = splitLayout();
-        TopicStatsImpl seg1 = topicStats("broker-a", 1, 0);
-        seg1.addPublisher(publisher("app-producer-seg-1", 2.0));
-        seg1.addPublisher(publisher("standalone-abc", 0.5));
-        TopicStatsImpl seg2 = topicStats("broker-b", 1, 0);
-        seg2.addPublisher(publisher("app-producer-seg-2", 3.0));
+        SegmentTopicStats seg1 = segmentStats("broker-a", 1, 0);
+        seg1.getProducers().add(producer("app-producer-seg-1", 2.0));
+        seg1.getProducers().add(producer("standalone-abc", 0.5));
+        SegmentTopicStats seg2 = segmentStats("broker-b", 1, 0);
+        seg2.getProducers().add(producer("app-producer-seg-2", 3.0));
         // A name whose suffix names a *different* segment is not the V5 pattern.
-        seg2.addPublisher(publisher("other-seg-1", 1.0));
+        seg2.getProducers().add(producer("other-seg-1", 1.0));
 
         ScalableTopicStats stats = ScalableTopicStatsBuilder.build(
                 TOPIC, layout, Map.of(1L, seg1, 2L, seg2), Map.of(), Map.of());
@@ -193,12 +189,12 @@ public class ScalableTopicStatsBuilderTest {
     @Test
     public void testQueueSubscriptionAggregatedFromSegments() {
         SegmentLayout layout = splitLayout();
-        TopicStatsImpl seg1 = topicStats("broker-a", 1, 0);
-        seg1.subscriptions.put("q", subscription(10, consumer("qc-seg-1", 3)));
-        TopicStatsImpl seg2 = topicStats("broker-b", 1, 0);
-        seg2.subscriptions.put("q", subscription(5, consumer("qc-seg-2", 1), consumer("random-name", 2)));
+        SegmentTopicStats seg1 = segmentStats("broker-a", 1, 0);
+        seg1.getSubscriptions().put("q", subscription(10, consumer("qc-seg-1", 3)));
+        SegmentTopicStats seg2 = segmentStats("broker-b", 1, 0);
+        seg2.getSubscriptions().put("q", subscription(5, consumer("qc-seg-2", 1), consumer("random-name", 2)));
         // A segment without this subscription contributes nothing.
-        TopicStatsImpl seg3 = topicStats("broker-a", 1, 0);
+        SegmentTopicStats seg3 = segmentStats("broker-a", 1, 0);
 
         ScalableTopicStats stats = ScalableTopicStatsBuilder.build(
                 TOPIC, layout, Map.of(1L, seg1, 2L, seg2, 3L, seg3), Map.of(), Map.of());
@@ -233,10 +229,10 @@ public class ScalableTopicStatsBuilderTest {
     @Test
     public void testStreamSessionsSeedConsumers() {
         SegmentLayout layout = splitLayout();
-        TopicStatsImpl seg1 = topicStats("broker-a", 1, 0);
-        seg1.subscriptions.put("s", subscription(7, consumer("c1-seg-1", 2)));
-        TopicStatsImpl seg2 = topicStats("broker-b", 1, 0);
-        seg2.subscriptions.put("s", subscription(0));
+        SegmentTopicStats seg1 = segmentStats("broker-a", 1, 0);
+        seg1.getSubscriptions().put("s", subscription(7, consumer("c1-seg-1", 2)));
+        SegmentTopicStats seg2 = segmentStats("broker-b", 1, 0);
+        seg2.getSubscriptions().put("s", subscription(0));
         var sessions = Map.of("s", List.of(
                 new ScalableTopicStatsBuilder.StreamConsumer("c1", true, List.of(1L, 2L)),
                 // Registered, in its grace period, still holding segment 3.

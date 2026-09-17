@@ -25,7 +25,7 @@ import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 
 /**
  * Admin interface for scalable topic management.
@@ -245,19 +245,19 @@ public interface ScalableTopics {
     CompletableFuture<ScalableTopicStats> getStatsAsync(String topic);
 
     /**
-     * Get the stats of a single segment of a scalable topic: the regular {@link TopicStats} of
+     * Get the stats of a single segment of a scalable topic: the {@link SegmentTopicStats} of
      * the topic backing the segment, as served by its owning broker.
      *
      * @param topic     Topic name in the format "tenant/namespace/topic"
      * @param segmentId ID of the segment, as listed in the topic metadata or stats
      * @return the segment's topic stats
      */
-    TopicStats getSegmentStats(String topic, long segmentId) throws PulsarAdminException;
+    SegmentTopicStats getSegmentStats(String topic, long segmentId) throws PulsarAdminException;
 
     /**
      * Get the stats of a single segment of a scalable topic, asynchronously.
      */
-    CompletableFuture<TopicStats> getSegmentStatsAsync(String topic, long segmentId);
+    CompletableFuture<SegmentTopicStats> getSegmentStatsAsync(String topic, long segmentId);
 
     /**
      * Get the stats of a single segment of a scalable topic, addressed by its name as listed
@@ -268,12 +268,12 @@ public interface ScalableTopics {
      * @param segmentTopic Full segment name ({@code segment://tenant/namespace/topic/descriptor})
      * @return the segment's topic stats
      */
-    TopicStats getSegmentStats(String segmentTopic) throws PulsarAdminException;
+    SegmentTopicStats getSegmentStats(String segmentTopic) throws PulsarAdminException;
 
     /**
      * Get the stats of a single segment of a scalable topic by its name, asynchronously.
      */
-    CompletableFuture<TopicStats> getSegmentStatsAsync(String segmentTopic);
+    CompletableFuture<SegmentTopicStats> getSegmentStatsAsync(String segmentTopic);
 
     /**
      * Create a subscription on a scalable topic. The controller leader propagates the

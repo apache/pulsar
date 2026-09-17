@@ -36,12 +36,11 @@ import org.apache.pulsar.client.api.ProducerAccessMode;
  *
  * <p>Rates are rounded to three decimals. Per-segment numbers come from each segment's
  * owning broker; a segment whose stats could not be collected keeps its layout entry but
- * reports no owner (see {@link SegmentStats#getOwnerBroker()}) and contributes nothing to
+ * reports no owner (see {@link LayoutSegment#getOwnerBroker()}) and contributes nothing to
  * the aggregates.
  *
- * <p>The stats of a single segment's underlying topic — its own rates and storage, cursors,
- * per-consumer permits and so on — are served separately as a regular {@link TopicStats}
- * by {@code ScalableTopics.getSegmentStats(topic, segmentId)}.
+ * <p>The stats of a single segment — its own rates and storage, its cursors and consumers —
+ * are served separately as {@link SegmentTopicStats} by {@code ScalableTopics.getSegmentStats}.
  */
 @Data
 @NoArgsConstructor
@@ -88,7 +87,7 @@ public class ScalableTopicStats {
         private long epoch;
 
         /** The segments, keyed by segment ID. */
-        private Map<Long, SegmentStats> segments = new LinkedHashMap<>();
+        private Map<Long, LayoutSegment> segments = new LinkedHashMap<>();
     }
 
     /**
@@ -98,7 +97,7 @@ public class ScalableTopicStats {
     @Data
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class SegmentStats {
+    public static class LayoutSegment {
 
         /**
          * The segment's name: {@code segment://tenant/ns/topic/<hashStart>-<hashEnd>-<segmentId>},

@@ -50,8 +50,8 @@ import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
-import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
@@ -1161,7 +1161,7 @@ public class ScalableTopicController {
     /**
      * Build a snapshot of the scalable topic: the segment DAG with the load each segment's
      * owning broker reports, every subscription with its backlog broken down per segment, and
-     * the producers attached to the segments. The per-segment {@link TopicStats} are collected
+     * the producers attached to the segments. The per-segment {@link SegmentTopicStats} are collected
      * in parallel — locally for segments this broker owns, through the segment-stats admin
      * endpoint otherwise — and a segment whose stats cannot be collected is reported without
      * load rather than failing the whole snapshot.
@@ -1174,7 +1174,7 @@ public class ScalableTopicController {
         SegmentLayout layout = this.currentLayout;
         List<CompletableFuture<?>> futures = new ArrayList<>();
 
-        Map<Long, TopicStats> segmentStats = new ConcurrentHashMap<>();
+        Map<Long, SegmentTopicStats> segmentStats = new ConcurrentHashMap<>();
         for (SegmentInfo segment : layout.getAllSegments().values()) {
             futures.add(fetchSegmentStats(segment)
                     .thenAccept(ts -> {
@@ -1232,12 +1232,12 @@ public class ScalableTopicController {
     }
 
     /**
-     * Fetch the {@link TopicStats} of the topic backing {@code segment}: directly when this
-     * broker owns it, otherwise through the segment-stats admin endpoint, which redirects
+     * Fetch the {@link SegmentTopicStats} of the topic backing {@code segment}: directly when
+     * this broker owns it, otherwise through the segment-stats admin endpoint, which redirects
      * to the owning broker. Completes with {@code null} for a segment whose backing topic
      * doesn't exist.
      */
-    private CompletableFuture<TopicStats> fetchSegmentStats(SegmentInfo segment) {
+    private CompletableFuture<SegmentTopicStats> fetchSegmentStats(SegmentInfo segment) {
         String backingTopic = SegmentTopicName.backingTopicName(topicName, segment);
         final PulsarAdmin admin;
         try {
@@ -1254,10 +1254,10 @@ public class ScalableTopicController {
                     }
                     return brokerService.getTopicIfExists(backingTopic)
                             .thenCompose(optTopic -> optTopic.isEmpty()
-                                    ? CompletableFuture.<TopicStats>completedFuture(null)
+                                    ? CompletableFuture.<SegmentTopicStats>completedFuture(null)
                                     : optTopic.get()
                                             .asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS)
-                                            .thenApply(ts -> (TopicStats) ts));
+                                            .thenApply(SegmentTopicStatsBuilder::fromTopicStats));
                 });
     }
 

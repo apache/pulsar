@@ -32,14 +32,14 @@ import org.apache.pulsar.client.api.v5.config.BatchingPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 /**
  * End-to-end coverage of the scalable-topic stats admin API: the topic-level snapshot
  * ({@code admin.scalableTopics().getStats}) — segment DAG, subscriptions with their backlog
- * across segments, producers — and the per-segment {@link TopicStats}
+ * across segments, producers — and the per-segment {@link SegmentTopicStats}
  * ({@code admin.scalableTopics().getSegmentStats}).
  */
 public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
@@ -69,7 +69,7 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
         ScalableTopicStats.LayoutStats layout = stats.getLayout();
         assertEquals(layout.getEpoch(), 0);
         assertEquals(layout.getSegments().keySet(), Set.of(0L, 1L));
-        for (ScalableTopicStats.SegmentStats segment : layout.getSegments().values()) {
+        for (ScalableTopicStats.LayoutSegment segment : layout.getSegments().values()) {
             assertTrue(segment.isActive());
             assertTrue(segment.getParentIds().isEmpty());
             assertTrue(segment.getChildIds().isEmpty());
@@ -127,14 +127,14 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
             }
         });
 
-        // --- Per-segment stats: the regular TopicStats of each backing topic ---
+        // --- Per-segment stats: the trimmed stats of each backing topic ---
         long backlogFromSegments = 0;
         List<String> segmentProducers = new ArrayList<>();
         for (long segmentId : List.of(0L, 1L)) {
-            TopicStats segmentStats = admin.scalableTopics().getSegmentStats(topic, segmentId);
+            SegmentTopicStats segmentStats = admin.scalableTopics().getSegmentStats(topic, segmentId);
             assertNotNull(segmentStats.getOwnerBroker());
-            assertEquals(segmentStats.getPublishers().size(), 1);
-            segmentProducers.add(segmentStats.getPublishers().get(0).getProducerName());
+            assertEquals(segmentStats.getProducers().size(), 1);
+            segmentProducers.add(segmentStats.getProducers().get(0).getProducerName());
             var segmentSub = segmentStats.getSubscriptions().get(subscription);
             assertNotNull(segmentSub, "subscription missing on segment " + segmentId);
             assertEquals(segmentSub.getConsumers().size(), 1);
@@ -145,8 +145,8 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
         assertEquals(backlogFromSegments, n - acked);
 
         // A segment is also addressable by the name the layout lists for it.
-        TopicStats byName = admin.scalableTopics().getSegmentStats(layout.getSegments().get(1L).getName());
-        assertEquals(byName.getPublishers().get(0).getProducerName(), "stats-producer-seg-1");
+        SegmentTopicStats byName = admin.scalableTopics().getSegmentStats(layout.getSegments().get(1L).getName());
+        assertEquals(byName.getProducers().get(0).getProducerName(), "stats-producer-seg-1");
 
         assertThrows(PulsarAdminException.NotFoundException.class,
                 () -> admin.scalableTopics().getSegmentStats(topic, 42L));
@@ -164,21 +164,21 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
         assertEquals(layout.getSegments().keySet(), Set.of(0L, 1L, 2L));
 
         String segmentPrefix = "segment://" + topic.substring("topic://".length());
-        ScalableTopicStats.SegmentStats parent = layout.getSegments().get(0L);
+        ScalableTopicStats.LayoutSegment parent = layout.getSegments().get(0L);
         assertTrue(parent.isSealed());
         assertEquals(parent.getChildIds(), List.of(1L, 2L));
         assertEquals(parent.getName(), segmentPrefix + "/0000-ffff-0");
 
-        ScalableTopicStats.SegmentStats left = layout.getSegments().get(1L);
+        ScalableTopicStats.LayoutSegment left = layout.getSegments().get(1L);
         assertTrue(left.isActive());
         assertEquals(left.getParentIds(), List.of(0L));
         assertEquals(left.getName(), segmentPrefix + "/0000-7fff-1");
-        ScalableTopicStats.SegmentStats right = layout.getSegments().get(2L);
+        ScalableTopicStats.LayoutSegment right = layout.getSegments().get(2L);
         assertEquals(right.getParentIds(), List.of(0L));
         assertEquals(right.getName(), segmentPrefix + "/8000-ffff-2");
 
         // The sealed (terminated) parent is still a real topic with stats of its own.
-        TopicStats parentStats = admin.scalableTopics().getSegmentStats(topic, 0L);
+        SegmentTopicStats parentStats = admin.scalableTopics().getSegmentStats(topic, 0L);
         assertNotNull(parentStats.getOwnerBroker());
     }
 

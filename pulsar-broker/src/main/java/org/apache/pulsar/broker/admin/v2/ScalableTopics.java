@@ -58,6 +58,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
+import org.apache.pulsar.broker.service.scalable.SegmentTopicStatsBuilder;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -67,6 +68,7 @@ import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
@@ -730,11 +732,11 @@ public class ScalableTopics extends AdminResource {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/segments/{segmentId}/stats")
-    @Operation(summary = "Get the stats of a single segment of a scalable topic: the regular topic stats"
-            + " of the topic backing the segment, served by its owning broker.")
+    @Operation(summary = "Get the stats of a single segment of a scalable topic: the stats of the topic"
+            + " backing the segment, trimmed to what matters for a segment, served by its owning broker.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "The stats of the segment's backing topic.",
-                    content = @Content(schema = @Schema(implementation = TopicStats.class))),
+                    content = @Content(schema = @Schema(implementation = SegmentTopicStats.class))),
             @ApiResponse(responseCode = "307", description = "Current broker doesn't serve the segment"),
             @ApiResponse(responseCode = "401",
                     description = "Don't have permission to administrate resources on this tenant"),
@@ -778,7 +780,8 @@ public class ScalableTopics extends AdminResource {
                                     throw new RestException(Response.Status.NOT_FOUND,
                                             "Segment topic not found: " + backingTopic);
                                 }
-                                return optTopic.get().asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS);
+                                return optTopic.get().asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS)
+                                        .thenApply(SegmentTopicStatsBuilder::fromTopicStats);
                             });
                 })
                 .thenAccept(asyncResponse::resume)

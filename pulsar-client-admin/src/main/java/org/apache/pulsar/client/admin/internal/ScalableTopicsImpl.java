@@ -35,7 +35,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -218,25 +218,24 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     }
 
     @Override
-    public TopicStats getSegmentStats(String topic, long segmentId) throws PulsarAdminException {
+    public SegmentTopicStats getSegmentStats(String topic, long segmentId) throws PulsarAdminException {
         return sync(() -> getSegmentStatsAsync(topic, segmentId));
     }
 
     @Override
-    public CompletableFuture<TopicStats> getSegmentStatsAsync(String topic, long segmentId) {
+    public CompletableFuture<SegmentTopicStats> getSegmentStatsAsync(String topic, long segmentId) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn).path("segments").path(String.valueOf(segmentId)).path("stats");
-        // TopicStats is an interface; the admin ObjectMapper resolves it to TopicStatsImpl.
-        return asyncGetRequest(path, TopicStats.class);
+        return asyncGetRequest(path, SegmentTopicStats.class);
     }
 
     @Override
-    public TopicStats getSegmentStats(String segmentTopic) throws PulsarAdminException {
+    public SegmentTopicStats getSegmentStats(String segmentTopic) throws PulsarAdminException {
         return sync(() -> getSegmentStatsAsync(segmentTopic));
     }
 
     @Override
-    public CompletableFuture<TopicStats> getSegmentStatsAsync(String segmentTopic) {
+    public CompletableFuture<SegmentTopicStats> getSegmentStatsAsync(String segmentTopic) {
         final TopicName tn;
         try {
             tn = TopicName.get(segmentTopic);

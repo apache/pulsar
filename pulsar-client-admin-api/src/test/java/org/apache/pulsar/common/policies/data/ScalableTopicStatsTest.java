@@ -57,7 +57,7 @@ public class ScalableTopicStatsTest {
 
     @Test
     public void testSegmentStatsState() {
-        ScalableTopicStats.SegmentStats segment = new ScalableTopicStats.SegmentStats();
+        ScalableTopicStats.LayoutSegment segment = new ScalableTopicStats.LayoutSegment();
         assertNull(segment.getOwnerBroker());
         assertNotNull(segment.getParentIds());
         assertNotNull(segment.getChildIds());
@@ -87,14 +87,14 @@ public class ScalableTopicStatsTest {
     public void testEqualsAndHashCode() {
         ScalableTopicStats a = new ScalableTopicStats();
         a.getLayout().setEpoch(1L);
-        ScalableTopicStats.SegmentStats seg = new ScalableTopicStats.SegmentStats();
+        ScalableTopicStats.LayoutSegment seg = new ScalableTopicStats.LayoutSegment();
         seg.setName("segment://t/ns/topic/0000-ffff-0");
         seg.setChildIds(List.of(1L, 2L));
         a.getLayout().getSegments().put(0L, seg);
 
         ScalableTopicStats b = new ScalableTopicStats();
         b.getLayout().setEpoch(1L);
-        ScalableTopicStats.SegmentStats seg2 = new ScalableTopicStats.SegmentStats();
+        ScalableTopicStats.LayoutSegment seg2 = new ScalableTopicStats.LayoutSegment();
         seg2.setName("segment://t/ns/topic/0000-ffff-0");
         seg2.setChildIds(List.of(1L, 2L));
         b.getLayout().getSegments().put(0L, seg2);

@@ -59,7 +59,7 @@ import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
-import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -149,10 +149,10 @@ public class ScalableTopicControllerTest {
     }
 
     /** The stats every mocked segment reports: owned by {@code segment-owner}, 1.5 msg/s in. */
-    private static TopicStatsImpl segmentTopicStats() {
-        TopicStatsImpl stats = new TopicStatsImpl();
-        stats.ownerBroker = "segment-owner";
-        stats.msgRateIn = 1.5;
+    private static SegmentTopicStats segmentTopicStats() {
+        SegmentTopicStats stats = new SegmentTopicStats();
+        stats.setOwnerBroker("segment-owner");
+        stats.setMsgRateIn(1.5);
         return stats;
     }
 
@@ -470,7 +470,7 @@ public class ScalableTopicControllerTest {
         assertEquals(stats.getLayout().getEpoch(), 0);
         assertEquals(stats.getLayout().getSegments().size(), INITIAL_SEGMENTS);
         // Every segment's stats were collected through the admin endpoint and folded in.
-        for (ScalableTopicStats.SegmentStats segment : stats.getLayout().getSegments().values()) {
+        for (ScalableTopicStats.LayoutSegment segment : stats.getLayout().getSegments().values()) {
             assertTrue(segment.isActive());
             assertEquals(segment.getOwnerBroker(), "segment-owner");
         }
@@ -494,16 +494,16 @@ public class ScalableTopicControllerTest {
 
         ScalableTopicStats stats = controller.getStats().get();
 
-        Map<Long, ScalableTopicStats.SegmentStats> segments = stats.getLayout().getSegments();
+        Map<Long, ScalableTopicStats.LayoutSegment> segments = stats.getLayout().getSegments();
         assertEquals(stats.getLayout().getEpoch(), 1);
         assertEquals(segments.size(), INITIAL_SEGMENTS + 2,
                 "split adds two children, keeps parent as sealed");
-        assertEquals(segments.values().stream().filter(ScalableTopicStats.SegmentStats::isSealed).count(), 1);
+        assertEquals(segments.values().stream().filter(ScalableTopicStats.LayoutSegment::isSealed).count(), 1);
 
         // The DAG edges of the split are reported on both sides.
         long child1 = INITIAL_SEGMENTS;
         long child2 = INITIAL_SEGMENTS + 1;
-        ScalableTopicStats.SegmentStats parent = segments.get(0L);
+        ScalableTopicStats.LayoutSegment parent = segments.get(0L);
         assertTrue(parent.isSealed());
         assertEquals(parent.getChildIds(), List.of(child1, child2));
         assertEquals(segments.get(child1).getParentIds(), List.of(0L));

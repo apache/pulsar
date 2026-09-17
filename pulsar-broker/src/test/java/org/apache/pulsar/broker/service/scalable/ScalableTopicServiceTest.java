@@ -53,7 +53,7 @@ import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
-import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -127,7 +127,7 @@ public class ScalableTopicServiceTest {
         when(namespaceService.isServiceUnitOwnedAsync(any()))
                 .thenReturn(CompletableFuture.completedFuture(false));
         when(scalableTopicsAdmin.getSegmentStatsAsync(anyString(), anyLong()))
-                .thenAnswer(inv -> CompletableFuture.completedFuture(new TopicStatsImpl()));
+                .thenAnswer(inv -> CompletableFuture.completedFuture(new SegmentTopicStats()));
 
         service = new ScalableTopicService(brokerService, resources, coordinationService);
         service.start();
@@ -308,7 +308,7 @@ public class ScalableTopicServiceTest {
         ScalableTopicStats stats = service.getStats(tn).get();
         assertEquals(stats.getLayout().getSegments().size(), 3);
         assertTrue(stats.getLayout().getSegments().values().stream()
-                .allMatch(ScalableTopicStats.SegmentStats::isActive));
+                .allMatch(ScalableTopicStats.LayoutSegment::isActive));
         assertEquals(stats.getSubscriptions().keySet(), java.util.Set.of("sub-a"));
         assertEquals(stats.getSubscriptions().get("sub-a").getType(), ScalableSubscriptionType.STREAM,
                 "the type recorded by createSubscription is reported");

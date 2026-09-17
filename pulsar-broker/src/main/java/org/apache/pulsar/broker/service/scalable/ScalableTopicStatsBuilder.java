@@ -23,19 +23,16 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 
 /**
  * Assembles a {@link ScalableTopicStats} snapshot out of the segment DAG, the per-segment
- * {@link TopicStats} collected from the segment-owning brokers, the persisted subscription
- * types and the controller's STREAM consumer sessions.
+ * {@link SegmentTopicStats} collected from the segment-owning brokers, the persisted
+ * subscription types and the controller's STREAM consumer sessions.
  *
  * <p>Pure aggregation — no I/O — so the folding rules can be unit-tested on their own:
  * <ul>
@@ -77,14 +74,14 @@ public final class ScalableTopicStatsBuilder {
      *
      * @param topic           the scalable topic
      * @param layout          the current segment DAG
-     * @param segmentStats    per-segment topic stats keyed by segment ID; segments whose stats
-     *                        could not be collected are absent
+     * @param segmentStats    per-segment stats keyed by segment ID; segments whose stats could
+     *                        not be collected are absent
      * @param persistedTypes  subscription types recorded in the metadata store, keyed by name
      * @param streamConsumers the controller's consumer sessions per STREAM subscription
      */
     public static ScalableTopicStats build(TopicName topic,
                                            SegmentLayout layout,
-                                           Map<Long, TopicStats> segmentStats,
+                                           Map<Long, SegmentTopicStats> segmentStats,
                                            Map<String, ScalableSubscriptionType> persistedTypes,
                                            Map<String, List<StreamConsumer>> streamConsumers) {
         ScalableTopicStats stats = new ScalableTopicStats();
@@ -96,23 +93,23 @@ public final class ScalableTopicStatsBuilder {
     }
 
     private static void addLayout(TopicName topic, SegmentLayout layout,
-                                  Map<Long, TopicStats> segmentStats, ScalableTopicStats stats) {
+                                  Map<Long, SegmentTopicStats> segmentStats, ScalableTopicStats stats) {
         stats.getLayout().setEpoch(layout.getEpoch());
         for (SegmentInfo segment : layout.getAllSegments().values()) {
-            ScalableTopicStats.SegmentStats node = new ScalableTopicStats.SegmentStats();
+            ScalableTopicStats.LayoutSegment node = new ScalableTopicStats.LayoutSegment();
             node.setName(SegmentTopicName.backingTopicName(topic, segment));
             node.setState(segment.state().name());
             node.setParentIds(new ArrayList<>(segment.parentIds()));
             node.setChildIds(new ArrayList<>(segment.childIds()));
             node.setEntryBuckets(segment.bucketCount());
 
-            TopicStats ts = segmentStats.get(segment.segmentId());
+            SegmentTopicStats ts = segmentStats.get(segment.segmentId());
             if (ts != null) {
                 node.setOwnerBroker(ts.getOwnerBroker());
                 stats.setMsgRateIn(stats.getMsgRateIn() + ts.getMsgRateIn());
-                stats.setByteRateIn(stats.getByteRateIn() + ts.getMsgThroughputIn());
+                stats.setByteRateIn(stats.getByteRateIn() + ts.getByteRateIn());
                 stats.setMsgRateOut(stats.getMsgRateOut() + ts.getMsgRateOut());
-                stats.setByteRateOut(stats.getByteRateOut() + ts.getMsgThroughputOut());
+                stats.setByteRateOut(stats.getByteRateOut() + ts.getByteRateOut());
                 stats.setStorageSize(stats.getStorageSize() + ts.getStorageSize());
                 stats.setBacklogSize(stats.getBacklogSize() + ts.getBacklogSize());
             }
@@ -121,27 +118,27 @@ public final class ScalableTopicStatsBuilder {
         stats.setAverageMsgSize(averageSize(stats.getMsgRateIn(), stats.getByteRateIn()));
     }
 
-    private static void addProducers(SegmentLayout layout, Map<Long, TopicStats> segmentStats,
+    private static void addProducers(SegmentLayout layout, Map<Long, SegmentTopicStats> segmentStats,
                                      ScalableTopicStats stats) {
         Map<String, ScalableTopicStats.ProducerStats> byName = new LinkedHashMap<>();
         for (Long segmentId : layout.getAllSegments().keySet()) {
-            TopicStats ts = segmentStats.get(segmentId);
+            SegmentTopicStats ts = segmentStats.get(segmentId);
             if (ts == null) {
                 continue;
             }
-            for (PublisherStats publisher : ts.getPublishers()) {
-                String name = stripSegmentSuffix(publisher.getProducerName(), segmentId);
+            for (SegmentTopicStats.ProducerStats segmentProducer : ts.getProducers()) {
+                String name = stripSegmentSuffix(segmentProducer.getProducerName(), segmentId);
                 ScalableTopicStats.ProducerStats producer = byName.computeIfAbsent(name, n -> {
                     ScalableTopicStats.ProducerStats p = new ScalableTopicStats.ProducerStats();
                     p.setProducerName(n);
-                    p.setAccessMode(publisher.getAccessMode());
-                    p.setAddress(publisher.getAddress());
-                    p.setConnectedSince(publisher.getConnectedSince());
-                    p.setClientVersion(publisher.getClientVersion());
+                    p.setAccessMode(segmentProducer.getAccessMode());
+                    p.setAddress(segmentProducer.getAddress());
+                    p.setConnectedSince(segmentProducer.getConnectedSince());
+                    p.setClientVersion(segmentProducer.getClientVersion());
                     return p;
                 });
-                producer.setMsgRateIn(producer.getMsgRateIn() + publisher.getMsgRateIn());
-                producer.setByteRateIn(producer.getByteRateIn() + publisher.getMsgThroughputIn());
+                producer.setMsgRateIn(producer.getMsgRateIn() + segmentProducer.getMsgRateIn());
+                producer.setByteRateIn(producer.getByteRateIn() + segmentProducer.getByteRateIn());
             }
         }
         for (ScalableTopicStats.ProducerStats producer : byName.values()) {
@@ -150,7 +147,7 @@ public final class ScalableTopicStatsBuilder {
         stats.setProducers(new ArrayList<>(byName.values()));
     }
 
-    private static void addSubscriptions(SegmentLayout layout, Map<Long, TopicStats> segmentStats,
+    private static void addSubscriptions(SegmentLayout layout, Map<Long, SegmentTopicStats> segmentStats,
                                          Map<String, ScalableSubscriptionType> persistedTypes,
                                          Map<String, List<StreamConsumer>> streamConsumers,
                                          ScalableTopicStats stats) {
@@ -165,7 +162,7 @@ public final class ScalableTopicStatsBuilder {
             subscriptions.computeIfAbsent(name, n -> new ScalableTopicStats.SubscriptionStats());
         }
         for (Long segmentId : layout.getAllSegments().keySet()) {
-            TopicStats ts = segmentStats.get(segmentId);
+            SegmentTopicStats ts = segmentStats.get(segmentId);
             if (ts == null) {
                 continue;
             }
@@ -195,13 +192,13 @@ public final class ScalableTopicStatsBuilder {
                 }
             }
             for (Long segmentId : layout.getAllSegments().keySet()) {
-                TopicStats ts = segmentStats.get(segmentId);
-                SubscriptionStats ss = ts != null ? ts.getSubscriptions().get(name) : null;
+                SegmentTopicStats ts = segmentStats.get(segmentId);
+                SegmentTopicStats.SubscriptionStats ss = ts != null ? ts.getSubscriptions().get(name) : null;
                 if (ss == null) {
                     continue;
                 }
                 addSegmentSubscription(sub, segmentId, ss);
-                for (ConsumerStats consumer : ss.getConsumers()) {
+                for (SegmentTopicStats.ConsumerStats consumer : ss.getConsumers()) {
                     addSegmentConsumer(consumers, segmentId, consumer);
                 }
             }
@@ -211,13 +208,13 @@ public final class ScalableTopicStatsBuilder {
     }
 
     private static void addSegmentSubscription(ScalableTopicStats.SubscriptionStats sub, long segmentId,
-                                               SubscriptionStats ss) {
+                                               SegmentTopicStats.SubscriptionStats ss) {
         ScalableTopicStats.SegmentSubscriptionStats seg = new ScalableTopicStats.SegmentSubscriptionStats();
         seg.setMsgBacklog(ss.getMsgBacklog());
         seg.setBacklogSize(ss.getBacklogSize());
         seg.setUnackedMessages(ss.getUnackedMessages());
         seg.setMsgRateOut(ss.getMsgRateOut());
-        seg.setByteRateOut(ss.getMsgThroughputOut());
+        seg.setByteRateOut(ss.getByteRateOut());
         seg.setConsumerCount(ss.getConsumers().size());
         sub.getSegments().put(segmentId, seg);
 
@@ -225,13 +222,13 @@ public final class ScalableTopicStatsBuilder {
         sub.setBacklogSize(sub.getBacklogSize() + ss.getBacklogSize());
         sub.setUnackedMessages(sub.getUnackedMessages() + ss.getUnackedMessages());
         sub.setMsgRateOut(sub.getMsgRateOut() + ss.getMsgRateOut());
-        sub.setByteRateOut(sub.getByteRateOut() + ss.getMsgThroughputOut());
+        sub.setByteRateOut(sub.getByteRateOut() + ss.getByteRateOut());
         sub.setMsgRateRedeliver(sub.getMsgRateRedeliver() + ss.getMsgRateRedeliver());
         sub.setMessageAckRate(sub.getMessageAckRate() + ss.getMessageAckRate());
     }
 
     private static void addSegmentConsumer(Map<String, ScalableTopicStats.ConsumerStats> consumers,
-                                           long segmentId, ConsumerStats consumer) {
+                                           long segmentId, SegmentTopicStats.ConsumerStats consumer) {
         String name = stripSegmentSuffix(consumer.getConsumerName(), segmentId);
         ScalableTopicStats.ConsumerStats c = consumers.computeIfAbsent(name, n -> {
             ScalableTopicStats.ConsumerStats created = new ScalableTopicStats.ConsumerStats();
@@ -244,7 +241,7 @@ public final class ScalableTopicStatsBuilder {
             c.getSegmentIds().add(segmentId);
         }
         c.setMsgRateOut(c.getMsgRateOut() + consumer.getMsgRateOut());
-        c.setByteRateOut(c.getByteRateOut() + consumer.getMsgThroughputOut());
+        c.setByteRateOut(c.getByteRateOut() + consumer.getByteRateOut());
         c.setUnackedMessages(c.getUnackedMessages() + consumer.getUnackedMessages());
         c.setAvailablePermits(c.getAvailablePermits() + consumer.getAvailablePermits());
         if (c.getAddress() == null) {
