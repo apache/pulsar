@@ -1134,8 +1134,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Terminating);
     }
 
-    /** Test seam for observing the cursor-read reservation; production admission uses the processing owner. */
-    @VisibleForTesting
+    /** Whether a cursor read is reserved; its completion may still need the producer ACK's read demand. */
     protected boolean hasPendingRead() {
         synchronized (inFlightTasks) {
             for (InFlightTask task : inFlightTasks) {
