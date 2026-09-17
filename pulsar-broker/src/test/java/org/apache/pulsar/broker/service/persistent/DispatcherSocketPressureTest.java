@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelOption;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -52,8 +51,8 @@ public class DispatcherSocketPressureTest extends SharedPulsarBaseTest {
     @Test(dataProvider = "subscriptionTypes", timeOut = 120000)
     public void testDispatchResumesAfterSocketBecomesWritable(SubscriptionType subscriptionType) throws Exception {
         String topicName = newTopicName();
-        // The peer may already have advertised a large receive window before SO_RCVBUF is reduced.
-        // Keep enough messages and unused receive permits to exceed that window while socket reads are paused.
+        // Keep enough messages and unused receive permits to fill the kernel socket buffers while reads
+        // are paused. Leave TCP buffer sizing unchanged so recovery does not depend on window resizing.
         int messageCount = 8192;
         try (PulsarClient consumerClient = newPulsarClient();
              Consumer<byte[]> consumer = consumerClient.newConsumer(Schema.BYTES).topic(topicName)
@@ -68,13 +67,7 @@ public class DispatcherSocketPressureTest extends SharedPulsarBaseTest {
             Channel clientChannel = ((ConsumerImpl<byte[]>) consumer).getClientCnx().ctx().channel();
             Awaitility.await().atMost(Duration.ofSeconds(10))
                     .untilAsserted(() -> assertThat(brokerConsumer.getAvailablePermits()).isEqualTo(32768));
-            int originalSendBufferSize = brokerChannel.config().getOption(ChannelOption.SO_SNDBUF);
-            brokerChannel.eventLoop().submit(() ->
-                    brokerChannel.config().setOption(ChannelOption.SO_SNDBUF, 8192)).sync();
-            clientChannel.eventLoop().submit(() -> {
-                clientChannel.config().setOption(ChannelOption.SO_RCVBUF, 8192);
-                clientChannel.config().setAutoRead(false);
-            }).sync();
+            clientChannel.eventLoop().submit(() -> clientChannel.config().setAutoRead(false)).sync();
             try {
                 List<CompletableFuture<MessageId>> sends = new ArrayList<>();
                 for (int i = 0; i < messageCount; i++) {
@@ -90,14 +83,7 @@ public class DispatcherSocketPressureTest extends SharedPulsarBaseTest {
                                         dispatcher.cursor.getNumberOfEntriesInBacklog(false))
                                 .isFalse());
                 assertThat(brokerConsumer.getAvailablePermits()).isPositive();
-                // The small send buffer is only needed to create backpressure. Keeping it during drain
-                // makes progress depend on TCP delayed ACK timing and can exceed the test timeout in CI.
-                brokerChannel.eventLoop().submit(() -> brokerChannel.config()
-                        .setOption(ChannelOption.SO_SNDBUF, originalSendBufferSize)).sync();
-                clientChannel.eventLoop().submit(() -> {
-                    clientChannel.config().setOption(ChannelOption.SO_RCVBUF, 1024 * 1024);
-                    clientChannel.config().setAutoRead(true);
-                }).sync();
+                clientChannel.eventLoop().submit(() -> clientChannel.config().setAutoRead(true)).sync();
                 List<Message<byte[]>> received = new ArrayList<>();
                 for (int i = 0; i < messageCount; i++) {
                     Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
