@@ -41,14 +41,18 @@ import org.testng.annotations.Test;
 public class ManagedLedgerClientFactoryTest {
     @DataProvider
     public Object[][] cacheExtensionSettings() {
-        return new Object[][] {{false, 2}, {true, 0}, {true, 5}};
+        return new Object[][] {{null, 5}, {false, 2}, {true, 0}, {true, 5}};
     }
 
     @Test(dataProvider = "cacheExtensionSettings")
-    public void testCacheExtensionSettingsAtStartup(boolean extendRecentlyAccessed, int maxExtensions)
+    public void testCacheExtensionSettingsAtStartup(Boolean extendRecentlyAccessed, int maxExtensions)
             throws Exception {
         ServiceConfiguration conf = new ServiceConfiguration();
-        conf.setManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed(extendRecentlyAccessed);
+        if (extendRecentlyAccessed == null) {
+            assertThat(conf.isManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed()).isFalse();
+        } else {
+            conf.setManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed(extendRecentlyAccessed);
+        }
         conf.setManagedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(maxExtensions);
         conf.setBookkeeperClientExposeStatsToPrometheus(false);
         BookKeeperClientFactory bookkeeperProvider = mock(BookKeeperClientFactory.class);
@@ -63,7 +67,7 @@ public class ManagedLedgerClientFactoryTest {
                     ArgumentCaptor.forClass(ManagedLedgerFactoryConfig.class);
             verify(factory).createManagedLedgerFactory(any(), any(), any(), config.capture(), any());
             assertThat(config.getValue().isCacheEvictionExtendTTLOfRecentlyAccessed())
-                    .isEqualTo(extendRecentlyAccessed);
+                    .isEqualTo(Boolean.TRUE.equals(extendRecentlyAccessed));
             assertThat(config.getValue().getCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes())
                     .isEqualTo(maxExtensions);
         }
