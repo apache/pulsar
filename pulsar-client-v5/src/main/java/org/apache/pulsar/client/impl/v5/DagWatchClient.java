@@ -232,6 +232,13 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
         if (closed) {
             return;
         }
+        if (v4Client.isClosed()) {
+            // The owning client is shutting down: its connections are being torn down and any
+            // reconnect would only keep the event loop busy (delaying its graceful shutdown)
+            // and fail at the handshake.
+            log.debug("Client is closing; not scheduling DAG watch reconnect");
+            return;
+        }
         long delayMs = reconnectBackoff.next().toMillis();
         log.info().attr("delayMs", delayMs).log("Scheduling DAG watch reconnect");
         v4Client.timer().newTimeout(timeout -> reconnect(),

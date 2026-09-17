@@ -479,6 +479,10 @@ public class Consumer {
         }
     }
 
+    void notifyChannelWritable() {
+        subscription.notifyChannelWritable(this);
+    }
+
     public boolean isWritable() {
         return cnx.isWritable();
     }
