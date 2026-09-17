@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
@@ -65,7 +66,7 @@ public class ManagedCursorSkipDeletedEntriesTest extends MockedBookKeeperTestCas
      */
     @Test(timeOut = 300_000)
     public void testReadHopsOverLargeDeletedRangeInsteadOfWalkingIt() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig()
+        ManagedLedgerConfig config = rawEntryConfig()
                 // Keep every entry below in a single ledger, then force a rollover so that the reads
                 // under test target a closed ledger. That makes every read-loop iteration go through
                 // the isLedgerFullyAcked check, as it does in production.

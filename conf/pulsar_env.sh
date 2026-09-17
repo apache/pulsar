@@ -51,10 +51,13 @@
 #   adaptive - Netty AdaptiveByteBufAllocator; auto-tunes pooling and prefers direct buffers.
 # Named allocators override each setting independently with pulsar.allocator.<id>.<setting>:
 #   pulsar.allocator.default.type  - allocator used by general Pulsar operations
-#   pulsar.allocator.ml-cache.type - separate allocator used for managed-ledger cache copies
+#   pulsar.allocator.ml-cache.type - separate allocator used for managed-ledger cache copies (default: adaptive)
 # Supported settings: type, exit_on_oom (false), out_of_memory_policy (FallbackToHeap or ThrowException).
 # Named settings fall back to the unqualified pulsar.allocator.<setting>, then the built-in default.
-# For example: -Dpulsar.allocator.type=pooled -Dpulsar.allocator.ml-cache.type=adaptive
+# Explicit global type and legacy pooled settings also apply to ml-cache unless overridden by name.
+# Batch reads copy entries into this cache even when managedLedgerCacheCopyEntries=false. Adaptive
+# reuses small size-class slots to limit fragmentation; retained chunks and size rounding still cost memory.
+# To retain the previous cache allocator: -Dpulsar.allocator.ml-cache.type=pooled
 # Settings are read when an allocator is first created. default overrides do not apply to other IDs.
 # Leak detection is global: use -Dio.netty.leakDetection.level=disabled|simple|advanced|paranoid.
 # pulsar.allocator.leak_detection and per-allocator leak_detection settings are not supported.
