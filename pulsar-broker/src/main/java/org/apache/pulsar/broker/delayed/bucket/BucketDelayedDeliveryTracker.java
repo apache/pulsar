@@ -902,6 +902,17 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
     private CompletableFuture<Void> deleteBucketSnapshot(String ledgerName,
                                                           Range<Long> range, ImmutableBucket bucket) {
+        // The bucket id is only known once the snapshot creation completes, so wait for an in-flight
+        // creation before deleting. When the creation failed the bucket has already been removed and
+        // downgraded to memory mode, so there is no snapshot left to delete.
+        return bucket.getSnapshotCreateFuture().orElse(NULL_LONG_PROMISE)
+                .thenCompose(bucketId -> INVALID_BUCKET_ID.equals(bucketId)
+                        ? CompletableFuture.<Void>completedFuture(null)
+                        : doDeleteBucketSnapshot(ledgerName, range, bucket));
+    }
+
+    private CompletableFuture<Void> doDeleteBucketSnapshot(String ledgerName,
+                                                           Range<Long> range, ImmutableBucket bucket) {
         return bucket.asyncDeleteBucketSnapshot(stats)
                 .handle((__, t) -> {
                     if (t != null) {

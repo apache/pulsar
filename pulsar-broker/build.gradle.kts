@@ -31,6 +31,9 @@ dependencies {
     api(project(":pulsar-broker-common"))
     api(project(":pulsar-client-original"))
     implementation(project(":pulsar-client-admin-original"))
+    // PIP-478: PulsarChannelInitializer / WebService use the TLS factory SPI directly (private tlsFactory
+    // fields); it is not exposed on the broker's ABI, so `implementation`.
+    implementation(project(":pulsar-tls-factory-api"))
     api(project(":pulsar-websocket"))
     implementation(project(":pulsar-cli-utils"))
     implementation(project(":pulsar-transaction:pulsar-transaction-common"))
@@ -63,9 +66,6 @@ dependencies {
     implementation(libs.jetty.alpn.conscrypt.server)
     api(libs.jetty.ee10.servlet)
     implementation(libs.jetty.ee10.servlets)
-    // ee8 + javax.servlet retained for the legacy AdditionalServlet javax.servlet path (PIP-472)
-    api(libs.jetty.ee8.servlet)
-    implementation(libs.javax.servlet.api)
     implementation(libs.jersey.server)
     implementation(libs.jersey.container.servlet.core)
     implementation(libs.jersey.container.servlet)
@@ -125,6 +125,8 @@ dependencies {
     testImplementation(libs.asynchttpclient)
     testImplementation(libs.bcprov.jdk18on)
     testImplementation(libs.commons.math3)
+    // Tests register AdditionalServlet plugins written against the legacy javax.servlet API
+    testImplementation(libs.javax.servlet.api)
     testImplementation(libs.okhttp3)
     testImplementation(libs.vertx.core)
     testImplementation(libs.wiremock)
@@ -149,14 +151,14 @@ evaluationDependsOn(":pulsar-functions")
 
 // NAR/JAR files needed by broker tests (mirrors Maven's maven-dependency-plugin config).
 // Resolve through dependency configurations instead of cross-project task references.
-val testNars by configurations.creating {
+val testNars = configurations.create("testNars") {
     isCanBeResolved = true
     isCanBeConsumed = false
     attributes {
         attribute(org.gradle.api.artifacts.type.ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, "nar")
     }
 }
-val testExamplesJar by configurations.creating {
+val testExamplesJar = configurations.create("testExamplesJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }

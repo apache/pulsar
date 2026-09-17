@@ -73,7 +73,9 @@ final class TlsReloadMetrics implements AutoCloseable {
         this.clock = clock == null ? Clock.systemUTC() : clock;
         Meter meter = openTelemetry.getMeter(INSTRUMENTATION_SCOPE_NAME);
         this.reloadCounter = meter.counterBuilder(RELOAD_COUNTER)
-                .setDescription("TLS material load/reload attempts per purpose, client and server side")
+                // Events, not attempts: only a first build, an observed change and a retry are counted, so a
+                // steady state records nothing. pip-478.md states the same ("not an attempt counter").
+                .setDescription("TLS material load/reload events per purpose, client and server side")
                 .build();
         this.lastReloadSuccessGauge = meter.gaugeBuilder(LAST_RELOAD_SUCCESS_GAUGE)
                 .setUnit("s")

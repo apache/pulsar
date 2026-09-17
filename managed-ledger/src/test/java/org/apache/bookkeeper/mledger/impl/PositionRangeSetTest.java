@@ -29,6 +29,7 @@ import com.google.common.collect.TreeRangeSet;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -233,6 +234,114 @@ public class PositionRangeSetTest {
         gSet.add(Range.openClosed(pos(4, 11), pos(4, 20)));
         assertEquals(set.span(), gSet.span());
         assertEquals(set.span(), Range.openClosed(pos(0, 97), pos(4, 20)));
+    }
+
+    @Test
+    public void testContainsAny() {
+        PositionRangeSet set = newSet();
+        set.addOpenClosed(1, 9, 1, 10);
+        set.addOpenClosed(1, 999, 1, 1000);
+        set.addOpenClosed(3, 19, 3, 20);
+
+        assertFalse(set.containsAny(1, 0, 9));
+        assertTrue(set.containsAny(1, 0, 10));
+        assertFalse(set.containsAny(1, 11, 999));
+        assertTrue(set.containsAny(1, 11, 1000));
+        assertFalse(set.containsAny(1, 1001, 2000));
+        assertFalse(set.containsAny(2, 0, 1000));
+        assertTrue(set.containsAny(3, 20, 20));
+        assertFalse(set.containsAny(3, 21, 20));
+    }
+
+    @Test
+    public void testContainsAnyBoundaries() {
+        PositionRangeSet set = newSet();
+        long maxEntryId = Integer.MAX_VALUE;
+
+        assertFalse(set.containsAny(1, 0, 0));
+
+        set.addOpenClosed(1, -1, 1, 0);
+        set.addOpenClosed(1, 9, 1, 10);
+        set.addOpenClosed(1, maxEntryId - 1, 1, maxEntryId);
+
+        assertTrue(set.containsAny(1, 0, 0));
+        assertTrue(set.containsAny(1, -1, 0));
+        assertFalse(set.containsAny(1, -5, -1));
+        assertFalse(set.containsAny(1, 1, 9));
+        assertTrue(set.containsAny(1, 9, 10));
+        assertTrue(set.containsAny(1, 10, 11));
+        assertFalse(set.containsAny(1, 11, maxEntryId - 1));
+        assertTrue(set.containsAny(1, maxEntryId - 1, maxEntryId));
+        assertTrue(set.containsAny(1, maxEntryId, maxEntryId));
+        assertFalse(set.containsAny(1, maxEntryId + 1, maxEntryId + 1));
+    }
+
+    @Test
+    public void testContainsAnyRandomizedAgainstBooleanOracle() {
+        int ledgerCount = 16;
+        int entriesPerLedger = 4096;
+        int seedsPerDensity = 32;
+        int queriesPerSeed = 500;
+        for (int density : new int[]{0, 1, 10, 50, 90, 100}) {
+            for (int seedIndex = 0; seedIndex < seedsPerDensity; seedIndex++) {
+                long seed = 0x5EEDL + density * 1_000_003L + seedIndex * 104_729L;
+                Random random = new Random(seed);
+                boolean[][] deletedEntries = new boolean[ledgerCount][entriesPerLedger];
+                PositionRangeSet set = newSet();
+
+                for (int ledgerId = 0; ledgerId < ledgerCount; ledgerId++) {
+                    boolean ledgerHasDeletedEntries = random.nextInt(4) != 0;
+                    for (int entryId = 0; entryId < entriesPerLedger; entryId++) {
+                        deletedEntries[ledgerId][entryId] = ledgerHasDeletedEntries
+                                && random.nextInt(100) < density;
+                    }
+                    addDeletedRanges(set, deletedEntries[ledgerId], ledgerId);
+                }
+
+                for (int query = 0; query < queriesPerSeed; query++) {
+                    int ledgerId = random.nextInt(10) == 0
+                            ? ledgerCount + random.nextInt(2) : random.nextInt(ledgerCount);
+                    int firstEntryId = random.nextInt(entriesPerLedger);
+                    int batchSize = 1 + random.nextInt(100);
+                    int lastEntryId = Math.min(entriesPerLedger - 1, firstEntryId + batchSize - 1);
+
+                    long expectedNextEntryId = nextDeletedEntryId(deletedEntries, ledgerId, firstEntryId);
+                    boolean expected = expectedNextEntryId != -1 && expectedNextEntryId <= lastEntryId;
+                    boolean actual = set.containsAny(ledgerId, firstEntryId, lastEntryId);
+                    assertEquals(actual, expected,
+                            "seed=" + seed + ", query=" + query + ", range="
+                                    + ledgerId + ":" + firstEntryId + ".." + ledgerId + ":" + lastEntryId);
+                }
+            }
+        }
+    }
+
+    private static void addDeletedRanges(PositionRangeSet set, boolean[] deletedEntries, long ledgerId) {
+        int entryId = 0;
+        while (entryId < deletedEntries.length) {
+            while (entryId < deletedEntries.length && !deletedEntries[entryId]) {
+                entryId++;
+            }
+            int firstDeletedEntryId = entryId;
+            while (entryId < deletedEntries.length && deletedEntries[entryId]) {
+                entryId++;
+            }
+            if (firstDeletedEntryId < entryId) {
+                set.addOpenClosed(ledgerId, firstDeletedEntryId - 1L, ledgerId, entryId - 1L);
+            }
+        }
+    }
+
+    private static long nextDeletedEntryId(boolean[][] deletedEntries, int ledgerId, int firstEntryId) {
+        if (ledgerId < 0 || ledgerId >= deletedEntries.length) {
+            return -1;
+        }
+        for (int entryId = firstEntryId; entryId < deletedEntries[ledgerId].length; entryId++) {
+            if (deletedEntries[ledgerId][entryId]) {
+                return entryId;
+            }
+        }
+        return -1;
     }
 
     @Test

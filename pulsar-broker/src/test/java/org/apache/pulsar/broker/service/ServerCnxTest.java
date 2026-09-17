@@ -102,6 +102,8 @@ import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockAuthorizationProvider;
 import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockMutableAuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationDataAnonymous;
+import org.apache.pulsar.broker.authentication.AuthenticationDataForwarded;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -563,10 +565,33 @@ public class ServerCnxTest {
         Object response1 = getResponse();
         assertTrue(response1 instanceof CommandConnected);
         assertEquals(serverCnx.getState(), State.Connected);
-        assertEquals(serverCnx.getAuthRole(), anonymousUserRole);
+        assertEquals(serverCnx.getAuthRole(), "pass.proxy");
         assertEquals(serverCnx.getPrincipal(), anonymousUserRole);
         assertEquals(serverCnx.getOriginalPrincipal(), anonymousUserRole);
+        assertThat(serverCnx.getOriginalAuthData()).isSameAs(AuthenticationDataAnonymous.INSTANCE);
+        assertThat(serverCnx.getAuthenticationData()).isSameAs(AuthenticationDataAnonymous.INSTANCE);
+        assertThat(serverCnx.getAuthData()).isNotSameAs(serverCnx.getOriginalAuthData());
         assertTrue(serverCnx.isActive());
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testAnonymousOriginalPrincipalWithFailingProxyAuthentication() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        when(authenticationService.getAnonymousUserRole()).thenReturn(Optional.of("anonymous"));
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(true);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+        resetChannel();
+
+        channel.writeInbound(Commands.newConnect(authMethodName, "fail.proxy", 1, null,
+                null, "anonymous", null, null));
+        assertTrue(getResponse() instanceof CommandError);
+        assertFalse(serverCnx.isActive());
         channel.finish();
     }
 
@@ -1346,7 +1371,8 @@ public class ServerCnxTest {
         channel.writeInbound(connect);
         Object connectResponse = getResponse();
         assertTrue(connectResponse instanceof CommandConnected);
-        assertNull(serverCnx.getOriginalAuthData());
+        assertThat(serverCnx.getOriginalAuthData()).isSameAs(AuthenticationDataForwarded.INSTANCE);
+        assertThat(serverCnx.getAuthenticationData()).isSameAs(AuthenticationDataForwarded.INSTANCE);
         assertNull(serverCnx.getOriginalAuthState());
         assertEquals(serverCnx.getOriginalPrincipal(), clientRole);
         assertEquals(serverCnx.getAuthData().getCommandData(), proxyRole);
@@ -1363,12 +1389,7 @@ public class ServerCnxTest {
         assertEquals(((CommandLookupTopicResponse) lookupResponse).getRequestId(), 1);
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
-                        serverCnx.getAuthData(), serverCnx.getAuthData());
-        // This test is an example of https://github.com/apache/pulsar/issues/19332. Essentially, we're passing
-        // the proxy's auth data because it is all we have. This test should be updated when we resolve that issue.
-        verify(authorizationService, times(1))
-                .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
-                        serverCnx.getAuthData(), serverCnx.getAuthData());
+                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
 
         // producer
         ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>(), false);
@@ -1377,13 +1398,12 @@ public class ServerCnxTest {
         assertTrue(producerResponse instanceof CommandError);
         assertEquals(((CommandError) producerResponse).getError(), ServerError.AuthorizationError);
         assertEquals(((CommandError) producerResponse).getRequestId(), 2);
-        // See https://github.com/apache/pulsar/issues/19332 for justification of this assertion.
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, clientRole, proxyRole,
-                        serverCnx.getAuthData(), serverCnx.getAuthData());
+                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
-                        serverCnx.getAuthData(), serverCnx.getAuthData());
+                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
 
         // consumer
         String subscriptionName = "test-subscribe";
@@ -1398,25 +1418,9 @@ public class ServerCnxTest {
                 eq(topicName), eq(TopicOperation.CONSUME),
                 eq(clientRole), eq(proxyRole), argThat(arg -> {
                     assertTrue(arg instanceof AuthenticationDataSubscription);
-                    // We assert that the role is clientRole and commandData is proxyRole due to
-                    // https://github.com/apache/pulsar/issues/19332.
                     AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
-                    assertEquals(authData.getCommandData(), proxyRole);
-                    assertEquals(authData.getSubscription(), subscriptionName);
-                    return true;
-                }), argThat(arg -> {
-                    assertTrue(arg instanceof AuthenticationDataSubscription);
-                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
-                    assertEquals(authData.getCommandData(), proxyRole);
-                    assertEquals(authData.getSubscription(), subscriptionName);
-                    return true;
-                }));
-        verify(authorizationService, times(1)).allowTopicOperationAsync(
-                eq(topicName), eq(TopicOperation.CONSUME),
-                eq(clientRole), eq(proxyRole), argThat(arg -> {
-                    assertTrue(arg instanceof AuthenticationDataSubscription);
-                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
-                    assertEquals(authData.getCommandData(), proxyRole);
+                    assertThat(authData.getAuthData()).isSameAs(AuthenticationDataForwarded.INSTANCE);
+                    assertNull(authData.getCommandData());
                     assertEquals(authData.getSubscription(), subscriptionName);
                     return true;
                 }), argThat(arg -> {
@@ -1587,6 +1591,118 @@ public class ServerCnxTest {
         channel.runPendingTasks();
         assertTrue(channel.outboundMessages().isEmpty(),
                 "ScalableTopicClose for an unknown session must not emit any response");
+
+        channel.finish();
+    }
+
+    /**
+     * PIP-486 clean leave ordering: an unsubscribe arriving while the registration is still
+     * in flight must chain behind it — never answer as an idempotent no-op and let the
+     * registration complete afterwards (the client's subscribe can time out while the
+     * broker-side registration is still running).
+     */
+    @Test(timeOut = 30000)
+    public void testScalableTopicUnsubscribeChainsBehindInFlightRegistration() throws Exception {
+        var scalableTopicService =
+                mock(org.apache.pulsar.broker.service.scalable.ScalableTopicService.class);
+        when(brokerService.getScalableTopicService()).thenReturn(scalableTopicService);
+        var registration = new CompletableFuture<
+                org.apache.pulsar.broker.service.scalable.ConsumerAssignment>();
+        when(scalableTopicService.registerConsumer(any(), anyString(), anyString(), anyLong(),
+                any(), any())).thenReturn(registration);
+        when(scalableTopicService.unregisterConsumer(any(), anyString(), anyString(), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertTrue(getResponse() instanceof CommandConnected);
+
+        channel.writeInbound(Commands.newScalableTopicSubscribe(400L,
+                "persistent://public/default/scalable-inflight", "sub", "c1", 7L,
+                ScalableConsumerType.STREAM));
+        channel.writeInbound(Commands.newScalableTopicUnsubscribe(401L, 7L));
+        channel.runPendingTasks();
+        assertTrue(channel.outboundMessages().isEmpty(),
+                "no response may be sent while the registration is still in flight");
+        verify(scalableTopicService, times(0))
+                .unregisterConsumer(any(), anyString(), anyString(), anyLong());
+
+        // The registration completes: the subscribe answers, and only then does the queued
+        // unsubscribe run its unregister and answer success.
+        registration.complete(new org.apache.pulsar.broker.service.scalable.ConsumerAssignment(
+                1L, Collections.emptyList()));
+        channel.runPendingTasks();
+        // Both answers are released now (their relative order is a CompletableFuture
+        // callback-ordering detail): the subscribe response, and the unsubscribe success.
+        Object first = getResponse();
+        Object second = getResponse();
+        assertTrue(first instanceof CommandScalableTopicSubscribeResponse
+                        || second instanceof CommandScalableTopicSubscribeResponse,
+                first + " / " + second);
+        CommandSuccess success = (CommandSuccess)
+                (first instanceof CommandSuccess ? first : second);
+        assertEquals(success.getRequestId(), 401L);
+        verify(scalableTopicService, times(1))
+                .unregisterConsumer(any(), anyString(), anyString(), eq(7L));
+
+        channel.finish();
+    }
+
+    /**
+     * PIP-486 clean leave: unsubscribe for an unknown consumer id is an idempotent success; a
+     * failed unregister answers an error and keeps the per-connection registration ref (so the
+     * grace fallback and a retry both still work); a successful retry then removes it, and a
+     * repeat unsubscribe is again an idempotent success.
+     */
+    @Test(timeOut = 30000)
+    public void testScalableTopicUnsubscribeIdempotencyAndErrorPath() throws Exception {
+        var scalableTopicService =
+                mock(org.apache.pulsar.broker.service.scalable.ScalableTopicService.class);
+        when(brokerService.getScalableTopicService()).thenReturn(scalableTopicService);
+
+        resetChannel();
+        ByteBuf connect = Commands.newConnect("none", "", null);
+        channel.writeInbound(connect);
+        assertTrue(getResponse() instanceof CommandConnected);
+
+        // Unknown consumer id: idempotent success.
+        channel.writeInbound(Commands.newScalableTopicUnsubscribe(300L, 999L));
+        Object response = getResponse();
+        assertTrue(response instanceof CommandSuccess, String.valueOf(response));
+        assertEquals(((CommandSuccess) response).getRequestId(), 300L);
+
+        // Register a consumer so the connection records its registration ref.
+        when(scalableTopicService.registerConsumer(any(), anyString(), anyString(), anyLong(),
+                any(), any())).thenReturn(CompletableFuture.completedFuture(
+                        new org.apache.pulsar.broker.service.scalable.ConsumerAssignment(
+                                1L, Collections.emptyList())));
+        channel.writeInbound(Commands.newScalableTopicSubscribe(301L,
+                "persistent://public/default/scalable-unsub", "sub", "c1", 5L,
+                ScalableConsumerType.STREAM));
+        assertTrue(getResponse() instanceof CommandScalableTopicSubscribeResponse);
+
+        // Failing unregister: error response, ref retained.
+        when(scalableTopicService.unregisterConsumer(any(), anyString(), anyString(), anyLong()))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("store down")));
+        channel.writeInbound(Commands.newScalableTopicUnsubscribe(302L, 5L));
+        response = getResponse();
+        assertTrue(response instanceof CommandError, String.valueOf(response));
+        assertEquals(((CommandError) response).getRequestId(), 302L);
+
+        // Retry after the failure actually retries the unregister (the ref survived).
+        when(scalableTopicService.unregisterConsumer(any(), anyString(), anyString(), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        channel.writeInbound(Commands.newScalableTopicUnsubscribe(303L, 5L));
+        response = getResponse();
+        assertTrue(response instanceof CommandSuccess, String.valueOf(response));
+        assertEquals(((CommandSuccess) response).getRequestId(), 303L);
+        verify(scalableTopicService, times(2)).unregisterConsumer(any(), anyString(), anyString(), anyLong());
+
+        // The ref is gone now: one more unsubscribe is an idempotent success with no new call.
+        channel.writeInbound(Commands.newScalableTopicUnsubscribe(304L, 5L));
+        response = getResponse();
+        assertTrue(response instanceof CommandSuccess, String.valueOf(response));
+        verify(scalableTopicService, times(2)).unregisterConsumer(any(), anyString(), anyString(), anyLong());
 
         channel.finish();
     }

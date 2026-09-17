@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.Cleanup;
@@ -56,12 +57,10 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, configuration);
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setEnsembleSize(1)
             .setWriteQuorumSize(1)
-            .setAckQuorumSize(1)
-            .setMetadataAckQuorumSize(1)
-            .setMetadataAckQuorumSize(1);
+            .setAckQuorumSize(1);
         ManagedLedger ledger = factory.open("test-ledger" + testName, config);
         ManagedCursor cursor = ledger.openCursor("test-c1" + testName);
 
@@ -93,12 +92,10 @@ public class ManagedLedgerFactoryChangeLedgerPathTest extends BookKeeperClusterT
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, configuration,
                 managedLedgerFactoryConfig);
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = rawEntryConfig();
         config.setEnsembleSize(1)
                 .setWriteQuorumSize(1)
-                .setAckQuorumSize(1)
-                .setMetadataAckQuorumSize(1)
-                .setMetadataAckQuorumSize(1);
+                .setAckQuorumSize(1);
         ManagedLedger ledger = factory.open("test-ledger" + testName, config);
         ManagedCursor cursor = ledger.openCursor("test-c1" + testName);
 

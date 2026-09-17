@@ -45,7 +45,15 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.auth.v5.BinaryAuthenticationDriver.AuthenticationExchange;
+import org.apache.pulsar.client.impl.auth.v5.V5AuthenticationLoader;
+import org.apache.pulsar.client.impl.auth.v5.V5BinaryAuthenticationDriver;
+import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
@@ -344,6 +352,40 @@ public class AuthenticationAthenzTest {
             assertEquals(mockedZTSClient.constructed().size(), 1);
 
             auth3.close();
+        }
+    }
+
+    @Test
+    public void testAsyncPathPreservesGettingAuthenticationDataException() throws Exception {
+        // PIP-478: a ZTS failure surfaces from getAuthData() as GettingAuthenticationDataException. On the
+        // async binary path (the v5 body the client drives -> getAuthDataAsync), the exchange strips one
+        // CompletionException layer before mapping back to the v4 exception type, so currentRoleToken() must
+        // re-wrap the v4 exception in a CompletionException; otherwise the transient credential-acquisition
+        // subtype would be flattened to a generic PulsarClientException.
+        final String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));
+        try (MockedConstruction<ZTSClient> mockedZTSClient = Mockito.mockConstruction(ZTSClient.class,
+                (mock, context) -> when(mock.getRoleToken(any(), any(), anyInt(), anyInt(), anyBoolean()))
+                        .thenThrow(new RuntimeException("ZTS unavailable")))) {
+            final AuthenticationAthenz auth = new AuthenticationAthenz();
+            auth.configure(paramsStr);
+
+            // Resolve the body exactly as the client does, then drive it through the same driver ClientCnx
+            // uses, so this exercises the production path rather than a test-only seam.
+            final AuthenticationExchange exchange =
+                    new V5BinaryAuthenticationDriver(V5AuthenticationLoader.forStartedV4Plugin(auth))
+                            .newAuthenticationExchange("broker.example.com");
+            // The fetch is off-loaded even with no client services bound (credential acquisition never runs
+            // on the caller thread), so await the failure rather than expecting it to have happened already.
+            final CompletableFuture<AuthData> future = exchange.getAuthDataAsync();
+            try {
+                future.get(10, TimeUnit.SECONDS);
+                fail("expected the ZTS failure to propagate");
+            } catch (ExecutionException ee) {
+                assertTrue(ee.getCause() instanceof PulsarClientException.GettingAuthenticationDataException,
+                        "expected a v4 GettingAuthenticationDataException subtype, got: " + ee.getCause());
+            }
+
+            auth.close();
         }
     }
 }

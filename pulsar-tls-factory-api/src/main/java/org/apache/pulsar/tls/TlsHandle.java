@@ -41,9 +41,13 @@ public interface TlsHandle<T> {
      * Returns the current instance snapshot. This <b>never blocks</b>: for a one-shot request it returns
      * the already-built instance; for a subscribing request the initial value is present before this
      * method is first callable, because the {@code createInstance} future completes only after the first
-     * reload delivery (see {@link PulsarTlsFactory}). Calling {@code get()} after {@link #dispose()} is
-     * unspecified — the factory may already have released the instance's backing resources — so a consumer
-     * MUST stop calling {@code get()} once it has disposed the handle.
+     * reload delivery (see {@link PulsarTlsFactory}).
+     *
+     * <p>Calling {@code get()} after {@link #dispose()} is a <b>programming error</b>: the handle no longer
+     * references a live instance, and a consumer that has disposed its handle must re-acquire through
+     * {@code createInstance}. An implementation may return the last value or throw
+     * {@link IllegalStateException}, but it <b>MUST NOT</b> return a released native context — handing back
+     * a released reference-counted OpenSSL context is a use-after-free in the consumer.
      *
      * @return the built instance for a one-shot request, or the most recently delivered instance for
      *         a subscribing request (never {@code null}); treated by consumers as an immutable borrow

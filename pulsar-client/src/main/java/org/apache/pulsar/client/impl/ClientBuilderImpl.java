@@ -42,7 +42,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.common.tls.InetAddressUtils;
-import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 
 public class ClientBuilderImpl implements ClientBuilder {
     private static final long serialVersionUID = 1L;
@@ -73,7 +72,14 @@ public class ClientBuilderImpl implements ClientBuilder {
             setAuthenticationFromPropsIfAvailable(conf);
         }
         PulsarClientImpl.PulsarClientImplBuilder instanceBuilder = PulsarClientImpl.builder();
-        instanceBuilder.conf(conf);
+        // PIP-478: hand the client its own configuration object. The client stores the TLS factory it
+        // composes back onto this object (PulsarClientImpl.setupClientTlsFactory), so sharing the
+        // builder's instance would make a second build() adopt — and re-initialize — the first client's
+        // live factory, and closing either client would then close TLS for the other. Building more than
+        // one client from a builder is ordinary usage, so the configuration must not be shared state.
+        // Callers that mutate the builder's configuration (BrokerService, WorkerUtils, CompactorTool,
+        // NamespaceService) all do so before build(), so the copy carries their changes.
+        instanceBuilder.conf(conf.clone());
         if (sharedResources != null) {
             sharedResources.applyTo(instanceBuilder);
         }
@@ -89,6 +95,8 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder loadConf(Map<String, Object> config) {
+        // PIP-478: reject a stale, removed PIP-337 sslFactoryPlugin key with an actionable message.
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(config);
         conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
         setAuthenticationFromPropsIfAvailable(conf);
         return this;
@@ -482,18 +490,14 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder sslFactoryPlugin(String sslFactoryPlugin) {
-        if (StringUtils.isBlank(sslFactoryPlugin)) {
-            conf.setSslFactoryPlugin(DefaultPulsarSslFactory.class.getName());
-        } else {
-            conf.setSslFactoryPlugin(sslFactoryPlugin);
-        }
+    public ClientBuilder tlsFactoryClassName(String tlsFactoryClassName) {
+        conf.setTlsFactoryClassName(StringUtils.isBlank(tlsFactoryClassName) ? "" : tlsFactoryClassName);
         return this;
     }
 
     @Override
-    public ClientBuilder sslFactoryPluginParams(String sslFactoryPluginParams) {
-        conf.setSslFactoryPluginParams(sslFactoryPluginParams);
+    public ClientBuilder tlsFactoryConfig(String tlsFactoryConfig) {
+        conf.setTlsFactoryConfig(StringUtils.isBlank(tlsFactoryConfig) ? "" : tlsFactoryConfig);
         return this;
     }
 

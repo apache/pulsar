@@ -154,11 +154,9 @@ public class AuthenticationOAuth2Test {
         params.put("issuerUrl", "http://localhost");
         ObjectMapper mapper = new ObjectMapper();
         String authParams = mapper.writeValueAsString(params);
-        OAuth2MockHttpClient.withMockedSslFactory(() -> {
-            this.auth.configure(authParams);
-            assertNotNull(this.auth.flow);
-            assertEquals(this.auth.flow.getClass(), TlsClientAuthFlow.class);
-        });
+        this.auth.configure(authParams);
+        assertNotNull(this.auth.flow);
+        assertEquals(this.auth.flow.getClass(), TlsClientAuthFlow.class);
     }
 
     @Test
@@ -171,11 +169,9 @@ public class AuthenticationOAuth2Test {
         params.put("issuerUrl", "http://localhost");
         ObjectMapper mapper = new ObjectMapper();
         String authParams = mapper.writeValueAsString(params);
-        OAuth2MockHttpClient.withMockedSslFactory(() -> {
-            this.auth.configure(authParams);
-            assertNotNull(this.auth.flow);
-            assertEquals(this.auth.flow.getClass(), ClientCredentialsFlow.class);
-        });
+        this.auth.configure(authParams);
+        assertNotNull(this.auth.flow);
+        assertEquals(this.auth.flow.getClass(), ClientCredentialsFlow.class);
     }
 
     // ----- configure() via default constructor -----

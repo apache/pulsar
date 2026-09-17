@@ -129,7 +129,7 @@ public class SubscriptionCoordinatorTest {
         coordinator.registerConsumer("consumer-2", 2L, mock(TransportCnx.class)).get();
 
         Map<ConsumerSession, ConsumerAssignment> result =
-                coordinator.unregisterConsumer("consumer-2").get();
+                coordinator.unregisterConsumer("consumer-2", 2L).get();
 
         assertEquals(result.size(), 1);
         assertEquals(findByName(result, "consumer-1").assignedSegments().size(), 4);
@@ -185,14 +185,18 @@ public class SubscriptionCoordinatorTest {
             assertFalse(assigned.contains(4L), "child of un-drained parent must be blocked");
             assertFalse(assigned.contains(5L), "child of un-drained parent must be blocked");
 
-            // Mark the parent drained — the next poll should pick it up and the children
-            // must end up assigned.
+            // Mark the parent drained — the next poll should pick it up: the children
+            // become assigned and the drained parent retires from the assignment (keeping
+            // it would pin consumers to a dead segment).
             drained.add(0L);
             Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
                 Set<Long> nowAssigned = new HashSet<>(segmentIds(
                         findByName(orderedCoordinator.currentAssignment(), "consumer-1")));
-                assertTrue(nowAssigned.containsAll(Set.of(0L, 1L, 2L, 3L, 4L, 5L)),
-                        "after parent drain, all 6 segments must be assigned, got " + nowAssigned);
+                assertTrue(nowAssigned.containsAll(Set.of(1L, 2L, 3L, 4L, 5L)),
+                        "after parent drain, children + active segments must be assigned, got "
+                                + nowAssigned);
+                assertFalse(nowAssigned.contains(0L),
+                        "the drained parent must retire from the assignment");
             });
         } finally {
             orderedCoordinator.close();
@@ -332,7 +336,7 @@ public class SubscriptionCoordinatorTest {
     public void testEmptyAfterAllConsumersRemoved() throws Exception {
         coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).get();
         Map<ConsumerSession, ConsumerAssignment> result =
-                coordinator.unregisterConsumer("consumer-1").get();
+                coordinator.unregisterConsumer("consumer-1", 1L).get();
 
         assertTrue(result.isEmpty());
         assertTrue(coordinator.getConsumers().isEmpty());
@@ -515,6 +519,92 @@ public class SubscriptionCoordinatorTest {
     }
 
     // --- Helpers ---
+
+    /**
+     * PIP-486 review: a sealed parent must retire from the assignable set once drained.
+     * Rollover topology (parent sealed with 4 buckets, same-range successor with 8), five
+     * consumers: before the drain the parent's buckets cap the group at 4 owners (successor
+     * gated, one consumer idle); after the drain every consumer moves to the successor and
+     * none stays pinned to the dead parent.
+     */
+    @Test
+    public void testDrainedParentRetiresFromAssignment() throws Exception {
+        Set<Long> drained = ConcurrentHashMap.newKeySet();
+        SegmentDrainChecker checker = (segment, sub) ->
+                CompletableFuture.completedFuture(drained.contains(segment.segmentId()));
+        SegmentLayout base = SegmentLayout.fromMetadata(
+                ScalableTopicController.createInitialMetadata(1, 4, Map.of()));
+        SegmentLayout rolled = base.rebucketSegment(0, EntryBucketSplits.equalWidth(8), 0L);
+        SubscriptionCoordinator coordinator = new SubscriptionCoordinator("test-sub",
+                topicName, base, resources, scheduler, Duration.ofMillis(200),
+                checker, Duration.ofMillis(50), Duration.ofSeconds(5));
+        try {
+            for (int i = 1; i <= 5; i++) {
+                coordinator.registerConsumer("consumer-" + i, i, mock(TransportCnx.class)).get();
+            }
+            Map<ConsumerSession, ConsumerAssignment> before = coordinator.onLayoutChange(rolled).get();
+            assertEquals(countAssignedTo(before, 0L), 4,
+                    "undrained parent caps the group at its 4 buckets");
+            assertEquals(countAssignedTo(before, 1L), 0,
+                    "successor must be gated while the parent is undrained");
+            assertEquals(countIdle(before), 1, "one consumer beyond the parent's capacity idles");
+
+            drained.add(0L);
+            coordinator.markSegmentsDrained(Set.of(0L));
+            Map<ConsumerSession, ConsumerAssignment> after = coordinator.onLayoutChange(rolled).get();
+            assertEquals(countAssignedTo(after, 0L), 0,
+                    "a drained parent must not be assigned to anyone");
+            assertEquals(countAssignedTo(after, 1L), 5,
+                    "every consumer moves to the successor");
+            assertEquals(countIdle(after), 0);
+        } finally {
+            coordinator.close();
+        }
+    }
+
+    private static int countAssignedTo(Map<ConsumerSession, ConsumerAssignment> m, long segmentId) {
+        int count = 0;
+        for (ConsumerAssignment a : m.values()) {
+            for (var seg : a.assignedSegments()) {
+                if (seg.segmentId() == segmentId) {
+                    count++;
+                    break;
+                }
+            }
+        }
+        return count;
+    }
+
+    private static int countIdle(Map<ConsumerSession, ConsumerAssignment> m) {
+        int count = 0;
+        for (ConsumerAssignment a : m.values()) {
+            if (a.assignedSegments().isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * PIP-486 review: the identity guard on explicit unregister. A same-name rejoin attaches
+     * a new consumer id to the session; a leave carrying the OLD id (the departed consumer's)
+     * must not remove the rejoined session, while a leave with the current id must.
+     */
+    @Test
+    public void testUnregisterWithStaleConsumerIdKeepsRejoinedSession() throws Exception {
+        coordinator.registerConsumer("c1", 1L, mock(TransportCnx.class)).get();
+        // Same-name rejoin: the reconnect branch attaches the new id to the existing session.
+        coordinator.registerConsumer("c1", 2L, mock(TransportCnx.class)).get();
+
+        // The departed consumer's leave (id 1) arrives after the rejoin: no-op.
+        coordinator.unregisterConsumer("c1", 1L).get();
+        assertEquals(coordinator.getConsumers().size(), 1,
+                "a stale-id leave must not remove the rejoined session");
+
+        // A leave with the live id removes it.
+        coordinator.unregisterConsumer("c1", 2L).get();
+        assertEquals(coordinator.getConsumers().size(), 0);
+    }
 
     private static ConsumerAssignment findByName(Map<ConsumerSession, ConsumerAssignment> m, String name) {
         return m.entrySet().stream()

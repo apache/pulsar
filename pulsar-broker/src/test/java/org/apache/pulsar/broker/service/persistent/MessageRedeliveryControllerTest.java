@@ -18,20 +18,16 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.service.StickyKeyConsumerSelector.STICKY_KEY_HASH_NOT_SET;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertEqualsNoOrder;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.TreeSet;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.apache.bookkeeper.util.collections.ConcurrentLongLongHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentLongLongPairHashMap;
-import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -43,103 +39,61 @@ public class MessageRedeliveryControllerTest {
     }
 
     @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)
-    public void testAddAndRemove(boolean allowOutOfOrderDelivery) throws Exception {
+    public void testAddAndRemove(boolean allowOutOfOrderDelivery) {
         MessageRedeliveryController controller = new MessageRedeliveryController(allowOutOfOrderDelivery);
 
-        Field messagesToRedeliverField = MessageRedeliveryController.class.getDeclaredField("messagesToRedeliver");
-        messagesToRedeliverField.setAccessible(true);
-        ConcurrentBitmapSortedLongPairSet messagesToRedeliver =
-                (ConcurrentBitmapSortedLongPairSet) messagesToRedeliverField.get(controller);
-
-        Field hashesToBeBlockedField = MessageRedeliveryController.class.getDeclaredField("hashesToBeBlocked");
-        hashesToBeBlockedField.setAccessible(true);
-        ConcurrentLongLongPairHashMap hashesToBeBlocked = (ConcurrentLongLongPairHashMap) hashesToBeBlockedField
-                .get(controller);
-
-        Field hashesRefCountField = MessageRedeliveryController.class.getDeclaredField("hashesRefCount");
-        hashesRefCountField.setAccessible(true);
-        ConcurrentLongLongHashMap hashesRefCount = (ConcurrentLongLongHashMap) hashesRefCountField.get(controller);
-
-        if (allowOutOfOrderDelivery) {
-            assertNull(hashesToBeBlocked);
-            assertNull(hashesRefCount);
-        } else {
-            assertNotNull(hashesToBeBlocked);
-            assertNotNull(hashesRefCount);
-        }
-
+        assertEquals(controller.isPositionToStickyKeyHashInitialized(), !allowOutOfOrderDelivery);
         assertTrue(controller.isEmpty());
-        assertEquals(messagesToRedeliver.size(), 0);
-        if (!allowOutOfOrderDelivery) {
-            assertEquals(hashesToBeBlocked.size(), 0);
-            assertEquals(hashesRefCount.size(), 0);
-        }
+        assertEquals(controller.size(), 0);
 
         controller.add(1, 1);
         controller.add(1, 2);
 
         assertFalse(controller.isEmpty());
-        assertEquals(messagesToRedeliver.size(), 2);
-        assertTrue(messagesToRedeliver.contains(1, 1));
-        assertTrue(messagesToRedeliver.contains(1, 2));
-        if (!allowOutOfOrderDelivery) {
-            assertEquals(hashesToBeBlocked.size(), 0);
-            assertFalse(hashesToBeBlocked.containsKey(1, 1));
-            assertFalse(hashesToBeBlocked.containsKey(1, 2));
-            assertEquals(hashesRefCount.size(), 0);
-        }
+        assertEquals(controller.size(), 2);
+        assertNull(controller.getHash(1, 1));
+        assertNull(controller.getHash(1, 2));
+        assertEquals(controller.isPositionToStickyKeyHashInitialized(), !allowOutOfOrderDelivery);
 
         controller.remove(1, 1);
         controller.remove(1, 2);
 
         assertTrue(controller.isEmpty());
-        assertEquals(messagesToRedeliver.size(), 0);
-        assertFalse(messagesToRedeliver.contains(1, 1));
-        assertFalse(messagesToRedeliver.contains(1, 2));
-        if (!allowOutOfOrderDelivery) {
-            assertEquals(hashesToBeBlocked.size(), 0);
-            assertEquals(hashesRefCount.size(), 0);
-        }
+        assertEquals(controller.size(), 0);
 
         controller.add(2, 1, 100);
         controller.add(2, 2, 101);
         controller.add(2, 3, 101);
 
         assertFalse(controller.isEmpty());
-        assertEquals(messagesToRedeliver.size(), 3);
-        assertTrue(messagesToRedeliver.contains(2, 1));
-        assertTrue(messagesToRedeliver.contains(2, 2));
-        assertTrue(messagesToRedeliver.contains(2, 3));
+        assertEquals(controller.size(), 3);
+        assertTrue(controller.isPositionToStickyKeyHashInitialized());
+        assertEquals(controller.getHash(2, 1), Long.valueOf(100));
+        assertEquals(controller.getHash(2, 2), Long.valueOf(101));
+        assertEquals(controller.getHash(2, 3), Long.valueOf(101));
         if (!allowOutOfOrderDelivery) {
-            assertEquals(hashesToBeBlocked.size(), 3);
-            assertEquals(hashesToBeBlocked.get(2, 1).first, 100);
-            assertEquals(hashesToBeBlocked.get(2, 2).first, 101);
-            assertEquals(hashesToBeBlocked.get(2, 3).first, 101);
-            assertEquals(hashesRefCount.size(), 2);
-            assertEquals(hashesRefCount.get(100), 1);
-            assertEquals(hashesRefCount.get(101), 2);
+            assertTrue(controller.containsStickyKeyHash(100));
+            assertTrue(controller.containsStickyKeyHash(101));
         }
 
         controller.remove(2, 1);
         controller.remove(2, 2);
 
+        assertEquals(controller.size(), 1);
+        assertNull(controller.getHash(2, 1));
+        assertNull(controller.getHash(2, 2));
+        assertEquals(controller.getHash(2, 3), Long.valueOf(101));
         if (!allowOutOfOrderDelivery) {
-            assertEquals(hashesToBeBlocked.size(), 1);
-            assertEquals(hashesToBeBlocked.get(2, 3).first, 101);
-            assertEquals(hashesRefCount.size(), 1);
-            assertEquals(hashesRefCount.get(100), -1);
-            assertEquals(hashesRefCount.get(101), 1);
+            assertFalse(controller.containsStickyKeyHash(100));
+            assertTrue(controller.containsStickyKeyHash(101));
         }
 
         controller.clear();
         assertTrue(controller.isEmpty());
-        assertEquals(messagesToRedeliver.size(), 0);
-        assertTrue(messagesToRedeliver.isEmpty());
+        assertEquals(controller.size(), 0);
+        assertNull(controller.getHash(2, 3));
         if (!allowOutOfOrderDelivery) {
-            assertEquals(hashesToBeBlocked.size(), 0);
-            assertTrue(hashesToBeBlocked.isEmpty());
-            assertEquals(hashesRefCount.size(), 0);
-            assertTrue(hashesRefCount.isEmpty());
+            assertFalse(controller.containsStickyKeyHash(101));
         }
 
         controller.add(2, 2, 201);
@@ -151,41 +105,69 @@ public class MessageRedeliveryControllerTest {
         controller.add(1, 1, 100);
 
         controller.removeAllUpTo(1, 3);
-        assertEquals(messagesToRedeliver.size(), 4);
-        assertTrue(messagesToRedeliver.contains(2, 1));
-        assertTrue(messagesToRedeliver.contains(2, 2));
-        assertTrue(messagesToRedeliver.contains(3, 1));
-        assertTrue(messagesToRedeliver.contains(3, 2));
+        assertEquals(controller.size(), 4);
+        assertNull(controller.getHash(1, 1));
+        assertNull(controller.getHash(1, 2));
+        assertNull(controller.getHash(1, 3));
+        assertEquals(controller.getHash(2, 1), Long.valueOf(200));
+        assertEquals(controller.getHash(2, 2), Long.valueOf(201));
+        assertEquals(controller.getHash(3, 1), Long.valueOf(300));
+        assertEquals(controller.getHash(3, 2), Long.valueOf(301));
         if (!allowOutOfOrderDelivery) {
-            assertEquals(hashesToBeBlocked.size(), 4);
-            assertEquals(hashesToBeBlocked.get(2, 1).first, 200);
-            assertEquals(hashesToBeBlocked.get(2, 2).first, 201);
-            assertEquals(hashesToBeBlocked.get(3, 1).first, 300);
-            assertEquals(hashesToBeBlocked.get(3, 2).first, 301);
-            assertEquals(hashesRefCount.size(), 4);
-            assertEquals(hashesRefCount.get(200), 1);
-            assertEquals(hashesRefCount.get(201), 1);
-            assertEquals(hashesRefCount.get(300), 1);
-            assertEquals(hashesRefCount.get(301), 1);
+            assertFalse(controller.containsStickyKeyHash(100));
+            assertFalse(controller.containsStickyKeyHash(101));
+            assertTrue(controller.containsStickyKeyHash(200));
+            assertTrue(controller.containsStickyKeyHash(201));
+            assertTrue(controller.containsStickyKeyHash(300));
+            assertTrue(controller.containsStickyKeyHash(301));
         }
 
         controller.removeAllUpTo(3, 1);
-        assertEquals(messagesToRedeliver.size(), 1);
-        assertTrue(messagesToRedeliver.contains(3, 2));
+        assertEquals(controller.size(), 1);
+        assertNull(controller.getHash(2, 1));
+        assertNull(controller.getHash(2, 2));
+        assertNull(controller.getHash(3, 1));
+        assertEquals(controller.getHash(3, 2), Long.valueOf(301));
         if (!allowOutOfOrderDelivery) {
-            assertEquals(hashesToBeBlocked.size(), 1);
-            assertEquals(hashesToBeBlocked.get(3, 2).first, 301);
-            assertEquals(hashesRefCount.size(), 1);
-            assertEquals(hashesRefCount.get(301), 1);
+            assertFalse(controller.containsStickyKeyHash(200));
+            assertFalse(controller.containsStickyKeyHash(201));
+            assertFalse(controller.containsStickyKeyHash(300));
+            assertTrue(controller.containsStickyKeyHash(301));
         }
 
         controller.removeAllUpTo(5, 10);
         assertTrue(controller.isEmpty());
-        assertEquals(messagesToRedeliver.size(), 0);
+        assertEquals(controller.size(), 0);
+        assertNull(controller.getHash(3, 2));
         if (!allowOutOfOrderDelivery) {
-            assertEquals(hashesToBeBlocked.size(), 0);
-            assertEquals(hashesRefCount.size(), 0);
+            assertFalse(controller.containsStickyKeyHash(301));
         }
+    }
+
+    @Test(timeOut = 10000)
+    public void testOutOfOrderSentinelHashDoesNotInitializePositionHashMap() {
+        MessageRedeliveryController controller = new MessageRedeliveryController(true);
+
+        controller.add(1, 1, STICKY_KEY_HASH_NOT_SET);
+
+        assertFalse(controller.isPositionToStickyKeyHashInitialized());
+        assertEquals(controller.size(), 1);
+        assertNull(controller.getHash(1, 1));
+
+        controller.removeAllUpTo(1, 1);
+        assertTrue(controller.isEmpty());
+        assertFalse(controller.isPositionToStickyKeyHashInitialized());
+    }
+
+    @Test(timeOut = 10000)
+    public void testClassicOutOfOrderDoesNotInitializePositionHashMap() {
+        MessageRedeliveryController controller = new MessageRedeliveryController(true, true);
+
+        controller.add(1, 1, 100);
+
+        assertFalse(controller.isPositionToStickyKeyHashInitialized());
+        assertEquals(controller.size(), 1);
+        assertNull(controller.getHash(1, 1));
     }
 
     @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)

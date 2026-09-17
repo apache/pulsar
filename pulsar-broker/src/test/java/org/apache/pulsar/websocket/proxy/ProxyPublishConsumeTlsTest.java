@@ -31,7 +31,8 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.TlsProducerConsumerBase;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.tls.JdkSslContexts;
+import org.apache.pulsar.common.util.tls.PemReader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.apache.pulsar.websocket.service.ProxyServer;
@@ -106,8 +107,8 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         URI produceUri = URI.create(producerUri);
 
         SslContextFactory.Client sslContextFactory = new SslContextFactory.Client();
-        sslContextFactory.setSslContext(SecurityUtility
-                .createSslContext(false, SecurityUtility.loadCertificatesFromPemFile(CA_CERT_FILE_PATH), null));
+        sslContextFactory.setSslContext(JdkSslContexts
+                .createSslContext(false, PemReader.loadCertificatesFromPemFile(CA_CERT_FILE_PATH), null));
         @Cleanup("stop")
         HttpClient httpClient = new HttpClient();
         httpClient.setSslContextFactory(sslContextFactory);

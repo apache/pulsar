@@ -4057,6 +4057,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // Reload polices into memory.
         // Verify: policies was deleted.
         admin.topics().delete(tpName, false);
+        // Finish compacting the deletion events before a new reader checks for available messages.
+        triggerAndWaitNewTopicCompaction(tpNameChangeEvents);
         Awaitility.await().untilAsserted(() -> {
             // Reload polices into memory.
             // Verify: policies was affected.
