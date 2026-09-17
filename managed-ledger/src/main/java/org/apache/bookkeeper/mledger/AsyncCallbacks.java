@@ -97,9 +97,16 @@ public interface AsyncCallbacks {
          */
         void readEntriesComplete(List<Entry> entries, Object ctx);
 
+        /**
+         * May be invoked inline, including for validation failures before an asynchronous read is started.
+         */
         void readEntriesFailed(ManagedLedgerException exception, Object ctx);
     }
 
+    /**
+     * Completion of a single-entry read. Like {@link ReadEntriesCallback}, callbacks may run inline
+     * without fixed thread affinity, and the recipient must release the returned entry after use.
+     */
     interface ReadEntryCallback {
         void readEntryComplete(Entry entry, Object ctx);
 

@@ -38,11 +38,4 @@ public final class BookKeeperClientConfigAccessor {
         return conf != null && conf.getUseV2WireProtocol() && conf.isBatchReadEnabled();
     }
 
-    /**
-     * Returns the configured Netty maximum frame size. A client without a configuration (a mock) has no frame limit.
-     */
-    public static int getNettyMaxFrameSizeBytes(BookKeeper bookKeeper) {
-        ClientConfiguration conf = bookKeeper.getConf();
-        return conf != null ? conf.getNettyMaxFrameSizeBytes() : Integer.MAX_VALUE;
-    }
 }

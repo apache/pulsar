@@ -6823,38 +6823,6 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testApplyMaxSizeCapUsesNettyFrameSizeForBatchReads() throws Exception {
-        int configuredFrameSize = bkc.getConf().getNettyMaxFrameSizeBytes();
-        bkc.getConf().setNettyMaxFrameSizeBytes(512);
-        try {
-            @Cleanup
-            ManagedLedgerImpl batchReadLedger = (ManagedLedgerImpl) factory.open(
-                    "testApplyMaxSizeCapUsesNettyFrameSizeForBatchReads", initManagedLedgerConfig(rawEntryConfig()));
-            @Cleanup
-            ManagedCursorImpl batchReadCursor =
-                    (ManagedCursorImpl) batchReadLedger.openCursor("batch-read-cursor");
-            batchReadLedger.addEntry(new byte[1000]);
-            assertTrue(batchReadLedger.isBatchReadEnabled());
-            assertEquals(batchReadCursor.applyMaxSizeCap(200, Long.MAX_VALUE), 1);
-            assertEquals(batchReadCursor.applyMaxSizeCap(200, NO_MAX_SIZE_LIMIT), 200);
-
-            ManagedLedgerConfig disabledBatchReadConfig = initManagedLedgerConfig(rawEntryConfig());
-            disabledBatchReadConfig.setBatchReadEnabled(false);
-            @Cleanup
-            ManagedLedgerImpl disabledBatchReadLedger = (ManagedLedgerImpl) factory.open(
-                    "testApplyMaxSizeCapDoesNotUseNettyFrameSizeWithoutBatchReads", disabledBatchReadConfig);
-            @Cleanup
-            ManagedCursorImpl disabledBatchReadCursor =
-                    (ManagedCursorImpl) disabledBatchReadLedger.openCursor("disabled-batch-read-cursor");
-            disabledBatchReadLedger.addEntry(new byte[1000]);
-            assertFalse(disabledBatchReadLedger.isBatchReadEnabled());
-            assertEquals(disabledBatchReadCursor.applyMaxSizeCap(200, Long.MAX_VALUE), 200);
-        } finally {
-            bkc.getConf().setNettyMaxFrameSizeBytes(configuredFrameSize);
-        }
-    }
-
-    @Test
     public void testCallbackTimes() throws Exception {
         ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("testCallbackTimes",
                 initManagedLedgerConfig(rawEntryConfig()));

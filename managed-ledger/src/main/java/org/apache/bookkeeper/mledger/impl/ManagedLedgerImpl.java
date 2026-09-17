@@ -164,8 +164,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected final BookKeeper bookKeeper;
     /** Whether the BookKeeper client can batch read: the v2 wire protocol with batch reads enabled. */
     private final boolean batchReadSupported;
-    /** The BookKeeper client's configured maximum Netty response frame size. */
-    private final int nettyMaxFrameSizeBytes;
     protected final String name;
     protected final Logger log;
 
@@ -392,7 +390,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.factory = factory;
         this.bookKeeper = bookKeeper;
         this.batchReadSupported = BookKeeperClientConfigAccessor.supportsBatchRead(bookKeeper);
-        this.nettyMaxFrameSizeBytes = BookKeeperClientConfigAccessor.getNettyMaxFrameSizeBytes(bookKeeper);
         this.config = config;
         this.store = store;
         this.name = name;
@@ -4585,10 +4582,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      */
     public boolean isBatchReadEnabled() {
         return batchReadSupported && config.isBatchReadEnabled();
-    }
-
-    int getNettyMaxFrameSizeBytes() {
-        return nettyMaxFrameSizeBytes;
     }
 
     @Override

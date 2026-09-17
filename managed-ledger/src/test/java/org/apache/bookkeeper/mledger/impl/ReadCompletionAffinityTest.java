@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -138,6 +139,85 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
             assertThat(maxDepth.get() - firstDepth.get())
                     .isLessThan(OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS * 40);
         } finally {
+            ledger.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testNestedCacheHitsQueueAtDepthLimitAndIndependentReadOvertakes() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-depth-limit", rawEntryConfig());
+        CountDownLatch releaseWorker = new CountDownLatch(1);
+        try {
+            ManagedCursor nestedCursor = ledger.openCursor("nested");
+            ManagedCursor independentCursor = ledger.openCursor("independent");
+            int count = OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS + 1;
+            for (int i = 0; i < count; i++) {
+                ledger.addEntry(new byte[] {(byte) i});
+            }
+            assertThat(ledger.entryCache.getSize()).isPositive();
+
+            Thread worker = blockWorker(ledger, releaseWorker);
+            Thread caller = Thread.currentThread();
+            assertThat(caller).isNotSameAs(worker);
+
+            AtomicInteger nestedCompletions = new AtomicInteger();
+            AtomicInteger laterCompletionOrder = new AtomicInteger();
+            AtomicInteger independentOrder = new AtomicInteger();
+            AtomicInteger queuedOrder = new AtomicInteger();
+            AtomicReference<Thread> unexpectedInlineThread = new AtomicReference<>();
+            CompletableFuture<Thread> queuedCompletion = new CompletableFuture<>();
+            nestedCursor.asyncReadEntries(1, new ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    entries.forEach(Entry::release);
+                    int completion = nestedCompletions.incrementAndGet();
+                    if (completion < count) {
+                        if (Thread.currentThread() != caller) {
+                            unexpectedInlineThread.compareAndSet(null, Thread.currentThread());
+                        }
+                        nestedCursor.asyncReadEntries(1, this, null, PositionFactory.LATEST);
+                    } else {
+                        queuedOrder.set(laterCompletionOrder.incrementAndGet());
+                        queuedCompletion.complete(Thread.currentThread());
+                    }
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    queuedCompletion.completeExceptionally(exception);
+                }
+            }, null, PositionFactory.LATEST);
+
+            assertThat(nestedCompletions.get()).isEqualTo(OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS);
+            assertThat(unexpectedInlineThread.get()).isNull();
+            assertThat(queuedCompletion).isNotDone();
+
+            // A separate cursor makes this completion independent. Overlapping active reads on one cursor
+            // are unsupported.
+            CompletableFuture<Thread> independentCompletion = new CompletableFuture<>();
+            independentCursor.asyncReadEntries(1, new ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    entries.forEach(Entry::release);
+                    independentOrder.set(laterCompletionOrder.incrementAndGet());
+                    independentCompletion.complete(Thread.currentThread());
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    independentCompletion.completeExceptionally(exception);
+                }
+            }, null, PositionFactory.LATEST);
+            assertThat(independentCompletion).isDone();
+            assertThat(independentCompletion.get(10, TimeUnit.SECONDS)).isSameAs(caller);
+            assertThat(independentOrder.get()).isEqualTo(1);
+            assertThat(queuedCompletion).isNotDone();
+
+            releaseWorker.countDown();
+            assertThat(queuedCompletion.get(10, TimeUnit.SECONDS)).isSameAs(worker);
+            assertThat(queuedOrder.get()).isEqualTo(2);
+        } finally {
+            releaseWorker.countDown();
             ledger.close();
         }
     }
