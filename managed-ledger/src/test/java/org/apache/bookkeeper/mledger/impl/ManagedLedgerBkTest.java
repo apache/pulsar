@@ -248,7 +248,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         EntryCacheManager cacheManager = factory.getEntryCacheManager();
         ManagedLedgerConfig conf = rawEntryConfig();
         conf.setEnsembleSize(2).setAckQuorumSize(2);
-        final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my-ledger" + testName, conf);
+        final ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my-ledger-" + UUID.randomUUID(), conf);
 
         int numProducers = 1;
         int numConsumers = 1;
@@ -277,9 +277,11 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
             final int idx = i;
             futures.add(executor.submit(() -> {
                 try {
-                    barrier.await();
-
+                    // Open the cursor before any entry is added: an entry appended while the cursor is being created
+                    // can be skipped by the cache and still land after the cursor's starting position
                     ManagedCursor cursor = ledger.openCursor("my-cursor-" + idx);
+
+                    barrier.await();
 
                     while (!done.get()) {
                         List<Entry> entries = cursor.readEntries(1);
