@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -28,35 +29,26 @@ import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 
 /**
- * Stats for a scalable topic as a whole: the segment DAG with per-segment load, the
- * subscriptions with their backlog broken down across segments, and the producers
- * attached to the topic.
+ * Stats for a scalable topic as a whole: the segment layout (the DAG), the traffic and
+ * storage aggregated across every segment, the producers attached to the topic, and the
+ * subscriptions with their backlog broken down across segments.
  *
- * <p>Rates and counters are aggregated across every segment in the DAG (active and
- * sealed). Per-segment numbers come from each segment's owning broker; a segment whose
- * stats could not be collected keeps its DAG entry but reports no owner and zero load
- * (see {@link SegmentStats#getOwnerBroker()}).
+ * <p>Rates are rounded to three decimals. Per-segment numbers come from each segment's
+ * owning broker; a segment whose stats could not be collected keeps its layout entry but
+ * reports no owner (see {@link SegmentStats#getOwnerBroker()}) and contributes nothing to
+ * the aggregates.
  *
- * <p>The stats of a single segment's underlying topic — cursors, per-consumer permits,
- * ledger details and so on — are served separately as a regular {@link TopicStats} by
- * {@code ScalableTopics.getSegmentStats(topic, segmentId)}.
+ * <p>The stats of a single segment's underlying topic — its own rates and storage, cursors,
+ * per-consumer permits and so on — are served separately as a regular {@link TopicStats}
+ * by {@code ScalableTopics.getSegmentStats(topic, segmentId)}.
  */
 @Data
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ScalableTopicStats {
 
-    /** Current layout epoch. */
-    private long epoch;
-
-    /** Total number of segments in the DAG (active + sealed). */
-    private int totalSegments;
-
-    /** Number of segments currently in ACTIVE state. */
-    private int activeSegments;
-
-    /** Number of segments currently in SEALED state. */
-    private int sealedSegments;
+    /** The segment DAG. */
+    private LayoutStats layout = new LayoutStats();
 
     /** Total rate of messages published on the topic (msg/s), summed across segments. */
     private double msgRateIn;
@@ -70,18 +62,6 @@ public class ScalableTopicStats {
     /** Total throughput of messages dispatched for the topic (byte/s), summed across segments. */
     private double msgThroughputOut;
 
-    /** Total messages published to the topic since its segments were loaded. */
-    private long msgInCounter;
-
-    /** Total bytes published to the topic since its segments were loaded. */
-    private long bytesInCounter;
-
-    /** Total messages delivered to consumers since the segments were loaded. */
-    private long msgOutCounter;
-
-    /** Total bytes delivered to consumers since the segments were loaded. */
-    private long bytesOutCounter;
-
     /** Average size of published messages (bytes): {@code msgThroughputIn / msgRateIn}. */
     private double averageMsgSize;
 
@@ -91,18 +71,28 @@ public class ScalableTopicStats {
     /** Estimated total unconsumed (backlog) size across every segment (bytes). */
     private long backlogSize;
 
-    /** The segment DAG, keyed by segment ID. */
-    private Map<Long, SegmentStats> segments = new LinkedHashMap<>();
-
     /** Producers attached to the topic. */
     private List<ProducerStats> producers = new ArrayList<>();
 
     /** Per-subscription stats keyed by subscription name. */
     private Map<String, SubscriptionStats> subscriptions = new LinkedHashMap<>();
 
+    /** The segment DAG: the layout epoch and every segment, active or sealed. */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class LayoutStats {
+
+        /** Current layout epoch, incremented on every split, merge, rebucket or prune. */
+        private long epoch;
+
+        /** The segments, keyed by segment ID. */
+        private Map<Long, SegmentStats> segments = new LinkedHashMap<>();
+    }
+
     /**
-     * One node of the segment DAG: its identity, its edges, its lifecycle and the load the
-     * owning broker reports for it.
+     * One node of the segment DAG: its identity, its hash range, its edges, its lifecycle
+     * and the broker serving it.
      */
     @Data
     @NoArgsConstructor
@@ -141,29 +131,16 @@ public class ScalableTopicStats {
 
         /**
          * Broker currently serving the segment's topic, or {@code null} when its stats could
-         * not be collected — in which case the load fields below are zero.
+         * not be collected.
          */
         private String ownerBroker;
 
-        /** Rate of messages published on this segment (msg/s). */
-        private double msgRateIn;
-
-        /** Throughput of messages published on this segment (byte/s). */
-        private double msgThroughputIn;
-
-        /** Rate of messages dispatched from this segment (msg/s). */
-        private double msgRateOut;
-
-        /** Throughput of messages dispatched from this segment (byte/s). */
-        private double msgThroughputOut;
-
-        /** Space used to store this segment's messages (bytes). */
-        private long storageSize;
-
+        @JsonIgnore
         public boolean isActive() {
             return "ACTIVE".equals(state);
         }
 
+        @JsonIgnore
         public boolean isSealed() {
             return "SEALED".equals(state);
         }
@@ -182,9 +159,6 @@ public class ScalableTopicStats {
 
         /** Producer name. */
         private String producerName;
-
-        /** IDs of the segments this producer is attached to. */
-        private List<Long> segmentIds = new ArrayList<>();
 
         /** Total rate of messages published by this producer (msg/s). */
         private double msgRateIn;
@@ -243,12 +217,6 @@ public class ScalableTopicStats {
 
         /** Total rate of message acknowledgements (msg/s). */
         private double messageAckRate;
-
-        /** Total messages delivered to consumers (msg). */
-        private long msgOutCounter;
-
-        /** Total bytes delivered to consumers (bytes). */
-        private long bytesOutCounter;
 
         /** Per-segment breakdown of the subscription, keyed by segment ID. */
         private Map<Long, SegmentSubscriptionStats> segments = new LinkedHashMap<>();
@@ -311,12 +279,6 @@ public class ScalableTopicStats {
 
         /** Total throughput delivered to the consumer (byte/s). */
         private double msgThroughputOut;
-
-        /** Total messages delivered to the consumer (msg). */
-        private long msgOutCounter;
-
-        /** Total bytes delivered to the consumer (bytes). */
-        private long bytesOutCounter;
 
         /** Messages delivered to the consumer but not yet acknowledged. */
         private long unackedMessages;

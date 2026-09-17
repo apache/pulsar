@@ -32,15 +32,15 @@ public class ScalableTopicStatsTest {
     @Test
     public void testDefaults() {
         ScalableTopicStats stats = new ScalableTopicStats();
-        assertEquals(stats.getEpoch(), 0L);
-        assertEquals(stats.getTotalSegments(), 0);
         assertEquals(stats.getMsgRateIn(), 0.0);
         assertEquals(stats.getBacklogSize(), 0L);
-        // Collections are non-null so the broker can accumulate into them directly.
-        assertNotNull(stats.getSegments());
+        // Nested objects and collections are non-null so the broker can fill them directly.
+        assertNotNull(stats.getLayout());
+        assertEquals(stats.getLayout().getEpoch(), 0L);
+        assertNotNull(stats.getLayout().getSegments());
         assertNotNull(stats.getProducers());
         assertNotNull(stats.getSubscriptions());
-        assertTrue(stats.getSegments().isEmpty());
+        assertTrue(stats.getLayout().getSegments().isEmpty());
         assertTrue(stats.getProducers().isEmpty());
         assertTrue(stats.getSubscriptions().isEmpty());
     }
@@ -49,7 +49,8 @@ public class ScalableTopicStatsTest {
     public void testDefaultCollectionsAreFreshPerInstance() {
         ScalableTopicStats a = new ScalableTopicStats();
         ScalableTopicStats b = new ScalableTopicStats();
-        assertNotSame(a.getSegments(), b.getSegments());
+        assertNotSame(a.getLayout(), b.getLayout());
+        assertNotSame(a.getLayout().getSegments(), b.getLayout().getSegments());
         assertNotSame(a.getProducers(), b.getProducers());
         assertNotSame(a.getSubscriptions(), b.getSubscriptions());
     }
@@ -80,33 +81,28 @@ public class ScalableTopicStatsTest {
         ScalableTopicStats.ConsumerStats consumer = new ScalableTopicStats.ConsumerStats();
         assertFalse(consumer.isConnected());
         assertNotNull(consumer.getSegmentIds());
-
-        ScalableTopicStats.ProducerStats producer = new ScalableTopicStats.ProducerStats();
-        assertNotNull(producer.getSegmentIds());
     }
 
     @Test
     public void testEqualsAndHashCode() {
         ScalableTopicStats a = new ScalableTopicStats();
-        a.setEpoch(1L);
-        a.setTotalSegments(2);
+        a.getLayout().setEpoch(1L);
         ScalableTopicStats.SegmentStats seg = new ScalableTopicStats.SegmentStats();
         seg.setSegmentId(0L);
         seg.setChildIds(List.of(1L, 2L));
-        a.getSegments().put(0L, seg);
+        a.getLayout().getSegments().put(0L, seg);
 
         ScalableTopicStats b = new ScalableTopicStats();
-        b.setEpoch(1L);
-        b.setTotalSegments(2);
+        b.getLayout().setEpoch(1L);
         ScalableTopicStats.SegmentStats seg2 = new ScalableTopicStats.SegmentStats();
         seg2.setSegmentId(0L);
         seg2.setChildIds(List.of(1L, 2L));
-        b.getSegments().put(0L, seg2);
+        b.getLayout().getSegments().put(0L, seg2);
 
         assertEquals(a, b);
         assertEquals(a.hashCode(), b.hashCode());
 
-        b.setEpoch(2L);
+        b.getLayout().setEpoch(2L);
         assertFalse(a.equals(b));
     }
 }

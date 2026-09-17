@@ -59,7 +59,6 @@ public class ScalableTopicStatsBuilderTest {
         ts.ownerBroker = owner;
         ts.msgRateIn = msgRateIn;
         ts.msgThroughputIn = msgRateIn * 100;
-        ts.msgInCounter = (long) msgRateIn * 10;
         ts.storageSize = storageSize;
         ts.backlogSize = storageSize / 2;
         return ts;
@@ -109,13 +108,11 @@ public class ScalableTopicStatsBuilderTest {
         ScalableTopicStats stats = ScalableTopicStatsBuilder.build(
                 TOPIC, layout, segmentStats, Map.of(), Map.of());
 
-        assertEquals(stats.getEpoch(), 1);
-        assertEquals(stats.getTotalSegments(), 4);
-        assertEquals(stats.getActiveSegments(), 3);
-        assertEquals(stats.getSealedSegments(), 1);
-        assertEquals(stats.getSegments().keySet(), Set.of(0L, 1L, 2L, 3L));
+        ScalableTopicStats.LayoutStats dag = stats.getLayout();
+        assertEquals(dag.getEpoch(), 1);
+        assertEquals(dag.getSegments().keySet(), Set.of(0L, 1L, 2L, 3L));
 
-        ScalableTopicStats.SegmentStats parent = stats.getSegments().get(0L);
+        ScalableTopicStats.SegmentStats parent = dag.getSegments().get(0L);
         assertTrue(parent.isSealed());
         assertEquals(parent.getChildIds(), List.of(2L, 3L));
         assertEquals(parent.getSealedAtMs(), 1_000L);
@@ -123,25 +120,45 @@ public class ScalableTopicStatsBuilderTest {
         assertEquals(parent.getHashRange().getStart(), 0);
         assertEquals(parent.getHashRange().getEnd(), 0x7fff);
         assertNull(parent.getOwnerBroker(), "no stats collected → no owner");
-        assertEquals(parent.getMsgRateIn(), 0.0);
 
-        ScalableTopicStats.SegmentStats child = stats.getSegments().get(2L);
+        ScalableTopicStats.SegmentStats child = dag.getSegments().get(2L);
         assertTrue(child.isActive());
         assertEquals(child.getParentIds(), List.of(0L));
         assertEquals(child.getSealedAtMs(), -1L);
         assertEquals(child.getOwnerBroker(), "broker-b");
-        assertEquals(child.getMsgRateIn(), 4.0);
-        assertEquals(child.getStorageSize(), 3_000L);
         assertEquals(child.getEntryBuckets(), 2, "a split halves the parent's 4 entry-buckets");
 
         assertEquals(stats.getMsgRateIn(), 6.0);
         assertEquals(stats.getMsgThroughputIn(), 600.0);
         assertEquals(stats.getAverageMsgSize(), 100.0, "throughput / rate");
-        assertEquals(stats.getMsgInCounter(), 60L);
         assertEquals(stats.getStorageSize(), 4_000L);
         assertEquals(stats.getBacklogSize(), 2_000L);
         assertTrue(stats.getProducers().isEmpty());
         assertTrue(stats.getSubscriptions().isEmpty());
+    }
+
+    @Test
+    public void testRatesRoundedToThreeDecimals() {
+        SegmentLayout layout = splitLayout();
+        TopicStatsImpl seg1 = topicStats("broker-a", 100.00208351674284, 0);
+        seg1.msgThroughputIn = 5536.915360155018;
+        seg1.addPublisher(publisher("p-seg-1", 33.3333333));
+        seg1.subscriptions.put("s", subscription(0, consumer("c-seg-1", 0)));
+        seg1.subscriptions.get("s").msgRateOut = 1.0006;
+        seg1.subscriptions.get("s").consumers.get(0).msgRateOut = 2.0004;
+
+        ScalableTopicStats stats = ScalableTopicStatsBuilder.build(
+                TOPIC, layout, Map.of(1L, seg1), Map.of(), Map.of());
+
+        assertEquals(stats.getMsgRateIn(), 100.002);
+        assertEquals(stats.getMsgThroughputIn(), 5536.915);
+        assertEquals(stats.getAverageMsgSize(), 55.368);
+        assertEquals(stats.getProducers().get(0).getMsgRateIn(), 33.333);
+        assertEquals(stats.getProducers().get(0).getAverageMsgSize(), 50.0);
+        ScalableTopicStats.SubscriptionStats s = stats.getSubscriptions().get("s");
+        assertEquals(s.getMsgRateOut(), 1.001);
+        assertEquals(s.getSegments().get(1L).getMsgRateOut(), 1.001);
+        assertEquals(s.getConsumers().get(0).getMsgRateOut(), 2.0);
     }
 
     @Test
@@ -158,20 +175,20 @@ public class ScalableTopicStatsBuilderTest {
         ScalableTopicStats stats = ScalableTopicStatsBuilder.build(
                 TOPIC, layout, Map.of(1L, seg1, 2L, seg2), Map.of(), Map.of());
 
+        assertEquals(stats.getProducers().size(), 3, "got " + stats.getProducers());
         Map<String, ScalableTopicStats.ProducerStats> byName = new HashMap<>();
         stats.getProducers().forEach(p -> byName.put(p.getProducerName(), p));
         assertEquals(byName.keySet(), Set.of("app-producer", "standalone-abc", "other-seg-1"));
 
         ScalableTopicStats.ProducerStats app = byName.get("app-producer");
-        assertEquals(app.getSegmentIds(), List.of(1L, 2L));
-        assertEquals(app.getMsgRateIn(), 5.0);
+        assertEquals(app.getMsgRateIn(), 5.0, "both per-segment producers folded into one");
         assertEquals(app.getMsgThroughputIn(), 250.0);
         assertEquals(app.getAverageMsgSize(), 50.0);
         assertEquals(app.getAddress(), "10.0.0.1:1234");
         assertEquals(app.getClientVersion(), "v5");
 
-        assertEquals(byName.get("standalone-abc").getSegmentIds(), List.of(1L));
-        assertEquals(byName.get("other-seg-1").getSegmentIds(), List.of(2L));
+        assertEquals(byName.get("standalone-abc").getMsgRateIn(), 0.5);
+        assertEquals(byName.get("other-seg-1").getMsgRateIn(), 1.0);
     }
 
     @Test

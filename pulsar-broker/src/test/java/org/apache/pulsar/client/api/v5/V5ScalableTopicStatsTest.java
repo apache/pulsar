@@ -66,12 +66,10 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
         ScalableTopicStats stats = admin.scalableTopics().getStats(topic);
 
         // --- Segment DAG: two active root segments tiling the hash space ---
-        assertEquals(stats.getEpoch(), 0);
-        assertEquals(stats.getTotalSegments(), 2);
-        assertEquals(stats.getActiveSegments(), 2);
-        assertEquals(stats.getSealedSegments(), 0);
-        assertEquals(stats.getSegments().keySet(), Set.of(0L, 1L));
-        for (ScalableTopicStats.SegmentStats segment : stats.getSegments().values()) {
+        ScalableTopicStats.LayoutStats layout = stats.getLayout();
+        assertEquals(layout.getEpoch(), 0);
+        assertEquals(layout.getSegments().keySet(), Set.of(0L, 1L));
+        for (ScalableTopicStats.SegmentStats segment : layout.getSegments().values()) {
             assertTrue(segment.isActive());
             assertTrue(segment.getParentIds().isEmpty());
             assertTrue(segment.getChildIds().isEmpty());
@@ -82,18 +80,16 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
                     "unexpected backing topic " + segment.getTopic());
             assertNotNull(segment.getOwnerBroker(), "segment stats must have been collected from its owner");
         }
-        assertEquals(stats.getSegments().get(0L).getHashRange().getStart(), 0);
-        assertEquals(stats.getSegments().get(0L).getHashRange().getEnd(), 0x7fff);
-        assertEquals(stats.getSegments().get(1L).getHashRange().getStart(), 0x8000);
-        assertEquals(stats.getSegments().get(1L).getHashRange().getEnd(), 0xffff);
-        assertEquals(stats.getMsgInCounter(), n, "messages published, summed across segments");
+        assertEquals(layout.getSegments().get(0L).getHashRange().getStart(), 0);
+        assertEquals(layout.getSegments().get(0L).getHashRange().getEnd(), 0x7fff);
+        assertEquals(layout.getSegments().get(1L).getHashRange().getStart(), 0x8000);
+        assertEquals(layout.getSegments().get(1L).getHashRange().getEnd(), 0xffff);
         assertTrue(stats.getStorageSize() > 0);
 
         // --- Producers: the V5 producer's per-segment producers fold into one entry ---
         assertEquals(stats.getProducers().size(), 1, "got " + stats.getProducers());
         ScalableTopicStats.ProducerStats p = stats.getProducers().get(0);
         assertEquals(p.getProducerName(), "stats-producer");
-        assertEquals(p.getSegmentIds(), List.of(0L, 1L));
         assertNotNull(p.getAddress());
 
         // --- Subscription: backlog is the sum over the segments' cursors ---
@@ -161,24 +157,22 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
         String topic = newScalableTopic(1);
         admin.scalableTopics().splitSegment(topic, 0L);
 
-        ScalableTopicStats stats = admin.scalableTopics().getStats(topic);
-        assertEquals(stats.getEpoch(), 1);
-        assertEquals(stats.getTotalSegments(), 3);
-        assertEquals(stats.getActiveSegments(), 2);
-        assertEquals(stats.getSealedSegments(), 1);
+        ScalableTopicStats.LayoutStats layout = admin.scalableTopics().getStats(topic).getLayout();
+        assertEquals(layout.getEpoch(), 1);
+        assertEquals(layout.getSegments().keySet(), Set.of(0L, 1L, 2L));
 
-        ScalableTopicStats.SegmentStats parent = stats.getSegments().get(0L);
+        ScalableTopicStats.SegmentStats parent = layout.getSegments().get(0L);
         assertTrue(parent.isSealed());
         assertEquals(parent.getChildIds(), List.of(1L, 2L));
         assertTrue(parent.getSealedAtMs() > 0);
         assertEquals(parent.getHashRange().getStart(), 0);
         assertEquals(parent.getHashRange().getEnd(), 0xffff);
 
-        ScalableTopicStats.SegmentStats left = stats.getSegments().get(1L);
+        ScalableTopicStats.SegmentStats left = layout.getSegments().get(1L);
         assertTrue(left.isActive());
         assertEquals(left.getParentIds(), List.of(0L));
         assertEquals(left.getHashRange().getEnd(), 0x7fff);
-        ScalableTopicStats.SegmentStats right = stats.getSegments().get(2L);
+        ScalableTopicStats.SegmentStats right = layout.getSegments().get(2L);
         assertEquals(right.getParentIds(), List.of(0L));
         assertEquals(right.getHashRange().getStart(), 0x8000);
 

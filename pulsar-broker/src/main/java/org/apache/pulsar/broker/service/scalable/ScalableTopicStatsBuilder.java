@@ -40,9 +40,8 @@ import org.apache.pulsar.common.scalable.SegmentTopicName;
  *
  * <p>Pure aggregation — no I/O — so the folding rules can be unit-tested on their own:
  * <ul>
- *   <li>Topic-level rates, counters, storage and backlog are the sums over every segment
- *       whose stats were collected; a segment without stats keeps its DAG entry with no
- *       owner and zero load.</li>
+ *   <li>Topic-level rates, storage and backlog are the sums over every segment whose stats
+ *       were collected; a segment without stats keeps its layout entry with no owner.</li>
  *   <li>A V5 producer or consumer opens one underlying producer/consumer per segment, named
  *       {@code <name>-seg-<segmentId>}. Those are folded back into a single entry keyed by
  *       {@code <name>}; an underlying producer/consumer that doesn't follow the pattern (no
@@ -50,12 +49,16 @@ import org.apache.pulsar.common.scalable.SegmentTopicName;
  *   <li>On a STREAM subscription the controller's sessions seed the consumer list, so a
  *       registered consumer is visible while disconnected within its grace period or while
  *       idle, together with the segments assigned to it.</li>
+ *   <li>Every rate is rounded to three decimals once the sums are complete.</li>
  * </ul>
  */
 public final class ScalableTopicStatsBuilder {
 
     /** Separator the V5 SDK puts between a producer/consumer name and the segment ID. */
     private static final String SEGMENT_SUFFIX = "-seg-";
+
+    /** Rates are reported with this many decimals. */
+    private static final double RATE_SCALE = 1000d;
 
     /**
      * A consumer session held by the controller for a STREAM subscription.
@@ -86,23 +89,17 @@ public final class ScalableTopicStatsBuilder {
                                            Map<String, ScalableSubscriptionType> persistedTypes,
                                            Map<String, List<StreamConsumer>> streamConsumers) {
         ScalableTopicStats stats = new ScalableTopicStats();
-        stats.setEpoch(layout.getEpoch());
-        addSegments(topic, layout, segmentStats, stats);
+        addLayout(topic, layout, segmentStats, stats);
         addProducers(layout, segmentStats, stats);
         addSubscriptions(layout, segmentStats, persistedTypes, streamConsumers, stats);
+        roundRates(stats);
         return stats;
     }
 
-    private static void addSegments(TopicName topic, SegmentLayout layout,
-                                    Map<Long, TopicStats> segmentStats, ScalableTopicStats stats) {
-        int active = 0;
-        int sealed = 0;
+    private static void addLayout(TopicName topic, SegmentLayout layout,
+                                  Map<Long, TopicStats> segmentStats, ScalableTopicStats stats) {
+        stats.getLayout().setEpoch(layout.getEpoch());
         for (SegmentInfo segment : layout.getAllSegments().values()) {
-            if (segment.isActive()) {
-                active++;
-            } else {
-                sealed++;
-            }
             ScalableTopicStats.SegmentStats node = new ScalableTopicStats.SegmentStats();
             node.setSegmentId(segment.segmentId());
             node.setTopic(SegmentTopicName.backingTopicName(topic, segment));
@@ -118,28 +115,15 @@ public final class ScalableTopicStatsBuilder {
             TopicStats ts = segmentStats.get(segment.segmentId());
             if (ts != null) {
                 node.setOwnerBroker(ts.getOwnerBroker());
-                node.setMsgRateIn(ts.getMsgRateIn());
-                node.setMsgThroughputIn(ts.getMsgThroughputIn());
-                node.setMsgRateOut(ts.getMsgRateOut());
-                node.setMsgThroughputOut(ts.getMsgThroughputOut());
-                node.setStorageSize(ts.getStorageSize());
-
                 stats.setMsgRateIn(stats.getMsgRateIn() + ts.getMsgRateIn());
                 stats.setMsgThroughputIn(stats.getMsgThroughputIn() + ts.getMsgThroughputIn());
                 stats.setMsgRateOut(stats.getMsgRateOut() + ts.getMsgRateOut());
                 stats.setMsgThroughputOut(stats.getMsgThroughputOut() + ts.getMsgThroughputOut());
-                stats.setMsgInCounter(stats.getMsgInCounter() + ts.getMsgInCounter());
-                stats.setBytesInCounter(stats.getBytesInCounter() + ts.getBytesInCounter());
-                stats.setMsgOutCounter(stats.getMsgOutCounter() + ts.getMsgOutCounter());
-                stats.setBytesOutCounter(stats.getBytesOutCounter() + ts.getBytesOutCounter());
                 stats.setStorageSize(stats.getStorageSize() + ts.getStorageSize());
                 stats.setBacklogSize(stats.getBacklogSize() + ts.getBacklogSize());
             }
-            stats.getSegments().put(segment.segmentId(), node);
+            stats.getLayout().getSegments().put(segment.segmentId(), node);
         }
-        stats.setTotalSegments(active + sealed);
-        stats.setActiveSegments(active);
-        stats.setSealedSegments(sealed);
         stats.setAverageMsgSize(averageSize(stats.getMsgRateIn(), stats.getMsgThroughputIn()));
     }
 
@@ -162,7 +146,6 @@ public final class ScalableTopicStatsBuilder {
                     p.setClientVersion(publisher.getClientVersion());
                     return p;
                 });
-                producer.getSegmentIds().add(segmentId);
                 producer.setMsgRateIn(producer.getMsgRateIn() + publisher.getMsgRateIn());
                 producer.setMsgThroughputIn(producer.getMsgThroughputIn() + publisher.getMsgThroughputIn());
             }
@@ -251,8 +234,6 @@ public final class ScalableTopicStatsBuilder {
         sub.setMsgThroughputOut(sub.getMsgThroughputOut() + ss.getMsgThroughputOut());
         sub.setMsgRateRedeliver(sub.getMsgRateRedeliver() + ss.getMsgRateRedeliver());
         sub.setMessageAckRate(sub.getMessageAckRate() + ss.getMessageAckRate());
-        sub.setMsgOutCounter(sub.getMsgOutCounter() + ss.getMsgOutCounter());
-        sub.setBytesOutCounter(sub.getBytesOutCounter() + ss.getBytesOutCounter());
     }
 
     private static void addSegmentConsumer(Map<String, ScalableTopicStats.ConsumerStats> consumers,
@@ -270,14 +251,39 @@ public final class ScalableTopicStatsBuilder {
         }
         c.setMsgRateOut(c.getMsgRateOut() + consumer.getMsgRateOut());
         c.setMsgThroughputOut(c.getMsgThroughputOut() + consumer.getMsgThroughputOut());
-        c.setMsgOutCounter(c.getMsgOutCounter() + consumer.getMsgOutCounter());
-        c.setBytesOutCounter(c.getBytesOutCounter() + consumer.getBytesOutCounter());
         c.setUnackedMessages(c.getUnackedMessages() + consumer.getUnackedMessages());
         c.setAvailablePermits(c.getAvailablePermits() + consumer.getAvailablePermits());
         if (c.getAddress() == null) {
             c.setAddress(consumer.getAddress());
             c.setConnectedSince(consumer.getConnectedSince());
             c.setClientVersion(consumer.getClientVersion());
+        }
+    }
+
+    private static void roundRates(ScalableTopicStats stats) {
+        stats.setMsgRateIn(round(stats.getMsgRateIn()));
+        stats.setMsgThroughputIn(round(stats.getMsgThroughputIn()));
+        stats.setMsgRateOut(round(stats.getMsgRateOut()));
+        stats.setMsgThroughputOut(round(stats.getMsgThroughputOut()));
+        stats.setAverageMsgSize(round(stats.getAverageMsgSize()));
+        for (ScalableTopicStats.ProducerStats producer : stats.getProducers()) {
+            producer.setMsgRateIn(round(producer.getMsgRateIn()));
+            producer.setMsgThroughputIn(round(producer.getMsgThroughputIn()));
+            producer.setAverageMsgSize(round(producer.getAverageMsgSize()));
+        }
+        for (ScalableTopicStats.SubscriptionStats sub : stats.getSubscriptions().values()) {
+            sub.setMsgRateOut(round(sub.getMsgRateOut()));
+            sub.setMsgThroughputOut(round(sub.getMsgThroughputOut()));
+            sub.setMsgRateRedeliver(round(sub.getMsgRateRedeliver()));
+            sub.setMessageAckRate(round(sub.getMessageAckRate()));
+            for (ScalableTopicStats.SegmentSubscriptionStats seg : sub.getSegments().values()) {
+                seg.setMsgRateOut(round(seg.getMsgRateOut()));
+                seg.setMsgThroughputOut(round(seg.getMsgThroughputOut()));
+            }
+            for (ScalableTopicStats.ConsumerStats consumer : sub.getConsumers()) {
+                consumer.setMsgRateOut(round(consumer.getMsgRateOut()));
+                consumer.setMsgThroughputOut(round(consumer.getMsgThroughputOut()));
+            }
         }
     }
 
@@ -295,6 +301,11 @@ public final class ScalableTopicStatsBuilder {
             return name.substring(0, name.length() - suffix.length());
         }
         return name;
+    }
+
+    /** Round a rate to three decimals. */
+    static double round(double value) {
+        return Math.round(value * RATE_SCALE) / RATE_SCALE;
     }
 
     private static double averageSize(double msgRate, double byteRate) {

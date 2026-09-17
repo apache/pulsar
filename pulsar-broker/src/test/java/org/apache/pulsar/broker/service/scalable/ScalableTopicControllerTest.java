@@ -467,15 +467,12 @@ public class ScalableTopicControllerTest {
         controller.initialize().get();
         ScalableTopicStats stats = controller.getStats().get();
 
-        assertEquals(stats.getEpoch(), 0);
-        assertEquals(stats.getTotalSegments(), INITIAL_SEGMENTS);
-        assertEquals(stats.getActiveSegments(), INITIAL_SEGMENTS);
-        assertEquals(stats.getSealedSegments(), 0);
-        assertEquals(stats.getSegments().size(), INITIAL_SEGMENTS);
+        assertEquals(stats.getLayout().getEpoch(), 0);
+        assertEquals(stats.getLayout().getSegments().size(), INITIAL_SEGMENTS);
         // Every segment's stats were collected through the admin endpoint and folded in.
-        for (ScalableTopicStats.SegmentStats segment : stats.getSegments().values()) {
+        for (ScalableTopicStats.SegmentStats segment : stats.getLayout().getSegments().values()) {
+            assertTrue(segment.isActive());
             assertEquals(segment.getOwnerBroker(), "segment-owner");
-            assertEquals(segment.getMsgRateIn(), 1.5);
         }
         assertEquals(stats.getMsgRateIn(), 1.5 * INITIAL_SEGMENTS);
         verify(scalableTopics, times(INITIAL_SEGMENTS)).getSegmentStatsAsync(eq(topicName.toString()), anyLong());
@@ -497,20 +494,20 @@ public class ScalableTopicControllerTest {
 
         ScalableTopicStats stats = controller.getStats().get();
 
-        assertEquals(stats.getEpoch(), 1);
-        assertEquals(stats.getTotalSegments(), INITIAL_SEGMENTS + 2,
+        Map<Long, ScalableTopicStats.SegmentStats> segments = stats.getLayout().getSegments();
+        assertEquals(stats.getLayout().getEpoch(), 1);
+        assertEquals(segments.size(), INITIAL_SEGMENTS + 2,
                 "split adds two children, keeps parent as sealed");
-        assertEquals(stats.getActiveSegments(), INITIAL_SEGMENTS + 1);
-        assertEquals(stats.getSealedSegments(), 1);
+        assertEquals(segments.values().stream().filter(ScalableTopicStats.SegmentStats::isSealed).count(), 1);
 
         // The DAG edges of the split are reported on both sides.
         long child1 = INITIAL_SEGMENTS;
         long child2 = INITIAL_SEGMENTS + 1;
-        ScalableTopicStats.SegmentStats parent = stats.getSegments().get(0L);
+        ScalableTopicStats.SegmentStats parent = segments.get(0L);
         assertTrue(parent.isSealed());
         assertEquals(parent.getChildIds(), List.of(child1, child2));
-        assertEquals(stats.getSegments().get(child1).getParentIds(), List.of(0L));
-        assertTrue(stats.getSegments().get(child2).isActive());
+        assertEquals(segments.get(child1).getParentIds(), List.of(0L));
+        assertTrue(segments.get(child2).isActive());
 
         assertEquals(stats.getSubscriptions().keySet(), Set.of("sub-a", "sub-b"));
         ScalableTopicStats.SubscriptionStats subA = stats.getSubscriptions().get("sub-a");

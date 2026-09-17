@@ -306,8 +306,9 @@ public class ScalableTopicServiceTest {
         service.createSubscription(tn, "sub-a", SubscriptionType.STREAM).get();
 
         ScalableTopicStats stats = service.getStats(tn).get();
-        assertEquals(stats.getActiveSegments(), 3);
-        assertEquals(stats.getTotalSegments(), 3);
+        assertEquals(stats.getLayout().getSegments().size(), 3);
+        assertTrue(stats.getLayout().getSegments().values().stream()
+                .allMatch(ScalableTopicStats.SegmentStats::isActive));
         assertEquals(stats.getSubscriptions().keySet(), java.util.Set.of("sub-a"));
         assertEquals(stats.getSubscriptions().get("sub-a").getType(), ScalableSubscriptionType.STREAM,
                 "the type recorded by createSubscription is reported");

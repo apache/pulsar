@@ -504,7 +504,7 @@ public class V5EntryBucketDispatchTest extends V5ClientBaseTest {
         // whole segment back to A, which flips back to Exclusive. Only once that is done does
         // the stale-watermark state matter for B2's rejoin.
         String segmentTopic = admin.scalableTopics().getStats(topic)
-                .getSegments().values().iterator().next().getTopic();
+                .getLayout().getSegments().values().iterator().next().getTopic();
         Awaitility.await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
             var sub = getTopicReference(segmentTopic).orElseThrow().getSubscription(subscription);
             assertNotNull(sub, "segment subscription missing");
@@ -586,7 +586,7 @@ public class V5EntryBucketDispatchTest extends V5ClientBaseTest {
         // Exclusive ownership. With the default 60s grace, any missed unregistration would
         // hold the group fanned out well past this window.
         String segmentTopic = admin.scalableTopics().getStats(topic)
-                .getSegments().values().iterator().next().getTopic();
+                .getLayout().getSegments().values().iterator().next().getTopic();
         Awaitility.await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
             var sub = getTopicReference(segmentTopic).orElseThrow().getSubscription(subscription);
             assertNotNull(sub, "segment subscription missing");
