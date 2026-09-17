@@ -111,6 +111,17 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
         return sender;
     }
 
+    /** Stop the sender whatever state a test left it in, so that a failing test does not leak it. */
+    private static void stopSender(Thread sender, Sends sends) throws InterruptedException {
+        sends.stop.set(true);
+        sender.join(TimeUnit.SECONDS.toMillis(10));
+        if (sender.isAlive()) {
+            // Blocked in a send: on the memory limit, or on whatever the failed test left hanging.
+            sender.interrupt();
+            sender.join(TimeUnit.SECONDS.toMillis(10));
+        }
+    }
+
     private static CompletableFuture<Void> allSettled(Sends sends) {
         return CompletableFuture.allOf(sends.futures.toArray(new CompletableFuture[0]))
                 .exceptionally(__ -> null);
@@ -140,20 +151,23 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
 
         Sends sends = new Sends();
         Thread sender = startSender(producer, sends);
-        Awaitility.await().until(() -> sends.segmentsAcked.contains(segmentId));
-        // Terminate the segment topic underneath the layout: the state a split leaves the producer in
-        // until the DAG watch delivers the new layout, held here until the sends' retry budget runs
-        // out. Terminated while quiet, so that no write fails on the closing ledger and fences the
-        // topic instead; then the sends flow again, and on past the first failure.
-        sends.pause.set(true);
-        Awaitility.await().until(sends::drained);
-        admin.scalableTopics().terminateSegment(segmentTopic(topic, segmentId));
-        sends.pause.set(false);
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> sends.failed.get() > 0);
-        int issuedAtFirstFailure = sends.issued.get();
-        Awaitility.await().until(() -> sends.issued.get() > issuedAtFirstFailure + 10 * BURST);
-        sends.stop.set(true);
-        sender.join();
+        try {
+            Awaitility.await().until(() -> sends.segmentsAcked.contains(segmentId));
+            // Terminate the segment topic underneath the layout: the state a split leaves the
+            // producer in until the DAG watch delivers the new layout, held here until the sends'
+            // retry budget runs out. Terminated while quiet, so that no write fails on the closing
+            // ledger and fences the topic instead; then the sends flow again, and on past the first
+            // failure.
+            sends.pause.set(true);
+            Awaitility.await().until(sends::drained);
+            admin.scalableTopics().terminateSegment(segmentTopic(topic, segmentId));
+            sends.pause.set(false);
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> sends.failed.get() > 0);
+            int issuedAtFirstFailure = sends.issued.get();
+            Awaitility.await().until(() -> sends.issued.get() > issuedAtFirstFailure + 10 * BURST);
+        } finally {
+            stopSender(sender, sends);
+        }
         allSettled(sends).get(60, TimeUnit.SECONDS);
 
         // Every send that found the segment gone failed fast on its one producer: none created another.
@@ -168,14 +182,18 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
 
         Sends sends = new Sends();
         Thread sender = startSender(producer, sends);
-        Awaitility.await().until(() -> sends.segmentsAcked.size() == 2);
-        int created = producer.segmentProducersCreated.get();
-        // Closing the client fails the sends its v4 producers hold; the sender keeps sending meanwhile.
-        client.close();
-        int issuedAtClose = sends.issued.get();
-        Awaitility.await().until(() -> sends.issued.get() > issuedAtClose + 10 * BURST);
-        sends.stop.set(true);
-        sender.join();
+        int created;
+        try {
+            Awaitility.await().until(() -> sends.segmentsAcked.size() == 2);
+            created = producer.segmentProducersCreated.get();
+            // Closing the client fails the sends its v4 producers hold; the sender keeps sending
+            // meanwhile.
+            client.close();
+            int issuedAtClose = sends.issued.get();
+            Awaitility.await().until(() -> sends.issued.get() > issuedAtClose + 10 * BURST);
+        } finally {
+            stopSender(sender, sends);
+        }
 
         // Every send is over right away: nothing waits for a layout that is never coming.
         allSettled(sends).get(10, TimeUnit.SECONDS);
