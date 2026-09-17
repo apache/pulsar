@@ -114,7 +114,7 @@ public class PulsarByteBufAllocator {
                             + "." + key.substring(PROPERTY_PREFIX.length()));
                     return override != null ? override : propertyResolver.apply(key);
                 };
-                ByteBufAllocator nettyAllocator = createNettyAllocator(resolveAllocatorType(resolver), name);
+                ByteBufAllocator nettyAllocator = createNettyAllocator(resolveAllocatorType(resolver, name), name);
                 return new RegisteredAllocator(createByteBufAllocator(name, resolver, nettyAllocator),
                         ((ByteBufAllocatorMetricProvider) nettyAllocator).metric());
             }).allocator();
@@ -131,12 +131,24 @@ public class PulsarByteBufAllocator {
 
     @VisibleForTesting
     static AllocatorType resolveAllocatorType(Function<String, String> propertyResolver) {
+        return resolveAllocatorType(propertyResolver, DEFAULT_ALLOCATOR_NAME);
+    }
+
+    private static AllocatorType resolveAllocatorType(Function<String, String> propertyResolver, String id) {
         String type = propertyResolver.apply(PULSAR_ALLOCATOR_TYPE);
         if (type != null) {
             return AllocatorType.fromString(type);
         }
         String pooled = propertyResolver.apply(PULSAR_ALLOCATOR_POOLED);
-        return pooled == null || "true".equalsIgnoreCase(pooled) ? AllocatorType.POOLED : AllocatorType.UNPOOLED;
+        if (pooled != null) {
+            return "true".equalsIgnoreCase(pooled) ? AllocatorType.POOLED : AllocatorType.UNPOOLED;
+        }
+        if (DEFAULT_ALLOCATOR_NAME.equals(id)) {
+            return AllocatorType.POOLED;
+        }
+        // Cache copies are commonly small, similarly sized entries. Adaptive reuses freed size-class slots
+        // within smaller chunks, limiting fragmentation from entries with different cache lifetimes.
+        return ML_CACHE_ALLOCATOR_NAME.equals(id) ? AllocatorType.ADAPTIVE : AllocatorType.POOLED;
     }
 
     private static ByteBufAllocator createNettyAllocator(AllocatorType type, String id) {
@@ -161,7 +173,7 @@ public class PulsarByteBufAllocator {
 
     private static ByteBufAllocator createByteBufAllocator(String id, Function<String, String> propertyResolver,
                                                           ByteBufAllocator nettyAllocator) {
-        final AllocatorType allocatorType = resolveAllocatorType(propertyResolver);
+        final AllocatorType allocatorType = resolveAllocatorType(propertyResolver, id);
         final boolean isExitOnOutOfMemory = "true".equalsIgnoreCase(
                 propertyResolver.apply(PULSAR_ALLOCATOR_EXIT_ON_OOM));
         final OutOfMemoryPolicy outOfMemoryPolicy = OutOfMemoryPolicy.valueOf(

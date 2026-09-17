@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
 import static org.testng.Assert.assertEquals;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -44,11 +44,11 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
     public void testReadOnlyManagedLedgerImplAttachProperties()
             throws ManagedLedgerException, InterruptedException, ExecutionException, TimeoutException {
         final ManagedLedger ledger = factory.open(MANAGED_LEDGER_NAME_ATTACHED_PROPERTIES,
-                new ManagedLedgerConfig().setRetentionTime(1, TimeUnit.HOURS));
+                rawEntryConfig().setRetentionTime(1, TimeUnit.HOURS));
         final String propertiesKey = "test-key";
         final String propertiesValue = "test-value";
 
-        ledger.setConfig(new ManagedLedgerConfig());
+        ledger.setConfig(rawEntryConfig());
         ledger.addEntry("entry-0".getBytes());
         Map<String, String> properties = new HashMap<>();
         properties.put(propertiesKey, propertiesValue);
@@ -70,7 +70,7 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
                     public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
                         future.completeExceptionally(exception);
                     }
-                }, new ManagedLedgerConfig(), null);
+                }, rawEntryConfig(), null);
 
         future.get(60, TimeUnit.SECONDS);
     }
@@ -79,8 +79,8 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
     public void testReadOnlyManagedLedgerImplNoProperties()
             throws ManagedLedgerException, InterruptedException, ExecutionException, TimeoutException {
         final ManagedLedger ledger = factory.open(MANAGED_LEDGER_NAME_NON_PROPERTIES,
-                new ManagedLedgerConfig().setRetentionTime(1, TimeUnit.HOURS));
-        ledger.setConfig(new ManagedLedgerConfig());
+                rawEntryConfig().setRetentionTime(1, TimeUnit.HOURS));
+        ledger.setConfig(rawEntryConfig());
         ledger.addEntry("entry-0".getBytes());
         CompletableFuture<Void> future = new CompletableFuture<>();
         factory.asyncOpenReadOnlyManagedLedger(MANAGED_LEDGER_NAME_NON_PROPERTIES,
@@ -96,7 +96,7 @@ public class ReadOnlyManagedLedgerImplTest extends MockedBookKeeperTestCase {
                     public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
                         future.completeExceptionally(exception);
                     }
-                }, new ManagedLedgerConfig(), null);
+                }, rawEntryConfig(), null);
 
         future.get(60, TimeUnit.SECONDS);
     }
