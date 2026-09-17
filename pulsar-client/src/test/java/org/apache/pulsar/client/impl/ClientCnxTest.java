@@ -48,6 +48,7 @@ import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -288,6 +289,32 @@ public class ClientCnxTest {
         assertEquals(cnx.producers.size(), 0);
 
         verify(producer).connectionClosed(cnx, Optional.empty(), Optional.empty());
+
+        eventLoop.shutdownGracefully();
+    }
+
+    @Test
+    public void testSendReceiptForRemovedProducerIsIgnored() {
+        ThreadFactory threadFactory = new DefaultThreadFactory("testSendReceiptForRemovedProducerIsIgnored");
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
+        cnx.state = ClientCnx.State.Ready;
+
+        // A receipt for a producer the broker has already told the client to close, as happens when
+        // its topic is terminated with sends in flight, is dropped rather than failing the connection.
+        long producerId = 1;
+        CommandSendReceipt receipt = new CommandSendReceipt()
+                .setProducerId(producerId)
+                .setSequenceId(5)
+                .setHighestSequenceId(5);
+        receipt.setMessageId().setLedgerId(3).setEntryId(7);
+        cnx.handleSendReceipt(receipt);
+
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
+        cnx.registerProducer(producerId, producer);
+        cnx.handleSendReceipt(receipt);
+        verify(producer).ackReceived(cnx, 5, 5, 3, 7);
 
         eventLoop.shutdownGracefully();
     }
