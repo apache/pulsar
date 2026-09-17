@@ -184,11 +184,11 @@ final class V5ReceiveQueue<T> {
                 // been appended straight to the buffer.
                 return;
             }
-            Message<T> msg = pollBehindPendingReceives();
+            Message<T> msg = pollBehindPendingReceives(result);
             if (msg != null) {
                 result.complete(msg);
                 maybeResumeProducers();
-            } else {
+            } else if (!result.isDone()) {
                 addPendingReceive(result);
             }
         });
@@ -211,10 +211,13 @@ final class V5ReceiveQueue<T> {
                 // been appended straight to the buffer.
                 return;
             }
-            Message<T> msg = pollBehindPendingReceives();
+            Message<T> msg = pollBehindPendingReceives(result);
             if (msg != null) {
                 result.complete(msg);
                 maybeResumeProducers();
+                return;
+            }
+            if (result.isDone()) {
                 return;
             }
             long millis = timeout.toMillis();
@@ -241,12 +244,14 @@ final class V5ReceiveQueue<T> {
      * receives are still waiting. Messages are appended to the buffer without going through the
      * executor, so a message can sit there while an older receive is parked; that receive was
      * registered first and must be served first, so hand the older ones what is buffered and
-     * report nothing for the newcomer while any of them remains.
+     * report nothing for the newcomer while any of them remains. Completing an older receive runs
+     * its continuations inline, and one of them may cancel the newcomer: it must then not consume
+     * a message either.
      */
-    private Message<T> pollBehindPendingReceives() {
+    private Message<T> pollBehindPendingReceives(CompletableFuture<?> newcomer) {
         if (!pendingReceives.isEmpty()) {
             drainToPendingReceives();
-            if (!pendingReceives.isEmpty()) {
+            if (!pendingReceives.isEmpty() || newcomer.isDone()) {
                 return null;
             }
         }
@@ -307,17 +312,18 @@ final class V5ReceiveQueue<T> {
                 result.complete(batch);
             } else {
                 batch.add(msg);
-                drainReady(batch, max).thenRun(() -> collectMulti(batch, max, deadlineNanos, result));
+                drainReady(batch, max, result).thenRun(() -> collectMulti(batch, max, deadlineNanos, result));
             }
         });
     }
 
     /** Move whatever is already buffered into {@code batch} (up to {@code max} total). */
-    private CompletableFuture<Void> drainReady(List<Message<T>> batch, int max) {
+    private CompletableFuture<Void> drainReady(List<Message<T>> batch, int max,
+                                               CompletableFuture<List<Message<T>>> result) {
         CompletableFuture<Void> done = new CompletableFuture<>();
         executor.execute(() -> {
             Message<T> m;
-            while (batch.size() < max && (m = pollBehindPendingReceives()) != null) {
+            while (batch.size() < max && !result.isDone() && (m = pollBehindPendingReceives(result)) != null) {
                 batch.add(m);
             }
             maybeResumeProducers();

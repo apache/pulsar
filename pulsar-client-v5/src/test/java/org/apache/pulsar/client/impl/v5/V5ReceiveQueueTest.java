@@ -425,6 +425,52 @@ public class V5ReceiveQueueTest {
         }
     }
 
+    @Test
+    public void olderReceiveContinuationCancellingTheNewcomerDoesNotLoseAMessage() throws Exception {
+        CompletableFuture<Message<Integer>> a = queue.receiveAsync();
+        flush();
+        CountDownLatch gate = stallExecutor();
+        try {
+            CompletableFuture<Message<Integer>> b = queue.receiveAsync();
+            // Serving A runs this inline on the executor, right before B would poll for itself.
+            a.thenRun(() -> b.cancel(false));
+            Message<Integer> m1 = msg(1);
+            Message<Integer> m2 = msg(2);
+            queue.offer(m1);
+            queue.offer(m2);
+            gate.countDown();
+            assertSame(a.get(5, TimeUnit.SECONDS), m1);
+            flush();
+            assertTrue(b.isCancelled());
+            // The cancelled B must not have taken m2 with it.
+            assertSame(queue.poll(Duration.ofSeconds(1)), m2);
+        } finally {
+            gate.countDown();
+        }
+    }
+
+    @Test
+    public void olderReceiveContinuationCancellingTheNewcomerTimedDoesNotLoseAMessage() throws Exception {
+        CompletableFuture<Message<Integer>> a = queue.receiveAsync(Duration.ofSeconds(30));
+        flush();
+        CountDownLatch gate = stallExecutor();
+        try {
+            CompletableFuture<Message<Integer>> b = queue.receiveAsync(Duration.ofSeconds(30));
+            a.thenRun(() -> b.cancel(false));
+            Message<Integer> m1 = msg(1);
+            Message<Integer> m2 = msg(2);
+            queue.offer(m1);
+            queue.offer(m2);
+            gate.countDown();
+            assertSame(a.get(5, TimeUnit.SECONDS), m1);
+            flush();
+            assertTrue(b.isCancelled());
+            assertSame(queue.poll(Duration.ofSeconds(1)), m2);
+        } finally {
+            gate.countDown();
+        }
+    }
+
     /** Block the single executor thread until the returned latch is counted down. */
     private CountDownLatch stallExecutor() {
         CountDownLatch gate = new CountDownLatch(1);
