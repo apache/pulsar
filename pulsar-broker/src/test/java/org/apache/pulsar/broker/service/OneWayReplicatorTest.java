@@ -930,13 +930,18 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             producer1.send("msg" + i);
         }
 
-        // Inject a probable error.
-        AtomicInteger roundrobin = new  AtomicInteger();
+        // Alternate failed and successful reads, then let storage recover. Failing every other read
+        // forever keeps resetting the read batch size to one and requires a backoff for each message.
+        int maxInjectedErrors = 3;
+        AtomicInteger readAttempts = new AtomicInteger();
+        AtomicInteger injectedErrors = new AtomicInteger();
         Supplier<ManagedLedgerException> bkErrorOrNot = () -> {
-            if (roundrobin.incrementAndGet() % 2 == 0) {
-                return null;
+            int attempt = readAttempts.incrementAndGet();
+            if (attempt <= maxInjectedErrors * 2 && attempt % 2 == 1) {
+                injectedErrors.incrementAndGet();
+                return new ManagedLedgerException.TooManyRequestsException("mocked error");
             }
-            return new ManagedLedgerException.TooManyRequestsException("mocked error");
+            return null;
         };
         // bkErrorOrNot doesn't block, so evaluate it inline on the calling read thread via directExecutor().
         ManagedLedgerTest.makeReadEntryProbFail(ml1, bkErrorOrNot, MoreExecutors.directExecutor());
@@ -945,10 +950,12 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         pulsar1.getConfig().setReplicationStartAt("earliest");
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
         waitReplicatorStarted(topicName);
-        Awaitility.await().atMost(Duration.ofSeconds(600)).pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
             TopicStats topicStats = admin1.topics().getStats(topicName);
             assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 0);
         });
+
+        assertEquals(injectedErrors.get(), maxInjectedErrors);
 
         // Verify: messages were replicated.
         admin2.topics().createSubscription(topicName, subscription, MessageId.earliest);
