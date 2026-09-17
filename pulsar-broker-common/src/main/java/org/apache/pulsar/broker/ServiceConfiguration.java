@@ -2376,9 +2376,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "When disabled:\n"
                     + " - Cache behaves more like a FIFO queue with time-based and size-based eviction\n"
                     + " - Minimum eviction time is managedLedgerCacheEvictionTimeThresholdMillis\n"
-                    + "Default is true, to behave like a LRU cache."
+                    + "Default is false, to avoid extending cache retention for entries that have already been read."
     )
-    private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = true;
+    private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = false;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
