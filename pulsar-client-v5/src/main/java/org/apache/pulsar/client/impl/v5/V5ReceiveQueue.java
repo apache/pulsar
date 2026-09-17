@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import java.time.Duration;
@@ -81,6 +82,10 @@ final class V5ReceiveQueue<T> {
     private volatile boolean producersPaused = false;
     private volatile boolean closed = false;
 
+    /** Test seam: runs on the executor between the pause decision and its publication. */
+    @VisibleForTesting
+    volatile Runnable beforePausePublishedHook;
+
     V5ReceiveQueue(ExecutorService executor, Timer timer, int receiverQueueSize) {
         this.executor = executor;
         this.timer = timer;
@@ -128,8 +133,17 @@ final class V5ReceiveQueue<T> {
         // paused ones starve (v4 MultiTopicsConsumerImpl's fairness clause).
         if (!closed && (buffer.size() >= highWatermark
                 || (!capacityWaiters.isEmpty() && buffer.size() > lowWatermark))) {
+            Runnable hook = beforePausePublishedHook;
+            if (hook != null) {
+                hook.run();
+            }
             capacityWaiters.add(capacity);
             producersPaused = true;
+            // A direct receive that drained the buffer between the check above and this
+            // publication saw producersPaused == false and posted no resume. Look again now that
+            // the pause is visible: that receive decrements the size before reading the flag and
+            // we publish the flag before reading the size, so one side always sees the other.
+            maybeResumeProducers();
         } else {
             capacity.complete(null);
         }
@@ -170,7 +184,7 @@ final class V5ReceiveQueue<T> {
                 // been appended straight to the buffer.
                 return;
             }
-            Message<T> msg = buffer.poll();
+            Message<T> msg = pollBehindPendingReceives();
             if (msg != null) {
                 result.complete(msg);
                 maybeResumeProducers();
@@ -197,7 +211,7 @@ final class V5ReceiveQueue<T> {
                 // been appended straight to the buffer.
                 return;
             }
-            Message<T> msg = buffer.poll();
+            Message<T> msg = pollBehindPendingReceives();
             if (msg != null) {
                 result.complete(msg);
                 maybeResumeProducers();
@@ -220,6 +234,23 @@ final class V5ReceiveQueue<T> {
             addPendingReceive(result);
         });
         return result;
+    }
+
+    /**
+     * Runs on {@code executor}: the next buffered message for a new receive — unless older
+     * receives are still waiting. Messages are appended to the buffer without going through the
+     * executor, so a message can sit there while an older receive is parked; that receive was
+     * registered first and must be served first, so hand the older ones what is buffered and
+     * report nothing for the newcomer while any of them remains.
+     */
+    private Message<T> pollBehindPendingReceives() {
+        if (!pendingReceives.isEmpty()) {
+            drainToPendingReceives();
+            if (!pendingReceives.isEmpty()) {
+                return null;
+            }
+        }
+        return buffer.poll();
     }
 
     /** Runs on {@code executor}: park an async receive until the next message arrives. */
@@ -286,7 +317,7 @@ final class V5ReceiveQueue<T> {
         CompletableFuture<Void> done = new CompletableFuture<>();
         executor.execute(() -> {
             Message<T> m;
-            while (batch.size() < max && (m = buffer.poll()) != null) {
+            while (batch.size() < max && (m = pollBehindPendingReceives()) != null) {
                 batch.add(m);
             }
             maybeResumeProducers();

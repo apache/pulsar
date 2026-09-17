@@ -35,6 +35,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.MessageId;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
@@ -337,6 +338,104 @@ public class V5ReceiveQueueTest {
         } finally {
             gate.countDown();
         }
+    }
+
+    @Test
+    public void directReceiveDuringPausePublicationStillResumesTheProducer() throws Exception {
+        // receiverQueueSize=1: the first message fills the buffer, so its offer goes to the
+        // executor to decide the pause.
+        V5ReceiveQueue<Integer> q = new V5ReceiveQueue<>(executor, timer, 1);
+        AtomicReference<Message<Integer>> taken = new AtomicReference<>();
+        // Between the executor's size check and the pause publication, a blocking receive
+        // drains the buffer. It sees producersPaused == false, so it schedules no resume.
+        q.beforePausePublishedHook = () -> {
+            q.beforePausePublishedHook = null;
+            try {
+                taken.set(q.take());
+            } catch (PulsarClientException e) {
+                throw new RuntimeException(e);
+            }
+        };
+        Message<Integer> m = msg(1);
+        CompletableFuture<Void> capacity = q.offer(m);
+        // The producer must not stay parked against an empty buffer.
+        capacity.get(5, TimeUnit.SECONDS);
+        assertSame(taken.get(), m);
+    }
+
+    @Test
+    public void olderPendingReceiveIsServedBeforeANewerOne() throws Exception {
+        CompletableFuture<Message<Integer>> a = queue.receiveAsync();
+        flush(); // A is registered, waiting on an empty buffer
+        CountDownLatch gate = stallExecutor();
+        try {
+            CompletableFuture<Message<Integer>> b = queue.receiveAsync(); // queued behind the gate
+            Message<Integer> m1 = msg(1);
+            Message<Integer> m2 = msg(2);
+            queue.offer(m1); // appended straight to the buffer; A's drain queues behind B
+            queue.offer(m2);
+            gate.countDown();
+            assertSame(a.get(5, TimeUnit.SECONDS), m1);
+            assertSame(b.get(5, TimeUnit.SECONDS), m2);
+        } finally {
+            gate.countDown();
+        }
+    }
+
+    @Test
+    public void olderPendingReceiveIsServedBeforeANewerTimedOne() throws Exception {
+        CompletableFuture<Message<Integer>> a = queue.receiveAsync(Duration.ofSeconds(30));
+        flush();
+        CountDownLatch gate = stallExecutor();
+        try {
+            CompletableFuture<Message<Integer>> b = queue.receiveAsync(Duration.ofSeconds(30));
+            Message<Integer> m1 = msg(1);
+            Message<Integer> m2 = msg(2);
+            queue.offer(m1);
+            queue.offer(m2);
+            gate.countDown();
+            assertSame(a.get(5, TimeUnit.SECONDS), m1);
+            assertSame(b.get(5, TimeUnit.SECONDS), m2);
+        } finally {
+            gate.countDown();
+        }
+    }
+
+    @Test
+    public void receiveMultiDoesNotOvertakeAnOlderPendingReceive() throws Exception {
+        CompletableFuture<Message<Integer>> a = queue.receiveAsync();
+        flush();
+        CountDownLatch gate = stallExecutor();
+        try {
+            CompletableFuture<List<Message<Integer>>> batch = queue.receiveMultiAsync(2, Duration.ofSeconds(30));
+            Message<Integer> m1 = msg(1);
+            Message<Integer> m2 = msg(2);
+            Message<Integer> m3 = msg(3);
+            queue.offer(m1);
+            queue.offer(m2);
+            queue.offer(m3);
+            gate.countDown();
+            assertSame(a.get(5, TimeUnit.SECONDS), m1);
+            List<Message<Integer>> got = batch.get(5, TimeUnit.SECONDS);
+            assertEquals(got.size(), 2);
+            assertSame(got.get(0), m2);
+            assertSame(got.get(1), m3);
+        } finally {
+            gate.countDown();
+        }
+    }
+
+    /** Block the single executor thread until the returned latch is counted down. */
+    private CountDownLatch stallExecutor() {
+        CountDownLatch gate = new CountDownLatch(1);
+        executor.execute(() -> {
+            try {
+                gate.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        return gate;
     }
 
     private static Message<Integer> msg(int id) {
