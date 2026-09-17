@@ -132,6 +132,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         AtomicInteger counter = new AtomicInteger();
         InFlightTask injectedTask = new InFlightTask(PositionFactory.create(1, 1), 1, replicator.getReplicatorId());
         injectedTask.setEntries(Collections.emptyList());
+        injectedTask.setSubmissionComplete(true);
         InFlightTask spyTask = spy(injectedTask);
         replicator.inFlightTasks.add(spyTask);
         doAnswer(new Answer<Object>() {
@@ -220,6 +221,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         try {
             InFlightTask task = new InFlightTask(PositionFactory.create(1, 1), 1, replicator.getReplicatorId());
             task.setEntries(Collections.singletonList(mock(Entry.class)));
+            task.setSubmissionComplete(true);
             inFlightTasks.add(task);
             assertEquals(replicator.getPermitsIfNoPendingRead(), 999);
 
@@ -646,8 +648,10 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
         Assert.assertEquals(inFlightTasks.size(), 1, "Queue should have one task");
         Assert.assertEquals(task1.getReadPos(), position1, "Task should have the correct position");
         Assert.assertEquals(task1.getReadingEntries(), 10, "Task should have the correct reading entries count");
-        // Mark the task as done to test recycling
+        // A result cannot be recycled while its submission loop is still active, even if it is empty.
         task1.setEntries(Collections.emptyList());
+        Assert.assertFalse(task1.isDone(), "An active submission must not be recyclable");
+        task1.setSubmissionComplete(true);
 
         // Test Case 2: Recycle an existing task
         Position position2 = PositionFactory.create(2, 2);
@@ -707,6 +711,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             Position position2 = PositionFactory.create(2, 2);
             InFlightTask task2 = new InFlightTask(position2, 3, "");
             task2.setEntries(Arrays.asList(mock(Entry.class), mock(Entry.class)));
+            task2.setSubmissionComplete(true);
             inFlightTasks.add(task2);
             Assert.assertEquals(replicator.getInflightMessagesCount(), 2);
 
@@ -724,6 +729,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             Position position3 = PositionFactory.create(3, 3);
             InFlightTask task3 = new InFlightTask(position3, 4, "");
             task3.setEntries(Arrays.asList(mock(Entry.class), mock(Entry.class), mock(Entry.class)));
+            task3.setSubmissionComplete(true);
             task3.setCompletedEntries(1);
             inFlightTasks.add(task3);
             Assert.assertEquals(replicator.getInflightMessagesCount(), 2);
@@ -735,6 +741,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             Position position4 = PositionFactory.create(4, 4);
             InFlightTask task4 = new InFlightTask(position4, 2, "");
             task4.setEntries(Collections.emptyList());
+            task4.setSubmissionComplete(true);
             inFlightTasks.add(task4);
             Assert.assertEquals(replicator.getInflightMessagesCount(), 2);
 
@@ -781,6 +788,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             InFlightTask completedReadTask = new InFlightTask(position2, 5, "");
             completedReadTask.setEntries(Arrays.asList(
                     mock(Entry.class), mock(Entry.class), mock(Entry.class)));
+            completedReadTask.setSubmissionComplete(true);
             inFlightTasks.add(completedReadTask);
             Assert.assertEquals(replicator.getPermitsIfNoPendingRead(), 1000 - 3,
                     "With completed read task, should return producerQueueSize - inflightMessages");
@@ -789,6 +797,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             Position position3 = PositionFactory.create(3, 3);
             InFlightTask task2 = new InFlightTask(position3, 5, "");
             task2.setEntries(Arrays.asList(mock(Entry.class), mock(Entry.class)));
+            task2.setSubmissionComplete(true);
             task2.setCompletedEntries(1); // 1 in-flight message
             inFlightTasks.add(task2);
             // Now we have 3 + 1 = 4 in-flight messages
@@ -912,6 +921,7 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
                 replicator.createOrRecycleInFlightTaskIntoQueue(PositionFactory.create(1, 1), 1);
         return () -> {
             inFlightTask.setEntries(Collections.emptyList());
+            inFlightTask.setSubmissionComplete(true);
             replicator.readMoreEntries();
         };
     }

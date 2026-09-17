@@ -3106,6 +3106,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // (3) Validate: cache discards all entries after all cursors are deactivated
         ledger.deactivateCursor(cursor1);
+        ledger.waitForPendingCacheEvictions();
         assertEquals(entryCache.getSize(), 0);
 
         ledger.close();

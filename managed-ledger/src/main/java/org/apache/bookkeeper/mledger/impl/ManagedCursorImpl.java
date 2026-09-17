@@ -4150,6 +4150,9 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (maxSizeBytes == NO_MAX_SIZE_LIMIT) {
             return maxEntries;
         }
+        if (maxSizeBytes > 0 && ledger.isBatchReadEnabled()) {
+            maxSizeBytes = Math.min(maxSizeBytes, ledger.getNettyMaxFrameSizeBytes());
+        }
         int estimatedEntryCount = estimateEntryCountByBytesSize(maxEntries, maxSizeBytes, readPosition, ledger);
         return Math.min(estimatedEntryCount, maxEntries);
     }

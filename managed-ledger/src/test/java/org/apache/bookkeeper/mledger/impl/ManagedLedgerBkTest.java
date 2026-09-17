@@ -521,7 +521,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
     public void testLedgerCallbacksRunOnManagedLedgerThread() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2)
+        ManagedLedgerConfig config = rawEntryConfig().setMaxEntriesPerLedger(2)
                 .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("ml-thread-callbacks-" + UUID.randomUUID(), config);
         ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");

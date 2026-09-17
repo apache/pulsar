@@ -3152,7 +3152,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 60000)
     void testScanFromLedgerThreadOverCachedEntries() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger_scan_inline");
+        ManagedLedger ledger = factory.open("my_test_ledger_scan_inline", rawEntryConfig());
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         int numEntries = 2000;
         for (int i = 0; i < numEntries; i++) {
@@ -6820,6 +6820,38 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.applyMaxSizeCap(200, Long.MAX_VALUE), 200);
         ml.deleteCursor("c1");
         ml.delete();
+    }
+
+    @Test
+    public void testApplyMaxSizeCapUsesNettyFrameSizeForBatchReads() throws Exception {
+        int configuredFrameSize = bkc.getConf().getNettyMaxFrameSizeBytes();
+        bkc.getConf().setNettyMaxFrameSizeBytes(512);
+        try {
+            @Cleanup
+            ManagedLedgerImpl batchReadLedger = (ManagedLedgerImpl) factory.open(
+                    "testApplyMaxSizeCapUsesNettyFrameSizeForBatchReads", initManagedLedgerConfig(rawEntryConfig()));
+            @Cleanup
+            ManagedCursorImpl batchReadCursor =
+                    (ManagedCursorImpl) batchReadLedger.openCursor("batch-read-cursor");
+            batchReadLedger.addEntry(new byte[1000]);
+            assertTrue(batchReadLedger.isBatchReadEnabled());
+            assertEquals(batchReadCursor.applyMaxSizeCap(200, Long.MAX_VALUE), 1);
+            assertEquals(batchReadCursor.applyMaxSizeCap(200, NO_MAX_SIZE_LIMIT), 200);
+
+            ManagedLedgerConfig disabledBatchReadConfig = initManagedLedgerConfig(rawEntryConfig());
+            disabledBatchReadConfig.setBatchReadEnabled(false);
+            @Cleanup
+            ManagedLedgerImpl disabledBatchReadLedger = (ManagedLedgerImpl) factory.open(
+                    "testApplyMaxSizeCapDoesNotUseNettyFrameSizeWithoutBatchReads", disabledBatchReadConfig);
+            @Cleanup
+            ManagedCursorImpl disabledBatchReadCursor =
+                    (ManagedCursorImpl) disabledBatchReadLedger.openCursor("disabled-batch-read-cursor");
+            disabledBatchReadLedger.addEntry(new byte[1000]);
+            assertFalse(disabledBatchReadLedger.isBatchReadEnabled());
+            assertEquals(disabledBatchReadCursor.applyMaxSizeCap(200, Long.MAX_VALUE), 200);
+        } finally {
+            bkc.getConf().setNettyMaxFrameSizeBytes(configuredFrameSize);
+        }
     }
 
     @Test

@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Disconnected;
-import static org.apache.pulsar.broker.service.AbstractReplicator.State.Disconnecting;
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Started;
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Starting;
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Terminated;
@@ -38,6 +37,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Data;
 import lombok.Getter;
@@ -124,6 +124,16 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected ReasonOfWaitForCursorRewinding reasonOfWaitForCursorRewinding = null;
 
     protected final LinkedList<InFlightTask> inFlightTasks = new LinkedList<>();
+
+    // Guarded by inFlightTasks. Ownership spans cursor invocation and complete batch submission,
+    // including synchronous callbacks. ACKs and read completions only publish work to the owner.
+    private boolean processingReads;
+    private boolean readRequested;
+    private boolean cancelReadRequested;
+    private boolean rewindRequested;
+    private boolean readRetryScheduled;
+    private long readRetryNotBeforeNanos = System.nanoTime();
+    private static final int MAX_READ_PROCESSING_STEPS_PER_TURN = 64;
 
     public PersistentReplicator(String localCluster, PersistentTopic localTopic, ManagedCursor cursor,
                                 String remoteCluster, String remoteTopic,
@@ -297,160 +307,215 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     protected void readMoreEntries() {
-        if (state.equals(Terminated) || state.equals(Terminating)) {
-            return;
-        }
-        InFlightTask newInFlightTask = null;
-        ReadLimits readLimits = null;
+        requestReadProcessing(true);
+    }
+
+    private void requestReadProcessing(boolean requestRead) {
         synchronized (inFlightTasks) {
-            if (hasPendingRead()) {
-                log.debug("Skip the reading because there is a pending read task");
-            } else if (waitForCursorRewindingRefCnf > 0) {
-                log.debug("Skip the reading due to new detected schema");
+            readRequested |= requestRead;
+            if (processingReads) {
+                return;
+            }
+            processingReads = true;
+        }
+        processReads();
+    }
+
+    private void processReads() {
+        try {
+            for (int i = 0; i < MAX_READ_PROCESSING_STEPS_PER_TURN; i++) {
+                if (!processRead()) {
+                    return;
+                }
+            }
+            // Keep ownership while yielding, so another callback cannot start a second drain.
+            brokerService.executor().execute(this::processReads);
+        } catch (Throwable t) {
+            log.error().exception(t).log("Unexpected failure processing replication reads");
+            // Invalidate work before releasing ownership. Termination publishes cleanup to this owner.
+            try {
+                terminate();
+            } finally {
+                synchronized (inFlightTasks) {
+                    processingReads = false;
+                }
+                requestReadProcessing(false);
+            }
+        }
+    }
+
+    /** Processes one read, result or recovery transition, with no callback invoked under the state lock. */
+    private boolean processRead() {
+        InFlightTask task;
+        ReadLimits limits = null;
+        boolean cancel;
+        boolean rewind = false;
+        long retryDelayMillis = 0;
+        synchronized (inFlightTasks) {
+            task = null;
+            for (InFlightTask candidate : inFlightTasks) {
+                if (!candidate.submissionComplete) {
+                    task = candidate;
+                    break;
+                }
+            }
+            cancel = cancelReadRequested;
+            cancelReadRequested = false;
+            if (cancel) {
+                // Cancellation belongs to the owner: a concurrent request may have arrived between
+                // registering a read and actually invoking the cursor.
+            } else if (task != null) {
+                if (task.entries == null) {
+                    processingReads = false;
+                    return false;
+                }
+                if (!task.skipReadResultDueToCursorRewind && task.readException == null
+                        && state != Started && state != Terminating && state != Terminated) {
+                    retryDelayMillis = Math.max(100, estimatedTimeStampProducerConnected
+                            - System.currentTimeMillis() + 100);
+                }
+            } else if (rewindRequested) {
+                rewindRequested = false;
+                rewind = state != Terminating && state != Terminated;
+            } else if (!readRequested || state == Terminating || state == Terminated
+                    || waitForCursorRewindingRefCnf > 0) {
+                processingReads = false;
+                return false;
             } else if (state != Started) {
-                log.debug("Skip the reading because producer has not started");
+                retryDelayMillis = MESSAGE_RATE_BACKOFF_MS;
+            } else if (readRetryNotBeforeNanos - System.nanoTime() > 0) {
+                retryDelayMillis = Math.max(1,
+                        TimeUnit.NANOSECONDS.toMillis(readRetryNotBeforeNanos - System.nanoTime()));
             } else {
                 int permits = getPermitsIfNoPendingRead();
                 if (permits > 0) {
-                    if (!isWritable()) {
-                        log.debug("Throttling replication traffic to a single message permit because producer is not "
-                                + "writable");
-                        // Minimize the read size if the producer is disconnected or the window is already full.
-                        permits = 1;
-                    }
-
-                    readLimits = getReadLimits(permits);
-                    if (readLimits.isReadable()) {
-                        newInFlightTask = createOrRecycleInFlightTaskIntoQueue(cursor.getReadPosition(),
-                                readLimits.messages);
-                    } else {
-                        // no rate limiter permits from rate limit
-                        log.debug()
-                                .attr("messages", readLimits.messages)
-                                .attr("bytes", readLimits.bytes)
-                                .log("Throttling replication traffic");
-                    }
+                    limits = getReadLimits(isWritable() ? permits : 1);
+                }
+                if (limits == null || !limits.isReadable()) {
+                    retryDelayMillis = MESSAGE_RATE_BACKOFF_MS;
+                } else {
+                    readRequested = false;
+                    task = createOrRecycleInFlightTaskIntoQueue(cursor.getReadPosition(), limits.messages);
                 }
             }
-        }
-        if (newInFlightTask == null) {
-            log.debug("Not scheduling read due to pending read or no permits");
-            if (!hasPendingRead()) {
-                topic.getBrokerService().executor().schedule(
-                        () -> readMoreEntries(), MESSAGE_RATE_BACKOFF_MS, TimeUnit.MILLISECONDS);
+            if (retryDelayMillis > 0) {
+                processingReads = false;
             }
-            return;
         }
-        log.debug()
-                .attr("readingEntries", newInFlightTask.readingEntries)
-                .log("Scheduling read");
-        cursor.asyncReadEntriesOrWait(newInFlightTask.readingEntries, readLimits.bytes, this,
-                newInFlightTask/* Context object */, topic.getMaxReadPosition());
+        if (retryDelayMillis > 0) {
+            try {
+                scheduleReadRetry(retryDelayMillis);
+                if (state == Disconnected) {
+                    startProducer();
+                }
+            } catch (Exception e) {
+                // Ownership was already released: a new owner might be running now. Do not let
+                // this failure reach the owner cleanup in processReads and clear its ownership.
+                log.error().exception(e).log("Failed to schedule replication read retry");
+                terminate();
+            }
+            return false;
+        }
+        if (cancel) {
+            if (task != null && task.entries == null && cursor.cancelPendingReadRequest()) {
+                synchronized (inFlightTasks) {
+                    task.entries = Collections.emptyList();
+                    task.submissionComplete = true;
+                }
+            }
+        } else if (rewind) {
+            cursor.rewind();
+        } else if (limits != null) {
+            try {
+                cursor.asyncReadEntriesOrWait(task.readingEntries, limits.bytes, this, task,
+                        topic.getMaxReadPosition());
+            } catch (Exception e) {
+                readEntriesFailed(ManagedLedgerException.getManagedLedgerException(e), task);
+            }
+        } else if (task != null) {
+            processReadResult(task);
+        }
+        return true;
+    }
+
+    private void scheduleReadRetry(long delayMillis) {
+        synchronized (inFlightTasks) {
+            if (readRetryScheduled || state == Terminating || state == Terminated) {
+                return;
+            }
+            readRetryScheduled = true;
+        }
+        try {
+            brokerService.executor().schedule(() -> {
+                synchronized (inFlightTasks) {
+                    readRetryScheduled = false;
+                }
+                readMoreEntries();
+            }, delayMillis, TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException e) {
+            synchronized (inFlightTasks) {
+                readRetryScheduled = false;
+            }
+            throw e;
+        }
     }
 
     @Override
     public void readEntriesComplete(List<Entry> entries, Object ctx) {
-        log.debug()
-                .attr("size", entries.size())
-                .log("Read entries complete");
-        InFlightTask inFlightTask = (InFlightTask) ctx;
+        synchronized (inFlightTasks) {
+            ((InFlightTask) ctx).entries = entries;
+        }
+        requestReadProcessing(false);
+    }
 
-        latestPublishTime = System.currentTimeMillis();
-        // The read result must be discarded because the replicator is terminating or the cursor was
-        // rewound while this read was in flight (e.g. after a failed publish or a schema change).
-        if (state == State.Terminated || state == State.Terminating
-                || inFlightTask.isSkipReadResultDueToCursorRewind()) {
-            for (Entry entry : entries) {
-                entry.release();
+    private void processReadResult(InFlightTask task) {
+        try {
+            if (task.readException != null) {
+                handleReadFailure(task.readException, task);
+                return;
             }
-            boolean resumeReads = state != State.Terminated && state != State.Terminating;
-            // Hold the inFlightTasks lock (the same lock doRewindCursor() and readMoreEntries()'s
-            // read-scheduling path use) so completing the task and rewinding the cursor here are atomic with
-            // respect to readMoreEntries(), which reads both the free read slot and the cursor read position
-            // under that lock; otherwise a concurrent read could observe the freed slot but the stale
-            // (advanced) read position.
+            latestPublishTime = System.currentTimeMillis();
+            if (state == Terminated || state == Terminating || task.skipReadResultDueToCursorRewind) {
+                task.entries.forEach(entry -> discardEntry(entry, null));
+                synchronized (inFlightTasks) {
+                    // Even a stale read may have advanced the cursor after recovery was requested.
+                    // Keep admission closed until the owner has discarded it and rewound the cursor.
+                    rewindRequested |= state != Terminated && state != Terminating;
+                    readRequested = true;
+                    task.entries = Collections.emptyList();
+                }
+                return;
+            }
+            readBatchSize = Math.min(readBatchSize * 2, getMaxReadBatchSize());
             synchronized (inFlightTasks) {
-                if (resumeReads) {
-                    // The discarded read already advanced the cursor read position past these still-unacked
-                    // messages (ManagedCursor advances the read position when a read completes), which
-                    // overwrites the earlier doRewindCursor(). Rewind again so the messages are re-read;
-                    // otherwise they stay stranded behind the read position and the backlog never drains.
-                    // rewind() resets the read position to the mark-delete position, so only unacked
-                    // messages are re-read; entries already acknowledged (replicated) are skipped on the
-                    // re-read. This makes the recovery at-least-once, with duplicates bounded to the
-                    // messages that were in flight when the rewind happened.
-                    cursor.rewind();
-                }
-                // Complete the task with an empty result so it releases its permit and no longer counts
-                // as a pending cursor read. Without this, a pending read that could not be cancelled
-                // (cursor.cancelPendingReadRequest() returns false for an already-dispatched read, which
-                // is the common case when there is a backlog) would stay entries == null forever, keeping
-                // hasPendingRead() permanently true and stalling replication.
-                if (inFlightTask.getEntries() == null) {
-                    inFlightTask.setEntries(Collections.emptyList());
-                }
+                readFailureBackoff.reduceToHalf();
             }
-            if (resumeReads) {
-                // Resume reading on the broker executor rather than calling readMoreEntries() directly:
-                // cursor reads can complete inline (cache hit), so a direct call risks deep
-                // readEntriesComplete -> readMoreEntries recursion (StackOverflowError), the same hazard
-                // PersistentDispatcherMultipleConsumers.readMoreEntriesAsync() guards against.
-                topic.getBrokerService().executor().execute(this::readMoreEntries);
+            boolean sent = replicateEntries(task.entries, task);
+            synchronized (inFlightTasks) {
+                readRequested |= !sent || isWritable();
             }
-            return;
-        }
-
-        // Retry to trigger read completes if it is not started.
-        Runnable retryReplicateEntries = () -> {
-            long estimatedTimeStampProducerConnected = this.estimatedTimeStampProducerConnected;
-            long delayMillis;
-            if (estimatedTimeStampProducerConnected > System.currentTimeMillis()) {
-                delayMillis = (estimatedTimeStampProducerConnected - System.currentTimeMillis()) + 100;
-            } else {
-                delayMillis = 100;
+        } finally {
+            synchronized (inFlightTasks) {
+                // A final ACK can arrive before sendAsync returns. It must not make this task
+                // recyclable while the submission loop still has a reference to it.
+                task.submissionComplete = true;
             }
-            cursor.scheduleReadCallback(() -> readEntriesComplete(entries, ctx), delayMillis, TimeUnit.MILLISECONDS);
-        };
-
-        // Retry.
-        if (state == Disconnecting ||  state == Starting) {
-            retryReplicateEntries.run();
-            return;
         }
-        // Start producer and retry.
-        if (state == Disconnected) {
-            startProducer();
-            retryReplicateEntries.run();
-            return;
+    }
+
+    /** Settle locally owned entries independently so one cleanup failure cannot strand the remaining batch. */
+    protected void discardEntry(Entry entry, MessageImpl<?> message) {
+        try {
+            entry.release();
+        } catch (Exception e) {
+            log.error().exception(e).log("Failed to release discarded replication entry");
         }
-
-        // After set entries, the next reading can be start.
-        inFlightTask.setEntries(entries);
-
-        // After the replicator starts, the speed will be gradually increased.
-        int maxReadBatchSize = getMaxReadBatchSize();
-        if (readBatchSize < maxReadBatchSize) {
-            int newReadBatchSize = Math.min(readBatchSize * 2, maxReadBatchSize);
-            log.debug()
-                    .attr("readBatchSize", readBatchSize)
-                    .attr("newReadBatchSize", newReadBatchSize)
-                    .log("Increasing read batch size");
-
-            readBatchSize = newReadBatchSize;
-        }
-
-        readFailureBackoff.reduceToHalf();
-
-        boolean atLeastOneMessageSentForReplication = replicateEntries(entries, inFlightTask);
-
-        if (atLeastOneMessageSentForReplication && !isWritable()) {
-            // Don't read any more entries until the current pending entries are persisted
-            log.debug()
-                    .attr("atLeastOneMessageSentForReplication", atLeastOneMessageSentForReplication)
-                    .attr("isWritable", isWritable())
-                    .log("Pausing replication traffic");
-        } else {
-            readMoreEntries();
+        if (message != null) {
+            try {
+                message.recycle();
+            } catch (Exception e) {
+                log.error().exception(e).log("Failed to recycle discarded replication message");
+            }
         }
     }
 
@@ -578,58 +643,40 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-        completeFailedReadTask(ctx);
-        if (state != Started) {
-            log.info("Replicator was disconnected while reading entries, stopping reads");
-            return;
+        synchronized (inFlightTasks) {
+            InFlightTask task = (InFlightTask) ctx;
+            task.readException = exception;
+            task.entries = Collections.emptyList();
         }
-
-        // Reduce read batch size to avoid flooding bookies with retries
-        readBatchSize = brokerService.pulsar().getConfiguration().getDispatcherMinReadBatchSize();
-
-        long waitTimeMillis = readFailureBackoff.next().toMillis();
-
-        if (exception instanceof CursorAlreadyClosedException) {
-            log.warn()
-                    .attr("ctx", ctx)
-                    .exception(exception)
-                    .log("Error reading entries because replicator is already deleted "
-                            + "and cursor is already closed");
-            // replicator is already deleted and cursor is already closed so, producer should also be disconnected.
-            terminate();
-            return;
-        } else if (!(exception instanceof TooManyRequestsException)) {
-            log.error()
-                    .attr("ctx", ctx)
-                    .attr("waitTimeSec", waitTimeMillis / 1000.0)
-                    .exception(exception)
-                    .log("Error reading entries, retrying");
-        } else {
-            log.debug()
-                    .attr("ctx", ctx)
-                    .attr("waitTimeSec", waitTimeMillis / 1000.0)
-                    .exception(exception)
-                    .log("Throttled by bookies while reading, retrying");
-        }
-
-        brokerService.executor().schedule(this::readMoreEntries, waitTimeMillis, TimeUnit.MILLISECONDS);
+        requestReadProcessing(false);
     }
 
-    private void completeFailedReadTask(Object ctx) {
-        if (!(ctx instanceof InFlightTask)) {
-            log.error()
-                    .attr("ctx", ctx)
-                    .log("Unexpected read entries failed context");
+    private void handleReadFailure(ManagedLedgerException exception, InFlightTask task) {
+        if (state != Started) {
             return;
         }
+        if (exception instanceof CursorAlreadyClosedException) {
+            log.warn().exception(exception).log("Cursor closed while reading replication entries");
+            terminate();
+            return;
+        }
+        readBatchSize = brokerService.pulsar().getConfiguration().getDispatcherMinReadBatchSize();
+        long waitTimeMillis = delayReadRetry();
+        synchronized (inFlightTasks) {
+            readRequested = true;
+        }
+        if (!(exception instanceof TooManyRequestsException)) {
+            log.error().attr("task", task).attr("waitTimeMillis", waitTimeMillis).exception(exception)
+                    .log("Error reading entries, retrying");
+        }
+    }
 
-        InFlightTask inFlightTask = (InFlightTask) ctx;
-        if (inFlightTask.entries == null) {
-            inFlightTask.setEntries(Collections.emptyList());
-        } else {
-            log.error()
-                    .attr("inFlightTask", inFlightTask)
-                    .log("Unexpected completed in-flight task in read entries failed callback");
+    /** Prevent an immediately failed operation from retrying in the same read-processing turn. */
+    protected long delayReadRetry() {
+        synchronized (inFlightTasks) {
+            long waitTimeMillis = readFailureBackoff.next().toMillis();
+            readRetryNotBeforeNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(waitTimeMillis);
+            return waitTimeMillis;
         }
     }
 
@@ -882,6 +929,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
         int readingEntries;
         volatile List<Entry> entries;
         volatile int completedEntries;
+        volatile boolean submissionComplete;
+        ManagedLedgerException readException;
         volatile boolean skipReadResultDueToCursorRewind;
         final String replicatorId;
 
@@ -901,6 +950,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
             this.readingEntries = readingEntries;
             this.entries = null;
             this.completedEntries = 0;
+            this.submissionComplete = false;
+            this.readException = null;
             this.skipReadResultDueToCursorRewind = false;
         }
 
@@ -911,10 +962,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
 
         public boolean isDone() {
-            if (entries == null) {
+            if (!submissionComplete || entries == null) {
                 return false;
             }
-            if (entries != null && entries.isEmpty()) {
+            if (entries.isEmpty()) {
                 return true;
             }
             return completedEntries >= entries.size();
@@ -999,45 +1050,23 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     protected void beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding reason) {
         synchronized (inFlightTasks) {
-            boolean hasCanceledPendingRead = cursor.cancelPendingReadRequest();
             reasonOfWaitForCursorRewinding = reason;
-            waitForCursorRewindingRefCnf += 1;
-            cancelPendingReadTasks(hasCanceledPendingRead);
+            waitForCursorRewindingRefCnf++;
+            for (InFlightTask task : inFlightTasks) {
+                task.skipReadResultDueToCursorRewind = true;
+            }
+            cancelReadRequested = true;
         }
+        requestReadProcessing(false);
     }
 
     protected void doRewindCursor(boolean triggerReadMoreEntries) {
         synchronized (inFlightTasks) {
-            cursor.rewind();
-            waitForCursorRewindingRefCnf -= 1;
+            rewindRequested = true;
+            waitForCursorRewindingRefCnf--;
             reasonOfWaitForCursorRewinding = null;
         }
-        if (triggerReadMoreEntries) {
-            readMoreEntries();
-        }
-    }
-
-    private void cancelPendingReadTasks(boolean canceledPendingRead) {
-        InFlightTask readingTask = null;
-        synchronized (inFlightTasks) {
-            for (InFlightTask task : inFlightTasks) {
-                task.setSkipReadResultDueToCursorRewind(true);
-                if (task.entries == null) {
-                    if (readingTask != null) {
-                        log.error()
-                                .attr("inFlightTasks", inFlightTasks)
-                                .log("Unexpected state because there are more than one tasks' state is pending read.");
-                    }
-                    readingTask = task;
-                }
-            }
-            // Correct state to avoid a replicate stuck because a pending reading task occupies permits.
-            // There is at most one reading task.
-            // The task will never receive a read completed callback if cancel pending reading successfully.
-            if (canceledPendingRead && readingTask != null) {
-                readingTask.setEntries(Collections.emptyList());
-            }
-        }
+        requestReadProcessing(triggerReadMoreEntries);
     }
 
     @Override

@@ -612,7 +612,8 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
     @Test
     public void writeErrorClosesFailedLedgerHandle() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("writeErrorClosesFailedLedgerHandle");
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "writeErrorClosesFailedLedgerHandle", rawEntryConfig());
         ManagedCursor cursor = ledger.openCursor("c1");
         ledger.addEntry("entry-1".getBytes());
         LedgerHandle failedLedger = ledger.currentLedger;
@@ -636,8 +637,8 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
 
     @Test
     public void concurrentlyModifiedLedgerHandleIsClosedAndWritesRecover() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory
-                .open("concurrentlyModifiedLedgerHandleIsClosedAndWritesRecover");
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "concurrentlyModifiedLedgerHandleIsClosedAndWritesRecover", rawEntryConfig());
         ManagedCursor cursor = ledger.openCursor("c1");
         ledger.addEntry("entry-1".getBytes());
         LedgerHandle fencedLedger = ledger.currentLedger;

@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 
 /**
  * Definition of all the callbacks used for the ManagedLedger asynchronous API.
@@ -82,10 +83,17 @@ public interface AsyncCallbacks {
         void closeFailed(ManagedLedgerException exception, Object ctx);
     }
 
+    /**
+     * Completion of an entry read, without a fixed callback thread. Success and failure callbacks may run inline;
+     * implementations must not block and must select an executor explicitly when thread affinity is needed.
+     * Future adapters in {@link ManagedLedgerUtils} do not introduce an executor handoff.
+     */
     interface ReadEntriesCallback {
         /**
          * May be invoked inline on the thread completing the read, including the calling thread for a cache hit.
-         * Implementations must not block and must schedule their own continuation when thread affinity is needed.
+         * The recipient owns the returned entries and must release each entry after processing or discarding it,
+         * including when its own shutdown or cancellation makes the result unnecessary.
+         * Callers chaining cursor reads must coordinate result processing as described in {@link ManagedCursor}.
          */
         void readEntriesComplete(List<Entry> entries, Object ctx);
 
