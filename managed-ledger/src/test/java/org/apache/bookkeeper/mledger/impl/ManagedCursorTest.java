@@ -3152,7 +3152,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 60000)
     void testScanFromLedgerThreadOverCachedEntries() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger_scan_inline", rawEntryConfig());
+        ManagedLedger ledger = factory.open("my_test_ledger_scan_inline",
+                rawEntryConfig().setReadEntriesCallbackInline(true));
         ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor("c1");
         int numEntries = 2000;
         for (int i = 0; i < numEntries; i++) {

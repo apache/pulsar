@@ -2575,6 +2575,7 @@ public class BrokerService implements Closeable {
                 managedLedgerConfig.setCacheEvictionByExpectedReadCount(false);
             }
             managedLedgerConfig.setBatchReadEnabled(serviceConfig.isManagedLedgerBatchReadEnabled());
+            managedLedgerConfig.setReadEntriesCallbackInline(serviceConfig.isManagedLedgerReadEntriesCallbackInline());
             managedLedgerConfig.setMinimumBacklogCursorsForCaching(
                     serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
             managedLedgerConfig.setMinimumBacklogEntriesForCaching(

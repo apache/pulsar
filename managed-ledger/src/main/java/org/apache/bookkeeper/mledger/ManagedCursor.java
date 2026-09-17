@@ -44,9 +44,10 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
  * <p/>The ManagedCursor is used to read from the ManagedLedger and to signal when the consumer is done with the
  * messages that it has read before.
  *
- * <p>Read callbacks may run before the asynchronous read method returns, including on the calling thread for a cache
- * hit, or on another completing thread. Callers must coordinate reads that advance the same cursor and processing of
- * their results: finish processing a result, or safely hand off its ownership, before initiating the next read.
+ * <p>Depending on the completion policy in {@link ManagedLedgerConfig}, successful read callbacks may run before the
+ * asynchronous read method returns, including on the calling thread for a cache hit, or on another completing thread.
+ * Failure callbacks can run inline regardless of that policy. Callers must coordinate reads advancing the cursor and
+ * processing of their results: finish processing a result, or safely hand off its ownership, before the next read.
  * The next read may be initiated from a callback, but callers must account for reentrant completion. Do not infer
  * callback ordering or exclusive access to caller state from the order of entries within a result or the callback
  * thread. See {@link ReadEntriesCallback} for completion and entry ownership responsibilities.

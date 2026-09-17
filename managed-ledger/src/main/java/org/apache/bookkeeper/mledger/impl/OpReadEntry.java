@@ -24,10 +24,11 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.CustomLog;
-import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -286,10 +287,20 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     private void complete(Object ctx) {
-        ThreadBoundExecutor executor = cursor.ledger.getExecutor();
-        // Complete on the reading thread instead of queueing behind unrelated ledger writes. A fully cached
-        // read can complete synchronously and start another read, so bound nesting on every completing thread.
-        // Queue once at the limit to unwind the stack; independent reads do not accumulate nesting depth.
+        Executor executor = cursor.ledger.getReadEntriesCallbackExecutor();
+        if (executor == null) {
+            completeWithDepthLimit(ctx);
+        } else {
+            try {
+                executor.execute(() -> completeWithDepthLimit(ctx));
+            } catch (RejectedExecutionException e) {
+                failCompletion(e, ctx);
+            }
+        }
+    }
+
+    private void completeWithDepthLimit(Object ctx) {
+        // A supplied executor can also execute directly. Guard the actual callback in every mode.
         int[] depth = INLINE_COMPLETION_DEPTH.get();
         if (depth[0] < MAX_NESTED_INLINE_COMPLETIONS) {
             depth[0]++;
@@ -299,8 +310,26 @@ class OpReadEntry implements ReadEntriesCallback {
                 depth[0]--;
             }
         } else {
-            executor.execute(() -> completeNow(ctx));
+            try {
+                // Unwind on the ledger executor, then honor the configured executor again.
+                cursor.ledger.getExecutor().execute(() -> complete(ctx));
+            } catch (RejectedExecutionException e) {
+                failCompletion(e, ctx);
+            }
         }
+    }
+
+    private void failCompletion(RejectedExecutionException exception, Object ctx) {
+        // Read accounting has already completed, but ownership never reached the callback.
+        for (Entry entry : entries) {
+            try {
+                entry.release();
+            } catch (Throwable t) {
+                log.error().exception(t).log("Failed to release entry after read-completion executor rejection");
+            }
+        }
+        entries.clear();
+        fail(ManagedLedgerException.getManagedLedgerException(exception), ctx);
     }
 
     private void completeNow(Object ctx) {
