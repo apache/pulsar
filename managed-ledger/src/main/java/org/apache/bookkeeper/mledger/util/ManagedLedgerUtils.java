@@ -84,8 +84,23 @@ public class ManagedLedgerUtils {
     public static CompletableFuture<List<Entry>> readEntriesWithSkipOrWait(
             ManagedCursor cursor, int maxEntries, long maxSizeBytes, Position maxPosition,
             @Nullable Predicate<Position> skipCondition) {
+        return readEntriesWithSkipOrWait(cursor, maxEntries, maxSizeBytes, maxPosition, skipCondition, false);
+    }
+
+    /**
+     * Reads entries with optional completion on the reading thread. When enabled, callers must dispatch continuations
+     * to their own executor if they require thread affinity or an asynchronous boundary between reads.
+     */
+    public static CompletableFuture<List<Entry>> readEntriesWithSkipOrWait(
+            ManagedCursor cursor, int maxEntries, long maxSizeBytes, Position maxPosition,
+            @Nullable Predicate<Position> skipCondition, boolean callbackCanExecuteOnAnyThread) {
         final var future = new CompletableFuture<List<Entry>>();
         cursor.asyncReadEntriesWithSkipOrWait(maxEntries, maxSizeBytes, new AsyncCallbacks.ReadEntriesCallback() {
+            @Override
+            public boolean canExecuteOnAnyThread() {
+                return callbackCanExecuteOnAnyThread;
+            }
+
             @Override
             public void readEntriesComplete(List<Entry> entries, Object ctx) {
                 future.complete(entries);

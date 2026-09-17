@@ -46,13 +46,13 @@ classic `persistent://` topic. Both variants profile a single broker and write r
 output under `tests/integration/build/pulsar-profiling`.
 
 The harness accepts a YAML scenario file through `PULSAR_PROFILING_CONFIG`. Start with
-[`pulsar-profiling.yaml`](pulsar-profiling.yaml); omitted values retain the existing defaults. The
-sections correspond to the main components of a run: `cluster`, `load` and `output`. Individual scalar
+[`pulsar-profiling.yaml`](scenarios/pulsar-profiling.yaml); omitted values retain the existing defaults. The
+sections correspond to the main components of a run: `cluster`, `load`, `profiling` and `output`. Individual scalar
 values can still be overridden for a one-off run with the `PULSAR_PROFILING_` prefix and an upper-case
 path, for example:
 
 ```bash
-PULSAR_PROFILING_CONFIG=tests/performance/pulsar-profiling.yaml \
+PULSAR_PROFILING_CONFIG="$PWD/tests/performance/scenarios/pulsar-profiling.yaml" \
 PULSAR_PROFILING_LOAD_NUMBER_OF_MESSAGES=1000000 \
 ./gradlew :tests:integration:profilingIntegrationTest --tests "*PulsarProfilingV4Test"
 ```
@@ -60,9 +60,69 @@ PULSAR_PROFILING_LOAD_NUMBER_OF_MESSAGES=1000000 \
 For the v4 scenario, set `load.isolatedProducers` or `load.isolatedConsumers` to create that many
 independent v4 client instances. The corresponding `pulsar-perf` command receives
 `--isolated-clients`; v5 ignores these fields. The option is mutually exclusive with the regular
-producer test-thread option and with consumer listener-thread expansion.
+producer test-thread option and with consumer listener-thread expansion. Set `load.producerCount`
+and `load.consumerCount` separately: creating clients does not create producers or consumers.
+`load.subscriptionType` selects the subscription type; `producerIoThreads` and `consumerIoThreads`
+size the shared client IO pools. `maxOutstanding` is per producer, not a global limit.
+Set `load.batchingEnabled: true` to use pulsar-perf's default producer batching; the default is
+`false`, preserving unbatched entry-by-entry measurements.
+
+Client profiling is optional and independent of broker profiling. Set `profiling.producerOptions`
+and/or `profiling.consumerOptions` to async-profiler options, for example
+`event=cpu,interval=10ms,lock=0,alloc=2m,jfrsync=profile`. An empty or null option disables that
+client's profiler. Client recordings are named `client-producer-*.jfr` and `client-consumer-*.jfr`
+in the same output directory. The harness grants native CPU profiling access only to enabled clients.
+The broker continues to use `-Pinttest.asyncprofiler.opts`. To inspect lock contention without
+wall-clock sampling overhead, omit `wall` and use `lock=0` to record all supported lock events.
+Use the same options for baseline and candidate; extra profiling has a measurement cost.
+
+Broker-side variations from the contention investigations need no dedicated environment switches:
+use `cluster.brokerEnvs` for write-buffer watermarks, dispatcher batch size, broker/BookKeeper IO
+thread counts and `PULSAR_GC`; use `cluster.brokerMemory` for heap/direct-memory limits and JVM
+properties such as allocator or transport selection. These maps let YAML scenarios retain the
+complete configuration instead of relying on shell history.
+
+The harness saves `resolved-config.yaml` with inheritance and environment overrides applied in the output directory.
 For v4 production, `--num-producers` remains the producer count per topic and is distributed across
 the isolated clients; when the counts differ, producers are assigned round-robin as evenly as possible.
+
+### Inheriting scenario configurations
+
+Use a top-level `extends` to inherit one file or a list of files:
+
+```yaml
+extends: [cluster.yaml, workloads/many-producers.yaml]
+load:
+  subscriptionType: Shared
+cluster:
+  brokerEnvs:
+    preciseDispatcherFlowControl: ~
+output:
+  directory: build/pulsar-profiling/shared
+```
+
+Each path is relative to the file declaring it; absolute paths also work. Parents can themselves
+inherit other files. Starting with the harness defaults, the loader visits each parent recursively
+in the listed order, then applies the current file. Later values win, mappings merge recursively,
+and scalar values and lists replace earlier values. Shared ancestors are applied on each visit;
+inheritance cycles, missing files and invalid `extends` entries are rejected. Environment overrides
+are applied last, and `resolved-config.yaml` contains the resulting values without `extends`.
+
+An explicit YAML `null` or `~` removes an entry, including a harness default. For example, the
+`preciseDispatcherFlowControl` removal above leaves that broker setting to the broker's own default.
+Deleting a mapping removes all its entries; a later mapping starts fresh. Required workload fields
+must still have valid values in the final configuration.
+
+## Reproducible scenarios
+
+- [Read-completion queue isolation](read-completion-isolation.md): 500 producers on separate
+  connections to one persistent topic, with one Exclusive consumer. Includes the
+  [scenario YAML](scenarios/read-completion-isolation.yaml), an inherited
+  [Shared-subscription variant](scenarios/read-completion-isolation-shared.yaml), a
+  [Failover variant](scenarios/read-completion-isolation-failover.yaml), explicit
+  [64/32 KiB](scenarios/read-completion-isolation-64k-32k.yaml) and
+  [256/128 KiB](scenarios/read-completion-isolation-256k-128k.yaml) channel-watermark variations,
+  and baseline/comparison instructions.
 
 ## Inspecting recordings
 

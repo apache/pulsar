@@ -286,6 +286,10 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     private void complete(Object ctx) {
+        if (callback.canExecuteOnAnyThread()) {
+            completeNow(ctx);
+            return;
+        }
         ThreadBoundExecutor executor = cursor.ledger.getExecutor();
         // Run inline on the ledger thread to skip the queue hop. A fully cached read completes synchronously and
         // callers such as OpScan and the replicator issue their next read from this callback, so the nesting is

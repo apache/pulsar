@@ -15,31 +15,31 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Pass this file with PULSAR_PROFILING_CONFIG=/path/to/pulsar-profiling.yaml.
-# Values not present here keep the harness defaults.
+# 500 producers / 500 TCP connections / one Exclusive consumer on a persistent topic.
+# Run with PulsarProfilingV4Test; see read-completion-isolation.md for a baseline comparison.
 cluster:
   numBrokers: 1
   numBookies: 3
   numProxies: 0
-  brokerMemory: "-Xms2g -Xmx2g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch"
-  bookkeeperMemory: "-Xmx1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch"
-  brokerEnvs:
-    managedLedgerDefaultEnsembleSize: "1"
-    managedLedgerDefaultWriteQuorum: "1"
-    managedLedgerDefaultAckQuorum: "1"
-  bookkeeperEnvs:
-    dbStorage_writeCacheMaxSizeMb: "64"
-    dbStorage_readAheadCacheMaxSizeMb: "96"
+  brokerMemory: "-Xms2g -Xmx2g -XX:MaxDirectMemorySize=4g"
+  bookkeeperMemory: "-Xms512m -Xmx512m -XX:MaxDirectMemorySize=512m"
 load:
-  numberOfMessages: 20000000
+  numberOfMessages: 12000000
+  producerCount: 500
+  isolatedProducers: 500
+  producerIoThreads: 8
+  consumerCount: 1
+  isolatedConsumers: 0
+  consumerIoThreads: 1
+  subscriptionType: Exclusive
+  receiverQueueSize: 50000
+  # This is a per-producer queue limit: 40 * 500 = 20000 outstanding sends.
+  maxOutstanding: 40
   produceMemoryLimit: 200M
   consumeMemoryLimit: 200M
   produceRate: 2147483647
   messageSize: 128
-  maxOutstanding: 20000
-  statsIntervalSeconds: 10
-  # Used only by produce-v4/consume-v4. A value of 500 creates up to 500 clients.
-  isolatedProducers: 0
-  isolatedConsumers: 0
+  statsIntervalSeconds: 5
+  timeoutSeconds: 480
 output:
-  directory: build/pulsar-profiling
+  directory: build/pulsar-profiling/read-completion-isolation
