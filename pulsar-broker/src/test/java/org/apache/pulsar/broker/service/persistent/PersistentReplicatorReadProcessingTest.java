@@ -139,6 +139,48 @@ public class PersistentReplicatorReadProcessingTest {
     }
 
     @Test
+    public void testInlineAckReadDoesNotOvertakeRemainingEntriesInCurrentBatch() throws Exception {
+        TestReplicatorFixture fixture = newTestReplicatorFixture();
+        TestPersistentReplicator replicator = fixture.replicator;
+        AtomicBoolean firstAcknowledgement = new AtomicBoolean(true);
+        replicator.entryObserver = (entry, task, entries) -> {
+            replicator.submittedEntries.add(entry.getEntryId());
+            if (firstAcknowledgement.compareAndSet(true, false)) {
+                task.incCompletedEntries();
+                // A producer completion can ask for more work synchronously on this same callback thread.
+                replicator.readMoreEntries();
+            }
+        };
+
+        List<ReadRequest> requests = new ArrayList<>();
+        AtomicBoolean completeSecondReadInline = new AtomicBoolean(false);
+        AtomicBoolean secondReadCompleted = new AtomicBoolean(false);
+        doAnswer(invocation -> {
+            ReadEntriesCallback callback = invocation.getArgument(2);
+            Object context = invocation.getArgument(3);
+            synchronized (requests) {
+                requests.add(new ReadRequest(callback, context));
+            }
+            if (completeSecondReadInline.get() && secondReadCompleted.compareAndSet(false, true)) {
+                callback.readEntriesComplete(List.of(entry(2), entry(3)), context);
+            }
+            return null;
+        }).when(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+
+        replicator.readMoreEntries();
+        ReadRequest firstRead;
+        synchronized (requests) {
+            assertThat(requests).hasSize(1);
+            firstRead = requests.get(0);
+        }
+        completeSecondReadInline.set(true);
+        firstRead.callback.readEntriesComplete(List.of(entry(0), entry(1)), firstRead.context);
+        fixture.runQueuedWork();
+
+        assertThat(replicator.submittedEntries).containsExactly(0L, 1L, 2L, 3L);
+    }
+
+    @Test
     public void testCachedReadCallbacksDoNotRecurseAndLeaveOnePendingRead() throws Exception {
         TestReplicatorFixture fixture = newTestReplicatorFixture();
         TestPersistentReplicator replicator = fixture.replicator;
