@@ -24,6 +24,7 @@ import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistIn
 import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker.newInFlightTaskCtx;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricDoubleGaugeValue;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
@@ -75,6 +76,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
+import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicatorInflightTaskTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -440,6 +442,80 @@ public class ReplicatorTest extends ReplicatorTestBase {
         assertEquals(consumer1.receive().getValue().getNativeObject(), data);
         assertEquals(consumer2.receive().getValue().getNativeObject(), data);
         assertEquals(consumer3.receive().getValue().getNativeObject(), data);
+    }
+
+    @Test(timeOut = 30000)
+    public void testDeduplicatedBacklogReplicationPreservesSourcePositionOrder() throws Exception {
+        int originalReadBatchSize = pulsar1.getConfiguration().getDispatcherMaxReadBatchSize();
+        int originalProducerQueueSize = pulsar1.getConfiguration().getReplicationProducerQueueSize();
+        String originalReplicationStartAt = pulsar1.getConfiguration().getReplicationStartAt();
+        boolean originalRemoteDeduplication = pulsar2.getConfiguration().isBrokerDeduplicationEnabled();
+        pulsar1.getConfiguration().setDispatcherMaxReadBatchSize(2);
+        pulsar1.getConfiguration().setReplicationProducerQueueSize(4);
+        pulsar2.getConfiguration().setBrokerDeduplicationEnabled(true);
+
+        try {
+            String topicName = newUniqueName("persistent://pulsar/ns/replicator-ordered-backlog");
+            String subscriptionName = "ordered-source-positions";
+            admin1.topics().createNonPartitionedTopic(topicName);
+            // Write the source backlog before enabling replication to the remote cluster.
+            admin1.topics().setReplicationClusters(topicName, List.of(cluster1));
+            PersistentTopic sourceTopic = (PersistentTopic) pulsar1.getBrokerService()
+                    .getTopic(topicName, false).join().get();
+            Awaitility.await().untilAsserted(() -> assertTrue(sourceTopic.getReplicators().isEmpty()));
+            admin2.topics().createSubscription(topicName, subscriptionName, MessageId.earliest);
+            PersistentTopic remoteTopic = (PersistentTopic) pulsar2.getBrokerService()
+                    .getTopic(topicName, false).join().get();
+            admin2.topicPolicies().setDeduplicationStatus(topicName, true);
+            Awaitility.await().untilAsserted(() -> {
+                MessageDeduplication deduplication = remoteTopic.getMessageDeduplication();
+                assertEquals(String.valueOf(deduplication.getStatus()), "Enabled");
+            });
+
+            @Cleanup
+            Producer<String> producer = pulsar1.getClient().newProducer(Schema.STRING)
+                    .topic(topicName)
+                    .enableBatching(false)
+                    .create();
+            int messageCount = 32;
+            for (int i = 0; i < messageCount; i++) {
+                producer.send("message-" + i);
+            }
+
+            pulsar1.getConfiguration().setReplicationStartAt("earliest");
+            admin1.topics().setReplicationClusters(topicName, List.of(cluster1, cluster2));
+
+            @Cleanup
+            Consumer<String> consumer = pulsar2.getClient().newConsumer(Schema.STRING)
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .subscribe();
+            Position previousSourcePosition = null;
+            for (int i = 0; i < messageCount; i++) {
+                Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+                assertNotNull(message, "remote cluster must receive every backlog message");
+                assertEquals(message.getValue(), "message-" + i);
+
+                String sourcePosition = message.getProperty(MSG_PROP_REPL_SOURCE_POSITION);
+                assertNotNull(sourcePosition, "replicated messages must retain their source position");
+                String[] sourcePositionParts = sourcePosition.split(":", 2);
+                assertEquals(sourcePositionParts.length, 2, "source position must have ledger and entry ids");
+                Position currentSourcePosition = PositionFactory.create(Long.parseLong(sourcePositionParts[0]),
+                        Long.parseLong(sourcePositionParts[1]));
+                if (previousSourcePosition != null) {
+                    assertTrue(currentSourcePosition.compareTo(previousSourcePosition) > 0,
+                            "source positions must be strictly increasing at the remote cluster");
+                }
+                previousSourcePosition = currentSourcePosition;
+                consumer.acknowledge(message);
+            }
+            assertNull(consumer.receive(1, TimeUnit.SECONDS), "deduplication must not leave duplicate messages");
+        } finally {
+            pulsar1.getConfiguration().setDispatcherMaxReadBatchSize(originalReadBatchSize);
+            pulsar1.getConfiguration().setReplicationProducerQueueSize(originalProducerQueueSize);
+            pulsar1.getConfiguration().setReplicationStartAt(originalReplicationStartAt);
+            pulsar2.getConfiguration().setBrokerDeduplicationEnabled(originalRemoteDeduplication);
+        }
     }
 
     @Test

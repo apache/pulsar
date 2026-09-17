@@ -137,12 +137,12 @@ public class ShadowReplicator extends PersistentReplicator {
                 handedToProducer = true;
                 producer.sendAsync(msg, callback);
                 atLeastOneMessageSentForReplication = true;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error().exception(e).log("Unexpected exception in replication task");
                 skipRemainingMessages = true;
                 delayReadRetry();
                 beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
-                doRewindCursor(true);
+                doRewindCursor(false);
             } finally {
                 if (!handedToProducer) {
                     inFlightTask.incCompletedEntries();

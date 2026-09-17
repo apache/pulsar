@@ -930,15 +930,11 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             producer1.send("msg" + i);
         }
 
-        // Alternate failed and successful reads, then let storage recover. Failing every other read
-        // forever keeps resetting the read batch size to one and requires a backoff for each message.
-        int maxInjectedErrors = 3;
+        // Keep alternating failures with successful reads. ACKs must be able to resume reads
+        // before the fallback retry timer, so throttling does not reduce progress to one entry per second.
         AtomicInteger readAttempts = new AtomicInteger();
-        AtomicInteger injectedErrors = new AtomicInteger();
         Supplier<ManagedLedgerException> bkErrorOrNot = () -> {
-            int attempt = readAttempts.incrementAndGet();
-            if (attempt <= maxInjectedErrors * 2 && attempt % 2 == 1) {
-                injectedErrors.incrementAndGet();
+            if (readAttempts.incrementAndGet() % 2 == 1) {
                 return new ManagedLedgerException.TooManyRequestsException("mocked error");
             }
             return null;
@@ -955,7 +951,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 0);
         });
 
-        assertEquals(injectedErrors.get(), maxInjectedErrors);
+        assertTrue(readAttempts.get() > totalMsg, "Expected alternating failures throughout replication");
 
         // Verify: messages were replicated.
         admin2.topics().createSubscription(topicName, subscription, MessageId.earliest);

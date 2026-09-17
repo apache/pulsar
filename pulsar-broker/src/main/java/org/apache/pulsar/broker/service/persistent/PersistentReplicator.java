@@ -132,7 +132,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
     private boolean cancelReadRequested;
     private boolean rewindRequested;
     private boolean readRetryScheduled;
-    private long readRetryNotBeforeNanos = System.nanoTime();
     private static final int MAX_READ_PROCESSING_STEPS_PER_TURN = 64;
 
     public PersistentReplicator(String localCluster, PersistentTopic localTopic, ManagedCursor cursor,
@@ -332,15 +331,56 @@ public abstract class PersistentReplicator extends AbstractReplicator
             brokerService.executor().execute(this::processReads);
         } catch (Throwable t) {
             log.error().exception(t).log("Unexpected failure processing replication reads");
-            // Invalidate work before releasing ownership. Termination publishes cleanup to this owner.
-            try {
-                terminate();
-            } finally {
-                synchronized (inFlightTasks) {
+            boolean terminated;
+            synchronized (inFlightTasks) {
+                terminated = state == Terminating || state == Terminated;
+                if (!terminated) {
+                    // Publish recovery before releasing ownership. A concurrent ACK can then
+                    // resume this work without reading past an incomplete rewind.
+                    inFlightTasks.forEach(task -> task.skipReadResultDueToCursorRewind = true);
+                    cancelReadRequested = true;
+                    rewindRequested = true;
                     processingReads = false;
                 }
-                requestReadProcessing(false);
             }
+            if (terminated) {
+                discardPendingReadResults();
+                return;
+            }
+            // No immediate drain here: a repeatedly failing rewind must not recurse.
+            delayReadRetry();
+        }
+    }
+
+    /** Finish terminal cleanup without invoking a cursor operation that may have just failed. */
+    private void discardPendingReadResults() {
+        while (true) {
+            List<Entry> entries = null;
+            synchronized (inFlightTasks) {
+                for (InFlightTask task : inFlightTasks) {
+                    if (!task.submissionComplete && task.entries != null) {
+                        entries = task.entries;
+                        task.entries = Collections.emptyList();
+                        task.submissionComplete = true;
+                        break;
+                    }
+                }
+                if (entries == null) {
+                    processingReads = false;
+                    return;
+                }
+            }
+            entries.forEach(entry -> discardEntry(entry, null));
+        }
+    }
+
+    private void handleReadRetrySchedulingFailure(Exception exception) {
+        // Ownership has already been released. Never clear a newer owner's state here.
+        log.error().exception(exception).log("Failed to schedule replication read retry");
+        if (exception instanceof RejectedExecutionException) {
+            // A rejected retry has no wakeup left if there are no producer ACKs in flight.
+            // Do not leave the replicator apparently Started but unable to make progress.
+            terminate();
         }
     }
 
@@ -383,9 +423,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 return false;
             } else if (state != Started) {
                 retryDelayMillis = MESSAGE_RATE_BACKOFF_MS;
-            } else if (readRetryNotBeforeNanos - System.nanoTime() > 0) {
-                retryDelayMillis = Math.max(1,
-                        TimeUnit.NANOSECONDS.toMillis(readRetryNotBeforeNanos - System.nanoTime()));
             } else {
                 int permits = getPermitsIfNoPendingRead();
                 if (permits > 0) {
@@ -411,8 +448,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             } catch (Exception e) {
                 // Ownership was already released: a new owner might be running now. Do not let
                 // this failure reach the owner cleanup in processReads and clear its ownership.
-                log.error().exception(e).log("Failed to schedule replication read retry");
-                terminate();
+                handleReadRetrySchedulingFailure(e);
             }
             return false;
         }
@@ -429,8 +465,15 @@ public abstract class PersistentReplicator extends AbstractReplicator
             try {
                 cursor.asyncReadEntriesOrWait(task.readingEntries, limits.bytes, this, task,
                         topic.getMaxReadPosition());
-            } catch (Exception e) {
-                readEntriesFailed(ManagedLedgerException.getManagedLedgerException(e), task);
+            } catch (Throwable e) {
+                // An unusual cursor implementation may complete its callback and then throw.
+                // Keep an already published result and its ownership in that case.
+                synchronized (inFlightTasks) {
+                    if (task.entries == null) {
+                        task.readException = ManagedLedgerException.getManagedLedgerException(e);
+                        task.entries = Collections.emptyList();
+                    }
+                }
             }
         } else if (task != null) {
             processReadResult(task);
@@ -481,7 +524,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
                     // Even a stale read may have advanced the cursor after recovery was requested.
                     // Keep admission closed until the owner has discarded it and rewound the cursor.
                     rewindRequested |= state != Terminated && state != Terminating;
-                    readRequested = true;
                     task.entries = Collections.emptyList();
                 }
                 return;
@@ -492,7 +534,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
             }
             boolean sent = replicateEntries(task.entries, task);
             synchronized (inFlightTasks) {
-                readRequested |= !sent || isWritable();
+                // Recovery decides when to resume. In particular, an immediately failed schema
+                // lookup must not turn this callback into another attempt in the same drain.
+                if (!task.skipReadResultDueToCursorRewind) {
+                    readRequested |= !sent || isWritable();
+                }
             }
         } finally {
             synchronized (inFlightTasks) {
@@ -507,13 +553,13 @@ public abstract class PersistentReplicator extends AbstractReplicator
     protected void discardEntry(Entry entry, MessageImpl<?> message) {
         try {
             entry.release();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.error().exception(e).log("Failed to release discarded replication entry");
         }
         if (message != null) {
             try {
                 message.recycle();
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error().exception(e).log("Failed to recycle discarded replication message");
             }
         }
@@ -566,13 +612,21 @@ public abstract class PersistentReplicator extends AbstractReplicator
             }
             entry.release();
 
-            // In general, we schedule a new batch read operation when the occupied queue size gets smaller than half
-            // the max size, unless another read operation is already in progress.
+            // Preserve ACK-driven demand even while a read is pending. The owner still admits only
+            // one read, but can use this demand if that read fails before the retry timer fires.
+            // Otherwise resume when the occupied queue falls below the configured threshold.
             // If the producer is not currently writable (disconnected or TCP window full), we want to defer the reads
             // until we have emptied the whole queue, and at that point we will read a batch of 1 single message if the
             // producer is still not "writable".
-            int permits = replicator.getPermitsIfNoPendingRead();
-            if (replicator.producerQueueSize - permits < replicator.producerQueueThreshold) {
+            boolean pendingRead;
+            int permits;
+            synchronized (replicator.inFlightTasks) {
+                pendingRead = replicator.hasPendingRead();
+                permits = pendingRead ? 0 : replicator.getPermitsIfNoPendingRead();
+            }
+            if (pendingRead) {
+                replicator.readMoreEntries();
+            } else if (replicator.producerQueueSize - permits < replicator.producerQueueThreshold) {
                 if (replicator.producerQueueSize == permits || replicator.producer.isWritable()) {
                     replicator.readMoreEntries();
                 } else {
@@ -662,22 +716,28 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
         readBatchSize = brokerService.pulsar().getConfiguration().getDispatcherMinReadBatchSize();
         long waitTimeMillis = delayReadRetry();
-        synchronized (inFlightTasks) {
-            readRequested = true;
-        }
         if (!(exception instanceof TooManyRequestsException)) {
             log.error().attr("task", task).attr("waitTimeMillis", waitTimeMillis).exception(exception)
                     .log("Error reading entries, retrying");
         }
     }
 
-    /** Prevent an immediately failed operation from retrying in the same read-processing turn. */
+    /**
+     * Arrange a fallback retry without generating immediate read demand. Producer acknowledgements
+     * can still resume reads before the timer, preserving progress under transient read throttling.
+     */
     protected long delayReadRetry() {
+        long waitTimeMillis;
         synchronized (inFlightTasks) {
-            long waitTimeMillis = readFailureBackoff.next().toMillis();
-            readRetryNotBeforeNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(waitTimeMillis);
-            return waitTimeMillis;
+            waitTimeMillis = readFailureBackoff.next().toMillis();
         }
+        try {
+            scheduleReadRetry(waitTimeMillis);
+        } catch (Exception e) {
+            // A failed timer must not interrupt the caller's unsent-entry cleanup or schema rewind.
+            handleReadRetrySchedulingFailure(e);
+        }
+        return waitTimeMillis;
     }
 
     public CompletableFuture<Void> clearBacklog() {
@@ -1074,6 +1134,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
         beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Terminating);
     }
 
+    /** Test seam for observing the cursor-read reservation; production admission uses the processing owner. */
+    @VisibleForTesting
     protected boolean hasPendingRead() {
         synchronized (inFlightTasks) {
             for (InFlightTask task : inFlightTasks) {

@@ -264,7 +264,7 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                                     .log("Failed to get schema from local cluster, will try in the next loop");
                         }
                         log.info("Resume the data replication after the schema fetching done");
-                        doRewindCursor(true);
+                        doRewindCursor(e == null);
                     });
                 } else {
                     msg.setSchemaInfoForReplicator(schemaFuture.get());
@@ -288,12 +288,12 @@ public class GeoPersistentReplicator extends PersistentReplicator {
                     producer.sendAsync(msg, callback);
                     atLeastOneMessageSentForReplication = true;
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.error().exception(e).log("Unexpected exception in replication task");
                 skipRemainingMessages = true;
                 delayReadRetry();
                 beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
-                doRewindCursor(true);
+                doRewindCursor(false);
             } finally {
                 if (!handedToProducer) {
                     inFlightTask.incCompletedEntries();

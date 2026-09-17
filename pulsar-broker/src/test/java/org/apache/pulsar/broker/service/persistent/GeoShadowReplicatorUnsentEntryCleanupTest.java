@@ -48,6 +48,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.AbstractReplicator.State;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator.InFlightTask;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -62,15 +63,21 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.mockito.ArgumentCaptor;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-replication")
 public class GeoShadowReplicatorUnsentEntryCleanupTest {
 
-    @Test
-    public void testGeoSchemaPreparationFailureReleasesUnsentSuffix() throws Exception {
+    @DataProvider
+    public Object[][] failureKinds() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "failureKinds")
+    public void testGeoSchemaPreparationFailureReleasesUnsentSuffix(boolean error) throws Exception {
         ReplicatorFixture fixture = newReplicatorFixture();
-        SchemaFailingGeoReplicator replicator = new SchemaFailingGeoReplicator(fixture);
+        SchemaFailingGeoReplicator replicator = new SchemaFailingGeoReplicator(fixture, error);
         ProducerImpl producer = mock(ProducerImpl.class);
         replicator.startForTest(producer);
 
@@ -79,38 +86,42 @@ public class GeoShadowReplicatorUnsentEntryCleanupTest {
             ReadRequest request = requestRead(fixture, replicator);
             request.callback.readEntriesComplete(entryList(entries), request.context);
 
+            assertThat(replicator.getState()).isEqualTo(State.Started);
             assertUnsentSuffixReleased(entries, request.inFlightTask());
             SendCallback callback = capturedCallback(producer);
             verify(entries.get(0).entry, never()).release();
 
             callback.sendComplete(null, null);
 
-            assertSubmittedEntryCompleted(entries.get(0), request.inFlightTask());
+            assertSubmittedEntryCompleted(entries.get(0));
         } finally {
             entries.forEach(EntryFixture::releaseBuffer);
         }
     }
 
-    @Test
-    public void testShadowPreSendFailureReleasesUnsentSuffix() throws Exception {
+    @Test(dataProvider = "failureKinds")
+    public void testShadowPreSendFailureReleasesUnsentSuffix(boolean error) throws Exception {
         ReplicatorFixture fixture = newReplicatorFixture();
         TestShadowReplicator replicator = new TestShadowReplicator(fixture);
         ProducerImpl producer = mock(ProducerImpl.class);
         replicator.startForTest(producer);
 
         List<EntryFixture> entries = entries();
-        when(entries.get(1).entry.getLedgerId()).thenThrow(new IllegalStateException("pre-send metadata failure"));
+        when(entries.get(1).entry.getLedgerId()).thenThrow(error
+                ? new AssertionError("pre-send metadata failure")
+                : new IllegalStateException("pre-send metadata failure"));
         try {
             ReadRequest request = requestRead(fixture, replicator);
             request.callback.readEntriesComplete(entryList(entries), request.context);
 
+            assertThat(replicator.getState()).isEqualTo(State.Started);
             assertUnsentSuffixReleased(entries, request.inFlightTask());
             SendCallback callback = capturedCallback(producer);
             verify(entries.get(0).entry, never()).release();
 
             callback.sendComplete(null, null);
 
-            assertSubmittedEntryCompleted(entries.get(0), request.inFlightTask());
+            assertSubmittedEntryCompleted(entries.get(0));
         } finally {
             entries.forEach(EntryFixture::releaseBuffer);
         }
@@ -166,10 +177,9 @@ public class GeoShadowReplicatorUnsentEntryCleanupTest {
         assertThat(task.isDone()).isFalse();
     }
 
-    private static void assertSubmittedEntryCompleted(EntryFixture entry, InFlightTask task) {
+    private static void assertSubmittedEntryCompleted(EntryFixture entry) {
         verify(entry.entry, times(1)).release();
-        assertThat(task.getCompletedEntries()).isEqualTo(3);
-        assertThat(task.isDone()).isTrue();
+        // The final ACK may immediately start another read and recycle the now-complete task.
     }
 
     private static List<EntryFixture> entries() {
@@ -262,10 +272,12 @@ public class GeoShadowReplicatorUnsentEntryCleanupTest {
 
     private static final class SchemaFailingGeoReplicator extends GeoPersistentReplicator {
         private final AtomicInteger schemaRequests = new AtomicInteger();
+        private final boolean error;
 
-        private SchemaFailingGeoReplicator(ReplicatorFixture fixture) throws PulsarServerException {
+        private SchemaFailingGeoReplicator(ReplicatorFixture fixture, boolean error) throws PulsarServerException {
             super(fixture.topic, fixture.cursor, "local", "remote", fixture.brokerService, fixture.replicationClient,
                     fixture.replicationAdmin);
+            this.error = error;
         }
 
         @Override
@@ -281,6 +293,9 @@ public class GeoShadowReplicatorUnsentEntryCleanupTest {
         @Override
         protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) throws ExecutionException {
             if (schemaRequests.incrementAndGet() == 2) {
+                if (error) {
+                    throw new AssertionError("schema preparation failed");
+                }
                 throw new ExecutionException("schema preparation failed", null);
             }
             return CompletableFuture.completedFuture(null);

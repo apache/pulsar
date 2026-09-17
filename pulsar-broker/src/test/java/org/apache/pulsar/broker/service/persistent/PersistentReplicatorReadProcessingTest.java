@@ -24,8 +24,10 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.channel.EventLoopGroup;
@@ -35,6 +37,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -47,13 +50,14 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.AbstractReplicator.State;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator.InFlightTask;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.awaitility.Awaitility;
 import org.mockito.InOrder;
 import org.testng.annotations.Test;
 
@@ -323,7 +327,7 @@ public class PersistentReplicatorReadProcessingTest {
     }
 
     @Test
-    public void testReadFailureDoesNotBypassRetryDeadlineWhenMoreReadDemandArrives() throws Exception {
+    public void testReadFailureWaitsForTimerButNewReadDemandCanResumeImmediately() throws Exception {
         TestReplicatorFixture fixture = newTestReplicatorFixture();
         TestPersistentReplicator replicator = fixture.replicator;
         List<ReadRequest> requests = new ArrayList<>();
@@ -343,20 +347,185 @@ public class PersistentReplicatorReadProcessingTest {
         replicator.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException("test read failure"),
                 failedRead.context);
 
-        // Producer acknowledgements and other demand sources all reach the same readMoreEntries path.
-        replicator.readMoreEntries();
         ScheduledWork retry = fixture.takeScheduledWork();
+        assertThat(retry.unit.toMillis(retry.delay)).isPositive();
         synchronized (requests) {
+            // Failure alone must not retry within the owner loop.
             assertThat(requests).hasSize(1);
         }
 
-        Awaitility.await().atMost(retry.delay + TimeUnit.SECONDS.toMillis(1), TimeUnit.MILLISECONDS).until(() ->
-                System.nanoTime() - retry.scheduledAtNanos >= retry.unit.toNanos(retry.delay));
-        retry.command.run();
-
+        // Producer acknowledgements must be able to bypass the fallback timer.
+        replicator.readMoreEntries();
         synchronized (requests) {
             assertThat(requests).hasSize(2);
         }
+        // The outstanding read still prevents the old timer from admitting a duplicate read.
+        retry.command.run();
+        synchronized (requests) {
+            assertThat(requests).hasSize(2);
+        }
+    }
+
+    @Test
+    public void testReadFailureTerminatesWhenRetrySchedulingIsRejectedWhileExecutorIsRunning() throws Exception {
+        TestReplicatorFixture fixture = newTestReplicatorFixture();
+        TestPersistentReplicator replicator = fixture.replicator;
+        fixture.rejectScheduledWork.set(true);
+        when(fixture.executor.isShuttingDown()).thenReturn(false);
+        List<ReadRequest> requests = new ArrayList<>();
+        doAnswer(invocation -> {
+            synchronized (requests) {
+                requests.add(new ReadRequest(invocation.getArgument(2), invocation.getArgument(3)));
+            }
+            return null;
+        }).when(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+
+        replicator.readMoreEntries();
+        ReadRequest failedRead;
+        synchronized (requests) {
+            assertThat(requests).hasSize(1);
+            failedRead = requests.get(0);
+        }
+        failedRead.callback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException("read failed"),
+                failedRead.context);
+
+        assertThat(replicator.getState()).isEqualTo(State.Terminated);
+        assertThat(fixture.scheduledWork).isEmpty();
+        synchronized (requests) {
+            assertThat(requests).hasSize(1);
+        }
+        verify(fixture.cursor).setInactive();
+    }
+
+    @Test
+    public void testProducerAckDuringReservedReadRetriesFailedReadBeforeTimerWithoutOverlappingReads()
+            throws Exception {
+        TestReplicatorFixture fixture = newTestReplicatorFixture();
+        TestPersistentReplicator replicator = fixture.replicator;
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
+        when(producer.isWritable()).thenReturn(true);
+        replicator.setProducerForTest(producer);
+
+        List<ReadRequest> requests = new ArrayList<>();
+        doAnswer(invocation -> {
+            synchronized (requests) {
+                requests.add(new ReadRequest(invocation.getArgument(2), invocation.getArgument(3)));
+            }
+            return null;
+        }).when(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+
+        AtomicBoolean submitted = new AtomicBoolean();
+        PersistentReplicator.ProducerSendCallback[] acknowledgement = new PersistentReplicator.ProducerSendCallback[1];
+        Entry firstEntry = entry(0);
+        replicator.entryObserver = (entry, task, entries) -> {
+            assertThat(submitted.compareAndSet(false, true)).isTrue();
+            acknowledgement[0] = PersistentReplicator.ProducerSendCallback.create(replicator, entry, null, task);
+        };
+
+        replicator.readMoreEntries();
+        ReadRequest firstRead;
+        synchronized (requests) {
+            assertThat(requests).hasSize(1);
+            firstRead = requests.get(0);
+        }
+        firstRead.callback.readEntriesComplete(List.of(firstEntry), firstRead.context);
+
+        ReadRequest reservedRead;
+        synchronized (requests) {
+            // The owner can reserve the next read only after it has submitted the first batch.
+            assertThat(requests).hasSize(2);
+            reservedRead = requests.get(1);
+        }
+
+        assertThat(acknowledgement[0]).isNotNull();
+        acknowledgement[0].sendComplete(null, null);
+        synchronized (requests) {
+            // The actual producer callback records demand but cannot issue another read while one is reserved.
+            assertThat(requests).hasSize(2);
+        }
+
+        reservedRead.callback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException("read failed"),
+                reservedRead.context);
+        ScheduledWork fallbackRetry = fixture.takeScheduledWork();
+        synchronized (requests) {
+            // The ACK demand is consumed after the failed reservation settles, before its fallback timer runs.
+            assertThat(requests).hasSize(3);
+        }
+
+        fallbackRetry.command.run();
+        synchronized (requests) {
+            // The fallback request cannot overlap the retry it found pending.
+            assertThat(requests).hasSize(3);
+        }
+    }
+
+    @Test
+    public void testRewindFailureRetriesWithoutTerminatingOrRecursing() throws Exception {
+        TestReplicatorFixture fixture = newTestReplicatorFixture();
+        TestPersistentReplicator replicator = fixture.replicator;
+        doThrow(new AssertionError("transient rewind failure")).doNothing().when(fixture.cursor).rewind();
+
+        replicator.beforeTerminateOrCursorRewinding(
+                PersistentReplicator.ReasonOfWaitForCursorRewinding.Fetching_Schema);
+        replicator.doRewindCursor(true);
+
+        assertThat(replicator.getState()).isEqualTo(State.Started);
+        verify(fixture.cursor).rewind();
+        ScheduledWork retry = fixture.takeScheduledWork();
+        retry.command.run();
+
+        verify(fixture.cursor, times(2)).rewind();
+        verify(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+        assertThat(replicator.getState()).isEqualTo(State.Started);
+    }
+
+    @Test
+    public void testCursorThrowingAfterCompletionDoesNotDiscardPublishedResult() throws Exception {
+        TestReplicatorFixture fixture = newTestReplicatorFixture();
+        TestPersistentReplicator replicator = fixture.replicator;
+        replicator.entryObserver = (entry, task, entries) -> replicator.submittedEntries.add(entry.getEntryId());
+        AtomicInteger readCalls = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (readCalls.incrementAndGet() == 1) {
+                ReadEntriesCallback callback = invocation.getArgument(2);
+                callback.readEntriesComplete(List.of(entry(0)), invocation.getArgument(3));
+                throw new AssertionError("cursor threw after publishing its result");
+            }
+            return null;
+        }).when(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+
+        replicator.readMoreEntries();
+
+        assertThat(replicator.submittedEntries).containsExactly(0L);
+        assertThat(readCalls).hasValue(2);
+        assertThat(fixture.scheduledWork).isEmpty();
+        assertThat(replicator.getState()).isEqualTo(State.Started);
+    }
+
+    @Test
+    public void testTerminationReleasesResultPublishedDuringFailedCancellation() throws Exception {
+        TestReplicatorFixture fixture = newTestReplicatorFixture();
+        TestPersistentReplicator replicator = fixture.replicator;
+        List<ReadRequest> requests = new ArrayList<>();
+        doAnswer(invocation -> {
+            requests.add(new ReadRequest(invocation.getArgument(2), invocation.getArgument(3)));
+            return null;
+        }).when(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+        replicator.readMoreEntries();
+        ReadRequest pendingRead = requests.get(0);
+        Entry entry = entry(0);
+        doAnswer(invocation -> {
+            pendingRead.callback.readEntriesComplete(List.of(entry), pendingRead.context);
+            throw new AssertionError("cancellation failed during shutdown");
+        }).when(fixture.cursor).cancelPendingReadRequest();
+
+        replicator.markTerminated();
+        replicator.beforeTerminate();
+
+        verify(entry).release();
+        assertThat(((InFlightTask) pendingRead.context).isDone()).isTrue();
+        assertThat(requests).hasSize(1);
+        assertThat(fixture.scheduledWork).isEmpty();
     }
 
     @Test
@@ -432,13 +601,17 @@ public class PersistentReplicatorReadProcessingTest {
         EventLoopGroup executor = mock(EventLoopGroup.class);
         Queue<Runnable> queuedWork = new ConcurrentLinkedQueue<>();
         Queue<ScheduledWork> scheduledWork = new ConcurrentLinkedQueue<>();
+        AtomicBoolean rejectScheduledWork = new AtomicBoolean();
         doAnswer(invocation -> {
             queuedWork.add(invocation.getArgument(0));
             return null;
         }).when(executor).execute(any(Runnable.class));
         doAnswer(invocation -> {
+            if (rejectScheduledWork.get()) {
+                throw new RejectedExecutionException("test retry scheduler rejection");
+            }
             scheduledWork.add(new ScheduledWork(invocation.getArgument(0), invocation.getArgument(1),
-                    invocation.getArgument(2), System.nanoTime()));
+                    invocation.getArgument(2)));
             return null;
         }).when(executor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
         when(brokerService.pulsar()).thenReturn(pulsar);
@@ -468,27 +641,33 @@ public class PersistentReplicatorReadProcessingTest {
 
         TestPersistentReplicator replicator = new TestPersistentReplicator(topic, cursor, brokerService,
                 replicationClient, mock(PulsarAdmin.class));
-        return new TestReplicatorFixture(replicator, cursor, queuedWork, scheduledWork);
+        return new TestReplicatorFixture(replicator, cursor, executor, queuedWork, scheduledWork, rejectScheduledWork);
     }
 
     private record ReadRequest(ReadEntriesCallback callback, Object context) {
     }
 
-    private record ScheduledWork(Runnable command, long delay, TimeUnit unit, long scheduledAtNanos) {
+    private record ScheduledWork(Runnable command, long delay, TimeUnit unit) {
     }
 
     private static final class TestReplicatorFixture {
         private final TestPersistentReplicator replicator;
         private final ManagedCursor cursor;
+        private final EventLoopGroup executor;
         private final Queue<Runnable> queuedWork;
         private final Queue<ScheduledWork> scheduledWork;
+        private final AtomicBoolean rejectScheduledWork;
 
         private TestReplicatorFixture(TestPersistentReplicator replicator, ManagedCursor cursor,
-                                      Queue<Runnable> queuedWork, Queue<ScheduledWork> scheduledWork) {
+                                      EventLoopGroup executor,
+                                      Queue<Runnable> queuedWork, Queue<ScheduledWork> scheduledWork,
+                                      AtomicBoolean rejectScheduledWork) {
             this.replicator = replicator;
             this.cursor = cursor;
+            this.executor = executor;
             this.queuedWork = queuedWork;
             this.scheduledWork = scheduledWork;
+            this.rejectScheduledWork = rejectScheduledWork;
         }
 
         private void runQueuedWork() {
@@ -556,6 +735,10 @@ public class PersistentReplicatorReadProcessingTest {
 
         private void markTerminated() {
             state = State.Terminated;
+        }
+
+        private void setProducerForTest(ProducerImpl<?> producer) {
+            this.producer = producer;
         }
 
         @Override
