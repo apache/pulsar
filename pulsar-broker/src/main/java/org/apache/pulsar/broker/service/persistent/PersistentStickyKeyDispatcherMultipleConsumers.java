@@ -722,8 +722,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     private int getAvailablePermits(Consumer c) {
-        // skip consumers that are currently closing
-        if (!c.cnx().isActive()) {
+        // A writable notification resumes dispatch when this consumer can accept another batch.
+        if (!c.cnx().isActive() || !c.isWritable()) {
             return 0;
         }
         int availablePermits = Math.max(c.getAvailablePermits(), 0);

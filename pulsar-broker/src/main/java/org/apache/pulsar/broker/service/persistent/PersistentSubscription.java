@@ -460,6 +460,15 @@ public class PersistentSubscription extends AbstractSubscription {
         dispatcher.consumerFlow(consumer, additionalNumberOfMessages);
     }
 
+    @Override
+    public void notifyChannelWritable(Consumer consumer) {
+        // Read the volatile reference directly: the Netty event loop must not wait for the subscription monitor.
+        Dispatcher currentDispatcher = dispatcher;
+        if (currentDispatcher != null) {
+            currentDispatcher.notifyChannelWritable(consumer);
+        }
+    }
+
     public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
                                                            Map<String, Long> properties) {
         CompletableFuture<Void> future = new CompletableFuture<>();
