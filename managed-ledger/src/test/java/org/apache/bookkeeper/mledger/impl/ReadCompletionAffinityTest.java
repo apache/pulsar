@@ -21,11 +21,11 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -39,50 +39,45 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
-    @DataProvider
-    public Object[][] inlineCompletion() {
-        return new Object[][] {{false}, {true}};
-    }
-
-    @Test(dataProvider = "inlineCompletion")
-    public void testCacheHitCompletionAffinity(boolean inline) throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-affinity-" + inline,
+    @Test
+    public void testIndependentCacheHitsDoNotAccumulateCompletionDepth() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-affinity-",
                 rawEntryConfig());
         CountDownLatch releaseWorker = new CountDownLatch(1);
         try {
             ManagedCursor cursor = ledger.openCursor("cursor");
-            ledger.addEntry(new byte[] {1});
+            int count = OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS * 3;
+            for (int i = 0; i < count; i++) {
+                ledger.addEntry(new byte[] {1});
+            }
             assertTrue(ledger.entryCache.getSize() > 0, "The test requires a cache hit");
-            Thread worker = blockWorker(ledger, releaseWorker);
+            blockWorker(ledger, releaseWorker);
             Thread caller = Thread.currentThread();
-            CompletableFuture<Thread> completed = new CompletableFuture<>();
-            cursor.asyncReadEntries(1, new ReadEntriesCallback() {
-                @Override
-                public boolean canExecuteOnAnyThread() {
-                    return inline;
-                }
+            // Each independent completion must unwind its depth, allowing subsequent reads to stay inline
+            // even after more reads than the nesting limit. A blocked worker makes unexpected queuing deterministic.
+            for (int i = 0; i < count; i++) {
+                CompletableFuture<Thread> completed = new CompletableFuture<>();
+                cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        entries.forEach(Entry::release);
+                        completed.complete(Thread.currentThread());
+                    }
 
-                @Override
-                public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                    entries.forEach(Entry::release);
-                    completed.complete(Thread.currentThread());
-                }
-
-                @Override
-                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                    completed.completeExceptionally(exception);
-                }
-            }, null, PositionFactory.LATEST);
-            // A blocked worker makes the queue boundary deterministic, rather than depending on task timing.
-            assertEquals(completed.isDone(), inline);
-            releaseWorker.countDown();
-            assertSame(completed.get(10, TimeUnit.SECONDS), inline ? caller : worker);
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        completed.completeExceptionally(exception);
+                    }
+                }, null, PositionFactory.LATEST);
+                assertTrue(completed.isDone(), "Independent read " + i + " must complete inline");
+                assertSame(completed.get(10, TimeUnit.SECONDS), caller);
+            }
         } finally {
             releaseWorker.countDown();
             ledger.close();
@@ -102,7 +97,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
             Thread worker = blockWorker(ledger, releaseWorker);
             Thread caller = Thread.currentThread();
             CompletableFuture<List<Entry>> read = ManagedLedgerUtils.readEntriesWithSkipOrWait(
-                    cursor, 1, Long.MAX_VALUE, PositionFactory.LATEST, null, true);
+                    cursor, 1, Long.MAX_VALUE, PositionFactory.LATEST, null);
             CompletableFuture<Thread> continued = read.thenApplyAsync(entries -> {
                 entries.forEach(Entry::release);
                 return Thread.currentThread();
@@ -119,6 +114,34 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
         }
     }
 
+    @Test(timeOut = 60000)
+    public void testCachedScanFromCallingThreadBoundsRecursion() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-recursion", rawEntryConfig());
+        try {
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
+            int count = 1000;
+            for (int i = 0; i < count; i++) {
+                ledger.addEntry(new byte[] {1});
+            }
+            AtomicInteger seen = new AtomicInteger();
+            AtomicInteger firstDepth = new AtomicInteger(-1);
+            AtomicInteger maxDepth = new AtomicInteger();
+            var outcome = cursor.scan(Optional.empty(), entry -> {
+                int depth = Thread.currentThread().getStackTrace().length;
+                firstDepth.compareAndSet(-1, depth);
+                maxDepth.accumulateAndGet(depth, Math::max);
+                seen.incrementAndGet();
+                return true;
+            }, 1, Long.MAX_VALUE, Long.MAX_VALUE);
+            assertThat(outcome.get(30, TimeUnit.SECONDS)).isEqualTo(ScanOutcome.COMPLETED);
+            assertThat(seen.get()).isEqualTo(count);
+            assertThat(maxDepth.get() - firstDepth.get())
+                    .isLessThan(OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS * 40);
+        } finally {
+            ledger.close();
+        }
+    }
+
     private static Thread blockWorker(ManagedLedgerImpl ledger, CountDownLatch releaseWorker) throws Exception {
         CompletableFuture<Thread> started = new CompletableFuture<>();
         ledger.getExecutor().execute(() -> {
@@ -132,11 +155,11 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
         return started.get(10, TimeUnit.SECONDS);
     }
 
-    @Test(dataProvider = "inlineCompletion")
-    public void testCacheMissAcrossLedgers(boolean inline) throws Exception {
+    @Test
+    public void testCacheMissAcrossLedgers() throws Exception {
         ManagedLedgerConfig config = rawEntryConfig().setMaxEntriesPerLedger(2);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-rollover-" + inline, config);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-rollover-", config);
         AtomicInteger storageReads = new AtomicInteger();
         try {
             ManagedCursor cursor = ledger.openCursor("cursor");
@@ -149,7 +172,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
                 return CompletableFuture.completedFuture(entries);
             });
             List<Entry> entries = ManagedLedgerUtils.readEntriesWithSkipOrWait(
-                    cursor, 6, Long.MAX_VALUE, PositionFactory.LATEST, null, inline).get(10, TimeUnit.SECONDS);
+                    cursor, 6, Long.MAX_VALUE, PositionFactory.LATEST, null).get(10, TimeUnit.SECONDS);
             try {
                 assertThat(entries).hasSize(6);
                 for (int i = 0; i < entries.size(); i++) {
@@ -167,9 +190,9 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test(dataProvider = "inlineCompletion")
-    public void testStorageFailureAndRetry(boolean inline) throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-failure-" + inline,
+    @Test
+    public void testStorageFailureAndRetry() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-failure-",
                 rawEntryConfig());
         try {
             ManagedCursor cursor = ledger.openCursor("cursor");
@@ -180,12 +203,12 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
                 return CompletableFuture.failedFuture(BKException.create(BKException.Code.ReadException));
             });
             var failed = ManagedLedgerUtils.readEntriesWithSkipOrWait(
-                    cursor, 1, Long.MAX_VALUE, PositionFactory.LATEST, null, inline);
+                    cursor, 1, Long.MAX_VALUE, PositionFactory.LATEST, null);
             assertThatThrownBy(() -> failed.get(10, TimeUnit.SECONDS))
                     .hasCauseInstanceOf(ManagedLedgerException.class);
             bkc.setReadHandleInterceptor(null);
             List<Entry> entries = ManagedLedgerUtils.readEntriesWithSkipOrWait(
-                    cursor, 1, Long.MAX_VALUE, PositionFactory.LATEST, null, inline).get(10, TimeUnit.SECONDS);
+                    cursor, 1, Long.MAX_VALUE, PositionFactory.LATEST, null).get(10, TimeUnit.SECONDS);
             try {
                 assertThat(entries).hasSize(1);
                 assertThat(entries.get(0).getData()).containsExactly((byte) 1);

@@ -39,7 +39,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 @CustomLog
 class OpReadEntry implements ReadEntriesCallback {
 
-    /** How deep read completions may nest inline on a ledger thread before one is queued to unwind the stack. */
+    /** How deep read completions may nest inline on a completing thread before one is queued to unwind the stack. */
     static final int MAX_NESTED_INLINE_COMPLETIONS = 10;
 
     /** Nesting depth of read completions running inline on the current thread. */
@@ -286,17 +286,12 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     private void complete(Object ctx) {
-        if (callback.canExecuteOnAnyThread()) {
-            completeNow(ctx);
-            return;
-        }
         ThreadBoundExecutor executor = cursor.ledger.getExecutor();
-        // Run inline on the ledger thread to skip the queue hop. A fully cached read completes synchronously and
-        // callers such as OpScan and the replicator issue their next read from this callback, so the nesting is
-        // bounded per thread: past MAX_NESTED_INLINE_COMPLETIONS levels the completion is queued once to unwind
-        // the stack. Independent reads interleaving on the thread do not accumulate, only actual nesting does.
-        int[] depth = executor.isCurrentThread() ? INLINE_COMPLETION_DEPTH.get() : null;
-        if (depth != null && depth[0] < MAX_NESTED_INLINE_COMPLETIONS) {
+        // Complete on the reading thread instead of queueing behind unrelated ledger writes. A fully cached
+        // read can complete synchronously and start another read, so bound nesting on every completing thread.
+        // Queue once at the limit to unwind the stack; independent reads do not accumulate nesting depth.
+        int[] depth = INLINE_COMPLETION_DEPTH.get();
+        if (depth[0] < MAX_NESTED_INLINE_COMPLETIONS) {
             depth[0]++;
             try {
                 completeNow(ctx);

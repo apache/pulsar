@@ -400,7 +400,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     // The continuation below already dispatches to our executor. A cache hit must not wait
                     // behind unrelated publishing work on the managed-ledger executor first.
                     entriesFuture = readEntriesWithSkipOrWait(cursor, messagesToRead, bytesToRead,
-                            topic.getMaxReadPosition(), null, true);
+                            topic.getMaxReadPosition(), null);
                 }
                 entriesFuture.whenCompleteAsync((entries, e) -> {
                     if (e == null) {

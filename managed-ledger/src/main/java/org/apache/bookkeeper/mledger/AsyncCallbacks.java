@@ -84,14 +84,9 @@ public interface AsyncCallbacks {
 
     interface ReadEntriesCallback {
         /**
-         * Whether a successful read may invoke this callback on the completing thread, avoiding a handoff to the
-         * managed-ledger executor. The callback must not block and must bound any recursive reads it initiates.
-         * Callbacks that dispatch their own continuation to an executor can opt in without changing its affinity.
+         * May be invoked inline on the thread completing the read, including the calling thread for a cache hit.
+         * Implementations must not block and must schedule their own continuation when thread affinity is needed.
          */
-        default boolean canExecuteOnAnyThread() {
-            return false;
-        }
-
         void readEntriesComplete(List<Entry> entries, Object ctx);
 
         void readEntriesFailed(ManagedLedgerException exception, Object ctx);
