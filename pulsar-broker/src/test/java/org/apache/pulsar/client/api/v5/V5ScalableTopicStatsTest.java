@@ -26,6 +26,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import lombok.Cleanup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.v5.config.BatchingPolicy;
@@ -152,6 +153,45 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
                 () -> admin.scalableTopics().getSegmentStats(topic, 42L));
         assertThrows(PulsarAdminException.class,
                 () -> admin.scalableTopics().getSegmentStats("persistent://public/default/not-a-segment"));
+        assertThrows("a malformed segment descriptor is rejected client-side", PulsarAdminException.class,
+                () -> admin.scalableTopics().getSegmentStats("segment://public/default/x/0000-ffff"));
+    }
+
+    @Test
+    public void testStatsOfMigratedTopicIncludeLegacySegments() throws Exception {
+        String base = getNamespace() + "/migrated-" + UUID.randomUUID().toString().substring(0, 8);
+        admin.topics().createNonPartitionedTopic("persistent://" + base);
+
+        // Data on the regular topic before the migration, so the legacy segment has storage.
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string())
+                .topic("persistent://" + base)
+                .create();
+        for (int i = 0; i < 10; i++) {
+            producer.newMessage().key("k-" + i).value("v-" + i).send();
+        }
+        admin.scalableTopics().migrateToScalable(base, false);
+        String topic = "topic://" + base;
+
+        ScalableTopicStats stats = admin.scalableTopics().getStats(topic);
+
+        // Segment 0 is the sealed legacy parent wrapping the persistent:// topic; segment 1 is
+        // the active child that took over.
+        ScalableTopicStats.LayoutSegment parent = stats.getLayout().getSegments().get(0L);
+        assertTrue(parent.isSealed());
+        assertEquals(parent.getName(), "persistent://" + base, "a legacy segment is named after the topic it wraps");
+        assertEquals(parent.getChildIds(), List.of(1L));
+        assertNotNull(parent.getOwnerBroker(), "the legacy topic's stats are collected like any segment's");
+        ScalableTopicStats.LayoutSegment child = stats.getLayout().getSegments().get(1L);
+        assertTrue(child.isActive());
+        assertTrue(child.getName().startsWith("segment://" + base + "/"), "unexpected child name " + child.getName());
+        assertEquals(child.getParentIds(), List.of(0L));
+        assertTrue(stats.getStorageSize() > 0, "the legacy segment's storage is part of the aggregate");
+
+        // Per-segment stats of the legacy segment are those of the wrapped persistent:// topic.
+        SegmentTopicStats legacy = admin.scalableTopics().getSegmentStats(topic, 0L);
+        assertNotNull(legacy.getOwnerBroker());
+        assertTrue(legacy.getStorageSize() > 0);
     }
 
     @Test

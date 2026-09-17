@@ -24,12 +24,15 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -51,8 +54,11 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.resources.SubscriptionMetadata;
 import org.apache.pulsar.broker.resources.SubscriptionType;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
@@ -60,6 +66,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -86,6 +95,7 @@ public class ScalableTopicControllerTest {
 
     private BrokerService brokerService;
     private PulsarService pulsar;
+    private NamespaceService namespaceService;
     private PulsarAdmin admin;
     private Topics topics;
     private ScalableTopics scalableTopics;
@@ -138,7 +148,7 @@ public class ScalableTopicControllerTest {
 
         // Stats: no segment is owned locally, so every segment's stats come back through the
         // (mocked) segment-stats admin endpoint.
-        NamespaceService namespaceService = mock(NamespaceService.class);
+        namespaceService = mock(NamespaceService.class);
         when(pulsar.getNamespaceService()).thenReturn(namespaceService);
         when(namespaceService.isServiceUnitOwnedAsync(any()))
                 .thenReturn(CompletableFuture.completedFuture(false));
@@ -527,6 +537,66 @@ public class ScalableTopicControllerTest {
         ScalableTopicStats.SubscriptionStats subB = stats.getSubscriptions().get("sub-b");
         assertEquals(subB.getType(), ScalableSubscriptionType.QUEUE);
         assertTrue(subB.getConsumers().isEmpty());
+    }
+
+    /** The backing topic name of a segment of the test topic, as the controller computes it. */
+    private String backingTopicOf(long segmentId) throws Exception {
+        return SegmentTopicName.backingTopicName(topicName,
+                controller.getLayout().get().getAllSegments().get(segmentId));
+    }
+
+    @Test
+    public void testGetStatsReadsLocallyOwnedSegmentsDirectly() throws Exception {
+        controller.initialize().get();
+        // Segment 1 is owned by this broker: its stats are read from the loaded topic, and
+        // the admin endpoint is not involved for it.
+        String local = backingTopicOf(1);
+        when(namespaceService.isServiceUnitOwnedAsync(TopicName.get(local)))
+                .thenReturn(CompletableFuture.completedFuture(true));
+        Topic localTopic = mock(Topic.class);
+        TopicStatsImpl localStats = new TopicStatsImpl();
+        localStats.ownerBroker = BROKER_ID;
+        localStats.msgRateIn = 7;
+        doReturn(CompletableFuture.completedFuture(localStats))
+                .when(localTopic).asyncGetStats(any(GetStatsOptions.class));
+        when(brokerService.getTopicIfExists(local))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(localTopic)));
+
+        ScalableTopicStats stats = controller.getStats().get();
+
+        assertEquals(stats.getLayout().getSegments().get(1L).getOwnerBroker(), BROKER_ID);
+        assertEquals(stats.getLayout().getSegments().get(0L).getOwnerBroker(), "segment-owner");
+        assertEquals(stats.getMsgRateIn(), 7 + 1.5 * (INITIAL_SEGMENTS - 1));
+        verify(scalableTopics, never()).getSegmentStatsAsync(topicName.toString(), 1L);
+        verify(scalableTopics, times(INITIAL_SEGMENTS - 1))
+                .getSegmentStatsAsync(eq(topicName.toString()), anyLong());
+    }
+
+    @Test
+    public void testGetStatsToleratesSegmentFetchFailures() throws Exception {
+        controller.initialize().get();
+        String topic = topicName.toString();
+        // Segment 0: the owner says the backing topic doesn't exist (never materialized or
+        // already pruned). Segment 1: the owner is unreachable. Segment 2: owned here but not
+        // loaded. Segment 3: healthy.
+        when(scalableTopics.getSegmentStatsAsync(topic, 0L))
+                .thenReturn(FutureUtil.failedFuture(new PulsarAdminException.NotFoundException(
+                        new RuntimeException("gone"), "Segment topic not found", 404)));
+        when(scalableTopics.getSegmentStatsAsync(topic, 1L))
+                .thenReturn(FutureUtil.failedFuture(new RuntimeException("connection refused")));
+        when(namespaceService.isServiceUnitOwnedAsync(TopicName.get(backingTopicOf(2))))
+                .thenReturn(CompletableFuture.completedFuture(true));
+
+        ScalableTopicStats stats = controller.getStats().get();
+
+        Map<Long, ScalableTopicStats.LayoutSegment> segments = stats.getLayout().getSegments();
+        assertEquals(segments.size(), INITIAL_SEGMENTS, "every segment keeps its layout entry");
+        for (long id : List.of(0L, 1L, 2L)) {
+            assertNull(segments.get(id).getOwnerBroker(), "segment " + id + " has no stats, so no owner");
+            assertEquals(segments.get(id).getState(), "ACTIVE");
+        }
+        assertEquals(segments.get(3L).getOwnerBroker(), "segment-owner");
+        assertEquals(stats.getMsgRateIn(), 1.5, "only the healthy segment contributes to the aggregates");
     }
 
     // --- createInitialMetadata ---
