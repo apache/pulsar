@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
@@ -61,6 +62,7 @@ import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
@@ -98,6 +100,48 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         List<Entry> entries = cursor.readEntries(num);
         assertEquals(num, entries.size());
         entries.forEach(Entry::release);
+    }
+
+    @Test
+    public void testSeekRetracksCursorAfterUntracking() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = new ManagedLedgerConfig()
+                .setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1);
+        config.setCacheEvictionByExpectedReadCount(true);
+        config.setCacheEvictionByMarkDeletedPosition(false);
+        config.setPulsarMessageEntries(false);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("cursor-untracking-" + testName, config);
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(StandardCharsets.UTF_8)));
+        }
+        List<ManagedCursor> cursors = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            ManagedCursor cursor = ledger.openCursor("cursor" + i, InitialPosition.Earliest);
+            cursor.seek(positions.get(i + 1));
+            cursor.setActive();
+            cursors.add(cursor);
+        }
+        ActiveManagedCursorContainer container = ledger.getActiveCursors();
+        assertThat(container.getSlowestCursorPosition()).isEqualTo(positions.get(1));
+        ManagedCursor cursor = cursors.get(2);
+        // Null untracking is a container API operation; normal broker deactivation removes the cursor.
+        container.updateCursor(cursor, null);
+        assertThat(container.getSlowestCursorPosition()).isEqualTo(positions.get(1));
+
+        // Exercise ManagedCursorImpl -> ManagedLedgerImpl -> the active cursor container.
+        // One update among four tracked nodes forces incremental reinsertion.
+        cursor.seek(positions.get(6));
+        assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(cursor)).isEqualTo(5);
+        assertThat(container.getSlowestCursorPosition()).isEqualTo(positions.get(1));
+        assertThat(container.size()).isEqualTo(5);
+        for (int i = 0; i < cursors.size(); i++) {
+            if (i != 2) {
+                assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(cursors.get(i)))
+                        .as("rank of cursor%s", i).isEqualTo(i < 2 ? i + 1 : i);
+            }
+        }
     }
 
     @Test

@@ -18,63 +18,38 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.impl.MockManagedCursor.createCursor;
 import static org.assertj.core.api.Assertions.assertThat;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
-import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
-import org.testng.annotations.AfterMethod;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class ActiveManagedCursorContainerUntrackingTest extends BookKeeperClusterTestCase {
-    private ManagedLedgerFactoryImpl factory;
-    private ManagedLedgerImpl ledger;
+public class ActiveManagedCursorContainerUntrackingTest {
     private ActiveManagedCursorContainerImpl container;
     private final List<ManagedCursor> cursors = new ArrayList<>();
     private final List<Position> positions = new ArrayList<>();
 
-    public ActiveManagedCursorContainerUntrackingTest() {
-        super(1);
-    }
-
     @BeforeMethod(alwaysRun = true)
-    public void createLedger() throws Exception {
-        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ManagedLedgerConfig config = new ManagedLedgerConfig()
-                .setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1);
-        config.setCacheEvictionByExpectedReadCount(true);
-        config.setCacheEvictionByMarkDeletedPosition(false);
-        config.setPulsarMessageEntries(false);
-        ledger = (ManagedLedgerImpl) factory.open("cursor-untracking-" + UUID.randomUUID(), config);
-        container = (ActiveManagedCursorContainerImpl) ledger.getActiveCursors();
+    public void createContainer() {
+        container = new ActiveManagedCursorContainerImpl();
         positions.clear();
         cursors.clear();
         for (int i = 0; i < 7; i++) {
-            positions.add(ledger.addEntry(("entry-" + i).getBytes(StandardCharsets.UTF_8)));
+            positions.add(PositionFactory.create(1, i));
         }
         for (int i = 0; i < 5; i++) {
-            ManagedCursor cursor = ledger.openCursor("cursor" + i, InitialPosition.Earliest);
-            cursor.seek(positions.get(i + 1));
-            cursor.setActive();
+            Position position = positions.get(i + 1);
+            ManagedCursor cursor = createCursor(container, "cursor" + i, position);
+            container.add(cursor, position);
             cursors.add(cursor);
         }
         assertThat(container.size()).isEqualTo(5);
         assertThat(container.getSlowestCursorPosition()).isEqualTo(positions.get(1));
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void closeFactory() throws Exception {
-        if (factory != null) {
-            factory.shutdown();
-            factory = null;
-        }
     }
 
     @DataProvider
@@ -92,7 +67,7 @@ public class ActiveManagedCursorContainerUntrackingTest extends BookKeeperCluste
         // Updating two of the four remaining nodes forces a rebuild. It must not resurrect the cursor.
         queueRebuild();
         assertUntracked(cursor);
-        assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(cursors.get(4))).isEqualTo(4);
+        assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(cursors.get(4))).isEqualTo(4);
         container.checkOrderingAndNumberOfCursorsState();
     }
 
@@ -113,16 +88,15 @@ public class ActiveManagedCursorContainerUntrackingTest extends BookKeeperCluste
         if (useAdd) {
             container.add(cursor, restored);
         } else {
-            // Exercise ManagedCursorImpl -> ManagedLedgerImpl -> the ledger's active cursor container.
-            cursor.seek(restored);
+            container.updateCursor(cursor, restored);
         }
         // One update among four tracked nodes forces incremental insertion after either removal path.
-        assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(cursor)).isEqualTo(moveForward ? 5 : 1);
+        assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(cursor)).isEqualTo(moveForward ? 5 : 1);
         assertThat(container.getSlowestCursorPosition()).isEqualTo(moveForward ? positions.get(1) : restored);
         for (int i = 0; i < cursors.size(); i++) {
             if (i != 2) {
                 int rankWithoutRestored = i < 2 ? i + 1 : i;
-                assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(cursors.get(i)))
+                assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(cursors.get(i)))
                         .as("rank of cursor%s", i).isEqualTo(rankWithoutRestored + (moveForward ? 0 : 1));
             }
         }
@@ -143,7 +117,7 @@ public class ActiveManagedCursorContainerUntrackingTest extends BookKeeperCluste
 
     @Test
     public void testUntrackingBeforeFirstPositionFlush() {
-        // Real cursors, registered through the public container API without ever entering its ordered list.
+        // The last cursor never enters this container's ordered list.
         ActiveManagedCursorContainerImpl other = new ActiveManagedCursorContainerImpl();
         for (int i = 0; i < 4; i++) {
             other.add(cursors.get(i), positions.get(i + 1));
@@ -177,12 +151,12 @@ public class ActiveManagedCursorContainerUntrackingTest extends BookKeeperCluste
     }
 
     private void queueRebuild() {
-        cursors.get(0).seek(positions.get(1));
-        cursors.get(4).seek(positions.get(5));
+        container.updateCursor(cursors.get(0), positions.get(1));
+        container.updateCursor(cursors.get(4), positions.get(5));
     }
 
     private void assertUntracked(ManagedCursor cursor) {
-        assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(cursor)).isZero();
+        assertThat(container.getNumberOfCursorsAtSamePositionOrBefore(cursor)).isZero();
         assertThat(container.size()).isEqualTo(5);
         assertThat(container.get(cursor.getName())).isSameAs(cursor);
     }
