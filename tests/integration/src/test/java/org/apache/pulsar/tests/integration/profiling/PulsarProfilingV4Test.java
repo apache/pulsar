@@ -19,6 +19,8 @@
 package org.apache.pulsar.tests.integration.profiling;
 
 import java.util.List;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.testng.annotations.Test;
 
@@ -40,6 +42,16 @@ public class PulsarProfilingV4Test extends AbstractPulsarProfilingTest {
     @Override
     protected String getPerfCommandSuffix() {
         return "-v4";
+    }
+
+    @Override
+    protected void prepareTopic(String topicName) throws Exception {
+        // Establish the subscription before publishing, even if pulsar-perf takes longer to start.
+        try (PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(pulsarCluster.getAnyBroker().getHttpServiceUrl()).build()) {
+            admin.topics().createNonPartitionedTopic(topicName);
+            admin.topics().createSubscription(topicName, "sub", MessageId.earliest);
+        }
     }
 
     @Override
