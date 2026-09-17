@@ -1818,9 +1818,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 // Close the abandoned write handle, or it leaks with its periodic explicit-LAC flush task.
                 currentLedger.asyncClose((closeRc, closedLedger, closeCtx) -> {
                     if (closeRc != Code.OK) {
-                        log.debug().attr("ledgerId", currentLedger.getId())
-                                .attr("status", BKException.getMessage(closeRc))
-                                .log("Error when closing ledger after it was concurrently modified");
+                        log.debug("[{}] Error when closing ledger after it was concurrently modified. "
+                                + "ledgerId={}, status={}", name, currentLedger.getId(),
+                                BKException.getMessage(closeRc));
                     }
                 }, null);
             } else {
