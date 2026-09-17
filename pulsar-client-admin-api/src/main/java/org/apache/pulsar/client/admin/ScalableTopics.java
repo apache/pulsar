@@ -260,6 +260,22 @@ public interface ScalableTopics {
     CompletableFuture<TopicStats> getSegmentStatsAsync(String topic, long segmentId);
 
     /**
+     * Get the stats of a single segment of a scalable topic, addressed by its name as listed
+     * in the topic stats: {@code segment://tenant/namespace/topic/<hashStart>-<hashEnd>-<segmentId>}.
+     * The name carries the parent topic and the segment ID, so this is equivalent to
+     * {@link #getSegmentStats(String, long)} for that segment.
+     *
+     * @param segmentTopic Full segment name ({@code segment://tenant/namespace/topic/descriptor})
+     * @return the segment's topic stats
+     */
+    TopicStats getSegmentStats(String segmentTopic) throws PulsarAdminException;
+
+    /**
+     * Get the stats of a single segment of a scalable topic by its name, asynchronously.
+     */
+    CompletableFuture<TopicStats> getSegmentStatsAsync(String segmentTopic);
+
+    /**
      * Create a subscription on a scalable topic. The controller leader propagates the
      * subscription to all active segment topics.
      *

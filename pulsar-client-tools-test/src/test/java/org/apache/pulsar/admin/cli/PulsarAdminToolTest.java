@@ -1601,11 +1601,8 @@ public class PulsarAdminToolTest {
         cmdScalableTopics.run(split("stats myprop/ns1/ds1"));
         verify(mockScalableTopics).getStats("myprop/ns1/ds1");
 
-        cmdScalableTopics.run(split("segment-stats myprop/ns1/ds1 --segment-id 3"));
-        verify(mockScalableTopics).getSegmentStats("myprop/ns1/ds1", 3L);
-
-        cmdScalableTopics.run(split("segment-stats myprop/ns1/ds1 -s 7"));
-        verify(mockScalableTopics).getSegmentStats("myprop/ns1/ds1", 7L);
+        cmdScalableTopics.run(split("segment-stats segment://myprop/ns1/ds1/0000-ffff-3"));
+        verify(mockScalableTopics).getSegmentStats("segment://myprop/ns1/ds1/0000-ffff-3");
     }
 
 

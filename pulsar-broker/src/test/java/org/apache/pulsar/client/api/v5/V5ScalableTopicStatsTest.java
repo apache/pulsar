@@ -144,8 +144,14 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
         assertEquals(segmentProducers, List.of("stats-producer-seg-0", "stats-producer-seg-1"));
         assertEquals(backlogFromSegments, n - acked);
 
+        // A segment is also addressable by the name the layout lists for it.
+        TopicStats byName = admin.scalableTopics().getSegmentStats(layout.getSegments().get(1L).getName());
+        assertEquals(byName.getPublishers().get(0).getProducerName(), "stats-producer-seg-1");
+
         assertThrows(PulsarAdminException.NotFoundException.class,
                 () -> admin.scalableTopics().getSegmentStats(topic, 42L));
+        assertThrows(PulsarAdminException.class,
+                () -> admin.scalableTopics().getSegmentStats("persistent://public/default/not-a-segment"));
     }
 
     @Test

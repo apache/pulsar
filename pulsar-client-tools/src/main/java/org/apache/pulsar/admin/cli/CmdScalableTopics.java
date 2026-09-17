@@ -130,16 +130,13 @@ public class CmdScalableTopics extends CmdBase {
     @Command(description = "Get the stats of a single segment of a scalable topic: the regular topic"
             + " stats of the topic backing the segment")
     private class GetSegmentStatsCmd extends CliCommand {
-        @Parameters(description = "tenant/namespace/topic", arity = "1")
-        private String topic;
-
-        @Option(names = {"-s", "--segment-id"},
-                description = "ID of the segment", required = true)
-        private long segmentId;
+        @Parameters(description = "segment://tenant/namespace/topic/<hashStart>-<hashEnd>-<segmentId>,"
+                + " as listed by 'stats'", arity = "1")
+        private String segment;
 
         @Override
         void run() throws Exception {
-            prettyPrint(scalableTopics().getSegmentStats(topic, segmentId));
+            prettyPrint(scalableTopics().getSegmentStats(segment));
         }
     }
 

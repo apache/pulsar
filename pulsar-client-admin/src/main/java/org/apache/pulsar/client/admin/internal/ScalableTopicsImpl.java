@@ -36,6 +36,7 @@ import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
@@ -227,6 +228,28 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
         WebTarget path = topicPath(tn).path("segments").path(String.valueOf(segmentId)).path("stats");
         // TopicStats is an interface; the admin ObjectMapper resolves it to TopicStatsImpl.
         return asyncGetRequest(path, TopicStats.class);
+    }
+
+    @Override
+    public TopicStats getSegmentStats(String segmentTopic) throws PulsarAdminException {
+        return sync(() -> getSegmentStatsAsync(segmentTopic));
+    }
+
+    @Override
+    public CompletableFuture<TopicStats> getSegmentStatsAsync(String segmentTopic) {
+        final TopicName tn;
+        try {
+            tn = TopicName.get(segmentTopic);
+        } catch (IllegalArgumentException e) {
+            return FutureUtil.failedFuture(e);
+        }
+        if (!tn.isSegment()) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "Expected a segment name (segment://tenant/namespace/topic/<descriptor>), got: "
+                            + segmentTopic));
+        }
+        // The name encodes the parent topic and the segment ID; the endpoint is keyed by those.
+        return getSegmentStatsAsync(SegmentTopicName.getParentTopicName(tn).toString(), tn.getSegmentId());
     }
 
     // --- Subscription operations ---
