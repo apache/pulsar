@@ -324,6 +324,10 @@ public class PulsarConfigurationLoaderTest {
         config.setNumIOThreads(config.getNumIOThreads());
         // Extra property not backed by a declared FieldContext field.
         config.getProperties().setProperty("custom.plugin.option", "enabled");
+        // Properties file entries that set declared fields to their default value (as broker.conf does for
+        // nearly every setting) must not be reported as overrides.
+        config.getProperties().setProperty("numIOThreads", String.valueOf(config.getNumIOThreads()));
+        config.getProperties().setProperty("metadataStoreUrl", config.getMetadataStoreUrl());
 
         Map<String, Object> overrides = runtimeConfigurationOverrides(config);
 
