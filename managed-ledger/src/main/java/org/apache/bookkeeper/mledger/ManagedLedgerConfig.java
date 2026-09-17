@@ -411,7 +411,8 @@ public class ManagedLedgerConfig {
 
     /**
      * Whether successful ordinary multi-entry cursor reads may complete on the current thread.
-     * Defaults to false, which queues completion on the ledger executor unless a custom executor is configured.
+     * Defaults to false, which retains ledger-executor affinity unless a custom executor is configured.
+     * Completion can still run inline when already on the ledger executor.
      *
      * @see #setReadEntriesCallbackInline(boolean)
      */
@@ -422,14 +423,16 @@ public class ManagedLedgerConfig {
     /**
      * Select completion on the current thread for successful {@code asyncReadEntries} and
      * {@code asyncReadEntriesOrWait} operations. A fully cached read may invoke its callback before the read method
-     * returns. Nested completion is bounded by a queued handoff to the ledger executor.
+     * returns. When disabled, completion is restricted to the ledger executor, as before: it runs inline when
+     * already on that executor and is queued otherwise. Nested completion is bounded by a queued handoff
+     * to the ledger executor in both modes.
      *
      * <p>A non-null {@link #getReadEntriesCallbackExecutor()} takes precedence over this flag. This setting does not
      * change failure callbacks, single-entry reads, or replay callbacks. The policy is captured when the ledger is
      * opened; subsequent configuration changes, including {@link ManagedLedger#setConfig(ManagedLedgerConfig)},
      * do not change the policy of an already open ledger.
      *
-     * @param inline true to allow completion on the current thread; false to queue it on the ledger executor
+     * @param inline true to allow completion on any current thread; false to retain ledger-executor affinity
      * @return this configuration
      */
     public ManagedLedgerConfig setReadEntriesCallbackInline(boolean inline) {

@@ -93,8 +93,9 @@ public interface AsyncCallbacks {
     interface ReadEntriesCallback {
         /**
          * May be invoked inline when enabled in the ledger configuration or when its supplied executor runs directly,
-         * including on the calling thread for a cache hit. The default ledger configuration queues ordinary cursor
-         * read completions on the ledger executor; the broker enables inline completion by default.
+         * including on the calling thread for a cache hit. The default ledger configuration restricts ordinary cursor
+         * read completions to the ledger executor, with bounded inline completion when already on that executor.
+         * The broker enables inline completion on other threads by default.
          * The recipient owns the returned entries and must release each entry after processing or discarding it,
          * including when its own shutdown or cancellation makes the result unnecessary.
          * Callers chaining cursor reads must coordinate result processing as described in {@link ManagedCursor}.

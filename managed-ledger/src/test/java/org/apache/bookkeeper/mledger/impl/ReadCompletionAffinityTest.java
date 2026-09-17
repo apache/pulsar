@@ -228,7 +228,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testDefaultCachedReadQueuesCompletionFromCallingAndLedgerThreads() throws Exception {
+    public void testLegacyCachedReadQueuesCompletionOffLedgerAndRunsItInlineOnLedger() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-default-legacy", rawEntryConfig());
         CountDownLatch releaseWorker = new CountDownLatch(1);
         try {
@@ -236,7 +236,6 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
             ledger.addEntry(new byte[] {1});
             ledger.addEntry(new byte[] {2});
             assertThat(ledger.entryCache.getSize()).isPositive();
-            assertThat(ledger.getReadEntriesCallbackExecutor()).isSameAs(ledger.getExecutor());
 
             Thread worker = blockWorker(ledger, releaseWorker);
             CompletableFuture<Thread> fromCaller = readOne(cursor, false);
@@ -244,7 +243,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
             releaseWorker.countDown();
             assertThat(fromCaller.get(10, TimeUnit.SECONDS)).isSameAs(worker);
 
-            CompletableFuture<Boolean> queuedFromWorker = new CompletableFuture<>();
+            CompletableFuture<Boolean> completedInlineOnWorker = new CompletableFuture<>();
             CompletableFuture<Thread> fromWorker = new CompletableFuture<>();
             ledger.getExecutor().execute(() -> {
                 cursor.asyncReadEntries(1, new ReadEntriesCallback() {
@@ -259,12 +258,73 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
                         fromWorker.completeExceptionally(exception);
                     }
                 }, null, PositionFactory.LATEST);
-                queuedFromWorker.complete(!fromWorker.isDone());
+                completedInlineOnWorker.complete(fromWorker.isDone());
             });
-            assertThat(queuedFromWorker.get(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(completedInlineOnWorker.get(10, TimeUnit.SECONDS)).isTrue();
             assertThat(fromWorker.get(10, TimeUnit.SECONDS)).isSameAs(worker);
         } finally {
             releaseWorker.countDown();
+            ledger.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testLegacyCachedReadOnLedgerWorkerQueuesAtDepthLimit() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-legacy-depth-limit", rawEntryConfig());
+        CountDownLatch releaseOuterRead = new CountDownLatch(1);
+        try {
+            ManagedCursor cursor = ledger.openCursor("cursor");
+            int count = OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS + 1;
+            for (int i = 0; i < count; i++) {
+                ledger.addEntry(new byte[] {(byte) i});
+            }
+            assertThat(ledger.entryCache.getSize()).isPositive();
+
+            AtomicInteger completions = new AtomicInteger();
+            AtomicReference<Thread> worker = new AtomicReference<>();
+            AtomicReference<Thread> unexpectedThread = new AtomicReference<>();
+            CompletableFuture<Integer> inlineCompletions = new CompletableFuture<>();
+            CompletableFuture<Thread> queuedCompletion = new CompletableFuture<>();
+            ledger.getExecutor().execute(() -> {
+                worker.set(Thread.currentThread());
+                cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        entries.forEach(Entry::release);
+                        if (Thread.currentThread() != worker.get()) {
+                            unexpectedThread.compareAndSet(null, Thread.currentThread());
+                        }
+                        int completion = completions.incrementAndGet();
+                        if (completion < count) {
+                            cursor.asyncReadEntries(1, this, null, PositionFactory.LATEST);
+                        } else {
+                            queuedCompletion.complete(Thread.currentThread());
+                        }
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        queuedCompletion.completeExceptionally(exception);
+                    }
+                }, null, PositionFactory.LATEST);
+                inlineCompletions.complete(completions.get());
+                try {
+                    releaseOuterRead.await(20, TimeUnit.SECONDS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    queuedCompletion.completeExceptionally(e);
+                }
+            });
+
+            assertThat(inlineCompletions.get(10, TimeUnit.SECONDS))
+                    .isEqualTo(OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS);
+            assertThat(unexpectedThread.get()).isNull();
+            assertThat(queuedCompletion).isNotDone();
+
+            releaseOuterRead.countDown();
+            assertThat(queuedCompletion.get(10, TimeUnit.SECONDS)).isSameAs(worker.get());
+        } finally {
+            releaseOuterRead.countDown();
             ledger.close();
         }
     }
@@ -482,11 +542,12 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
         try {
             ManagedCursor cursor = ledger.openCursor("cursor");
             ledger.addEntry(new byte[] {1});
-            assertThat(ledger.getReadEntriesCallbackExecutor()).isSameAs(ledger.getExecutor());
+            Executor callbackPolicyAtOpen = ledger.getReadEntriesCallbackExecutor();
+            assertThat(callbackPolicyAtOpen).isNotNull();
             ledger.setConfig(rawEntryConfig()
                     .setReadEntriesCallbackInline(true)
                     .setReadEntriesCallbackExecutor(Runnable::run));
-            assertThat(ledger.getReadEntriesCallbackExecutor()).isSameAs(ledger.getExecutor());
+            assertThat(ledger.getReadEntriesCallbackExecutor()).isSameAs(callbackPolicyAtOpen);
 
             Thread worker = blockWorker(ledger, releaseWorker);
             CompletableFuture<Thread> callback = readOne(cursor, false);

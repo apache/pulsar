@@ -411,7 +411,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else if (config.isReadEntriesCallbackInline()) {
             this.readEntriesCallbackExecutor = null;
         } else {
-            this.readEntriesCallbackExecutor = executor;
+            // Preserve legacy affinity, including bounded inline completion on the ledger worker itself.
+            this.readEntriesCallbackExecutor = command -> {
+                if (executor.isCurrentThread()) {
+                    command.run();
+                } else {
+                    executor.execute(command);
+                }
+            };
         }
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);

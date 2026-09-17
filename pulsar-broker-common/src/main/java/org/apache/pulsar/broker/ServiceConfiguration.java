@@ -2736,7 +2736,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Allow successful ordinary multi-entry managed-ledger read callbacks to complete on the current "
                     + "thread. Fully cached reads may complete before the read method returns. Set false to restore "
-                    + "queued completion on the ledger executor. An explicitly configured callback executor takes "
+                    + "ledger-executor affinity, including bounded inline completion when already on that executor. "
+                    + "An explicitly configured callback executor takes "
                     + "precedence. This is not a dynamic setting: the completion policy is captured when a managed "
                     + "ledger opens and does not change for already loaded topics. Failure callbacks, single-entry "
                     + "reads, and replay callbacks are unaffected.")
