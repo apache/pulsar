@@ -435,7 +435,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                 // regular-to-scalable migration. Drop the stale per-segment producer and wait
                 // for the DAG watch to deliver the new layout; routeMessage on the next attempt
                 // lands on an active child.
-                log.info().attr("segmentId", segmentId).attr("attempt", attempt + 1)
+                log.debug().attr("segmentId", segmentId).attr("attempt", attempt + 1)
                         .log("Target segment gone, waiting for layout update");
                 segmentProducers.remove(segmentId);
                 // The message stays with this layer while it waits for the new layout.
@@ -622,7 +622,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                                            int attempt, Throwable ex, Runnable retry) {
         Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
         if (isSegmentGoneError(cause) && attempt < SEND_RETRY_MAX_ATTEMPTS) {
-            log.info().attr("segmentId", segmentId).attr("attempt", attempt + 1)
+            log.debug().attr("segmentId", segmentId).attr("attempt", attempt + 1)
                     .log("Target segment gone, retrying async send after layout update");
             retry.run();
         } else {
