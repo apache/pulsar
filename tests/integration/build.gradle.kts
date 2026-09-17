@@ -244,6 +244,10 @@ tasks.register<Test>("profilingIntegrationTest") {
     // itself and does not depend on this; every other integration test does, since they default off.
     configureIntegrationTestDefaults(defaultProfiledComponents = "broker")
 
+    // Resolve the harness environment through a Provider so configuration-cache reuse tracks scenario
+    // and output overrides instead of retaining an earlier profiling invocation's environment.
+    environment(providers.environmentVariablesPrefixedBy("PULSAR_PROFILING_").get())
+
     // Build the test image that carries the profiler, and prepare the kernel for it.
     dependsOn(":tests:java-test-image:dockerBuildWithAsyncProfiler", tuneKernelPerfEvents)
 
