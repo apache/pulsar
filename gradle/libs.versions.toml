@@ -24,7 +24,7 @@ async-profiler = "4.5"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
-bookkeeper = "4.18.0"
+bookkeeper = "4.18.1"
 zookeeper = "3.9.5"
 netty = "4.2.18.Final"
 jetty = "12.1.12"
@@ -172,7 +172,7 @@ felix-http-wrappers = "1.1.10"
 oxia = "0.9.5"
 oxia-testcontainers = "0.7.4"
 # Build plugins
-lightproto = "0.8.1"
+lightproto = "0.8.2"
 graalvm-buildtools = "1.1.9"
 errorprone = "2.50.0"
 spotbugs = "4.10.3"

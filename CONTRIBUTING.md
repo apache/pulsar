@@ -131,6 +131,28 @@ Failed tests are retried once by default (`testRetryCount=1`; `0` when running i
 running tests locally, prefer **`-PtestRetryCount=0`** to catch failures (including flakiness) early
 instead of having retries mask them.
 
+### Netty buffer leak detection
+
+Tests enable Netty's `paranoid` leak detection by default, using `ExtendedNettyLeakDetector`
+to include test names in leak reports and write `netty_leak_*.txt` files. Set
+`NETTY_LEAK_DUMP_DIR` to choose the output directory (the default is the JVM's temporary directory).
+
+`NETTY_LEAK_DETECTION=report` (the default) reports leaks without failing tests.
+In CI, `NETTY_LEAK_DETECTION=fail_on_leak` makes the leak-reporting step fail the job when dumps
+are found. Unit, integration, and system test jobs collect dumps from both the test JVMs and
+Pulsar Docker containers, including reports generated during container shutdown. For local tests, use `-PtestExitJvmOnLeak=true` to fail the test JVM on a detected leak:
+
+```bash
+NETTY_LEAK_DUMP_DIR=/tmp/pulsar-netty-leaks ./gradlew :pulsar-client-original:test \
+  --tests "ConsumerBuilderImplTest" -PtestExitJvmOnLeak=true -PtestRetryCount=0
+```
+
+Set `NETTY_LEAK_DETECTION=off` to disable detection, or use
+`-PtestLeakDetectionLevel=simple|advanced|paranoid|disabled` to change its level.
+`-PtestExitJvmOnLeakDelayMillis=1000` controls the delay before exiting on a leak.
+Detection is disabled automatically for `-PtestAsyncProfiler` and `profilingIntegrationTest`
+to avoid distorting profiles.
+
 ### Micro benchmarks (JMH)
 
 For a **micro**-level question — what a single method, data structure or codec costs — write a
@@ -283,56 +305,11 @@ disallows privileged containers (the run continues either way, with less accurat
 `-Pdocker.wolfi` builds the base image from Wolfi, which is what makes the `GLIBC_TUNABLES` the test
 sets take effect.
 
-#### Analyzing a JFR file
+#### Performance recording analysis
 
-A recording collects several events at once, and each of them is worth looking at from more than one
-angle, so **`jfrFlamegraphs`** renders the lot in one go:
-
-```bash
-./gradlew jfrFlamegraphs                              # every .jfr in build/test-profiles
-./gradlew jfrFlamegraphs -Pjfr=tests/integration/build # the integration-test recordings
-./gradlew jfrFlamegraphs -Pjfr=<some-file>.jfr         # just one recording
-```
-
-Each recording gets a directory beside it named after the file without its extension plus a
-`-flamegraphs` suffix — `profile.jfr` produces `profile-flamegraphs/` — holding one flame graph per
-view: `cpu`, `wall`, `alloc` and `lock`, each rendered merged (`cpu.html`), split per thread
-(`cpu_threads.html`) and grouped into async-profiler's categories (`cpu_classify.html`). A view whose
-event the recording does not contain is skipped rather than failing the run. Pass
-`-Pjfr.types=cpu,nativemem` to render a different set of events, and `-Pjfrconv=<path>` when
-async-profiler's `jfrconv` is neither next to the library `LIBASYNCPROFILER_PATH` points at nor in
-the JDK that runs Gradle (Amazon Corretto ships it).
-
-For anything the flame graphs don't answer, open the `.jfr` itself in
-[Eclipse Mission Control](https://adoptium.net/jmc) or IntelliJ IDEA, or run `jfrconv` by hand.
-
-> Do not judge a recording by `jfr summary` (the JDK's own tool). The default options record through
-> `jfrsync`, and `jfr summary` reports only a handful of `jdk.ExecutionSample` events for a recording
-> that `jfrconv` reads hundreds of profiler samples from — it looks empty when it is not.
-
-#### Agent-assisted analysis with the Jafar MCP server
-
-The [Jafar MCP server](https://github.com/btraceio/jafar/blob/main/jfr-mcp/README.md) lets an AI
-coding agent read a JFR recording directly, which turns a flame graph into something you can ask
-questions about. Register it once (it needs [JBang](https://www.jbang.dev/) and JDK 25+):
-
-```bash
-claude mcp add jafar -- jbang jfr-mcp@btraceio --stdio
-```
-
-It exposes `jfr_diagnose` (automated diagnosis of a recording), `jfr_stackprofile` (structured stack
-profiling with a time-series and per-thread breakdown), `jfr_hotmethods`, `jfr_flamegraph`,
-`jfr_callgraph`, `jfr_exceptions`, `jfr_tsa` (thread-state analysis), `jfr_use` (USE method) and
-`jfr_query` for [JfrPath](https://github.com/btraceio/jafar) queries. A prompt that works well as a
-starting point:
-
-> use Jafar MCP's jfr_diagnose and jfr_stackprofile to analyze @filename.jfr. Besides showing the
-> report on the console, write the analysis in a markdown file with the jfr file as prefix and the
-> suffix as ".analysis.md"
-
-Treat the result as a lead to verify, not a conclusion: the
-[agent guardrails](AGENTS.md) apply here as much as anywhere, and a performance claim still needs a
-benchmark or a second profile behind it.
+See [`tests/performance/README.md`](tests/performance/README.md) for JFR rendering, async-profiler
+recording analysis, Jafar MCP usage and MAT MCP based memory-leak investigation. That document also
+explains how to keep the raw recordings and analysis next to the workload documentation.
 
 ### Integration tests
 

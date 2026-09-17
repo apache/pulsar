@@ -259,6 +259,8 @@ tasks.register<Test>("profilingIntegrationTest") {
         "${dockerOrganization}/java-test-image:${dockerTag}-asyncprofiler")
     // Leak detection is paranoid by default and would distort the allocation profile.
     environment("NETTY_LEAK_DETECTION", "off")
+    systemProperties.remove("io.netty.customResourceLeakDetector")
+    systemProperty("io.netty.leakDetection.level", "disabled")
 
     // A retried test would profile the cluster twice into the same run.
     systemProperty("testRetryCount", "0")
