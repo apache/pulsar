@@ -49,6 +49,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultChannelId;
+import io.netty.channel.WriteBufferWaterMark;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.util.concurrent.Future;
@@ -3095,6 +3096,113 @@ public class ServerCnxTest {
         clientCommand.release();
         assertTrue(getResponse() instanceof CommandSendError);
         channel.finish();
+    }
+
+    @Test
+    public void testWritabilityNotifiesOnlyConnectedConsumers() throws Exception {
+        resetChannel();
+        Consumer first = mock(Consumer.class);
+        Consumer second = mock(Consumer.class);
+        var pending = new CompletableFuture<Consumer>();
+        var cancelled = new CompletableFuture<Consumer>();
+        cancelled.cancel(false);
+        serverCnx.getConsumers().put(1001, CompletableFuture.completedFuture(first));
+        serverCnx.getConsumers().put(1002, CompletableFuture.completedFuture(second));
+        serverCnx.getConsumers().put(1003, pending);
+        serverCnx.getConsumers().put(1004, CompletableFuture.failedFuture(new IllegalStateException("closed")));
+        serverCnx.getConsumers().put(1005, cancelled);
+        try {
+            channel.unsafe().outboundBuffer().setUserDefinedWritability(1, false);
+            channel.runPendingTasks();
+            verify(first, never()).notifyChannelWritable();
+            verify(second, never()).notifyChannelWritable();
+            channel.unsafe().outboundBuffer().setUserDefinedWritability(1, true);
+            channel.runPendingTasks();
+            verify(first).notifyChannelWritable();
+            verify(second).notifyChannelWritable();
+            assertFalse(pending.isDone());
+        } finally {
+            for (long id = 1001; id <= 1005; id++) {
+                serverCnx.getConsumers().remove(id);
+            }
+        }
+    }
+
+    @Test
+    public void testWritabilityChangingDuringNotifications() throws Exception {
+        resetChannel();
+        Consumer first = mock(Consumer.class);
+        Consumer second = mock(Consumer.class);
+        AtomicInteger notifications = new AtomicInteger();
+        for (Consumer consumer : List.of(first, second)) {
+            doAnswer(inv -> {
+                if (notifications.incrementAndGet() == 1) {
+                    channel.unsafe().outboundBuffer().setUserDefinedWritability(1, false);
+                }
+                return null;
+            }).when(consumer).notifyChannelWritable();
+        }
+        serverCnx.getConsumers().put(1001, CompletableFuture.completedFuture(first));
+        serverCnx.getConsumers().put(1002, CompletableFuture.completedFuture(second));
+        try {
+            channel.pipeline().fireChannelWritabilityChanged();
+            channel.runPendingTasks();
+            assertFalse(channel.isWritable());
+            assertEquals(notifications.get(), 1, "skip the remaining consumer when writability changes");
+            channel.unsafe().outboundBuffer().setUserDefinedWritability(1, true);
+            channel.runPendingTasks();
+            assertEquals(notifications.get(), 3, "the next writable transition must notify both consumers");
+        } finally {
+            serverCnx.getConsumers().remove(1001);
+            serverCnx.getConsumers().remove(1002);
+        }
+    }
+
+    @Test
+    public void testWritabilityNotificationsDoNotReenterWhenHandlerWrites() throws Exception {
+        resetChannel();
+        channel.config().setWriteBufferWaterMark(new WriteBufferWaterMark(16, 32));
+        Consumer first = mock(Consumer.class);
+        Consumer second = mock(Consumer.class);
+        AtomicInteger notifications = new AtomicInteger();
+        AtomicInteger depth = new AtomicInteger();
+        AtomicInteger maxDepth = new AtomicInteger();
+        for (Consumer consumer : List.of(first, second)) {
+            doAnswer(inv -> {
+                maxDepth.accumulateAndGet(depth.incrementAndGet(), Math::max);
+                try {
+                    if (notifications.incrementAndGet() == 1) {
+                        // Real writes and flushes cross both watermarks synchronously inside
+                        // the notification handler, producing three nested writable events.
+                        for (int i = 0; i < 3; i++) {
+                            channel.write(Unpooled.buffer(128).writeZero(128));
+                            assertFalse(channel.isWritable());
+                            channel.flush();
+                            assertTrue(channel.isWritable());
+                        }
+                    }
+                } finally {
+                    depth.decrementAndGet();
+                }
+                return null;
+            }).when(consumer).notifyChannelWritable();
+        }
+        serverCnx.getConsumers().put(1001, CompletableFuture.completedFuture(first));
+        serverCnx.getConsumers().put(1002, CompletableFuture.completedFuture(second));
+        try {
+            channel.pipeline().fireChannelWritabilityChanged();
+            assertEquals(notifications.get(), 2, "nested writable events must not notify inline");
+            channel.runPendingTasks();
+            assertEquals(maxDepth.get(), 1, "a notification handler must not be called recursively");
+            assertEquals(notifications.get(), 4, "nested events should share one deferred follow-up pass");
+        } finally {
+            serverCnx.getConsumers().remove(1001);
+            serverCnx.getConsumers().remove(1002);
+            ByteBuf outbound;
+            while ((outbound = channel.readOutbound()) != null) {
+                outbound.release();
+            }
+        }
     }
 
     protected void resetChannel() throws Exception {
