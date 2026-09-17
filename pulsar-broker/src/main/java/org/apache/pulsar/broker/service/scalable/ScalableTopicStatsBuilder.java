@@ -26,7 +26,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
-import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -101,30 +100,25 @@ public final class ScalableTopicStatsBuilder {
         stats.getLayout().setEpoch(layout.getEpoch());
         for (SegmentInfo segment : layout.getAllSegments().values()) {
             ScalableTopicStats.SegmentStats node = new ScalableTopicStats.SegmentStats();
-            node.setSegmentId(segment.segmentId());
-            node.setTopic(SegmentTopicName.backingTopicName(topic, segment));
-            node.setHashRange(new ScalableTopicMetadata.HashRange(
-                    segment.hashRange().start(), segment.hashRange().end()));
+            node.setName(SegmentTopicName.backingTopicName(topic, segment));
             node.setState(segment.state().name());
             node.setParentIds(new ArrayList<>(segment.parentIds()));
             node.setChildIds(new ArrayList<>(segment.childIds()));
-            node.setCreatedAtMs(segment.createdAtMs());
-            node.setSealedAtMs(segment.sealedAtMs());
             node.setEntryBuckets(segment.bucketCount());
 
             TopicStats ts = segmentStats.get(segment.segmentId());
             if (ts != null) {
                 node.setOwnerBroker(ts.getOwnerBroker());
                 stats.setMsgRateIn(stats.getMsgRateIn() + ts.getMsgRateIn());
-                stats.setMsgThroughputIn(stats.getMsgThroughputIn() + ts.getMsgThroughputIn());
+                stats.setByteRateIn(stats.getByteRateIn() + ts.getMsgThroughputIn());
                 stats.setMsgRateOut(stats.getMsgRateOut() + ts.getMsgRateOut());
-                stats.setMsgThroughputOut(stats.getMsgThroughputOut() + ts.getMsgThroughputOut());
+                stats.setByteRateOut(stats.getByteRateOut() + ts.getMsgThroughputOut());
                 stats.setStorageSize(stats.getStorageSize() + ts.getStorageSize());
                 stats.setBacklogSize(stats.getBacklogSize() + ts.getBacklogSize());
             }
             stats.getLayout().getSegments().put(segment.segmentId(), node);
         }
-        stats.setAverageMsgSize(averageSize(stats.getMsgRateIn(), stats.getMsgThroughputIn()));
+        stats.setAverageMsgSize(averageSize(stats.getMsgRateIn(), stats.getByteRateIn()));
     }
 
     private static void addProducers(SegmentLayout layout, Map<Long, TopicStats> segmentStats,
@@ -147,11 +141,11 @@ public final class ScalableTopicStatsBuilder {
                     return p;
                 });
                 producer.setMsgRateIn(producer.getMsgRateIn() + publisher.getMsgRateIn());
-                producer.setMsgThroughputIn(producer.getMsgThroughputIn() + publisher.getMsgThroughputIn());
+                producer.setByteRateIn(producer.getByteRateIn() + publisher.getMsgThroughputIn());
             }
         }
         for (ScalableTopicStats.ProducerStats producer : byName.values()) {
-            producer.setAverageMsgSize(averageSize(producer.getMsgRateIn(), producer.getMsgThroughputIn()));
+            producer.setAverageMsgSize(averageSize(producer.getMsgRateIn(), producer.getByteRateIn()));
         }
         stats.setProducers(new ArrayList<>(byName.values()));
     }
@@ -223,7 +217,7 @@ public final class ScalableTopicStatsBuilder {
         seg.setBacklogSize(ss.getBacklogSize());
         seg.setUnackedMessages(ss.getUnackedMessages());
         seg.setMsgRateOut(ss.getMsgRateOut());
-        seg.setMsgThroughputOut(ss.getMsgThroughputOut());
+        seg.setByteRateOut(ss.getMsgThroughputOut());
         seg.setConsumerCount(ss.getConsumers().size());
         sub.getSegments().put(segmentId, seg);
 
@@ -231,7 +225,7 @@ public final class ScalableTopicStatsBuilder {
         sub.setBacklogSize(sub.getBacklogSize() + ss.getBacklogSize());
         sub.setUnackedMessages(sub.getUnackedMessages() + ss.getUnackedMessages());
         sub.setMsgRateOut(sub.getMsgRateOut() + ss.getMsgRateOut());
-        sub.setMsgThroughputOut(sub.getMsgThroughputOut() + ss.getMsgThroughputOut());
+        sub.setByteRateOut(sub.getByteRateOut() + ss.getMsgThroughputOut());
         sub.setMsgRateRedeliver(sub.getMsgRateRedeliver() + ss.getMsgRateRedeliver());
         sub.setMessageAckRate(sub.getMessageAckRate() + ss.getMessageAckRate());
     }
@@ -250,7 +244,7 @@ public final class ScalableTopicStatsBuilder {
             c.getSegmentIds().add(segmentId);
         }
         c.setMsgRateOut(c.getMsgRateOut() + consumer.getMsgRateOut());
-        c.setMsgThroughputOut(c.getMsgThroughputOut() + consumer.getMsgThroughputOut());
+        c.setByteRateOut(c.getByteRateOut() + consumer.getMsgThroughputOut());
         c.setUnackedMessages(c.getUnackedMessages() + consumer.getUnackedMessages());
         c.setAvailablePermits(c.getAvailablePermits() + consumer.getAvailablePermits());
         if (c.getAddress() == null) {
@@ -262,27 +256,27 @@ public final class ScalableTopicStatsBuilder {
 
     private static void roundRates(ScalableTopicStats stats) {
         stats.setMsgRateIn(round(stats.getMsgRateIn()));
-        stats.setMsgThroughputIn(round(stats.getMsgThroughputIn()));
+        stats.setByteRateIn(round(stats.getByteRateIn()));
         stats.setMsgRateOut(round(stats.getMsgRateOut()));
-        stats.setMsgThroughputOut(round(stats.getMsgThroughputOut()));
+        stats.setByteRateOut(round(stats.getByteRateOut()));
         stats.setAverageMsgSize(round(stats.getAverageMsgSize()));
         for (ScalableTopicStats.ProducerStats producer : stats.getProducers()) {
             producer.setMsgRateIn(round(producer.getMsgRateIn()));
-            producer.setMsgThroughputIn(round(producer.getMsgThroughputIn()));
+            producer.setByteRateIn(round(producer.getByteRateIn()));
             producer.setAverageMsgSize(round(producer.getAverageMsgSize()));
         }
         for (ScalableTopicStats.SubscriptionStats sub : stats.getSubscriptions().values()) {
             sub.setMsgRateOut(round(sub.getMsgRateOut()));
-            sub.setMsgThroughputOut(round(sub.getMsgThroughputOut()));
+            sub.setByteRateOut(round(sub.getByteRateOut()));
             sub.setMsgRateRedeliver(round(sub.getMsgRateRedeliver()));
             sub.setMessageAckRate(round(sub.getMessageAckRate()));
             for (ScalableTopicStats.SegmentSubscriptionStats seg : sub.getSegments().values()) {
                 seg.setMsgRateOut(round(seg.getMsgRateOut()));
-                seg.setMsgThroughputOut(round(seg.getMsgThroughputOut()));
+                seg.setByteRateOut(round(seg.getByteRateOut()));
             }
             for (ScalableTopicStats.ConsumerStats consumer : sub.getConsumers()) {
                 consumer.setMsgRateOut(round(consumer.getMsgRateOut()));
-                consumer.setMsgThroughputOut(round(consumer.getMsgThroughputOut()));
+                consumer.setByteRateOut(round(consumer.getByteRateOut()));
             }
         }
     }

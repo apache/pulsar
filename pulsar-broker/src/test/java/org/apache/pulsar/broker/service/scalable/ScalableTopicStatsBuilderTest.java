@@ -115,21 +115,20 @@ public class ScalableTopicStatsBuilderTest {
         ScalableTopicStats.SegmentStats parent = dag.getSegments().get(0L);
         assertTrue(parent.isSealed());
         assertEquals(parent.getChildIds(), List.of(2L, 3L));
-        assertEquals(parent.getSealedAtMs(), 1_000L);
-        assertEquals(parent.getTopic(), "segment://tenant/ns/stats-topic/0000-7fff-0");
-        assertEquals(parent.getHashRange().getStart(), 0);
-        assertEquals(parent.getHashRange().getEnd(), 0x7fff);
+        assertTrue(parent.getParentIds().isEmpty());
+        assertEquals(parent.getName(), "segment://tenant/ns/stats-topic/0000-7fff-0");
         assertNull(parent.getOwnerBroker(), "no stats collected → no owner");
 
         ScalableTopicStats.SegmentStats child = dag.getSegments().get(2L);
         assertTrue(child.isActive());
         assertEquals(child.getParentIds(), List.of(0L));
-        assertEquals(child.getSealedAtMs(), -1L);
+        assertTrue(child.getChildIds().isEmpty());
+        assertEquals(child.getName(), "segment://tenant/ns/stats-topic/0000-3fff-2");
         assertEquals(child.getOwnerBroker(), "broker-b");
         assertEquals(child.getEntryBuckets(), 2, "a split halves the parent's 4 entry-buckets");
 
         assertEquals(stats.getMsgRateIn(), 6.0);
-        assertEquals(stats.getMsgThroughputIn(), 600.0);
+        assertEquals(stats.getByteRateIn(), 600.0);
         assertEquals(stats.getAverageMsgSize(), 100.0, "throughput / rate");
         assertEquals(stats.getStorageSize(), 4_000L);
         assertEquals(stats.getBacklogSize(), 2_000L);
@@ -151,7 +150,7 @@ public class ScalableTopicStatsBuilderTest {
                 TOPIC, layout, Map.of(1L, seg1), Map.of(), Map.of());
 
         assertEquals(stats.getMsgRateIn(), 100.002);
-        assertEquals(stats.getMsgThroughputIn(), 5536.915);
+        assertEquals(stats.getByteRateIn(), 5536.915);
         assertEquals(stats.getAverageMsgSize(), 55.368);
         assertEquals(stats.getProducers().get(0).getMsgRateIn(), 33.333);
         assertEquals(stats.getProducers().get(0).getAverageMsgSize(), 50.0);
@@ -182,7 +181,7 @@ public class ScalableTopicStatsBuilderTest {
 
         ScalableTopicStats.ProducerStats app = byName.get("app-producer");
         assertEquals(app.getMsgRateIn(), 5.0, "both per-segment producers folded into one");
-        assertEquals(app.getMsgThroughputIn(), 250.0);
+        assertEquals(app.getByteRateIn(), 250.0);
         assertEquals(app.getAverageMsgSize(), 50.0);
         assertEquals(app.getAddress(), "10.0.0.1:1234");
         assertEquals(app.getClientVersion(), "v5");

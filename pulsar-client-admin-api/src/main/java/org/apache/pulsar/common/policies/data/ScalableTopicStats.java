@@ -20,6 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,16 +54,16 @@ public class ScalableTopicStats {
     /** Total rate of messages published on the topic (msg/s), summed across segments. */
     private double msgRateIn;
 
-    /** Total throughput of messages published on the topic (byte/s), summed across segments. */
-    private double msgThroughputIn;
+    /** Total rate of bytes published on the topic (byte/s), summed across segments. */
+    private double byteRateIn;
 
     /** Total rate of messages dispatched for the topic (msg/s), summed across segments. */
     private double msgRateOut;
 
-    /** Total throughput of messages dispatched for the topic (byte/s), summed across segments. */
-    private double msgThroughputOut;
+    /** Total rate of bytes dispatched for the topic (byte/s), summed across segments. */
+    private double byteRateOut;
 
-    /** Average size of published messages (bytes): {@code msgThroughputIn / msgRateIn}. */
+    /** Average size of published messages (bytes): {@code byteRateIn / msgRateIn}. */
     private double averageMsgSize;
 
     /** Space used to store the messages of every segment (bytes). */
@@ -91,40 +92,30 @@ public class ScalableTopicStats {
     }
 
     /**
-     * One node of the segment DAG: its identity, its hash range, its edges, its lifecycle
-     * and the broker serving it.
+     * One node of the segment DAG: the segment's name (which encodes its hash range and ID),
+     * its state, its edges and the broker serving it.
      */
     @Data
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class SegmentStats {
 
-        /** Segment ID, unique within the topic. */
-        private long segmentId;
-
         /**
-         * The topic backing this segment: {@code segment://tenant/ns/topic/<descriptor>}, or the
-         * {@code persistent://...} topic wrapped by a legacy segment of a migrated topic.
+         * The segment's name: {@code segment://tenant/ns/topic/<hashStart>-<hashEnd>-<segmentId>},
+         * or the {@code persistent://...} topic wrapped by a legacy segment of a migrated topic.
          */
-        private String topic;
-
-        /** Inclusive hash range [start, end] this segment covers. */
-        private ScalableTopicMetadata.HashRange hashRange;
+        private String name;
 
         /** Segment state: "ACTIVE" or "SEALED". */
         private String state;
 
-        /** Parent segment IDs (empty for the initial segments). */
+        /** Parent segment IDs; omitted from the JSON form when empty (an initial segment). */
+        @JsonInclude(JsonInclude.Include.NON_EMPTY)
         private List<Long> parentIds = new ArrayList<>();
 
-        /** Child segment IDs (empty for active segments). */
+        /** Child segment IDs; omitted from the JSON form when empty (an active segment). */
+        @JsonInclude(JsonInclude.Include.NON_EMPTY)
         private List<Long> childIds = new ArrayList<>();
-
-        /** Wall-clock millis at which the segment was created. */
-        private long createdAtMs;
-
-        /** Wall-clock millis at which the segment was sealed, or -1 while active. */
-        private long sealedAtMs;
 
         /** Number of entry-buckets the segment is divided into (PIP-486). */
         private int entryBuckets;
@@ -163,8 +154,8 @@ public class ScalableTopicStats {
         /** Total rate of messages published by this producer (msg/s). */
         private double msgRateIn;
 
-        /** Total throughput of messages published by this producer (byte/s). */
-        private double msgThroughputIn;
+        /** Total rate of bytes published by this producer (byte/s). */
+        private double byteRateIn;
 
         /** Average message size published by this producer (bytes). */
         private double averageMsgSize;
@@ -209,8 +200,8 @@ public class ScalableTopicStats {
         /** Total rate of messages delivered on this subscription (msg/s). */
         private double msgRateOut;
 
-        /** Total throughput delivered on this subscription (byte/s). */
-        private double msgThroughputOut;
+        /** Total rate of bytes delivered on this subscription (byte/s). */
+        private double byteRateOut;
 
         /** Total rate of messages redelivered on this subscription (msg/s). */
         private double msgRateRedeliver;
@@ -243,8 +234,8 @@ public class ScalableTopicStats {
         /** Rate of messages delivered from this segment (msg/s). */
         private double msgRateOut;
 
-        /** Throughput delivered from this segment (byte/s). */
-        private double msgThroughputOut;
+        /** Rate of bytes delivered from this segment (byte/s). */
+        private double byteRateOut;
 
         /** Number of consumers attached to the subscription on this segment. */
         private int consumerCount;
@@ -277,8 +268,8 @@ public class ScalableTopicStats {
         /** Total rate of messages delivered to the consumer (msg/s). */
         private double msgRateOut;
 
-        /** Total throughput delivered to the consumer (byte/s). */
-        private double msgThroughputOut;
+        /** Total rate of bytes delivered to the consumer (byte/s). */
+        private double byteRateOut;
 
         /** Messages delivered to the consumer but not yet acknowledged. */
         private long unackedMessages;

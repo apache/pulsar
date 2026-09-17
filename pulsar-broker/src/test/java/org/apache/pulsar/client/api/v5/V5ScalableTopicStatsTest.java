@@ -73,17 +73,13 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
             assertTrue(segment.isActive());
             assertTrue(segment.getParentIds().isEmpty());
             assertTrue(segment.getChildIds().isEmpty());
-            assertEquals(segment.getSealedAtMs(), -1L);
-            assertTrue(segment.getCreatedAtMs() > 0);
             assertTrue(segment.getEntryBuckets() >= 1);
-            assertTrue(segment.getTopic().startsWith("segment://" + topic.substring("topic://".length())),
-                    "unexpected backing topic " + segment.getTopic());
             assertNotNull(segment.getOwnerBroker(), "segment stats must have been collected from its owner");
         }
-        assertEquals(layout.getSegments().get(0L).getHashRange().getStart(), 0);
-        assertEquals(layout.getSegments().get(0L).getHashRange().getEnd(), 0x7fff);
-        assertEquals(layout.getSegments().get(1L).getHashRange().getStart(), 0x8000);
-        assertEquals(layout.getSegments().get(1L).getHashRange().getEnd(), 0xffff);
+        // The segment name carries the hash range and the segment ID.
+        String segmentPrefix = "segment://" + topic.substring("topic://".length());
+        assertEquals(layout.getSegments().get(0L).getName(), segmentPrefix + "/0000-7fff-0");
+        assertEquals(layout.getSegments().get(1L).getName(), segmentPrefix + "/8000-ffff-1");
         assertTrue(stats.getStorageSize() > 0);
 
         // --- Producers: the V5 producer's per-segment producers fold into one entry ---
@@ -161,20 +157,19 @@ public class V5ScalableTopicStatsTest extends V5ClientBaseTest {
         assertEquals(layout.getEpoch(), 1);
         assertEquals(layout.getSegments().keySet(), Set.of(0L, 1L, 2L));
 
+        String segmentPrefix = "segment://" + topic.substring("topic://".length());
         ScalableTopicStats.SegmentStats parent = layout.getSegments().get(0L);
         assertTrue(parent.isSealed());
         assertEquals(parent.getChildIds(), List.of(1L, 2L));
-        assertTrue(parent.getSealedAtMs() > 0);
-        assertEquals(parent.getHashRange().getStart(), 0);
-        assertEquals(parent.getHashRange().getEnd(), 0xffff);
+        assertEquals(parent.getName(), segmentPrefix + "/0000-ffff-0");
 
         ScalableTopicStats.SegmentStats left = layout.getSegments().get(1L);
         assertTrue(left.isActive());
         assertEquals(left.getParentIds(), List.of(0L));
-        assertEquals(left.getHashRange().getEnd(), 0x7fff);
+        assertEquals(left.getName(), segmentPrefix + "/0000-7fff-1");
         ScalableTopicStats.SegmentStats right = layout.getSegments().get(2L);
         assertEquals(right.getParentIds(), List.of(0L));
-        assertEquals(right.getHashRange().getStart(), 0x8000);
+        assertEquals(right.getName(), segmentPrefix + "/8000-ffff-2");
 
         // The sealed (terminated) parent is still a real topic with stats of its own.
         TopicStats parentStats = admin.scalableTopics().getSegmentStats(topic, 0L);

@@ -88,14 +88,14 @@ public class ScalableTopicStatsTest {
         ScalableTopicStats a = new ScalableTopicStats();
         a.getLayout().setEpoch(1L);
         ScalableTopicStats.SegmentStats seg = new ScalableTopicStats.SegmentStats();
-        seg.setSegmentId(0L);
+        seg.setName("segment://t/ns/topic/0000-ffff-0");
         seg.setChildIds(List.of(1L, 2L));
         a.getLayout().getSegments().put(0L, seg);
 
         ScalableTopicStats b = new ScalableTopicStats();
         b.getLayout().setEpoch(1L);
         ScalableTopicStats.SegmentStats seg2 = new ScalableTopicStats.SegmentStats();
-        seg2.setSegmentId(0L);
+        seg2.setName("segment://t/ns/topic/0000-ffff-0");
         seg2.setChildIds(List.of(1L, 2L));
         b.getLayout().getSegments().put(0L, seg2);
 

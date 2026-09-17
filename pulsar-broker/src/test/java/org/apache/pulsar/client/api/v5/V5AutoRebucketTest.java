@@ -80,7 +80,7 @@ public class V5AutoRebucketTest extends V5ClientBaseTest {
                 .filter(ScalableTopicMetadata.SegmentInfo::isActive).findFirst().orElseThrow()
                 .getSegmentId();
         String successorTopic = admin.scalableTopics().getStats(topic).getLayout().getSegments()
-                .get(successorId).getTopic();
+                .get(successorId).getName();
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             var sub = getTopicReference(successorTopic).orElseThrow().getSubscription(subscription);
             assertTrue(sub != null && sub.getConsumers().size() == 5,
