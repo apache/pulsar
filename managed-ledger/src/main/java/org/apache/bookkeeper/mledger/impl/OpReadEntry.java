@@ -19,11 +19,13 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -43,8 +45,25 @@ class OpReadEntry implements ReadEntriesCallback {
      * JVM-wide nesting limit, read once at class initialization. Clamp to at least one so a queued completion
      * can make progress instead of repeatedly rescheduling itself.
      */
-    static final int MAX_NESTED_INLINE_COMPLETIONS = Math.max(1,
-            Integer.getInteger("pulsar.managedLedger.maxReadCompletionDepth", 10));
+    static final int MAX_NESTED_INLINE_COMPLETIONS = readMaxNestedInlineCompletions(System.getProperties());
+
+    static {
+        log.debug().attr("maxReadCompletionDepth", MAX_NESTED_INLINE_COMPLETIONS)
+                .log("Initialized managed-ledger read completion depth limit");
+    }
+
+    @VisibleForTesting
+    static int readMaxNestedInlineCompletions(Properties properties) {
+        String configuredDepth = properties.getProperty("pulsar.managedLedger.maxReadCompletionDepth");
+        if (configuredDepth != null) {
+            try {
+                return Math.max(1, Integer.decode(configuredDepth));
+            } catch (NumberFormatException ignored) {
+                // Match Integer.getInteger: a malformed property uses the default.
+            }
+        }
+        return 10;
+    }
 
     /** Nesting depth of read completions running inline on the current thread. */
     private static final FastThreadLocal<int[]> INLINE_COMPLETION_DEPTH = new FastThreadLocal<>() {

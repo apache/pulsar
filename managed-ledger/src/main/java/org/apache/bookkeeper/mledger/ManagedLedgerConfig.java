@@ -422,10 +422,12 @@ public class ManagedLedgerConfig {
      * Select completion on the current thread for successful {@code asyncReadEntries} and
      * {@code asyncReadEntriesOrWait} operations. A fully cached read may invoke its callback before the read method
      * returns. When disabled, completion is restricted to the ledger executor, as before: it runs inline when
-     * already on that executor and is queued otherwise. Nested completion is bounded by a queued handoff
-     * to the ledger executor in both modes. The JVM-wide system property
+     * already on that executor and is queued otherwise. This also restores the Exclusive/Failover cache-hit
+     * handoff used before the per-callback inline optimization in PR #26619. Nested completion is bounded by a
+     * queued handoff to the ledger executor in both modes. The JVM-wide system property
      * {@code pulsar.managedLedger.maxReadCompletionDepth} controls this limit (default 10, values below 1 use 1).
-     * Set the property at JVM startup; later changes have no effect.
+     * A limit of 1 queues every subsequent read completion in a nested cached-read chain. Set the property at
+     * JVM startup; later changes have no effect.
      *
      * <p>This setting does not change failure callbacks, single-entry reads, or replay callbacks. The policy is
      * captured when the ledger is opened; subsequent changes, including

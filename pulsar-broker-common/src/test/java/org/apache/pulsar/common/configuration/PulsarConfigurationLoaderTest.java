@@ -229,6 +229,7 @@ public class PulsarConfigurationLoaderTest {
         properties.setProperty("clusterName", "test");
         ServiceConfiguration defaults = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
         assertEquals(defaults.getReplicationMaxReadProcessingStepsPerTurn(), 64);
+        assertTrue(defaults.isManagedLedgerReadEntriesCallbackInline());
         assertTrue(isComplete(defaults));
 
         for (int limit : new int[] {1, 3, 64, 128, 0, -1}) {
