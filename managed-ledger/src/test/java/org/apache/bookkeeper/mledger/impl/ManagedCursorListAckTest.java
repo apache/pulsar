@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Lists;
 import java.nio.charset.Charset;
@@ -35,7 +35,7 @@ public class ManagedCursorListAckTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000 * 1000)
     void testMultiPositionDelete() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", rawEntryConfig().setMaxEntriesPerLedger(2));
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig().setMaxEntriesPerLedger(2));
 
         ManagedCursor c1 = ledger.openCursor("c1");
         Position p0 = c1.getMarkDeletedPosition();
