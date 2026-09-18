@@ -45,6 +45,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.ImmediateEventExecutor;
+import io.netty.util.concurrent.Promise;
 import io.netty.util.concurrent.SucceededFuture;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
@@ -646,6 +648,48 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(true).when(slowConsumer).isWritable();
         assertThat(persistentDispatcher.getMessagesToReplayNow(1, Long.MAX_VALUE))
                 .containsExactly(PositionFactory.create(1, 1));
+    }
+
+    @Test(timeOut = 10000)
+    public void testSlowWriteDoesNotBlockOtherConsumers() throws Exception {
+        succeededFuture = ImmediateEventExecutor.INSTANCE.newSucceededFuture(null);
+        EventLoopGroup brokerExecutor = brokerMock.executor();
+        ArrayDeque<Runnable> readyTasks = new ArrayDeque<>();
+        doAnswer(inv -> {
+            readyTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).execute(any(Runnable.class));
+        Consumer slowConsumer = createMockConsumer();
+        doReturn("slow-consumer").when(slowConsumer).consumerName();
+        doReturn(1000).when(slowConsumer).getAvailablePermits();
+        doReturn(true).when(slowConsumer).isWritable();
+        Promise<Void> slowWrite = ImmediateEventExecutor.INSTANCE.newPromise();
+        doAnswer(inv -> {
+            List<Entry> entries = inv.getArgument(0);
+            entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+            // The selected batch fills this socket, but its write promise remains incomplete.
+            doReturn(false).when(slowConsumer).isWritable();
+            return slowWrite;
+        }).when(slowConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+        persistentDispatcher.addConsumer(consumerMock).join();
+        persistentDispatcher.addConsumer(slowConsumer).join();
+        persistentDispatcher.totalAvailablePermits = 2000;
+        String fastKey = generateKeyForConsumer(persistentDispatcher.getSelector(), consumerMock);
+        String slowKey = generateKeyForConsumer(persistentDispatcher.getSelector(), slowConsumer);
+        try {
+            persistentDispatcher.readEntriesComplete(new ArrayList<>(List.of(
+                    createEntry(1, 1, "fast", 1, fastKey), createEntry(1, 2, "slow", 2, slowKey))),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            verify(consumerMock).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            verify(slowConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            assertThat(slowWrite.isDone()).isFalse();
+            // Another bounded read can serve the writable consumer without waiting for the slow socket.
+            assertThat(readyTasks).hasSize(1);
+            readyTasks.remove().run();
+            verify(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            slowWrite.trySuccess(null);
+        }
     }
 
     @Test(timeOut = 10000)
