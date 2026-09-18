@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -118,6 +118,26 @@ final class ScalableStreamConsumer<T>
      */
     private final ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> lastCumulativeAcked =
             new ConcurrentHashMap<>();
+
+    /**
+     * Per segment, the highest position whose plain (non-transactional) cumulative ack has
+     * completed at the v4 consumer, tagged with the delivery generation it belongs to. Only this
+     * decides whether a later ack is redundant: a transactional ack may still abort and a failed
+     * ack never reached the broker, so neither advances it and retrying the same position
+     * afterwards still goes through. A backwards delivery (the broker redelivering after a
+     * reconnect, seek or nack) bumps the generation, and a completion that captured an older one
+     * is rejected rather than resurrecting a position the broker may never have received.
+     * {@link #lastCumulativeAcked} keeps recording every attempt, which is what the PIP-486
+     * release drain compares against.
+     */
+    private final ConcurrentHashMap<Long, AckWatermark> cumulativeAckWatermark = new ConcurrentHashMap<>();
+
+    private record AckWatermark(long generation, org.apache.pulsar.client.api.MessageId position) {
+    }
+
+    /** Test seam: runs after a plain ack has been issued and before its completion is observed. */
+    @VisibleForTesting
+    volatile Runnable beforeAckWatermarkUpdateHook;
 
     /**
      * PIP-486: segments paused for a release — their receive loops stop re-arming so what was
@@ -327,11 +347,33 @@ final class ScalableStreamConsumer<T>
         }
         var unacked = sharedSegmentUnacked.get(segmentId);
         if (unacked == null) {
+            long generation = 0;
+            if (v4Txn == null) {
+                // The vector names every segment on every message, so all but the message's own
+                // segment usually repeat a position an earlier ack already covered. Skip those
+                // rather than issuing one v4 cumulative ack per segment per message.
+                var watermark = cumulativeAckWatermark.get(segmentId);
+                if (watermark != null) {
+                    if (watermark.position() != null && watermark.position().compareTo(position) >= 0) {
+                        return;
+                    }
+                    generation = watermark.generation();
+                }
+            }
             lastCumulativeAcked.merge(segmentId, position,
                     (a, b) -> a.compareTo(b) >= 0 ? a : b);
-            trackDrainAck(segmentId, future.thenCompose(c ->
+            CompletableFuture<Void> ack = future.thenCompose(c ->
                     v4Txn == null ? c.acknowledgeCumulativeAsync(position)
-                            : c.acknowledgeCumulativeAsync(position, v4Txn)));
+                            : c.acknowledgeCumulativeAsync(position, v4Txn));
+            if (v4Txn == null) {
+                long issuedIn = generation;
+                Runnable hook = beforeAckWatermarkUpdateHook;
+                if (hook != null) {
+                    hook.run();
+                }
+                ack.thenRun(() -> advanceAckWatermark(segmentId, issuedIn, position));
+            }
+            trackDrainAck(segmentId, ack);
             return;
         }
         // Redeliveries can enqueue ids out of order, so scan the whole queue rather than stopping at
@@ -364,6 +406,33 @@ final class ScalableStreamConsumer<T>
      * While the segment is draining for a release, record the broker ack so the release barrier
      * can wait for it to settle before the old consumer is closed.
      */
+    /**
+     * A plain cumulative ack completed: record its position for the deduplication, unless the
+     * segment's delivery restarted since the ack was issued — the broker may never have received
+     * it, so the application's re-ack must go through. Atomic per segment.
+     */
+    private void advanceAckWatermark(long segmentId, long issuedIn,
+                                     org.apache.pulsar.client.api.MessageId position) {
+        cumulativeAckWatermark.compute(segmentId, (id, current) -> {
+            long generation = current == null ? 0 : current.generation();
+            if (generation != issuedIn
+                    || (current != null && current.position() != null
+                            && current.position().compareTo(position) >= 0)) {
+                return current;
+            }
+            return new AckWatermark(generation, position);
+        });
+    }
+
+    /**
+     * Forget what a segment's plain acks have covered and start a new delivery generation, so
+     * completions of acks issued before this point can no longer count.
+     */
+    private void resetAckWatermark(long segmentId) {
+        cumulativeAckWatermark.compute(segmentId, (id, current) ->
+                new AckWatermark((current == null ? 0 : current.generation()) + 1, null));
+    }
+
     private void trackDrainAck(long segmentId, CompletableFuture<?> ackFuture) {
         if (!drainingConsumers.containsKey(segmentId)) {
             return;
@@ -432,6 +501,7 @@ final class ScalableStreamConsumer<T>
                     pendingDrainAcks.clear();
                     sharedSegmentUnacked.clear();
                     lastCumulativeAcked.clear();
+                    cumulativeAckWatermark.clear();
                 });
     }
 
@@ -561,6 +631,7 @@ final class ScalableStreamConsumer<T>
                         .whenComplete((__, ___) -> {
                             sharedSegmentUnacked.remove(segmentId);
                             lastCumulativeAcked.remove(segmentId);
+                            resetAckWatermark(segmentId);
                             latestDelivered.remove(segmentId);
                             segmentReceiveEpoch.remove(segmentId);
                         }));
@@ -591,6 +662,7 @@ final class ScalableStreamConsumer<T>
                             // drain that has nothing left to ack.
                             sharedSegmentUnacked.remove(seg.segmentId());
                             lastCumulativeAcked.remove(seg.segmentId());
+                            resetAckWatermark(seg.segmentId());
                             latestDelivered.remove(seg.segmentId());
                         });
                 futures.add(segmentConsumers.computeIfAbsent(seg.segmentId(), id ->
@@ -774,7 +846,13 @@ final class ScalableStreamConsumer<T>
                 return;
             }
             // Update the latest delivered position for this segment
-            latestDelivered.put(segmentId, v4Msg.getMessageId());
+            var previous = latestDelivered.put(segmentId, v4Msg.getMessageId());
+            if (previous != null && previous.compareTo(v4Msg.getMessageId()) >= 0) {
+                // Delivery went backwards: the broker is redelivering (reconnect, seek, nack).
+                // Acks issued before it may never have reached the broker, so forget what this
+                // segment has covered and let the application's re-acks through.
+                resetAckWatermark(segmentId);
+            }
 
             // PIP-486 bucket-shared segment: remember the id so a cumulative ack can be translated
             // into individual acks (Key_Shared consumers cannot ack cumulatively).
@@ -783,9 +861,9 @@ final class ScalableStreamConsumer<T>
                 unacked.add(v4Msg.getMessageId());
             }
 
-            // Snapshot the position vector (all segments, including this one)
-            Map<Long, org.apache.pulsar.client.api.MessageId> positionVector =
-                    new HashMap<>(latestDelivered);
+            // Snapshot the position vector (all segments, including this one). Already immutable,
+            // so MessageIdV5's own defensive Map.copyOf() returns it as is instead of copying again.
+            Map<Long, org.apache.pulsar.client.api.MessageId> positionVector = Map.copyOf(latestDelivered);
 
             // Create the V5 message with the position vector embedded in the ID
             var msgId = new MessageIdV5(v4Msg.getMessageId(), segmentId, positionVector);
@@ -818,6 +896,7 @@ final class ScalableStreamConsumer<T>
                 segmentConsumers.remove(segmentId);
                 sharedSegmentUnacked.remove(segmentId);
                 lastCumulativeAcked.remove(segmentId);
+                            resetAckWatermark(segmentId);
                 latestDelivered.remove(segmentId);
                 segmentReceiveEpoch.remove(segmentId);
                 v4Consumer.closeAsync();
