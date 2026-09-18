@@ -220,6 +220,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final InstrumentProvider instrumentProvider;
 
+    @Getter
     private TransactionCoordinatorClientImpl tcClient;
 
     private final Runnable memoryLimitTrigger = this::reduceConsumerReceiverQueueSize;
