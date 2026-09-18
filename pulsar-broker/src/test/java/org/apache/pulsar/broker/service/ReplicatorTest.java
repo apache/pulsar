@@ -458,6 +458,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
             String topicName = newUniqueName("persistent://pulsar/ns/replicator-ordered-backlog");
             String subscriptionName = "ordered-source-positions";
             admin1.topics().createNonPartitionedTopic(topicName);
+            // With no source cursor, this backlog is not cached: this end-to-end guard exercises storage reads.
+            // Reentrant cache-hit ordering is covered by PersistentReplicatorReadProcessingTest.
             // Write the source backlog before enabling replication to the remote cluster.
             admin1.topics().setReplicationClusters(topicName, List.of(cluster1));
             PersistentTopic sourceTopic = (PersistentTopic) pulsar1.getBrokerService()

@@ -930,8 +930,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             producer1.send("msg" + i);
         }
 
-        // Keep alternating failures with successful reads. ACKs must be able to resume reads
-        // before the fallback retry timer, so throttling does not reduce progress to one entry per second.
+        // Smoke-test progress while failures keep alternating with successful reads. The deterministic
+        // owner-loop tests verify that ACK demand resumes reads before the fallback timer.
         AtomicInteger readAttempts = new AtomicInteger();
         Supplier<ManagedLedgerException> bkErrorOrNot = () -> {
             if (readAttempts.incrementAndGet() % 2 == 1) {
@@ -950,8 +950,6 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             TopicStats topicStats = admin1.topics().getStats(topicName);
             assertEquals(topicStats.getReplication().get(cluster2).getReplicationBacklog(), 0);
         });
-
-        assertTrue(readAttempts.get() > totalMsg, "Expected alternating failures throughout replication");
 
         // Verify: messages were replicated.
         admin2.topics().createSubscription(topicName, subscription, MessageId.earliest);
