@@ -84,7 +84,7 @@ final class PulsarProfilingConfig {
                                     Map.entry("diskUsageLwmThreshold", "0.75"),
                                     Map.entry("diskCheckInterval", "60"))),
                     new Load(20_000_000, "200M", "200M", Integer.MAX_VALUE, 128, 20_000, 10, 0, 0,
-                            1, 1, 1, 1, SubscriptionType.Shared, 50_000, 180, false),
+                            1, 1, 1, 1, SubscriptionType.Shared, 50_000, 180, false, ""),
                     new Profiling("", ""),
                     new Output("build/pulsar-profiling"));
         }
@@ -99,8 +99,13 @@ final class PulsarProfilingConfig {
                 int produceRate, int messageSize, int maxOutstanding, int statsIntervalSeconds,
                 int isolatedProducers, int isolatedConsumers, int producerCount, int consumerCount,
                 int producerIoThreads, int consumerIoThreads, SubscriptionType subscriptionType,
-                int receiverQueueSize, int timeoutSeconds, boolean batchingEnabled) {
+                int receiverQueueSize, int timeoutSeconds, boolean batchingEnabled, String messageKeyGenerationMode) {
         Load {
+            if (messageKeyGenerationMode != null && !messageKeyGenerationMode.isEmpty()
+                    && !messageKeyGenerationMode.equals("random")
+                    && !messageKeyGenerationMode.equals("autoIncrement")) {
+                throw new IllegalArgumentException("Message key generation mode must be random or autoIncrement");
+            }
             if (producerCount < 1 || consumerCount < 1 || producerIoThreads < 1 || consumerIoThreads < 1
                     || isolatedProducers < 0 || isolatedConsumers < 0 || receiverQueueSize < 1 || timeoutSeconds < 1
                     || numberOfMessages < 1 || produceRate < 1 || subscriptionType == null) {

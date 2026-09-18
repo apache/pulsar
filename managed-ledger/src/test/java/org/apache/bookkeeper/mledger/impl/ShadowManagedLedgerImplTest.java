@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
@@ -45,7 +45,7 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
 
     private ShadowManagedLedgerImpl openShadowManagedLedger(String name, String sourceName)
             throws ManagedLedgerException, InterruptedException {
-        ManagedLedgerConfig config = rawEntryConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setShadowSourceName(sourceName);
         Map<String, String> properties = new HashMap<>();
         properties.put(ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY, "source_topic");
@@ -57,7 +57,7 @@ public class ShadowManagedLedgerImplTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testShadowWrites() throws Exception {
-        ManagedLedgerImpl sourceML = (ManagedLedgerImpl) factory.open("source_ML", rawEntryConfig()
+        ManagedLedgerImpl sourceML = (ManagedLedgerImpl) factory.open("source_ML", defaultConfig()
                 .setMaxEntriesPerLedger(2)
                 .setRetentionTime(-1, TimeUnit.DAYS)
                 .setRetentionSizeInMB(-1));

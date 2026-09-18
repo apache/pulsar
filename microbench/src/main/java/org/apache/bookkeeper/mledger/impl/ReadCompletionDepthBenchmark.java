@@ -19,7 +19,10 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.common.util.SingleThreadExecutor;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -35,53 +38,73 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Warmup;
 
-/** Measures the future-adapter handoff using real executors, without ledger/cache work or producer queue pressure. */
+/** Measures bounded callback chains and overflow scheduling, without ledger/cache work or producer queue pressure. */
 @State(Scope.Thread)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(TimeUnit.MICROSECONDS)
 @Warmup(iterations = 3, time = 1)
 @Measurement(iterations = 5, time = 1)
 @Fork(2)
-public class ReadCompletionHandoffBenchmark {
-    @Param({"false", "true"})
-    public boolean inline;
+public class ReadCompletionDepthBenchmark {
+    @Param({"ledger", "commonPool"})
+    public String overflowExecutor;
 
-    @Param({"false", "true"})
-    public boolean dispatcherHandoff;
+    @Param({"10", "1"})
+    public int maxDepth;
+
+    @Param({"100"})
+    public int chainLength;
+
+    private static final FastThreadLocal<int[]> COMPLETION_DEPTH = new FastThreadLocal<>() {
+        @Override
+        protected int[] initialValue() {
+            return new int[1];
+        }
+    };
 
     private SingleThreadExecutor ledger;
-    private SingleThreadExecutor dispatcher;
+    private Executor overflow;
 
     @Setup
     public void setup() {
-        ledger = new SingleThreadExecutor(new DefaultThreadFactory("ledger-benchmark"));
-        dispatcher = new SingleThreadExecutor(new DefaultThreadFactory("dispatcher-benchmark"));
+        ledger = new SingleThreadExecutor(new DefaultThreadFactory("ledger-depth-benchmark"));
+        overflow = switch (overflowExecutor) {
+            case "ledger" -> ledger;
+            case "commonPool" -> ForkJoinPool.commonPool();
+            default -> throw new IllegalArgumentException("Unknown overflow executor: " + overflowExecutor);
+        };
     }
 
     @Benchmark
-    public int completeRead() {
+    public int completeReadChain() {
         CompletableFuture<Integer> completed = new CompletableFuture<>();
-        dispatcher.execute(() -> {
-            CompletableFuture<Integer> read = new CompletableFuture<>();
-            if (inline) {
-                read.complete(1);
-            } else {
-                ledger.executeOrRun(() -> read.complete(1));
-            }
-            if (dispatcherHandoff) {
-                read.thenAcceptAsync(completed::complete, dispatcher);
-            } else {
-                read.thenAccept(completed::complete);
-            }
-        });
+        completeWithDepthLimit(chainLength, completed);
         return completed.join();
+    }
+
+    private void completeWithDepthLimit(int remaining, CompletableFuture<Integer> completed) {
+        int[] depth = COMPLETION_DEPTH.get();
+        if (depth[0] >= maxDepth) {
+            // Recheck on the destination, as the real completion path does.
+            overflow.execute(() -> completeWithDepthLimit(remaining, completed));
+            return;
+        }
+        depth[0]++;
+        try {
+            if (remaining == 1) {
+                completed.complete(chainLength);
+            } else {
+                completeWithDepthLimit(remaining - 1, completed);
+            }
+        } finally {
+            depth[0]--;
+        }
     }
 
     @TearDown
     public void tearDown() throws InterruptedException {
         ledger.shutdown();
-        dispatcher.shutdown();
         ledger.awaitTermination(10, TimeUnit.SECONDS);
-        dispatcher.awaitTermination(10, TimeUnit.SECONDS);
+        COMPLETION_DEPTH.remove();
     }
 }

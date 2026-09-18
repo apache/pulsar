@@ -91,6 +91,24 @@ public class PulsarProfilingConfigTest {
     }
 
     @Test
+    public void configuresKeySharedScenarioAndOverridesKeyGeneration() {
+        Path scenario = Path.of("../performance/scenarios/key-shared-500x20.yaml");
+        var config = PulsarProfilingConfig.Config.read(scenario, Map.of());
+        assertThat(config.load().messageKeyGenerationMode()).isEqualTo("random");
+        assertThat(config.load().producerCount()).isEqualTo(500);
+        assertThat(config.load().consumerCount()).isEqualTo(20);
+        assertThat(config.load().isolatedConsumers()).isEqualTo(20);
+        assertThat(config.load().subscriptionType()).isEqualTo(SubscriptionType.Key_Shared);
+        assertThat(config.load().batchingEnabled()).isFalse();
+        var overridden = PulsarProfilingConfig.Config.read(scenario, Map.of(
+                "PULSAR_PROFILING_LOAD_MESSAGE_KEY_GENERATION_MODE", "autoIncrement"));
+        assertThat(overridden.load().messageKeyGenerationMode()).isEqualTo("autoIncrement");
+        assertThatThrownBy(() -> PulsarProfilingConfig.Config.read(scenario, Map.of(
+                "PULSAR_PROFILING_LOAD_MESSAGE_KEY_GENERATION_MODE", "invalid")))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
     public void rejectsWorkloadsThatCannotFinish() {
         assertThatThrownBy(() -> PulsarProfilingConfig.Config.read(null,
                 Map.of("PULSAR_PROFILING_LOAD_ISOLATED_PRODUCERS", "500")))

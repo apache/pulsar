@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 
 /**
  * Definition of all the callbacks used for the ManagedLedger asynchronous API.
@@ -82,21 +83,40 @@ public interface AsyncCallbacks {
         void closeFailed(ManagedLedgerException exception, Object ctx);
     }
 
+    /**
+     * Completion of an entry read. Ordinary multi-entry cursor reads use the completion policy selected when opening
+     * the ledger in {@link ManagedLedgerConfig}; replay paths and failures can still invoke this interface inline.
+     * Implementations must not block. A caller needing a different execution context can wrap its callback
+     * to hand off processing to its own executor, and must release the returned entries if that handoff is rejected.
+     * Future adapters in {@link ManagedLedgerUtils} do not introduce an executor handoff.
+     */
     interface ReadEntriesCallback {
         /**
-         * Whether a successful read may invoke this callback on the completing thread, avoiding a handoff to the
-         * managed-ledger executor. The callback must not block and must bound any recursive reads it initiates.
-         * Callbacks that dispatch their own continuation to an executor can opt in without changing its affinity.
+         * May be invoked inline when enabled in the ledger configuration, including on the calling thread for a cache
+         * hit. The default ledger configuration restricts ordinary cursor read completions to the ledger executor,
+         * with bounded inline completion when already on that executor.
+         * The broker enables inline completion on other threads by default. Callbacks that issue another read
+         * before returning can nest inline completions. At the nesting limit, enabled mode
+         * may continue on a JVM common-pool worker without Netty or ledger-executor thread affinity; it falls back
+         * to the ledger executor when common-pool parallelism is at most one.
+         * The recipient owns the returned entries and must release each entry after processing or discarding it,
+         * including when its own shutdown or cancellation makes the result unnecessary.
+         * Callers chaining cursor reads must coordinate result processing as described in {@link ManagedCursor}.
          */
-        default boolean canExecuteOnAnyThread() {
-            return false;
-        }
-
         void readEntriesComplete(List<Entry> entries, Object ctx);
 
+        /**
+         * May be invoked inline, including for validation failures before an asynchronous read is started.
+         * A rejected completion handoff can fail after the cursor position advances. Recovery must
+         * restore the required position before reading again.
+         */
         void readEntriesFailed(ManagedLedgerException exception, Object ctx);
     }
 
+    /**
+     * Completion of a single-entry read. Like {@link ReadEntriesCallback}, callbacks may run inline
+     * without fixed thread affinity, and the recipient must release the returned entry after use.
+     */
     interface ReadEntryCallback {
         void readEntryComplete(Entry entry, Object ctx);
 

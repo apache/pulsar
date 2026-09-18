@@ -19,7 +19,7 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.impl.OffloadPrefixTest.assertEventuallyTrue;
-import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -155,7 +155,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
     public void testLaggedDelete() throws Exception {
         OffloadPrefixTest.MockLedgerOffloader offloader = new OffloadPrefixTest.MockLedgerOffloader();
 
-        ManagedLedgerConfig config = rawEntryConfig();
+        ManagedLedgerConfig config = defaultConfig();
         MockClock clock = new MockClock();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
@@ -219,7 +219,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         final long offloadThresholdSeconds = 5;
         final long offloadDeletionLagInSeconds = 1;
         OffloadPrefixTest.MockLedgerOffloader offloader = new OffloadPrefixTest.MockLedgerOffloader();
-        ManagedLedgerConfig config = rawEntryConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         config.setRetentionTime(10, TimeUnit.MINUTES);
@@ -336,7 +336,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
     public void testFileSystemOffloadDeletePath() throws Exception {
         MockFileSystemLedgerOffloader offloader = new MockFileSystemLedgerOffloader();
 
-        ManagedLedgerConfig config = rawEntryConfig();
+        ManagedLedgerConfig config = defaultConfig();
         MockClock clock = new MockClock();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
@@ -384,7 +384,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
     public void testLaggedDeleteRetentionSetLower() throws Exception {
         OffloadPrefixTest.MockLedgerOffloader offloader = new OffloadPrefixTest.MockLedgerOffloader();
 
-        ManagedLedgerConfig config = rawEntryConfig();
+        ManagedLedgerConfig config = defaultConfig();
         MockClock clock = new MockClock();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
@@ -432,7 +432,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
     public void testLaggedDeleteSlowConsumer() throws Exception {
         OffloadPrefixTest.MockLedgerOffloader offloader = new OffloadPrefixTest.MockLedgerOffloader();
 
-        ManagedLedgerConfig config = rawEntryConfig();
+        ManagedLedgerConfig config = defaultConfig();
         MockClock clock = new MockClock();
         config.setMaxEntriesPerLedger(10);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
@@ -488,7 +488,7 @@ public class OffloadLedgerDeleteTest extends MockedBookKeeperTestCase {
         LedgerOffloader ledgerOffloader = Mockito.mock(LedgerOffloader.class);
         Mockito.when(ledgerOffloader.getOffloadPolicies()).thenReturn(offloadPolicies);
 
-        ManagedLedgerConfig config = rawEntryConfig();
+        ManagedLedgerConfig config = defaultConfig();
         MockClock clock = new MockClock();
         config.setLedgerOffloader(ledgerOffloader);
         config.setClock(clock);

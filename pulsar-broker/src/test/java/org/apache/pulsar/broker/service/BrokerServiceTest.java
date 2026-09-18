@@ -2249,6 +2249,25 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testManagedLedgerReadEntriesCallbackInlineConfiguration() throws Exception {
+        var serviceConfiguration = pulsar.getConfiguration();
+        boolean originalInline = serviceConfiguration.isManagedLedgerReadEntriesCallbackInline();
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/read-callback-" + UUID.randomUUID());
+        try {
+            for (boolean inline : new boolean[]{true, false}) {
+                serviceConfiguration.setManagedLedgerReadEntriesCallbackInline(inline);
+                ManagedLedgerConfig ledgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName)
+                        .get(10, TimeUnit.SECONDS);
+                assertThat(ledgerConfig.isReadEntriesCallbackInline())
+                        .as("broker read callback policy must reach the configuration used to open the ledger")
+                        .isEqualTo(inline);
+            }
+        } finally {
+            serviceConfiguration.setManagedLedgerReadEntriesCallbackInline(originalInline);
+        }
+    }
+
+    @Test
     public void testTlsWithAuthParams() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
         final String subName = "newSub";
