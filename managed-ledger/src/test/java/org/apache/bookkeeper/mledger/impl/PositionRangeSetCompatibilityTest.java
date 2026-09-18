@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
@@ -86,9 +87,8 @@ public class PositionRangeSetCompatibilityTest extends BookKeeperClusterTestCase
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConf);
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig()
+        ManagedLedgerConfig config = rawEntryConfig()
                 .setEnsembleSize(1).setWriteQuorumSize(1).setAckQuorumSize(1)
-                .setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1).setMetadataAckQuorumSize(1)
                 .setMaxEntriesPerLedger(5);
 
         ManagedLedger ledger = factory.open(mlName, config);

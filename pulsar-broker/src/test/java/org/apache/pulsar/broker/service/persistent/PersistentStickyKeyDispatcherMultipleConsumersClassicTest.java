@@ -35,6 +35,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
@@ -210,6 +211,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumersClassicTest {
             orderedExecutor.shutdownNow();
             orderedExecutor = null;
         }
+    }
+
+    @Test
+    public void testEntryBucketDispatchNeverMatchesClassicPolicy() {
+        // PIP-486: an entry-bucket consumer must never reuse a (possibly consumer-less) classic
+        // dispatcher — bucket dispatch exists only in the modern implementation.
+        KeySharedMeta plain = new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT);
+        assertTrue(persistentDispatcher.hasSameKeySharedPolicy(plain));
+        KeySharedMeta bucketed = new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)
+                .setEntryBucketDispatch(true);
+        assertFalse(persistentDispatcher.hasSameKeySharedPolicy(bucketed));
     }
 
     @Test(timeOut = 10000)

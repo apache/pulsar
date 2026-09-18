@@ -30,7 +30,8 @@ plugins {
 // in scopes that end up in the published POM (api, implementation, runtimeOnly).
 // Test/compileOnly scoped dependencies are excluded since they don't appear in the POM.
 // NAR modules are not validated here — they bundle all dependencies and have empty POMs.
-run {
+// API/SPI mode validates the generated consumer metadata for the entire selection before uploading.
+if (!PulsarApiSpiPublication.isEnabled(project)) {
     val publishedScopes = listOf("api", "implementation", "runtimeOnly", "shadow", "shadowApi")
     val configsToCheck = publishedScopes.mapNotNull { name ->
         configurations.findByName(name)?.let { name to it }

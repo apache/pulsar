@@ -50,13 +50,14 @@ val pulsarPlatformModules = setOf(
     "pulsar-package-core",
 )
 
+val pulsarGroup = project.group.toString()
 configurations.named("runtimeClasspath") {
     exclude(group = "org.apache.bookkeeper")
     // Protobuf is in java-instance.jar (runtime-all), so NARs must not bundle it.
     // Bundling a different version causes GeneratedMessage.getUnknownFields() conflicts.
     exclude(group = "com.google.protobuf")
     pulsarPlatformModules.forEach { module ->
-        exclude(group = "org.apache.pulsar", module = module)
+        exclude(group = pulsarGroup, module = module)
     }
 }
 
@@ -97,7 +98,7 @@ if (parentProject != null && parentProject != rootProject && parentProject.paren
 // NAR modules bundle all dependencies, so the POM should have no <dependencies> section.
 publishing {
     publications {
-        named<MavenPublication>("maven") {
+        withType<MavenPublication>().configureEach {
             // Replace component-based artifacts with just the NAR file
             artifacts.clear()
             artifact(tasks.named("nar"))

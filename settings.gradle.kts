@@ -37,7 +37,7 @@ dependencyResolutionManagement {
         }
     }
 
-    // override docker-jdk version with -PdockerJavaVersion=21|25
+    // override docker-jdk version with -PdockerJavaVersion=21|25|26
     val overrideDockerJavaVersion = settings.providers.gradleProperty("dockerJavaVersion")
     if (overrideDockerJavaVersion.isPresent) {
         versionCatalogs {
@@ -50,11 +50,13 @@ dependencyResolutionManagement {
 
 rootProject.name = "pulsar"
 
-// Running this build requires Java 21 or 25. Version check can be skipped with -PskipJavaVersionCheck parameter.
+// Running this build requires Java 21, 25 or 26. Version check can be skipped with -PskipJavaVersionCheck parameter.
 val javaVersion = providers.provider { JavaVersion.current() }
-val statisfiedJavaVersion = javaVersion.map { it == JavaVersion.VERSION_21 || it == JavaVersion.VERSION_25 }
+val statisfiedJavaVersion = javaVersion.map {
+    it == JavaVersion.VERSION_21 || it == JavaVersion.VERSION_25 || it == JavaVersion.VERSION_26
+}
 require(providers.gradleProperty("skipJavaVersionCheck").isPresent || statisfiedJavaVersion.get()) {
-    "This build requires Java 21 or 25, but is running on Java ${javaVersion.get()}. Pass -PskipJavaVersionCheck to skip this check."
+    "This build requires Java 21, 25 or 26, but is running on Java ${javaVersion.get()}. Pass -PskipJavaVersionCheck to skip this check."
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -71,6 +73,9 @@ include("buildtools")
 include("pulsar-config-validation")
 include("pulsar-client-api")
 include("pulsar-client-api-v5")
+// Focused, dependency-light SPI modules (PIP-478): TLS factory SPI and HTTP client SPI
+include("pulsar-tls-factory-api")
+include("pulsar-http-client-api")
 
 // Tier 1
 include("pulsar-client-admin-api")
@@ -198,6 +203,8 @@ include("pulsar-broker-fastutil-minimized")
 // Tier 10 — shaded client modules (in core-modules)
 include("pulsar-client-shaded")
 include("pulsar-client-all")
+include("pulsar-client-v5-all")
+include("pulsar-client-v5-shaded")
 include("pulsar-client-admin-shaded")
 
 // Tier 11 — distribution (server is in core-modules)
@@ -262,6 +269,9 @@ project(":tests:integration").projectDir = file("tests/integration")
 
 include("tests:pulsar-client-shade-test")
 project(":tests:pulsar-client-shade-test").projectDir = file("tests/pulsar-client-shade-test")
+include("tests:pulsar-client-admin-v5-test")
+include("tests:pulsar-client-v5-shade-test")
+include("tests:pulsar-client-v5-all-test")
 include("tests:pulsar-client-admin-shade-test")
 project(":tests:pulsar-client-admin-shade-test").projectDir = file("tests/pulsar-client-admin-shade-test")
 include("tests:pulsar-client-all-shade-test")

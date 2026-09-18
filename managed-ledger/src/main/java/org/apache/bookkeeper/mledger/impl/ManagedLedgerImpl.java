@@ -30,8 +30,6 @@ import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -62,6 +60,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
@@ -77,6 +76,7 @@ import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BKException.Code;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.BookKeeperClientConfigAccessor;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -84,6 +84,7 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.common.util.Retries;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -161,6 +162,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private static final Logger slog = Logger.get(ManagedLedgerImpl.class);
 
     protected final BookKeeper bookKeeper;
+    /** Whether the BookKeeper client can batch read: the v2 wire protocol with batch reads enabled. */
+    private final boolean batchReadSupported;
     protected final String name;
     protected final Logger log;
 
@@ -332,7 +335,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final OrderedScheduler scheduledExecutor;
 
     @Getter
-    protected final ExecutorService executor;
+    protected final ThreadBoundExecutor executor;
 
     @Getter
     private final ManagedLedgerFactoryImpl factory;
@@ -341,18 +344,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected final ManagedLedgerMBeanImpl mbean;
     protected final Clock clock;
 
-    private static final AtomicLongFieldUpdater<ManagedLedgerImpl> READ_OP_COUNT_UPDATER = AtomicLongFieldUpdater
-            .newUpdater(ManagedLedgerImpl.class, "readOpCount");
-    private volatile long readOpCount = 0;
     protected static final AtomicLongFieldUpdater<ManagedLedgerImpl> ADD_OP_COUNT_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ManagedLedgerImpl.class, "addOpCount");
     private volatile long addOpCount = 0;
-
-    // last read-operation's callback to check read-timeout on it.
-    private volatile ReadEntryCallbackWrapper lastReadCallback = null;
-    private static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, ReadEntryCallbackWrapper>
-            LAST_READ_CALLBACK_UPDATER = AtomicReferenceFieldUpdater
-            .newUpdater(ManagedLedgerImpl.class, ReadEntryCallbackWrapper.class, "lastReadCallback");
 
     /**
      * Queue of pending entries to be added to the managed ledger. Typically, entries are queued when a new ledger is.
@@ -395,6 +389,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         this.factory = factory;
         this.bookKeeper = bookKeeper;
+        this.batchReadSupported = BookKeeperClientConfigAccessor.supportsBatchRead(bookKeeper);
         this.config = config;
         this.store = store;
         this.name = name;
@@ -402,7 +397,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.ledgerMetadata = LedgerMetadataUtils.buildBaseManagedLedgerMetadata(name);
         this.digestType = BookKeeper.DigestType.fromApiDigestType(config.getDigestType());
         this.scheduledExecutor = scheduledExecutor;
-        this.executor = bookKeeper.getMainWorkerPool().chooseThread(name);
+        // The main worker pool is an OrderedExecutor whose threads implement ThreadBoundExecutor (the BookKeeper client
+        // relies on the same cast for its ledger handles). The ledger callbacks are pinned to this thread through
+        // withOrderingKey, so their processing can run inline with executeOrRun() instead of re-queueing.
+        this.executor = (ThreadBoundExecutor) bookKeeper.getMainWorkerPool().chooseThread(name);
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
@@ -480,10 +478,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 if (State.Terminated.equals(state)) {
                                     currentLedger = lh;
                                 }
-                                LedgerInfo info = new LedgerInfo().setLedgerId(id)
-                                        .setEntries(lh.getLastAddConfirmed() + 1).setSize(lh.getLength())
-                                        .setTimestamp(clock.millis());
-                                ledgers.put(id, info);
+                                ledgers.compute(id, (ledgerId, oldInfo) -> {
+                                    LedgerInfo info = new LedgerInfo();
+                                    if (oldInfo != null) {
+                                        info.copyFrom(oldInfo);
+                                    } else {
+                                        info.setLedgerId(ledgerId);
+                                    }
+                                    return info.setEntries(lh.getLastAddConfirmed() + 1)
+                                            .setSize(lh.getLength()).setTimestamp(clock.millis());
+                                });
                                 if (managedLedgerInterceptor != null) {
                                     managedLedgerInterceptor
                                             .onManagedLedgerLastLedgerInitialize(name, createLastEntryHandle(lh))
@@ -512,7 +516,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     log.debug().attr("ledgerId", id).log("Opening ledger");
                     mbean.startDataLedgerOpenOp();
-                    bookKeeper.asyncOpenLedger(id, digestType, config.getPassword(), opencb, null, true);
+                    bookKeeper.newOpenLedgerOp()
+                            .withRecovery(true)
+                            .withLedgerId(id)
+                            .withDigestType(config.getDigestType())
+                            .withPassword(config.getPassword())
+                            .withKeepUpdateMetadata(true)
+                            .withLoggerContext(log)
+                            .withOrderingKey(name)
+                            .execute()
+                            .whenComplete((rh, ex) -> completeOpenCallback(log, id, opencb, rh, ex));
                 } else {
                     initializeBookKeeper(callback);
                 }
@@ -529,7 +542,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         });
 
-        scheduleTimeoutTask();
+        scheduleAddEntryTimeoutTask();
     }
 
     protected ManagedLedgerInterceptor.LastEntryHandle createLastEntryHandle(LedgerHandle lh) {
@@ -1915,7 +1928,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         ledgerRecheckInProgress = new ImmutablePair<>(currentLedger.getId(), new CompletableFuture<>());
-        bookKeeper.asyncOpenLedger(currentLedger.getId(), digestType, config.getPassword(), (rc, lh, ctx) -> {
+        OpenCallback opencb = (rc, lh, ctx) -> {
             ledgerRecheckInProgress.getRight().complete(rc);
             if (rc == Code.OK) {
                 log.info().attr("ledgerId", lh.getId())
@@ -1925,6 +1938,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 + " position when the ledger was concurrently modified"
                                 + " (the ledger may be closed by auto-replication)");
                 ledgerClosed(currentLedger, lh.getLastAddConfirmed());
+                // Close the abandoned write handle, or it leaks with its periodic explicit-LAC flush task.
+                currentLedger.asyncClose((closeRc, closedLedger, closeCtx) -> {
+                    if (closeRc != Code.OK) {
+                        log.debug().attr("ledgerId", currentLedger.getId())
+                                .attr("status", BKException.getMessage(closeRc))
+                                .log("Error when closing ledger after it was concurrently modified");
+                    }
+                }, null);
             } else {
                 log.error().attr("ledgerId", currentLedger.getId())
                     .attr("lastAddConfirmed", currentLedger.getLastAddConfirmed())
@@ -1938,7 +1959,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 handleBadVersion(new BadVersionException("the current ledger " + currentLedger.getId()
                     + " was concurrent modified by a other bookie client. The error code is: " + errorCode));
             }
-        }, null, true);
+        };
+        bookKeeper.newOpenLedgerOp()
+                .withRecovery(true)
+                .withLedgerId(currentLedger.getId())
+                .withDigestType(config.getDigestType())
+                .withPassword(config.getPassword())
+                .withKeepUpdateMetadata(true)
+                .withLoggerContext(log)
+                .withOrderingKey(name)
+                .execute()
+                .whenComplete((rh, ex) -> completeOpenCallback(log, currentLedger.getId(), opencb, rh, ex));
     }
 
     synchronized void ledgerClosed(final LedgerHandle lh) {
@@ -2250,9 +2281,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .getManagedLedgerOffloadedReadPriority() == OffloadedReadPriority.BOOKKEEPER_FIRST
                     && info != null && info.hasOffloadContext()
                     && !info.getOffloadContext().isBookkeeperDeleted()) {
-                openFuture = bookKeeper.newOpenLedgerOp().withRecovery(!isReadOnly()).withLedgerId(ledgerId)
-                        .withDigestType(config.getDigestType()).withPassword(config.getPassword())
-                        .withLoggerContext(log).execute();
+                openFuture = bookKeeper.newOpenLedgerOp()
+                        .withRecovery(!isReadOnly())
+                        .withLedgerId(ledgerId)
+                        .withDigestType(config.getDigestType())
+                        .withPassword(config.getPassword())
+                        .withLoggerContext(log)
+                        .withOrderingKey(name)
+                        .execute();
 
             } else if (info != null && info.hasOffloadContext() && info.getOffloadContext().isComplete()) {
 
@@ -2266,9 +2302,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 openFuture = config.getLedgerOffloader().readOffloaded(ledgerId, uid,
                         offloadDriverMetadata);
             } else {
-                openFuture = bookKeeper.newOpenLedgerOp().withRecovery(!isReadOnly()).withLedgerId(ledgerId)
-                        .withDigestType(config.getDigestType()).withPassword(config.getPassword())
-                        .withLoggerContext(log).execute();
+                openFuture = bookKeeper.newOpenLedgerOp()
+                        .withRecovery(!isReadOnly())
+                        .withLedgerId(ledgerId)
+                        .withDigestType(config.getDigestType())
+                        .withPassword(config.getPassword())
+                        .withLoggerContext(log)
+                        .withOrderingKey(name)
+                        .execute();
             }
             openFuture.whenCompleteAsync((res, ex) -> {
                 mbean.endDataLedgerOpenOp();
@@ -2420,10 +2461,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             }
 
-            // If all messages in [firstEntry...lastEntry] are filter out,
-            // then manual call internalReadEntriesComplete to advance read position.
+            // If all positions in [firstEntry...lastEntry] are filtered out, advance the read position
+            // without issuing a ledger read.
             if (firstValidEntry == -1L) {
-                final var nextReadPosition = PositionFactory.create(ledger.getId(), lastEntry).getNext();
+                final Position lastScannedPosition = PositionFactory.create(ledger.getId(), lastEntry);
+                // The whole scan window was skipped. If the last scanned position is individually deleted,
+                // hop over its deleted range instead of advancing one window at a time.
+                final Position nextReadPosition = opReadEntry.cursor.getNextAvailablePosition(lastScannedPosition);
                 opReadEntry.updateReadPosition(nextReadPosition);
                 opReadEntry.checkReadCompletion();
                 return;
@@ -2443,13 +2487,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected void asyncReadEntry(ReadHandle ledger, Position position, ReadEntryCallback callback, Object ctx) {
         mbean.addEntriesRead(1);
         if (config.getReadEntryTimeoutSeconds() > 0) {
-            // set readOpCount to uniquely validate if ReadEntryCallbackWrapper is already recycled
-            long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
-            long createdTime = System.nanoTime();
-            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, position.getLedgerId(),
-                    position.getEntryId(), callback, readOpCount, createdTime, ctx);
-            lastReadCallback = readCallback;
-            entryCache.asyncReadEntry(ledger, position, readCallback, readOpCount);
+            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, position.getLedgerId(),
+                    position.getEntryId(), callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
+            entryCache.asyncReadEntry(ledger, position, readCallback, ctx);
+            if (readCallback.registerTimeout()) {
+                factory.getReadEntryTimeoutTracker().add(readCallback);
+            }
         } else {
             entryCache.asyncReadEntry(ledger, position, callback, ctx);
         }
@@ -2459,70 +2502,68 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             Object ctx) {
         IntSupplier expectedReadCount = opReadEntry.cursor::getNumberOfCursorsAtSamePositionOrBefore;
         if (config.getReadEntryTimeoutSeconds() > 0) {
-            // set readOpCount to uniquely validate if ReadEntryCallbackWrapper is already recycled
-            long readOpCount = READ_OP_COUNT_UPDATER.incrementAndGet(this);
-            long createdTime = System.nanoTime();
-            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(name, ledger.getId(), firstEntry,
-                    opReadEntry, readOpCount, createdTime, ctx);
-            lastReadCallback = readCallback;
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, readCallback, readOpCount);
+            ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, ledger.getId(), firstEntry,
+                    opReadEntry, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
+                    readCallback, ctx);
+            if (readCallback.registerTimeout()) {
+                factory.getReadEntryTimeoutTracker().add(readCallback);
+            }
         } else {
-            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, expectedReadCount, opReadEntry, ctx);
+            entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
+                    opReadEntry, ctx);
         }
+    }
+
+    private static long timeoutAtNanos(long timeoutSec) {
+        return System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSec);
     }
 
     static final class ReadEntryCallbackWrapper implements ReadEntryCallback, ReadEntriesCallback {
 
-        volatile ReadEntryCallback readEntryCallback;
-        volatile ReadEntriesCallback readEntriesCallback;
-        String name;
-        long ledgerId;
-        long entryId;
-        volatile long readOpCount = -1;
-        private static final AtomicLongFieldUpdater<ReadEntryCallbackWrapper> READ_OP_COUNT_UPDATER =
-                AtomicLongFieldUpdater.newUpdater(ReadEntryCallbackWrapper.class, "readOpCount");
-        volatile long createdTime = -1;
-        volatile Object cntx;
+        private static final int WAITING = 0;
+        private static final int TRACKED = 1;
+        private static final int COMPLETED = 2;
+        private static final AtomicIntegerFieldUpdater<ReadEntryCallbackWrapper> STATE_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(ReadEntryCallbackWrapper.class, "completionState");
 
-        final Handle<ReadEntryCallbackWrapper> recyclerHandle;
+        final ReadEntryCallback readEntryCallback;
+        final ReadEntriesCallback readEntriesCallback;
+        final ManagedLedgerImpl managedLedger;
+        final String managedLedgerName;
+        final long ledgerId;
+        final long entryId;
+        final long timeoutAtNanos;
+        final Object cntx;
+        private volatile int completionState;
 
-        private ReadEntryCallbackWrapper(Handle<ReadEntryCallbackWrapper> recyclerHandle) {
-            this.recyclerHandle = recyclerHandle;
+        private ReadEntryCallbackWrapper(ManagedLedgerImpl managedLedger, long ledgerId, long entryId,
+                                         ReadEntryCallback readEntryCallback, ReadEntriesCallback readEntriesCallback,
+                                         Object ctx, long timeoutAtNanos) {
+            this.managedLedger = managedLedger;
+            this.managedLedgerName = managedLedger.name;
+            this.ledgerId = ledgerId;
+            this.entryId = entryId;
+            this.readEntryCallback = readEntryCallback;
+            this.readEntriesCallback = readEntriesCallback;
+            this.cntx = ctx;
+            this.timeoutAtNanos = timeoutAtNanos;
         }
 
-        static ReadEntryCallbackWrapper create(String name, long ledgerId, long entryId, ReadEntryCallback callback,
-                long readOpCount, long createdTime, Object ctx) {
-            ReadEntryCallbackWrapper readCallback = RECYCLER.get();
-            readCallback.name = name;
-            readCallback.ledgerId = ledgerId;
-            readCallback.entryId = entryId;
-            readCallback.readEntryCallback = callback;
-            readCallback.cntx = ctx;
-            readCallback.readOpCount = readOpCount;
-            readCallback.createdTime = createdTime;
-            return readCallback;
+        static ReadEntryCallbackWrapper create(ManagedLedgerImpl managedLedger, long ledgerId, long entryId,
+                                               ReadEntryCallback callback, Object ctx, long timeoutAtNanos) {
+            return new ReadEntryCallbackWrapper(managedLedger, ledgerId, entryId, callback, null, ctx, timeoutAtNanos);
         }
 
-        static ReadEntryCallbackWrapper create(String name, long ledgerId, long entryId, ReadEntriesCallback callback,
-                long readOpCount, long createdTime, Object ctx) {
-            ReadEntryCallbackWrapper readCallback = RECYCLER.get();
-            readCallback.name = name;
-            readCallback.ledgerId = ledgerId;
-            readCallback.entryId = entryId;
-            readCallback.readEntriesCallback = callback;
-            readCallback.cntx = ctx;
-            readCallback.readOpCount = readOpCount;
-            readCallback.createdTime = createdTime;
-            return readCallback;
+        static ReadEntryCallbackWrapper create(ManagedLedgerImpl managedLedger, long ledgerId, long entryId,
+                                               ReadEntriesCallback callback, Object ctx, long timeoutAtNanos) {
+            return new ReadEntryCallbackWrapper(managedLedger, ledgerId, entryId, null, callback, ctx, timeoutAtNanos);
         }
 
         @Override
         public void readEntryComplete(Entry entry, Object ctx) {
-            long reOpCount = reOpCount(ctx);
-            ReadEntryCallback callback = this.readEntryCallback;
-            Object cbCtx = this.cntx;
-            if (recycle(reOpCount)) {
-                callback.readEntryComplete(entry, cbCtx);
+            if (complete()) {
+                readEntryCallback.readEntryComplete(entry, cntx);
             } else {
                 slog.debug().attr("ledgerId", ledgerId).attr("entryId", entryId).log("Read entry already completed");
                 entry.release();
@@ -2531,11 +2572,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         @Override
         public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-            long reOpCount = reOpCount(ctx);
-            ReadEntryCallback callback = this.readEntryCallback;
-            Object cbCtx = this.cntx;
-            if (recycle(reOpCount)) {
-                callback.readEntryFailed(exception, cbCtx);
+            if (complete()) {
+                readEntryCallback.readEntryFailed(exception, cntx);
             } else {
                 slog.debug().attr("ledgerId", ledgerId).attr("entryId", entryId).log("Read entry already completed");
             }
@@ -2543,11 +2581,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         @Override
         public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
-            long reOpCount = reOpCount(ctx);
-            ReadEntriesCallback callback = this.readEntriesCallback;
-            Object cbCtx = this.cntx;
-            if (recycle(reOpCount)) {
-                callback.readEntriesComplete(returnedEntries, cbCtx);
+            if (complete()) {
+                readEntriesCallback.readEntriesComplete(returnedEntries, cntx);
             } else {
                 slog.debug().attr("ledgerId", ledgerId).attr("entryId", entryId).log("Read entry already completed");
                 returnedEntries.forEach(Entry::release);
@@ -2556,51 +2591,40 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            long reOpCount = reOpCount(ctx);
-            ReadEntriesCallback callback = this.readEntriesCallback;
-            Object cbCtx = this.cntx;
-            if (recycle(reOpCount)) {
-                callback.readEntriesFailed(exception, cbCtx);
+            if (complete()) {
+                readEntriesCallback.readEntriesFailed(exception, cntx);
             } else {
                 slog.debug().attr("ledgerId", ledgerId).attr("entryId", entryId).log("Read entry already completed");
             }
         }
 
-        private long reOpCount(Object ctx) {
-            return (ctx instanceof Long) ? (long) ctx : -1;
+        boolean isCompleted() {
+            return completionState == COMPLETED;
         }
 
-        public void readFailed(ManagedLedgerException exception, Object ctx) {
+        boolean registerTimeout() {
+            return STATE_UPDATER.compareAndSet(this, WAITING, TRACKED);
+        }
+
+        boolean triggerReadTimeout(ManagedLedgerException exception) {
+            if (!STATE_UPDATER.compareAndSet(this, TRACKED, COMPLETED)) {
+                return false;
+            }
+            managedLedger.getExecutor().execute(() -> notifyReadFailed(exception));
+            return true;
+        }
+
+        private void notifyReadFailed(ManagedLedgerException exception) {
             if (readEntryCallback != null) {
-                readEntryFailed(exception, ctx);
+                readEntryCallback.readEntryFailed(exception, cntx);
             } else if (readEntriesCallback != null) {
-                readEntriesFailed(exception, ctx);
+                readEntriesCallback.readEntriesFailed(exception, cntx);
             }
-            // It happens when timeout-thread and read-callback both recycles at the same time.
-            // this read-callback has already been recycled so, do nothing..
         }
 
-        private boolean recycle(long readOpCount) {
-            if (readOpCount != -1
-                    && READ_OP_COUNT_UPDATER.compareAndSet(ReadEntryCallbackWrapper.this, readOpCount, -1)) {
-                createdTime = -1;
-                readEntryCallback = null;
-                readEntriesCallback = null;
-                ledgerId = -1;
-                entryId = -1;
-                name = null;
-                recyclerHandle.recycle(this);
-                return true;
-            }
-            return false;
+        private boolean complete() {
+            return STATE_UPDATER.getAndSet(this, COMPLETED) != COMPLETED;
         }
-
-        private static final Recycler<ReadEntryCallbackWrapper> RECYCLER = new Recycler<ReadEntryCallbackWrapper>() {
-            @Override
-            protected ReadEntryCallbackWrapper newObject(Handle<ReadEntryCallbackWrapper> handle) {
-                return new ReadEntryCallbackWrapper(handle);
-            }
-        };
 
     }
 
@@ -4552,6 +4576,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return config;
     }
 
+    /**
+     * Whether storage reads use the BookKeeper batch read API: it must be enabled in the config and supported by
+     * the BookKeeper client (v2 wire protocol with batch reads enabled in its configuration).
+     */
+    public boolean isBatchReadEnabled() {
+        return batchReadSupported && config.isBatchReadEnabled();
+    }
+
     @Override
     public void setConfig(ManagedLedgerConfig config) {
         this.config = config;
@@ -4633,6 +4665,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    /**
+     * Completes a legacy {@link OpenCallback} from the future of a builder-based ledger open. The callback runs on
+     * the thread that completed the open; whatever it throws is logged here, because the stage returned by
+     * {@code whenComplete} would otherwise swallow it.
+     */
+    static void completeOpenCallback(Logger log, long ledgerId, OpenCallback callback, ReadHandle handle,
+                                     Throwable ex) {
+        try {
+            callback.openComplete(BKException.getExceptionCode(ex), (LedgerHandle) handle, null);
+        } catch (Throwable t) {
+            log.error().attr("ledgerId", ledgerId).exception(t).log("Ledger open callback failed");
+        }
+    }
+
     public static ManagedLedgerException createManagedLedgerException(int bkErrorCode) {
         if (bkErrorCode == BKException.Code.TooManyRequestsException) {
             return new TooManyRequestsException("Too many request error from bookies");
@@ -4706,6 +4752,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .withPassword(config.getPassword())
                     .withCustomMetadata(finalMetadata)
                     .withLoggerContext(ctxLogger)
+                    .withOrderingKey(name)
                     .execute()
                     .whenComplete((writeHandle, ex) -> {
                         if (ex != null) {
@@ -4761,29 +4808,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return false;
     }
 
-    private void scheduleTimeoutTask() {
-        // disable timeout task checker if timeout <= 0
-        if (config.getAddEntryTimeoutSeconds() > 0 || config.getReadEntryTimeoutSeconds() > 0) {
-            long timeoutSec = Math.min(config.getAddEntryTimeoutSeconds(), config.getReadEntryTimeoutSeconds());
-            timeoutSec = timeoutSec <= 0
-                    ? Math.max(config.getAddEntryTimeoutSeconds(), config.getReadEntryTimeoutSeconds())
-                    : timeoutSec;
+    private void scheduleAddEntryTimeoutTask() {
+        if (config.getAddEntryTimeoutSeconds() > 0) {
+            long timeoutSec = config.getAddEntryTimeoutSeconds();
             this.timeoutTask = this.scheduledExecutor.scheduleAtFixedRate(
-                    this::checkTimeouts, timeoutSec, timeoutSec, TimeUnit.SECONDS);
+                    this::checkAddTimeout, timeoutSec, timeoutSec, TimeUnit.SECONDS);
         }
     }
 
-    private void checkTimeouts() {
+    private void checkAddTimeout() {
         final State state = STATE_UPDATER.get(this);
         if (state == State.Closed
                 || state.isFenced()) {
             return;
         }
-        checkAddTimeout();
-        checkReadTimeout();
-    }
-
-    private void checkAddTimeout() {
         long timeoutSec = config.getAddEntryTimeoutSeconds();
         if (timeoutSec < 1) {
             return;
@@ -4800,24 +4838,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 currentLedgerTimeoutTriggered.set(true);
                 opAddEntry.handleAddFailure(opAddEntry.ledger, null);
             }
-        }
-    }
-
-    private void checkReadTimeout() {
-        long timeoutSec = config.getReadEntryTimeoutSeconds();
-        if (timeoutSec < 1) {
-            return;
-        }
-        ReadEntryCallbackWrapper callback = this.lastReadCallback;
-        long readOpCount = callback != null ? callback.readOpCount : 0;
-        boolean timeout = callback != null && (TimeUnit.NANOSECONDS
-                .toSeconds(System.nanoTime() - callback.createdTime) >= timeoutSec);
-        if (readOpCount > 0 && timeout) {
-            log.warn().attr("ledgerId", this.lastReadCallback.ledgerId)
-                    .attr("entryId", this.lastReadCallback.entryId)
-                    .attr("timeoutSec", timeoutSec).log("Read entry timeout");
-            callback.readFailed(createManagedLedgerException(BKException.Code.TimeoutException), readOpCount);
-            LAST_READ_CALLBACK_UPDATER.compareAndSet(this, callback, null);
         }
     }
 

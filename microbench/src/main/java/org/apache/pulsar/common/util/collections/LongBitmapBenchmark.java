@@ -91,6 +91,17 @@ public class LongBitmapBenchmark {
 
     @Benchmark
     @Threads(1)
+    public void longBitmapAddSingleValueRangeSingleThread() {
+        // The shape PositionRangeSet.addOpenClosed issues for an individually acked message:
+        // a one-wide range, not a point add. Every other benchmark here uses checkedAdd, which
+        // was already on the amortized growth path, so none of them could observe the
+        // container-growth regression this benchmark exists to guard.
+        long v = nextValue.getAndIncrement();
+        longBitmap.add(v, v + 1);
+    }
+
+    @Benchmark
+    @Threads(1)
     public boolean roaringBitmapAddSingleThread() {
         long v = nextValue.getAndIncrement();
         return roaringBitmap.checkedAdd((int) v);

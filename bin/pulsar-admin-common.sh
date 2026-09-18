@@ -97,6 +97,9 @@ PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
 OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 OPTS="-Djava.net.preferIPv4Stack=true $OPTS"
+# Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+# (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration (conf/log4j2.yaml)
+OPTS="-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager $OPTS"
 # Required to allow sun.misc.Unsafe on JDK 24 without warnings
 # Also required for enabling unsafe memory access for Netty since 4.1.121.Final
 if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
@@ -117,6 +120,14 @@ fi
 if [[ $JAVA_MAJOR_VERSION -ge 11 ]]; then
   # Required by Netty for optimized direct byte buffer access
   OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+fi
+
+if [[ $JAVA_MAJOR_VERSION -ge 24 ]]; then
+  # Netty loads native libraries (epoll, io_uring, tcnative) via java.lang.System::loadLibrary,
+  # which is a restricted method from Java 24 onwards. Without this the JVM prints a warning to
+  # stderr on every invocation, and restricted methods will be blocked outright in a future
+  # release. bin/pulsar already sets this for the server side.
+  OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
 fi
 # These two settings work together to ensure the Pulsar process exits immediately and predictably
 # if it runs out of either Java heap memory or its internal off-heap memory,

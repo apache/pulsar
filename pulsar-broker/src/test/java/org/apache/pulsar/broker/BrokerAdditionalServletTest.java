@@ -36,6 +36,7 @@ import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithPulsarService;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlets;
+import org.apache.pulsar.broker.web.plugin.servlet.LegacyJavaxAdditionalServlet;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -49,6 +50,7 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
 
     private static final String BASE_PATH = "/additional/servlet";
     private static final String WITH_PULSAR_SERVICE_BASE_PATH = "/additional/servlet/with/pulsar/service";
+    private static final String JAVAX_BASE_PATH = "/additional/servlet/javax";
     private static final String QUERY_PARAM = "param";
 
     @Override
@@ -117,6 +119,8 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         map.put("broker-additional-servlet", new AdditionalServletWithClassLoader(brokerAdditionalServlet, null));
         map.put("broker-additional-servlet-with-pulsar-service", new
                 AdditionalServletWithClassLoader(brokerAdditionalServletWithPulsarService, null));
+        map.put("broker-additional-servlet-javax", new AdditionalServletWithClassLoader(
+                new LegacyJavaxAdditionalServlet(JAVAX_BASE_PATH), null));
         Mockito.when(brokerAdditionalServlets.getServlets()).thenReturn(map);
 
         Mockito.when(pulsar.getBrokerAdditionalServlets()).thenReturn(brokerAdditionalServlets);
@@ -134,6 +138,14 @@ public class BrokerAdditionalServletTest extends MockedPulsarServiceBaseTest {
         String withPulsarServiceParamValue = PulsarService.class.getName();
         String withPulsarServiceResponse = httpGet("http://localhost:" + httpPort + WITH_PULSAR_SERVICE_BASE_PATH);
         Assert.assertEquals(withPulsarServiceParamValue, withPulsarServiceResponse);
+
+        // A servlet written against the legacy javax.servlet API is adapted to jakarta.servlet and serves
+        // requests through the same Jetty environment as the jakarta.servlet ones
+        String javaxParamValue = "value - " + RandomUtils.nextInt();
+        String javaxResponse = httpGet("http://localhost:" + httpPort + JAVAX_BASE_PATH
+                + "?" + QUERY_PARAM + "=" + javaxParamValue);
+        Assert.assertEquals(javaxResponse.trim(),
+                LegacyJavaxAdditionalServlet.expectedResponse(JAVAX_BASE_PATH, javaxParamValue));
     }
 
 

@@ -135,6 +135,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private long lastStatTimestamp = System.nanoTime();
     private final ScheduledFuture<?> statsTask;
     private final ScheduledFuture<?> flushCursorsTask;
+    private final ReadEntryTimeoutTracker readEntryTimeoutTracker;
 
     private volatile long cacheEvictionTimeThresholdNanos;
     private final MetadataStore metadataStore;
@@ -247,6 +248,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         this.config = config;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new RangeEntryCacheManagerImpl(this, scheduledExecutor, openTelemetry);
+        this.readEntryTimeoutTracker = new ReadEntryTimeoutTracker(scheduledExecutor);
         this.statsTask = scheduledExecutor.scheduleWithFixedDelay(catchingAndLoggingThrowables(this::refreshStats),
                 0, config.getStatsPeriodSeconds(), TimeUnit.SECONDS);
         this.flushCursorsTask = scheduledExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::flushCursors),
@@ -324,6 +326,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     @VisibleForTesting
     public synchronized void doCacheEviction() {
         entryCacheManager.doCacheEviction();
+    }
+
+    ReadEntryTimeoutTracker getReadEntryTimeoutTracker() {
+        return readEntryTimeoutTracker;
     }
 
     /**
@@ -664,6 +670,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
         statsTask.cancel(true);
         flushCursorsTask.cancel(true);
+        readEntryTimeoutTracker.close();
         cacheEvictionExecutor.shutdownNow();
 
         List<String> ledgerNames = new ArrayList<>(this.ledgers.keySet());
@@ -1476,8 +1483,16 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                             .attr("cursorLedgerId", cursorLedgerId)
                                             .log("Cursor meta-data read ledger id");
                                     if (cursorLedgerId != -1) {
-                                        bk.asyncOpenLedgerNoRecovery(cursorLedgerId, digestType, password,
-                                                cursorLedgerOpenCb, null);
+                                        var openLog = log.with().attr("managedLedger", managedLedgerName).build();
+                                        bk.newOpenLedgerOp()
+                                                .withRecovery(false)
+                                                .withLedgerId(cursorLedgerId)
+                                                .withDigestType(digestType.toApiDigestType())
+                                                .withPassword(password)
+                                                .withLoggerContext(openLog)
+                                                .execute()
+                                                .whenComplete((rh, ex) -> ManagedLedgerImpl.completeOpenCallback(
+                                                        openLog, cursorLedgerId, cursorLedgerOpenCb, rh, ex));
                                     } else {
                                         Position lastAckedMessagePosition = PositionFactory.create(
                                                 info.getMarkDeleteLedgerId(), info.getMarkDeleteEntryId());

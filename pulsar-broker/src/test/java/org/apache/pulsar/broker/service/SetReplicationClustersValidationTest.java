@@ -245,7 +245,7 @@ public class SetReplicationClustersValidationTest extends OneWayReplicatorTestBa
             admin1.namespaces().setAutoTopicCreation(namespace, policy1);
             fail("Expected behaviour: Pulsar does not allow setting non-partitioned and a certain partition counts");
         } catch (Exception ex) {
-            assertTrue(ex.getMessage().contains("is not allowed to be set when the type is non-partition"));
+            assertTrue(ex.getMessage().contains("must be null, 0 or 1 when the type is non-partitioned"));
         }
     }
 

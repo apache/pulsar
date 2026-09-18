@@ -52,7 +52,8 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.tls.NoopHostnameVerifier;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.tls.JdkSslContexts;
+import org.apache.pulsar.common.util.tls.PemReader;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -112,12 +113,12 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
             .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
-        X509Certificate trustCertificates[] = SecurityUtility.loadCertificatesFromPemFile(
+        X509Certificate trustCertificates[] = PemReader.loadCertificatesFromPemFile(
                 CA_CERT_FILE_PATH);
-        SSLContext sslCtx = SecurityUtility.createSslContext(
+        SSLContext sslCtx = JdkSslContexts.createSslContext(
                 false, trustCertificates,
-                SecurityUtility.loadCertificatesFromPemFile(getTlsFileForClient(user + ".cert")),
-                SecurityUtility.loadPrivateKeyFromPemFile(getTlsFileForClient(user + ".key-pk8")));
+                PemReader.loadCertificatesFromPemFile(getTlsFileForClient(user + ".cert")),
+                PemReader.loadPrivateKeyFromPemFile(getTlsFileForClient(user + ".key-pk8")));
         clientBuilder.sslContext(sslCtx).hostnameVerifier(NoopHostnameVerifier.INSTANCE);
         Client client = clientBuilder.build();
 

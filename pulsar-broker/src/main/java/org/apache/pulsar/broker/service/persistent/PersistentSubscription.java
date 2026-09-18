@@ -340,7 +340,12 @@ public class PersistentSubscription extends AbstractSubscription {
                         || !((StickyKeyDispatcher) dispatcher)
                         .hasSameKeySharedPolicy(ksm)) {
                     previousDispatcher = dispatcher;
-                    if (config.isSubscriptionKeySharedUseClassicPersistentImplementation()) {
+                    if (ksm.isEntryBucketDispatch()) {
+                        // PIP-486 scalable-topic segment shared by entry-bucket. Always uses the
+                        // modern implementation; the classic dispatcher has no bucket support.
+                        dispatcher = new PersistentEntryBucketDispatcherMultipleConsumers(topic, cursor,
+                                this, config, ksm);
+                    } else if (config.isSubscriptionKeySharedUseClassicPersistentImplementation()) {
                         dispatcher =
                                 new PersistentStickyKeyDispatcherMultipleConsumersClassic(topic, cursor,
                                         this, config, ksm);
@@ -453,6 +458,15 @@ public class PersistentSubscription extends AbstractSubscription {
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
         this.lastConsumedFlowTimestamp = System.currentTimeMillis();
         dispatcher.consumerFlow(consumer, additionalNumberOfMessages);
+    }
+
+    @Override
+    public void notifyChannelWritable(Consumer consumer) {
+        // Read the volatile reference directly: the Netty event loop must not wait for the subscription monitor.
+        Dispatcher currentDispatcher = dispatcher;
+        if (currentDispatcher != null) {
+            currentDispatcher.notifyChannelWritable(consumer);
+        }
     }
 
     public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
@@ -1509,6 +1523,8 @@ public class PersistentSubscription extends AbstractSubscription {
             }
         }
         subStats.msgBacklog = getNumberOfEntriesInBacklog(getStatsOptions.isGetPreciseBacklog());
+        subStats.oldestBacklogMessageAgeSeconds =
+                topic.getBestEffortOldestUnacknowledgedMessageAgeSeconds(subName);
         if (getStatsOptions.isSubscriptionBacklogSize()) {
             subStats.backlogSize = topic.getManagedLedger()
                     .getEstimatedBacklogSize(cursor.getMarkDeletedPosition());

@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -159,6 +160,52 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
         assertEquals(consumerSpan.getAttributes().get(
                 io.opentelemetry.api.common.AttributeKey.stringKey("messaging.pulsar.acknowledgment.type")),
                 "acknowledge");
+    }
+
+    @Test
+    public void testPartitionedProducerSpanUsesCurrentProducerTopic() throws Exception {
+        String topic = "persistent://prop/ns-abc/test-partitioned-producer-tracing";
+        String partition0 = topic + "-partition-0";
+        String partition1 = topic + "-partition-1";
+        spanExporter.reset();
+
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .openTelemetry(openTelemetry)
+                .enableTracing(true)
+                .build();
+
+        Producer<String> producer = client.newProducer(Schema.STRING)
+                .topic(topic)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .enableBatching(false)
+                .create();
+
+        producer.send("message-0");
+        producer.send("message-1");
+
+        producer.close();
+        client.close();
+
+        flushSpans();
+
+        List<SpanData> spans = spanExporter.getFinishedSpanItems();
+        List<SpanData> producerSpans = spans.stream()
+                .filter(s -> s.getKind() == SpanKind.PRODUCER)
+                .collect(java.util.stream.Collectors.toList());
+        Set<String> producerSpanTopics = producerSpans.stream()
+                .map(s -> s.getAttributes().get(
+                        io.opentelemetry.api.common.AttributeKey.stringKey("messaging.destination.name")))
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> producerSpanNames = producerSpans.stream()
+                .map(SpanData::getName)
+                .collect(java.util.stream.Collectors.toSet());
+
+        assertEquals(producerSpans.size(), 2);
+        assertEquals(producerSpanTopics, Set.of(partition0, partition1));
+        assertEquals(producerSpanNames, Set.of("send " + partition0, "send " + partition1));
     }
 
     @Test
@@ -421,11 +468,20 @@ public class OpenTelemetryTracingIntegrationTest extends BrokerTestBase {
 
         // Verify spans for both topics
         List<SpanData> spans = spanExporter.getFinishedSpanItems();
-        long consumerSpans = spans.stream()
+        List<SpanData> consumerSpans = spans.stream()
                 .filter(s -> s.getKind() == SpanKind.CONSUMER)
-                .count();
+                .collect(java.util.stream.Collectors.toList());
+        Set<String> consumerSpanTopics = consumerSpans.stream()
+                .map(s -> s.getAttributes().get(
+                        io.opentelemetry.api.common.AttributeKey.stringKey("messaging.destination.name")))
+                .collect(java.util.stream.Collectors.toSet());
+        Set<String> consumerSpanNames = consumerSpans.stream()
+                .map(SpanData::getName)
+                .collect(java.util.stream.Collectors.toSet());
 
-        assertEquals(consumerSpans, 2);
+        assertEquals(consumerSpans.size(), 2);
+        assertEquals(consumerSpanTopics, Set.of(topic1, topic2));
+        assertEquals(consumerSpanNames, Set.of("process " + topic1, "process " + topic2));
 
         producer1.close();
         producer2.close();

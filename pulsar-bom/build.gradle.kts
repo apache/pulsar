@@ -33,74 +33,91 @@ javaPlatform {
 
 dependencies {
     constraints {
+        fun selectedApi(dependency: ProjectDependency) {
+            if (!PulsarApiSpiPublication.isEnabled(project) ||
+                dependency.path in PulsarApiSpiPublication.projects) {
+                add("api", dependency)
+            }
+        }
+
         // Client API
-        api(project(":pulsar-client-api"))
-        api(project(":pulsar-client-admin-api"))
+        selectedApi(project(":pulsar-client-api"))
+        selectedApi(project(":pulsar-client-admin-api"))
+        selectedApi(project(":pulsar-client-api-v5"))
+
+        // Focused SPI modules (PIP-478): TLS factory SPI + HTTP client SPI
+        selectedApi(project(":pulsar-tls-factory-api"))
+        selectedApi(project(":pulsar-http-client-api"))
 
         // Shaded clients (the published artifacts users depend on)
-        api(project(":pulsar-client-shaded"))
-        api(project(":pulsar-client-admin-shaded"))
-        api(project(":pulsar-client-all"))
+        selectedApi(project(":pulsar-client-shaded"))
+        selectedApi(project(":pulsar-client-admin-shaded"))
+        selectedApi(project(":pulsar-client-all"))
+        selectedApi(project(":pulsar-client-v5-shaded"))
+
+        // Combined unshaded v4/v5 client and admin
+        selectedApi(project(":pulsar-client-v5-all"))
 
         // Original (unshaded) clients
-        api(project(":pulsar-client-original"))
-        api(project(":pulsar-client-admin-original"))
+        selectedApi(project(":pulsar-client-v5"))
+        selectedApi(project(":pulsar-client-original"))
+        selectedApi(project(":pulsar-client-admin-original"))
 
         // Client auth
-        api(project(":pulsar-client-auth-sasl"))
-        api(project(":pulsar-client-messagecrypto-bc"))
+        selectedApi(project(":pulsar-client-auth-sasl"))
+        selectedApi(project(":pulsar-client-messagecrypto-bc"))
 
         // Common
-        api(project(":pulsar-common"))
-        api(project(":pulsar-config-validation"))
+        selectedApi(project(":pulsar-common"))
+        selectedApi(project(":pulsar-config-validation"))
 
         // Functions API
-        api(project(":pulsar-functions:pulsar-functions-api"))
+        selectedApi(project(":pulsar-functions:pulsar-functions-api"))
 
         // IO core
-        api(project(":pulsar-io:pulsar-io-core"))
-        api(project(":pulsar-io:pulsar-io-common"))
+        selectedApi(project(":pulsar-io:pulsar-io-core"))
+        selectedApi(project(":pulsar-io:pulsar-io-common"))
 
         // Broker
-        api(project(":pulsar-broker"))
-        api(project(":pulsar-broker-common"))
-        api(project(":pulsar-broker-auth-oidc"))
-        api(project(":pulsar-broker-auth-sasl"))
+        selectedApi(project(":pulsar-broker"))
+        selectedApi(project(":pulsar-broker-common"))
+        selectedApi(project(":pulsar-broker-auth-oidc"))
+        selectedApi(project(":pulsar-broker-auth-sasl"))
 
         // Other core modules
-        api(project(":managed-ledger"))
-        api(project(":pulsar-metadata"))
-        api(project(":pulsar-proxy"))
-        api(project(":pulsar-websocket"))
-        api(project(":pulsar-testclient"))
-        api(project(":pulsar-cli-utils"))
-        api(project(":pulsar-client-tools"))
-        api(project(":pulsar-client-tools-api"))
-        api(project(":pulsar-opentelemetry"))
-        api(project(":testmocks"))
+        selectedApi(project(":managed-ledger"))
+        selectedApi(project(":pulsar-metadata"))
+        selectedApi(project(":pulsar-proxy"))
+        selectedApi(project(":pulsar-websocket"))
+        selectedApi(project(":pulsar-testclient"))
+        selectedApi(project(":pulsar-cli-utils"))
+        selectedApi(project(":pulsar-client-tools"))
+        selectedApi(project(":pulsar-client-tools-api"))
+        selectedApi(project(":pulsar-opentelemetry"))
+        selectedApi(project(":testmocks"))
 
         // Transaction
-        api(project(":pulsar-transaction:pulsar-transaction-common"))
-        api(project(":pulsar-transaction:pulsar-transaction-coordinator"))
+        selectedApi(project(":pulsar-transaction:pulsar-transaction-common"))
+        selectedApi(project(":pulsar-transaction:pulsar-transaction-coordinator"))
 
         // Functions
-        api(project(":pulsar-functions:pulsar-functions-instance"))
-        api(project(":pulsar-functions:pulsar-functions-runtime"))
-        api(project(":pulsar-functions:pulsar-functions-worker"))
-        api(project(":pulsar-functions:pulsar-functions-local-runner-original"))
-        api(project(":pulsar-functions:pulsar-functions-proto"))
-        api(project(":pulsar-functions:pulsar-functions-secrets"))
-        api(project(":pulsar-functions:pulsar-functions-utils"))
+        selectedApi(project(":pulsar-functions:pulsar-functions-instance"))
+        selectedApi(project(":pulsar-functions:pulsar-functions-runtime"))
+        selectedApi(project(":pulsar-functions:pulsar-functions-worker"))
+        selectedApi(project(":pulsar-functions:pulsar-functions-local-runner-original"))
+        selectedApi(project(":pulsar-functions:pulsar-functions-proto"))
+        selectedApi(project(":pulsar-functions:pulsar-functions-secrets"))
+        selectedApi(project(":pulsar-functions:pulsar-functions-utils"))
 
         // Athenz auth
-        api(project(":pulsar-client-auth-athenz"))
-        api(project(":pulsar-broker-auth-athenz"))
+        selectedApi(project(":pulsar-client-auth-athenz"))
+        selectedApi(project(":pulsar-broker-auth-athenz"))
 
         // Functions
-        api(project(":pulsar-functions:pulsar-functions-local-runner-shaded"))
+        selectedApi(project(":pulsar-functions:pulsar-functions-local-runner-shaded"))
 
         // Tiered storage
-        api(project(":tiered-storage:tiered-storage-jcloud"))
-        api(project(":tiered-storage:tiered-storage-file-system"))
+        selectedApi(project(":tiered-storage:tiered-storage-jcloud"))
+        selectedApi(project(":tiered-storage:tiered-storage-file-system"))
     }
 }

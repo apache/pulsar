@@ -242,13 +242,13 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             int batchSize = msgMetadata.getNumMessagesInBatch();
             long[] ackSet = null;
             if (indexesAcks != null && cursor != null) {
-                Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
                 ackSet = cursor
-                        .getDeletedBatchIndexesAsLongArray(position);
+                        .getDeletedBatchIndexesAsLongArray(entry.getLedgerId(), entry.getEntryId());
                 // some batch messages ack bit sit will be in pendingAck state, so don't send all bit sit to consumer
                 if (subscription instanceof PersistentSubscription
                         && ((PersistentSubscription) subscription)
                         .getPendingAckHandle() instanceof PendingAckHandleImpl) {
+                    Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
                     Position positionInPendingAck =
                             ((PersistentSubscription) subscription).getPositionInPendingAck(position);
                     // if this position not in pendingAck state, don't need to do any op

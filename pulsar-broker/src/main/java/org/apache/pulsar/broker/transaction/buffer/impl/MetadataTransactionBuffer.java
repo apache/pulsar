@@ -661,6 +661,15 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     }
 
     @Override
+    public boolean isTxnOngoing(TxnID txnID) {
+        String key = TxnIds.toKey(txnID);
+        synchronized (lock) {
+            TxnEntry entry = txns.get(key);
+            return entry != null && entry.state == TxnState.OPEN;
+        }
+    }
+
+    @Override
     public void syncMaxReadPositionForNormalPublish(Position position, boolean isMarkerMessage) {
         if (isMarkerMessage) {
             return;

@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import org.gradle.api.attributes.Bundling
+
 plugins {
     id("pulsar.java-conventions")
 }
@@ -27,10 +29,13 @@ plugins {
 
 dependencies {
     implementation(libs.slog)
-    testImplementation(project(":pulsar-client-admin-shaded"))
+    testImplementation(project(":pulsar-client-admin-shaded")) {
+        attributes {
+            attribute(Bundling.BUNDLING_ATTRIBUTE, objects.named(Bundling.SHADOWED))
+        }
+    }
     // API modules and messagecrypto are not bundled in the shaded JAR
     testImplementation(project(":pulsar-client-admin-api"))
-    testImplementation(project(":pulsar-client-messagecrypto-bc"))
     testImplementation(project(":buildtools"))
     testImplementation(libs.bcprov.jdk18on)
     testImplementation(libs.testcontainers)
@@ -43,6 +48,8 @@ dependencies {
 }
 
 tasks.named<Test>("test") {
+    // Each worker executes the full XML suite, so do not split it into class batches.
+    forkEvery = 0
     useTestNG {
         suiteXmlFiles = listOf(file("src/test/resources/pulsar.xml"))
     }
