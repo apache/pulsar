@@ -397,8 +397,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                     entriesFuture = CompactedTopicUtils.asyncReadCompactedEntries(topic.getTopicCompactionService(),
                             cursor, messagesToRead, bytesToRead, topic.getMaxReadPosition(), readFromEarliest, true);
                 } else {
+                    // The continuation below already dispatches to our executor. A cache hit must not wait
+                    // behind unrelated publishing work on the managed-ledger executor first.
                     entriesFuture = readEntriesWithSkipOrWait(cursor, messagesToRead, bytesToRead,
-                            topic.getMaxReadPosition(), null);
+                            topic.getMaxReadPosition(), null, true);
                 }
                 entriesFuture.whenCompleteAsync((entries, e) -> {
                     if (e == null) {

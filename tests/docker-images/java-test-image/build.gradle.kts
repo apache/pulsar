@@ -21,6 +21,7 @@ val pulsarVersion = project.version.toString()
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
 val dockerPlatforms = providers.gradleProperty("docker.platforms").getOrElse("")
+val dockerInstallAsyncProfiler = providers.gradleProperty("docker.install.asyncprofiler").getOrElse("false")
 
 // Ensure the parent project is configured before resolving cross-project task references.
 // Required for --configure-on-demand: the Kotlin DSL needs parent ClassLoaderScopes to be locked.
@@ -78,28 +79,45 @@ val prepareBuildContext = tasks.register<Sync>("prepareBuildContext") {
     into("${projectDir}/target")
 }
 
-val dockerBuild = tasks.register<Exec>("dockerBuild") {
-    group = "docker"
-    description = "Build the java-test-image Docker image"
+fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler: String) =
+    tasks.register<Exec>(taskName) {
+        group = "docker"
 
-    dependsOn(":docker:pulsar-docker-image:dockerBuild", prepareBuildContext)
+        dependsOn(":docker:pulsar-docker-image:dockerBuild", prepareBuildContext)
 
-    val imageName = "${dockerOrganization}/java-test-image:${dockerTag}"
-    val pulsarImage = "${dockerOrganization}/pulsar:${dockerTag}"
+        val imageName = "${dockerOrganization}/java-test-image:${imageTag}"
+        val pulsarImage = "${dockerOrganization}/pulsar:${dockerTag}"
+        val asyncProfilerVersion = libs.versions.async.profiler.get()
 
-    workingDir = projectDir
+        workingDir = projectDir
 
-    val args = mutableListOf(
-        "docker", "build",
-        "-t", imageName,
-        "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
-    )
+        val args = mutableListOf(
+            "docker", "build",
+            "-t", imageName,
+            "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
+            "--build-arg", "INSTALL_ASYNC_PROFILER=${installAsyncProfiler}",
+            "--build-arg", "ASYNC_PROFILER_VERSION=${asyncProfilerVersion}"
+        )
 
-    if (dockerPlatforms.isNotEmpty()) {
-        args.addAll(listOf("--platform", dockerPlatforms))
+        if (dockerPlatforms.isNotEmpty()) {
+            args.addAll(listOf("--platform", dockerPlatforms))
+        }
+
+        args.add(".")
+
+        commandLine(args)
     }
 
-    args.add(".")
+val dockerBuild = registerDockerBuild("dockerBuild", dockerTag, dockerInstallAsyncProfiler)
+dockerBuild.configure {
+    description = "Build the java-test-image Docker image"
+}
 
-    commandLine(args)
+// A separate image so that a profiling run never replaces the image the other integration tests use,
+// and so that the async-profiler download stays out of the ordinary (and CI) test image build.
+// :tests:integration:profilingIntegrationTest builds and uses this one.
+val dockerBuildWithAsyncProfiler =
+    registerDockerBuild("dockerBuildWithAsyncProfiler", "${dockerTag}-asyncprofiler", "true")
+dockerBuildWithAsyncProfiler.configure {
+    description = "Build the java-test-image Docker image with async-profiler installed"
 }

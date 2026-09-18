@@ -18,13 +18,16 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.CustomLog;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -35,6 +38,17 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 
 @CustomLog
 class OpReadEntry implements ReadEntriesCallback {
+
+    /** How deep read completions may nest inline on a ledger thread before one is queued to unwind the stack. */
+    static final int MAX_NESTED_INLINE_COMPLETIONS = 10;
+
+    /** Nesting depth of read completions running inline on the current thread. */
+    private static final FastThreadLocal<int[]> INLINE_COMPLETION_DEPTH = new FastThreadLocal<>() {
+        @Override
+        protected int[] initialValue() {
+            return new int[1];
+        }
+    };
     static final OpReadEntry WAITING_READ_OP_FOR_CLOSED_CURSOR = new OpReadEntry();
     private static final AtomicInteger opReadIdGenerator = new AtomicInteger(1);
     /**
@@ -46,6 +60,7 @@ class OpReadEntry implements ReadEntriesCallback {
     ManagedCursorImpl cursor;
     Position readPosition;
     private int count;
+    long maxSizeBytes;
     private ReadEntriesCallback callback;
     Object ctx;
 
@@ -58,7 +73,7 @@ class OpReadEntry implements ReadEntriesCallback {
     boolean skipOpenLedgerFullyAcked = false;
 
     public static OpReadEntry create(ManagedCursorImpl cursor, Position readPositionRef, int count,
-                                     ReadEntriesCallback callback, Object ctx, Position maxPosition,
+                                     long maxSizeBytes, ReadEntriesCallback callback, Object ctx, Position maxPosition,
                                      Predicate<Position> skipCondition,
                                      boolean skipOpenLedgerFullyAcked) {
         OpReadEntry op = RECYCLER.get();
@@ -66,6 +81,7 @@ class OpReadEntry implements ReadEntriesCallback {
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
         op.cursor = cursor;
         op.count = count;
+        op.maxSizeBytes = maxSizeBytes;
         op.callback = callback;
         op.entries = new ArrayList<>();
         if (maxPosition == null) {
@@ -256,6 +272,7 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         id = -1;
         count = 0;
+        maxSizeBytes = NO_MAX_SIZE_LIMIT;
         cursor = null;
         readPosition = null;
         callback = null;
@@ -269,17 +286,38 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     private void complete(Object ctx) {
-        cursor.ledger.getExecutor().execute(() -> {
+        if (callback.canExecuteOnAnyThread()) {
+            completeNow(ctx);
+            return;
+        }
+        ThreadBoundExecutor executor = cursor.ledger.getExecutor();
+        // Run inline on the ledger thread to skip the queue hop. A fully cached read completes synchronously and
+        // callers such as OpScan and the replicator issue their next read from this callback, so the nesting is
+        // bounded per thread: past MAX_NESTED_INLINE_COMPLETIONS levels the completion is queued once to unwind
+        // the stack. Independent reads interleaving on the thread do not accumulate, only actual nesting does.
+        int[] depth = executor.isCurrentThread() ? INLINE_COMPLETION_DEPTH.get() : null;
+        if (depth != null && depth[0] < MAX_NESTED_INLINE_COMPLETIONS) {
+            depth[0]++;
             try {
-                callback.readEntriesComplete(entries, ctx);
-                recycle();
-            } catch (Throwable throwable) {
-                log.error().attr("op", this)
-                        .attr("lastPosition", lastEntryPosition())
-                        .exception(throwable)
-                        .log("readEntriesComplete failed");
+                completeNow(ctx);
+            } finally {
+                depth[0]--;
             }
-        });
+        } else {
+            executor.execute(() -> completeNow(ctx));
+        }
+    }
+
+    private void completeNow(Object ctx) {
+        try {
+            callback.readEntriesComplete(entries, ctx);
+            recycle();
+        } catch (Throwable throwable) {
+            log.error().attr("op", this)
+                    .attr("lastPosition", lastEntryPosition())
+                    .exception(throwable)
+                    .log("readEntriesComplete failed");
+        }
     }
 
     private void fail(ManagedLedgerException e, Object ctx) {

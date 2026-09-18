@@ -19,8 +19,6 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doAnswer;
@@ -33,10 +31,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
-import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.CreateBuilder;
+import org.apache.bookkeeper.client.api.OpenBuilder;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -58,7 +56,7 @@ import org.testng.annotations.Test;
 public class ManagedLedgerFactoryShutdownTest {
 
     private final String ledgerName = UUID.randomUUID().toString();
-    private final CountDownLatch slowZk = new CountDownLatch(1);
+    private CompletableFuture<Void> metadataReadGate;
 
     private MetadataStoreExtended metadataStore;
     private BookKeeper bookKeeper;
@@ -69,6 +67,7 @@ public class ManagedLedgerFactoryShutdownTest {
         final long version = 0;
         final long createTimeMillis = System.currentTimeMillis();
 
+        metadataReadGate = new CompletableFuture<>();
         metadataStore = mock(MetadataStoreExtended.class);
         bookKeeper = mock(BookKeeper.class);
 
@@ -85,12 +84,7 @@ public class ManagedLedgerFactoryShutdownTest {
                         .setEntries(0)
                         .setTimestamp(System.currentTimeMillis());
                 Stat stat = new Stat(path, version, createTimeMillis, createTimeMillis, false, false);
-                return CompletableFuture.supplyAsync(() -> {
-                    try {
-                        slowZk.await();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                return metadataReadGate.thenApplyAsync(__ -> {
                     log.info().attr("path", path).attr("managedLedgerInfo", mli)
                             .attr("stat", stat).log("metadataStore.get returned");
                     return Optional.of(new GetResult(mli.toByteArray(), stat));
@@ -102,12 +96,7 @@ public class ManagedLedgerFactoryShutdownTest {
                         .setMarkDeleteLedgerId(0)
                         .setMarkDeleteLedgerId(-1);
                 Stat stat = new Stat(path, version, createTimeMillis, createTimeMillis, false, false);
-                return CompletableFuture.supplyAsync(() -> {
-                    try {
-                        slowZk.await();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
-                    }
+                return metadataReadGate.thenApplyAsync(__ -> {
                     log.info().attr("path", path).attr("managedCursorInfo", mci)
                             .attr("stat", stat).log("metadataStore.get returned");
                     return Optional.of(new GetResult(mci.toByteArray(), stat));
@@ -133,16 +122,9 @@ public class ManagedLedgerFactoryShutdownTest {
         @Cleanup("shutdownNow")
         OrderedExecutor executor = OrderedExecutor.newBuilder().name("Test").build();
         given(bookKeeper.getMainWorkerPool()).willReturn(executor);
-        doAnswer(inv -> {
-            AsyncCallback.OpenCallback cb = inv.getArgument(3, AsyncCallback.OpenCallback.class);
-            cb.openComplete(0, ledgerHandle, inv.getArgument(4, Object.class));
-            return null;
-        }).when(bookKeeper).asyncOpenLedger(anyLong(), any(), any(), any(), any());
-        doAnswer(inv -> {
-            AsyncCallback.OpenCallback cb = inv.getArgument(3, AsyncCallback.OpenCallback.class);
-            cb.openComplete(0, ledgerHandle, inv.getArgument(4, Object.class));
-            return null;
-        }).when(bookKeeper).asyncOpenLedger(anyLong(), any(), any(), any(), any(), anyBoolean());
+        OpenBuilder openBuilder = mock(OpenBuilder.class, Mockito.RETURNS_SELF);
+        doAnswer(inv -> CompletableFuture.completedFuture(ledgerHandle)).when(openBuilder).execute();
+        given(bookKeeper.newOpenLedgerOp()).willReturn(openBuilder);
         CreateBuilder createBuilder = mock(CreateBuilder.class, Mockito.RETURNS_SELF);
         doAnswer(inv -> CompletableFuture.completedFuture(newLedgerHandle)).when(createBuilder).execute();
         given(bookKeeper.newCreateLedgerOp()).willReturn(createBuilder);
@@ -186,8 +168,8 @@ public class ManagedLedgerFactoryShutdownTest {
 
 
         factory.shutdownAsync().get();
-        //make zk returned after factory shutdown
-        slowZk.countDown();
+        // Complete delayed metadata reads only after shutdown, without blocking common-pool workers.
+        metadataReadGate.complete(null);
 
         //
         Assert.assertTrue(callbackInvoked.await(5, TimeUnit.SECONDS));

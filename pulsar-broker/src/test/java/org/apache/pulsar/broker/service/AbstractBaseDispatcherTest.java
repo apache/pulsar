@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -96,6 +97,8 @@ public class AbstractBaseDispatcherTest {
         EntryBatchIndexesAcks indexesAcks = EntryBatchIndexesAcks.get(entries.entries.size());
         ManagedCursor cursor = mock(ManagedCursor.class);
         when(cursor.getDeletedBatchIndexesAsLongArray(any(Position.class))).thenReturn(null);
+        // Exercise the compatibility default for cursors that implement only the Position-based method.
+        when(cursor.getDeletedBatchIndexesAsLongArray(anyLong(), anyLong())).thenCallRealMethod();
         try {
             int size = this.helper.filterEntriesForConsumer(entries.entries, batchSizes, sendMessageInfo,
                     indexesAcks, cursor, false, null);

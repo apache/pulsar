@@ -36,7 +36,7 @@ env:
 jobs:
   analyze:
     # only run on push and schedule in apache/pulsar repo
-    if: ${{ github.repository == 'apache/pulsar' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ (github.repository == 'apache/pulsar' || github.event_name == 'workflow_dispatch') && (github.event.repository.visibility == 'public' || vars.CI_ENABLE_CODEQL == 'true') }}
     name: Analyze
     runs-on: 'ubuntu-latest'
     timeout-minutes: 360

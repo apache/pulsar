@@ -29,7 +29,7 @@ workflow (build, test, PR, CI). For the big-picture module map and the Gradle bu
 
 ## Building
 
-**JDK 21 or 25** is required to build `master` (bytecode targets Java 17; `-PskipJavaVersionCheck`
+**JDK 21, 25 or 26** is required to build `master` (bytecode targets Java 17; `-PskipJavaVersionCheck`
 bypasses the check); `zip` is also needed. Use the bundled wrapper `./gradlew` (Linux/macOS) or
 `gradlew.bat` (Windows) — no separate Gradle install. See the
 [build-tooling setup guide](https://pulsar.apache.org/contribute/setup-buildtools/) and the
@@ -62,6 +62,11 @@ bin/pulsar standalone
 For the Gradle build infrastructure and how to change build files (convention plugins, version
 catalog, configuration-cache rules), see
 [`ARCHITECTURE.md` → Build infrastructure](ARCHITECTURE.md#build-infrastructure).
+
+### Publishing artifacts
+
+See [Publishing Maven artifacts](build-logic/PUBLISHING.md) for ordinary publishing, the
+API/SPI subset, custom repositories, groups and credentials.
 
 ## Running tests
 
@@ -105,9 +110,206 @@ Other test-related properties: `-PtestJavaVersion=17` (run tests on a different 
 `-PtestRetryCount=N`, `-PtestFailFast=true|false`, `-PprotobufVersion=4.31.1` (protobuf v4
 compatibility tests).
 
+Test JVMs default to a `1300m` heap and up to four forks per task. Override these with
+`-PtestMaxHeapSize=1500m` and `-PtestMaxParallelForks=2`; `--max-workers=2` also limits
+concurrent workers across projects. Task-specific limits, such as the integration tests' single
+fork and `1G` heap, take precedence.
+
+Use `-PtestForkEvery=50` to replace a test JVM after 50 detected test classes, limiting state
+retained across classes. The default is `0` (no class limit). Gradle counts candidate classes
+passed to test workers before TestNG group filtering, so classes excluded by groups still count
+toward each batch. `--tests` can narrow candidates, but wildcard filters may still count classes
+that execute no matching tests. Test methods, data-provider rows and factory instances do not
+count separately.
+Tasks using TestNG XML suites and async-profiler keep recycling disabled; task-specific
+isolation, such as SASL's one class per worker, takes precedence.
+
+Test JVMs write heap dumps on heap exhaustion to `/tmp/java_pid<PID>.hprof`, collected by CI's
+existing failure artifacts. Set `-PtestHeapDumpPath=<existing-directory>` to use another directory.
+
 Failed tests are retried once by default (`testRetryCount=1`; `0` when running inside the IDE). When
 running tests locally, prefer **`-PtestRetryCount=0`** to catch failures (including flakiness) early
 instead of having retries mask them.
+
+### Netty buffer leak detection
+
+Tests enable Netty's `paranoid` leak detection by default, using `ExtendedNettyLeakDetector`
+to include test names in leak reports and write `netty_leak_*.txt` files. Set
+`NETTY_LEAK_DUMP_DIR` to choose the output directory (the default is the JVM's temporary directory).
+
+`NETTY_LEAK_DETECTION=report` (the default) reports leaks without failing tests.
+In CI, `NETTY_LEAK_DETECTION=fail_on_leak` makes the leak-reporting step fail the job when dumps
+are found. Unit, integration, and system test jobs collect dumps from both the test JVMs and
+Pulsar Docker containers, including reports generated during container shutdown. For local tests, use `-PtestExitJvmOnLeak=true` to fail the test JVM on a detected leak:
+
+```bash
+NETTY_LEAK_DUMP_DIR=/tmp/pulsar-netty-leaks ./gradlew :pulsar-client-original:test \
+  --tests "ConsumerBuilderImplTest" -PtestExitJvmOnLeak=true -PtestRetryCount=0
+```
+
+Set `NETTY_LEAK_DETECTION=off` to disable detection, or use
+`-PtestLeakDetectionLevel=simple|advanced|paranoid|disabled` to change its level.
+`-PtestExitJvmOnLeakDelayMillis=1000` controls the delay before exiting on a leak.
+Detection is disabled automatically for `-PtestAsyncProfiler` and `profilingIntegrationTest`
+to avoid distorting profiles.
+
+### Micro benchmarks (JMH)
+
+For a **micro**-level question — what a single method, data structure or codec costs — write a
+[JMH](https://openjdk.org/projects/code-tools/jmh/) benchmark under `microbench/`. That is the
+preferred tool for micro benchmarks: JMH handles warm-up, dead-code elimination and measurement, none
+of which hand-written timing code gets right. [`CODING.md`](CODING.md#performance) asks for
+optimizations to be backed by evidence, and for a small self-contained change a benchmark is the
+strongest kind.
+
+```bash
+./gradlew :microbench:shadowJar                                          # build the runnable jar
+java -jar microbench/build/libs/microbench-*-benchmarks.jar -l           # list the benchmarks
+java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*<Name>.*" # run the ones that match
+```
+
+A benchmark can be profiled directly through JMH's async-profiler integration, which writes forward
+and reverse flame graphs per benchmark under `dir=`:
+
+```bash
+export LIBASYNCPROFILER_PATH=$(ls $JAVA_HOME/lib/libasyncProfiler.*)   # Corretto ships one
+java -jar microbench/build/libs/microbench-*-benchmarks.jar \
+  -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*<Name>.*"
+```
+
+See [`microbench/README.md`](microbench/README.md) for the rest: the async-profiler setup when the
+JDK does not ship one, recording a benchmark to JFR and rendering it, JSON result files for
+[JMH Visualizer](https://jmh.morethan.io/), and the `rawCommand` escape hatch for async-profiler
+options the JMH plugin does not expose.
+
+### Profiling tests with async-profiler
+
+Profiling a *test run* answers the question a micro benchmark cannot: not what one method costs, but
+where a broker actually spends its time end to end.
+
+> **When the numbers matter, profile and benchmark on Linux x86_64.** That is Pulsar's most common
+> deployment target, and results from elsewhere do not carry over. Two differences bite in
+> particular: async-profiler supports only some of its sampling engines on macOS, so a profile taken
+> there is less reliable; and `System.nanoTime()` is far more expensive on macOS than on Linux, which
+> skews the results in some cases — code that times itself, and JMH's own measurement loop, both pay
+> that cost. Working on macOS or arm64 is fine for finding your way around the code — just treat what
+> it tells you as provisional until it is confirmed on Linux x86_64.
+
+#### Profiling a module's tests
+
+Pass **`-PtestAsyncProfiler`** to run a test task under
+[async-profiler](https://github.com/async-profiler/async-profiler). The build finds the profiler
+library in `LIBASYNCPROFILER_PATH`, and falls back to the copy that Amazon Corretto ships inside the
+JDK that runs the tests, so on Corretto no setup is needed at all:
+
+```bash
+# only needed when the JDK does not ship async-profiler
+export LIBASYNCPROFILER_PATH=$(ls $JAVA_HOME/lib/libasyncProfiler.*)
+./gradlew :pulsar-broker:test -PtestAsyncProfiler --tests "<SomeTest>"
+```
+
+Enabling it runs the tests in a single JVM with retries off and a pre-touched fixed-size heap, and
+sends log4j output to a file, so that one run produces one profile that isn't distorted by console
+logging or by heap resizing. The task always re-runs and is never cached. **Manual tests are enabled
+automatically** whenever profiling is on — the long-running, load-generating tests that are otherwise
+skipped are usually the ones worth profiling — so `ENABLE_MANUAL_TEST` does not have to be exported. Recordings are written to
+`build/test-profiles/` in the repository root, named after the test task and stamped with the start
+time and the pid — for example `test_profile_pulsar-broker-test_20260904-114040_23420.jfr`, next to
+`test_profile_pulsar-broker-test.log`. See [Analyzing a JFR file](#analyzing-a-jfr-file) below.
+
+The defaults can be tuned with `-Ptest.asyncprofiler.event=<event>` (the CPU sampling engine:
+`cpu` on Linux, `itimer` elsewhere — see
+[CPU sampling engines](https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md)),
+`-Ptest.asyncprofiler.opts=<agent options>` (default `event=<event>,all,alloc=2m,jfrsync=profile`),
+`-Ptest.asyncprofiler.outputformat=jfr|html|collapsed`, `-Ptest.asyncprofiler.dir=<dir>` (use it to
+keep the profiles of an A/B comparison apart) and `-Ptest.asyncprofiler.libpath=<path>`.
+
+`outputformat` only sets the file extension; the format itself comes from the agent options, and the
+default `jfrsync=profile` forces a JFR recording. To get something other than JFR, override both — to
+profile exception creation, for example (Linux only):
+
+```bash
+./gradlew :pulsar-broker:test -PtestAsyncProfiler --tests "<SomeTest>" \
+  "-Ptest.asyncprofiler.opts=event=Java_java_lang_Throwable_fillInStackTrace,tree,reverse" \
+  -Ptest.asyncprofiler.outputformat=html
+```
+
+#### Profiling an integration-test cluster
+
+The module tests above profile the JVM the tests run in. To profile the **broker, bookies and
+ZooKeeper inside the containers** of a real cluster, run:
+
+```bash
+./gradlew :tests:integration:profilingIntegrationTest
+```
+
+That one task does everything the profiling run needs: it builds
+`apachepulsar/java-test-image:latest-asyncprofiler` (the test image with async-profiler installed —
+kept under its own tag so it never replaces the image the other integration tests use), relaxes the
+kernel `perf_event` limits that the `cpu` sampling engine needs by way of a privileged throwaway
+container, and runs
+[`PulsarProfilingTest`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/PulsarProfilingTest.java)
+against it with retries off. That test drives `pulsar-perf` against a single broker.
+
+There are two variants of it, sharing everything but the client generation and the topic domain
+through
+[`AbstractPulsarProfilingTest`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/AbstractPulsarProfilingTest.java).
+`PulsarProfilingTest` — the one the task runs by default — drives a v5 scalable (`topic://`) topic
+with the `produce` / `consume` commands, and
+[`PulsarProfilingV4Test`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/PulsarProfilingV4Test.java)
+drives a classic `persistent://` topic with `produce-v4` / `consume-v4`. The pairing is not a free
+choice: the v4 client rejects the `topic://` domain outright, so it is the v4 client that goes with
+the classic topic. To profile that baseline instead:
+
+```bash
+./gradlew :tests:integration:profilingIntegrationTest --tests "*PulsarProfilingV4Test"
+```
+
+Both variants write into `tests/integration/build/pulsar-profiling`. The v4 run's `pulsar-perf`
+output, latency histograms, topic stats and metrics scrapes are suffixed `-v4` so the two runs can be
+told apart; the `.jfr` recordings instead carry the container name, which embeds the test class name.
+The runs are not otherwise like-for-like: scalable topics split their segments under load
+(`scalableTopicAutoScaleEnabled` defaults to true), so the v5 run profiles a topology that reshapes
+itself while the v4 run's stays fixed.
+
+A run sends a fixed 20 million messages, a bit over a minute of load at the throughput the containers
+sustain, and has to be done inside three minutes. Both `pulsar-perf` commands must then have exited
+zero, so a run that stalls or dies fails the test rather than passing as a finished profile.
+
+**Any other integration test can be profiled without being modified**, by pointing the task at it and
+naming the cluster components to attach the profiler to:
+
+```bash
+./gradlew :tests:integration:profilingIntegrationTest --tests "<SomeIntegrationTest>" \
+  -Pinttest.asyncprofiler.components=broker,bookie
+```
+
+`components` takes `broker`, `proxy`, `functionworker`, `bookie`, `zookeeper`, or `all`, and defaults
+to `broker` for this task. It is what `PulsarClusterSpec.profileBroker` and its siblings fall back to,
+so it has no effect on a test that sets those flags itself — `PulsarProfilingTest` does, which is why
+it profiles the broker whatever you pass. Every other test leaves them at their default of off, so
+without this property nothing would be profiled. Setting it also enables manual tests, so
+`-Pinttest.asyncprofiler.components=<...>` profiles a cluster through the plain `integrationTest`
+task too.
+
+Recordings land in `tests/integration/build/`, named `inttest_profile_<commit>_<time>_<container>_<pid>.jfr`
+— the commit id comes from `git rev-parse --short HEAD` so profiles taken before and after a change
+can be told apart — one file per profiled container. Tune the run with
+`-Pinttest.asyncprofiler.opts=<agent options>` (default
+`event=cpu,lock=1ms,alloc=2m,jfrsync=profile`), `-Pinttest.asyncprofiler.outputformat=<ext>`,
+`-Pinttest.asyncprofiler.dir=<dir>` and `-Pgit.commit.id.abbrev=<id>`.
+
+Two flags worth knowing: `-Pinttest.asyncprofiler.skipPerfEventTuning` skips the privileged
+container, for a host where the `perf_event` values are already set through `sysctl` or where Docker
+disallows privileged containers (the run continues either way, with less accurate native stacks).
+`-Pdocker.wolfi` builds the base image from Wolfi, which is what makes the `GLIBC_TUNABLES` the test
+sets take effect.
+
+#### Performance recording analysis
+
+See [`tests/performance/README.md`](tests/performance/README.md) for JFR rendering, async-profiler
+recording analysis, Jafar MCP usage and MAT MCP based memory-leak investigation. That document also
+explains how to keep the raw recordings and analysis next to the workload documentation.
 
 ### Integration tests
 
@@ -129,6 +331,24 @@ locally. (`integrationTest` also accepts `-PtestGroups` / `-PexcludedTestGroups`
 `-PintegrationTestSuiteFile=<suite>.xml` to pick a specific TestNG suite.)
 
 ### Running the full CI pipeline (Personal CI)
+
+The shared `setup-gradle` action automatically selects a smaller memory profile on Linux runners
+with up to 8 GiB of physical RAM: a `2g` Gradle heap, two workers across projects, up to two test
+forks per task, and new test workers after 50 detected classes. Larger runners retain the usual
+settings. The action's `memory-profile` input accepts `auto` (default), `low-memory` (force the
+smaller profile), or `standard` (leave the memory settings unchanged). Command-line `-Dorg.gradle.jvmargs`,
+`--max-workers` and `-Ptest*` options can override the profile settings.
+
+Develocity injection and build-scan publishing are disabled when the workflow repository is
+private or its visibility is unavailable, even if an access key is configured. Public repositories
+can also disable them with the action's `build-scan-publish: 'false'` input. CodeQL runs by default
+for public repositories; private repositories with GitHub Code Security enabled can opt in by
+setting the repository variable `CI_ENABLE_CODEQL=true`.
+
+The CI workflows declare the token permissions needed by their jobs, including reading PR changes.
+This supports repositories whose organization or enterprise enforces read-only default workflow
+permissions. Explicit permissions do not override restrictions on tokens for fork pull requests or
+enterprise policies that prohibit particular actions.
 
 The full test suite is large and slow to run locally. While iterating on a change, run only the
 narrowly-scoped tests relevant to the change (a single test class or package, see above) rather than

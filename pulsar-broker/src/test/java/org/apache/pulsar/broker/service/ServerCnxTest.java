@@ -49,6 +49,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.DefaultChannelId;
+import io.netty.channel.WriteBufferWaterMark;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.util.concurrent.Future;
@@ -102,6 +103,8 @@ import org.apache.pulsar.broker.auth.MockAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockAuthorizationProvider;
 import org.apache.pulsar.broker.auth.MockMultiStageAuthenticationProvider;
 import org.apache.pulsar.broker.auth.MockMutableAuthenticationProvider;
+import org.apache.pulsar.broker.authentication.AuthenticationDataAnonymous;
+import org.apache.pulsar.broker.authentication.AuthenticationDataForwarded;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -563,10 +566,33 @@ public class ServerCnxTest {
         Object response1 = getResponse();
         assertTrue(response1 instanceof CommandConnected);
         assertEquals(serverCnx.getState(), State.Connected);
-        assertEquals(serverCnx.getAuthRole(), anonymousUserRole);
+        assertEquals(serverCnx.getAuthRole(), "pass.proxy");
         assertEquals(serverCnx.getPrincipal(), anonymousUserRole);
         assertEquals(serverCnx.getOriginalPrincipal(), anonymousUserRole);
+        assertThat(serverCnx.getOriginalAuthData()).isSameAs(AuthenticationDataAnonymous.INSTANCE);
+        assertThat(serverCnx.getAuthenticationData()).isSameAs(AuthenticationDataAnonymous.INSTANCE);
+        assertThat(serverCnx.getAuthData()).isNotSameAs(serverCnx.getOriginalAuthData());
         assertTrue(serverCnx.isActive());
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testAnonymousOriginalPrincipalWithFailingProxyAuthentication() throws Exception {
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthenticationProvider authenticationProvider = new MockAuthenticationProvider();
+        String authMethodName = authenticationProvider.getAuthMethodName();
+        when(brokerService.getAuthenticationService()).thenReturn(authenticationService);
+        when(authenticationService.getAuthenticationProvider(authMethodName)).thenReturn(authenticationProvider);
+        when(authenticationService.getAnonymousUserRole()).thenReturn(Optional.of("anonymous"));
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthenticateOriginalAuthData(true);
+        svcConfig.setProxyRoles(Collections.singleton("pass.proxy"));
+        resetChannel();
+
+        channel.writeInbound(Commands.newConnect(authMethodName, "fail.proxy", 1, null,
+                null, "anonymous", null, null));
+        assertTrue(getResponse() instanceof CommandError);
+        assertFalse(serverCnx.isActive());
         channel.finish();
     }
 
@@ -1346,7 +1372,8 @@ public class ServerCnxTest {
         channel.writeInbound(connect);
         Object connectResponse = getResponse();
         assertTrue(connectResponse instanceof CommandConnected);
-        assertNull(serverCnx.getOriginalAuthData());
+        assertThat(serverCnx.getOriginalAuthData()).isSameAs(AuthenticationDataForwarded.INSTANCE);
+        assertThat(serverCnx.getAuthenticationData()).isSameAs(AuthenticationDataForwarded.INSTANCE);
         assertNull(serverCnx.getOriginalAuthState());
         assertEquals(serverCnx.getOriginalPrincipal(), clientRole);
         assertEquals(serverCnx.getAuthData().getCommandData(), proxyRole);
@@ -1363,12 +1390,7 @@ public class ServerCnxTest {
         assertEquals(((CommandLookupTopicResponse) lookupResponse).getRequestId(), 1);
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
-                        serverCnx.getAuthData(), serverCnx.getAuthData());
-        // This test is an example of https://github.com/apache/pulsar/issues/19332. Essentially, we're passing
-        // the proxy's auth data because it is all we have. This test should be updated when we resolve that issue.
-        verify(authorizationService, times(1))
-                .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
-                        serverCnx.getAuthData(), serverCnx.getAuthData());
+                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
 
         // producer
         ByteBuf producer = Commands.newProducer(topicName.toString(), 1, 2, "test-producer", new HashMap<>(), false);
@@ -1377,13 +1399,12 @@ public class ServerCnxTest {
         assertTrue(producerResponse instanceof CommandError);
         assertEquals(((CommandError) producerResponse).getError(), ServerError.AuthorizationError);
         assertEquals(((CommandError) producerResponse).getRequestId(), 2);
-        // See https://github.com/apache/pulsar/issues/19332 for justification of this assertion.
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.PRODUCE, clientRole, proxyRole,
-                        serverCnx.getAuthData(), serverCnx.getAuthData());
+                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
         verify(authorizationService, times(1))
                 .allowTopicOperationAsync(topicName, TopicOperation.LOOKUP, clientRole, proxyRole,
-                        serverCnx.getAuthData(), serverCnx.getAuthData());
+                        serverCnx.getOriginalAuthData(), serverCnx.getAuthData());
 
         // consumer
         String subscriptionName = "test-subscribe";
@@ -1398,25 +1419,9 @@ public class ServerCnxTest {
                 eq(topicName), eq(TopicOperation.CONSUME),
                 eq(clientRole), eq(proxyRole), argThat(arg -> {
                     assertTrue(arg instanceof AuthenticationDataSubscription);
-                    // We assert that the role is clientRole and commandData is proxyRole due to
-                    // https://github.com/apache/pulsar/issues/19332.
                     AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
-                    assertEquals(authData.getCommandData(), proxyRole);
-                    assertEquals(authData.getSubscription(), subscriptionName);
-                    return true;
-                }), argThat(arg -> {
-                    assertTrue(arg instanceof AuthenticationDataSubscription);
-                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
-                    assertEquals(authData.getCommandData(), proxyRole);
-                    assertEquals(authData.getSubscription(), subscriptionName);
-                    return true;
-                }));
-        verify(authorizationService, times(1)).allowTopicOperationAsync(
-                eq(topicName), eq(TopicOperation.CONSUME),
-                eq(clientRole), eq(proxyRole), argThat(arg -> {
-                    assertTrue(arg instanceof AuthenticationDataSubscription);
-                    AuthenticationDataSubscription authData = (AuthenticationDataSubscription) arg;
-                    assertEquals(authData.getCommandData(), proxyRole);
+                    assertThat(authData.getAuthData()).isSameAs(AuthenticationDataForwarded.INSTANCE);
+                    assertNull(authData.getCommandData());
                     assertEquals(authData.getSubscription(), subscriptionName);
                     return true;
                 }), argThat(arg -> {
@@ -3091,6 +3096,113 @@ public class ServerCnxTest {
         clientCommand.release();
         assertTrue(getResponse() instanceof CommandSendError);
         channel.finish();
+    }
+
+    @Test
+    public void testWritabilityNotifiesOnlyConnectedConsumers() throws Exception {
+        resetChannel();
+        Consumer first = mock(Consumer.class);
+        Consumer second = mock(Consumer.class);
+        var pending = new CompletableFuture<Consumer>();
+        var cancelled = new CompletableFuture<Consumer>();
+        cancelled.cancel(false);
+        serverCnx.getConsumers().put(1001, CompletableFuture.completedFuture(first));
+        serverCnx.getConsumers().put(1002, CompletableFuture.completedFuture(second));
+        serverCnx.getConsumers().put(1003, pending);
+        serverCnx.getConsumers().put(1004, CompletableFuture.failedFuture(new IllegalStateException("closed")));
+        serverCnx.getConsumers().put(1005, cancelled);
+        try {
+            channel.unsafe().outboundBuffer().setUserDefinedWritability(1, false);
+            channel.runPendingTasks();
+            verify(first, never()).notifyChannelWritable();
+            verify(second, never()).notifyChannelWritable();
+            channel.unsafe().outboundBuffer().setUserDefinedWritability(1, true);
+            channel.runPendingTasks();
+            verify(first).notifyChannelWritable();
+            verify(second).notifyChannelWritable();
+            assertFalse(pending.isDone());
+        } finally {
+            for (long id = 1001; id <= 1005; id++) {
+                serverCnx.getConsumers().remove(id);
+            }
+        }
+    }
+
+    @Test
+    public void testWritabilityChangingDuringNotifications() throws Exception {
+        resetChannel();
+        Consumer first = mock(Consumer.class);
+        Consumer second = mock(Consumer.class);
+        AtomicInteger notifications = new AtomicInteger();
+        for (Consumer consumer : List.of(first, second)) {
+            doAnswer(inv -> {
+                if (notifications.incrementAndGet() == 1) {
+                    channel.unsafe().outboundBuffer().setUserDefinedWritability(1, false);
+                }
+                return null;
+            }).when(consumer).notifyChannelWritable();
+        }
+        serverCnx.getConsumers().put(1001, CompletableFuture.completedFuture(first));
+        serverCnx.getConsumers().put(1002, CompletableFuture.completedFuture(second));
+        try {
+            channel.pipeline().fireChannelWritabilityChanged();
+            channel.runPendingTasks();
+            assertFalse(channel.isWritable());
+            assertEquals(notifications.get(), 1, "skip the remaining consumer when writability changes");
+            channel.unsafe().outboundBuffer().setUserDefinedWritability(1, true);
+            channel.runPendingTasks();
+            assertEquals(notifications.get(), 3, "the next writable transition must notify both consumers");
+        } finally {
+            serverCnx.getConsumers().remove(1001);
+            serverCnx.getConsumers().remove(1002);
+        }
+    }
+
+    @Test
+    public void testWritabilityNotificationsDoNotReenterWhenHandlerWrites() throws Exception {
+        resetChannel();
+        channel.config().setWriteBufferWaterMark(new WriteBufferWaterMark(16, 32));
+        Consumer first = mock(Consumer.class);
+        Consumer second = mock(Consumer.class);
+        AtomicInteger notifications = new AtomicInteger();
+        AtomicInteger depth = new AtomicInteger();
+        AtomicInteger maxDepth = new AtomicInteger();
+        for (Consumer consumer : List.of(first, second)) {
+            doAnswer(inv -> {
+                maxDepth.accumulateAndGet(depth.incrementAndGet(), Math::max);
+                try {
+                    if (notifications.incrementAndGet() == 1) {
+                        // Real writes and flushes cross both watermarks synchronously inside
+                        // the notification handler, producing three nested writable events.
+                        for (int i = 0; i < 3; i++) {
+                            channel.write(Unpooled.buffer(128).writeZero(128));
+                            assertFalse(channel.isWritable());
+                            channel.flush();
+                            assertTrue(channel.isWritable());
+                        }
+                    }
+                } finally {
+                    depth.decrementAndGet();
+                }
+                return null;
+            }).when(consumer).notifyChannelWritable();
+        }
+        serverCnx.getConsumers().put(1001, CompletableFuture.completedFuture(first));
+        serverCnx.getConsumers().put(1002, CompletableFuture.completedFuture(second));
+        try {
+            channel.pipeline().fireChannelWritabilityChanged();
+            assertEquals(notifications.get(), 2, "nested writable events must not notify inline");
+            channel.runPendingTasks();
+            assertEquals(maxDepth.get(), 1, "a notification handler must not be called recursively");
+            assertEquals(notifications.get(), 4, "nested events should share one deferred follow-up pass");
+        } finally {
+            serverCnx.getConsumers().remove(1001);
+            serverCnx.getConsumers().remove(1002);
+            ByteBuf outbound;
+            while ((outbound = channel.readOutbound()) != null) {
+                outbound.release();
+            }
+        }
     }
 
     protected void resetChannel() throws Exception {
