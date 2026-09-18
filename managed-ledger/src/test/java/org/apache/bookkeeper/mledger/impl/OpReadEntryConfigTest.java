@@ -32,6 +32,7 @@ public class OpReadEntryConfigTest {
 
     @Test
     public void testInitializedReadCompletionDepthMatchesSystemProperty() {
+        // Smoke check for initializer wiring; separate parser tests pin the expected values.
         assertThat(OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS)
                 .isEqualTo(OpReadEntry.readMaxNestedInlineCompletions(System.getProperties()));
     }

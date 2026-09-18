@@ -58,6 +58,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -504,14 +505,16 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
 
     @DataProvider
     public Object[][] rejectedDepthLimitCompletionModes() {
-        // Run in a fresh JVM with common-pool parallelism at most one to also cover the inline fallback.
-        return ForkJoinPool.getCommonPoolParallelism() > 1
-                ? new Object[][] {{false}} : new Object[][] {{false}, {true}};
+        return new Object[][] {{false}, {true}};
     }
 
     @Test(dataProvider = "rejectedDepthLimitCompletionModes")
     public void testRejectedLedgerExecutorAfterDepthLimitReleasesEntriesAndCompletesFailureOnce(boolean inline)
             throws Exception {
+        if (inline && ForkJoinPool.getCommonPoolParallelism() > 1) {
+            throw new SkipException("Inline ledger-executor fallback requires a fresh test JVM with "
+                    + "-Djava.util.concurrent.ForkJoinPool.common.parallelism=1");
+        }
         ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("completion-depth-rejection-" + inline,
                 rawEntryConfig().setReadEntriesCallbackInline(inline)));
         try {
