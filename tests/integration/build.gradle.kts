@@ -96,18 +96,19 @@ val integrationTestExcludedGroups = providers.gradleProperty("excludedTestGroups
 val integrationTestAsyncProfilerDir = providers.gradleProperty("inttest.asyncprofiler.dir")
     .getOrElse(layout.buildDirectory.get().asFile.absolutePath)
 // Stamped into the async-profiler output file names so that profiles recorded from different
-// revisions can be told apart when they are compared. Resolved here rather than left to the caller:
-// a value nobody passes only produces empty segments in the file name. `git rev-parse` is
+// revisions can be told apart when they are compared. Resolved by the build rather than left to the
+// caller: a value nobody passes only produces empty segments in the file name. `git rev-parse` is
 // best-effort — a tree built without git, or without a .git directory, simply leaves the commit id
 // out of the name — and -Pgit.commit.id.abbrev overrides it. Nothing has to pass a timestamp in;
 // the profiler expands the run timestamp itself.
-val gitCommitIdAbbrev = providers.gradleProperty("git.commit.id.abbrev").orNull
-    ?: runCatching {
-        providers.exec {
-            commandLine("git", "rev-parse", "--short", "HEAD")
-            isIgnoreExitValue = true
-        }.standardOutput.asText.get().trim()
-    }.getOrDefault("")
+// Kept as a provider that only a task action reads: a process output obtained while configuring
+// becomes a configuration cache input, and the cache would then be discarded on every commit,
+// cherry-pick or rebase.
+val gitCommitIdAbbrev = providers.gradleProperty("git.commit.id.abbrev")
+    .orElse(providers.exec {
+        commandLine("git", "rev-parse", "--short", "HEAD")
+        isIgnoreExitValue = true
+    }.standardOutput.asText.map { it.trim() })
 // Must match the image that :tests:java-test-image:dockerBuildWithAsyncProfiler tags.
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
@@ -135,7 +136,13 @@ fun Test.configureIntegrationTestDefaults(defaultProfiledComponents: String = ""
     providers.gradleProperty("inttest.asyncprofiler.outputformat").orNull?.let {
         systemProperty("inttest.asyncprofiler.outputformat", it)
     }
-    systemProperty("git.commit.id.abbrev", gitCommitIdAbbrev)
+    // Copied into a local so the action does not capture the script object (see tuneKernelPerfEvents).
+    val commitId = gitCommitIdAbbrev
+    doFirst {
+        val test = this as Test
+        // Obtaining the output fails on a tree built without git; the name then carries no commit id.
+        test.systemProperty("git.commit.id.abbrev", runCatching { commitId.get() }.getOrDefault(""))
+    }
 
     // Cluster components to attach async-profiler to, which is also what decides whether this run
     // counts as a profiling run.
