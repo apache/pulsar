@@ -36,11 +36,6 @@ import org.apache.pulsar.common.util.FutureUtil;
 
 public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
 
-    private static final String COMPACTION_STRATEGY_UNSUPPORTED =
-            "topicCompactionStrategyClassName is not supported for mapped table views: a "
-                    + "TopicCompactionStrategy compares values of the topic's schema type, not the mapper's "
-                    + "output type";
-
     private final PulsarClientImpl client;
     private final Schema<T> schema;
     private TableViewConfigurationData conf;
@@ -75,7 +70,8 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     @Override
     public <V> TableView<V> createMapped(TableViewMessageMapper<T, V> mapper) throws PulsarClientException {
         checkArgument(mapper != null, "mapper cannot be null");
-        checkArgument(conf.getTopicCompactionStrategyClassName() == null, COMPACTION_STRATEGY_UNSUPPORTED);
+        checkArgument(conf.getTopicCompactionStrategyClassName() == null,
+                MappedTableViewImpl.COMPACTION_STRATEGY_UNSUPPORTED);
         try {
             return createMappedAsync(mapper).get();
         } catch (Exception e) {
@@ -89,7 +85,8 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
             return FutureUtil.failedFuture(new IllegalArgumentException("mapper cannot be null"));
         }
         if (conf.getTopicCompactionStrategyClassName() != null) {
-            return FutureUtil.failedFuture(new IllegalArgumentException(COMPACTION_STRATEGY_UNSUPPORTED));
+            return FutureUtil.failedFuture(
+                    new IllegalArgumentException(MappedTableViewImpl.COMPACTION_STRATEGY_UNSUPPORTED));
         }
         return new MappedTableViewImpl<>(client, schema, conf, mapper).start();
     }

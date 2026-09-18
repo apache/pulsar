@@ -20,8 +20,10 @@ package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.io.IOException;
@@ -235,5 +237,31 @@ public class MappedTableViewImplTest {
         assertThatThrownBy(() -> start.get(5, TimeUnit.SECONDS))
                 .cause().isInstanceOf(PulsarClientException.class).hasMessage("read failure");
         verify(reader).closeAsync();
+    }
+
+    @Test(timeOut = 10_000)
+    public void testStartFailsWhenHasMessageAvailableFails() {
+        lastMessageIds.set(List.of(messageId(0)));
+        when(reader.hasMessageAvailableAsync())
+                .thenReturn(FutureUtil.failedFuture(new PulsarClientException("check failure")));
+
+        CompletableFuture<TableView<String>> start =
+                new MappedTableViewImpl<String, String>(client, Schema.STRING, conf, Message::getValue).start();
+
+        // Without the failure propagation the replay never completes and create() would wait forever
+        assertThatThrownBy(() -> start.get(5, TimeUnit.SECONDS))
+                .cause().isInstanceOf(PulsarClientException.class).hasMessage("check failure");
+        verify(reader).closeAsync();
+    }
+
+    @Test
+    public void testConstructorRejectsCompactionStrategyBeforeCreatingReader() {
+        conf.setTopicCompactionStrategyClassName(TableViewBuilderImplTest.NoopStrategy.class.getName());
+
+        assertThatThrownBy(() -> new MappedTableViewImpl<String, String>(client, Schema.STRING, conf,
+                Message::getValue))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("topicCompactionStrategyClassName");
+        verify(client, never()).newReader(any(Schema.class));
     }
 }

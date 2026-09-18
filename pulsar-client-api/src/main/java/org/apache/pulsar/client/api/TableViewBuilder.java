@@ -84,7 +84,9 @@ public interface TableViewBuilder<T> {
      * from the message payload, properties, and other metadata into a custom object of type {@code V}. To get
      * a view of the full {@link Message} objects, use {@code msg -> msg} as the mapper. Message pooling is not
      * used for mapped table views, so it is safe to keep a reference to the {@link Message} instance passed to
-     * the mapper.
+     * the mapper. A retained {@link Message} holds more than its payload, though: it also keeps its metadata,
+     * schema and a reference to the connection it was received on. For a topic with many keys, prefer a
+     * mapper that copies the needed fields into a value object over {@code msg -> msg}.
      *
      * <p>A keyed message with an empty payload is a tombstone: the key is removed from the view and the mapper
      * is not called for it. If the mapper returns {@code null}, the message is also treated as a tombstone.

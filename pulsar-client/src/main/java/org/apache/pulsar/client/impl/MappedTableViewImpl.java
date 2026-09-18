@@ -18,10 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.api.TableViewMessageMapper;
+import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 
 /**
  * {@link TableView} implementation that applies a user-provided {@link TableViewMessageMapper} to each
@@ -32,6 +34,11 @@ import org.apache.pulsar.client.api.TableViewMessageMapper;
  */
 class MappedTableViewImpl<T, V> extends AbstractTableViewImpl<T, V> {
 
+    static final String COMPACTION_STRATEGY_UNSUPPORTED =
+            "topicCompactionStrategyClassName is not supported for mapped table views: a "
+                    + "TopicCompactionStrategy compares values of the topic's schema type, not the mapper's "
+                    + "output type";
+
     private final TableViewMessageMapper<T, V> mapper;
 
     MappedTableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf,
@@ -39,8 +46,19 @@ class MappedTableViewImpl<T, V> extends AbstractTableViewImpl<T, V> {
         // The message instance is passed to the user-provided mapper, which may keep a reference to it
         // (e.g. when "msg -> msg" is used as the mapper). Pooled messages must not be used since there is
         // no way to know when the message could be released.
-        super(client, schema, conf, false);
+        super(client, schema, requireNoCompactionStrategy(conf), false);
         this.mapper = mapper;
+    }
+
+    /**
+     * A {@link TopicCompactionStrategy} compares values of the topic's schema type, which a mapped view does
+     * not store, so the pair would fail with a {@code ClassCastException} on the reader thread. The builder
+     * rejects it up front; this guard keeps the invariant with the class that depends on it and runs before
+     * the superclass constructor creates the reader.
+     */
+    private static TableViewConfigurationData requireNoCompactionStrategy(TableViewConfigurationData conf) {
+        checkArgument(conf.getTopicCompactionStrategyClassName() == null, COMPACTION_STRATEGY_UNSUPPORTED);
+        return conf;
     }
 
     @Override

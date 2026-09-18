@@ -256,7 +256,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                 log.error().attr("key", key)
                         .attr("messageId", msg.getMessageId())
                         .exception(t)
-                        .log("Failed to map message, skipping it");
+                        .log("Skipping message whose value could not be decoded or mapped");
             }
             return;
         }
@@ -466,6 +466,10 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                                .log("Started table view for topic - Replayed messages");
                        future.complete(null);
                    }
+                }).exceptionally(ex -> {
+                    // A failed hasMessageAvailableAsync() must fail the replay instead of leaving it pending
+                    future.completeExceptionally(ex);
+                    return null;
                 });
     }
 
