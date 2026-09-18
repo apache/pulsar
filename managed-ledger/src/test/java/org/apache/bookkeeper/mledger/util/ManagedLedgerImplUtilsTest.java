@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.util;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
 import static org.testng.Assert.assertEquals;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +40,7 @@ public class ManagedLedgerImplUtilsTest extends MockedBookKeeperTestCase {
     public void testGetLastValidPosition() throws Exception {
         final int maxEntriesPerLedger = 5;
 
-        ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+        ManagedLedgerConfig managedLedgerConfig = rawEntryConfig();
         managedLedgerConfig.setMaxEntriesPerLedger(maxEntriesPerLedger);
         managedLedgerConfig.setRetentionSizeInMB(10);
         managedLedgerConfig.setRetentionTime(5, TimeUnit.MINUTES);

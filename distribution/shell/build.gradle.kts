@@ -55,6 +55,7 @@ dependencies {
     distLib(libs.log4j.web)
     distLib(libs.log4j.layout.template.json)
     distLib(libs.log4j.slf4j2.impl)
+    distLib(libs.log4j.jul)
     distLib(libs.simpleclient.log4j2)
     // Bouncy Castle (non-FIPS JCA provider for client-side message crypto + TLS)
     distLib(libs.bcprov.jdk18on)

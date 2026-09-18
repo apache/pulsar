@@ -212,6 +212,7 @@ dependencies {
     // module; bc-fips must not be on a classpath that also has the non-FIPS provider because both
     // jars define org.bouncycastle.* and the JVM rejects the mismatched signers.
     testImplementation(libs.bcprov.jdk18on)
+    testImplementation(libs.bcpkix.jdk18on)
     // Same reflective-loading rationale for the BouncyCastle JSSE provider (BCJSSE): JcaProviders
     // registers it from the classpath on demand, so it is a test-only dependency here. bctls ships no
     // META-INF/services entry, which is why on-demand registration exists at all.

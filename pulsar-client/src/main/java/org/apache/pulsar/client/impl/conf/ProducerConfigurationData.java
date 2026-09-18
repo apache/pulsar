@@ -133,6 +133,20 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private boolean maxPendingMessagesAcrossPartitionsConfigured;
 
+    /**
+     * Whether every message was already admitted against the client memory limit before it reaches this
+     * producer, so the producer only accounts for the bytes and never blocks or rejects a send on that
+     * limit itself.
+     *
+     * <p>Set by the V5 client on its per-segment producers: it applies {@link #blockIfQueueFull} on the
+     * caller's thread before a message enters its per-segment dispatch chain, whose links may run on an
+     * IO thread where blocking is not an option. Incompatible with a {@link #maxPendingMessages}
+     * limit, whose permit would be released without ever being taken; {@code ProducerImpl} rejects
+     * the combination. Internal, not application-configurable.
+     */
+    @JsonIgnore
+    private boolean memoryLimitAdmittedUpstream;
+
     @Schema(
             name = "messageRoutingMode",
             description = "Message routing logic for producers on [partitioned topics]"

@@ -20,12 +20,13 @@
 # Docker
 docker-jdk = "25"
 pulsar-client-python = "3.13.0"
+async-profiler = "4.5"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
-bookkeeper = "4.18.0"
+bookkeeper = "4.18.1"
 zookeeper = "3.9.5"
-netty = "4.2.17.Final"
+netty = "4.2.18.Final"
 jetty = "12.1.12"
 jersey = "3.1.12"
 jackson = "2.21.6"
@@ -86,7 +87,7 @@ asynchttpclient = "3.0.13"
 conscrypt = "2.6.2"
 okhttp3 = "5.5.0"
 okio = "3.18.1"
-netty-tcnative = "2.0.81.Final"
+netty-tcnative = "2.0.84.Final"
 httpcomponents-httpclient = "4.5.14"
 httpcomponents-httpcore = "4.4.16"
 httpcomponents-httpclient5 = "5.6.4"
@@ -168,10 +169,10 @@ javax-servlet = "4.0.1"
 jakarta-servlet = "6.0.0"
 felix-http-wrappers = "1.1.10"
 # Oxia / etcd
-oxia = "0.9.4"
+oxia = "0.9.5"
 oxia-testcontainers = "0.7.4"
 # Build plugins
-lightproto = "0.8.1"
+lightproto = "0.8.2"
 graalvm-buildtools = "1.1.9"
 errorprone = "2.50.0"
 spotbugs = "4.10.3"
@@ -218,6 +219,7 @@ log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "lo
 log4j-web = { module = "org.apache.logging.log4j:log4j-web", version.ref = "log4j2" }
 log4j-layout-template-json = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "log4j2" }
 log4j-slf4j2-impl = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j2" }
+log4j-jul = { module = "org.apache.logging.log4j:log4j-jul", version.ref = "log4j2" }
 # slog
 slog = { module = "io.github.merlimat.slog:slog", version.ref = "slog" }
 # Lombok

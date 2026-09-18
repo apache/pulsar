@@ -43,6 +43,7 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.bookkeeper.zookeeper.RetryPolicy;
 import org.apache.bookkeeper.zookeeper.ZooKeeperWatcherBase;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.zookeeper.AddWatchMode;
 import org.apache.zookeeper.AsyncCallback.ACLCallback;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
@@ -351,8 +352,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                 Executors.newScheduledThreadPool(retryExecThreadCount,
                         new ThreadFactoryBuilder().setNameFormat("ZKC-retry-executor-%d").build());
         this.connectExecutor =
-                Executors.newSingleThreadExecutor(
-                        new ThreadFactoryBuilder().setNameFormat("ZKC-connect-executor-%d").build());
+                PulsarExecutors.newSingleThreadExecutor(
+                        new ThreadFactoryBuilder().setNameFormat("ZKC-connect-executor-%d").build(), false);
         // added itself to the watcher
         watcherManager.addChildWatcher(this);
 

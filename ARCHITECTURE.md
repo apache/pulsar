@@ -20,6 +20,8 @@ accordingly:
 
 - **`pulsar-client-api`, `pulsar-client-admin-api`** — public, backward-compatible interfaces only.
   `pulsar-client-api-v5` / `pulsar-client-v5` are the newer V5 client API (PIP-466/468).
+  Applications using either v4 or v5 can use [`pulsar-client-v5-all`](pulsar-client-v5-all/README.md)
+  for the unshaded client and admin together, or `pulsar-client-v5-shaded` for the combined shaded jar.
 - **`pulsar-client` (`:pulsar-client-original`)** — the Java client implementation
   (producer/consumer/reader, connection pooling). `pulsar-client-admin` implements the admin REST
   client.
@@ -92,7 +94,7 @@ concurrency model.
 ## Build infrastructure
 
 Apache Pulsar uses a **Gradle** build (migrated from Maven via PIP-463; some older tooling and docs
-elsewhere still reference Maven). The wrapper `./gradlew` requires **JDK 21 or 25** (bytecode targets
+elsewhere still reference Maven). The wrapper `./gradlew` requires **JDK 21, 25 or 26** (bytecode targets
 Java 17). See [`CONTRIBUTING.md` → Building](CONTRIBUTING.md#building) for the build and lint commands.
 
 - `settings.gradle.kts` — all modules, organized in dependency tiers (Tier 0 has no internal deps,

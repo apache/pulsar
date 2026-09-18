@@ -866,7 +866,7 @@ public class ClientCnx extends PulsarHandler {
                 producer.printWarnLogWhenCanNotDetermineDeduplication(ctx.channel(), sequenceId, highestSequenceId);
             }
 
-        } else {
+        } else if (producer != null) {
                 log.debug().attr("producerId", producerId)
                         .attr("producerName", producer.getProducerName())
                         .attr("sequenceId", sequenceId).attr("highestSequenceId", highestSequenceId)
@@ -1466,6 +1466,16 @@ public class ClientCnx extends PulsarHandler {
 
     CompletableFuture<ProducerResponse> sendRequestWithId(ByteBuf cmd, long requestId) {
         return sendRequestAndHandleTimeout(cmd, requestId, RequestType.Command, true);
+    }
+
+    /**
+     * Send a scalable-topic session request (PIP-468/486) with the standard request
+     * bookkeeping — pending-request registration, request-timeout tracking, and
+     * write-failure completion — instead of hand-rolling it at the call site. The matching
+     * response handler completes the returned future by request id.
+     */
+    public <T> CompletableFuture<T> sendScalableSessionRequest(ByteBuf requestMessage, long requestId) {
+        return sendRequestAndHandleTimeout(requestMessage, requestId, RequestType.Command, true);
     }
 
     private <T> void sendRequestAndHandleTimeout(ByteBuf requestMessage, long requestId,

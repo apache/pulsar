@@ -69,6 +69,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
      * within a Pulsar cluster.
      */
     public static final String DEFAULT_INTERNAL_LISTENER_NAME = "internal";
+    public static final int DEFAULT_NUMBER_OF_NAMESPACE_BUNDLES = 32;
+    public static final int DEFAULT_NUMBER_OF_SYSTEM_NAMESPACE_BUNDLES = 64;
 
     @Category
     private static final String CATEGORY_SERVER = "Server";
@@ -1025,9 +1027,29 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         dynamic = true,
-        doc = "When a namespace is created without specifying the number of bundle, this"
-            + " value will be used as the default")
-    private int defaultNumberOfNamespaceBundles = 4;
+        doc = "When a namespace is created without specifying the number of bundles, this"
+            + " value will be used as the default.\n\n"
+            + "Bundles are the unit of assignment of topics to brokers, so a namespace needs more bundles"
+            + " than there are brokers for its topics to spread across the cluster. Bundles can be split"
+            + " but never merged. Only bundles that have been looked up cost anything (an ownership entry,"
+            + " an entry in the load report and one unload step at broker shutdown); the unused bundles"
+            + " of a small namespace are free. Default is 32 since 5.0.0 (was 4).")
+    private int defaultNumberOfNamespaceBundles = DEFAULT_NUMBER_OF_NAMESPACE_BUNDLES;
+
+    @FieldContext(
+        category = CATEGORY_POLICIES,
+        doc = "Number of bundles for the pulsar/system namespace when the broker creates it (the extensible"
+            + " load manager creates it on start-up if it is missing) or when pulsar standalone creates it."
+            + " The system namespace holds a small, fixed set of topics (the transaction coordinator"
+            + " partitions, the load balancer's internal topics and the resource usage topic), so it does"
+            + " not follow defaultNumberOfNamespaceBundles. A transaction coordinator is owned by whichever"
+            + " broker owns the bundle of its transaction_coordinator_assign partition, so the bundles decide"
+            + " how far the coordinators can spread: with the default 16 coordinators, 64 is the smallest"
+            + " number of bundles at which every coordinator hashes into its own bundle (16 bundles put them"
+            + " into 8), and bundles that never own a topic cost nothing. The initialize-cluster-metadata and"
+            + " initialize-transaction-coordinator-metadata tools create the namespace with their"
+            + " --system-namespace-bundle-number option, which has the same default.")
+    private int defaultNumberOfSystemNamespaceBundles = DEFAULT_NUMBER_OF_SYSTEM_NAMESPACE_BUNDLES;
 
     @FieldContext(
         category = CATEGORY_POLICIES,
@@ -1471,6 +1493,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_POLICIES,
+            doc = "Hard ceiling on a single segment's entry-bucket count (PIP-486). Bounds both the "
+                    + "manual rebucket operation and the controller's auto rebucket-up; a segment's "
+                    + "bucket count caps how many consumers can share it."
+    )
+    private int scalableTopicEntryBucketMaxPerSegment = 1024;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
             doc = "Max number of merges allowed in a segment's lineage. Once a segment reaches this depth "
                     + "it stops being a merge candidate (load-driven splits are still allowed), bounding "
                     + "split/merge flip-flopping."
@@ -1485,6 +1516,24 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "connecting at once)."
     )
     private int scalableTopicSplitCooldownSeconds = 60;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "PIP-486 segments-vs-buckets lever: on consumer-driven scale-up, split only if the "
+                    + "busiest segment's inbound msg/s is at or above this floor; below it the "
+                    + "controller grows the segment's entry-buckets instead (a low-throughput topic "
+                    + "should not materialize physical segments just for consumer count)."
+    )
+    private double scalableTopicSplitVsRebucketMinMsgRateInThreshold = 1_000;
+
+    @FieldContext(
+            dynamic = true,
+            category = CATEGORY_POLICIES,
+            doc = "Minimum time (seconds) between automatic entry-bucket rollovers (rebuckets) on a "
+                    + "topic. Coalesces consumer-join bursts, like the split cooldown."
+    )
+    private int scalableTopicRebucketCooldownSeconds = 60;
 
     @FieldContext(
             dynamic = true,
@@ -1599,7 +1648,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             category = CATEGORY_SERVER,
             doc = "Dispatch messages and execute broker side filters in a per-subscription thread"
     )
-    private boolean dispatcherDispatchMessagesInSubscriptionThread = true;
+    private boolean dispatcherDispatchMessagesInSubscriptionThread = false;
 
     @FieldContext(
         dynamic = false,
@@ -2192,8 +2241,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
         doc = "If this flag is set then the broker authenticates the original Auth data"
-            + " else it just accepts the originalPrincipal and authorizes it (if required)")
-    private boolean authenticateOriginalAuthData = false;
+            + " else it just accepts the originalPrincipal and authorizes it (if required)."
+            + " Set false for TLS client-certificate authentication through a proxy, since the broker"
+            + " receives the proxy certificate rather than the client certificate."
+            + " Also set false for SASL authentication through a proxy, since the client-proxy handshake"
+            + " cannot be replayed as a separate client-broker handshake.")
+    private boolean authenticateOriginalAuthData = true;
 
     @FieldContext(
         category = CATEGORY_AUTHORIZATION,
@@ -2662,9 +2715,23 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "When disabled:\n"
                     + " - Cache behaves more like a FIFO queue with time-based and size-based eviction\n"
                     + " - Minimum eviction time is managedLedgerCacheEvictionTimeThresholdMillis\n"
-                    + "Default is true, to behave like a LRU cache."
+                    + "Default is false, to avoid extending cache retention for entries that have already been read."
     )
-    private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = true;
+    private boolean managedLedgerCacheEvictionExtendTTLOfRecentlyAccessed = false;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
+            doc = "Enable the BookKeeper batch read API when reading entries from bookkeeper: a single RPC "
+                    + "fetches multiple entries, reducing network overhead for sequential reads. Batch read "
+                    + "requires the v2 wire protocol (bookkeeperUseV2WireProtocol) and BookKeeper's own batch "
+                    + "read flag (bookkeeper_batchReadEnabled), checked on the BookKeeper client when a topic is "
+                    + "loaded: regular reads are used otherwise, as well as for striped ledgers (where "
+                    + "managedLedgerDefaultEnsembleSize differs from managedLedgerDefaultWriteQuorum) and for "
+                    + "bookies without batch read support. Each batch read request is bounded by the size limit "
+                    + "of the dispatcher read that triggered it (e.g. dispatcherMaxReadSizeBytes) and by the "
+                    + "BookKeeper client's max frame size (maxMessageSize plus padding); a read needing more "
+                    + "data is split into sequential batch read requests. Entries read this way are copied when "
+                    + "inserted in the entry cache.")
+    private boolean managedLedgerBatchReadEnabled = true;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
@@ -2983,9 +3050,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
             dynamic = true,
             doc = "load balance load shedding strategy "
                 + "(It requires broker restart if value is changed using dynamic config). "
-                + "Default is ThresholdShedder since 2.10.0"
+                + "Default is AvgShedder since 5.0.0 (ThresholdShedder was the default from 2.10.0 to 4.x). "
+                + "AvgShedder implements both the shedding and the placement strategy and must be paired with "
+                + "loadBalancerLoadPlacementStrategy=AvgShedder; when a different shedding strategy is configured, "
+                + "an AvgShedder placement strategy falls back to LeastLongTermMessageRate."
     )
-    private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.ThresholdShedder";
+    private String loadBalancerLoadSheddingStrategy = "org.apache.pulsar.broker.loadbalance.impl.AvgShedder";
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
@@ -2996,10 +3066,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_LOAD_BALANCER,
-            doc = "load balance placement strategy"
+            doc = "load balance placement strategy. "
+                    + "Default is AvgShedder since 5.0.0 (LeastLongTermMessageRate before), which binds placement to "
+                    + "the AvgShedder shedding strategy so that unloaded bundles land on the broker the shedder "
+                    + "chose for them. It only takes effect together with "
+                    + "loadBalancerLoadSheddingStrategy=AvgShedder; with any other shedding strategy the broker "
+                    + "falls back to LeastLongTermMessageRate placement and logs a warning."
     )
     private String loadBalancerLoadPlacementStrategy =
-            "org.apache.pulsar.broker.loadbalance.impl.LeastLongTermMessageRate";
+            "org.apache.pulsar.broker.loadbalance.impl.AvgShedder";
 
     @FieldContext(
         dynamic = true,
@@ -3042,9 +3117,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "enable/disable distribute bundles evenly"
+            doc = "Enable/disable distributing bundles evenly across brokers when a bundle is assigned. "
+                    + "When enabled, the candidate brokers for a new assignment are first narrowed to those "
+                    + "owning the fewest bundles of that namespace, before the placement strategy runs. This "
+                    + "overrides load-aware placement and can discard the destination the AvgShedder shedding "
+                    + "strategy planned for an unloaded bundle, so it is disabled by default since 5.0.0 "
+                    + "(it was enabled before). Bundles of the system namespace are always distributed evenly."
     )
-    private boolean loadBalancerDistributeBundlesEvenlyEnabled = true;
+    private boolean loadBalancerDistributeBundlesEvenlyEnabled = false;
 
     @FieldContext(
         category = CATEGORY_LOAD_BALANCER,
@@ -3149,11 +3229,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             dynamic = true,
             category = CATEGORY_LOAD_BALANCER,
-            doc = "In the UniformLoadShedder and AvgShedder strategy, the maximum unload ratio."
-                    + "For AvgShedder, recommend to set to 0.5, so that it will distribute the load "
-                    + "evenly between the highest and lowest brokers."
+            doc = "In the UniformLoadShedder and AvgShedder strategy, the maximum unload ratio: the share of "
+                    + "the load difference between the highest and the lowest loaded broker that is moved in one "
+                    + "shedding cycle. Default is 0.5 since 5.0.0 (0.2 before), which lets AvgShedder equalize "
+                    + "the load of the two brokers in a single cycle."
     )
-    private double maxUnloadPercentage = 0.2;
+    private double maxUnloadPercentage = 0.5;
 
     @FieldContext(
         dynamic = true,
@@ -3824,9 +3905,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean authenticateMetricsEndpoint = false;
     @FieldContext(
         category = CATEGORY_METRICS,
+        dynamic = true,
         doc = "If true, export topic level metrics otherwise namespace level"
     )
-    private boolean exposeTopicLevelMetricsInPrometheus = true;
+    private volatile boolean exposeTopicLevelMetricsInPrometheus = true;
     @FieldContext(
             category = CATEGORY_METRICS,
             doc = "Set to true to enable the broker to cache the metrics response; the default is false. "
@@ -3836,24 +3918,28 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean metricsBufferResponse = false;
     @FieldContext(
         category = CATEGORY_METRICS,
+        dynamic = true,
         doc = "If true, export consumer level metrics otherwise namespace level"
     )
-    private boolean exposeConsumerLevelMetricsInPrometheus = false;
+    private volatile boolean exposeConsumerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "If true, export producer level metrics otherwise namespace level"
     )
-    private boolean exposeProducerLevelMetricsInPrometheus = false;
+    private volatile boolean exposeProducerLevelMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "If true, export managed ledger metrics (aggregated by namespace)"
     )
-    private boolean exposeManagedLedgerMetricsInPrometheus = true;
+    private volatile boolean exposeManagedLedgerMetricsInPrometheus = true;
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "If true, export managed cursor metrics"
     )
-    private boolean exposeManagedCursorMetricsInPrometheus = false;
+    private volatile boolean exposeManagedCursorMetricsInPrometheus = false;
     @FieldContext(
             category = CATEGORY_METRICS,
             doc = "Classname of Pluggable JVM GC metrics logger that can log GC specific metrics")
@@ -3861,11 +3947,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_METRICS,
+        dynamic = true,
         doc = "Enable expose the precise backlog stats.\n"
                 + " Set false to use published counter and consumed counter to calculate,\n"
                 + " this would be more efficient but may be inaccurate. Default is false."
     )
-    private boolean exposePreciseBacklogInPrometheus = false;
+    private volatile boolean exposePreciseBacklogInPrometheus = false;
 
     @FieldContext(
         category = CATEGORY_METRICS,
@@ -3877,10 +3964,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_METRICS,
+            dynamic = true,
             doc = "Enable expose the backlog size for each subscription when generating stats.\n"
                     + " Locking is used for fetching the status so default to false."
     )
-    private boolean exposeSubscriptionBacklogSizeInPrometheus = false;
+    private volatile boolean exposeSubscriptionBacklogSizeInPrometheus = false;
 
     @FieldContext(
             category = CATEGORY_METRICS,

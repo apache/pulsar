@@ -110,11 +110,10 @@ public class BrokerStatsBase extends AdminResource {
 
     @GET
     @Path("/allocator-stats/{allocator}")
-    @Operation(summary = "Get the stats for the Netty allocator. Available allocators are 'default' and 'ml-cache'")
+    @Operation(summary = "Get stats for a registered Netty allocator, such as 'default' or 'ml-cache'")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200",
-                    description = "Get the stats for the Netty allocator. Available allocators are 'default' "
-                            + "and 'ml-cache'",
+                    description = "Get stats for a registered Netty allocator, such as 'default' or 'ml-cache'",
                     content = @Content(schema = @Schema(implementation = AllocatorStats.class))),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
     public AllocatorStats getAllocatorStats(@PathParam("allocator") String allocatorName) throws Exception {

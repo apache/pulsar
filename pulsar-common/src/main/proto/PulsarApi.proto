@@ -995,6 +995,16 @@ message CommandScalableTopicAssignmentUpdate {
     required ScalableConsumerAssignment assignment = 2;
 }
 
+// Client -> Broker: a scalable consumer is cleanly leaving its subscription. The controller
+// deletes the registration and rebalances the group immediately, instead of holding the
+// session for the disconnect grace period (which remains the fallback for unclean
+// departures). Acknowledged with CommandSuccess; idempotent — an unknown consumer_id (e.g.
+// already swept by a disconnect) still succeeds.
+message CommandScalableTopicUnsubscribe {
+    required uint64 request_id  = 1;
+    required uint64 consumer_id = 2;
+}
+
 // Multi-topic consumer watcher: subscribes to the union of scalable topics in a
 // namespace that match a (possibly empty) set of property filters. The broker keeps
 // pushing updates as topics enter or leave the matching set. See
@@ -1356,6 +1366,8 @@ message BaseCommand {
         WATCH_TC_ASSIGNMENTS                  = 79;
         WATCH_TC_ASSIGNMENTS_UPDATE           = 80;
         WATCH_TC_ASSIGNMENTS_CLOSE            = 81;
+
+        SCALABLE_TOPIC_UNSUBSCRIBE            = 82;
     }
 
 
@@ -1455,4 +1467,6 @@ message BaseCommand {
     optional CommandWatchTcAssignments watchTcAssignments                             = 79;
     optional CommandWatchTcAssignmentsUpdate watchTcAssignmentsUpdate                 = 80;
     optional CommandWatchTcAssignmentsClose watchTcAssignmentsClose                   = 81;
+
+    optional CommandScalableTopicUnsubscribe scalableTopicUnsubscribe                 = 82;
 }

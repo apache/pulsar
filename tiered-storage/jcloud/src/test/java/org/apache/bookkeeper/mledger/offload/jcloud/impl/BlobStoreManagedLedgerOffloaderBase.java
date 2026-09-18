@@ -26,6 +26,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
@@ -43,6 +44,7 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
     protected static final int DEFAULT_READ_BUFFER_SIZE = 1 * 1024 * 1024;
 
     protected final OrderedScheduler scheduler;
+    protected final OrderedExecutor bkExecutor;
     protected final PulsarMockBookKeeper bk;
     protected final JCloudBlobStoreProvider provider;
     protected TieredStorageConfiguration config;
@@ -51,7 +53,9 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
 
     protected BlobStoreManagedLedgerOffloaderBase() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(5).name("offloader").build();
-        bk = new PulsarMockBookKeeper(scheduler);
+        // The mock BookKeeper client needs an OrderedExecutor (not an OrderedScheduler) as its main worker pool.
+        bkExecutor = OrderedExecutor.newBuilder().numThreads(1).name("offloader-bk").build();
+        bk = new PulsarMockBookKeeper(bkExecutor);
         provider = getBlobStoreProvider();
     }
 
@@ -65,6 +69,7 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
     public void cleanup() throws Exception {
         entryOffsetsCache.close();
         scheduler.shutdownNow();
+        bkExecutor.shutdownNow();
     }
 
     protected static MockManagedLedger createMockManagedLedger() {
