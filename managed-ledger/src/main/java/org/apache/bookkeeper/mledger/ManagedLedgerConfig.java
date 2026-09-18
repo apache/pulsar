@@ -427,7 +427,8 @@ public class ManagedLedgerConfig {
      * queued handoff to the JVM common ForkJoinPool when enabled and to the ledger executor when disabled.
      * If common-pool parallelism is at most 1, enabled mode also uses the ledger executor. The JVM-wide system
      * property {@code pulsar.managedLedger.maxReadCompletionDepth} controls this limit (default 10, values below
-     * 1 use 1).
+     * 1 use 1). Values accept decimal, hexadecimal ({@code 0x10} or {@code #10}), and octal ({@code 010})
+     * notation, following {@link Integer#decode(String)}.
      * A limit of 1 queues every subsequent read completion in a nested cached-read chain. Set the property at
      * JVM startup; later changes have no effect.
      *

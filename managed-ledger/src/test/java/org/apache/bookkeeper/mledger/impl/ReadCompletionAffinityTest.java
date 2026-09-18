@@ -58,6 +58,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ScanOutcome;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
@@ -205,7 +206,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
                         queuedPool.set(ForkJoinTask.getPool());
                         queuedCompletionStarted.complete(Thread.currentThread());
                         try {
-                            if (!releaseQueuedCompletion.await(20, TimeUnit.SECONDS)) {
+                            if (!awaitQueuedCompletion(releaseQueuedCompletion)) {
                                 queuedCompletion.completeExceptionally(
                                         new IllegalStateException("Timed out waiting to release queued completion"));
                                 return;
@@ -271,6 +272,88 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
             }
         } finally {
             releaseQueuedCompletion.countDown();
+            ledger.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testNestedCachedChainReturnsToLedgerExecutorAcrossLedgers() throws Exception {
+        int firstLedgerCount = OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS + 2;
+        ManagedLedgerConfig config = inlineConfig().setMaxEntriesPerLedger(firstLedgerCount);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-cached-chain-rollover", config);
+        AtomicInteger storageReads = new AtomicInteger();
+        try {
+            ManagedCursor cursor = ledger.openCursor("cursor");
+            List<Position> positions = new ArrayList<>();
+            for (int i = 0; i <= firstLedgerCount; i++) {
+                positions.add(ledger.addEntry(new byte[] {(byte) i}));
+            }
+            assertThat(positions.get(firstLedgerCount).getLedgerId())
+                    .isNotEqualTo(positions.get(0).getLedgerId());
+            // Resolve the closed ledger handle before starting the chain so opening it cannot cause a handoff.
+            ledger.getLedgerHandle(positions.get(0).getLedgerId()).get(10, TimeUnit.SECONDS);
+            ledger.entryCache.clear();
+            for (int i = 0; i < positions.size(); i++) {
+                cacheEntry(ledger, positions.get(i), (byte) i);
+            }
+            bkc.setReadHandleInterceptor((ledgerId, first, last, entries) -> {
+                storageReads.incrementAndGet();
+                return CompletableFuture.completedFuture(entries);
+            });
+            CompletableFuture<Thread> ledgerWorker = new CompletableFuture<>();
+            ledger.getExecutor().execute(() -> ledgerWorker.complete(Thread.currentThread()));
+            Thread worker = ledgerWorker.get(10, TimeUnit.SECONDS);
+            Thread caller = Thread.currentThread();
+
+            AtomicInteger completions = new AtomicInteger();
+            AtomicReference<Thread> overflowThread = new AtomicReference<>();
+            AtomicReference<ForkJoinPool> overflowPool = new AtomicReference<>();
+            AtomicReference<Thread> boundaryThread = new AtomicReference<>();
+            AtomicReference<ForkJoinPool> boundaryPool = new AtomicReference<>();
+            CompletableFuture<List<Position>> crossedEntries = new CompletableFuture<>();
+            cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    List<Position> returnedPositions = entries.stream().map(Entry::getPosition).toList();
+                    entries.forEach(Entry::release);
+                    int completion = completions.incrementAndGet();
+                    if (completion <= OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS) {
+                        cursor.asyncReadEntries(1, this, null, PositionFactory.LATEST);
+                    } else if (completion == OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS + 1) {
+                        overflowThread.set(Thread.currentThread());
+                        overflowPool.set(ForkJoinTask.getPool());
+                        // One entry remains in the first ledger. Reading two forces checkReadCompletion to
+                        // schedule the continuation on the ledger executor, even though both entries are cached.
+                        cursor.asyncReadEntries(2, this, null, PositionFactory.LATEST);
+                    } else {
+                        boundaryThread.set(Thread.currentThread());
+                        boundaryPool.set(ForkJoinTask.getPool());
+                        crossedEntries.complete(returnedPositions);
+                    }
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    crossedEntries.completeExceptionally(exception);
+                }
+            }, null, PositionFactory.LATEST);
+
+            assertThat(crossedEntries.get(10, TimeUnit.SECONDS))
+                    .containsExactly(positions.get(firstLedgerCount - 1), positions.get(firstLedgerCount));
+            assertThat(overflowThread.get()).isNotSameAs(caller);
+            if (ForkJoinPool.getCommonPoolParallelism() > 1) {
+                assertThat(overflowPool.get()).isSameAs(ForkJoinPool.commonPool());
+                assertThat(overflowThread.get()).isNotSameAs(worker);
+            } else {
+                assertThat(overflowThread.get()).isSameAs(worker);
+            }
+            assertThat(boundaryThread.get()).isSameAs(worker);
+            assertThat(boundaryPool.get()).isNull();
+            assertThat(completions.get()).isEqualTo(OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS + 2);
+            assertThat(storageReads.get()).isZero();
+        } finally {
+            bkc.setReadHandleInterceptor(null);
             ledger.close();
         }
     }
@@ -419,11 +502,18 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
         }
     }
 
-    @Test
-    public void testRejectedLedgerExecutorAfterDepthLimitReleasesEntriesAndCompletesFailureOnce()
+    @DataProvider
+    public Object[][] rejectedDepthLimitCompletionModes() {
+        // Run in a fresh JVM with common-pool parallelism at most one to also cover the inline fallback.
+        return ForkJoinPool.getCommonPoolParallelism() > 1
+                ? new Object[][] {{false}} : new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "rejectedDepthLimitCompletionModes")
+    public void testRejectedLedgerExecutorAfterDepthLimitReleasesEntriesAndCompletesFailureOnce(boolean inline)
             throws Exception {
-        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("completion-depth-rejection",
-                rawEntryConfig()));
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("completion-depth-rejection-" + inline,
+                rawEntryConfig().setReadEntriesCallbackInline(inline)));
         try {
             ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
             int count = OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS + 1;
@@ -507,6 +597,31 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
                 ledger.close();
             }
         }
+    }
+
+    private static boolean awaitQueuedCompletion(CountDownLatch latch) throws InterruptedException {
+        if (!ForkJoinTask.inForkJoinPool()) {
+            return latch.await(20, TimeUnit.SECONDS);
+        }
+        ForkJoinPool.ManagedBlocker blocker = new ForkJoinPool.ManagedBlocker() {
+            private final long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
+
+            @Override
+            public boolean block() throws InterruptedException {
+                long remaining = deadline - System.nanoTime();
+                if (remaining > 0) {
+                    latch.await(remaining, TimeUnit.NANOSECONDS);
+                }
+                return true;
+            }
+
+            @Override
+            public boolean isReleasable() {
+                return latch.getCount() == 0 || System.nanoTime() >= deadline;
+            }
+        };
+        ForkJoinPool.managedBlock(blocker);
+        return latch.getCount() == 0;
     }
 
     private static ByteBuf cacheEntry(ManagedLedgerImpl ledger, Position position, byte value) {

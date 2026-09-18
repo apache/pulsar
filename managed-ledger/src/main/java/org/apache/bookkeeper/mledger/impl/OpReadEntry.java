@@ -52,6 +52,7 @@ class OpReadEntry implements ReadEntriesCallback {
 
     static {
         log.debug().attr("maxReadCompletionDepth", MAX_NESTED_INLINE_COMPLETIONS)
+                .attr("useCommonPool", USE_COMMON_POOL)
                 .log("Initialized managed-ledger read completion depth limit");
     }
 
@@ -335,7 +336,9 @@ class OpReadEntry implements ReadEntriesCallback {
             }
         } else {
             try {
-                // Queue so the current callback stack can unwind. Legacy mode retains ledger-executor affinity.
+                // Queue so the current callback stack can unwind. An inline cached-read chain can then continue
+                // on common-pool workers until a cross-ledger read, cache miss, cursor wait, or caller handoff
+                // changes its execution context. Legacy mode retains ledger-executor affinity.
                 if (cursor.ledger.isReadEntriesCallbackInline() && USE_COMMON_POOL) {
                     ForkJoinPool.commonPool().execute(() -> completeWithDepthLimit(ctx));
                 } else {

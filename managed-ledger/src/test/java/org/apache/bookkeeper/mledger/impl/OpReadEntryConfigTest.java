@@ -30,6 +30,12 @@ public class OpReadEntryConfigTest {
         assertThat(OpReadEntry.readMaxNestedInlineCompletions(new Properties())).isEqualTo(10);
     }
 
+    @Test
+    public void testInitializedReadCompletionDepthMatchesSystemProperty() {
+        assertThat(OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS)
+                .isEqualTo(OpReadEntry.readMaxNestedInlineCompletions(System.getProperties()));
+    }
+
     @DataProvider
     public Object[][] readCompletionDepths() {
         return new Object[][] {
@@ -38,6 +44,8 @@ public class OpReadEntryConfigTest {
                 {"1", 1},
                 {"37", 37},
                 {"0x10", 16},
+                {"#10", 16},
+                {"010", 8},
                 {"invalid", 10},
                 {"", 10},
                 {"2147483648", 10}
