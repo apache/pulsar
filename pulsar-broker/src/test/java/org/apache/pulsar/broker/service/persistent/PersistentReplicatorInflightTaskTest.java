@@ -26,7 +26,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -203,35 +202,6 @@ public class PersistentReplicatorInflightTaskTest extends OneWayReplicatorTestBa
             }
             admin1.topics().delete(topicName, true);
             admin2.topics().delete(topicName, true);
-        }
-    }
-
-    @Test
-    public void testFailedPublishCompletesInFlightTask() throws Exception {
-        PersistentReplicator replicator = spy(getReplicator(topicName));
-        doNothing().when(replicator).beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
-        doNothing().when(replicator).doRewindCursor(false);
-        doNothing().when(replicator).readMoreEntries();
-
-        LinkedList<InFlightTask> inFlightTasks = replicator.inFlightTasks;
-        List<InFlightTask> originalTasks = new ArrayList<>(inFlightTasks);
-        inFlightTasks.clear();
-
-        try {
-            InFlightTask task = new InFlightTask(PositionFactory.create(1, 1), 1, replicator.getReplicatorId());
-            task.setEntries(Collections.singletonList(mock(Entry.class)));
-            task.setSubmissionComplete(true);
-            inFlightTasks.add(task);
-            assertEquals(replicator.getPermitsIfNoPendingRead(), 999);
-
-            ProducerSendCallback callback = ProducerSendCallback.create(replicator, mock(Entry.class), null, task);
-            callback.sendComplete(new PulsarClientException.ProducerBlockedQuotaExceededException("mocked"), null);
-
-            assertTrue(task.isDone());
-            assertEquals(replicator.getPermitsIfNoPendingRead(), 1000);
-        } finally {
-            inFlightTasks.clear();
-            inFlightTasks.addAll(originalTasks);
         }
     }
 

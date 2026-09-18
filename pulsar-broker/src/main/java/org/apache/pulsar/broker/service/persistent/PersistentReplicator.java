@@ -324,6 +324,11 @@ public abstract class PersistentReplicator extends AbstractReplicator
             if (processingReads) {
                 return;
             }
+            if (runAsync && !cancelReadRequested && !rewindRequested && hasPendingRead()) {
+                // The pending read's completion will claim the owner and consume this demand. Do not queue
+                // a turn per ACK just to discover that the result is not available yet.
+                return;
+            }
             processingReads = true;
         }
         if (runAsync) {
@@ -331,7 +336,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 // ACKs may hold the geo producer monitor on its IO thread. Retain ownership while queued,
                 // so concurrent callbacks only publish work rather than starting another drain.
                 brokerService.executor().execute(this::processReads);
-            } catch (RuntimeException e) {
+            } catch (Throwable e) {
                 log.error().exception(e).log("Failed to schedule replication read processing");
                 // Retain ownership through termination: its cleanup request must not start an inline drain
                 // on the ACK thread either. A late read callback will settle any still-pending result.
@@ -400,7 +405,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
     }
 
-    private void handleReadRetrySchedulingFailure(Exception exception) {
+    private void handleReadRetrySchedulingFailure(Throwable exception) {
         // Ownership has already been released. Never clear a newer owner's state here.
         log.error().exception(exception).log("Failed to schedule replication read retry");
         // A failed retry submission has no wakeup left if there are no producer ACKs in flight.
@@ -466,7 +471,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         if (retryDelayMillis > 0) {
             try {
                 scheduleReadRetry(retryDelayMillis);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 // Ownership was already released: a new owner might be running now. Do not let
                 // this failure reach the owner cleanup in processReads and clear its ownership.
                 handleReadRetrySchedulingFailure(e);
@@ -475,7 +480,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
             if (state == Disconnected) {
                 try {
                     startProducer();
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     // The read-retry timer was accepted; this is not a timer scheduling failure.
                     log.error().exception(e).log("Failed to restart replication producer; retry remains scheduled");
                 }
@@ -525,7 +530,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 }
                 readMoreEntries();
             }, delayMillis, TimeUnit.MILLISECONDS);
-        } catch (RuntimeException e) {
+        } catch (Throwable e) {
             synchronized (inFlightTasks) {
                 readRetryScheduled = false;
             }
@@ -623,18 +628,20 @@ public abstract class PersistentReplicator extends AbstractReplicator
         public void sendComplete(Throwable exception, OpSendMsgStats opSendMsgStats) {
             boolean failed = exception != null && !(exception instanceof PulsarClientException.InvalidMessageException);
             if (failed) {
-                replicator.log.error()
-                        .attr("inFlightTasks", replicator.inFlightTasks)
-                        .attr("pendingQueueSize", replicator.producer.getPendingQueueSize())
-                        .exception(exception)
-                        .log("Error producing on remote broker");
+                int inFlightTaskCount;
                 synchronized (replicator.inFlightTasks) {
                     // Unlike asynchronous schema lookup, this recovery has no outstanding stage to wait for.
                     // Publish cancellation and rewind together, leaving cursor work to the owner.
                     replicator.inFlightTasks.forEach(task -> task.skipReadResultDueToCursorRewind = true);
                     replicator.cancelReadRequested = true;
                     replicator.rewindRequested = true;
+                    inFlightTaskCount = replicator.inFlightTasks.size();
                 }
+                replicator.log.error()
+                        .attr("inFlightTaskCount", inFlightTaskCount)
+                        .attr("pendingQueueSize", replicator.producer.getPendingQueueSize())
+                        .exception(exception)
+                        .log("Error producing on remote broker");
                 // The failed send has completed from the producer queue perspective. The cursor rewind
                 // makes the entry readable again, so this in-flight task must release its permit.
                 inFlightTask.incCompletedEntries();
@@ -743,6 +750,13 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     private void handleReadFailure(ManagedLedgerException exception, InFlightTask task) {
+        if (exception.getCause() instanceof RejectedExecutionException) {
+            synchronized (inFlightTasks) {
+                // Completion may be rejected after advancing the cursor but before transferring entries.
+                // Only this owner can restore the position before it admits another read.
+                rewindRequested = true;
+            }
+        }
         if (state != Started) {
             return;
         }
@@ -750,13 +764,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
             log.warn().exception(exception).log("Cursor closed while reading replication entries");
             terminate();
             return;
-        }
-        if (exception.getCause() instanceof RejectedExecutionException) {
-            synchronized (inFlightTasks) {
-                // Completion may be rejected after advancing the cursor but before transferring entries.
-                // Only this owner can restore the position before it admits another read.
-                rewindRequested = true;
-            }
         }
         readBatchSize = brokerService.pulsar().getConfiguration().getDispatcherMinReadBatchSize();
         long waitTimeMillis = delayReadRetry();
@@ -777,7 +784,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
         }
         try {
             scheduleReadRetry(waitTimeMillis);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             // A failed timer must not interrupt the caller's unsent-entry cleanup or schema rewind.
             handleReadRetrySchedulingFailure(e);
         }

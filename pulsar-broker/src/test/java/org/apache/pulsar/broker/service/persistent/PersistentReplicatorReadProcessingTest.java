@@ -390,12 +390,13 @@ public class PersistentReplicatorReadProcessingTest {
     public Object[][] retrySchedulingFailures() {
         return new Object[][] {
                 {new RejectedExecutionException("retry rejected")},
-                {new IllegalStateException("retry scheduling failed")}
+                {new IllegalStateException("retry scheduling failed")},
+                {new AssertionError("retry scheduler error")}
         };
     }
 
     @Test(dataProvider = "retrySchedulingFailures")
-    public void testReadFailureTerminatesWhenRetrySchedulingFails(RuntimeException failure) throws Exception {
+    public void testReadFailureTerminatesWhenRetrySchedulingFails(Throwable failure) throws Exception {
         TestReplicatorFixture fixture = newTestReplicatorFixture();
         TestPersistentReplicator replicator = fixture.replicator;
         doThrow(failure).when(fixture.executor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
@@ -440,7 +441,59 @@ public class PersistentReplicatorReadProcessingTest {
     }
 
     @Test
-    public void testRejectedReadCompletionRewindsBeforeRetriedRead() throws Exception {
+    public void testProducerRestartErrorCannotReleaseAnotherReadOwner() throws Exception {
+        TestReplicatorFixture fixture = newTestReplicatorFixture();
+        TestPersistentReplicator replicator = fixture.replicator;
+        CountDownLatch resultPublished = new CountDownLatch(1);
+        CountDownLatch releaseReadOwner = new CountDownLatch(1);
+        AtomicInteger reads = new AtomicInteger();
+        Entry entry = entry(0);
+        replicator.entryObserver = (next, task, entries) -> {
+            replicator.submittedEntries.add(next.getEntryId());
+            task.incCompletedEntries();
+            next.release();
+        };
+        doAnswer(invocation -> {
+            if (reads.incrementAndGet() == 1) {
+                ReadEntriesCallback callback = invocation.getArgument(2);
+                callback.readEntriesComplete(List.of(entry), invocation.getArgument(3));
+                resultPublished.countDown();
+                await(releaseReadOwner);
+            }
+            return null;
+        }).when(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+        Thread newOwner = new Thread(replicator::readMoreEntries, "replication-read-owner");
+        replicator.markDisconnected();
+        replicator.producerStartAction = () -> {
+            replicator.markStarted();
+            newOwner.start();
+            await(resultPublished);
+            throw new AssertionError("producer restart failed after another owner started");
+        };
+        try {
+            replicator.readMoreEntries();
+            replicator.readMoreEntries();
+            assertThat(reads).hasValue(1);
+            assertThat(replicator.submittedEntries).isEmpty();
+            verify(entry, never()).release();
+            verify(fixture.cursor, never()).cancelPendingReadRequest();
+            verify(fixture.cursor, never()).rewind();
+        } finally {
+            releaseReadOwner.countDown();
+            newOwner.join(TimeUnit.SECONDS.toMillis(10));
+            assertThat(newOwner.isAlive()).isFalse();
+        }
+        assertThat(replicator.submittedEntries).containsExactly(0L);
+        verify(entry).release();
+    }
+
+    @DataProvider
+    public Object[][] rejectedCompletionStates() {
+        return new Object[][] {{State.Started}, {State.Disconnected}};
+    }
+
+    @Test(dataProvider = "rejectedCompletionStates")
+    public void testRejectedReadCompletionRewindsBeforeRetriedRead(State stateAtCompletion) throws Exception {
         TestReplicatorFixture fixture = newTestReplicatorFixture();
         List<ReadRequest> requests = new ArrayList<>();
         doAnswer(invocation -> {
@@ -457,11 +510,20 @@ public class PersistentReplicatorReadProcessingTest {
             return null;
         }).when(fixture.cursor).rewind();
 
+        if (stateAtCompletion == State.Disconnected) {
+            fixture.replicator.markDisconnected();
+        }
         ReadRequest read = requests.get(0);
         read.callback.readEntriesFailed(new ManagedLedgerException(new RejectedExecutionException("handoff rejected")),
                 read.context);
         assertThat(requests).hasSize(1);
-        fixture.takeScheduledWork().command.run();
+        verify(fixture.cursor).rewind();
+        if (stateAtCompletion == State.Disconnected) {
+            fixture.replicator.markStarted();
+            fixture.replicator.readMoreEntries();
+        } else {
+            fixture.takeScheduledWork().command.run();
+        }
 
         assertThat(requests).hasSize(2);
         assertThat(((InFlightTask) requests.get(1).context).getReadPos()).isEqualTo(start);
@@ -513,6 +575,8 @@ public class PersistentReplicatorReadProcessingTest {
 
         assertThat(acknowledgement[0]).isNotNull();
         acknowledgement[0].sendComplete(null, null);
+        assertThat(fixture.queuedWork).isEmpty();
+        verify(fixture.executor, never()).execute(any(Runnable.class));
         synchronized (requests) {
             // The actual producer callback records demand but cannot issue another read while one is reserved.
             assertThat(requests).hasSize(2);
@@ -633,6 +697,38 @@ public class PersistentReplicatorReadProcessingTest {
         verify(first).release();
         verify(second).release();
         verify(producer).closeAsync();
+    }
+
+    @Test
+    public void testFailedPublishCompletesInFlightTaskBeforeQueuedRecovery() throws Exception {
+        TestReplicatorFixture fixture = newTestReplicatorFixture();
+        TestPersistentReplicator replicator = fixture.replicator;
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
+        when(producer.isWritable()).thenReturn(true);
+        replicator.setProducerForTest(producer);
+        Entry entry = entry(0);
+        InFlightTask task = new InFlightTask(PositionFactory.create(1, 1), 1, replicator.getReplicatorId());
+        task.setEntries(List.of(entry));
+        task.setSubmissionComplete(true);
+        replicator.inFlightTasks.add(task);
+        assertThat(replicator.getPermitsIfNoPendingRead()).isEqualTo(999);
+
+        PersistentReplicator.ProducerSendCallback callback =
+                PersistentReplicator.ProducerSendCallback.create(replicator, entry, null, task);
+        callback.sendComplete(new PulsarClientException.ProducerBlockedQuotaExceededException("test failure"), null);
+
+        assertThat(task.isDone()).isTrue();
+        assertThat(task.getCompletedEntries()).isEqualTo(1);
+        verify(entry).release();
+        assertThat(replicator.getPermitsIfNoPendingRead()).isEqualTo(1000);
+        assertThat(fixture.queuedWork).hasSize(1);
+        verify(fixture.cursor, never()).rewind();
+        verify(fixture.cursor, never()).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+
+        fixture.runQueuedWork();
+        InOrder cursorCalls = inOrder(fixture.cursor);
+        cursorCalls.verify(fixture.cursor).rewind();
+        cursorCalls.verify(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
     }
 
     @Test
@@ -869,6 +965,7 @@ public class PersistentReplicatorReadProcessingTest {
         private final AtomicBoolean cancelBeforeCursorInvocation = new AtomicBoolean();
         private EntryObserver entryObserver;
         private RuntimeException producerStartFailure;
+        private Runnable producerStartAction;
 
         private TestPersistentReplicator(PersistentTopic topic, ManagedCursor cursor, BrokerService brokerService,
                                          PulsarClientImpl replicationClient, PulsarAdmin replicationAdmin)
@@ -881,6 +978,9 @@ public class PersistentReplicatorReadProcessingTest {
         @Override
         protected void startProducer() {
             // The test drives read scheduling directly.
+            if (producerStartAction != null) {
+                producerStartAction.run();
+            }
             if (producerStartFailure != null) {
                 throw producerStartFailure;
             }
@@ -914,6 +1014,10 @@ public class PersistentReplicatorReadProcessingTest {
 
         private void markDisconnected() {
             state = State.Disconnected;
+        }
+
+        private void markStarted() {
+            state = State.Started;
         }
 
         private void setProducerForTest(ProducerImpl<?> producer) {

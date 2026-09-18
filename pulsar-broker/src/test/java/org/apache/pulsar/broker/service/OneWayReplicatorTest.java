@@ -933,8 +933,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         // Smoke-test progress while failures keep alternating with successful reads. The deterministic
         // owner-loop tests verify that ACK demand resumes reads before the fallback timer.
         AtomicInteger readAttempts = new AtomicInteger();
+        AtomicInteger injectedFailures = new AtomicInteger();
         Supplier<ManagedLedgerException> bkErrorOrNot = () -> {
             if (readAttempts.incrementAndGet() % 2 == 1) {
+                injectedFailures.incrementAndGet();
                 return new ManagedLedgerException.TooManyRequestsException("mocked error");
             }
             return null;
@@ -965,6 +967,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         }
         assertEquals(received.size(), msgPublished.size());
         assertEquals(received, msgPublished);
+        assertTrue(injectedFailures.get() > 0, "At least one BookKeeper read failure must be injected");
 
         // cleanup.
         producer1.close();
