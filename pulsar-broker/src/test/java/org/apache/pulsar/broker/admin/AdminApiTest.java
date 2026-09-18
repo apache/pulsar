@@ -1040,6 +1040,52 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         assertEquals(admin.topics().getList("prop-xyz/ns1"), new ArrayList<>());
     }
 
+    @Test
+    public void peekMessagesPaginatesFromMessagePosition() throws Exception {
+        final String topic = "persistent://prop-xyz/ns1/peek-paginate";
+        final String subName = "peek-sub";
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getWebServiceAddress())
+                .statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        // Create the subscription so the published messages form a tracked backlog.
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topic).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive).subscribe();
+
+        publishMessagesOnPersistentTopic(topic, 10);
+
+        // Page 1: positions 1..5 -> message-0 .. message-4 (head of backlog).
+        List<Message<byte[]>> page1 = admin.topics().peekMessages(topic, subName, 1, 5);
+        assertEquals(page1.size(), 5);
+        for (int i = 0; i < 5; i++) {
+            assertEquals(page1.get(i).getData(), ("message-" + i).getBytes());
+        }
+
+        // Page 2: starting at messagePosition 6 -> message-5 .. message-9. The point of PIP-482 is
+        // that this peeks directly from position 6 instead of re-reading and discarding page 1.
+        List<Message<byte[]>> page2 = admin.topics().peekMessages(topic, subName, 6, 5);
+        assertEquals(page2.size(), 5);
+        for (int i = 0; i < 5; i++) {
+            assertEquals(page2.get(i).getData(), ("message-" + (i + 5)).getBytes());
+        }
+
+        // Page 2 must contain none of page 1's messages.
+        Set<String> page1Bodies = new HashSet<>();
+        for (Message<byte[]> m : page1) {
+            page1Bodies.add(new String(m.getData()));
+        }
+        for (Message<byte[]> m : page2) {
+            String body = new String(m.getData());
+            assertFalse(page1Bodies.contains(body), "page 2 re-read a page 1 message: " + body);
+        }
+
+        admin.topics().skipAllMessages(topic, subName);
+    }
+
     @SuppressWarnings("deprecation")
     @Test(dataProvider = "topicName")
     public void testSkipHoleMessages(String topicName) throws Exception {
