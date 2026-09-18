@@ -21,12 +21,14 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.api.proto.CompressionType.NONE;
 import static org.apache.pulsar.common.api.proto.CompressionType.ZSTD;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
@@ -41,6 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -221,6 +224,40 @@ public class RawBatchMessageContainerImplTest {
         metadataAndPayload.release();
         uncompressed.release();
         buf.release();
+    }
+
+    /**
+     * The output buffer of {@code toByteBuf()} is allocated before the header writes; a failure between the
+     * allocation and the return (here: a failing final write) must not orphan it - the finally-block releases
+     * it, since its ownership never moved to the caller.
+     */
+    @Test
+    public void testToByteBufReleasesTheOutputBufferWhenSerializationFails() {
+        List<ByteBuf> outputs = new ArrayList<>();
+        AtomicInteger allocations = new AtomicInteger();
+        ByteBufAllocator allocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ByteBuf real = Unpooled.buffer((int) invocation.getArgument(0));
+            // The second allocation through the instance allocator is toByteBuf()'s output buffer (the first
+            // is the batch buffer from add()).
+            if (allocations.incrementAndGet() == 2) {
+                // Delegates everything but fails the final writeBytes, standing in for a write that throws.
+                ByteBuf failing = spy(real);
+                doThrow(new RuntimeException("mocked write failure")).when(failing).writeBytes(any(ByteBuf.class));
+                outputs.add(failing);
+                return failing;
+            }
+            return real;
+        }).when(allocator).buffer(anyInt());
+
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl(allocator);
+        container.add(createMessage("my-topic", "hi", 0), null);
+
+        assertThatThrownBy(container::toByteBuf)
+                .hasMessageContaining("mocked write failure");
+        Assert.assertEquals(outputs.size(), 1);
+        Assert.assertEquals(outputs.get(0).refCnt(), 0,
+                "the output buffer must be released when the serialization fails after its allocation");
     }
 
     @Test
