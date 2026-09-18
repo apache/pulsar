@@ -142,12 +142,12 @@ public class RawBatchConverter {
         } else {
             Commands.skipMessageMetadata(payload);
         }
-        ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(payload.capacity());
+        int uncompressedSize = metadata.getUncompressedSize();
+        ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedSize);
 
         CompressionType compressionType = metadata.getCompression();
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
 
-        int uncompressedSize = metadata.getUncompressedSize();
         ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
         try {
             int batchSize = metadata.getNumMessagesInBatch();
