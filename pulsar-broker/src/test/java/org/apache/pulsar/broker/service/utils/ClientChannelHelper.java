@@ -37,6 +37,8 @@ import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandMessage;
@@ -176,6 +178,16 @@ public class ClientChannelHelper {
         @Override
         protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
             queue.offer(new CommandWatchTopicListSuccess().copyFrom(commandWatchTopicListSuccess));
+        }
+
+        @Override
+        protected void handleGetSchemaResponse(CommandGetSchemaResponse response) {
+            queue.offer(new CommandGetSchemaResponse().copyFrom(response));
+        }
+
+        @Override
+        protected void handleGetOrCreateSchemaResponse(CommandGetOrCreateSchemaResponse response) {
+            queue.offer(new CommandGetOrCreateSchemaResponse().copyFrom(response));
         }
 
         @Override
