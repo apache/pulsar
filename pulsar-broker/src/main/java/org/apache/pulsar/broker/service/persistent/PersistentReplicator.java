@@ -315,6 +315,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     private void requestReadProcessing(boolean requestRead) {
+        requestReadProcessing(requestRead, false);
+    }
+
+    private void requestReadProcessing(boolean requestRead, boolean runAsync) {
         synchronized (inFlightTasks) {
             readRequested |= requestRead;
             if (processingReads) {
@@ -322,7 +326,24 @@ public abstract class PersistentReplicator extends AbstractReplicator
             }
             processingReads = true;
         }
-        processReads();
+        if (runAsync) {
+            try {
+                // ACKs may hold the geo producer monitor on its IO thread. Retain ownership while queued,
+                // so concurrent callbacks only publish work rather than starting another drain.
+                brokerService.executor().execute(this::processReads);
+            } catch (RuntimeException e) {
+                log.error().exception(e).log("Failed to schedule replication read processing");
+                // Retain ownership through termination: its cleanup request must not start an inline drain
+                // on the ACK thread either. A late read callback will settle any still-pending result.
+                try {
+                    terminate();
+                } finally {
+                    discardPendingReadResults();
+                }
+            }
+        } else {
+            processReads();
+        }
     }
 
     private void processReads() {
@@ -596,15 +617,20 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
         @Override
         public void sendComplete(Throwable exception, OpSendMsgStats opSendMsgStats) {
-            if (exception != null && !(exception instanceof PulsarClientException.InvalidMessageException)) {
+            boolean failed = exception != null && !(exception instanceof PulsarClientException.InvalidMessageException);
+            if (failed) {
                 replicator.log.error()
                         .attr("inFlightTasks", replicator.inFlightTasks)
                         .attr("pendingQueueSize", replicator.producer.getPendingQueueSize())
                         .exception(exception)
                         .log("Error producing on remote broker");
-                // cursor should be rewound since it was incremented when readMoreEntries
-                replicator.beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
-                replicator.doRewindCursor(false);
+                synchronized (replicator.inFlightTasks) {
+                    // Unlike asynchronous schema lookup, this recovery has no outstanding stage to wait for.
+                    // Publish cancellation and rewind together, leaving cursor work to the owner.
+                    replicator.inFlightTasks.forEach(task -> task.skipReadResultDueToCursorRewind = true);
+                    replicator.cancelReadRequested = true;
+                    replicator.rewindRequested = true;
+                }
                 // The failed send has completed from the producer queue perspective. The cursor rewind
                 // makes the entry readable again, so this in-flight task must release its permit.
                 inFlightTask.incCompletedEntries();
@@ -629,17 +655,19 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 pendingRead = replicator.hasPendingRead();
                 permits = pendingRead ? 0 : replicator.getPermitsIfNoPendingRead();
             }
-            if (pendingRead) {
-                replicator.readMoreEntries();
-            } else if (replicator.producerQueueSize - permits < replicator.producerQueueThreshold) {
+            boolean requestRead = pendingRead;
+            if (!pendingRead && replicator.producerQueueSize - permits < replicator.producerQueueThreshold) {
                 if (replicator.producerQueueSize == permits || replicator.producer.isWritable()) {
-                    replicator.readMoreEntries();
+                    requestRead = true;
                 } else {
                     replicator.log.debug()
                             .attr("pending", replicator.producerQueueSize - permits)
                             .attr("isWritable", replicator.producer.isWritable())
                             .log("Not resuming reads");
                 }
+            }
+            if (requestRead || failed) {
+                replicator.requestReadProcessing(requestRead, true);
             }
 
             recycle();

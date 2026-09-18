@@ -27,6 +27,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.RejectedExecutionException;
@@ -55,6 +57,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator.InFlightTask;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -463,17 +466,119 @@ public class PersistentReplicatorReadProcessingTest {
 
         reservedRead.callback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException("read failed"),
                 reservedRead.context);
+        fixture.runQueuedWork();
         ScheduledWork fallbackRetry = fixture.takeScheduledWork();
         synchronized (requests) {
             // The ACK demand is consumed after the failed reservation settles, before its fallback timer runs.
             assertThat(requests).hasSize(3);
         }
 
+        ReadRequest immediateRetry = requests.get(2);
+        immediateRetry.callback.readEntriesFailed(new ManagedLedgerException.TooManyRequestsException("retry failed"),
+                immediateRetry.context);
+        fixture.runQueuedWork();
+        assertThat(requests).hasSize(3);
+        assertThat(fixture.scheduledWork).isEmpty();
+
         fallbackRetry.command.run();
         synchronized (requests) {
-            // The fallback request cannot overlap the retry it found pending.
-            assertThat(requests).hasSize(3);
+            // One ACK permits only one immediate retry. A second failure must wait for the existing timer.
+            assertThat(requests).hasSize(4);
         }
+    }
+
+    @DataProvider
+    public Object[][] sendCompletionOutcomes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "sendCompletionOutcomes")
+    public void testSendCompletionQueuesReadProcessingOutsideProducerMonitor(boolean failedSend) throws Exception {
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setReplicationProducerQueueSize(2);
+        TestReplicatorFixture fixture = newTestReplicatorFixture(configuration);
+        TestPersistentReplicator replicator = fixture.replicator;
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
+        when(producer.isWritable()).thenReturn(true);
+        replicator.setProducerForTest(producer);
+        List<ReadRequest> requests = new ArrayList<>();
+        doAnswer(invocation -> {
+            assertThat(Thread.holdsLock(producer)).isFalse();
+            requests.add(new ReadRequest(invocation.getArgument(2), invocation.getArgument(3)));
+            return null;
+        }).when(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+        doAnswer(invocation -> {
+            assertThat(Thread.holdsLock(producer)).isFalse();
+            return null;
+        }).when(fixture.cursor).rewind();
+        doAnswer(invocation -> {
+            assertThat(Thread.holdsLock(producer)).isFalse();
+            return false;
+        }).when(fixture.cursor).cancelPendingReadRequest();
+        List<PersistentReplicator.ProducerSendCallback> callbacks = new ArrayList<>();
+        replicator.entryObserver = (entry, task, entries) -> callbacks.add(
+                PersistentReplicator.ProducerSendCallback.create(replicator, entry, null, task));
+
+        replicator.readMoreEntries();
+        ReadRequest read = requests.get(0);
+        read.callback.readEntriesComplete(List.of(entry(0), entry(1)), read.context);
+        assertThat(requests).hasSize(1);
+        assertThat(callbacks).hasSize(2);
+        synchronized (producer) {
+            callbacks.get(0).sendComplete(failedSend ? new PulsarClientException("send failed") : null, null);
+            callbacks.get(1).sendComplete(null, null);
+            assertThat(requests).hasSize(1);
+            verify(fixture.cursor, never()).rewind();
+            verify(fixture.cursor, never()).cancelPendingReadRequest();
+            assertThat(fixture.queuedWork).hasSize(1);
+        }
+        fixture.runQueuedWork();
+        assertThat(requests).hasSize(2);
+        if (failedSend) {
+            verify(fixture.cursor).rewind();
+            assertThat(replicator.waitForCursorRewindingRefCnf).isZero();
+        }
+    }
+
+    @Test
+    public void testRejectedAckHandoffTerminatesWithoutDrainingOnAckThread() throws Exception {
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setReplicationProducerQueueSize(2);
+        TestReplicatorFixture fixture = newTestReplicatorFixture(configuration);
+        TestPersistentReplicator replicator = fixture.replicator;
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
+        when(producer.isWritable()).thenReturn(true);
+        when(producer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        replicator.setProducerForTest(producer);
+        List<ReadRequest> requests = new ArrayList<>();
+        doAnswer(invocation -> {
+            requests.add(new ReadRequest(invocation.getArgument(2), invocation.getArgument(3)));
+            return null;
+        }).when(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+        List<PersistentReplicator.ProducerSendCallback> callbacks = new ArrayList<>();
+        replicator.entryObserver = (entry, task, entries) -> callbacks.add(
+                PersistentReplicator.ProducerSendCallback.create(replicator, entry, null, task));
+        replicator.readMoreEntries();
+        Entry first = entry(0);
+        Entry second = entry(1);
+        ReadRequest read = requests.get(0);
+        read.callback.readEntriesComplete(List.of(first, second), read.context);
+        doThrow(new RejectedExecutionException("ACK handoff rejected"))
+                .when(fixture.executor).execute(any(Runnable.class));
+
+        synchronized (producer) {
+            callbacks.get(0).sendComplete(null, null);
+            callbacks.get(1).sendComplete(null, null);
+        }
+
+        assertThat(replicator.getState()).isEqualTo(State.Terminated);
+        assertThat(requests).hasSize(1);
+        assertThat(fixture.queuedWork).isEmpty();
+        verify(fixture.cursor, never()).rewind();
+        verify(fixture.cursor, never()).cancelPendingReadRequest();
+        verify(first).release();
+        verify(second).release();
+        verify(producer).closeAsync();
     }
 
     @Test
@@ -607,7 +712,6 @@ public class PersistentReplicatorReadProcessingTest {
     @SuppressWarnings("unchecked")
     private static TestReplicatorFixture newTestReplicatorFixture(ServiceConfiguration configuration) throws Exception {
         configuration.setClusterName("local");
-        configuration.setReplicationProducerQueueSize(1000);
         configuration.setDispatcherMaxReadBatchSize(1000);
         configuration.setDispatcherMaxReadSizeBytes(1024 * 1024);
 
