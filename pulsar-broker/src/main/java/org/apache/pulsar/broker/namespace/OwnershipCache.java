@@ -122,7 +122,7 @@ public class OwnershipCache {
                                         log.info().attr("path", rl.getPath()).log("Resource lock has expired");
                                     } else {
                                         log.debug().attr("path", rl.getPath())
-                                                .log("Resource lock ended; running the expiry listener");
+                                                .log("Resource lock is no longer active; running the expiry listener");
                                     }
                                     // Only unload the generation this listener belongs to.
                                     // unloadNamespaceBundle resolves the owner by bundle name, so a listener
