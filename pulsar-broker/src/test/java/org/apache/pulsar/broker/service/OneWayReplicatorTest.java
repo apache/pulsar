@@ -967,7 +967,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         }
         assertEquals(received.size(), msgPublished.size());
         assertEquals(received, msgPublished);
-        assertTrue(injectedFailures.get() > 0, "At least one BookKeeper read failure must be injected");
+        // Smoke check that the ledger fault hook ran; it does not identify which cursor observed a failure.
+        assertTrue(injectedFailures.get() > 0, "The ledger read fault hook must inject at least one failure");
 
         // cleanup.
         producer1.close();

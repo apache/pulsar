@@ -487,6 +487,55 @@ public class PersistentReplicatorReadProcessingTest {
         verify(entry).release();
     }
 
+    @Test
+    public void testRetryTerminationErrorCannotDiscardAnotherReadOwnersResult() throws Exception {
+        TestReplicatorFixture fixture = newTestReplicatorFixture();
+        TestPersistentReplicator replicator = fixture.replicator;
+        CountDownLatch resultPublished = new CountDownLatch(1);
+        CountDownLatch releaseReadOwner = new CountDownLatch(1);
+        AtomicInteger reads = new AtomicInteger();
+        Entry entry = entry(0);
+        doAnswer(invocation -> {
+            reads.incrementAndGet();
+            ReadEntriesCallback callback = invocation.getArgument(2);
+            callback.readEntriesComplete(List.of(entry), invocation.getArgument(3));
+            resultPublished.countDown();
+            await(releaseReadOwner);
+            return null;
+        }).when(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+        Thread newOwner = new Thread(replicator::readMoreEntries, "replication-read-owner");
+        doAnswer(invocation -> {
+            // The old owner released ownership before scheduling its retry. Let a new owner publish a result
+            // and remain inside the cursor call while the old owner's scheduling and termination both fail.
+            replicator.markStarted();
+            newOwner.start();
+            await(resultPublished);
+            throw new RejectedExecutionException("retry scheduling rejected after another owner started");
+        }).when(fixture.executor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        replicator.beforeTerminateAction = () -> {
+            throw new AssertionError("termination failed after publishing cancellation");
+        };
+        replicator.markDisconnected();
+        try {
+            replicator.readMoreEntries();
+            assertThat(replicator.getState()).isEqualTo(State.Terminating);
+            assertThat(fixture.scheduledWork).isEmpty();
+            verify(entry, never()).release();
+            replicator.readMoreEntries();
+            assertThat(reads).hasValue(1);
+            verify(entry, never()).release();
+            verify(fixture.cursor, never()).cancelPendingReadRequest();
+            verify(fixture.cursor, never()).rewind();
+        } finally {
+            releaseReadOwner.countDown();
+            newOwner.join(TimeUnit.SECONDS.toMillis(10));
+            assertThat(newOwner.isAlive()).isFalse();
+        }
+        assertThat(reads).hasValue(1);
+        assertThat(replicator.submittedEntries).isEmpty();
+        verify(entry).release();
+    }
+
     @DataProvider
     public Object[][] rejectedCompletionStates() {
         return new Object[][] {{State.Started}, {State.Disconnected}};
@@ -519,6 +568,7 @@ public class PersistentReplicatorReadProcessingTest {
         assertThat(requests).hasSize(1);
         verify(fixture.cursor).rewind();
         if (stateAtCompletion == State.Disconnected) {
+            assertThat(fixture.scheduledWork).isEmpty();
             fixture.replicator.markStarted();
             fixture.replicator.readMoreEntries();
         } else {
@@ -966,6 +1016,7 @@ public class PersistentReplicatorReadProcessingTest {
         private EntryObserver entryObserver;
         private RuntimeException producerStartFailure;
         private Runnable producerStartAction;
+        private Runnable beforeTerminateAction;
 
         private TestPersistentReplicator(PersistentTopic topic, ManagedCursor cursor, BrokerService brokerService,
                                          PulsarClientImpl replicationClient, PulsarAdmin replicationAdmin)
@@ -989,6 +1040,14 @@ public class PersistentReplicatorReadProcessingTest {
         @Override
         protected String getProducerName() {
             return "test-replicator";
+        }
+
+        @Override
+        public void beforeTerminate() {
+            super.beforeTerminate();
+            if (beforeTerminateAction != null) {
+                beforeTerminateAction.run();
+            }
         }
 
         @Override

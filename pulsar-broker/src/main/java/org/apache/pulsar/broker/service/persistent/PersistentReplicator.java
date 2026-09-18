@@ -343,6 +343,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 try {
                     terminate();
                 } finally {
+                    // Even if a termination hook fails, this owner must settle its ready read results.
                     discardPendingReadResults();
                 }
             }
@@ -406,11 +407,17 @@ public abstract class PersistentReplicator extends AbstractReplicator
     }
 
     private void handleReadRetrySchedulingFailure(Throwable exception) {
-        // Ownership has already been released. Never clear a newer owner's state here.
+        // Ownership may already have been released. Never clear a newer owner's state here.
         log.error().exception(exception).log("Failed to schedule replication read retry");
         // A failed retry submission has no wakeup left if there are no producer ACKs in flight.
         // Do not leave the replicator apparently Started but unable to make progress.
-        terminate();
+        try {
+            terminate();
+        } catch (Throwable terminationFailure) {
+            // A termination hook can fail after a new owner starts. Do not enter the old owner's cleanup.
+            log.error().exception(terminationFailure)
+                    .log("Failed to terminate replication after read retry scheduling failure");
+        }
     }
 
     /** Processes one read, result or recovery transition, with no callback invoked under the state lock. */
