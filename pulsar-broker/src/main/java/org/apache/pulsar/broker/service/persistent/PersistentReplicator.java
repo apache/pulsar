@@ -403,11 +403,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
     private void handleReadRetrySchedulingFailure(Exception exception) {
         // Ownership has already been released. Never clear a newer owner's state here.
         log.error().exception(exception).log("Failed to schedule replication read retry");
-        if (exception instanceof RejectedExecutionException) {
-            // A rejected retry has no wakeup left if there are no producer ACKs in flight.
-            // Do not leave the replicator apparently Started but unable to make progress.
-            terminate();
-        }
+        // A failed retry submission has no wakeup left if there are no producer ACKs in flight.
+        // Do not leave the replicator apparently Started but unable to make progress.
+        terminate();
     }
 
     /** Processes one read, result or recovery transition, with no callback invoked under the state lock. */
@@ -468,13 +466,19 @@ public abstract class PersistentReplicator extends AbstractReplicator
         if (retryDelayMillis > 0) {
             try {
                 scheduleReadRetry(retryDelayMillis);
-                if (state == Disconnected) {
-                    startProducer();
-                }
             } catch (Exception e) {
                 // Ownership was already released: a new owner might be running now. Do not let
                 // this failure reach the owner cleanup in processReads and clear its ownership.
                 handleReadRetrySchedulingFailure(e);
+                return false;
+            }
+            if (state == Disconnected) {
+                try {
+                    startProducer();
+                } catch (Exception e) {
+                    // The read-retry timer was accepted; this is not a timer scheduling failure.
+                    log.error().exception(e).log("Failed to restart replication producer; retry remains scheduled");
+                }
             }
             return false;
         }
@@ -521,7 +525,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 }
                 readMoreEntries();
             }, delayMillis, TimeUnit.MILLISECONDS);
-        } catch (RejectedExecutionException e) {
+        } catch (RuntimeException e) {
             synchronized (inFlightTasks) {
                 readRetryScheduled = false;
             }
@@ -746,6 +750,13 @@ public abstract class PersistentReplicator extends AbstractReplicator
             log.warn().exception(exception).log("Cursor closed while reading replication entries");
             terminate();
             return;
+        }
+        if (exception.getCause() instanceof RejectedExecutionException) {
+            synchronized (inFlightTasks) {
+                // Completion may be rejected after advancing the cursor but before transferring entries.
+                // Only this owner can restore the position before it admits another read.
+                rewindRequested = true;
+            }
         }
         readBatchSize = brokerService.pulsar().getConfiguration().getDispatcherMinReadBatchSize();
         long waitTimeMillis = delayReadRetry();
