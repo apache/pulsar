@@ -53,7 +53,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
@@ -339,7 +338,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected final ThreadBoundExecutor executor;
 
     // Captured at ledger creation so configuration updates cannot change affinity with callbacks still queued.
-    private final Executor readEntriesCallbackExecutor;
+    private final boolean readEntriesCallbackInline;
 
     @Getter
     private final ManagedLedgerFactoryImpl factory;
@@ -405,21 +404,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // relies on the same cast for its ledger handles). The ledger callbacks are pinned to this thread through
         // withOrderingKey, so their processing can run inline with executeOrRun() instead of re-queueing.
         this.executor = (ThreadBoundExecutor) bookKeeper.getMainWorkerPool().chooseThread(name);
-        Executor configuredCallbackExecutor = config.getReadEntriesCallbackExecutor();
-        if (configuredCallbackExecutor != null) {
-            this.readEntriesCallbackExecutor = configuredCallbackExecutor;
-        } else if (config.isReadEntriesCallbackInline()) {
-            this.readEntriesCallbackExecutor = null;
-        } else {
-            // Preserve legacy affinity, including bounded inline completion on the ledger worker itself.
-            this.readEntriesCallbackExecutor = command -> {
-                if (executor.isCurrentThread()) {
-                    command.run();
-                } else {
-                    executor.execute(command);
-                }
-            };
-        }
+        this.readEntriesCallbackInline = config.isReadEntriesCallbackInline();
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
@@ -4595,9 +4580,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return config;
     }
 
-    /** Returns the ledger's fixed read-completion executor, or null for completion on the current thread. */
-    Executor getReadEntriesCallbackExecutor() {
-        return readEntriesCallbackExecutor;
+    /** Returns the read-completion policy captured when this ledger was opened. */
+    boolean isReadEntriesCallbackInline() {
+        return readEntriesCallbackInline;
     }
 
     /**

@@ -24,7 +24,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -64,7 +63,6 @@ public class ManagedLedgerConfig {
     private Semaphore ledgerDeletionSemaphore;
     private ExecutorService ledgerDeleteExecutor;
     private boolean readEntriesCallbackInline = false;
-    private Executor readEntriesCallbackExecutor;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
@@ -411,7 +409,7 @@ public class ManagedLedgerConfig {
 
     /**
      * Whether successful ordinary multi-entry cursor reads may complete on the current thread.
-     * Defaults to false, which retains ledger-executor affinity unless a custom executor is configured.
+     * Defaults to false, which retains ledger-executor affinity.
      * Completion can still run inline when already on the ledger executor.
      *
      * @see #setReadEntriesCallbackInline(boolean)
@@ -425,50 +423,19 @@ public class ManagedLedgerConfig {
      * {@code asyncReadEntriesOrWait} operations. A fully cached read may invoke its callback before the read method
      * returns. When disabled, completion is restricted to the ledger executor, as before: it runs inline when
      * already on that executor and is queued otherwise. Nested completion is bounded by a queued handoff
-     * to the ledger executor in both modes.
+     * to the ledger executor in both modes. The JVM-wide system property
+     * {@code pulsar.managedLedger.maxReadCompletionDepth} controls this limit (default 10, values below 1 use 1).
+     * Set the property at JVM startup; later changes have no effect.
      *
-     * <p>A non-null {@link #getReadEntriesCallbackExecutor()} takes precedence over this flag. This setting does not
-     * change failure callbacks, single-entry reads, or replay callbacks. The policy is captured when the ledger is
-     * opened; subsequent configuration changes, including {@link ManagedLedger#setConfig(ManagedLedgerConfig)},
-     * do not change the policy of an already open ledger.
+     * <p>This setting does not change failure callbacks, single-entry reads, or replay callbacks. The policy is
+     * captured when the ledger is opened; subsequent changes, including
+     * {@link ManagedLedger#setConfig(ManagedLedgerConfig)}, do not change the policy of an already open ledger.
      *
      * @param inline true to allow completion on any current thread; false to retain ledger-executor affinity
      * @return this configuration
      */
     public ManagedLedgerConfig setReadEntriesCallbackInline(boolean inline) {
         this.readEntriesCallbackInline = inline;
-        return this;
-    }
-
-    /**
-     * @return the caller-owned executor for successful ordinary multi-entry cursor read callbacks, or null to use
-     *         {@link #isReadEntriesCallbackInline()} to select the completion policy
-     */
-    public Executor getReadEntriesCallbackExecutor() {
-        return readEntriesCallbackExecutor;
-    }
-
-    /**
-     * Set an executor for successful {@code asyncReadEntries} and {@code asyncReadEntriesOrWait} callbacks.
-     * A non-null executor overrides {@link #isReadEntriesCallbackInline()}; null restores selection by that flag.
-     * The executor may execute directly, so callers must tolerate reentrant completion. It must accept and execute
-     * each submitted task exactly once; a policy that silently discards tasks must not be used. The caller owns the
-     * executor and must keep it available until all outstanding callbacks finish, including queued callbacks after
-     * ledger close. Closing the ledger neither drains nor shuts down this executor.
-     *
-     * <p>Rejected submission releases the undelivered entries and invokes the failure callback on the rejecting thread.
-     * The cursor read position may already have advanced; recovery must restore the required position before reading
-     * again. Failure callbacks do not use this executor.
-     *
-     * <p>This setting does not change failure callbacks, single-entry reads, or replay callbacks. It is captured
-     * when the ledger is opened and is unaffected by subsequent configuration changes, including
-     * {@link ManagedLedger#setConfig(ManagedLedgerConfig)}.
-     *
-     * @param executor the callback executor, or null to select the policy using {@link #isReadEntriesCallbackInline()}
-     * @return this configuration
-     */
-    public ManagedLedgerConfig setReadEntriesCallbackExecutor(Executor executor) {
-        this.readEntriesCallbackExecutor = executor;
         return this;
     }
 

@@ -24,7 +24,6 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -40,8 +39,12 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 @CustomLog
 class OpReadEntry implements ReadEntriesCallback {
 
-    /** How deep read completions may nest inline on a completing thread before one is queued to unwind the stack. */
-    static final int MAX_NESTED_INLINE_COMPLETIONS = 10;
+    /**
+     * JVM-wide nesting limit, read once at class initialization. Clamp to at least one so a queued completion
+     * can make progress instead of repeatedly rescheduling itself.
+     */
+    static final int MAX_NESTED_INLINE_COMPLETIONS = Math.max(1,
+            Integer.getInteger("pulsar.managedLedger.maxReadCompletionDepth", 10));
 
     /** Nesting depth of read completions running inline on the current thread. */
     private static final FastThreadLocal<int[]> INLINE_COMPLETION_DEPTH = new FastThreadLocal<>() {
@@ -287,12 +290,11 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     private void complete(Object ctx) {
-        Executor executor = cursor.ledger.getReadEntriesCallbackExecutor();
-        if (executor == null) {
+        if (cursor.ledger.isReadEntriesCallbackInline() || cursor.ledger.getExecutor().isCurrentThread()) {
             completeWithDepthLimit(ctx);
         } else {
             try {
-                executor.execute(() -> completeWithDepthLimit(ctx));
+                cursor.ledger.getExecutor().execute(() -> completeWithDepthLimit(ctx));
             } catch (RejectedExecutionException e) {
                 failCompletion(e, ctx);
             }
@@ -300,7 +302,7 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     private void completeWithDepthLimit(Object ctx) {
-        // A supplied executor can also execute directly. Guard the actual callback in every mode.
+        // Both modes can complete inline. Bound nested callbacks even on the ledger executor.
         int[] depth = INLINE_COMPLETION_DEPTH.get();
         if (depth[0] < MAX_NESTED_INLINE_COMPLETIONS) {
             depth[0]++;
@@ -311,8 +313,8 @@ class OpReadEntry implements ReadEntriesCallback {
             }
         } else {
             try {
-                // Unwind on the ledger executor, then honor the configured executor again.
-                cursor.ledger.getExecutor().execute(() -> complete(ctx));
+                // Queue even on the ledger executor so the current callback stack can unwind.
+                cursor.ledger.getExecutor().execute(() -> completeWithDepthLimit(ctx));
             } catch (RejectedExecutionException e) {
                 failCompletion(e, ctx);
             }

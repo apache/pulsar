@@ -22,7 +22,6 @@ import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.Executor;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
@@ -87,14 +86,15 @@ public interface AsyncCallbacks {
     /**
      * Completion of an entry read. Ordinary multi-entry cursor reads use the completion policy selected when opening
      * the ledger in {@link ManagedLedgerConfig}; replay paths and failures can still invoke this interface inline.
-     * Implementations must not block and must select an executor explicitly when thread affinity is needed.
+     * Implementations must not block. A caller needing a different execution context can wrap its callback
+     * to hand off processing to its own executor, and must release the returned entries if that handoff is rejected.
      * Future adapters in {@link ManagedLedgerUtils} do not introduce an executor handoff.
      */
     interface ReadEntriesCallback {
         /**
-         * May be invoked inline when enabled in the ledger configuration or when its supplied executor runs directly,
-         * including on the calling thread for a cache hit. The default ledger configuration restricts ordinary cursor
-         * read completions to the ledger executor, with bounded inline completion when already on that executor.
+         * May be invoked inline when enabled in the ledger configuration, including on the calling thread for a cache
+         * hit. The default ledger configuration restricts ordinary cursor read completions to the ledger executor,
+         * with bounded inline completion when already on that executor.
          * The broker enables inline completion on other threads by default.
          * The recipient owns the returned entries and must release each entry after processing or discarding it,
          * including when its own shutdown or cancellation makes the result unnecessary.
@@ -104,8 +104,8 @@ public interface AsyncCallbacks {
 
         /**
          * May be invoked inline, including for validation failures before an asynchronous read is started.
-         * A rejected callback submission can fail after the cursor position advances; see
-         * {@link ManagedLedgerConfig#setReadEntriesCallbackExecutor(Executor)} for recovery.
+         * A rejected handoff to the ledger executor can fail after the cursor position advances. Recovery must
+         * restore the required position before reading again.
          */
         void readEntriesFailed(ManagedLedgerException exception, Object ctx);
     }

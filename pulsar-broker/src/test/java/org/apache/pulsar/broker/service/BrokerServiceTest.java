@@ -2261,7 +2261,6 @@ public class BrokerServiceTest extends BrokerTestBase {
                 assertThat(ledgerConfig.isReadEntriesCallbackInline())
                         .as("broker read callback policy must reach the configuration used to open the ledger")
                         .isEqualTo(inline);
-                assertThat(ledgerConfig.getReadEntriesCallbackExecutor()).isNull();
             }
         } finally {
             serviceConfiguration.setManagedLedgerReadEntriesCallbackInline(originalInline);
