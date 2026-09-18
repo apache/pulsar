@@ -59,6 +59,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.mockito.InOrder;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-replication")
@@ -184,9 +185,16 @@ public class PersistentReplicatorReadProcessingTest {
         assertThat(replicator.submittedEntries).containsExactly(0L, 1L, 2L, 3L);
     }
 
-    @Test
-    public void testCachedReadCallbacksDoNotRecurseAndLeaveOnePendingRead() throws Exception {
-        TestReplicatorFixture fixture = newTestReplicatorFixture();
+    @DataProvider
+    public Object[][] readProcessingTurnLimits() {
+        return new Object[][] {{1}, {2}, {3}, {64}, {128}};
+    }
+
+    @Test(dataProvider = "readProcessingTurnLimits")
+    public void testCachedReadCallbacksDoNotRecurseAndLeaveOnePendingRead(int turnLimit) throws Exception {
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setReplicationMaxReadProcessingStepsPerTurn(turnLimit);
+        TestReplicatorFixture fixture = newTestReplicatorFixture(configuration);
         TestPersistentReplicator replicator = fixture.replicator;
         int completedReadCount = 256;
         AtomicInteger cursorCallbackDepth = new AtomicInteger();
@@ -217,6 +225,15 @@ public class PersistentReplicatorReadProcessingTest {
         }).when(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
 
         replicator.readMoreEntries();
+        // Each cached batch takes two steps: invoke the cursor, then submit the completed batch.
+        assertThat(completedReads).hasValue((turnLimit + 1) / 2);
+        assertThat(replicator.submittedEntries).hasSize(turnLimit / 2);
+        assertThat(fixture.queuedWork).hasSize(1);
+        // A request during the yield must not steal ownership or start another drain.
+        replicator.readMoreEntries();
+        assertThat(completedReads).hasValue((turnLimit + 1) / 2);
+        assertThat(replicator.submittedEntries).hasSize(turnLimit / 2);
+        assertThat(fixture.queuedWork).hasSize(1);
         fixture.runQueuedWork();
 
         assertThat(replicator.submittedEntries).containsExactlyElementsOf(entryIds(completedReadCount));
@@ -583,9 +600,12 @@ public class PersistentReplicatorReadProcessingTest {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private static TestReplicatorFixture newTestReplicatorFixture() throws Exception {
-        ServiceConfiguration configuration = new ServiceConfiguration();
+        return newTestReplicatorFixture(new ServiceConfiguration());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static TestReplicatorFixture newTestReplicatorFixture(ServiceConfiguration configuration) throws Exception {
         configuration.setClusterName("local");
         configuration.setReplicationProducerQueueSize(1000);
         configuration.setDispatcherMaxReadBatchSize(1000);

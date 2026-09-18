@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Disconnected;
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Started;
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Starting;
@@ -93,6 +94,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     private volatile int readBatchSize;
     private final int readMaxSizeBytes;
+    private final int maxReadProcessingStepsPerTurn;
 
     private final int producerQueueThreshold;
 
@@ -132,7 +134,6 @@ public abstract class PersistentReplicator extends AbstractReplicator
     private boolean cancelReadRequested;
     private boolean rewindRequested;
     private boolean readRetryScheduled;
-    private static final int MAX_READ_PROCESSING_STEPS_PER_TURN = 64;
 
     public PersistentReplicator(String localCluster, PersistentTopic localTopic, ManagedCursor cursor,
                                 String remoteCluster, String remoteTopic,
@@ -150,6 +151,10 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
         readBatchSize = getMaxReadBatchSize();
         readMaxSizeBytes = brokerService.pulsar().getConfiguration().getDispatcherMaxReadSizeBytes();
+        maxReadProcessingStepsPerTurn =
+                brokerService.pulsar().getConfiguration().getReplicationMaxReadProcessingStepsPerTurn();
+        checkArgument(maxReadProcessingStepsPerTurn > 0,
+                "replicationMaxReadProcessingStepsPerTurn must be at least 1");
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
         this.initializeDispatchRateLimiterIfNeeded();
@@ -322,7 +327,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     private void processReads() {
         try {
-            for (int i = 0; i < MAX_READ_PROCESSING_STEPS_PER_TURN; i++) {
+            for (int i = 0; i < maxReadProcessingStepsPerTurn; i++) {
                 if (!processRead()) {
                     return;
                 }

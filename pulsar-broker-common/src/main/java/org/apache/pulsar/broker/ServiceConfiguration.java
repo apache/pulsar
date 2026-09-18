@@ -3706,6 +3706,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     )
     private int replicationProducerQueueSize = 1000;
     @FieldContext(
+        category = CATEGORY_REPLICATION,
+        minValue = 1,
+        doc = "Maximum read-processing steps per persistent replicator before yielding to the broker executor. "
+                + "A step initiates a read, processes a completed batch, or handles cancellation or rewind; "
+                + "it is not a message limit. Lower values improve fairness between tasks; higher values reduce "
+                + "scheduling overhead. Must be at least 1. Requires a broker restart."
+    )
+    private int replicationMaxReadProcessingStepsPerTurn = 64;
+    @FieldContext(
             category = CATEGORY_REPLICATION,
             doc = "Duration to check replication policy to avoid replicator "
                     + "inconsistency due to missing ZooKeeper watch (disable with value 0)"
