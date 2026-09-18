@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -65,7 +65,7 @@ import org.testng.annotations.Test;
 public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
     @Test
     public void testIndependentCacheHitsDoNotAccumulateCompletionDepth() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-affinity-", inlineConfig());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-affinity-", defaultConfig());
         CountDownLatch releaseWorker = new CountDownLatch(1);
         try {
             ManagedCursor cursor = ledger.openCursor("cursor");
@@ -104,7 +104,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
     @Test
     public void testInlineFutureKeepsDispatcherBoundary() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-dispatcher-boundary",
-                inlineConfig());
+                defaultConfig());
         CountDownLatch releaseWorker = new CountDownLatch(1);
         ExecutorService dispatcher = Executors.newSingleThreadExecutor();
         try {
@@ -133,7 +133,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 60000)
     public void testCachedScanFromCallingThreadBoundsRecursion() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-recursion", inlineConfig());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-recursion", defaultConfig());
         try {
             ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
             int count = 1000;
@@ -161,7 +161,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 30000)
     public void testNestedCacheHitsHopAtDepthLimitAndIndependentReadOvertakes() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-depth-limit", inlineConfig());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-depth-limit", defaultConfig());
         CountDownLatch releaseQueuedCompletion = new CountDownLatch(1);
         try {
             ManagedCursor nestedCursor = ledger.openCursor("nested");
@@ -280,7 +280,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 30000)
     public void testNestedCachedChainReturnsToLedgerExecutorAcrossLedgers() throws Exception {
         int firstLedgerCount = OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS + 2;
-        ManagedLedgerConfig config = inlineConfig().setMaxEntriesPerLedger(firstLedgerCount);
+        ManagedLedgerConfig config = defaultConfig().setMaxEntriesPerLedger(firstLedgerCount);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-cached-chain-rollover", config);
         AtomicInteger storageReads = new AtomicInteger();
@@ -361,7 +361,8 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testLegacyCachedReadQueuesCompletionOffLedgerAndRunsItInlineOnLedger() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-default-legacy", rawEntryConfig());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-default-legacy",
+                defaultConfig().setReadEntriesCallbackInline(false));
         CountDownLatch releaseWorker = new CountDownLatch(1);
         try {
             ManagedCursor cursor = ledger.openCursor("cursor");
@@ -402,7 +403,8 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 30000)
     public void testLegacyCachedReadOnLedgerWorkerQueuesAtDepthLimit() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-legacy-depth-limit", rawEntryConfig());
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-legacy-depth-limit",
+                defaultConfig().setReadEntriesCallbackInline(false));
         CountDownLatch releaseOuterRead = new CountDownLatch(1);
         try {
             ManagedCursor cursor = ledger.openCursor("cursor");
@@ -464,7 +466,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
     @Test
     public void testRejectedLedgerExecutorReleasesEntriesAndCompletesFailureOnce() throws Exception {
         ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("completion-executor-rejection",
-                rawEntryConfig()));
+                defaultConfig().setReadEntriesCallbackInline(false)));
         try {
             ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
             Position first = ledger.addEntry(new byte[] {1});
@@ -518,7 +520,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
                     + "-Djava.util.concurrent.ForkJoinPool.common.parallelism=1");
         }
         ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("completion-depth-rejection-" + inline,
-                rawEntryConfig().setReadEntriesCallbackInline(inline)));
+                defaultConfig().setReadEntriesCallbackInline(inline)));
         try {
             ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
             int count = OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS + 1;
@@ -576,7 +578,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
     public void testReadCompletionPolicyIsCapturedWhenLedgerOpens() throws Exception {
         for (boolean inlineAtOpen : List.of(false, true)) {
             ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-captured-policy-" + inlineAtOpen,
-                    rawEntryConfig().setReadEntriesCallbackInline(inlineAtOpen));
+                    defaultConfig().setReadEntriesCallbackInline(inlineAtOpen));
             CountDownLatch releaseWorker = new CountDownLatch(1);
             try {
                 ManagedCursor cursor = ledger.openCursor("cursor");
@@ -584,7 +586,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
                 assertThat(ledger.isReadEntriesCallbackInline()).isEqualTo(inlineAtOpen);
                 ledger.getConfig().setReadEntriesCallbackInline(!inlineAtOpen);
                 assertThat(ledger.isReadEntriesCallbackInline()).isEqualTo(inlineAtOpen);
-                ledger.setConfig(rawEntryConfig().setReadEntriesCallbackInline(!inlineAtOpen));
+                ledger.setConfig(defaultConfig().setReadEntriesCallbackInline(!inlineAtOpen));
                 assertThat(ledger.isReadEntriesCallbackInline()).isEqualTo(inlineAtOpen);
 
                 Thread worker = blockWorker(ledger, releaseWorker);
@@ -641,10 +643,6 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
         }
     }
 
-    private static ManagedLedgerConfig inlineConfig() {
-        return rawEntryConfig().setReadEntriesCallbackInline(true);
-    }
-
     private static CompletableFuture<Thread> readOne(ManagedCursor cursor, boolean wait) {
         CompletableFuture<Thread> completed = new CompletableFuture<>();
         ReadEntriesCallback callback = new ReadEntriesCallback() {
@@ -682,7 +680,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testCacheMissAcrossLedgers() throws Exception {
-        ManagedLedgerConfig config = inlineConfig().setMaxEntriesPerLedger(2);
+        ManagedLedgerConfig config = defaultConfig().setMaxEntriesPerLedger(2);
         config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-rollover-", config);
         AtomicInteger storageReads = new AtomicInteger();
@@ -718,7 +716,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
     @Test
     public void testStorageFailureAndRetry() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-failure-",
-                inlineConfig());
+                defaultConfig());
         try {
             ManagedCursor cursor = ledger.openCursor("cursor");
             ledger.addEntry(new byte[] {1});
