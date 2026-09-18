@@ -64,14 +64,14 @@ public class CompactedTopicUtils {
             int numberOfEntriesToRead = cursor.applyMaxSizeCap(maxEntries, bytesToRead);
 
             return topicCompactionService.readCompactedEntries(readPosition, numberOfEntriesToRead)
-                    .thenApply(entries -> {
+                    .thenCompose(entries -> {
                         if (CollectionUtils.isEmpty(entries)) {
-                            Position seekToPosition = lastCompactedPosition.getNext();
-                            if (readPosition.compareTo(seekToPosition.getLedgerId(), seekToPosition.getEntryId()) > 0) {
-                                seekToPosition = readPosition;
+                            if (wait) {
+                                return readEntriesWithSkipOrWait(cursor, maxEntries, bytesToRead,
+                                        maxReadPosition, null);
+                            } else {
+                                return readEntries(cursor, maxEntries, bytesToRead, maxReadPosition);
                             }
-                            cursor.seek(seekToPosition);
-                            return entries;
                         }
 
                         long entriesSize = 0;
@@ -82,7 +82,7 @@ public class CompactedTopicUtils {
 
                         Entry lastEntry = entries.get(entries.size() - 1);
                         cursor.seek(lastEntry.getPosition().getNext(), true);
-                        return entries;
+                        return CompletableFuture.completedFuture(entries);
                     });
         });
     }
