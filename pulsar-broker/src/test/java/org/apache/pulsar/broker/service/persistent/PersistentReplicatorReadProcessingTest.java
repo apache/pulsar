@@ -59,6 +59,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.mockito.InOrder;
@@ -519,7 +520,6 @@ public class PersistentReplicatorReadProcessingTest {
         try {
             replicator.readMoreEntries();
             assertThat(replicator.getState()).isEqualTo(State.Terminating);
-            assertThat(fixture.scheduledWork).isEmpty();
             verify(entry, never()).release();
             replicator.readMoreEntries();
             assertThat(reads).hasValue(1);
@@ -531,9 +531,13 @@ public class PersistentReplicatorReadProcessingTest {
             newOwner.join(TimeUnit.SECONDS.toMillis(10));
             assertThat(newOwner.isAlive()).isFalse();
         }
+        replicator.readMoreEntries();
         assertThat(reads).hasValue(1);
         assertThat(replicator.submittedEntries).isEmpty();
         verify(entry).release();
+        verify(fixture.executor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        verify(fixture.cursor, never()).cancelPendingReadRequest();
+        verify(fixture.cursor, never()).rewind();
     }
 
     @DataProvider
@@ -747,6 +751,55 @@ public class PersistentReplicatorReadProcessingTest {
         verify(first).release();
         verify(second).release();
         verify(producer).closeAsync();
+    }
+
+    @Test
+    public void testRejectedAckHandoffWithTerminationErrorRecyclesSendCallback() throws Exception {
+        ServiceConfiguration configuration = new ServiceConfiguration();
+        configuration.setReplicationProducerQueueSize(2);
+        TestReplicatorFixture fixture = newTestReplicatorFixture(configuration);
+        TestPersistentReplicator replicator = fixture.replicator;
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
+        when(producer.isWritable()).thenReturn(true);
+        replicator.setProducerForTest(producer);
+        List<ReadRequest> requests = new ArrayList<>();
+        doAnswer(invocation -> {
+            requests.add(new ReadRequest(invocation.getArgument(2), invocation.getArgument(3)));
+            return null;
+        }).when(fixture.cursor).asyncReadEntriesOrWait(anyInt(), anyLong(), any(), any(), any());
+        List<MessageImpl<?>> messages = new ArrayList<>();
+        List<PersistentReplicator.ProducerSendCallback> callbacks = new ArrayList<>();
+        replicator.entryObserver = (entry, task, entries) -> {
+            MessageImpl<?> message = mock(MessageImpl.class);
+            messages.add(message);
+            callbacks.add(PersistentReplicator.ProducerSendCallback.create(replicator, entry, message, task));
+        };
+        replicator.readMoreEntries();
+        Entry first = entry(0);
+        Entry second = entry(1);
+        ReadRequest read = requests.get(0);
+        read.callback.readEntriesComplete(List.of(first, second), read.context);
+        doThrow(new RejectedExecutionException("ACK handoff rejected"))
+                .when(fixture.executor).execute(any(Runnable.class));
+        replicator.beforeTerminateAction = () -> {
+            throw new AssertionError("termination hook failed");
+        };
+
+        synchronized (producer) {
+            callbacks.get(0).sendComplete(null, null);
+            callbacks.get(1).sendComplete(null, null);
+        }
+
+        assertThat(replicator.getState()).isEqualTo(State.Terminating);
+        assertThat(requests).hasSize(1);
+        assertThat(fixture.queuedWork).isEmpty();
+        verify(first).release();
+        verify(second).release();
+        messages.forEach(message -> verify(message).recycle());
+        verify(fixture.cursor, never()).rewind();
+        verify(fixture.cursor, never()).cancelPendingReadRequest();
+        // Containing the error protects callback cleanup, but cannot complete the failed termination hook.
+        verify(producer, never()).closeAsync();
     }
 
     @Test

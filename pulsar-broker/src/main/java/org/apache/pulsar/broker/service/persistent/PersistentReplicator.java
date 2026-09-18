@@ -341,7 +341,7 @@ public abstract class PersistentReplicator extends AbstractReplicator
                 // Retain ownership through termination: its cleanup request must not start an inline drain
                 // on the ACK thread either. A late read callback will settle any still-pending result.
                 try {
-                    terminate();
+                    terminateAfterReadProcessingFailure();
                 } finally {
                     // Even if a termination hook fails, this owner must settle its ready read results.
                     discardPendingReadResults();
@@ -411,12 +411,17 @@ public abstract class PersistentReplicator extends AbstractReplicator
         log.error().exception(exception).log("Failed to schedule replication read retry");
         // A failed retry submission has no wakeup left if there are no producer ACKs in flight.
         // Do not leave the replicator apparently Started but unable to make progress.
+        terminateAfterReadProcessingFailure();
+    }
+
+    private void terminateAfterReadProcessingFailure() {
         try {
             terminate();
         } catch (Throwable terminationFailure) {
-            // A termination hook can fail after a new owner starts. Do not enter the old owner's cleanup.
+            // Do not enter an old owner's cleanup or prevent the ACK callback from recycling its message.
+            // A failed hook can leave Terminating before producer close; later terminate calls do not retry it.
             log.error().exception(terminationFailure)
-                    .log("Failed to terminate replication after read retry scheduling failure");
+                    .log("Failed to terminate replication after read processing failure");
         }
     }
 

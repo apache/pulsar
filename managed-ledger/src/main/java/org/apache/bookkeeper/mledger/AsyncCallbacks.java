@@ -95,7 +95,8 @@ public interface AsyncCallbacks {
          * May be invoked inline when enabled in the ledger configuration, including on the calling thread for a cache
          * hit. The default ledger configuration restricts ordinary cursor read completions to the ledger executor,
          * with bounded inline completion when already on that executor.
-         * The broker enables inline completion on other threads by default. At the nesting limit, enabled mode
+         * The broker enables inline completion on other threads by default. Callbacks that issue another read
+         * before returning can nest inline completions. At the nesting limit, enabled mode
          * may continue on a JVM common-pool worker without Netty or ledger-executor thread affinity; it falls back
          * to the ledger executor when common-pool parallelism is at most one.
          * The recipient owns the returned entries and must release each entry after processing or discarding it,

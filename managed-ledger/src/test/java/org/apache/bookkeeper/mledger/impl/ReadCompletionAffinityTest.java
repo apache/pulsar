@@ -511,8 +511,10 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
     @Test(dataProvider = "rejectedDepthLimitCompletionModes")
     public void testRejectedLedgerExecutorAfterDepthLimitReleasesEntriesAndCompletesFailureOnce(boolean inline)
             throws Exception {
-        if (inline && ForkJoinPool.getCommonPoolParallelism() > 1) {
-            throw new SkipException("Inline ledger-executor fallback requires a fresh test JVM with "
+        int commonPoolParallelism = ForkJoinPool.getCommonPoolParallelism();
+        if (inline && commonPoolParallelism > 1) {
+            throw new SkipException("Inline ledger-executor fallback requires effective common-pool parallelism <= 1; "
+                    + "observed " + commonPoolParallelism + ". Try a fresh test JVM with "
                     + "-Djava.util.concurrent.ForkJoinPool.common.parallelism=1");
         }
         ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("completion-depth-rejection-" + inline,
