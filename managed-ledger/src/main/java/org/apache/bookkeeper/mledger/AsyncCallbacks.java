@@ -104,7 +104,7 @@ public interface AsyncCallbacks {
 
         /**
          * May be invoked inline, including for validation failures before an asynchronous read is started.
-         * A rejected handoff to the ledger executor can fail after the cursor position advances. Recovery must
+         * A rejected completion handoff can fail after the cursor position advances. Recovery must
          * restore the required position before reading again.
          */
         void readEntriesFailed(ManagedLedgerException exception, Object ctx);

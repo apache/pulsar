@@ -26,6 +26,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
@@ -46,6 +47,8 @@ class OpReadEntry implements ReadEntriesCallback {
      * can make progress instead of repeatedly rescheduling itself.
      */
     static final int MAX_NESTED_INLINE_COMPLETIONS = readMaxNestedInlineCompletions(System.getProperties());
+    // Match CompletableFuture's common-pool threshold; a disabled pool can accept work without executing it.
+    private static final boolean USE_COMMON_POOL = ForkJoinPool.getCommonPoolParallelism() > 1;
 
     static {
         log.debug().attr("maxReadCompletionDepth", MAX_NESTED_INLINE_COMPLETIONS)
@@ -332,8 +335,12 @@ class OpReadEntry implements ReadEntriesCallback {
             }
         } else {
             try {
-                // Queue even on the ledger executor so the current callback stack can unwind.
-                cursor.ledger.getExecutor().execute(() -> completeWithDepthLimit(ctx));
+                // Queue so the current callback stack can unwind. Legacy mode retains ledger-executor affinity.
+                if (cursor.ledger.isReadEntriesCallbackInline() && USE_COMMON_POOL) {
+                    ForkJoinPool.commonPool().execute(() -> completeWithDepthLimit(ctx));
+                } else {
+                    cursor.ledger.getExecutor().execute(() -> completeWithDepthLimit(ctx));
+                }
             } catch (RejectedExecutionException e) {
                 failCompletion(e, ctx);
             }

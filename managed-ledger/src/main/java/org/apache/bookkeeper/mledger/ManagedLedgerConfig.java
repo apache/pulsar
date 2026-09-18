@@ -424,8 +424,10 @@ public class ManagedLedgerConfig {
      * returns. When disabled, completion is restricted to the ledger executor, as before: it runs inline when
      * already on that executor and is queued otherwise. This also restores the Exclusive/Failover cache-hit
      * handoff used before the per-callback inline optimization in PR #26619. Nested completion is bounded by a
-     * queued handoff to the ledger executor in both modes. The JVM-wide system property
-     * {@code pulsar.managedLedger.maxReadCompletionDepth} controls this limit (default 10, values below 1 use 1).
+     * queued handoff to the JVM common ForkJoinPool when enabled and to the ledger executor when disabled.
+     * If common-pool parallelism is at most 1, enabled mode also uses the ledger executor. The JVM-wide system
+     * property {@code pulsar.managedLedger.maxReadCompletionDepth} controls this limit (default 10, values below
+     * 1 use 1).
      * A limit of 1 queues every subsequent read completion in a nested cached-read chain. Set the property at
      * JVM startup; later changes have no effect.
      *

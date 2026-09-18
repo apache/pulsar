@@ -40,6 +40,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ForkJoinTask;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -156,19 +158,27 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 30000)
-    public void testNestedCacheHitsQueueAtDepthLimitAndIndependentReadOvertakes() throws Exception {
+    public void testNestedCacheHitsHopAtDepthLimitAndIndependentReadOvertakes() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("completion-depth-limit", inlineConfig());
-        CountDownLatch releaseWorker = new CountDownLatch(1);
+        CountDownLatch releaseQueuedCompletion = new CountDownLatch(1);
         try {
             ManagedCursor nestedCursor = ledger.openCursor("nested");
             ManagedCursor independentCursor = ledger.openCursor("independent");
             int count = OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS + 1;
+            List<Position> positions = new ArrayList<>(count);
             for (int i = 0; i < count; i++) {
-                ledger.addEntry(new byte[] {(byte) i});
+                positions.add(ledger.addEntry(new byte[] {(byte) i}));
+            }
+            ledger.entryCache.clear();
+            List<ByteBuf> cachedData = new ArrayList<>(count);
+            for (int i = 0; i < count; i++) {
+                cachedData.add(cacheEntry(ledger, positions.get(i), (byte) i));
             }
             assertThat(ledger.entryCache.getSize()).isPositive();
 
-            Thread worker = blockWorker(ledger, releaseWorker);
+            CompletableFuture<Thread> ledgerWorker = new CompletableFuture<>();
+            ledger.getExecutor().execute(() -> ledgerWorker.complete(Thread.currentThread()));
+            Thread worker = ledgerWorker.get(10, TimeUnit.SECONDS);
             Thread caller = Thread.currentThread();
             assertThat(caller).isNotSameAs(worker);
 
@@ -176,7 +186,10 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
             AtomicInteger laterCompletionOrder = new AtomicInteger();
             AtomicInteger independentOrder = new AtomicInteger();
             AtomicInteger queuedOrder = new AtomicInteger();
+            AtomicInteger failures = new AtomicInteger();
             AtomicReference<Thread> unexpectedInlineThread = new AtomicReference<>();
+            AtomicReference<ForkJoinPool> queuedPool = new AtomicReference<>();
+            CompletableFuture<Thread> queuedCompletionStarted = new CompletableFuture<>();
             CompletableFuture<Thread> queuedCompletion = new CompletableFuture<>();
             nestedCursor.asyncReadEntries(1, new ReadEntriesCallback() {
                 @Override
@@ -189,6 +202,19 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
                         }
                         nestedCursor.asyncReadEntries(1, this, null, PositionFactory.LATEST);
                     } else {
+                        queuedPool.set(ForkJoinTask.getPool());
+                        queuedCompletionStarted.complete(Thread.currentThread());
+                        try {
+                            if (!releaseQueuedCompletion.await(20, TimeUnit.SECONDS)) {
+                                queuedCompletion.completeExceptionally(
+                                        new IllegalStateException("Timed out waiting to release queued completion"));
+                                return;
+                            }
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            queuedCompletion.completeExceptionally(e);
+                            return;
+                        }
                         queuedOrder.set(laterCompletionOrder.incrementAndGet());
                         queuedCompletion.complete(Thread.currentThread());
                     }
@@ -196,12 +222,22 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
 
                 @Override
                 public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    failures.incrementAndGet();
+                    queuedCompletionStarted.completeExceptionally(exception);
                     queuedCompletion.completeExceptionally(exception);
                 }
             }, null, PositionFactory.LATEST);
 
-            assertThat(nestedCompletions.get()).isEqualTo(OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS);
+            Thread queuedThread = queuedCompletionStarted.get(10, TimeUnit.SECONDS);
+            assertThat(nestedCompletions.get()).isEqualTo(count);
             assertThat(unexpectedInlineThread.get()).isNull();
+            assertThat(queuedThread).isNotSameAs(caller);
+            if (ForkJoinPool.getCommonPoolParallelism() > 1) {
+                assertThat(queuedPool.get()).isSameAs(ForkJoinPool.commonPool());
+                assertThat(queuedThread).isNotSameAs(worker);
+            } else {
+                assertThat(queuedThread).isSameAs(worker);
+            }
             assertThat(queuedCompletion).isNotDone();
 
             // A separate cursor makes this completion independent. Overlapping active reads on one cursor
@@ -225,11 +261,16 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
             assertThat(independentOrder.get()).isEqualTo(1);
             assertThat(queuedCompletion).isNotDone();
 
-            releaseWorker.countDown();
-            assertThat(queuedCompletion.get(10, TimeUnit.SECONDS)).isSameAs(worker);
+            releaseQueuedCompletion.countDown();
+            assertThat(queuedCompletion.get(10, TimeUnit.SECONDS)).isSameAs(queuedThread);
             assertThat(queuedOrder.get()).isEqualTo(2);
+            assertThat(nestedCompletions.get()).isEqualTo(count);
+            assertThat(failures.get()).isZero();
+            for (ByteBuf data : cachedData) {
+                assertThat(data.refCnt()).isEqualTo(1); // Only the cache retains the buffer after completion.
+            }
         } finally {
-            releaseWorker.countDown();
+            releaseQueuedCompletion.countDown();
             ledger.close();
         }
     }
@@ -382,7 +423,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
     public void testRejectedLedgerExecutorAfterDepthLimitReleasesEntriesAndCompletesFailureOnce()
             throws Exception {
         ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("completion-depth-rejection",
-                inlineConfig()));
+                rawEntryConfig()));
         try {
             ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("cursor");
             int count = OpReadEntry.MAX_NESTED_INLINE_COMPLETIONS + 1;
@@ -401,6 +442,7 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
             Position rejectedPosition = positions.get(count - 1);
             assertThat(rejectedData).isNotNull();
             ThreadBoundExecutor rejectingExecutor = mock(ThreadBoundExecutor.class);
+            doReturn(true).when(rejectingExecutor).isCurrentThread();
             doThrow(new RejectedExecutionException("test depth-limit handoff rejection"))
                     .when(rejectingExecutor).execute(any(Runnable.class));
             doReturn(rejectingExecutor).when(ledger).getExecutor();

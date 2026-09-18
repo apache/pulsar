@@ -2740,6 +2740,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "False also restores the Exclusive/Failover cache-hit handoff used before PR #26619. "
                     + "The JVM-wide property pulsar.managedLedger.maxReadCompletionDepth limits nested inline "
                     + "callbacks in both modes (default 10, values below 1 use 1); set it at JVM startup. "
+                    + "At the limit, enabled mode queues to the JVM common ForkJoinPool; disabled mode queues to "
+                    + "the ledger executor. If common-pool parallelism is at most 1, both use the ledger executor. "
                     + "A limit of 1 queues every subsequent completion in a nested cached-read chain. "
                     + "This is not a dynamic setting: the completion policy is captured when a managed "
                     + "ledger opens and does not change for already loaded topics. Failure callbacks, single-entry "
