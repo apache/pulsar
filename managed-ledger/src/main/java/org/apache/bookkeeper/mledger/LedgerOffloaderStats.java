@@ -44,6 +44,12 @@ public interface LedgerOffloaderStats extends AutoCloseable {
 
     void recordReadOffloadBytes(String topic, long size);
 
+    default void recordReadOffloadCacheHit(String topic, long size) {
+    }
+
+    default void recordReadOffloadCacheMiss(String topic, long size) {
+    }
+
     void recordReadOffloadIndexLatency(String topic, long latency, TimeUnit unit);
 
     void recordReadOffloadDataLatency(String topic, long latency, TimeUnit unit);
