@@ -48,6 +48,11 @@ dependencies {
     implementation(libs.guava)
     api(libs.gson)
     api(libs.asynchttpclient)
+    // AsyncHttpConnector injects Netty's Socks5ProxyHandler directly into the AHC channel
+    // pipeline to implement SOCKS5 support (AHC's own proxy wiring is broken for SOCKS).
+    implementation(libs.netty.handler.proxy)
+    implementation(libs.netty.codec.socks)
+    implementation(libs.netty.transport)
     implementation(libs.commons.lang3)
     implementation(libs.completable.futures)
     // PIP-478 stage 4b: the admin AsyncHttpConnector rides the PIP-478 TLS SPI on the new path, whose init
