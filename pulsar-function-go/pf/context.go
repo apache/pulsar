@@ -202,6 +202,17 @@ func (c *FunctionContext) RecordMetric(metricName string, metricValue float64) {
 	v.(prometheus.Observer).Observe(metricValue)
 }
 
+// GetMetricsRegistry returns the Prometheus registry that backs the function's
+// metrics endpoint, so a function can register additional collectors (counters,
+// gauges, histograms, ...) that are then exposed on the same endpoint alongside
+// the SDK's own metrics. Metric names prefixed with "pulsar_function_" are
+// reserved for SDK metrics. A collector whose fully-qualified name collides with
+// an already-registered metric fails to register: Register returns an error,
+// while MustRegister panics.
+func (c *FunctionContext) GetMetricsRegistry() prometheus.Registerer {
+	return reg
+}
+
 // An unexported type to be used as the key for types in this package. This
 // prevents collisions with keys defined in other packages.
 type key struct{}
