@@ -2940,6 +2940,8 @@ public class ServerCnxTest {
         doReturn(CompletableFuture.completedFuture(true)).when(authorizationService)
                 .allowTopicOperationAsync(Mockito.any(),
                         Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationService)
+                .allowTopicAutoCreationAsync(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationService).when(brokerService).getAuthorizationService();
         svcConfig.setAuthenticationEnabled(true);
         svcConfig.setAuthorizationEnabled(true);
@@ -4306,6 +4308,8 @@ public class ServerCnxTest {
         CompletableFuture<Boolean> authorizationFuture = new CompletableFuture<>();
         doReturn(authorizationFuture).when(authorizationService)
                 .allowTopicOperationAsync(any(), any(), any(), any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationService)
+                .allowTopicAutoCreationAsync(any(), any(), any(), any(), any());
 
         TopicName topicName = TopicName.get(successTopicName);
         Policies policies = new Policies();

@@ -159,13 +159,14 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
 
     /**
      * A lookup for a {@code topic://...} scalable topic that doesn't exist yet. Auto-create it
-     * with a single initial segment — gated by the same broker/namespace auto-topic-creation
-     * policy as regular topics ({@link BrokerService#isAllowAutoTopicCreationAsync}) — then
-     * return its layout. If the policy disallows it, fail with the same not-found error as
-     * before so the client sees no behavioural change when auto-creation is off.
+     * with a single initial segment — gated like regular topics by the broker/namespace
+     * auto-topic-creation policy and the client's authorization
+     * ({@link ServerCnx#isAllowAutoTopicCreationAsync}) — then return its layout. If either
+     * disallows it, fail with the same not-found error as before so the client sees no
+     * behavioural change when auto-creation is off.
      */
     private CompletableFuture<ScalableTopicLayoutResponse> maybeAutoCreateAndBuildResponse() {
-        return brokerService.isAllowAutoTopicCreationAsync(scalableTopicName)
+        return cnx.isAllowAutoTopicCreationAsync(scalableTopicName)
                 .thenCompose(allowed -> {
                     if (!allowed) {
                         return CompletableFuture.failedFuture(
