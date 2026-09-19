@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertThrows;
-import static org.testng.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.common.collect.Sets;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -44,6 +42,9 @@ import org.testng.annotations.Test;
 
 /**
  * Topic auto-creation goes through {@code AuthorizationProvider#allowTopicAutoCreationAsync}.
+ *
+ * <p>Runs its own broker rather than {@code SharedPulsarBaseTest}, because it needs authentication and a custom
+ * authorization provider.
  */
 @Test(groups = "broker-api")
 public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
@@ -124,7 +125,7 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         }
     }
 
-    @Test
+    @Test(timeOut = 60000)
     public void testProducerAutoCreationFollowsAuthorization() throws Exception {
         String topic = "persistent://" + NAMESPACE + "/producer-auto-creation";
         @Cleanup
@@ -132,17 +133,18 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         @Cleanup
         PulsarClient creatorClient = newClient(CREATOR_ROLE, pulsar.getBrokerServiceUrl());
 
-        assertThrows(PulsarClientException.class, () -> userClient.newProducer().topic(topic).create());
-        assertFalse(topicExists(topic));
+        assertThatThrownBy(() -> userClient.newProducer().topic(topic).create())
+                .as("a producer of a role that may not create topics").isInstanceOf(PulsarClientException.class);
+        assertThat(topicExists(topic)).as("topic created by a refused producer").isFalse();
 
         creatorClient.newProducer().topic(topic).create().close();
-        assertTrue(topicExists(topic));
+        assertThat(topicExists(topic)).as("topic created by an allowed producer").isTrue();
 
         // Once the topic exists, a role that may not create topics uses it as before.
         userClient.newProducer().topic(topic).create().close();
     }
 
-    @Test
+    @Test(timeOut = 60000)
     public void testConsumerAutoCreationFollowsAuthorization() throws Exception {
         String topic = "persistent://" + NAMESPACE + "/consumer-auto-creation";
         @Cleanup
@@ -150,17 +152,17 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         @Cleanup
         PulsarClient creatorClient = newClient(CREATOR_ROLE, pulsar.getBrokerServiceUrl());
 
-        assertThrows(PulsarClientException.class,
-                () -> userClient.newConsumer().topic(topic).subscriptionName("sub").subscribe());
-        assertFalse(topicExists(topic));
+        assertThatThrownBy(() -> userClient.newConsumer().topic(topic).subscriptionName("sub").subscribe())
+                .as("a consumer of a role that may not create topics").isInstanceOf(PulsarClientException.class);
+        assertThat(topicExists(topic)).as("topic created by a refused consumer").isFalse();
 
         creatorClient.newConsumer().topic(topic).subscriptionName("sub").subscribe().close();
-        assertTrue(topicExists(topic));
+        assertThat(topicExists(topic)).as("topic created by an allowed consumer").isTrue();
 
         userClient.newConsumer().topic(topic).subscriptionName("sub").subscribe().close();
     }
 
-    @Test
+    @Test(timeOut = 60000)
     public void testHttpLookupAutoCreationFollowsAuthorization() throws Exception {
         String topic = "persistent://" + NAMESPACE + "/http-lookup-auto-creation";
         @Cleanup
@@ -168,14 +170,16 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
         @Cleanup
         PulsarClient creatorClient = newClient(CREATOR_ROLE, brokerUrl.toString());
 
-        assertThrows(PulsarClientException.class, () -> userClient.newProducer().topic(topic).create());
-        assertFalse(topicExists(topic));
+        assertThatThrownBy(() -> userClient.newProducer().topic(topic).create())
+                .as("a producer looking up over HTTP with a role that may not create topics")
+                .isInstanceOf(PulsarClientException.class);
+        assertThat(topicExists(topic)).as("topic created by a refused HTTP lookup").isFalse();
 
         creatorClient.newProducer().topic(topic).create().close();
-        assertTrue(topicExists(topic));
+        assertThat(topicExists(topic)).as("topic created by an allowed HTTP lookup").isTrue();
     }
 
-    @Test
+    @Test(timeOut = 60000)
     public void testPartitionedAutoCreationFollowsAuthorization() throws Exception {
         cleanup();
         autoCreationType = TopicType.PARTITIONED;
@@ -187,12 +191,14 @@ public class TopicAutoCreationAuthorizationTest extends ProducerConsumerBase {
             @Cleanup
             PulsarClient creatorClient = newClient(CREATOR_ROLE, pulsar.getBrokerServiceUrl());
 
-            assertThrows(PulsarClientException.class, () -> userClient.newProducer().topic(topic).create());
-            assertFalse(topicExists(topic));
+            assertThatThrownBy(() -> userClient.newProducer().topic(topic).create())
+                    .as("a producer of a role that may not create partitioned topics")
+                    .isInstanceOf(PulsarClientException.class);
+            assertThat(topicExists(topic)).as("partitioned topic created by a refused producer").isFalse();
 
             creatorClient.newProducer().topic(topic).create().close();
-            assertEquals(pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(topic)).get()
-                    .partitions, conf.getDefaultNumPartitions());
+            assertThat(pulsar.getBrokerService().fetchPartitionedTopicMetadataAsync(TopicName.get(topic)).get()
+                    .partitions).as("partitions of the auto-created topic").isEqualTo(conf.getDefaultNumPartitions());
         } finally {
             autoCreationType = TopicType.NON_PARTITIONED;
         }
