@@ -51,7 +51,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -249,7 +248,8 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
 
         final Throwable ex = syncGetException(pulsarClientOther
                                                   .getTransactionCoordinatorClient()
-                                                  .addPublishPartitionToTxnAsync(transaction.getTxnID(), List.of(TOPIC)));
+                                                  .addPublishPartitionToTxnAsync(transaction.getTxnID(),
+                                                                                 List.of(TOPIC)));
 
         final TxnMeta txnMeta = pulsarServiceList.get(0).getTransactionMetadataStoreService()
                                                  .getTxnMeta(transaction.getTxnID()).get();
