@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +54,7 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
     @Test(dataProvider = "batchRecovery")
     public void testPartialBatchAckPersistenceRetainsConfiguredCount(int batchCount, boolean metadataStore)
             throws Exception {
-        ManagedLedgerConfig config = rawEntryConfig()
+        ManagedLedgerConfig config = defaultConfig()
                 .setMaxUnackedRangesToPersistInMetadataStore(metadataStore ? 20 : -1);
         config.setDeletionAtBatchIndexLevelEnabled(true);
         config.setMaxBatchDeletedIndexToPersist(2);
@@ -109,7 +109,7 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
 
     @Test
     public void testMetadataStoreRecoveryPreservesAllCursorState() throws Exception {
-        ManagedLedgerConfig config = rawEntryConfig()
+        ManagedLedgerConfig config = defaultConfig()
                 .setMaxUnackedRangesToPersistInMetadataStore(20);
         config.setDeletionAtBatchIndexLevelEnabled(true);
         String name = "tenant/ns/persistent/combined-metadata-store-recovery";
@@ -150,7 +150,7 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
     @Test(dataProvider = "booleans")
     public void testMetadataStoreRecoveryHandlesMissingOrDisabledBatchIndexAck(boolean recoverBatchIndexAck)
             throws Exception {
-        ManagedLedgerConfig writeConfig = rawEntryConfig()
+        ManagedLedgerConfig writeConfig = defaultConfig()
                 .setMaxUnackedRangesToPersistInMetadataStore(20);
         writeConfig.setDeletionAtBatchIndexLevelEnabled(!recoverBatchIndexAck);
         String name = "tenant/ns/persistent/batch-metadata-compatibility-" + recoverBatchIndexAck;
@@ -169,7 +169,7 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
         assertThat(persisted.getBatchedEntryDeletionIndexInfosCount())
                 .isEqualTo(recoverBatchIndexAck ? 0 : 1);
 
-        ManagedLedgerConfig recoveryConfig = rawEntryConfig()
+        ManagedLedgerConfig recoveryConfig = defaultConfig()
                 .setMaxUnackedRangesToPersistInMetadataStore(20);
         recoveryConfig.setDeletionAtBatchIndexLevelEnabled(recoverBatchIndexAck);
         @Cleanup

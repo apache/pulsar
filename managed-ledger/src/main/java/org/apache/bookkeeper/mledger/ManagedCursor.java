@@ -43,6 +43,14 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
  *
  * <p/>The ManagedCursor is used to read from the ManagedLedger and to signal when the consumer is done with the
  * messages that it has read before.
+ *
+ * <p>Depending on the completion policy in {@link ManagedLedgerConfig}, successful read callbacks may run before the
+ * asynchronous read method returns, including on the calling thread for a cache hit, or on another completing thread.
+ * Failure callbacks can run inline regardless of that policy. Callers must coordinate reads advancing the cursor and
+ * processing of their results: finish processing a result, or safely hand off its ownership, before the next read.
+ * The next read may be initiated from a callback, but callers must account for reentrant completion. Do not infer
+ * callback ordering or exclusive access to caller state from the order of entries within a result or the callback
+ * thread. See {@link ReadEntriesCallback} for completion and entry ownership responsibilities.
  */
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
@@ -162,8 +170,11 @@ public interface ManagedCursor {
     /**
      * Asynchronously read entries from the ManagedLedger.
      *
+     * <p>The byte limit estimates the entry count using average entry sizes; it is not a strict limit on the returned
+     * entries' total size. A logical read may use multiple storage requests to retrieve the requested entry range.
+     *
      * @param numberOfEntriesToRead maximum number of entries to return
-     * @param maxSizeBytes          max size in bytes of the entries to return
+     * @param maxSizeBytes          estimated maximum size in bytes of the entries to return
      * @param callback              callback object
      * @param ctx                   opaque context
      * @param maxPosition           max position can read
