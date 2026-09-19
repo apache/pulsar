@@ -19,17 +19,24 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.Collections;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumersClassic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
@@ -57,6 +64,7 @@ public class SharedSubscriptionUnackedMessagesAccountingTest extends ProducerCon
     protected void doInitConf() throws Exception {
         super.doInitConf();
         conf.setSubscriptionSharedUseClassicPersistentImplementation(classic);
+        conf.setSubscriptionKeySharedUseClassicPersistentImplementation(classic);
         conf.setMaxUnackedMessagesPerBroker(1000);
     }
 
@@ -118,6 +126,63 @@ public class SharedSubscriptionUnackedMessagesAccountingTest extends ProducerCon
                 dispatcher.removeConsumer(brokerConsumer);
                 assertUnackedMessagesCleared(dispatcher, brokerService, "repeated removal");
             }
+        }
+    }
+
+    @DataProvider
+    public Object[][] subscriptionTypes() {
+        return new Object[][] {{SubscriptionType.Shared}, {SubscriptionType.Key_Shared}};
+    }
+
+    @Test(dataProvider = "subscriptionTypes", timeOut = 60_000)
+    public void testStaleRemovalDoesNotRemoveEqualReplacement(SubscriptionType subscriptionType) throws Exception {
+        String topicName = newTopicName();
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                     .topic(topicName).enableBatching(false).create();
+             org.apache.pulsar.client.api.Consumer<String> client = pulsarClient.newConsumer(Schema.STRING)
+                     .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(subscriptionType)
+                     .consumerName("replacement-test").subscribe()) {
+            producer.send("unacked");
+            assertThat(client.receive(5, TimeUnit.SECONDS)).isNotNull();
+            BrokerService brokerService = pulsar.getBrokerService();
+            PersistentTopic topic = (PersistentTopic) brokerService.getTopicReference(topicName).orElseThrow();
+            AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                    (AbstractPersistentDispatcherMultipleConsumers) topic.getSubscription(SUBSCRIPTION).getDispatcher();
+            Consumer original = dispatcher.getConsumers().get(0);
+            synchronized (dispatcher) {
+                assertThat(original.getUnackedMessages()).isEqualTo(1);
+                dispatcher.removeConsumer(original);
+                assertUnackedMessagesCleared(dispatcher, brokerService, "original removal");
+            }
+            // Use the production subscribe path and the same live connection/protocol identity. No mocked
+            // consumer or manually populated dispatcher collections are needed to create the replacement.
+            Consumer replacement = topic.subscribe(SubscriptionOption.builder()
+                    .cnx(original.cnx()).consumerId(original.consumerId()).consumerName(original.consumerName())
+                    .subscriptionName(SUBSCRIPTION).subType(original.subType()).isDurable(true)
+                    .startMessageId(MessageId.latest).initialPosition(InitialPosition.Latest)
+                    .metadata(Collections.emptyMap()).subscriptionProperties(Optional.empty())
+                    .keySharedMeta(new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT))
+                    .build()).get(10, TimeUnit.SECONDS);
+            try {
+                assertThat(replacement).isNotSameAs(original).isEqualTo(original);
+                assertThat(replacement.hashCode()).isEqualTo(original.hashCode());
+                synchronized (dispatcher) {
+                    dispatcher.removeConsumer(original);
+                    assertThat(dispatcher.getConsumers()).singleElement().isSameAs(replacement);
+                    assertUnackedMessagesCleared(dispatcher, brokerService, "stale removal");
+                }
+                // This also checks Key_Shared selector membership, not just the consumer list.
+                replacement.flowPermits(1);
+                assertThat(client.receive(5, TimeUnit.SECONDS)).as("replacement receives replay").isNotNull();
+                synchronized (dispatcher) {
+                    assertThat(replacement.getUnackedMessages()).isEqualTo(1);
+                    assertThat(dispatcher.getTotalUnackedMessages()).isEqualTo(1);
+                    assertThat(brokerService.getTotalUnackedMessages()).isEqualTo(1);
+                }
+            } finally {
+                replacement.close();
+            }
+            assertUnackedMessagesCleared(dispatcher, brokerService, "replacement removal");
         }
     }
 
