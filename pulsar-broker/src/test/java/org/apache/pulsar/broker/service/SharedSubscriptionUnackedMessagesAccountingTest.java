@@ -19,15 +19,26 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumersClassic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Factory;
@@ -57,7 +68,9 @@ public class SharedSubscriptionUnackedMessagesAccountingTest extends ProducerCon
     protected void doInitConf() throws Exception {
         super.doInitConf();
         conf.setSubscriptionSharedUseClassicPersistentImplementation(classic);
-        conf.setMaxUnackedMessagesPerBroker(1000);
+        conf.setMaxUnackedMessagesPerBroker(UNACKED_MESSAGES);
+        conf.setMaxUnackedMessagesPerSubscription(UNACKED_MESSAGES);
+        conf.setMaxUnackedMessagesPerSubscriptionOnBrokerBlocked(0.5);
     }
 
     @Override
@@ -119,6 +132,136 @@ public class SharedSubscriptionUnackedMessagesAccountingTest extends ProducerCon
                 assertUnackedMessagesCleared(dispatcher, brokerService, "repeated removal");
             }
         }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testAckCompletionRacingWithRemovalDoesNotDebitTwice() throws Exception {
+        String topicName = newTopicName();
+        CountDownLatch pendingAckRemoved = new CountDownLatch(1);
+        CountDownLatch resumeAck = new CountDownLatch(1);
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                     .topic(topicName).enableBatching(false).create();
+             org.apache.pulsar.client.api.Consumer<String> client = pulsarClient.newConsumer(Schema.STRING)
+                     .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Shared)
+                     .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).isAckReceiptEnabled(true).subscribe()) {
+            producer.send("leave-unacked");
+            producer.send("ack-out-of-order");
+            assertThat(client.receive(5, TimeUnit.SECONDS)).isNotNull();
+            Message<String> acked = client.receive(5, TimeUnit.SECONDS);
+            assertThat(acked).isNotNull();
+            BrokerService brokerService = pulsar.getBrokerService();
+            PersistentTopic topic = (PersistentTopic) brokerService.getTopicReference(topicName).orElseThrow();
+            AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                    (AbstractPersistentDispatcherMultipleConsumers) topic.getSubscription(SUBSCRIPTION).getDispatcher();
+            Consumer consumer = dispatcher.getConsumers().get(0);
+            // Pause the real ACK completion after removing its pending entry, before settling the counters.
+            // Acknowledge out of order so mark-delete cleanup cannot consume the entry first.
+            consumer.setPendingAcksRemoveHandler(new PendingAcksMap.PendingAcksRemoveHandler() {
+                @Override
+                public void handleRemoving(Consumer c, long ledgerId, long entryId, int hash, boolean closing) {
+                    pendingAckRemoved.countDown();
+                    try {
+                        assertThat(resumeAck.await(10, TimeUnit.SECONDS)).as("resume ACK completion").isTrue();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new AssertionError(e);
+                    }
+                }
+
+                @Override
+                public void startBatch() { }
+
+                @Override
+                public void endBatch() { }
+            });
+            try {
+                CompletableFuture<Void> ack = client.acknowledgeAsync(acked);
+                assertThat(pendingAckRemoved.await(10, TimeUnit.SECONDS)).as("ACK reached completion").isTrue();
+                synchronized (dispatcher) {
+                    assertThat(consumer.getUnackedMessages()).isEqualTo(2);
+                    dispatcher.removeConsumer(consumer);
+                    assertUnackedMessagesCleared(dispatcher, brokerService, "removal while ACK is paused");
+                }
+                resumeAck.countDown();
+                ack.get(10, TimeUnit.SECONDS);
+                assertUnackedMessagesCleared(dispatcher, brokerService, "late ACK completion");
+                assertThat(consumer.getUnackedMessages()).as("removed consumer balance after late ACK").isZero();
+            } finally {
+                resumeAck.countDown();
+                consumer.setPendingAcksRemoveHandler(null);
+            }
+        } finally {
+            resumeAck.countDown();
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testBrokerUnackedScanDoesNotBlockAckAndConsumerClose() throws Exception {
+        String topicName = newTopicName();
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                     .topic(topicName).enableBatching(false).create();
+             org.apache.pulsar.client.api.Consumer<String> client = pulsarClient.newConsumer(Schema.STRING)
+                     .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Shared)
+                     .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).isAckReceiptEnabled(true).subscribe()) {
+            List<MessageId> messages = new ArrayList<>();
+            for (int i = 0; i < UNACKED_MESSAGES; i++) {
+                producer.send("unacked-" + i);
+                Message<String> message = client.receive(5, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                messages.add(message.getMessageId());
+            }
+            BrokerService brokerService = pulsar.getBrokerService();
+            PersistentTopic topic = (PersistentTopic) brokerService.getTopicReference(topicName).orElseThrow();
+            Subscription subscription = topic.getSubscription(SUBSCRIPTION);
+            AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                    (AbstractPersistentDispatcherMultipleConsumers) subscription.getDispatcher();
+            Consumer consumer = dispatcher.getConsumers().get(0);
+            synchronized (dispatcher) {
+                assertThat(dispatcher.getTotalUnackedMessages()).isEqualTo(UNACKED_MESSAGES);
+                assertThat(dispatcher.isBlockedDispatcherOnUnackedMsgs()).isTrue();
+            }
+
+            long scannerThreadId;
+            synchronized (subscription) {
+                // Hold the same monitor as consumer close while the real broker scan reaches getDispatcher().
+                // Observe the JVM's lock owner instead of mocking the scan or sleeping to guess its timing.
+                brokerService.checkUnAckMessageDispatching();
+                assertThat(brokerService.isBrokerDispatchingBlocked()).isTrue();
+                long ownerThreadId = Thread.currentThread().getId();
+                ThreadInfo scanner = Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                        Arrays.stream(ManagementFactory.getThreadMXBean().dumpAllThreads(false, false))
+                                .filter(info -> info.getThreadState() == Thread.State.BLOCKED
+                                        && info.getLockOwnerId() == ownerThreadId
+                                        && info.getLockInfo().getIdentityHashCode()
+                                                == System.identityHashCode(subscription)
+                                        && isUnackedScan(info))
+                                .findFirst().orElse(null), Objects::nonNull);
+                scannerThreadId = scanner.getThreadId();
+
+                // Keep the first entry unacked so mark-delete cleanup does not obscure the ACK completion path.
+                // Crossing the broker's dispatcher threshold calls unblockDispatchersOnUnAckMessages.
+                // This bounded wait fails on the old lock order and releases the subscription monitor, so the
+                // regression cannot strand the test JVM in an unrecoverable three-thread deadlock.
+                client.acknowledgeAsync(messages.subList(1, messages.size())).get(5, TimeUnit.SECONDS);
+                assertThat(consumer.getUnackedMessages()).isEqualTo(1);
+                assertThat(dispatcher.getTotalUnackedMessages()).isEqualTo(1);
+                assertThat(brokerService.getTotalUnackedMessages()).isEqualTo(1);
+                assertThat(dispatcher.isBlockedDispatcherOnUnackedMsgs()).isFalse();
+                consumer.close();
+                assertUnackedMessagesCleared(dispatcher, brokerService, "close while broker scan is waiting");
+            }
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                    !isUnackedScan(ManagementFactory.getThreadMXBean().getThreadInfo(scannerThreadId, 100)));
+            brokerService.checkUnAckMessageDispatching();
+            assertThat(brokerService.isBrokerDispatchingBlocked()).isFalse();
+            assertThat(dispatcher.isBlockedDispatcherOnUnackedMsgs()).isFalse();
+        }
+    }
+
+    private static boolean isUnackedScan(ThreadInfo info) {
+        return info != null && Arrays.stream(info.getStackTrace()).anyMatch(frame ->
+                frame.getClassName().equals(BrokerService.class.getName())
+                        && frame.getMethodName().equals("blockDispatchersWithLargeUnAckMessages"));
     }
 
     private void assertUnackedMessagesCleared(AbstractPersistentDispatcherMultipleConsumers dispatcher,

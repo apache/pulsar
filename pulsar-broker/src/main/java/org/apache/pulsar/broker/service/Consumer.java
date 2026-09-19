@@ -146,6 +146,11 @@ public class Consumer {
     private static final AtomicIntegerFieldUpdater<Consumer> UNACKED_MESSAGES_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(Consumer.class, "unackedMessages");
     private volatile int unackedMessages = 0;
+    // Serializes consumer and aggregate balances with removal. Never acquire the dispatcher or pending-acks
+    // lock while holding this lock. Broker throttling must not acquire those locks either; dispatching is
+    // scheduled asynchronously after releasing the broker's unacked-message lock.
+    private final Object unackedMessagesLock = new Object();
+    private boolean unackedMessagesAccountingClosed;
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
     private final Map<String, String> metadata;
@@ -1401,11 +1406,17 @@ public class Consumer {
         return subscription;
     }
 
-    private int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
+    @VisibleForTesting
+    int addAndGetUnAckedMsgs(Consumer consumer, int ackedMessages) {
         int unackedMsgs = 0;
         if (isPersistentTopic && Subscription.isIndividualAckMode(subType)) {
-            subscription.addUnAckedMessages(ackedMessages);
-            unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
+            synchronized (consumer.unackedMessagesLock) {
+                if (consumer.unackedMessagesAccountingClosed) {
+                    return consumer.unackedMessages;
+                }
+                unackedMsgs = UNACKED_MESSAGES_UPDATER.addAndGet(consumer, ackedMessages);
+                consumer.subscription.addUnAckedMessages(ackedMessages);
+            }
         }
         if (unackedMsgs < 0 && System.currentTimeMillis() - negativeUnackedMsgsTimestamp >= 10_000) {
             negativeUnackedMsgsTimestamp = System.currentTimeMillis();
@@ -1417,9 +1428,25 @@ public class Consumer {
         return unackedMsgs;
     }
 
+    /**
+     * Detach this consumer's unacked balance from the subscription exactly once. ACK persistence completions,
+     * redelivery and mark-delete cleanup may still finish afterwards, but no longer own an aggregate balance.
+     * Called by the dispatcher when unregistering the consumer.
+     */
+    public void closeUnackedMessagesAccounting() {
+        synchronized (unackedMessagesLock) {
+            if (!unackedMessagesAccountingClosed) {
+                unackedMessagesAccountingClosed = true;
+                clearUnAckedMsgs();
+            }
+        }
+    }
+
     private void clearUnAckedMsgs() {
-        int unaAckedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
-        subscription.addUnAckedMessages(-unaAckedMsgs);
+        synchronized (unackedMessagesLock) {
+            int unackedMsgs = UNACKED_MESSAGES_UPDATER.getAndSet(this, 0);
+            subscription.addUnAckedMessages(-unackedMsgs);
+        }
     }
 
     public boolean isPreciseDispatcherFlowControl() {
