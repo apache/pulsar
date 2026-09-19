@@ -1024,7 +1024,10 @@ public class PersistentSubscription extends AbstractSubscription {
                         forceReset.complete(false);
                     }
                 }).exceptionally(ex -> {
-                    forceReset.completeExceptionally(ex);
+                    // Without readable compacted data, let the managed ledger validate the reset
+                    // against the original entries. Ordinary readers must still be able to seek;
+                    // compacted reads continue to surface the compaction failure independently.
+                    forceReset.complete(false);
                     return null;
                 });
             }
