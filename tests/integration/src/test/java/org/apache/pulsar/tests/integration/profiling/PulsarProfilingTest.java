@@ -28,7 +28,11 @@ import org.testng.annotations.Test;
  * This is the variant that {@code ./gradlew :tests:integration:profilingIntegrationTest} runs by
  * default. See {@link AbstractPulsarProfilingTest} for how to run it and where the recordings land,
  * and {@link PulsarProfilingV4Test} for the v4 counterpart.
+ *
+ * @deprecated Use the standalone performance launcher under {@code tests/performance} for new scenarios. This
+ * TestNG wrapper remains available while its v5 pulsar-perf scenario is migrated.
  */
+@Deprecated(forRemoval = false)
 public class PulsarProfilingTest extends AbstractPulsarProfilingTest {
 
     @Override
