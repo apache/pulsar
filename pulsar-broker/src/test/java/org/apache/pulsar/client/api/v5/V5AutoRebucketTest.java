@@ -79,9 +79,8 @@ public class V5AutoRebucketTest extends V5ClientBaseTest {
         long successorId = admin.scalableTopics().getMetadata(topic).getSegments().values().stream()
                 .filter(ScalableTopicMetadata.SegmentInfo::isActive).findFirst().orElseThrow()
                 .getSegmentId();
-        String successorTopic = admin.scalableTopics().getStats(topic).getSegments().values()
-                .stream().filter(seg -> seg.name().endsWith("-" + successorId)).findFirst()
-                .orElseThrow().name();
+        String successorTopic = admin.scalableTopics().getStats(topic).getLayout().getSegments()
+                .get(successorId).getName();
         Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
             var sub = getTopicReference(successorTopic).orElseThrow().getSubscription(subscription);
             assertTrue(sub != null && sub.getConsumers().size() == 5,

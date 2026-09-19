@@ -73,9 +73,9 @@ public class V5StreamConsumerAckWatermarkTest extends V5ClientBaseTest {
         }
         MessageId last = receiveAll(consumer, n);
 
-        var segments = admin.scalableTopics().getStats(topic).getSegments().values();
+        var segments = admin.scalableTopics().getStats(topic).getLayout().getSegments().values();
         assertEquals(segments.size(), 1, "single-segment topic");
-        var brokerSub = getTopicReference(segments.iterator().next().name()).orElseThrow()
+        var brokerSub = getTopicReference(segments.iterator().next().getName()).orElseThrow()
                 .getSubscription(subscription);
 
         // Between issuing the ack and observing its completion: rewind the cursor to the start,
@@ -115,8 +115,8 @@ public class V5StreamConsumerAckWatermarkTest extends V5ClientBaseTest {
     /** Backlog of {@code subscription} across the scalable topic's segments, read broker-side. */
     private long subscriptionBacklog(String topic, String subscription) throws Exception {
         long total = 0;
-        for (var seg : admin.scalableTopics().getStats(topic).getSegments().values()) {
-            var ref = getTopicReference(seg.name());
+        for (var seg : admin.scalableTopics().getStats(topic).getLayout().getSegments().values()) {
+            var ref = getTopicReference(seg.getName());
             if (ref.isEmpty()) {
                 continue;
             }
