@@ -208,8 +208,9 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
                             TransactionCoordinatorID.get(transaction.getTxnID().getMostSigBits()));
         }
 
-        final Throwable ex = syncGetException((
-                (PulsarClientImpl) pulsarClientOther).getTransactionCoordinatorClient().commitAsync(transaction.getTxnID())
+        final Throwable ex = syncGetException(pulsarClientOther
+                                                  .getTransactionCoordinatorClient()
+                                                  .commitAsync(transaction.getTxnID())
         );
         if (actor.equals("client") || actor.equals("admin")) {
             Assert.assertNull(ex);
@@ -246,11 +247,12 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
                             TransactionCoordinatorID.get(transaction.getTxnID().getMostSigBits()));
         }
 
-        final Throwable ex = syncGetException(((PulsarClientImpl) pulsarClientOther)
-                                                  .getTransactionCoordinatorClient().addPublishPartitionToTxnAsync(transaction.getTxnID(), List.of(TOPIC)));
+        final Throwable ex = syncGetException(pulsarClientOther
+                                                  .getTransactionCoordinatorClient()
+                                                  .addPublishPartitionToTxnAsync(transaction.getTxnID(), List.of(TOPIC)));
 
         final TxnMeta txnMeta = pulsarServiceList.get(0).getTransactionMetadataStoreService()
-                .getTxnMeta(transaction.getTxnID()).get();
+                                                 .getTxnMeta(transaction.getTxnID()).get();
         if (actor.equals("client") || actor.equals("admin")) {
             Assert.assertNull(ex);
             Assert.assertEquals(txnMeta.producedPartitions(), List.of(TOPIC));
@@ -284,8 +286,9 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
                             TransactionCoordinatorID.get(transaction.getTxnID().getMostSigBits()));
         }
 
-        final Throwable ex = syncGetException(((PulsarClientImpl) pulsarClientOther)
-                                                  .getTransactionCoordinatorClient().addSubscriptionToTxnAsync(transaction.getTxnID(), TOPIC, "sub"));
+        final Throwable ex = syncGetException(pulsarClientOther
+                                                  .getTransactionCoordinatorClient()
+                                                  .addSubscriptionToTxnAsync(transaction.getTxnID(), TOPIC, "sub"));
 
         final TxnMeta txnMeta = pulsarServiceList.get(0).getTransactionMetadataStoreService()
                 .getTxnMeta(transaction.getTxnID()).get();

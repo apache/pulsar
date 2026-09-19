@@ -137,7 +137,8 @@ public class TcMetadataDiscoveryTest extends TcMetadataDiscoveryTestBase {
 
         // Routing assertion: a v4 SDK client must NOT use metadata-store discovery even though the
         // cluster has the v5 coordinator enabled — it stays on the legacy assign-topic coordinator.
-        TransactionCoordinatorClientImpl tcClient = (TransactionCoordinatorClientImpl) client.getTransactionCoordinatorClient();
+        TransactionCoordinatorClientImpl tcClient =
+            (TransactionCoordinatorClientImpl) client.getTransactionCoordinatorClient();
         assertFalse(tcClient.isUsingMetadataDiscovery(),
                 "v4 SDK client must use the legacy coordinator, not metadata-store discovery");
 
