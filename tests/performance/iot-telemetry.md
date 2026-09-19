@@ -68,6 +68,14 @@ rate-limited workload, set `warmupSeconds`; for an unrestricted workload, set `w
 `producer-summary.json` records the warmup and measurement counts and epoch-millisecond measurement boundaries so
 the same window can be selected from broker and client JFRs.
 
+The base scenario also keeps incidental storage maintenance outside normal measurement windows. Its managed-ledger
+entry, size and time limits allow the topic and cursor ledgers to remain open throughout ordinary runs. BookKeeper
+ledger garbage collection waits for one day, entry-log compaction is disabled, and the journal size limit is raised.
+The test containers are ephemeral, so delayed reclamation cannot accumulate between runs. These settings isolate
+the broker messaging path; they are benchmark controls rather than production sizing recommendations. Use a
+separate scenario with normal or deliberately short limits when measuring rollover, recovery, deletion, compaction,
+or long-running storage behavior. BookKeeper entry-log flushing and disk-space checks remain enabled.
+
 Set `rate: 0` together with a positive `numberOfMessages` to remove producer pacing. Set
 `precreateProducers: true` to open every gateway/topic producer before throughput timing begins. The producer
 summary reports `messagesPerSecond` only for the post-warmup measurement phase and retains
