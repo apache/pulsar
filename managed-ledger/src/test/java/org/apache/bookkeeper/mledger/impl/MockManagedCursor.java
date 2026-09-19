@@ -379,15 +379,6 @@ class MockManagedCursor implements ManagedCursor {
     }
 
     @Override
-    public void setThrottleMarkDelete(double throttleMarkDelete) {
-    }
-
-    @Override
-    public double getThrottleMarkDelete() {
-        return -1;
-    }
-
-    @Override
     public ManagedLedger getManagedLedger() {
         return null;
     }
