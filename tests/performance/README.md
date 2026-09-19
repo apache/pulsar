@@ -67,6 +67,14 @@ size the shared client IO pools. `maxOutstanding` is per producer, not a global 
 Set `load.batchingEnabled: true` to use pulsar-perf's default producer batching; the default is
 `false`, preserving unbatched entry-by-entry measurements.
 
+For a single Key_Shared subscription with 500 producers and 20 consumers, use
+[`key-shared-500x20.yaml`](scenarios/key-shared-500x20.yaml). The `load.messageKeyGenerationMode`
+option maps to pulsar-perf's `--message-key-generation-mode`: `random` uses random integer keys,
+`autoIncrement` uses the sender's message counter, and an empty or null value omits keys.
+Override it with `PULSAR_PROFILING_LOAD_MESSAGE_KEY_GENERATION_MODE`. This scenario disables batching
+so every entry has one key, and uses isolated clients with shared resources on both sides.
+All consumers use the same subscription; `receiverQueueSize` is per consumer.
+
 Client profiling is optional and independent of broker profiling. Set `profiling.producerOptions`
 and/or `profiling.consumerOptions` to async-profiler options, for example
 `event=cpu,interval=10ms,lock=0,alloc=2m,jfrsync=profile`. An empty or null option disables that
