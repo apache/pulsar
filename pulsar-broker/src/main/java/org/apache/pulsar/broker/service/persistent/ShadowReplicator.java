@@ -57,6 +57,10 @@ public class ShadowReplicator extends PersistentReplicator {
      */
     @Override
     protected String getProducerName() {
+        return getShadowProducerName(replicatorPrefix, localTopicName, remoteTopicName);
+    }
+
+    static String getShadowProducerName(String replicatorPrefix, String localTopicName, String remoteTopicName) {
         return replicatorPrefix + "-" + localTopicName + REPL_PRODUCER_NAME_DELIMITER + remoteTopicName;
     }
 
