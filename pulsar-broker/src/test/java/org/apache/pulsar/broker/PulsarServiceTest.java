@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
@@ -33,21 +34,39 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.namespace.OwnershipCache;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.utils.TestLogAppender;
+import org.apache.pulsar.zookeeper.ZookeeperServerTest;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.Op;
+import org.apache.zookeeper.ZooDefs.Ids;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -347,6 +366,73 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.TimeoutException);
         }
+    }
+
+    @DataProvider
+    public Object[][] ownershipLockExpiryScenarios() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "ownershipLockExpiryScenarios")
+    public void testOwnershipLockExpiryLogging(boolean shuttingDown) throws Exception {
+        @Cleanup
+        ZookeeperServerTest zk = new ZookeeperServerTest(0);
+        zk.start();
+        @Cleanup
+        ZKMetadataStore store = new ZKMetadataStore(zk.getHostPort(),
+                MetadataStoreConfig.builder().build(), true);
+        FaultInjectionMetadataStore faultStore = new FaultInjectionMetadataStore(store);
+        @Cleanup
+        PulsarTestContext context = PulsarTestContext.builder()
+                .localMetadataStore(faultStore)
+                .configurationMetadataStore(store)
+                .build();
+        PulsarService broker = context.getPulsarService();
+        OwnershipCache ownershipCache = broker.getNamespaceService().getOwnershipCache();
+        var bundle = broker.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundle(NamespaceName.get("public/shutdown-ownership"));
+        ownershipCache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+        var lock = ownershipCache.getLocallyAcquiredLocks().get(bundle);
+        assertThat(lock).isNotNull();
+
+        @Cleanup
+        TestLogAppender logAppender = TestLogAppender.create(OwnershipCache.class);
+
+        if (shuttingDown) {
+            // Failing broker deregistration skips graceful bundle unloading. The real coordination-service
+            // shutdown must then release the still-registered ownership lock directly through LockManager.
+            AtomicBoolean failureInjected = new AtomicBoolean();
+            String brokerPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + broker.getBrokerId();
+            faultStore.failConditional(new MetadataStoreException("Broker deregistration failed"),
+                    (operation, path) -> {
+                        if (operation == OperationType.DELETE && path.equals(brokerPath)) {
+                            failureInjected.set(true);
+                            return true;
+                        }
+                        return false;
+                    });
+            broker.closeAsync().get(30, TimeUnit.SECONDS);
+
+            assertThat(failureInjected).isTrue();
+            assertThat(broker.isRunning()).isFalse();
+            assertThat(store.get(lock.getPath()).get(10, TimeUnit.SECONDS)).isEmpty();
+        } else {
+            // Replace the ephemeral lock atomically so revalidation sees a persistent node and expires
+            // the lock. This exercises the real metadata notification and revalidation path, not release().
+            byte[] data = store.get(lock.getPath()).get(10, TimeUnit.SECONDS).orElseThrow().getValue();
+            store.getZkClient().multi(List.of(Op.delete(lock.getPath(), -1),
+                    Op.create(lock.getPath(), data, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)));
+            lock.getLockExpiredFuture().get(10, TimeUnit.SECONDS);
+            Awaitility.await().untilAsserted(() -> assertThat(ownershipCache.getOwnedBundle(bundle)).isNull());
+            assertThat(broker.isRunning()).isTrue();
+        }
+        assertThat(lock.getLockExpiredFuture()).isDone().isNotCompletedExceptionally();
+        assertThat(ownershipCache.getLocallyAcquiredLocks()).doesNotContainKey(bundle);
+        assertThat(ownershipCache.getOwnedBundle(bundle)).isNull();
+        boolean expiryLogged = logAppender.getEvents().stream().anyMatch(event -> event.getLevel() == Level.INFO
+                && event.getLoggerName().equals(OwnershipCache.class.getName())
+                && event.getMessage().getFormattedMessage().contains("Resource lock has expired"));
+        assertThat(expiryLogged).as("INFO expiry while shuttingDown=%s", shuttingDown).isEqualTo(!shuttingDown);
     }
 
     @Test
