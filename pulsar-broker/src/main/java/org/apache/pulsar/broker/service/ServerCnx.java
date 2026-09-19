@@ -2779,26 +2779,40 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         final String topic = commandGetSchema.getTopic();
-        String schemaName;
+        final TopicName topicName;
+        final String schemaName;
         try {
-            schemaName = TopicName.get(topic).getSchemaName();
+            topicName = TopicName.get(topic);
+            schemaName = topicName.getSchemaName();
         } catch (Throwable t) {
             commandSender.sendGetSchemaErrorResponse(requestId, ServerError.InvalidTopicName, t.getMessage());
             return;
         }
+        final SchemaVersion requestedVersion = schemaVersion;
 
-        schemaService.getSchema(schemaName, schemaVersion).thenAccept(schemaAndMetadata -> {
-            if (schemaAndMetadata == null) {
-                commandSender.sendGetSchemaErrorResponse(requestId, ServerError.TopicNotFound,
-                        String.format("Topic not found or no-schema %s", topic));
-            } else {
-                commandSender.sendGetSchemaResponse(requestId,
-                        SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version);
-            }
-        }).exceptionally(ex -> {
-            commandSender.sendGetSchemaErrorResponse(requestId, ServerError.UnknownError, ex.getMessage());
-            return null;
-        });
+        // Producers, consumers and readers fetch the schema of a topic they have looked up, so LOOKUP is a
+        // permission every legitimate caller already holds.
+        isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData)
+                .thenCompose(isAuthorized -> {
+                    if (!isAuthorized) {
+                        commandSender.sendGetSchemaErrorResponse(requestId, ServerError.AuthorizationError,
+                                "Client is not authorized to get the schema of " + topic);
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return schemaService.getSchema(schemaName, requestedVersion).thenAccept(schemaAndMetadata -> {
+                        if (schemaAndMetadata == null) {
+                            commandSender.sendGetSchemaErrorResponse(requestId, ServerError.TopicNotFound,
+                                    String.format("Topic not found or no-schema %s", topic));
+                        } else {
+                            commandSender.sendGetSchemaResponse(requestId,
+                                    SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema),
+                                    schemaAndMetadata.version);
+                        }
+                    });
+                }).exceptionally(ex -> {
+                    commandSender.sendGetSchemaErrorResponse(requestId, ServerError.UnknownError, ex.getMessage());
+                    return null;
+                });
     }
 
     @Override
@@ -2809,9 +2823,28 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
         long requestId = commandGetOrCreateSchema.getRequestId();
         final String topicName = commandGetOrCreateSchema.getTopic();
+        final TopicName parsedTopicName;
+        try {
+            parsedTopicName = TopicName.get(topicName);
+        } catch (Throwable t) {
+            commandSender.sendGetOrCreateSchemaErrorResponse(requestId, ServerError.InvalidTopicName,
+                    t.getMessage());
+            return;
+        }
         SchemaData schemaData = getSchema(commandGetOrCreateSchema.getSchema());
         SchemaData schema = schemaData.getType() == SchemaType.NONE ? null : schemaData;
-        service.getTopicIfExists(topicName).thenAccept(topicOpt -> {
+        // Adding a schema version changes what the topic's producers may send, so it takes PRODUCE, as the
+        // REST schema upload does.
+        CompletableFuture<Optional<Topic>> topicFuture =
+                isTopicOperationAllowed(parsedTopicName, TopicOperation.PRODUCE, authenticationData, originalAuthData)
+                        .thenCompose(isAuthorized -> {
+                            if (!isAuthorized) {
+                                return CompletableFuture.failedFuture(new BrokerServiceException.NotAuthorizedException(
+                                        "Client is not authorized to add a schema to " + topicName));
+                            }
+                            return service.getTopicIfExists(topicName);
+                        });
+        topicFuture.thenAccept(topicOpt -> {
             if (topicOpt.isPresent()) {
                 Topic topic = topicOpt.get();
                 CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema);
