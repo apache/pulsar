@@ -1307,7 +1307,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         if (markDeletePosition.compareTo(lastPosition) > 0) {
             if (!ledger.ledgerExists(lastPosition.getLedgerId())
-                    || isMarkDeletePositionOnEmptyCurrentLedger(markDeletePosition)) {
+                    || isMarkDeletePositionAtStartOfCurrentLedger(markDeletePosition)) {
                 return 0;
             }
             throw new IllegalArgumentException(String.format(
@@ -1370,10 +1370,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         return adjustedSize;
     }
 
-    private boolean isMarkDeletePositionOnEmptyCurrentLedger(Position markDeletePosition) {
-        return ledger.currentLedger != null
-                && markDeletePosition.getLedgerId() == ledger.currentLedger.getId()
-                && ledger.currentLedgerEntries == 0;
+    private boolean isMarkDeletePositionAtStartOfCurrentLedger(Position markDeletePosition) {
+        // The caller has already checked that mark-delete is ahead of the last confirmed position.
+        // Rollover can move the cursor to this sentinel while the first add is still pending;
+        // currentLedgerEntries includes pending adds, so it cannot identify this state.
+        LedgerHandle currentLedger = ledger.currentLedger;
+        return currentLedger != null
+                && markDeletePosition.getLedgerId() == currentLedger.getId()
+                && markDeletePosition.getEntryId() == -1;
     }
 
     private long getNumberOfEntriesInBacklog() {
