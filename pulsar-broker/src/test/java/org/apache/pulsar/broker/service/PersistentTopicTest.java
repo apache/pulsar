@@ -357,7 +357,8 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         topic.publishMessage(payload, publishContext);
 
         assertTrue(latch.await(1, TimeUnit.SECONDS));
-        assertTrue(topic.getLastMaxReadPositionMovedForwardTimestamp() > lastMaxReadPositionMovedForwardTimestamp);
+        assertEquals(topic.getLastMaxReadPositionMovedForwardTimestamp(), lastMaxReadPositionMovedForwardTimestamp,
+                "Topics without a replicated-subscription controller should not maintain the snapshot timestamp");
     }
 
     @Test
