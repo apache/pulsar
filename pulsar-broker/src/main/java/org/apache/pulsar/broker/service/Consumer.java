@@ -800,7 +800,21 @@ public class Consumer {
         }
     }
 
-    private void applyPendingAckCompletions(PendingAckCompletions pendingAckCompletions) {
+    @VisibleForTesting
+    void applyPendingAckCompletions(PendingAckCompletions pendingAckCompletions) {
+        // Keep single-entry commands and commands containing batch-index ACKs on the original path.
+        if (pendingAckCompletions.size() > 1 && pendingAckCompletions.batchAckedCounts == null
+                && !isTransactionEnabled()) {
+            int index = 0;
+            while (index < pendingAckCompletions.size()) {
+                index = applyWholeEntryAckCompletions(pendingAckCompletions, index);
+            }
+        } else {
+            applyIndividualAckCompletions(pendingAckCompletions);
+        }
+    }
+
+    private void applyIndividualAckCompletions(PendingAckCompletions pendingAckCompletions) {
         for (int i = 0; i < pendingAckCompletions.size(); i++) {
             Consumer ackOwnerConsumer = pendingAckCompletions.consumerAt(i);
             Position position = pendingAckCompletions.positionAt(i);
@@ -833,6 +847,30 @@ public class Consumer {
                 }
             }
         }
+    }
+
+    private int applyWholeEntryAckCompletions(PendingAckCompletions completions, int index) {
+        Consumer owner = completions.consumerAt(index);
+        int removedMessages = 0;
+        try {
+            do {
+                Position position = completions.positionAt(index);
+                int removed = owner.removePendingAckAndGetRemainingUnacked(
+                        position.getLedgerId(), position.getEntryId());
+                if (removed != PENDING_ACK_NOT_FOUND) {
+                    removedMessages += removed;
+                }
+                index++;
+            } while (index < completions.size() && completions.consumerAt(index) == owner);
+        } finally {
+            // Flush successful removals even if processing a later entry fails. Keep pending-map work outside
+            // the accounting lock; concurrent consumer removal either settles this balance or rejects this debit.
+            if (removedMessages != 0) {
+                addAndGetUnAckedMsgs(owner, -removedMessages);
+            }
+            updateBlockedConsumerOnUnackedMsgs(owner);
+        }
+        return index;
     }
 
     /**

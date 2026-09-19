@@ -28,6 +28,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
@@ -40,6 +41,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -322,6 +325,220 @@ public class SharedSubscriptionUnackedMessagesAccountingTest extends ProducerCon
             client.acknowledgeAsync(resumed).get(5, TimeUnit.SECONDS);
             assertUnackedMessagesCleared(dispatcher, broker, "delivery resumed");
         }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testGroupedAckRemovalBeforeAccountingFlush() throws Exception {
+        String topicName = newTopicName();
+        CountDownLatch secondEntryRemoved = new CountDownLatch(1);
+        CountDownLatch resume = new CountDownLatch(1);
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                     .topic(topicName).enableBatching(false).create();
+             org.apache.pulsar.client.api.Consumer<String> client = pulsarClient.newConsumer(Schema.STRING)
+                     .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Shared)
+                     .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).isAckReceiptEnabled(true).subscribe()) {
+            List<MessageId> messages = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                producer.send("message-" + i);
+                messages.add(client.receive(5, TimeUnit.SECONDS).getMessageId());
+            }
+            BrokerService broker = pulsar.getBrokerService();
+            PersistentTopic topic = (PersistentTopic) broker.getTopicReference(topicName).orElseThrow();
+            AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                    (AbstractPersistentDispatcherMultipleConsumers) topic.getSubscription(SUBSCRIPTION).getDispatcher();
+            Consumer owner = dispatcher.getConsumers().get(0);
+            AtomicInteger removed = new AtomicInteger();
+            owner.setPendingAcksRemoveHandler(new PendingAcksMap.PendingAcksRemoveHandler() {
+                @Override
+                public void handleRemoving(Consumer c, long ledgerId, long entryId, int hash, boolean closing) {
+                    if (removed.incrementAndGet() == 2) {
+                        secondEntryRemoved.countDown();
+                        try {
+                            assertThat(resume.await(10, TimeUnit.SECONDS)).isTrue();
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            throw new AssertionError(e);
+                        }
+                    }
+                }
+
+                @Override
+                public void startBatch() { }
+
+                @Override
+                public void endBatch() { }
+            });
+            try {
+                CompletableFuture<Void> ack = client.acknowledgeAsync(messages.subList(1, messages.size()));
+                assertThat(secondEntryRemoved.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(owner.getUnackedMessages()).as("first debit is still command-local").isEqualTo(4);
+                dispatcher.removeConsumer(owner);
+                resume.countDown();
+                ack.get(10, TimeUnit.SECONDS);
+                assertThat(owner.getUnackedMessages()).isZero();
+                assertUnackedMessagesCleared(dispatcher, broker, "removal before grouped flush");
+            } finally {
+                resume.countDown();
+                owner.setPendingAcksRemoveHandler(null);
+            }
+        } finally {
+            resume.countDown();
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testGroupedAckByAnotherConsumerResumesDelivery() throws Exception {
+        conf.setMaxUnackedMessagesPerConsumer(UNACKED_MESSAGES);
+        String topicName = newTopicName();
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                     .topic(topicName).enableBatching(false).create();
+             org.apache.pulsar.client.api.Consumer<String> owner = pulsarClient.newConsumer(Schema.STRING)
+                     .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Shared)
+                     .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).isAckReceiptEnabled(true).subscribe()) {
+            List<MessageId> messages = new ArrayList<>();
+            for (int i = 0; i < UNACKED_MESSAGES; i++) {
+                producer.send("message-" + i);
+                messages.add(owner.receive(5, TimeUnit.SECONDS).getMessageId());
+            }
+            BrokerService broker = pulsar.getBrokerService();
+            PersistentTopic topic = (PersistentTopic) broker.getTopicReference(topicName).orElseThrow();
+            AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                    (AbstractPersistentDispatcherMultipleConsumers) topic.getSubscription(SUBSCRIPTION).getDispatcher();
+            Consumer brokerOwner = dispatcher.getConsumers().get(0);
+            assertThat(brokerOwner.isBlocked()).isTrue();
+            assertThat(dispatcher.isBlockedDispatcherOnUnackedMsgs()).isTrue();
+            try (org.apache.pulsar.client.api.Consumer<String> receiver = pulsarClient.newConsumer(Schema.STRING)
+                    .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Shared)
+                    .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).isAckReceiptEnabled(true).subscribe()) {
+                receiver.acknowledgeAsync(messages.subList(1, messages.size())).get(5, TimeUnit.SECONDS);
+                // Repeated grouped ACKs must not debit the same pending entries twice.
+                receiver.acknowledgeAsync(messages.subList(1, messages.size())).get(5, TimeUnit.SECONDS);
+                assertThat(brokerOwner.getUnackedMessages()).isEqualTo(1);
+                assertThat(brokerOwner.isBlocked()).isFalse();
+                assertThat(dispatcher.getTotalUnackedMessages()).isEqualTo(1);
+                assertThat(broker.getTotalUnackedMessages()).isEqualTo(1);
+                assertThat(dispatcher.isBlockedDispatcherOnUnackedMsgs()).isFalse();
+            }
+            producer.send("after-grouped-ack");
+            Message<String> resumed = owner.receive(5, TimeUnit.SECONDS);
+            assertThat(resumed).isNotNull();
+            owner.acknowledgeAsync(List.of(messages.get(0), resumed.getMessageId())).get(5, TimeUnit.SECONDS);
+            assertUnackedMessagesCleared(dispatcher, broker, "grouped ACK and resumed delivery");
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testGroupedAckWithMixedOwnersAndDuplicateIds() throws Exception {
+        String topicName = newTopicName();
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                     .topic(topicName).enableBatching(false).create();
+             org.apache.pulsar.client.api.Consumer<String> first = pulsarClient.newConsumer(Schema.STRING)
+                     .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Shared)
+                     .consumerName("first").receiverQueueSize(0).subscribe()) {
+            List<MessageId> firstIds = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                producer.send("first-" + i);
+                firstIds.add(first.receiveAsync().get(5, TimeUnit.SECONDS).getMessageId());
+            }
+            try (org.apache.pulsar.client.api.Consumer<String> second = pulsarClient.newConsumer(Schema.STRING)
+                    .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Shared)
+                    .consumerName("second").receiverQueueSize(0).subscribe()) {
+                List<MessageId> secondIds = new ArrayList<>();
+                for (int i = 0; i < 3; i++) {
+                    producer.send("second-" + i);
+                    secondIds.add(second.receiveAsync().get(5, TimeUnit.SECONDS).getMessageId());
+                }
+                BrokerService broker = pulsar.getBrokerService();
+                PersistentTopic topic = (PersistentTopic) broker.getTopicReference(topicName).orElseThrow();
+                AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                        (AbstractPersistentDispatcherMultipleConsumers) topic.getSubscription(SUBSCRIPTION)
+                                .getDispatcher();
+                Consumer receiver = dispatcher.getConsumers().stream()
+                        .filter(c -> c.consumerName().equals("first")).findFirst().orElseThrow();
+                CommandAck ack = new CommandAck().setConsumerId(receiver.consumerId())
+                        .setAckType(CommandAck.AckType.Individual);
+                // Submit the real broker command to retain duplicate IDs and owner ordering, which the
+                // client's ACK grouping may otherwise normalize. Every ID was actually delivered above.
+                for (MessageId id : List.of(firstIds.get(1), firstIds.get(2), secondIds.get(1),
+                        secondIds.get(2), firstIds.get(1))) {
+                    addAckId(ack, id);
+                }
+                receiver.messageAcked(ack, true).get(5, TimeUnit.SECONDS);
+                for (Consumer consumer : dispatcher.getConsumers()) {
+                    assertThat(consumer.getUnackedMessages()).isEqualTo(1);
+                }
+                assertThat(dispatcher.getTotalUnackedMessages()).isEqualTo(2);
+                assertThat(broker.getTotalUnackedMessages()).isEqualTo(2);
+                ack.clear().setConsumerId(receiver.consumerId()).setAckType(CommandAck.AckType.Individual);
+                addAckId(ack, firstIds.get(0));
+                addAckId(ack, secondIds.get(0));
+                receiver.messageAcked(ack, true).get(5, TimeUnit.SECONDS);
+                assertUnackedMessagesCleared(dispatcher, broker, "mixed owners and duplicate IDs");
+                producer.send("after-mixed-ack");
+                assertThat(first.receiveAsync().get(5, TimeUnit.SECONDS)).isNotNull();
+            }
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testGroupedAckFlushesCompletedRemovalsOnFailure() throws Exception {
+        String topicName = newTopicName();
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                     .topic(topicName).enableBatching(false).create();
+             org.apache.pulsar.client.api.Consumer<String> client = pulsarClient.newConsumer(Schema.STRING)
+                     .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Shared)
+                     .subscribe()) {
+            List<MessageId> messages = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                producer.send("message-" + i);
+                messages.add(client.receive(5, TimeUnit.SECONDS).getMessageId());
+            }
+            BrokerService broker = pulsar.getBrokerService();
+            PersistentTopic topic = (PersistentTopic) broker.getTopicReference(topicName).orElseThrow();
+            AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                    (AbstractPersistentDispatcherMultipleConsumers) topic.getSubscription(SUBSCRIPTION).getDispatcher();
+            Consumer owner = dispatcher.getConsumers().get(0);
+            AtomicInteger removed = new AtomicInteger();
+            IllegalStateException failure = new IllegalStateException("injected pending-ack callback failure");
+            owner.setPendingAcksRemoveHandler(new PendingAcksMap.PendingAcksRemoveHandler() {
+                @Override
+                public void handleRemoving(Consumer c, long ledgerId, long entryId, int hash, boolean closing) {
+                    if (removed.incrementAndGet() == 3) {
+                        throw failure;
+                    }
+                }
+
+                @Override
+                public void startBatch() { }
+
+                @Override
+                public void endBatch() { }
+            });
+            try {
+                CommandAck ack = new CommandAck().setConsumerId(owner.consumerId())
+                        .setAckType(CommandAck.AckType.Individual);
+                for (MessageId id : messages.subList(1, messages.size())) {
+                    addAckId(ack, id);
+                }
+                Throwable error = owner.messageAcked(ack, true).handle((unused, ex) -> ex)
+                        .get(5, TimeUnit.SECONDS);
+                assertThat(error).hasCause(failure);
+                // Two removals returned successfully before the failing callback: neither debit may be lost.
+                // The failing removal has not returned a balance; closing settles all remaining accounting.
+                assertThat(owner.getUnackedMessages()).isEqualTo(2);
+                assertThat(dispatcher.getTotalUnackedMessages()).isEqualTo(2);
+                assertThat(broker.getTotalUnackedMessages()).isEqualTo(2);
+            } finally {
+                owner.setPendingAcksRemoveHandler(null);
+            }
+            owner.close();
+            assertUnackedMessagesCleared(dispatcher, broker, "close after completion failure");
+        }
+    }
+
+    private static void addAckId(CommandAck ack, MessageId messageId) {
+        MessageIdImpl id = (MessageIdImpl) messageId;
+        ack.addMessageId().setLedgerId(id.getLedgerId()).setEntryId(id.getEntryId());
     }
 
     private static boolean isUnackedScan(ThreadInfo info) {
