@@ -68,6 +68,101 @@ public class ReplicatedSubscriptionsControllerTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    public void testMaxReadPositionTimestampFollowsControllerLifecycle() {
+        PulsarService pulsar = mock(PulsarService.class);
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        @SuppressWarnings("rawtypes")
+        ScheduledFuture timer = mock(ScheduledFuture.class);
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setClusterName("local");
+        config.setEnableReplicatedSubscriptions(true);
+        OpenTelemetryReplicatedSubscriptionStats stats = mock(OpenTelemetryReplicatedSubscriptionStats.class);
+        MonotonicClock monotonicClock = System::nanoTime;
+        BacklogQuotaManager backlogQuotaManager = mock(BacklogQuotaManager.class);
+        when(backlogQuotaManager.getDefaultQuota()).thenReturn(BacklogQuotaImpl.builder()
+                .limitSize(0)
+                .limitTime(0)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_request_hold)
+                .build());
+        BrokerService brokerService = mock(BrokerService.class);
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        MessageDeduplication messageDeduplication = mock(MessageDeduplication.class);
+
+        when(brokerService.getClock()).thenReturn(Clock.systemUTC());
+        when(brokerService.pulsar()).thenReturn(pulsar);
+        when(brokerService.getPulsar()).thenReturn(pulsar);
+        when(brokerService.getBacklogQuotaManager()).thenReturn(backlogQuotaManager);
+        when(pulsar.getExecutor()).thenReturn(executor);
+        when(pulsar.getConfiguration()).thenReturn(config);
+        when(pulsar.getOpenTelemetryReplicatedSubscriptionStats()).thenReturn(stats);
+        when(pulsar.getMonotonicClock()).thenReturn(monotonicClock);
+        when(executor.scheduleAtFixedRate(any(Runnable.class), anyLong(), anyLong(), any(TimeUnit.class)))
+                .thenReturn(timer);
+
+        TestPersistentTopic topic =
+                new TestPersistentTopic("persistent://public/default/t1", brokerService, ledger, messageDeduplication);
+        topic.setReplicationClusters(List.of("local", "remote"));
+        PersistentSubscription subscription = mock(PersistentSubscription.class);
+        when(subscription.isReplicated()).thenReturn(true);
+
+        topic.getMaxReadPositionCallBack().maxReadPositionMovedForward(null, PositionFactory.create(1, 1));
+        Assert.assertEquals(topic.getLastMaxReadPositionMovedForwardTimestamp(), 0L,
+                "Topics without a controller should not maintain the snapshot timestamp");
+
+        topic.getSubscriptions().put("sub", subscription);
+        topic.checkReplicatedSubscriptionControllerState();
+        try {
+            Assert.assertTrue(topic.getReplicatedSubscriptionController().isPresent());
+            long enabledTimestamp = topic.getLastMaxReadPositionMovedForwardTimestamp();
+            Assert.assertTrue(enabledTimestamp > 0,
+                    "Controller creation must seed the timestamp for data published before activation");
+
+            waitUntilNextMillisecond(enabledTimestamp);
+            topic.getMaxReadPositionCallBack().maxReadPositionMovedForward(
+                    PositionFactory.create(1, 1), PositionFactory.create(1, 2));
+            long updatedTimestamp = topic.getLastMaxReadPositionMovedForwardTimestamp();
+            Assert.assertTrue(updatedTimestamp > enabledTimestamp);
+
+            topic.getSubscriptions().clear();
+            topic.checkReplicatedSubscriptionControllerState();
+            Assert.assertTrue(topic.getReplicatedSubscriptionController().isEmpty());
+
+            waitUntilNextMillisecond(updatedTimestamp);
+            topic.getMaxReadPositionCallBack().maxReadPositionMovedForward(
+                    PositionFactory.create(1, 2), PositionFactory.create(1, 3));
+            Assert.assertEquals(topic.getLastMaxReadPositionMovedForwardTimestamp(), updatedTimestamp,
+                    "Timestamp should remain unchanged while the controller is disabled");
+
+            waitUntilNextMillisecond(updatedTimestamp);
+            topic.getSubscriptions().put("sub", subscription);
+            topic.checkReplicatedSubscriptionControllerState();
+            Assert.assertTrue(topic.getReplicatedSubscriptionController().isPresent());
+            Assert.assertTrue(topic.getLastMaxReadPositionMovedForwardTimestamp() > updatedTimestamp,
+                    "Re-enabling the controller must seed a fresh snapshot timestamp");
+        } finally {
+            topic.getReplicatedSubscriptionController().ifPresent(ReplicatedSubscriptionsController::close);
+        }
+    }
+
+    private static void waitUntilNextMillisecond(long timestamp) {
+        while (Clock.systemUTC().millis() <= timestamp) {
+            Thread.onSpinWait();
+        }
+    }
+
+    private static final class TestPersistentTopic extends PersistentTopic {
+        TestPersistentTopic(String topic, BrokerService brokerService, ManagedLedger ledger,
+                            MessageDeduplication messageDeduplication) {
+            super(topic, brokerService, ledger, messageDeduplication);
+        }
+
+        void setReplicationClusters(List<String> clusters) {
+            topicPolicies.getReplicationClusters().updateBrokerValue(clusters);
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     public void testFinalSnapshotMarkerPublishFailureKeepsSnapshotPending() {
         PulsarService pulsar = mock(PulsarService.class);
         ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
