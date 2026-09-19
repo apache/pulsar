@@ -352,9 +352,9 @@ public class V5CumulativeAckTest extends V5ClientBaseTest {
         MessageId last = receiveAll(consumer, n);
 
         // Throw the consumer off the broker and ack while it is gone.
-        var segments = admin.scalableTopics().getStats(topic).getSegments().values();
+        var segments = admin.scalableTopics().getStats(topic).getLayout().getSegments().values();
         assertEquals(segments.size(), 1, "single-segment topic");
-        var brokerSub = getTopicReference(segments.iterator().next().name()).orElseThrow()
+        var brokerSub = getTopicReference(segments.iterator().next().getName()).orElseThrow()
                 .getSubscription(subscription);
         Awaitility.await().until(() -> !brokerSub.getConsumers().isEmpty());
         brokerSub.getConsumers().get(0).disconnect();
@@ -391,8 +391,8 @@ public class V5CumulativeAckTest extends V5ClientBaseTest {
      */
     private long subscriptionBacklog(String topic, String subscription) throws Exception {
         long total = 0;
-        for (var seg : admin.scalableTopics().getStats(topic).getSegments().values()) {
-            var ref = getTopicReference(seg.name());
+        for (var seg : admin.scalableTopics().getStats(topic).getLayout().getSegments().values()) {
+            var ref = getTopicReference(seg.getName());
             if (ref.isEmpty()) {
                 continue;
             }
