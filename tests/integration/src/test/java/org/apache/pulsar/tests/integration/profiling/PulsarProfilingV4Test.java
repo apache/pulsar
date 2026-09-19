@@ -31,7 +31,11 @@ import org.testng.annotations.Test;
  * "*PulsarProfilingV4Test"}. It is the pre-v5 baseline for {@link PulsarProfilingTest}: same
  * cluster, same load parameters, only the client generation and the topic domain differ. See
  * {@link AbstractPulsarProfilingTest} for the rest.
+ *
+ * @deprecated Use the standalone performance launcher under {@code tests/performance} for new scenarios. This
+ * TestNG wrapper remains available while its v4 pulsar-perf scenario is migrated.
  */
+@Deprecated(forRemoval = false)
 public class PulsarProfilingV4Test extends AbstractPulsarProfilingTest {
 
     @Override

@@ -72,7 +72,12 @@ import org.testcontainers.containers.GenericContainer;
  * By default, the .jfr files and logs will go into tests/integration/build/pulsar-profiling
  * You can use jfrconv from async profiler to convert them into html flamegraphs or use other tools such
  * as Eclipse Mission Control (https://adoptium.net/jmc) or IntelliJ to open them.
+ *
+ * @deprecated The TestNG wrapper is retained for the existing v4 and v5 pulsar-perf scenarios while they are
+ * migrated. New performance scenarios should use the standalone launcher under {@code tests/performance}, which
+ * owns the Testcontainers and workload lifecycle directly. See {@code tests/performance/README.md}.
  */
+@Deprecated(forRemoval = false)
 @CustomLog
 public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
     // this assumes that Transparent Huge Pages are available on the host machine
@@ -393,7 +398,8 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
     /**
      * Drives pulsar-perf against a freshly generated topic and waits for both sides to finish.
      *
-     * The concrete subclasses wrap this in the actual {@code @Test} method: Gradle's TestNG detector
+     * The concrete subclasses in this deprecated runner wrap this in the actual {@code @Test} method: Gradle's
+     * TestNG detector
      * never scans method annotations on an abstract class, so an {@code @Test} that lived only here
      * would leave both subclasses looking like non-test classes and neither would be handed to
      * TestNG. (The detector does follow the superclass chain, so a subclass of a *concrete* base does

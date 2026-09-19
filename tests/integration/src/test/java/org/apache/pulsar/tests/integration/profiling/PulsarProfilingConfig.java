@@ -18,16 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.profiling;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.Set;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
 
 /** Configuration for the profiling scenario harness. */
 final class PulsarProfilingConfig {
@@ -42,12 +38,10 @@ final class PulsarProfilingConfig {
         }
 
         static Config read(Path configFile, Map<String, String> environment) {
-            ObjectMapper mapper = ObjectMapperFactory.getYamlMapper().getObjectMapper();
-            ObjectNode root = mapper.valueToTree(defaults());
-            if (configFile != null) {
-                mergeFile(root, configFile, mapper, new LinkedHashSet<>());
-            }
-            applyEnvironmentOverrides(root, environment);
+            YamlScenarioLoader loader = new YamlScenarioLoader();
+            ObjectMapper mapper = loader.mapper();
+            var root = loader.resolve(configFile, mapper.valueToTree(defaults()), environment,
+                    ENV_PREFIX, CONFIG_ENV);
             try {
                 return mapper.treeToValue(root, Config.class);
             } catch (IOException e) {
@@ -129,128 +123,6 @@ final class PulsarProfilingConfig {
 
     /** Empty options disable profiling for that client process. */
     record Profiling(String producerOptions, String consumerOptions) {
-    }
-
-    private static void mergeFile(ObjectNode target, Path file, ObjectMapper mapper, Set<Path> activeFiles) {
-        try {
-            Path path = file.toRealPath();
-            if (!activeFiles.add(path)) {
-                throw new IllegalArgumentException("Profiling config inheritance cycle: "
-                        + activeFiles + " -> " + path);
-            }
-            try {
-                JsonNode source = mapper.readTree(path.toFile());
-                if (!(source instanceof ObjectNode object)) {
-                    throw new IllegalArgumentException("Profiling config must be a YAML mapping: " + path);
-                }
-                JsonNode parents = object.remove("extends");
-                if (parents != null) {
-                    if (parents.isTextual()) {
-                        mergeParent(target, parents, path, mapper, activeFiles);
-                    } else if (parents.isArray()) {
-                        for (JsonNode parent : parents) {
-                            mergeParent(target, parent, path, mapper, activeFiles);
-                        }
-                    } else {
-                        throw new IllegalArgumentException(
-                                "Profiling config 'extends' must be a path or list of paths: " + path);
-                    }
-                }
-                // Apply directly to the accumulated config so inherited nulls also remove earlier values/defaults.
-                merge(target, object);
-            } finally {
-                activeFiles.remove(path);
-            }
-        } catch (IOException e) {
-            throw new IllegalArgumentException("Cannot read profiling config " + file, e);
-        }
-    }
-
-    private static void mergeParent(ObjectNode target, JsonNode parent, Path file,
-                                    ObjectMapper mapper, Set<Path> activeFiles) {
-        if (!parent.isTextual() || parent.textValue().isBlank()) {
-            throw new IllegalArgumentException("Profiling config 'extends' entries must be non-empty paths: " + file);
-        }
-        mergeFile(target, file.getParent().resolve(parent.textValue()), mapper, activeFiles);
-    }
-
-    private static void merge(ObjectNode target, ObjectNode source) {
-        source.properties().forEach(entry -> {
-            String key = entry.getKey();
-            JsonNode value = entry.getValue();
-            if (value.isNull()) {
-                target.remove(key);
-            } else if (value instanceof ObjectNode object) {
-                JsonNode current = target.get(key);
-                ObjectNode child = current instanceof ObjectNode ? (ObjectNode) current : target.putObject(key);
-                merge(child, object);
-            } else {
-                target.set(key, value);
-            }
-        });
-    }
-
-    private static void applyEnvironmentOverrides(ObjectNode root, Map<String, String> environment) {
-        ObjectMapper mapper = ObjectMapperFactory.getYamlMapper().getObjectMapper();
-        environment.forEach((name, value) -> {
-            if (!name.startsWith(ENV_PREFIX) || name.equals(CONFIG_ENV)) {
-                return;
-            }
-            String[] path = name.substring(ENV_PREFIX.length()).toLowerCase().split("_");
-            ObjectNode node = root;
-            int pathIndex = 0;
-            while (pathIndex < path.length) {
-                String field = findField(node, path, pathIndex);
-                if (field == null) {
-                    return;
-                }
-                int consumed = field.split("(?=[A-Z])").length;
-                JsonNode existing = node.get(field);
-                if (pathIndex + consumed == path.length) {
-                    node.set(field, parseValue(mapper, value, existing));
-                    return;
-                }
-                if (!(existing instanceof ObjectNode)) {
-                    return;
-                }
-                node = (ObjectNode) existing;
-                pathIndex += consumed;
-            }
-        });
-    }
-
-    private static String findField(ObjectNode node, String[] path, int start) {
-        StringBuilder candidate = new StringBuilder();
-        String result = null;
-        int resultLength = 0;
-        int tokenCount = 0;
-        for (int i = start; i < path.length; i++) {
-            candidate.append(path[i]);
-            tokenCount++;
-            String candidateName = candidate.toString();
-            var fields = node.fieldNames();
-            while (fields.hasNext()) {
-                String field = fields.next();
-                if (field.replace("_", "").equalsIgnoreCase(candidateName)) {
-                    result = field;
-                    resultLength = tokenCount;
-                }
-            }
-        }
-        return result;
-    }
-
-    private static JsonNode parseValue(ObjectMapper mapper, String value, JsonNode existing) {
-        if (existing.isBoolean()) {
-            return mapper.getNodeFactory().booleanNode(Boolean.parseBoolean(value));
-        }
-        if (existing.isIntegralNumber()) {
-            return mapper.getNodeFactory().numberNode(Long.parseLong(value));
-        }
-        if (existing.isFloatingPointNumber()) {
-            return mapper.getNodeFactory().numberNode(Double.parseDouble(value));
-        }
-        return mapper.getNodeFactory().textNode(value);
     }
 
     private PulsarProfilingConfig() {

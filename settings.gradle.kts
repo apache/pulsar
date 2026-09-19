@@ -262,6 +262,12 @@ project(":tests:latest-version-image").projectDir = file("tests/docker-images/la
 
 include("tests:integration")
 project(":tests:integration").projectDir = file("tests/integration")
+include("tests:performance:common")
+project(":tests:performance:common").projectDir = file("tests/performance/common")
+include("tests:performance:tools")
+project(":tests:performance:tools").projectDir = file("tests/performance/tools")
+include("tests:performance:launcher")
+project(":tests:performance:launcher").projectDir = file("tests/performance/launcher")
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Shade test modules
