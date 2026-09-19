@@ -72,6 +72,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -116,9 +117,11 @@ import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.ProducerAccessMode;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.AuthMethod;
@@ -134,6 +137,8 @@ import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -3827,6 +3832,96 @@ public class ServerCnxTest {
         svcConfig.setAuthenticationEnabled(true);
         svcConfig.setAuthorizationEnabled(true);
         return authorizationService;
+    }
+
+    private AtomicInteger countSchemaReads() {
+        AtomicInteger schemaReads = new AtomicInteger();
+        SchemaRegistryService schemaRegistryService = pulsar.getSchemaRegistryService();
+        doAnswer(invocation -> {
+            schemaReads.incrementAndGet();
+            return CompletableFuture.completedFuture(null);
+        }).when(schemaRegistryService).getSchema(any(), any());
+        return schemaReads;
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetSchemaRequiresLookupPermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        AtomicInteger schemaReads = countSchemaReads();
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetSchema(1L, successTopicName, Optional.empty()));
+        CommandGetSchemaResponse response = (CommandGetSchemaResponse) getResponse();
+
+        assertEquals(response.getErrorCode(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get(successTopicName)),
+                eq(TopicOperation.LOOKUP), any(), any(), any(), any());
+        assertEquals(schemaReads.get(), 0);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetSchemaWithLookupPermission() throws Exception {
+        mockTopicAuthorization(true);
+        AtomicInteger schemaReads = countSchemaReads();
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetSchema(1L, successTopicName, Optional.empty()));
+        CommandGetSchemaResponse response = (CommandGetSchemaResponse) getResponse();
+
+        // The registry holds no schema, so an authorized request reaches it and gets TopicNotFound.
+        assertEquals(response.getErrorCode(), ServerError.TopicNotFound);
+        assertEquals(schemaReads.get(), 1);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetOrCreateSchemaRequiresProducePermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        AtomicBoolean topicLookedUp = new AtomicBoolean();
+        doAnswer(invocation -> {
+            topicLookedUp.set(true);
+            return CompletableFuture.completedFuture(Optional.empty());
+        }).when(brokerService).getTopicIfExists(any(String.class));
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetOrCreateSchema(1L, successTopicName,
+                Schema.STRING.getSchemaInfo()));
+        CommandGetOrCreateSchemaResponse response = (CommandGetOrCreateSchemaResponse) getResponse();
+
+        assertEquals(response.getErrorCode(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get(successTopicName)),
+                eq(TopicOperation.PRODUCE), any(), any(), any(), any());
+        assertFalse(topicLookedUp.get());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetOrCreateSchemaWithProducePermission() throws Exception {
+        mockTopicAuthorization(true);
+        AtomicBoolean topicLookedUp = new AtomicBoolean();
+        doAnswer(invocation -> {
+            topicLookedUp.set(true);
+            return CompletableFuture.completedFuture(Optional.empty());
+        }).when(brokerService).getTopicIfExists(any(String.class));
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetOrCreateSchema(1L, successTopicName,
+                Schema.STRING.getSchemaInfo()));
+        CommandGetOrCreateSchemaResponse response = (CommandGetOrCreateSchemaResponse) getResponse();
+
+        // No topic is loaded, so an authorized request reaches the topic lookup and gets TopicNotFound.
+        assertEquals(response.getErrorCode(), ServerError.TopicNotFound);
+        assertTrue(topicLookedUp.get());
+
+        channel.finish();
     }
 
     @Test(timeOut = 30000)
