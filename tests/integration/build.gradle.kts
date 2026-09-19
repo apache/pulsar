@@ -23,6 +23,7 @@ plugins {
 
 dependencies {
     implementation(libs.slog)
+    testImplementation(project(":tests:performance:common"))
     testImplementation(libs.gson)
     testImplementation(project(":pulsar-functions:pulsar-functions-api-examples"))
     testImplementation(project(":pulsar-broker"))
