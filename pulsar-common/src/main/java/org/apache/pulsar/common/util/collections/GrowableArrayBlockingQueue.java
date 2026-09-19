@@ -32,7 +32,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.Consumer;
-import javax.annotation.Nullable;
+import java.util.function.Predicate;
+import org.jspecify.annotations.Nullable;
 
 /**
  * This implements a {@link BlockingQueue} backed by an array with no fixed capacity.
@@ -48,6 +49,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     private final Condition isNotEmpty = headLock.newCondition();
 
     private T[] data;
+    private volatile int capacity;
 
     @SuppressWarnings("rawtypes")
     private static final AtomicIntegerFieldUpdater<GrowableArrayBlockingQueue> SIZE_UPDATER = AtomicIntegerFieldUpdater
@@ -69,6 +71,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
         int capacity = io.netty.util.internal.MathUtil.findNextPositivePowerOfTwo(initialCapacity);
         data = (T[]) new Object[capacity];
+        this.capacity = capacity;
     }
 
     @Override
@@ -83,10 +86,17 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
     @Override
     public T poll() {
+        return pollIf(v -> true);
+    }
+
+    public T pollIf(Predicate<T> predicate) {
         headLock.lock();
         try {
             if (SIZE_UPDATER.get(this) > 0) {
                 T item = data[headIndex.value];
+                if (!predicate.test(item)) {
+                    return null;
+                }
                 data[headIndex.value] = null;
                 headIndex.value = (headIndex.value + 1) & (data.length - 1);
                 SIZE_UPDATER.decrementAndGet(this);
@@ -186,6 +196,9 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
 
         try {
             while (SIZE_UPDATER.get(this) == 0) {
+                if (terminated) {
+                    throw new InterruptedException("Queue is terminated");
+                }
                 isNotEmpty.await();
             }
 
@@ -210,6 +223,9 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
             long timeoutNanos = unit.toNanos(timeout);
             while (SIZE_UPDATER.get(this) == 0) {
                 if (timeoutNanos <= 0) {
+                    return null;
+                }
+                if (terminated) {
                     return null;
                 }
 
@@ -359,6 +375,16 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     }
 
     @Override
+    public Object[] toArray() {
+        return toList().toArray();
+    }
+
+    @Override
+    public <R> R[] toArray(R[] array) {
+        return toList().toArray(array);
+    }
+
+    @Override
     public void forEach(Consumer<? super T> action) {
         long stamp = tailLock.writeLock();
         headLock.lock();
@@ -414,7 +440,8 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     }
 
     /**
-     * Make the queue not accept new items. if there are still new data trying to enter the queue, it will be handed
+     * Make the queue not accept new items and waking up blocked consume.
+     * if there are still new data trying to enter the queue, it will be handed
      * by {@param itemAfterTerminatedHandler}.
      */
     public void terminate(@Nullable Consumer<T> itemAfterTerminatedHandler) {
@@ -428,36 +455,92 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         } finally {
             tailLock.unlockWrite(stamp);
         }
+
+        // Signal waiting consumer threads to prevent indefinite blocking after termination
+        headLock.lock();
+        try {
+            isNotEmpty.signalAll();
+        } finally {
+            headLock.unlock();
+        }
     }
 
     public boolean isTerminated() {
         return terminated;
     }
 
-    @SuppressWarnings("unchecked")
     private void expandArray() {
         // We already hold the tailLock
         headLock.lock();
 
         try {
-            int size = SIZE_UPDATER.get(this);
-            int newCapacity = data.length * 2;
-            T[] newData = (T[]) new Object[newCapacity];
-
-            int oldHeadIndex = headIndex.value;
-            int newTailIndex = 0;
-
-            for (int i = 0; i < size; i++) {
-                newData[newTailIndex++] = data[oldHeadIndex];
-                oldHeadIndex = (oldHeadIndex + 1) & (data.length - 1);
-            }
-
-            data = newData;
-            headIndex.value = 0;
-            tailIndex.value = size;
+            resizeArray(data.length * 2);
         } finally {
             headLock.unlock();
         }
+    }
+
+    /** Returns the current backing-array capacity, which can change concurrently. */
+    public int capacity() {
+        return capacity;
+    }
+
+    /**
+     * Attempts to shrink a queue that is at most one-quarter full, leaving room for twice its size
+     * and at least 64 elements. Does not wait for busy queue locks. No elements are discarded.
+     *
+     * @return the number of backing-array slots released, or zero if no shrink was performed
+     */
+    public int trim() {
+        long stamp = tailLock.tryWriteLock();
+        if (stamp == 0) {
+            return 0;
+        }
+        try {
+            if (!headLock.tryLock()) {
+                return 0;
+            }
+            try {
+                int oldCapacity = data.length;
+                if (oldCapacity <= 64 || size > oldCapacity / 4) {
+                    return 0;
+                }
+                // The occupancy check bounds size * 2 below the current capacity, avoiding overflow.
+                int newCapacity = 64;
+                while (newCapacity < size * 2) {
+                    newCapacity *= 2;
+                }
+                resizeArray(newCapacity);
+                return oldCapacity - newCapacity;
+            } finally {
+                headLock.unlock();
+            }
+        } finally {
+            tailLock.unlockWrite(stamp);
+        }
+    }
+
+    /**
+     * Called with both queue locks held after resizing. Overrides must not throw or acquire other
+     * queue locks. Intended for infrequent capacity accounting, not per-element notifications.
+     */
+    protected void capacityChanged(int newCapacity) {
+    }
+
+    @SuppressWarnings("unchecked")
+    private void resizeArray(int newCapacity) {
+        int size = this.size;
+        T[] newData = (T[]) new Object[newCapacity];
+        int oldHeadIndex = headIndex.value;
+        for (int i = 0; i < size; i++) {
+            newData[i] = data[oldHeadIndex];
+            oldHeadIndex = (oldHeadIndex + 1) & (data.length - 1);
+        }
+        data = newData;
+        headIndex.value = 0;
+        tailIndex.value = size;
+        capacity = newCapacity;
+        capacityChanged(newCapacity);
     }
 
     static final class PaddedInt {

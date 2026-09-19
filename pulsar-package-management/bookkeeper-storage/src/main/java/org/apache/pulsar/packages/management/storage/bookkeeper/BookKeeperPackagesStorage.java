@@ -26,7 +26,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.DistributedLogConstants;
@@ -46,7 +46,7 @@ import org.apache.zookeeper.KeeperException;
 /**
  * Packages management storage implementation with bookkeeper.
  */
-@Slf4j
+@CustomLog
 public class BookKeeperPackagesStorage implements PackagesStorage {
 
     private static final String NS_CLIENT_ID = "packages-management";
@@ -79,7 +79,8 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
         // bookie client.
         PropertiesUtils.filterAndMapProperties(configuration.getProperties(), "bookkeeper_", "bkc.")
                 .forEach((key, value) -> {
-                    log.info("Applying DLog BookKeeper client configuration setting {}={}", key, value);
+                    log.info().attr("key", key).attr("value", value)
+                            .log("Applying DLog BookKeeper client configuration setting");
                     conf.setProperty(key, value);
                 });
         try {

@@ -32,7 +32,7 @@ public class WebExecutorThreadPool extends ExecutorThreadPool {
     }
 
     public WebExecutorThreadPool(int maxThreads, String namePrefix, int queueCapacity) {
-        super(maxThreads, Math.min(8, maxThreads), new BlockingArrayQueue<>(queueCapacity, queueCapacity));
+        super(maxThreads, Math.min(8, maxThreads), new BlockingArrayQueue<>(queueCapacity));
         this.threadFactory = new DefaultThreadFactory(namePrefix);
     }
 

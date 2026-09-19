@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import com.google.protobuf.Descriptors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
@@ -31,7 +31,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 /**
  * A multi version generic protobuf-native reader.
  */
-@Slf4j
+@CustomLog
 public class MultiVersionGenericProtobufNativeReader
     extends AbstractMultiVersionReader<GenericRecord>
     implements SchemaReader<GenericRecord> {
@@ -59,9 +59,9 @@ public class MultiVersionGenericProtobufNativeReader
     protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
         if (schemaInfo != null) {
-            log.info("Load schema reader for version({}), schema is : {}",
-                    SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                    schemaInfo);
+            log.info().attr("version", SchemaUtils.getStringSchemaVersion(schemaVersion.get()))
+                    .attr("schema", schemaInfo)
+                    .log("Load schema reader");
             Descriptors.Descriptor recordDescriptor = parseProtobufSchema(schemaInfo);
             Descriptors.Descriptor readerSchemaDescriptor =
                 useProvidedSchemaAsReaderSchema ? descriptor : recordDescriptor;
@@ -69,9 +69,9 @@ public class MultiVersionGenericProtobufNativeReader
                     readerSchemaDescriptor,
                     schemaVersion.get());
         } else {
-            log.warn("No schema found for version({}), use latest schema : {}",
-                    SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                    this.schemaInfo);
+            log.warn().attr("version", SchemaUtils.getStringSchemaVersion(schemaVersion.get()))
+                    .attr("schema", this.schemaInfo)
+                    .log("No schema found for version, use latest schema");
             return providerSchemaReader;
         }
     }

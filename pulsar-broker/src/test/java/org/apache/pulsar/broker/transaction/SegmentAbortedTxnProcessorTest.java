@@ -32,11 +32,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.commons.collections4.map.LinkedMap;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
@@ -70,7 +70,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
     private static final String PROCESSOR_TOPIC = "persistent://" + NAMESPACE1 + "/abortedTxnProcessor";
@@ -83,8 +83,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         setUpBase(1, 1, null, 0);
         this.pulsarService = getPulsarServiceList().get(0);
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
-        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() +
-                SEGMENT_SIZE * 3);
+        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length()
+                + SEGMENT_SIZE * 3);
         admin.topics().createNonPartitionedTopic(PROCESSOR_TOPIC);
         assertTrue(getSnapshotAbortedTxnProcessor(PROCESSOR_TOPIC) instanceof SnapshotSegmentAbortedTxnProcessorImpl);
     }
@@ -137,8 +137,9 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         //3. Delete the ledgers and then verify the date.
         Field ledgersField = ManagedLedgerImpl.class.getDeclaredField("ledgers");
         ledgersField.setAccessible(true);
-        NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo> ledgers =
-                (NavigableMap<Long, MLDataFormats.ManagedLedgerInfo.LedgerInfo>)
+        @SuppressWarnings("unchecked")
+        NavigableMap<Long, ManagedLedgerInfo.LedgerInfo> ledgers =
+                (NavigableMap<Long, ManagedLedgerInfo.LedgerInfo>)
                         ledgersField.get(persistentTopic.getManagedLedger());
         ledgers.forEach((k, v) -> {
             ledgers.remove(k);
@@ -157,7 +158,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         Field taskQueueField = SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker.class
                 .getDeclaredField("taskQueue");
         taskQueueField.setAccessible(true);
-        Queue queue = (Queue) taskQueueField.get(persistentWorker);
+        Queue<?> queue = (Queue<?>) taskQueueField.get(persistentWorker);
         Awaitility.await().untilAsserted(() -> assertEquals(queue.size(), 0));
     }
 
@@ -174,7 +175,9 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                 .getDeclaredField("segmentIndex");
         unsealedSegmentField.setAccessible(true);
         indexField.setAccessible(true);
+        @SuppressWarnings("unchecked")
         LinkedList<TxnID> unsealedSegment = (LinkedList<TxnID>) unsealedSegmentField.get(processor);
+        @SuppressWarnings("unchecked")
         LinkedMap<Position, TxnID> indexes = (LinkedMap<Position, TxnID>) indexField.get(processor);
         assertEquals(unsealedSegment.size(), txnIdSize % SEGMENT_SIZE);
         assertEquals(indexes.size(), txnIdSize / SEGMENT_SIZE);
@@ -193,8 +196,9 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         Field taskQueueField = SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker.class
                 .getDeclaredField("taskQueue");
         taskQueueField.setAccessible(true);
-        Supplier task = CompletableFuture::new;
-        Queue queue = (Queue) taskQueueField.get(persistentWorker);
+        Supplier<?> task = CompletableFuture::new;
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        Queue<Object> queue = (Queue) taskQueueField.get(persistentWorker);
         queue.add(new MutablePair<>(SnapshotSegmentAbortedTxnProcessorImpl.PersistentWorker.OperationType.WriteSegment,
                 new MutablePair<>(new CompletableFuture<>(), task)));
         try {
@@ -208,6 +212,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testClearSnapshotSegments() throws Exception {
         PersistentTopic persistentTopic = (PersistentTopic) pulsarService.getBrokerService()
                 .getTopic(PROCESSOR_TOPIC, false).get().get();
@@ -348,6 +353,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                         .createReader(TopicName.get(topic)).get();
         int segmentCount = 0;
         while (reader.hasMoreEvents()) {
+            @Cleanup("release")
             Message<TransactionBufferSnapshotSegment> message = reader.readNextAsync()
                     .get(5, TimeUnit.SECONDS);
             if (topic.equals(message.getValue().getTopicName())) {
@@ -364,6 +370,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
                         .createReader(TopicName.get(topic)).get();
         int indexCount = 0;
         while (reader.hasMoreEvents()) {
+            @Cleanup("release")
             Message<TransactionBufferSnapshotIndexes> message = reader.readNextAsync()
                     .get(5, TimeUnit.SECONDS);
             if (topic.equals(message.getValue().getTopicName())) {
@@ -380,6 +387,7 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         Field field = PersistentTopic.class.getDeclaredField("currentCompaction");
         field.setAccessible(true);
         snapshotTopic.triggerCompaction();
+        @SuppressWarnings("unchecked")
         CompletableFuture<Long> compactionFuture = (CompletableFuture<Long>) field.get(snapshotTopic);
         org.awaitility.Awaitility.await().untilAsserted(() -> assertTrue(compactionFuture.isDone()));
     }
@@ -401,18 +409,19 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
      */
     @Test
     public void testSnapshotProcessorUpgrade() throws Exception {
-        String NAMESPACE2 = TENANT + "/ns2";
-        admin.namespaces().createNamespace(NAMESPACE2);
+        String nameSpace2 = TENANT + "/ns2";
+        admin.namespaces().createNamespace(nameSpace2);
         this.pulsarService = getPulsarServiceList().get(0);
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(false);
 
         // Create a topic, send 10 messages without using transactions, and send 10 messages using transactions.
         // Abort these transactions and verify the data.
-        final String topicName = "persistent://" + NAMESPACE2 + "/testSnapshotProcessorUpgrade";
+        final String topicName = "persistent://" + nameSpace2 + "/testSnapshotProcessorUpgrade";
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         @Cleanup
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("test-sub").subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("test-sub").subscribe();
 
         assertTrue(getSnapshotAbortedTxnProcessor(topicName) instanceof SingleSnapshotAbortedTxnProcessorImpl);
         // Send 10 messages without using transactions
@@ -442,8 +451,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
         // Enable segmented snapshot
         this.pulsarService.getConfig().setTransactionBufferSegmentedSnapshotEnabled(true);
-        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length() +
-                SEGMENT_SIZE * 3);
+        this.pulsarService.getConfig().setTransactionBufferSnapshotSegmentSize(8 + PROCESSOR_TOPIC.length()
+                + SEGMENT_SIZE * 3);
 
         // Unload the topic
         admin.topics().unload(topicName);
@@ -458,8 +467,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
 
         // Verifies that the topic has exactly one segment.
         Awaitility.await().untilAsserted(() -> {
-            String segmentTopic = "persistent://" + NAMESPACE2 + "/" +
-                    SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
+            String segmentTopic = "persistent://" + nameSpace2 + "/"
+                    + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT_SEGMENTS;
             TopicStats topicStats = admin.topics().getStats(segmentTopic);
             assertEquals(1, topicStats.getMsgInCounter());
         });
@@ -500,8 +509,8 @@ public class SegmentAbortedTxnProcessorTest extends TransactionTestBase {
         producer.close();
         assertTrue(getSnapshotAbortedTxnProcessor(topicName) instanceof SnapshotSegmentAbortedTxnProcessorImpl);
         // Check that the __transaction_buffer_snapshot topic is not created in the same namespace
-        String transactionBufferSnapshotTopic = "persistent://" + namespaceName + "/" +
-                SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+        String transactionBufferSnapshotTopic = "persistent://" + namespaceName + "/"
+                + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
         try {
             admin.topics().getStats(transactionBufferSnapshotTopic);
             fail("The __transaction_buffer_snapshot topic should not exist");

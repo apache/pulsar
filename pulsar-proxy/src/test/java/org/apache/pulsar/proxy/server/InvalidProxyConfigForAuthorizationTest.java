@@ -20,7 +20,6 @@ package org.apache.pulsar.proxy.server;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
-
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.api.Authentication;
 import org.mockito.Mockito;
@@ -33,6 +32,7 @@ public class InvalidProxyConfigForAuthorizationTest {
         ProxyConfiguration proxyConfiguration = new ProxyConfiguration();
         proxyConfiguration.setAuthorizationEnabled(true);
         proxyConfiguration.setAuthenticationEnabled(false);
+        proxyConfiguration.setClusterName("test");
         try (ProxyService proxyService = new ProxyService(proxyConfiguration,
                 Mockito.mock(AuthenticationService.class), Mockito.mock(Authentication.class))) {
             proxyService.start();

@@ -1,0 +1,67 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+plugins {
+    id("pulsar.public-java-library-conventions")
+}
+
+// Include parent module's test resources (YAML config files used by WorkerApiV2ResourceConfigTest)
+// This mirrors Maven's maven-antrun-plugin that copies pulsar-functions/src/test/resources/*.yml
+sourceSets {
+    test {
+        resources {
+            srcDir("${project.projectDir}/../src/test/resources")
+        }
+    }
+}
+
+tasks.named<ProcessResources>("processTestResources") {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+}
+
+dependencies {
+    implementation(libs.slog)
+    api(project(":pulsar-functions:pulsar-functions-instance"))
+    api(project(":pulsar-functions:pulsar-functions-secrets"))
+    api(project(":pulsar-broker-common"))
+    api(libs.picocli)
+    implementation(libs.jackson.dataformat.yaml)
+    implementation(libs.jackson.databind)
+    api(libs.jackson.annotations)
+    implementation(libs.commons.lang3)
+    implementation(libs.kubernetes.client.java) {
+        exclude(group = "org.bouncycastle", module = "bcpkix-jdk18on")
+        exclude(group = "org.bouncycastle", module = "bcutil-jdk18on")
+        exclude(group = "org.bouncycastle", module = "bcprov-jdk18on")
+        exclude(group = "javax.annotation", module = "javax.annotation-api")
+        exclude(group = "software.amazon.awssdk")
+        // Swagger 1.x annotations on the generated k8s models are inert metadata; nothing reads them at runtime
+        exclude(group = "io.swagger", module = "swagger-annotations")
+    }
+    implementation(libs.simpleclient.hotspot)
+    implementation(libs.prometheus.jmx.collector)
+    implementation(libs.protobuf.java.util)
+    implementation(libs.guava)
+    api(project(":pulsar-functions:pulsar-functions-proto"))
+    implementation(project(":pulsar-client-original"))
+    implementation(libs.grpc.netty.shaded)
+    implementation(libs.grpc.stub)
+    implementation(libs.jetty.util)
+    implementation(libs.byte.buddy)
+}

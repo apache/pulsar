@@ -21,7 +21,6 @@ package org.apache.pulsar;
 import static org.apache.commons.io.FileUtils.cleanDirectory;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
@@ -55,7 +54,6 @@ public class PulsarStandaloneTest {
 
         PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
         standalone.setBkDir(tempDir.getAbsolutePath());
-        standalone.setBkPort(0);
         standalone.setNumOfBk(bookieNum);
 
         standalone.startBookieWithMetadataStore();
@@ -68,10 +66,12 @@ public class PulsarStandaloneTest {
         List<ServerConfiguration> secondBsConfs = standalone.bkCluster.getBsConfs();
         Assert.assertEquals(secondBsConfs.size(), bookieNum);
 
+        // Cookies must be preserved across restart (otherwise bookie startup would have failed
+        // with InvalidCookieException). The bookieId is the persistent identity.
         for (int i = 0; i < bookieNum; i++) {
             ServerConfiguration conf1 = firstBsConfs.get(i);
             ServerConfiguration conf2 = secondBsConfs.get(i);
-            Assert.assertEquals(conf1.getBookiePort(), conf2.getBookiePort());
+            Assert.assertEquals(conf1.getBookieId(), conf2.getBookieId());
         }
         standalone.close();
         cleanDirectory(tempDir);
@@ -94,7 +94,6 @@ public class PulsarStandaloneTest {
         }
         final File bkDir = IOUtils.createTempDir("standalone", "bk");
         standalone.setNumOfBk(1);
-        standalone.setBkPort(0);
         standalone.setBkDir(bkDir.getAbsolutePath());
         standalone.start();
 
@@ -124,7 +123,11 @@ public class PulsarStandaloneTest {
 
         String topic = "test-get-topic-bundle-range";
         admin.topics().createNonPartitionedTopic(topic);
-        assertEquals(admin.lookups().getBundleRange(topic), "0xc0000000_0xffffffff");
+        // public/default is created with the default number of bundles (32); crc32 of the full topic name is
+        // 0xca437fb1, which falls into the 26th of the 32 equally sized ranges
+        assertEquals(admin.namespaces().getBundles("public/default").getNumBundles(),
+                standalone.getConfig().getDefaultNumberOfNamespaceBundles());
+        assertEquals(admin.lookups().getBundleRange(topic), "0xc8000000_0xd0000000");
 
         standalone.close();
         cleanDirectory(bkDir);
@@ -149,7 +152,6 @@ public class PulsarStandaloneTest {
                 bkDir.getAbsolutePath()
         });
         standalone.setTestMode(true);
-        standalone.setBkPort(0);
         standalone.start();
         BKCluster bkCluster = standalone.bkCluster;
         standalone.runShutdownHook();

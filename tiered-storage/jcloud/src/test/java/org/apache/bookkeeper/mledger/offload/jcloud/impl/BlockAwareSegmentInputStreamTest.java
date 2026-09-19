@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
-
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -39,8 +38,9 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
+import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -51,7 +51,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
-@Slf4j
+@CustomLog
 public class BlockAwareSegmentInputStreamTest {
     private static final byte DEFAULT_ENTRY_BYTE = 0xB;
 
@@ -68,10 +68,10 @@ public class BlockAwareSegmentInputStreamTest {
             this.ledgerId = ledgerId;
             this.entryId = entryId;
             this.length = length;
-            this.entryBytes = new byte[(int)length];
+            this.entryBytes = new byte[(int) length];
             entryBuffer = Unpooled.wrappedBuffer(entryBytes);
             entryBuffer.writerIndex(0);
-            IntStream.range(0, (int)length).forEach(i -> entryBuffer.writeByte(dataSupplier.get()));
+            IntStream.range(0, (int) length).forEach(i -> entryBuffer.writeByte(dataSupplier.get()));
         }
 
         @Override
@@ -120,7 +120,7 @@ public class BlockAwareSegmentInputStreamTest {
                 return null;
             }
 
-            return entries.get(((int)entryId - startEntryId));
+            return entries.get(((int) entryId - startEntryId));
         }
 
         @Override
@@ -129,6 +129,7 @@ public class BlockAwareSegmentInputStreamTest {
         }
     }
 
+    @SuppressWarnings("try")
     class MockReadHandle implements ReadHandle {
         int ledgerId;
         int entrySize;
@@ -150,8 +151,8 @@ public class BlockAwareSegmentInputStreamTest {
         public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
             CompletableFuture<LedgerEntries> future = new CompletableFuture<>();
             LedgerEntries entries = new MockLedgerEntries(ledgerId,
-                (int)firstEntry,
-                (int)(lastEntry - firstEntry + 1),
+                (int) firstEntry,
+                (int) (lastEntry - firstEntry + 1),
                     entrySize, dataSupplier);
 
             future.complete(entries);
@@ -249,7 +250,7 @@ public class BlockAwareSegmentInputStreamTest {
         assertEquals(headerRead.getFirstEntryId(), 0);
 
         byte[] entryData = new byte[entrySize];
-        Arrays.fill(entryData, (byte)0xB); // 0xB is MockLedgerEntry.blockPadding
+        Arrays.fill(entryData, (byte) 0xB); // 0xB is MockLedgerEntry.blockPadding
 
         // 2. read Ledger entries. 201 * 20
         IntStream.range(0, expectedEntryCount).forEach(i -> {
@@ -302,7 +303,7 @@ public class BlockAwareSegmentInputStreamTest {
             }
         }
         ByteBuf paddingBuf = Unpooled.wrappedBuffer(padding);
-        IntStream.range(0, paddingBuf.capacity()/4).forEach(i ->
+        IntStream.range(0, paddingBuf.capacity() / 4).forEach(i ->
             assertEquals(Integer.toHexString(paddingBuf.readInt()),
                          Integer.toHexString(0xFEDCDEAD)));
 
@@ -353,7 +354,7 @@ public class BlockAwareSegmentInputStreamTest {
         assertEquals(headerRead.getFirstEntryId(), 0);
 
         byte[] entryData = new byte[entrySize];
-        Arrays.fill(entryData, (byte)0xB); // 0xB is MockLedgerEntry.blockPadding
+        Arrays.fill(entryData, (byte) 0xB); // 0xB is MockLedgerEntry.blockPadding
 
         // 2. read Ledger entries. 201 * 20
         IntStream.range(0, expectedEntryCount).forEach(i -> {
@@ -433,7 +434,7 @@ public class BlockAwareSegmentInputStreamTest {
         assertEquals(headerRead.getFirstEntryId(), 0);
 
         byte[] entryData = new byte[entrySize];
-        Arrays.fill(entryData, (byte)0xB); // 0xB is MockLedgerEntry.blockPadding
+        Arrays.fill(entryData, (byte) 0xB); // 0xB is MockLedgerEntry.blockPadding
 
         // 2. read Ledger entries. 96 * 20
         IntStream.range(0, expectedEntryCount).forEach(i -> {
@@ -536,7 +537,7 @@ public class BlockAwareSegmentInputStreamTest {
             }
         }
         ByteBuf paddingBuf = Unpooled.wrappedBuffer(padding);
-        IntStream.range(0, paddingBuf.capacity()/4).forEach(i ->
+        IntStream.range(0, paddingBuf.capacity() / 4).forEach(i ->
             assertEquals(Integer.toHexString(paddingBuf.readInt()),
                          Integer.toHexString(0xFEDCDEAD)));
 
@@ -587,7 +588,7 @@ public class BlockAwareSegmentInputStreamTest {
 
         // 2. There should be a single entry
         byte[] entryData = new byte[entrySize];
-        Arrays.fill(entryData, (byte)0xB); // 0xB is MockLedgerEntry.blockPadding
+        Arrays.fill(entryData, (byte) 0xB); // 0xB is MockLedgerEntry.blockPadding
 
         IntStream.range(0, expectedEntryCount).forEach(i -> {
             try {
@@ -639,7 +640,7 @@ public class BlockAwareSegmentInputStreamTest {
             }
         }
         ByteBuf paddingBuf = Unpooled.wrappedBuffer(padding);
-        IntStream.range(0, paddingBuf.capacity()/4).forEach(i ->
+        IntStream.range(0, paddingBuf.capacity() / 4).forEach(i ->
                 assertEquals(Integer.toHexString(paddingBuf.readInt()),
                              Integer.toHexString(0xFEDCDEAD)));
 
@@ -665,13 +666,14 @@ public class BlockAwareSegmentInputStreamTest {
         int lac = 0;
 
         Random r = new Random(0);
-        ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac, () -> (byte)r.nextInt());
+        ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac, () -> (byte) r.nextInt());
 
         int blockSize = DataBlockHeaderImpl.getDataStartOffset() + entrySize * 2;
+        @Cleanup
         BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
 
         int bytesRead = 0;
-        for (int i = 0; i < blockSize*2; i++) {
+        for (int i = 0; i < blockSize * 2; i++) {
             int ret = inputStream.read();
             if (ret < 0) { // should only be EOF
                 assertEquals(bytesRead, blockSize);
@@ -689,9 +691,10 @@ public class BlockAwareSegmentInputStreamTest {
         int lac = 0;
 
         Random r = new Random(0);
-        ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac, () -> (byte)r.nextInt());
+        ReadHandle readHandle = new MockReadHandle(ledgerId, entrySize, lac, () -> (byte) r.nextInt());
 
         int blockSize = DataBlockHeaderImpl.getDataStartOffset() + entrySize * 2;
+        @Cleanup
         BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
 
         int bytesRead = 0;
@@ -723,6 +726,7 @@ public class BlockAwareSegmentInputStreamTest {
 
         // set block size equals to (header + lac_entry) size.
         int blockSize = DataBlockHeaderImpl.getDataStartOffset() + (1 + lac) * (entrySize + 4 + 8);
+        @Cleanup
         BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, blockSize);
         int expectedEntryCount = (blockSize - DataBlockHeaderImpl.getDataStartOffset()) / (entrySize + 4 + 8);
 
@@ -744,7 +748,7 @@ public class BlockAwareSegmentInputStreamTest {
         assertEquals(headerRead.getFirstEntryId(), 0);
 
         byte[] entryData = new byte[entrySize];
-        Arrays.fill(entryData, (byte)0xB); // 0xB is MockLedgerEntry.blockPadding
+        Arrays.fill(entryData, (byte) 0xB); // 0xB is MockLedgerEntry.blockPadding
 
         // 2. read Ledger entries. 96 * 20
         IntStream.range(0, expectedEntryCount).forEach(i -> {
@@ -804,6 +808,7 @@ public class BlockAwareSegmentInputStreamTest {
     public void testCloseReleaseResources() throws Exception {
         ReadHandle readHandle = new MockReadHandle(1, 10, 10);
 
+        @Cleanup
         BlockAwareSegmentInputStreamImpl inputStream = new BlockAwareSegmentInputStreamImpl(readHandle, 0, 1024);
         inputStream.read();
         Field field = BlockAwareSegmentInputStreamImpl.class.getDeclaredField("paddingBuf");

@@ -35,13 +35,13 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.pulsar.broker.BitRateUnit;
 
-@Slf4j
+@CustomLog
 public class LinuxInfoUtils {
 
     // CGROUP
@@ -78,7 +78,7 @@ public class LinuxInfoUtils {
                 getCpuUsageMethod.setAccessible(true);
             }
         } catch (Throwable e) {
-            log.warn("Failed to get runtime metrics", e);
+            log.warn().exception(e).log("Failed to get runtime metrics");
         }
     }
 
@@ -99,10 +99,10 @@ public class LinuxInfoUtils {
                 return Files.exists(Paths.get(CGROUPS_CPU_USAGE_PATH));
             }
             String provider = (String) getMetricsProviderMethod.invoke(metrics);
-            log.info("[LinuxInfo] The system metrics provider is: {}", provider);
+            log.info().attr("provider", provider).log("The system metrics provider");
             return provider.contains("cgroup");
         } catch (Exception e) {
-            log.warn("[LinuxInfo] Failed to check cgroup CPU: {}", e.getMessage());
+            log.warn().exceptionMessage(e).log("Failed to check cgroup CPU");
             return false;
         }
     }
@@ -129,7 +129,7 @@ public class LinuxInfoUtils {
                     return 100.0 * quota / period;
                 }
             } catch (Exception e) {
-                log.warn("[LinuxInfo] Failed to read CPU quotas from cgroup", e);
+                log.warn().exception(e).log("Failed to read CPU quotas from cgroup");
                 // Fallback to availableProcessors
             }
         }
@@ -148,7 +148,7 @@ public class LinuxInfoUtils {
             }
             return readLongFromFile(Paths.get(CGROUPS_CPU_USAGE_PATH));
         } catch (Exception e) {
-            log.error("[LinuxInfo] Failed to read CPU usage from cgroup", e);
+            log.error().exception(e).log("Failed to read CPU usage from cgroup");
             return -1;
         }
     }
@@ -170,7 +170,7 @@ public class LinuxInfoUtils {
         try (Stream<String> stream = Files.lines(Paths.get(PROC_STAT_PATH))) {
             Optional<String> first = stream.findFirst();
             if (!first.isPresent()) {
-                log.error("[LinuxInfo] Failed to read CPU usage from /proc/stat, because of empty values.");
+                log.error("Failed to read CPU usage from /proc/stat, empty values");
                 return ResourceUsage.empty();
             }
             String[] words = first.get().split("\\s+");
@@ -184,7 +184,7 @@ public class LinuxInfoUtils {
                     .idle(idle)
                     .total(total).build();
         } catch (IOException e) {
-            log.error("[LinuxInfo] Failed to read CPU usage from /proc/stat", e);
+            log.error().exception(e).log("Failed to read CPU usage from /proc/stat");
             return ResourceUsage.empty();
         }
     }
@@ -202,18 +202,14 @@ public class LinuxInfoUtils {
             // Check the type to make sure it's ethernet (type "1")
             final Path nicTypePath = nicPath.resolve("type");
             if (!Files.exists(nicTypePath)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Failed to read NIC type, the expected linux type file does not exist."
-                              + " nic_type_path={}", nicTypePath);
-                }
+                log.debug().attr("nicTypePath", nicTypePath)
+                        .log("Failed to read NIC type, the expected linux type file does not exist");
                return false;
             }
             // wireless NICs don't report speed, ignore them.
             return Integer.parseInt(readTrimStringFromFile(nicTypePath)) == ARPHRD_ETHER;
         } catch (Exception ex) {
-            if (log.isDebugEnabled()) {
-                log.debug("Failed to read NIC type. nic_path={}", nicPath, ex);
-            }
+            log.debug().attr("nicPath", nicPath).exception(ex).log("Failed to read NIC type");
             return false;
         }
     }
@@ -236,7 +232,8 @@ public class LinuxInfoUtils {
                     return false;
             }
         } catch (Exception e) {
-            log.warn("[LinuxInfo] Failed to read {} NIC operstate, the detail is: {}", nicPath, e.getMessage());
+            log.warn().attr("nicPath", nicPath).exceptionMessage(e)
+                    .log("Failed to read NIC operstate");
             // Read operstate got error.
             return false;
         }
@@ -256,11 +253,9 @@ public class LinuxInfoUtils {
                 // ERROR-level logs about NIC rate limiting reading failures are periodically printed but not
                 // continuously printed
                 if (failedCounterInReadingNicLimits.getAndIncrement() % errLogPrintedFrequencyInReadingNicLimits == 0) {
-                    log.error("[LinuxInfo] Failed to get the nic limit of {}.", nicPath, e);
+                    log.error().attr("nicPath", nicPath).exception(e).log("Failed to get the nic limit");
                 } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[LinuxInfo] Failed to get the nic limit of {}.", nicPath, e);
-                    }
+                    log.debug().attr("nicPath", nicPath).exception(e).log("Failed to get the nic limit");
                 }
                 return 0d;
             }
@@ -279,7 +274,7 @@ public class LinuxInfoUtils {
             try {
                 return readDoubleFromFile(getReplacedNICPath(type.template, nic));
             } catch (IOException e) {
-                log.error("[LinuxInfo] Failed to read {} bytes for NIC {} ", type, nic, e);
+                log.error().attr("type", type).attr("nic", nic).exception(e).log("Failed to read bytes for NIC");
                 return 0d;
             }
         }).sum(), BitRateUnit.Byte);
@@ -296,7 +291,7 @@ public class LinuxInfoUtils {
                     .map(path -> path.getFileName().toString())
                     .collect(Collectors.toList());
         } catch (IOException e) {
-            log.error("[LinuxInfo] Failed to find NICs", e);
+            log.error().exception(e).log("Failed to find NICs");
             return Collections.emptyList();
         }
     }

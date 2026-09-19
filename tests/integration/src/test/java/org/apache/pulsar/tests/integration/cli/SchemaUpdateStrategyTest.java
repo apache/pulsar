@@ -20,12 +20,13 @@ package org.apache.pulsar.tests.integration.cli;
 
 
 import static org.testng.Assert.assertEquals;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import lombok.CustomLog;
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -41,19 +42,12 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * Test setting the schema update strategy via the CLI.
  */
 @SuppressWarnings("try")
+@CustomLog
 public class SchemaUpdateStrategyTest extends PulsarTestSuite {
-    private static final Logger log = LoggerFactory.getLogger(SchemaUpdateStrategyTest.class);
 
     private void testAutoUpdateBackward(String namespace, String topicName) throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker(
@@ -89,7 +83,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                  .subscriptionName("sub")
                  .subscribe()
             ) {
-                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+                log.info().attr("info", schema.getSchemaInfo().getSchemaDefinition()).log("Schema Info");
 
                 Message<GenericRecord> msg1 = consumer.receive();
                 v1Data.assertEqualToRecord(msg1.getValue());
@@ -133,7 +127,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                  .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                  .subscribe()
             ) {
-                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+                log.info().attr("info", schema.getSchemaInfo().getSchemaDefinition()).log("Schema Info");
 
                 Message<GenericRecord> msg1 = consumer.receive();
                 v1Data.assertEqualToRecord(msg1.getValue());
@@ -182,7 +176,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                  .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                  .subscribe()
             ) {
-                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+                log.info().attr("info", schema.getSchemaInfo().getSchemaDefinition()).log("Schema Info");
 
                 Message<GenericRecord> msg1 = consumer.receive();
                 v1Data.assertEqualToRecord(msg1.getValue());
@@ -234,7 +228,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
                  .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                  .subscribe()
             ) {
-                log.info("Schema Info : {}", schema.getSchemaInfo().getSchemaDefinition());
+                log.info().attr("info", schema.getSchemaInfo().getSchemaDefinition()).log("Schema Info");
 
                 Message<GenericRecord> msg1 = consumer.receive();
                 v1Data.assertEqualToRecord(msg1.getValue());
@@ -293,7 +287,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
             for (int i = 0; i < 50; i++) {
                 try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class))
                         .topic(topicName).create()) {
-                    p.send(new V4Data("test2", 1, (short)100));
+                    p.send(new V4Data("test2", 1, (short) 100));
                     success = true;
                     break;
                 } catch (Throwable t) {
@@ -305,7 +299,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
         }
     }
 
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V1Data {
         String foo;
         int bar;
@@ -325,7 +319,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
     }
 
     // backward compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V2Data {
         String foo;
 
@@ -342,7 +336,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
     }
 
     // forward compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V3Data {
         String foo;
         int bar;
@@ -365,7 +359,7 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
     }
 
     // fully compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V4Data {
         String foo;
         int bar;
@@ -445,63 +439,4 @@ public class SchemaUpdateStrategyTest extends PulsarTestSuite {
         testAutoUpdateDisabled("public/dis-np-v2", "non-persistent://public/dis-np-v2/topic1");
     }
 
-    @Test
-    public void testBackwardV1() throws Exception {
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
-                                                 "public/" + pulsarCluster.getClusterName() + "/b-p-v1");
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
-                                                 "public/" + pulsarCluster.getClusterName() + "/b-np-v1");
-        testAutoUpdateBackward("public/" + pulsarCluster.getClusterName() + "/b-p-v1",
-                               "persistent://public/" + pulsarCluster.getClusterName() + "/b-p-v1/topic1");
-        testAutoUpdateBackward("public/" + pulsarCluster.getClusterName() + "/b-np-v1",
-                               "persistent://public/" + pulsarCluster.getClusterName() + "/b-np-v1/topic1");
-    }
-
-    @Test
-    public void testForwardV1() throws Exception {
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
-                                                 "public/" + pulsarCluster.getClusterName() + "/f-p-v1");
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
-                                                 "public/" + pulsarCluster.getClusterName() + "/f-np-v1");
-        testAutoUpdateForward("public/" + pulsarCluster.getClusterName() + "/f-p-v1",
-                              "persistent://public/" + pulsarCluster.getClusterName() + "/f-p-v1/topic1");
-        testAutoUpdateForward("public/" + pulsarCluster.getClusterName() + "/f-np-v1",
-                              "persistent://public/" + pulsarCluster.getClusterName() + "/f-np-v1/topic1");
-    }
-
-    @Test
-    public void testFullV1() throws Exception {
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
-                                                 "public/" + pulsarCluster.getClusterName() + "/full-p-v1");
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
-                                                 "public/" + pulsarCluster.getClusterName() + "/full-np-v1");
-        testAutoUpdateFull("public/" + pulsarCluster.getClusterName() + "/full-p-v1",
-                           "persistent://public/" + pulsarCluster.getClusterName() + "/full-p-v1/topic1");
-        testAutoUpdateFull("public/" + pulsarCluster.getClusterName() + "/full-np-v1",
-                           "persistent://public/" + pulsarCluster.getClusterName() + "/full-np-v1/topic1");
-    }
-
-    @Test
-    public void testNoneV1() throws Exception {
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
-                "public/" + pulsarCluster.getClusterName() + "/none-p-v1");
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
-                "public/" + pulsarCluster.getClusterName() + "/none-np-v1");
-        testNone("public/" + pulsarCluster.getClusterName() + "/none-p-v1",
-                "persistent://public/" + pulsarCluster.getClusterName() + "/none-p-v1/topic1");
-        testNone("public/" + pulsarCluster.getClusterName() + "/none-np-v1",
-                "persistent://public/" + pulsarCluster.getClusterName() + "/none-np-v1/topic1");
-    }
-
-    @Test
-    public void testDisabledV1() throws Exception {
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
-                                                 "public/" + pulsarCluster.getClusterName() + "/dis-p-v1");
-        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "create",
-                                                 "public/" + pulsarCluster.getClusterName() + "/dis-np-v1");
-        testAutoUpdateDisabled("public/" + pulsarCluster.getClusterName() + "/dis-p-v1",
-                               "persistent://public/" + pulsarCluster.getClusterName() + "/dis-p-v1/topic1");
-        testAutoUpdateDisabled("public/" + pulsarCluster.getClusterName() + "/dis-np-v1",
-                               "persistent://public/" + pulsarCluster.getClusterName() + "/dis-np-v1/topic1");
-    }
 }

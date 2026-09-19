@@ -98,11 +98,11 @@ public class TestRunMain {
         printWriter.close();
         testConfigFile.deleteOnExit();
 
-        String argStrTemp = "%s %s --admin-url https://url:4443 " + "topics stats persistent://prop/cluster/ns/t1";
+        String argStrTemp = "%s %s --admin-url https://url:4443 " + "topics stats persistent://prop/ns/t1";
         boolean prevValue = PulsarAdminTool.allowSystemExit;
         PulsarAdminTool.allowSystemExit = false;
 
-        String argStr = argStr = argStrTemp.format(argStrTemp, testConfigFile.getAbsolutePath(),
+        String argStr = String.format(argStrTemp, testConfigFile.getAbsolutePath(),
                 "--tls-trust-cert-path " + tlsTrustCertsFilePathInArg);
         PulsarAdminTool tool = PulsarAdminTool.execute(argStr.split(" "));
         assertNotNull(tool);

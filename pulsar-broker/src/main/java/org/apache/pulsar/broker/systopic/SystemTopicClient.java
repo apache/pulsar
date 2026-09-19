@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Pulsar system topic.
@@ -123,7 +124,7 @@ public interface SystemTopicClient<T> {
          * @return message id future
          */
         default CompletableFuture<MessageId> deleteAsync(String key, T t) {
-            throw new UnsupportedOperationException("Unsupported operation");
+            return FutureUtil.failedFuture(new UnsupportedOperationException("Unsupported operation"));
         }
 
         /**

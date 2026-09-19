@@ -20,25 +20,22 @@ package org.apache.pulsar.client.api;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
-
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandAckHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseConsumerHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandCloseProducerHook;
@@ -51,6 +48,7 @@ import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandSendHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandSubscribeHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandTopicLookupHook;
 import org.apache.pulsar.client.api.MockBrokerServiceHooks.CommandUnsubscribeHook;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
@@ -69,25 +67,25 @@ import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.server.handler.AbstractHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  *
  */
+@CustomLog
 public class MockBrokerService {
     private LookupData lookupData;
 
-    private class genericResponseHandler extends AbstractHandler {
+    private class GenericResponseServlet extends HttpServlet {
         private final ObjectMapper objectMapper = new ObjectMapper();
-        private final String lookupURI = "/lookup/v2/destination/persistent";
-        private final String partitionMetadataURI = "/admin/persistent";
+        private final String lookupURI = "/lookup/v2/topic/persistent";
+        private final String partitionMetadataURI = "/admin/v2/persistent";
         private final PartitionedTopicMetadata singlePartitionedTopicMetadata = new PartitionedTopicMetadata(1);
         private final PartitionedTopicMetadata multiPartitionedTopicMetadata = new PartitionedTopicMetadata(4);
         private final PartitionedTopicMetadata nonPartitionedTopicMetadata = new PartitionedTopicMetadata();
@@ -96,20 +94,20 @@ public class MockBrokerService {
         private final Pattern multiPartPattern = Pattern.compile(".*/multi-part-.*");
 
         @Override
-        public void handle(String s, Request baseRequest, HttpServletRequest request, HttpServletResponse response)
-                throws IOException, ServletException {
+        protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException {
             String responseString;
-            log.info("Received HTTP request {}", baseRequest.getRequestURI());
-            if (baseRequest.getRequestURI().startsWith(lookupURI)) {
+            String requestURI = request.getRequestURI();
+            log.info().attr("httpRequest", requestURI).log("Received HTTP request");
+            if (requestURI.startsWith(lookupURI)) {
                 response.setContentType("application/json;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
                 responseString = objectMapper.writeValueAsString(lookupData);
-            } else if (baseRequest.getRequestURI().startsWith(partitionMetadataURI)) {
+            } else if (requestURI.startsWith(partitionMetadataURI)) {
                 response.setContentType("application/json;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
-                if (singlePartPattern.matcher(baseRequest.getRequestURI()).matches()) {
+                if (singlePartPattern.matcher(requestURI).matches()) {
                     responseString = objectMapper.writeValueAsString(singlePartitionedTopicMetadata);
-                } else if (multiPartPattern.matcher(baseRequest.getRequestURI()).matches()) {
+                } else if (multiPartPattern.matcher(requestURI).matches()) {
                     responseString = objectMapper.writeValueAsString(multiPartitionedTopicMetadata);
                 } else {
                     responseString = objectMapper.writeValueAsString(nonPartitionedTopicMetadata);
@@ -119,9 +117,8 @@ public class MockBrokerService {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 responseString = "URI NOT DEFINED";
             }
-            baseRequest.setHandled(true);
             response.getWriter().println(responseString);
-            log.info("Sent response: {}", responseString);
+            log.info().attr("sentResponse", responseString).log("Sent response");
         }
     }
 
@@ -136,7 +133,7 @@ public class MockBrokerService {
         }
 
         @Override
-        protected void messageReceived() {
+        protected void messageReceived(BaseCommand cmd) {
         }
 
         @Override
@@ -146,7 +143,7 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false, false));
         }
 
         @Override
@@ -188,7 +185,8 @@ public class MockBrokerService {
                 return;
             }
             // default
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
         }
 
         @Override
@@ -262,18 +260,18 @@ public class MockBrokerService {
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-            log.warn("Got exception", cause);
+            log.warn().exception(cause).log("Got exception");
             ctx.close();
         }
 
         @Override
-        final protected void handlePing(CommandPing ping) {
+        protected final void handlePing(CommandPing ping) {
             // Immediately reply success to ping requests
             ctx.writeAndFlush(Commands.newPong());
         }
 
         @Override
-        final protected void handlePong(CommandPong pong) {
+        protected final void handlePong(CommandPong pong) {
         }
     }
 
@@ -296,21 +294,24 @@ public class MockBrokerService {
 
     public MockBrokerService() {
         server = new Server(0);
-        server.setHandler(new genericResponseHandler());
+        ServletContextHandler context = new ServletContextHandler();
+        context.setContextPath("/");
+        context.addServlet(new ServletHolder(new GenericResponseServlet()), "/*");
+        server.setHandler(context);
     }
 
     public void start() {
         try {
             server.start();
-            log.info("Started web service on {}", getHttpAddress());
+            log.info().attr("serviceOn", getHttpAddress()).log("Started web service on");
 
             startMockBrokerService();
-            log.info("Started mock Pulsar service on {}", getBrokerAddress());
+            log.info().attr("serviceOn", getBrokerAddress()).log("Started mock Pulsar service on");
 
-            lookupData = new LookupData(getBrokerAddress(), null,
+            lookupData = new LookupData(getBrokerId(), getBrokerAddress(), null,
                     getHttpAddress(), null);
         } catch (Exception e) {
-            log.error("Error starting mock service", e);
+            log.error().exception(e).log("Error starting mock service");
         }
     }
 
@@ -319,7 +320,7 @@ public class MockBrokerService {
             server.stop();
             workerGroup.shutdownGracefully();
         } catch (Exception e) {
-            log.error("Error stopping mock service", e);
+            log.error().exception(e).log("Error stopping mock service");
         }
     }
 
@@ -327,7 +328,7 @@ public class MockBrokerService {
         ThreadFactory threadFactory = new ThreadFactoryBuilder().setNameFormat("mock-pulsar-%s").build();
         final int numThreads = 2;
 
-        final int MaxMessageSize = 5 * 1024 * 1024;
+        final int maxMessageSize = 5 * 1024 * 1024;
 
         try {
             workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, false, threadFactory);
@@ -338,8 +339,8 @@ public class MockBrokerService {
             bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
-                    ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4));
-                    ch.pipeline().addLast("handler", new MockServerCnx());
+                    FrameDecoderUtil.addFrameDecoder(ch.pipeline(), maxMessageSize);
+                    ch.pipeline().addLast("handler", (ChannelHandler) new MockServerCnx());
                 }
             });
             // Bind and start to accept incoming connections.
@@ -441,6 +442,10 @@ public class MockBrokerService {
         handleCloseConsumer = null;
     }
 
+    public String getBrokerId() {
+        return String.format("localhost:%d", server.getURI().getPort());
+    }
+
     public String getHttpAddress() {
         return String.format("http://localhost:%d", server.getURI().getPort());
     }
@@ -449,5 +454,4 @@ public class MockBrokerService {
         return String.format("pulsar://localhost:%d", ((InetSocketAddress) listenChannel.localAddress()).getPort());
     }
 
-    private static final Logger log = LoggerFactory.getLogger(MockBrokerService.class);
 }

@@ -32,6 +32,8 @@ import java.util.concurrent.CompletableFuture;
 public interface MetadataStoreTableView<T> {
 
     class ConflictException extends RuntimeException {
+        private static final long serialVersionUID = 1L;
+
         public ConflictException(String msg) {
             super(msg);
         }

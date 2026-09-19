@@ -24,6 +24,7 @@ import java.util.Map;
  * An empty implement. Doesn't provide any public key or private key, and just returns `null`.
  */
 public class DummyCryptoKeyReaderImpl implements CryptoKeyReader {
+    private static final long serialVersionUID = 1L;
 
     public static final DummyCryptoKeyReaderImpl INSTANCE = new DummyCryptoKeyReaderImpl();
 

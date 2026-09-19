@@ -45,6 +45,7 @@ import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -74,16 +75,14 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
+@CustomLog
 public class TransactionBufferClientTest extends TransactionTestBase {
 
-    private static final Logger log = LoggerFactory.getLogger(TransactionBufferClientTest.class);
     private TransactionBufferClient tbClient;
     TopicName partitionedTopicName = TopicName.get("persistent", "public", "test", "tb-client");
     int partitions = 10;
@@ -95,8 +94,9 @@ public class TransactionBufferClientTest extends TransactionTestBase {
         setBrokerCount(3);
         internalSetup();
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:" + webServicePort).build());
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:"
+                + webServicePort).build());
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet(CLUSTER_NAME)));
         admin.namespaces().createNamespace(namespace, 10);
@@ -143,7 +143,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
                 .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                         new PartitionedTopicMetadata(3));
         assertTrue(admin.namespaces().getBundles(NAMESPACE1).getNumBundles() > 1);
-        for (int i = 0; true ; i++) {
+        for (int i = 0; true; i++) {
             topic1 = topic1 + i;
             admin.topics().createNonPartitionedTopic(topic1);
             String segmentTopicBroker = admin.lookups()
@@ -209,7 +209,6 @@ public class TransactionBufferClientTest extends TransactionTestBase {
             assertEquals(futures.get(i).get().getLeastSigBits(), i);
         }
     }
-
 
     @Test
     public void testTransactionBufferMetrics() throws Exception {
@@ -300,6 +299,7 @@ public class TransactionBufferClientTest extends TransactionTestBase {
 
         Field field = TransactionBufferHandlerImpl.class.getDeclaredField("outstandingRequests");
         field.setAccessible(true);
+        @SuppressWarnings("unchecked")
         ConcurrentSkipListMap<Long, Object> outstandingRequests =
                 (ConcurrentSkipListMap<Long, Object>) field.get(transactionBufferHandler);
 

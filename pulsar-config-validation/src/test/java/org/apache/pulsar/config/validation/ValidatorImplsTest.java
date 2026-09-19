@@ -19,14 +19,13 @@
 package org.apache.pulsar.config.validation;
 
 import static org.testng.Assert.assertThrows;
-import org.testng.annotations.Test;
-
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import org.testng.annotations.Test;
 
 public class ValidatorImplsTest {
     @Test
@@ -111,7 +110,8 @@ public class ValidatorImplsTest {
         ValidatorImpls.ImplementsClassValidator validator = new ValidatorImpls.ImplementsClassValidator(config);
         validator.validateField("fieldname", SocketAddress.class.getName());
         validator.validateField("fieldname", InetSocketAddress.class.getName());
-        assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", String.class.getName()));
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validateField("fieldname", String.class.getName()));
     }
 
     @Test
@@ -122,7 +122,8 @@ public class ValidatorImplsTest {
         ValidatorImpls.ImplementsClassesValidator validator = new ValidatorImpls.ImplementsClassesValidator(config);
         validator.validateField("fieldname", String.class.getName());
         validator.validateField("fieldname", Integer.class.getName());
-        assertThrows(IllegalArgumentException.class, () -> validator.validateField("fieldname", Boolean.class.getName()));
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validateField("fieldname", Boolean.class.getName()));
     }
 
     @Test

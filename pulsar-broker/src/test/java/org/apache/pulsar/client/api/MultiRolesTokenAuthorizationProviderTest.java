@@ -49,10 +49,12 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServiceBaseTest {
+    @SuppressWarnings("deprecation")
 
     private final SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private final String superUserToken;
     private final String normalUserToken;
+    @SuppressWarnings("deprecation")
 
     public MultiRolesTokenAuthorizationProviderTest() {
         Map<String, Object> claims = new HashMap<>();

@@ -60,6 +60,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         return ExtensibleLoadManagerImpl.class.getName();
     }
 
+    @SuppressWarnings("unchecked")
     protected String selectBroker(ServiceUnitId serviceUnit, Object loadManager) {
         try {
             return ((ExtensibleLoadManagerImpl) loadManager)
@@ -70,6 +71,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected void selectBrokerForNamespace(
             Object ownershipData,
             String broker, String namespace, String assignedBundleName) {
@@ -87,14 +89,14 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         // No-op
     }
 
+    @SuppressWarnings("unchecked")
     protected boolean isLoadManagerUpdatedDomainCache(Object loadManager) throws Exception {
-        @SuppressWarnings("unchecked")
         var antiAffinityGroupPolicyHelper =
                 (AntiAffinityGroupPolicyHelper)
                         FieldUtils.readDeclaredField(
                                 loadManager, "antiAffinityGroupPolicyHelper", true);
         var brokerToFailureDomainMap = (Map<String, String>)
-                org.apache.commons.lang.reflect.FieldUtils.readDeclaredField(antiAffinityGroupPolicyHelper,
+                org.apache.commons.lang3.reflect.FieldUtils.readDeclaredField(antiAffinityGroupPolicyHelper,
                         "brokerToFailureDomainMap", true);
         return !brokerToFailureDomainMap.isEmpty();
     }
@@ -104,7 +106,7 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
             throws IllegalAccessException, ExecutionException, InterruptedException,
             TimeoutException, PulsarAdminException, PulsarClientException {
 
-        final String namespace = "my-tenant/test/my-ns-filter";
+        final String namespace = "my-tenant/my-ns-filter";
         final String namespaceAntiAffinityGroup = "my-antiaffinity-filter";
 
 

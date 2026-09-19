@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResourcesBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -113,13 +114,20 @@ public interface PulsarClientImplementationBinding {
 
     Schema<LocalDateTime> newLocalDateTimeSchema();
 
+    // SchemaDefinition is intentionally raw here because callers like Schema.AVRO(Class)
+    // build SchemaDefinition via builder().withPojo(clazz).build() which erases the type
+    @SuppressWarnings("rawtypes")
     <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition);
 
-    <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(SchemaDefinition schemaDefinition);
-
-    <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
+    @SuppressWarnings("rawtypes")
+    <T extends com.google.protobuf.Message> Schema<T> newProtobufSchema(
             SchemaDefinition schemaDefinition);
 
+    @SuppressWarnings("rawtypes")
+    <T extends com.google.protobuf.Message> Schema<T> newProtobufNativeSchema(
+            SchemaDefinition schemaDefinition);
+
+    @SuppressWarnings("rawtypes")
     <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition);
 
     Schema<GenericRecord> newAutoConsumeSchema();
@@ -255,4 +263,6 @@ public interface PulsarClientImplementationBinding {
                                  Map<String, String> propertiesValue);
 
     TopicMessageId newTopicMessageId(String topic, MessageId messageId);
+
+    PulsarClientSharedResourcesBuilder newSharedResourcesBuilder();
 }

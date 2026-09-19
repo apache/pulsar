@@ -29,7 +29,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import lombok.val;
 import org.apache.commons.collections4.map.HashedMap;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -44,25 +44,27 @@ import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest {
 
-    final String UrlProtocolPrefix = "http://";
-    final String WorkerRebalanceUrlSuffix = "/admin/v2/worker/rebalance";
-    final String WorkerDrainAtLeaderUrlSuffix = "/admin/v2/worker/leader/drain?workerId=";
-    final int NumFunctionsAssignedOnEachWorker = 2;
-    final int NumAdditionalWorkersAtSetup = 1;
+    final String urlProtocolPrefix = "http://";
+    final String workerRebalanceUrlSuffix = "/admin/v2/worker/rebalance";
+    final String workerDrainAtLeaderUrlSuffix = "/admin/v2/worker/leader/drain?workerId=";
+    final int numFunctionsAssignedOnEachWorker = 2;
+    final int numAdditionalWorkersAtSetup = 1;
 
     PulsarWorkerRebalanceDrainTest(FunctionRuntimeType functionRuntimeType) {
-		super(functionRuntimeType);
+        super(functionRuntimeType);
     }
 
     @Override
     public void setupCluster() throws Exception {
         super.setupCluster();
-        pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, NumAdditionalWorkersAtSetup);
-        log.debug("PulsarWorkerRebalanceDrainTest: set up a total of {} function workers, of type {}",
-                pulsarCluster.getAlWorkers().size(), functionRuntimeType);
+        pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numAdditionalWorkersAtSetup);
+        log.debug()
+                .attr("of", pulsarCluster.getAlWorkers().size())
+                .attr("type", functionRuntimeType)
+                .log("PulsarWorkerRebalanceDrainTest: set up a total of function workers, of type");
     }
 
     @Test(groups = {"java_function", "rebalance_drain", "rebalance"})
@@ -78,7 +80,8 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
     }
 
     private List<WorkerInfo> workerInfoDecode(String json) throws IOException {
-        try (MappingIterator<WorkerInfo> it = ObjectMapperFactory.getMapper().getObjectMapper().readerFor(WorkerInfo.class)
+        try (MappingIterator<WorkerInfo> it =
+                     ObjectMapperFactory.getMapper().getObjectMapper().readerFor(WorkerInfo.class)
                 .readValues(json)) {
             return it.readAll();
         }
@@ -90,13 +93,16 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         // It is ad hoc because there doesn't appear to be any class exported from the function-worker code
         // for this structure.
         // The list is expected to be of the following form (this is from a real example):
-        //   String json =
-        //       "pulsar-functions-worker-process-hurkp-1    "
-        //       + " [public/default/testDrainFunctionality-cipscktc:0, public/default/testDrainFunctionality-mzaudmyx:0] "
-        //       + "pulsar-functions-worker-process-hurkp-0    "
-        //       + " [public/default/testDrainFunctionality-morjleeh:0, public/default/testDrainFunctionality-owsxgiuo:0] "
-        //       + "pulsar-functions-worker-process-qmcao-0    "
-        //       + "[public/default/testDrainFunctionality-nsnqbnlc:0, public/default/testDrainFunctionality-tbakebis:0] ";
+//           String json =
+//               "pulsar-functions-worker-process-hurkp-1    "
+//               + " [public/default/testDrainFunctionality-cipscktc:0, "
+//                       + "public/default/testDrainFunctionality-mzaudmyx:0] "
+//               + "pulsar-functions-worker-process-hurkp-0    "
+//               + " [public/default/testDrainFunctionality-morjleeh:0, "
+//                       + "public/default/testDrainFunctionality-owsxgiuo:0] "
+//               + "pulsar-functions-worker-process-qmcao-0    "
+//               + "[public/default/testDrainFunctionality-nsnqbnlc:0, "
+//                       + "public/default/testDrainFunctionality-tbakebis:0] ";
 
         final int nextWorkerStart = 0;
         String remainingJson = json;
@@ -109,23 +115,23 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
             int nextFunctionListStart = remainingJson.indexOf("[");
             int nextFunctionListEnd = remainingJson.indexOf("]");
             nextWorker = remainingJson.substring(nextWorkerStart, nextFunctionListStart);
-            nextWorker = nextWorker.replaceAll("\\s+","");
+            nextWorker = nextWorker.replaceAll("\\s+", "");
             nextFunctionList = remainingJson.substring(nextFunctionListStart + 1, nextFunctionListEnd);
             String[] funcAssignments = nextFunctionList.split(",");
             Map<String, Collection<String>> curMap = new HashMap<>();
             curMap.put(nextWorker, Arrays.asList(funcAssignments));
-            log.info("Found new entry: {}, {}", nextWorker, funcAssignments);
+            log.info().attr("entry", nextWorker).attr("assignments", funcAssignments).log("Found new entry");
             retVal.add(curMap);
-            log.info("retVal is {}", retVal);
+            log.info().attr("is", retVal).log("retVal is");
 
             // If we are already at the end, or if there are no more opening brackets
             // (corresponding to function assignments), we are done.
             try {
                 remainingJson = remainingJson.substring(nextFunctionListEnd + 1);
             } catch (Throwable t) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Got exception {} while moving past function-list-end", t.getMessage());
-                }
+                log.debug()
+                        .attr("exception", t.getMessage())
+                        .log("Got exception while moving past function-list-end");
                 moreToParse = false;
             }
             if (remainingJson.indexOf("[") < 0) {
@@ -141,7 +147,7 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
                 "functions-worker",
                 "get-cluster"
         );
-        log.debug("getClusterStatus result is: {}", result);
+        log.debug().attr("is", result).log("getClusterStatus result is");
         return workerInfoDecode(result.getStdout());
     }
 
@@ -156,14 +162,13 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         return workerInfoDecode(result.getStdout()).get(0);
     }
 
-    private List<Map<String, Collection<String>>> getFunctionAssignments() throws Exception
-    {
+    private List<Map<String, Collection<String>>> getFunctionAssignments() throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "functions-worker",
                 "get-function-assignments"
         );
-        log.debug("getFunctionAssignments result is: {}", result);
+        log.debug().attr("is", result).log("getFunctionAssignments result is");
         return functionAssignmentsDecode(result.getStdout());
     }
 
@@ -172,10 +177,11 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         int funcCount = 0;
         for (val l : finfos) {
             for (val m : l.entrySet()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("accumulating for key={}, value={} (size {})",
-                            m.getKey(), m.getValue(), m.getValue().size());
-                }
+                log.debug()
+                        .attr("key", m.getKey())
+                        .attr("value", m.getValue())
+                        .attr("size", m.getValue().size())
+                        .log("accumulating for key= , value= (size )");
                 funcCount += m.getValue().size();
             }
         }
@@ -187,10 +193,12 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         int minFuncCount = Integer.MAX_VALUE;
         for (val l : finfos) {
             for (val m : l.entrySet()) {
-                if (log.isDebugEnabled()) {
-                    log.debug("comparing current_min={} with key={}, value={} (size {})",
-                            minFuncCount, m.getKey(), m.getValue(), m.getValue().size());
-                }
+                log.debug()
+                        .attr("currentmin", minFuncCount)
+                        .attr("key", m.getKey())
+                        .attr("value", m.getValue())
+                        .attr("size", m.getValue().size())
+                        .log("comparing current_min= with key= , value= (size )");
                 minFuncCount = Math.min(minFuncCount, m.getValue().size());
             }
         }
@@ -202,21 +210,19 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         val worker = pulsarCluster.getWorker(leader.getWorkerId());
         assertTrue(worker != null);
 
-        String rebalanceUrl = UrlProtocolPrefix
+        String rebalanceUrl = urlProtocolPrefix
                 + "localhost"
                 + ":"
                 + leader.getPort()
-                + WorkerRebalanceUrlSuffix;
+                + workerRebalanceUrlSuffix;
         ContainerExecResult result = worker.execCmd(
                 PulsarCluster.CURL,
                 "-X",
                 "PUT",
                 rebalanceUrl
         );
-        if (log.isDebugEnabled()) {
-            log.debug("callRebalance: leader's rebalance url is: {}", rebalanceUrl);
-            log.debug("callRebalance: curl for rebalance: result is {}", result);
-        }
+        log.debug().attr("is", rebalanceUrl).log("callRebalance: leader's rebalance url is");
+        log.debug().attr("is", result).log("callRebalance: curl for rebalance: result is");
     }
 
     private void callDrain(final String workerToDrain) throws Exception {
@@ -224,11 +230,11 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         val worker = pulsarCluster.getWorker(leader.getWorkerId());
         assertTrue(worker != null);
 
-        String drainUrl = UrlProtocolPrefix
+        String drainUrl = urlProtocolPrefix
                 + "localhost"
                 + ":"
                 + leader.getPort()
-                + WorkerDrainAtLeaderUrlSuffix
+                + workerDrainAtLeaderUrlSuffix
                 + workerToDrain;
         ContainerExecResult result = worker.execCmd(
                 PulsarCluster.CURL,
@@ -236,14 +242,12 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
                 "PUT",
                 drainUrl
         );
-        if (log.isDebugEnabled()) {
-            log.debug("callDrain: leader's drain url is: {}", drainUrl);
-            log.debug("callDrain: curl for drain: result is {}", result);
-        }
+        log.debug().attr("is", drainUrl).log("callDrain: leader's drain url is");
+        log.debug().attr("is", result).log("callDrain: curl for drain: result is");
     }
 
     private void createFunctionWorker(String functionName, String topicPrefix) throws Exception {
-	    String suffix = functionName + randomName(8);
+        String suffix = functionName + randomName(8);
         String inputTopicName = "persistent://public/default/" + topicPrefix + "-input-" + suffix;
         String outputTopicName = topicPrefix + "-output-" + suffix;
         try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build()) {
@@ -263,22 +267,30 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
     private void showWorkerStatus(String callerContext) throws Exception {
         List<WorkerInfo> winfos = getClusterStatus();
         assertEquals(winfos.size(), pulsarCluster.getAlWorkers().size());
-        log.info("{} get-cluster retrieved info about {} workers", callerContext, winfos.size());
-        winfos.forEach(w -> log.info("{} get-cluster worker-info: {}", callerContext, w));
+        log.info()
+                .attr("context", callerContext)
+                .attr("about", winfos.size())
+                .log("get-cluster retrieved info about workers");
+        winfos.forEach(w -> log.info().attr("context", callerContext).attr("workerinfo", w)
+                .log("get-cluster worker-info"));
 
         val leaderInfo = getClusterLeader();
-        log.info("{} get-cluster-leader info: {}", callerContext, leaderInfo);
+        log.info().attr("context", callerContext).attr("info", leaderInfo).log("get-cluster-leader info");
 
         val finfos = getFunctionAssignments();
-        log.info("{} get-function-assignments retrieved info about {} workers with {} functions",
-                callerContext, finfos.size(), getFuncAssignmentsCount(finfos));
-        finfos.forEach(f -> log.info("{} get-function-assignments info: {}", callerContext, f));
+        log.info()
+                .attr("context", callerContext)
+                .attr("about", finfos.size())
+                .attr("with", getFuncAssignmentsCount(finfos))
+                .log("get-function-assignments retrieved info about workers with functions");
+        finfos.forEach(f -> log.info().attr("context", callerContext).attr("info", f)
+                .log("get-function-assignments info"));
     }
 
     private void allocateFunctions(String callingTest, String topicPrefix) throws  Exception {
         // Allocate functions until there are NumFunctionsAssignedOnEachWorker on each worker, on the average.
         ContainerExecResult result;
-        int numFunctions = pulsarCluster.getAlWorkers().size() * NumFunctionsAssignedOnEachWorker;
+        int numFunctions = pulsarCluster.getAlWorkers().size() * numFunctionsAssignedOnEachWorker;
 
         for (int ix = 0; ix < numFunctions; ix++) {
             String functionName = callingTest + "-" + randomName(8);
@@ -294,7 +306,7 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
             );
 
             FunctionStatus functionStatus = FunctionStatusUtil.decode(result.getStdout());
-            log.debug("{}}: functionStatus is {}", callingTest, functionStatus);
+            log.debug().attr("test", callingTest).attr("is", functionStatus).log("}: functionStatus is");
 
             assertEquals(functionStatus.getNumInstances(), 1);
             assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
@@ -305,35 +317,42 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
         // Add some workers; then call rebalance, and check that functions were assigned to all of the workers.
         allocateFunctions("testRebalanceAddWorkers", "test-rebalance");
 
-        if (log.isDebugEnabled()) {
-            this.showWorkerStatus("testRebalanceAddWorkers after allocating functions");
-        }
+        this.showWorkerStatus("testRebalanceAddWorkers after allocating functions");
 
         WorkerInfo oldClusterLeaderInfo = getClusterLeader();
-        log.info("Cluster leader before adding more workers is: {}", oldClusterLeaderInfo);
+        log.info().attr("is", oldClusterLeaderInfo).log("Cluster leader before adding more workers is");
 
         List<Map<String, Collection<String>>> startFinfos = getFunctionAssignments();
         int startFuncCount = getFuncAssignmentsCount(startFinfos);
-        log.info("testRebalanceAddWorkers: got info about {} workers with {} functions before creating new workers",
-                startFinfos.size(), startFuncCount);
+        log.info()
+                .attr("about", startFinfos.size())
+                .attr("with", startFuncCount)
+                .log("testRebalanceAddWorkers: got info about workers with functions before creating new workers");
         // Check that there are NumFunctionsAssignedOnEachWorker functions assigned to each worker,
         // since the assignment is round-robin by default.
-        assertEquals(getMinFuncAssignmentOnAnyWorker(startFinfos), NumFunctionsAssignedOnEachWorker);
+        assertEquals(getMinFuncAssignmentOnAnyWorker(startFinfos), numFunctionsAssignedOnEachWorker);
 
         // Add a few more workers, to test rebalance
         int initialNumWorkers = pulsarCluster.getAlWorkers().size();
         final int numWorkersToAdd = 2;
-        log.info("testRebalanceAddWorkers: cluster has {} FunctionWorkers; going to set up {} more",
-                pulsarCluster.getAlWorkers().size(), numWorkersToAdd);
+        log.info()
+                .attr("has", pulsarCluster.getAlWorkers().size())
+                .attr("up", numWorkersToAdd)
+                .log("testRebalanceAddWorkers: cluster has FunctionWorkers; going to set up more");
         pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numWorkersToAdd);
         assertEquals(pulsarCluster.getAlWorkers().size(), initialNumWorkers + numWorkersToAdd);
-        log.info("testRebalanceAddWorkers: got a total of {} function workers, of type {}",
-                pulsarCluster.getAlWorkers().size(), functionRuntimeType);
+        log.info()
+                .attr("of", pulsarCluster.getAlWorkers().size())
+                .attr("type", functionRuntimeType)
+                .log("testRebalanceAddWorkers: got a total of function workers, of type");
 
         this.showWorkerStatus("testRebalanceAddWorkers status after adding more workers");
 
         WorkerInfo newClusterLeaderInfo = getClusterLeader();
-        log.info("Cluster leader after adding {} workers is: {}", numWorkersToAdd, newClusterLeaderInfo);
+        log.info()
+                .attr("adding", numWorkersToAdd)
+                .attr("is", newClusterLeaderInfo)
+                .log("Cluster leader after adding workers is");
         // Leadership should not have changed.
         assertTrue(oldClusterLeaderInfo.getWorkerId().compareTo(newClusterLeaderInfo.getWorkerId()) == 0);
 
@@ -345,8 +364,10 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
 
         List<Map<String, Collection<String>>> endFinfos = getFunctionAssignments();
         int endFuncCount = getFuncAssignmentsCount(endFinfos);
-        log.info("testRebalanceAddWorkers: got info about {} workers with {} functions after rebalance",
-                endFinfos.size(), endFuncCount);
+        log.info()
+                .attr("about", endFinfos.size())
+                .attr("with", endFuncCount)
+                .log("testRebalanceAddWorkers: got info about workers with functions after rebalance");
 
         assertEquals(endFinfos.size() - startFinfos.size(), numWorkersToAdd);
         assertEquals(startFuncCount, endFuncCount);
@@ -357,7 +378,7 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
 
         // Since we increased the number of workers, the minFuncsPerWorker should evaluate to some
         // value less than the erstwhile NumFunctionsAssignedOnEachWorker.
-        assertTrue(minFuncsPerWorker < NumFunctionsAssignedOnEachWorker);
+        assertTrue(minFuncsPerWorker < numFunctionsAssignedOnEachWorker);
     }
 
     private void testDrain() throws Exception {
@@ -365,25 +386,25 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
 
         val startFinfos = getFunctionAssignments();
         int startFuncCount = getFuncAssignmentsCount(startFinfos);
-        log.info("testDrain: got info about {} workers with {} functions before drain",
-                startFinfos.size(), startFuncCount);
+        log.info()
+                .attr("about", startFinfos.size())
+                .attr("with", startFuncCount)
+                .log("testDrain: got info about workers with functions before drain");
 
-        if (log.isDebugEnabled()) {
-            this.showWorkerStatus("testDrain after allocating functions");
-        }
+        this.showWorkerStatus("testDrain after allocating functions");
 
         WorkerInfo clusterLeaderInfo = getClusterLeader();
 
         // Drain
         callDrain(clusterLeaderInfo.getWorkerId());
-        if (log.isDebugEnabled()) {
-            this.showWorkerStatus("testDrain after drain");
-        }
+        this.showWorkerStatus("testDrain after drain");
 
         val endFinfos = getFunctionAssignments();
         int endFuncCount = getFuncAssignmentsCount(endFinfos);
-        log.info("testDrain: got info about {} workers with {} functions after drain",
-                endFinfos.size(), endFuncCount);
+        log.info()
+                .attr("about", endFinfos.size())
+                .attr("with", endFuncCount)
+                .log("testDrain: got info about workers with functions after drain");
 
         assertTrue(startFinfos.size() > endFinfos.size());
         assertEquals(startFuncCount, endFuncCount);

@@ -24,11 +24,10 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.SchemaTestUtils.Bar;
@@ -44,10 +43,10 @@ import org.testng.annotations.Test;
 /**
  * Unit test {@link KeyValueSchemaInfoTest}.
  */
-@Slf4j
+@CustomLog
 public class KeyValueSchemaInfoTest {
 
-    private static final Map<String, String> FOO_PROPERTIES = new HashMap() {
+    private static final Map<String, String> FOO_PROPERTIES = new HashMap<>() {
 
         private static final long serialVersionUID = 58641844834472929L;
 
@@ -59,7 +58,7 @@ public class KeyValueSchemaInfoTest {
 
     };
 
-    private static final Map<String, String> BAR_PROPERTIES = new HashMap() {
+    private static final Map<String, String> BAR_PROPERTIES = new HashMap<>() {
 
         private static final long serialVersionUID = 58641844834472929L;
 
@@ -112,8 +111,8 @@ public class KeyValueSchemaInfoTest {
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(kvSchemaInfo),
             encodingType);
 
-        SchemaInfo encodedSchemaInfo =
-                DefaultImplementation.getDefaultImplementation().encodeKeyValueSchemaInfo(FOO_SCHEMA, BAR_SCHEMA, encodingType);
+        SchemaInfo encodedSchemaInfo = DefaultImplementation.getDefaultImplementation()
+                .encodeKeyValueSchemaInfo(FOO_SCHEMA, BAR_SCHEMA, encodingType);
         assertEquals(encodedSchemaInfo, kvSchemaInfo);
         assertEquals(
                 DefaultImplementation.getDefaultImplementation().decodeKeyValueEncodingType(encodedSchemaInfo),
@@ -155,8 +154,8 @@ public class KeyValueSchemaInfoTest {
 
         assertEquals(schemaInfoKeyValue.getKey(), FOO_SCHEMA.getSchemaInfo());
         assertEquals(schemaInfoKeyValue.getValue().getType(), SchemaType.KEY_VALUE);
-        KeyValue<SchemaInfo, SchemaInfo> nestedSchemaInfoKeyValue =
-                DefaultImplementation.getDefaultImplementation().decodeKeyValueSchemaInfo(schemaInfoKeyValue.getValue());
+        KeyValue<SchemaInfo, SchemaInfo> nestedSchemaInfoKeyValue = DefaultImplementation.getDefaultImplementation()
+                .decodeKeyValueSchemaInfo(schemaInfoKeyValue.getValue());
 
         assertEquals(nestedSchemaInfoKeyValue.getKey(), Schema.STRING.getSchemaInfo());
         assertEquals(nestedSchemaInfoKeyValue.getValue(), BAR_SCHEMA.getSchemaInfo());

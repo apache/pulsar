@@ -24,21 +24,26 @@ package org.apache.pulsar.broker.qos;
  * The rate and capacity of the token bucket are constant and do not change over time.
  */
 class FinalRateAsyncTokenBucket extends AsyncTokenBucket {
+    private static final double DEFAULT_TARGET_FILL_FACTOR_AFTER_THROTTLING = 0.01d;
     private final long capacity;
     private final long rate;
     private final long ratePeriodNanos;
+    private final long nanosForOneToken;
     private final long targetAmountOfTokensAfterThrottling;
 
-    protected FinalRateAsyncTokenBucket(long capacity, long rate, MonotonicSnapshotClock clockSource,
-                                        long ratePeriodNanos, long resolutionNanos, long initialTokens) {
-        super(clockSource, resolutionNanos);
+    protected FinalRateAsyncTokenBucket(long capacity, long rate, MonotonicClock clockSource,
+                                        long addTokensResolutionNanos, long ratePeriodNanos, long initialTokens,
+                                        long targetAmountOfTokensAfterThrottling) {
+        super(clockSource, addTokensResolutionNanos);
         this.capacity = capacity;
         this.rate = rate;
         this.ratePeriodNanos = ratePeriodNanos != -1 ? ratePeriodNanos : ONE_SECOND_NANOS;
-        // The target amount of tokens is the amount of tokens made available in the resolution duration
-        this.targetAmountOfTokensAfterThrottling = Math.max(this.resolutionNanos * rate / ratePeriodNanos, 1);
+        this.nanosForOneToken = ratePeriodNanos / rate;
+        this.targetAmountOfTokensAfterThrottling = targetAmountOfTokensAfterThrottling >= 0
+                ? targetAmountOfTokensAfterThrottling
+                : (long) (capacity * DEFAULT_TARGET_FILL_FACTOR_AFTER_THROTTLING);
         this.tokens = initialTokens;
-        tokens(false);
+        getTokens();
     }
 
     @Override
@@ -61,4 +66,8 @@ class FinalRateAsyncTokenBucket extends AsyncTokenBucket {
         return rate;
     }
 
+    @Override
+    protected long getNanosForOneToken() {
+        return nanosForOneToken;
+    }
 }

@@ -18,30 +18,28 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.net.InetSocketAddress;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
-
-import java.net.InetSocketAddress;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 /**
  * Contains request timeout tests for different request types in ClientCnx
@@ -66,8 +64,16 @@ public class ClientCnxRequestTimeoutQueueTest {
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
         when(ctx.writeAndFlush(any())).thenAnswer(args -> mock(ChannelFuture.class));
+        when(ctx.write(any())).thenAnswer(args -> mock(ChannelFuture.class));
         when(ctx.channel()).thenReturn(channel);
         when(channel.remoteAddress()).thenReturn(new InetSocketAddress(1234));
+        // PIP-478: the connect continuation guard skips a closed channel; a live channel reports
+        // isActive() == true, so stub it (an unstubbed false mock would suppress the inline connect write).
+        when(channel.isActive()).thenReturn(true);
+        // PIP-478: the connect continuation runs inline for the default (synchronous) AuthenticationDisabled
+        // plugin and never touches ctx.executor(); stub it defensively so an async-driven connect would still
+        // hop onto the test's real event loop rather than NPE on a null executor.
+        when(ctx.executor()).thenReturn(eventLoop.next());
         cnx.channelActive(ctx);
 
         requestMessage = mock(ByteBuf.class);

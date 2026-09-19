@@ -30,6 +30,7 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.util.TestUtils;
 import org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
@@ -142,12 +143,16 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
         }
         BookieId currentAuditor = main1.auditorElector.getCurrentAuditor();
         assertNotNull(currentAuditor);
-        Auditor auditor1 = main1.auditorElector.getAuditor();
         assertEquals("Current Auditor should be AR1", currentAuditor, BookieImpl.getBookieId(confByIndex(0)));
+        // getCurrentAuditor() can resolve as soon as the election settles, before the elector
+        // thread has constructed the Auditor instance — re-read getAuditor() on every poll instead
+        // of capturing a possibly-null reference once.
         Awaitility.waitAtMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertNotNull(auditor1);
-            assertTrue("Auditor of AR1 should be running", auditor1.isRunning());
+            Auditor a1 = main1.auditorElector.getAuditor();
+            assertNotNull(a1);
+            assertTrue("Auditor of AR1 should be running", a1.isRunning());
         });
+        Auditor auditor1 = main1.auditorElector.getAuditor();
 
 
         /*
@@ -242,7 +247,9 @@ public class AutoRecoveryMainTest extends BookKeeperClusterTestCase {
                 (PulsarLedgerManagerFactory) pulsarMetadataClientDriver.getLedgerManagerFactory();
         Field field = pulsarLedgerManagerFactory.getClass().getDeclaredField("store");
         field.setAccessible(true);
-        ZKMetadataStore zkMetadataStore = (ZKMetadataStore) field.get(pulsarLedgerManagerFactory);
+
+        DualMetadataStore store = (DualMetadataStore) field.get(pulsarLedgerManagerFactory);
+        ZKMetadataStore zkMetadataStore = (ZKMetadataStore) store.getSourceStore();
         return zkMetadataStore.getZkClient();
     }
 }

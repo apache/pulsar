@@ -45,7 +45,7 @@ public interface RecordSchemaBuilder {
      * @param fieldName name of the field
      * @return field schema builder to build the field.
      */
-    FieldSchemaBuilder field(String fieldName);
+    FieldSchemaBuilder<?> field(String fieldName);
 
     /**
      * Add a field with the given name and genericSchema to the record.
@@ -54,7 +54,7 @@ public interface RecordSchemaBuilder {
      * @param genericSchema schema of the field
      * @return field schema builder to build the field.
      */
-    FieldSchemaBuilder field(String fieldName, GenericSchema genericSchema);
+    FieldSchemaBuilder<?> field(String fieldName, GenericSchema<?> genericSchema);
 
     /**
      * Add doc to the record schema.

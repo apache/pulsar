@@ -258,6 +258,10 @@
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
     <Match>
+      <Class name="org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl"/>
+      <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
         <Class name="org.apache.pulsar.client.impl.ClientCnx"/>
         <Method name="getPendingRequests"/>
         <Bug pattern="EI_EXPOSE_REP"/>
@@ -714,6 +718,11 @@
     </Match>
     <Match>
         <Class name="org.apache.pulsar.client.impl.PulsarClientImpl"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.PulsarClientImpl"/>
         <Method name="getConfiguration"/>
         <Bug pattern="EI_EXPOSE_REP"/>
     </Match>
@@ -1042,5 +1051,9 @@
         <Class name="org.apache.pulsar.client.impl.MultiTopicsConsumerImpl"/>
         <Method name="getStats"/>
         <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+    <Match>
+        <Class name="org.apache.pulsar.client.impl.ConsumerImpl"/>
+        <Bug pattern="VO_VOLATILE_INCREMENT"/>
     </Match>
 </FindBugsFilter>

@@ -20,9 +20,7 @@ package org.apache.pulsar.broker.zookeeper;
 
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Sets;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -48,7 +46,7 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
     }
 
     /**
-     * Verify we are able to recover when receiving a SessionExpired event on global ZK session
+     * Verify we are able to recover when receiving a SessionExpired event on global ZK session.
      */
     @Test
     public void testSessionExpired() throws Exception {

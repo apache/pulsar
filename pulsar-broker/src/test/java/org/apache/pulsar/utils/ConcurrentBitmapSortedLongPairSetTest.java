@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.utils;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-import lombok.Cleanup;
-import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
-import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import lombok.Cleanup;
+import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
+import org.testng.annotations.Test;
 
 @Test(groups = "utils")
 public class ConcurrentBitmapSortedLongPairSetTest {
@@ -182,15 +183,15 @@ public class ConcurrentBitmapSortedLongPairSetTest {
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final int nThreads = 8;
-        final int N = 1000;
+        final int num = 1000;
 
         List<Future<?>> futures = new ArrayList<>();
         for (int i = 0; i < nThreads; i++) {
             final int threadIdx = i;
             futures.add(executor.submit(() -> {
 
-                int start = N * (threadIdx + 1);
-                for (int j = 0; j < N; j++) {
+                int start = num * (threadIdx + 1);
+                for (int j = 0; j < num; j++) {
                     int key = start + j;
                     // Ensure keys are unique
                     set.add(key, key);
@@ -202,6 +203,29 @@ public class ConcurrentBitmapSortedLongPairSetTest {
             future.get();
         }
 
-        assertEquals(set.size(), N * nThreads);
+        assertEquals(set.size(), num * nThreads);
+    }
+
+    @Test
+    public void testValueLargerThanIntegerMAX_VALUE() {
+        ConcurrentBitmapSortedLongPairSet set = new ConcurrentBitmapSortedLongPairSet();
+        long baseValue = Integer.MAX_VALUE;
+        List<Long> addedValues = new ArrayList<>();
+        int items = 10;
+        for (int i = 0; i < items; i++) {
+            long value = baseValue + i;
+            set.add(1, value);
+            addedValues.add(value);
+        }
+        assertEquals(set.size(), items);
+        List<Long> values = new ArrayList<>();
+        set.processItems((item1, item2) -> {
+            assertEquals(item1, 1);
+            return item2;
+        }, (value) -> {
+            values.add(value);
+            return true;
+        });
+        assertThat(values).containsExactlyElementsOf(addedValues);
     }
 }

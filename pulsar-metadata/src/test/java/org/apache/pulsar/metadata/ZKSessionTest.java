@@ -20,15 +20,19 @@ package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -37,6 +41,7 @@ import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
@@ -88,7 +93,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.SessionLost);
 
         zks.start();
-        boolean zkServerReady = zks.waitForServerUp(zks.getConnectionString(), 30_000);
+        boolean zkServerReady = TestZKServer.waitForServerUp(zks.getConnectionString(), 30_000);
         assertTrue(zkServerReady);
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.Reconnected);
@@ -97,6 +102,51 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
 
         e = sessionEvents.poll(1, TimeUnit.SECONDS);
         assertNull(e);
+    }
+
+    @Test
+    public void testNoDuplicateWatcherRegistrationAfterSessionReestablished() throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(zks.getConnectionString(),
+                MetadataStoreConfig.builder()
+                        .sessionTimeoutMillis(2_000)
+                        .build());
+
+        BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
+        store.registerSessionListener(sessionEvents::add);
+
+        BlockingQueue<Notification> notifications = new LinkedBlockingQueue<>();
+        store.registerListener(notifications::add);
+
+        zks.stop();
+
+        SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.ConnectionLost);
+
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.SessionLost);
+
+        zks.start();
+        boolean zkServerReady = TestZKServer.waitForServerUp(zks.getConnectionString(), 30_000);
+        assertTrue(zkServerReady);
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.Reconnected);
+        e = sessionEvents.poll(10, TimeUnit.SECONDS);
+        assertEquals(e, SessionEvent.SessionReestablished);
+
+        // perform a put operation to trigger watch notification
+        String path = "/a";
+        store.put(path, "value-a".getBytes(), Optional.of(-1L));
+
+        // receive creation notification
+        Notification n = notifications.poll(5, TimeUnit.SECONDS);
+        assertNotNull(n);
+        assertEquals(n.getPath(), path);
+        assertEquals(n.getType(), NotificationType.Created);
+
+        // no duplicate notification is received
+        n = notifications.poll(1, TimeUnit.SECONDS);
+        assertNull(n);
     }
 
     @Test
@@ -119,8 +169,8 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
 
         ResourceLock<String> lock = lm1.acquireLock(path, "value-1").join();
 
-
-        zks.expireSession(((ZKMetadataStore) store).getZkSessionId());
+        var zkStore = (ZKMetadataStore) ((DualMetadataStore) store).getSourceStore();
+        zks.expireSession(zkStore.getZkSessionId());
 
         SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.ConnectionLost);
@@ -163,7 +213,8 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         LeaderElectionState les = leaderElectionEvents.poll(5, TimeUnit.SECONDS);
         assertEquals(les, LeaderElectionState.Leading);
         // --- expire session
-        zks.expireSession(((ZKMetadataStore) store).getZkSessionId());
+        var zkStore = (ZKMetadataStore) ((DualMetadataStore) store).getSourceStore();
+        zks.expireSession(zkStore.getZkSessionId());
 
         SessionEvent e = sessionEvents.poll(5, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.ConnectionLost);
@@ -172,13 +223,13 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.SessionLost);
         // --- test  le1 can be leader
         Awaitility.await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading)); // reacquire leadership
+                .untilAsserted(()-> assertEquals(le1.getState(), LeaderElectionState.Leading)); // reacquire leadership
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.Reconnected);
         e = sessionEvents.poll(10, TimeUnit.SECONDS);
         assertEquals(e, SessionEvent.SessionReestablished);
         Awaitility.await().atMost(Duration.ofSeconds(15))
-                .untilAsserted(()-> assertEquals(le1.getState(),LeaderElectionState.Leading));
+                .untilAsserted(()-> assertEquals(le1.getState(), LeaderElectionState.Leading));
         assertTrue(store.get(path).join().isPresent());
     }
 
@@ -229,7 +280,7 @@ public class ZKSessionTest extends BaseMetadataStoreTest {
         assertEquals(e, SessionEvent.Reconnected);
         Awaitility.await().atMost(Duration.ofSeconds(15))
                 .untilAsserted(()-> {
-                    assertEquals(le1.getState(),LeaderElectionState.Leading);
+                    assertEquals(le1.getState(), LeaderElectionState.Leading);
                 }); // reacquire leadership
 
 

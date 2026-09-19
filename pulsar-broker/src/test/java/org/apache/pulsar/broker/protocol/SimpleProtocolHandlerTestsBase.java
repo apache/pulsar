@@ -18,20 +18,16 @@
  */
 package org.apache.pulsar.broker.protocol;
 
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
+import static org.apache.pulsar.common.util.PortManager.releaseLockedPort;
+import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.*;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.IOUtils;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.common.util.PortManager;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.net.InetSocketAddress;
@@ -45,11 +41,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import lombok.CustomLog;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
-import static org.testng.Assert.assertEquals;
-
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
 
@@ -86,6 +88,8 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
 
         @Override
         public Map<InetSocketAddress, ChannelInitializer<SocketChannel>> newChannelInitializers() {
+            // Pre-allocate a free port: protocol handlers need to register a listener at a known
+            // address before the broker calls back into them.
             int port = nextLockedFreePort();
             this.ports.add(port);
             return Collections.singletonMap(new InetSocketAddress(conf.getBindAddress(), port),
@@ -103,7 +107,7 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
                         }
                         @Override
                         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-                            log.error("error", cause);
+                            log.error().exception(cause).log("error");
                             ctx.close();
                         }
                     });
@@ -113,7 +117,7 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
 
         @Override
         public void close() {
-            ports.removeIf(PortManager::releaseLockedPort);
+            ports.removeIf(p -> releaseLockedPort(p));
         }
     }
 
@@ -180,9 +184,9 @@ public abstract class SimpleProtocolHandlerTestsBase extends BrokerTestBase {
             ZipEntry manifest = new ZipEntry("META-INF/services/"
                     + ProtocolHandlerUtils.PULSAR_PROTOCOL_HANDLER_DEFINITION_FILE);
             zipfile.putNextEntry(manifest);
-            String yaml = "name: test\n" +
-                    "description: this is a test\n" +
-                    "handlerClass: " + className + "\n";
+            String yaml = "name: test\n"
+                    + "description: this is a test\n"
+                    + "handlerClass: " + className + "\n";
             zipfile.write(yaml.getBytes(StandardCharsets.UTF_8));
             zipfile.closeEntry();
         }

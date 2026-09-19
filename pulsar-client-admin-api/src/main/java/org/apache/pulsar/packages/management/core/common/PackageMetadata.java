@@ -37,6 +37,8 @@ import lombok.Setter;
 @Setter
 @Getter
 public class PackageMetadata implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     String description;
     String contact;
     long createTime;

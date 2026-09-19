@@ -21,36 +21,38 @@ package org.apache.pulsar.tests.integration.schema;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-
 import com.google.common.collect.Sets;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
-import lombok.extern.slf4j.Slf4j;
+import java.util.ArrayList;
+import java.util.List;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.tests.integration.schema.Schemas.AvroLogicalType;
 import org.apache.pulsar.tests.integration.schema.Schemas.Person;
 import org.apache.pulsar.tests.integration.schema.Schemas.PersonConsumeSchema;
 import org.apache.pulsar.tests.integration.schema.Schemas.Student;
-import org.apache.pulsar.tests.integration.schema.Schemas.AvroLogicalType;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.Test;
-
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Test Pulsar Schema.
  */
-@Slf4j
+@CustomLog
 public class SchemaTest extends PulsarTestSuite {
 
     private PulsarClient client;
@@ -107,13 +109,13 @@ public class SchemaTest extends PulsarTestSuite {
 
             producer.send(person);
 
-            log.info("Successfully published person : {}", person);
+            log.info().attr("person", person).log("Successfully published person");
         }
 
-        log.info("Deleting schema of topic {}", fqtn);
+        log.info().attr("topic", fqtn).log("Deleting schema of topic");
         // delete the schema
         admin.schemas().deleteSchema(fqtn);
-        log.info("Successfully deleted schema of topic {}", fqtn);
+        log.info().attr("topic", fqtn).log("Successfully deleted schema of topic");
 
         // after deleting the topic, try to create a topic with a different schema
         try (Producer<Student> producer = client.newProducer(Schema.AVRO(Student.class))
@@ -128,7 +130,7 @@ public class SchemaTest extends PulsarTestSuite {
 
             producer.send(student);
 
-            log.info("Successfully published student : {}", student);
+            log.info().attr("student", student).log("Successfully published student");
         }
     }
 
@@ -169,7 +171,7 @@ public class SchemaTest extends PulsarTestSuite {
                 .subscribe();
 
         producer.send(person);
-        log.info("Successfully published person : {}", person);
+        log.info().attr("person", person).log("Successfully published person");
 
         PersonConsumeSchema personConsumeSchema = consumer.receive().getValue();
         assertEquals("Tom Hanks", personConsumeSchema.getName());
@@ -178,7 +180,7 @@ public class SchemaTest extends PulsarTestSuite {
 
         producer.close();
         consumer.close();
-        log.info("Successfully consumer personConsumeSchema : {}", personConsumeSchema);
+        log.info().attr("personConsumeSchema", personConsumeSchema).log("Successfully consumer personConsumeSchema");
     }
 
     @Test
@@ -220,7 +222,7 @@ public class SchemaTest extends PulsarTestSuite {
                 .subscribe();
 
         producer.send(messageForSend);
-        log.info("Successfully published avro logical type message : {}", messageForSend);
+        log.info().attr("message", messageForSend).log("Successfully published avro logical type message");
 
         AvroLogicalType received = consumer.receive().getValue();
         assertEquals(received, messageForSend);
@@ -228,7 +230,7 @@ public class SchemaTest extends PulsarTestSuite {
         producer.close();
         consumer.close();
 
-        log.info("Successfully consumer avro logical type message : {}", received);
+        log.info().attr("message", received).log("Successfully consumer avro logical type message");
     }
 
     @Test
@@ -296,7 +298,8 @@ public class SchemaTest extends PulsarTestSuite {
         schemas.forEach(schemaProducer -> {
             schemas.forEach(schemaConsumer -> {
                 try {
-                    String topicName = schemaProducer.getSchemaInfo().getName() + schemaConsumer.getSchemaInfo().getName();
+                    String topicName = schemaProducer.getSchemaInfo().getName()
+                            + schemaConsumer.getSchemaInfo().getName();
                         client.newProducer(schemaProducer)
                                 .topic(topicName)
                                 .create().close();

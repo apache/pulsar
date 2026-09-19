@@ -18,21 +18,19 @@
  */
 package org.apache.pulsar.common.stats;
 
-import lombok.extern.slf4j.Slf4j;
-
+import static org.testng.Assert.assertNotEquals;
+import lombok.CustomLog;
 import org.testng.annotations.Test;
 
-import static org.testng.Assert.assertNotEquals;
-
-
-@Slf4j
+@CustomLog
 public class JvmDefaultGCMetricsLoggerTest {
 
     @Test
     public void testInvokeJVMInternals() {
       long safePointCount = JvmDefaultGCMetricsLogger.getSafepointCount();
       long totalSafePointTime = JvmDefaultGCMetricsLogger.getTotalSafepointTime();
-      log.info("safePointCount {} totalSafePointTime {}", safePointCount, totalSafePointTime);
+      log.info().attr("safePointCount", safePointCount)
+              .attr("totalSafePointTime", totalSafePointTime).log("safepoint metrics");
       assertNotEquals(safePointCount, -1);
       assertNotEquals(totalSafePointTime, -1);
     }

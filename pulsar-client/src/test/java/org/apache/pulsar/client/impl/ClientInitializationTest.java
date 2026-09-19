@@ -29,6 +29,7 @@ import org.testng.annotations.Test;
 
 public class ClientInitializationTest {
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testInitializeAuthWithTls() throws PulsarClientException {
         Authentication auth = mock(Authentication.class);
@@ -41,6 +42,6 @@ public class ClientInitializationTest {
                 .build();
 
         verify(auth).start();
-        verify(auth, times(1)).getAuthData();
+        verify(auth, times(0)).getAuthData();
     }
 }

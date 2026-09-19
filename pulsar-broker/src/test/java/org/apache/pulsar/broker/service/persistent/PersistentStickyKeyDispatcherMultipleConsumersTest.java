@@ -27,42 +27,45 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyList;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.anySet;
-import static org.mockito.Mockito.argThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
+import io.netty.util.concurrent.ImmediateEventExecutor;
+import io.netty.util.concurrent.Promise;
+import io.netty.util.concurrent.SucceededFuture;
 import java.lang.reflect.Field;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Queue;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.TreeSet;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -73,8 +76,10 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.EntryAndMetadata;
 import org.apache.pulsar.broker.service.EntryBatchIndexesAcks;
 import org.apache.pulsar.broker.service.EntryBatchSizes;
+import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.RedeliveryTracker;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -85,8 +90,6 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
-import org.apache.pulsar.common.util.collections.LongPairRangeSet;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
@@ -106,7 +109,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     private PersistentTopic topicMock;
     private PersistentSubscription subscriptionMock;
     private ServiceConfiguration configMock;
-    private ChannelPromise channelMock;
+    private Future<Void> succeededFuture;
     private OrderedExecutor orderedExecutor;
 
     private PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher;
@@ -123,9 +126,10 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(true).when(configMock).isSubscriptionRedeliveryTrackerEnabled();
         doReturn(100).when(configMock).getDispatcherMaxReadBatchSize();
         doReturn(true).when(configMock).isSubscriptionKeySharedUseConsistentHashing();
-        doReturn(1).when(configMock).getSubscriptionKeySharedConsistentHashingReplicaPoints();
+        doReturn(20).when(configMock).getSubscriptionKeySharedConsistentHashingReplicaPoints();
         doReturn(false).when(configMock).isDispatcherDispatchMessagesInSubscriptionThread();
         doReturn(false).when(configMock).isAllowOverrideEntryFilters();
+        doReturn(false).when(configMock).isDispatchThrottlingOnNonBacklogConsumerEnabled();
         doAnswer(invocation -> retryBackoffInitialTimeInMs).when(configMock).getDispatcherRetryBackoffInitialTimeInMs();
         doAnswer(invocation -> retryBackoffMaxTimeInMs).when(configMock).getDispatcherRetryBackoffMaxTimeInMs();
         pulsarMock = mock(PulsarService.class);
@@ -147,7 +151,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         doReturn(eventLoopGroup).when(brokerMock).executor();
         doAnswer(invocation -> {
-            orderedExecutor.execute(((Runnable)invocation.getArguments()[0]));
+            orderedExecutor.execute(invocation.getArgument(0, Runnable.class));
             return null;
         }).when(eventLoopGroup).execute(any(Runnable.class));
 
@@ -168,7 +172,8 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         })).when(ledgerMock).getPreviousPosition(any(Position.class));
         doAnswer((invocationOnMock -> {
             final Position position = invocationOnMock.getArgument(0);
-            return PositionFactory.create(position.getLedgerId(), position.getEntryId() < 0 ? 0 : position.getEntryId() + 1);
+            return PositionFactory.create(position.getLedgerId(),
+                    position.getEntryId() < 0 ? 0 : position.getEntryId() + 1);
         })).when(ledgerMock).getNextValidPosition(any(Position.class));
         doAnswer((invocationOnMock -> {
             final Range<Position> range = invocationOnMock.getArgument(0);
@@ -194,22 +199,24 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         doReturn(null).when(cursorMock).getLastIndividualDeletedRange();
         doReturn(subscriptionName).when(cursorMock).getName();
         doReturn(ledgerMock).when(cursorMock).getManagedLedger();
+        doAnswer(invocation -> {
+            int max = invocation.getArgument(0);
+            return max;
+        }).when(cursorMock).applyMaxSizeCap(anyInt(), anyLong());
 
         consumerMock = createMockConsumer();
-        channelMock = mock(ChannelPromise.class);
+        EventExecutor eventExecutor = mock(EventExecutor.class);
+        doAnswer(invocation -> {
+            orderedExecutor.execute(invocation.getArgument(0, Runnable.class));
+            return null;
+        }).when(eventExecutor).execute(any(Runnable.class));
+        doReturn(false).when(eventExecutor).inEventLoop();
+        succeededFuture = new SucceededFuture<>(eventExecutor, null);
         doReturn("consumer1").when(consumerMock).consumerName();
         consumerMockAvailablePermits = new AtomicInteger(1000);
         doAnswer(invocation -> consumerMockAvailablePermits.get()).when(consumerMock).getAvailablePermits();
         doReturn(true).when(consumerMock).isWritable();
-        doReturn(channelMock).when(consumerMock).sendMessages(
-                anyList(),
-                any(EntryBatchSizes.class),
-                any(EntryBatchIndexesAcks.class),
-                anyInt(),
-                anyLong(),
-                anyLong(),
-                any(RedeliveryTracker.class)
-        );
+        mockSendMessages(consumerMock, null);
 
         subscriptionMock = mock(PersistentSubscription.class);
         when(subscriptionMock.getTopic()).thenReturn(topicMock);
@@ -218,11 +225,34 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
     }
 
+    private void mockSendMessages(Consumer consumerMock, java.util.function.Consumer<List<Entry>> entryConsumer) {
+        doAnswer(invocation -> {
+            List<Entry> entries = invocation.getArgument(0);
+            if (entryConsumer != null) {
+                entryConsumer.accept(entries);
+            }
+            entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+            return succeededFuture;
+        }).when(consumerMock).sendMessages(
+                anyList(),
+                any(EntryBatchSizes.class),
+                any(EntryBatchIndexesAcks.class),
+                anyInt(),
+                anyLong(),
+                anyLong(),
+                any(RedeliveryTracker.class)
+        );
+    }
+
     protected static Consumer createMockConsumer() {
         Consumer consumerMock = mock(Consumer.class);
         TransportCnx transportCnx = mock(TransportCnx.class);
         doReturn(transportCnx).when(consumerMock).cnx();
         doReturn(true).when(transportCnx).isActive();
+        doReturn(100).when(consumerMock).getMaxUnackedMessages();
+        doReturn(1).when(consumerMock).getAvgMessagesPerEntry();
+        PendingAcksMap pendingAcksMap = mock(PendingAcksMap.class);
+        doReturn(pendingAcksMap).when(consumerMock).getPendingAcks();
         return consumerMock;
     }
 
@@ -241,7 +271,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     public void testAddConsumerWhenClosed() throws Exception {
         persistentDispatcher.close().get();
         Consumer consumer = createMockConsumer();
-        persistentDispatcher.addConsumer(consumer);
+        persistentDispatcher.addConsumer(consumer).join();
         verify(consumer, times(1)).disconnect();
         assertEquals(0, persistentDispatcher.getConsumers().size());
         assertTrue(persistentDispatcher.getSelector().getConsumerKeyHashRanges().isEmpty());
@@ -250,23 +280,26 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     @Test
     public void testSendMarkerMessage() {
         try {
-            persistentDispatcher.addConsumer(consumerMock);
+            persistentDispatcher.addConsumer(consumerMock).join();
             persistentDispatcher.consumerFlow(consumerMock, 1000);
         } catch (Exception e) {
             fail("Failed to add mock consumer", e);
         }
 
         List<Entry> entries = new ArrayList<>();
-        ByteBuf markerMessage = Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId", "testSourceCluster");
+        ByteBuf markerMessage = Markers.newReplicatedSubscriptionsSnapshotRequest("testSnapshotId",
+                "testSourceCluster");
         entries.add(EntryImpl.create(1, 1, markerMessage));
-        entries.add(EntryImpl.create(1, 2, createMessage("message1", 1)));
-        entries.add(EntryImpl.create(1, 3, createMessage("message2", 2)));
-        entries.add(EntryImpl.create(1, 4, createMessage("message3", 3)));
-        entries.add(EntryImpl.create(1, 5, createMessage("message4", 4)));
-        entries.add(EntryImpl.create(1, 6, createMessage("message5", 5)));
+        markerMessage.release();
+        entries.add(createEntry(1, 2, "message1", 1));
+        entries.add(createEntry(1, 3, "message2", 2));
+        entries.add(createEntry(1, 4, "message3", 3));
+        entries.add(createEntry(1, 5, "message4", 4));
+        entries.add(createEntry(1, 6, "message5", 5));
 
         try {
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+            persistentDispatcher.readEntriesComplete(copyEntries(entries),
+                    PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
         } catch (Exception e) {
             fail("Failed to readEntriesComplete.", e);
         }
@@ -286,12 +319,20 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             List<Integer> allTotalMessagesCaptor = totalMessagesCaptor.getAllValues();
             Assert.assertEquals(allTotalMessagesCaptor.get(0).intValue(), 5);
         });
+
+        entries.forEach(Entry::release);
+    }
+
+    private static List<Entry> copyEntries(List<Entry> entries) {
+        return entries.stream().map(entry -> EntryImpl.create((EntryImpl) entry))
+                .collect(Collectors.toList());
     }
 
     @Test(timeOut = 10000)
     public void testSendMessage() {
         KeySharedMeta keySharedMeta = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY);
-        PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+        PersistentStickyKeyDispatcherMultipleConsumers persistentDispatcher =
+                new PersistentStickyKeyDispatcherMultipleConsumers(
                 topicMock, cursorMock, subscriptionMock, configMock, keySharedMeta);
         try {
             keySharedMeta.addHashRange()
@@ -300,224 +341,475 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
             Consumer consumerMock = createMockConsumer();
             doReturn(keySharedMeta).when(consumerMock).getKeySharedMeta();
-            persistentDispatcher.addConsumer(consumerMock);
+            mockSendMessages(consumerMock, null);
+            persistentDispatcher.addConsumer(consumerMock).join();
             persistentDispatcher.consumerFlow(consumerMock, 1000);
         } catch (Exception e) {
             fail("Failed to add mock consumer", e);
         }
 
         List<Entry> entries = new ArrayList<>();
-        entries.add(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        entries.add(EntryImpl.create(1, 2, createMessage("message2", 2)));
+        entries.add(createEntry(1, 1, "message1", 1));
+        entries.add(createEntry(1, 2, "message2", 2));
 
         try {
             //Should success,see issue #8960
-            persistentDispatcher.readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
+            persistentDispatcher.readEntriesComplete(copyEntries(entries),
+                    PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
         } catch (Exception e) {
             fail("Failed to readEntriesComplete.", e);
         }
+
+        entries.forEach(Entry::release);
     }
 
     @Test
-    public void testSkipRedeliverTemporally() {
+    public void testSkipRedeliverTemporally() throws InterruptedException {
+        // add first consumer
+        persistentDispatcher.addConsumer(consumerMock).join();
+        // add slow consumer
         final Consumer slowConsumerMock = createMockConsumer();
-        final ChannelPromise slowChannelMock = mock(ChannelPromise.class);
-        // add entries to redeliver and read target
+        doReturn("consumer2").when(slowConsumerMock).consumerName();
+        AtomicInteger slowConsumerAvailablePermits = new AtomicInteger(0);
+        doAnswer(invocation -> {
+            return slowConsumerAvailablePermits.get();
+        }).when(slowConsumerMock).getAvailablePermits();
+        persistentDispatcher.addConsumer(slowConsumerMock).join();
+
+        StickyKeyConsumerSelector selector = persistentDispatcher.getSelector();
+        String keyForConsumer = generateKeyForConsumer(selector, consumerMock);
+        String keyForSlowConsumer = generateKeyForConsumer(selector, slowConsumerMock);
+
+        Set<Position> alreadySent = new ConcurrentSkipListSet<>();
+
+        final List<Entry> allEntries = new ArrayList<>();
+        allEntries.add(createEntry(1, 1, "message1", 1, keyForSlowConsumer));
+        allEntries.add(createEntry(1, 2, "message2", 2, keyForSlowConsumer));
+        allEntries.add(createEntry(1, 3, "message3", 3, keyForConsumer));
+
+        // add first entry to redeliver initially
         final List<Entry> redeliverEntries = new ArrayList<>();
-        redeliverEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key1")));
-        final List<Entry> readEntries = new ArrayList<>();
-        readEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
-        readEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key2")));
+        redeliverEntries.add(allEntries.get(0));
 
         try {
-            Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
+            Field totalAvailablePermitsField =
+                    PersistentDispatcherMultipleConsumers.class.getDeclaredField("totalAvailablePermits");
             totalAvailablePermitsField.setAccessible(true);
             totalAvailablePermitsField.set(persistentDispatcher, 1000);
-
-            doAnswer(invocationOnMock -> {
-                ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(readEntries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
-                return null;
-            }).when(cursorMock).asyncReadEntriesOrWait(
-                    anyInt(), anyLong(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                    eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
         } catch (Exception e) {
             fail("Failed to set to field", e);
         }
 
-        // Create 2Consumers
-        try {
-            doReturn("consumer2").when(slowConsumerMock).consumerName();
-            when(slowConsumerMock.getAvailablePermits())
-                    .thenReturn(0)
-                    .thenReturn(1);
-            doReturn(true).when(slowConsumerMock).isWritable();
-            doReturn(slowChannelMock).when(slowConsumerMock).sendMessages(
-                    anyList(),
-                    any(EntryBatchSizes.class),
-                    any(EntryBatchIndexesAcks.class),
-                    anyInt(),
-                    anyLong(),
-                    anyLong(),
-                    any(RedeliveryTracker.class)
-            );
+        // Mock Cursor#asyncReplayEntries
+        doAnswer(invocationOnMock -> {
+            Set<Position> positionsArg = invocationOnMock.getArgument(0);
+            Set<Position> positions = new TreeSet<>(positionsArg);
+            List<Entry> entries = allEntries.stream()
+                    .filter(entry -> entry.getLedgerId() != -1 && positions.contains(entry.getPosition()))
+                    .toList();
+            AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(1);
+            Object ctx = invocationOnMock.getArgument(2);
+            callback.readEntriesComplete(copyEntries(entries), ctx);
+            return Collections.emptySet();
+        }).when(cursorMock).asyncReplayEntries(anySet(), any(), any(), anyBoolean());
 
-            persistentDispatcher.addConsumer(consumerMock);
-            persistentDispatcher.addConsumer(slowConsumerMock);
-        } catch (Exception e) {
-            fail("Failed to add mock consumer", e);
+        // Simulate real cursor behavior: track read position so entries are only returned once
+        // by normal reads (subsequent access must go through asyncReplayEntries).
+        // When no new entries are available, don't call the callback (simulating "OrWait" behavior).
+        Set<Position> normalReadReturned = new ConcurrentSkipListSet<>();
+        doAnswer(invocationOnMock -> {
+            int maxEntries = invocationOnMock.getArgument(0);
+            AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(2);
+            List<Entry> entries = allEntries.stream()
+                    .filter(entry -> entry.getLedgerId() != -1
+                            && !normalReadReturned.contains(entry.getPosition()))
+                    .limit(maxEntries)
+                    .toList();
+            if (entries.isEmpty()) {
+                // No new entries available - simulate "wait" by not calling callback
+                return null;
+            }
+            entries.forEach(e -> normalReadReturned.add(e.getPosition()));
+            Object ctx = invocationOnMock.getArgument(3);
+            callback.readEntriesComplete(copyEntries(entries), ctx);
+            return null;
+        }).when(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+
+        doReturn(true).when(slowConsumerMock).isWritable();
+        CountDownLatch message3Sent = new CountDownLatch(1);
+        mockSendMessages(consumerMock, entries -> {
+            entries.forEach(entry -> {
+                alreadySent.add(entry.getPosition());
+            });
+            boolean message3Found = entries.stream()
+                    .anyMatch(entry -> entry.getLedgerId() == 1 && entry.getEntryId() == 3);
+            if (message3Found) {
+                message3Sent.countDown();
+            }
+        });
+        CountDownLatch slowConsumerMessagesSent = new CountDownLatch(2);
+        mockSendMessages(slowConsumerMock, entries -> {
+            entries.forEach(entry -> {
+                alreadySent.add(entry.getPosition());
+                slowConsumerMessagesSent.countDown();
+            });
+        });
+
+        // add entries to redeliver
+        redeliverEntries.forEach(entry -> {
+            // add extra retain since addEntryToReplay will release it
+            ((EntryImpl) entry).retain();
+            persistentDispatcher.addEntryToReplay(entry);
+        });
+
+        // trigger readMoreEntries, will handle redelivery logic and skip slow consumer
+        persistentDispatcher.readMoreEntriesAsync();
+
+        assertTrue(message3Sent.await(5, TimeUnit.SECONDS));
+
+        // verify that slow consumer messages are not sent before message3 to "consumer"
+        assertEquals(slowConsumerMessagesSent.getCount(), 2);
+
+        // set permits to 2
+        slowConsumerAvailablePermits.set(2);
+
+        // Trigger a new read cycle so the dispatcher can do a replay read to deliver
+        // messages to the slow consumer. In production, this would be triggered by
+        // consumerFlow when the consumer sends more permits.
+        persistentDispatcher.readMoreEntriesAsync();
+
+        // now wait for slow consumer messages since there are permits
+        assertTrue(slowConsumerMessagesSent.await(5, TimeUnit.SECONDS));
+
+        allEntries.forEach(Entry::release);
+    }
+
+    @DataProvider(name = "allowOutOfOrderDelivery")
+    private Object[][] allowOutOfOrderDelivery() {
+        return new Object[][] { { false }, { true } };
+    }
+
+    /**
+     * Reproduces the dispatch stall behind the flaky
+     * KeySharedSubscriptionTest.testContinueDispatchMessagesWhenMessageDelayed (issue #21554).
+     *
+     * When a replay read gets fully discarded (for example because the target consumer ran out of permits while
+     * the read was in flight) and the cursor has no more entries, engaging the "look ahead" mode made the follow-up
+     * read skip the replay queue and issue a normal read that waits at the end of the topic for new entries. Messages
+     * in the replay queue for consumers with available permits were then stuck until an unrelated event, such as a
+     * consumer flow request, triggered another read.
+     */
+    @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 30000)
+    public void testLookAheadNotEngagedWhenCursorHasNoMoreEntries(boolean allowOutOfOrderDelivery) throws Exception {
+        persistentDispatcher.close();
+
+        // the mocked executor doesn't support schedule(), so run the rescheduled read directly
+        persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                topicMock, cursorMock, subscriptionMock, configMock,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)
+                        .setAllowOutOfOrderDelivery(allowOutOfOrderDelivery)) {
+            @Override
+            protected void reScheduleReadInMs(long readAfterMs) {
+                orderedExecutor.execute(this::readMoreEntries);
+            }
+        };
+
+        // consumer1 has available permits at all times
+        persistentDispatcher.addConsumer(consumerMock).join();
+
+        // the slow consumer initially has 2 permits
+        final Consumer slowConsumerMock = createMockConsumer();
+        doReturn("consumer2").when(slowConsumerMock).consumerName();
+        doReturn(true).when(slowConsumerMock).isWritable();
+        AtomicInteger slowConsumerAvailablePermits = new AtomicInteger(2);
+        doAnswer(invocation -> slowConsumerAvailablePermits.get()).when(slowConsumerMock).getAvailablePermits();
+        persistentDispatcher.addConsumer(slowConsumerMock).join();
+
+        StickyKeyConsumerSelector selector = persistentDispatcher.getSelector();
+        String keyForConsumer1 = generateKeyForConsumer(selector, consumerMock);
+        String keyForSlowConsumer = generateKeyForConsumer(selector, slowConsumerMock);
+
+        final Entry entry1 = createEntry(1, 1, "message1", 1, keyForSlowConsumer);
+        final Entry entry2 = createEntry(1, 2, "message2", 2, keyForSlowConsumer);
+        final Entry entry3 = createEntry(1, 3, "message3", 3, keyForConsumer1);
+        final List<Entry> allEntries = List.of(entry1, entry2, entry3);
+
+        // the cursor has no more entries; a normal read would wait for new entries without completing
+        doReturn(false).when(cursorMock).hasMoreEntries();
+        doAnswer(invocationOnMock -> null)
+                .when(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+
+        // Mock Cursor#asyncReplayEntries. While the first replay read is in flight, the slow consumer runs out of
+        // permits and a message for consumer1 becomes replayable. This mirrors the delayed delivery tracker feeding
+        // messages to the replay queue while dispatching is in progress.
+        doAnswer(invocationOnMock -> {
+            Set<Position> positionsArg = invocationOnMock.getArgument(0);
+            Set<Position> positions = new TreeSet<>(positionsArg);
+            if (!positions.contains(entry3.getPosition())) {
+                slowConsumerAvailablePermits.set(0);
+                // add extra retain since addEntryToReplay will release it
+                ((EntryImpl) entry3).retain();
+                persistentDispatcher.addEntryToReplay(entry3);
+            }
+            List<Entry> entries = allEntries.stream()
+                    .filter(entry -> positions.contains(entry.getPosition()))
+                    .toList();
+            AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(1);
+            Object ctx = invocationOnMock.getArgument(2);
+            callback.readEntriesComplete(copyEntries(entries), ctx);
+            return Collections.emptySet();
+        }).when(cursorMock).asyncReplayEntries(anySet(), any(), any(), anyBoolean());
+
+        CountDownLatch consumer1ReceivedMessage3 = new CountDownLatch(1);
+        mockSendMessages(consumerMock, entries -> {
+            boolean message3Found = entries.stream()
+                    .anyMatch(entry -> entry.getPosition().equals(entry3.getPosition()));
+            if (message3Found) {
+                consumer1ReceivedMessage3.countDown();
+            }
+        });
+        mockSendMessages(slowConsumerMock, entries -> { });
+
+        // seed the replay queue with the slow consumer's entries
+        for (Entry entry : List.of(entry1, entry2)) {
+            // add extra retain since addEntryToReplay will release it
+            ((EntryImpl) entry).retain();
+            persistentDispatcher.addEntryToReplay(entry);
         }
 
-        // run PersistentStickyKeyDispatcherMultipleConsumers#sendMessagesToConsumers
-        // run readMoreEntries internally (and skip internally)
-        // Change slowConsumer availablePermits to 1
-        // run PersistentStickyKeyDispatcherMultipleConsumers#sendMessagesToConsumers internally
-        // and then stop to dispatch to slowConsumer
-        persistentDispatcher.readEntriesComplete(redeliverEntries,
-                PersistentDispatcherMultipleConsumers.ReadType.Replay);
+        // trigger the replay read. The batch gets fully discarded since the slow consumer runs out of permits while
+        // the read is in flight. The message for consumer1 that was added to the replay queue in the meantime must
+        // get dispatched by the follow-up read instead of the dispatcher parking a normal read at the end of the
+        // topic.
+        persistentDispatcher.readMoreEntries();
 
-        verify(consumerMock, times(1)).sendMessages(
-                argThat(arg -> {
-                    assertEquals(arg.size(), 1);
-                    Entry entry = arg.get(0);
-                    assertEquals(entry.getLedgerId(), 1);
-                    assertEquals(entry.getEntryId(), 3);
-                    return true;
-                }),
-                any(EntryBatchSizes.class),
-                any(EntryBatchIndexesAcks.class),
-                anyInt(),
-                anyLong(),
-                anyLong(),
-                any(RedeliveryTracker.class)
-        );
-        verify(slowConsumerMock, times(0)).sendMessages(
-                anyList(),
-                any(EntryBatchSizes.class),
-                any(EntryBatchIndexesAcks.class),
-                anyInt(),
-                anyLong(),
-                anyLong(),
-                any(RedeliveryTracker.class)
-        );
+        assertTrue(consumer1ReceivedMessage3.await(5, TimeUnit.SECONDS),
+                "The replayed message for consumer1 with available permits should have been dispatched");
+
+        allEntries.forEach(Entry::release);
+    }
+
+    @Test(timeOut = 10000)
+    public void testOutOfOrderReplayFilterDoesNotSpendReadBudgetOnConsumerWithoutPermits() {
+        persistentDispatcher.close();
+        persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                topicMock, cursorMock, subscriptionMock, configMock,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)
+                        .setAllowOutOfOrderDelivery(true));
+
+        persistentDispatcher.addConsumer(consumerMock).join();
+
+        Consumer slowConsumer = createMockConsumer();
+        doReturn("consumer2").when(slowConsumer).consumerName();
+        doReturn(0).when(slowConsumer).getAvailablePermits();
+        persistentDispatcher.addConsumer(slowConsumer).join();
+
+        StickyKeyConsumerSelector selector = persistentDispatcher.getSelector();
+        String keyForConsumer = generateKeyForConsumer(selector, consumerMock);
+        String keyForSlowConsumer = generateKeyForConsumer(selector, slowConsumer);
+        Entry entry1 = createEntry(1, 1, "message1", 1, keyForSlowConsumer);
+        Entry entry2 = createEntry(1, 2, "message2", 2, keyForSlowConsumer);
+        Entry entry3 = createEntry(1, 3, "message3", 3, keyForConsumer);
+        List<Entry> entries = List.of(entry1, entry2, entry3);
+
+        try {
+            for (Entry entry : entries) {
+                ((EntryImpl) entry).retain();
+                persistentDispatcher.addEntryToReplay(entry);
+            }
+
+            Set<Position> positions = persistentDispatcher.getMessagesToReplayNow(1, Long.MAX_VALUE);
+            assertThat(positions).containsExactly(entry3.getPosition());
+        } finally {
+            entries.forEach(Entry::release);
+        }
+    }
+
+    @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)
+    public void testReplaySkipsUnwritableConsumerWithPermits(boolean allowOutOfOrderDelivery) {
+        persistentDispatcher.close();
+        persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                topicMock, cursorMock, subscriptionMock, configMock,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)
+                        .setAllowOutOfOrderDelivery(allowOutOfOrderDelivery));
+        persistentDispatcher.addConsumer(consumerMock).join();
+        Consumer slowConsumer = createMockConsumer();
+        doReturn("consumer2").when(slowConsumer).consumerName();
+        doReturn(1000).when(slowConsumer).getAvailablePermits();
+        doReturn(false).when(slowConsumer).isWritable();
+        persistentDispatcher.addConsumer(slowConsumer).join();
+        String fastKey = generateKeyForConsumer(persistentDispatcher.getSelector(), consumerMock);
+        String slowKey = generateKeyForConsumer(persistentDispatcher.getSelector(), slowConsumer);
+        persistentDispatcher.addEntryToReplay(createEntry(1, 1, "slow", 1, slowKey));
+        persistentDispatcher.addEntryToReplay(createEntry(1, 2, "fast", 2, fastKey));
+
+        assertThat(persistentDispatcher.getMessagesToReplayNow(1, Long.MAX_VALUE))
+                .containsExactly(PositionFactory.create(1, 2));
+        doReturn(true).when(slowConsumer).isWritable();
+        assertThat(persistentDispatcher.getMessagesToReplayNow(1, Long.MAX_VALUE))
+                .containsExactly(PositionFactory.create(1, 1));
+    }
+
+    @Test(timeOut = 10000)
+    public void testSlowWriteDoesNotBlockOtherConsumers() throws Exception {
+        succeededFuture = ImmediateEventExecutor.INSTANCE.newSucceededFuture(null);
+        EventLoopGroup brokerExecutor = brokerMock.executor();
+        ArrayDeque<Runnable> readyTasks = new ArrayDeque<>();
+        doAnswer(inv -> {
+            readyTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).execute(any(Runnable.class));
+        Consumer slowConsumer = createMockConsumer();
+        doReturn("slow-consumer").when(slowConsumer).consumerName();
+        doReturn(1000).when(slowConsumer).getAvailablePermits();
+        doReturn(true).when(slowConsumer).isWritable();
+        Promise<Void> slowWrite = ImmediateEventExecutor.INSTANCE.newPromise();
+        doAnswer(inv -> {
+            List<Entry> entries = inv.getArgument(0);
+            entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+            // The selected batch fills this socket, but its write promise remains incomplete.
+            doReturn(false).when(slowConsumer).isWritable();
+            return slowWrite;
+        }).when(slowConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+        persistentDispatcher.addConsumer(consumerMock).join();
+        persistentDispatcher.addConsumer(slowConsumer).join();
+        persistentDispatcher.totalAvailablePermits = 2000;
+        String fastKey = generateKeyForConsumer(persistentDispatcher.getSelector(), consumerMock);
+        String slowKey = generateKeyForConsumer(persistentDispatcher.getSelector(), slowConsumer);
+        try {
+            persistentDispatcher.readEntriesComplete(new ArrayList<>(List.of(
+                    createEntry(1, 1, "fast", 1, fastKey), createEntry(1, 2, "slow", 2, slowKey))),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            verify(consumerMock).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            verify(slowConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            assertThat(slowWrite.isDone()).isFalse();
+            // Another bounded read can serve the writable consumer without waiting for the slow socket.
+            assertThat(readyTasks).hasSize(1);
+            readyTasks.remove().run();
+            verify(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            slowWrite.trySuccess(null);
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void testOutOfOrderReplayFilterIncludesPositionWithoutStickyKeyHash() {
+        persistentDispatcher.close();
+        persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                topicMock, cursorMock, subscriptionMock, configMock,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)
+                        .setAllowOutOfOrderDelivery(true));
+
+        assertTrue(persistentDispatcher.addMessageToReplay(1, 1));
+
+        Set<Position> positions = persistentDispatcher.getMessagesToReplayNow(1, Long.MAX_VALUE);
+        assertThat(positions).containsExactly(PositionFactory.create(1, 1));
     }
 
     @Test(timeOut = 30000)
     public void testMessageRedelivery() throws Exception {
-        final Queue<Position> actualEntriesToConsumer1 = new ConcurrentLinkedQueue<>();
-        final Queue<Position> actualEntriesToConsumer2 = new ConcurrentLinkedQueue<>();
+        final List<Position> actualEntriesToConsumer1 = new CopyOnWriteArrayList<>();
+        final List<Position> actualEntriesToConsumer2 = new CopyOnWriteArrayList<>();
 
-        final Queue<Position> expectedEntriesToConsumer1 = new ConcurrentLinkedQueue<>();
-        expectedEntriesToConsumer1.add(PositionFactory.create(1, 1));
-        final Queue<Position> expectedEntriesToConsumer2 = new ConcurrentLinkedQueue<>();
-        expectedEntriesToConsumer2.add(PositionFactory.create(1, 2));
-        expectedEntriesToConsumer2.add(PositionFactory.create(1, 3));
+        final List<Position> expectedEntriesToConsumer1 = new CopyOnWriteArrayList<>();
+        final List<Position> expectedEntriesToConsumer2 = new CopyOnWriteArrayList<>();
 
-        final AtomicInteger remainingEntriesNum = new AtomicInteger(
-                expectedEntriesToConsumer1.size() + expectedEntriesToConsumer2.size());
-
-        // Messages with key1 are routed to consumer1 and messages with key2 are routed to consumer2
-        final List<Entry> allEntries = new ArrayList<>();
-        allEntries.add(EntryImpl.create(1, 1, createMessage("message1", 1, "key2")));
-        allEntries.add(EntryImpl.create(1, 2, createMessage("message2", 2, "key1")));
-        allEntries.add(EntryImpl.create(1, 3, createMessage("message3", 3, "key1")));
-        allEntries.forEach(entry -> ((EntryImpl) entry).retain());
-
-        final List<Entry> redeliverEntries = new ArrayList<>();
-        redeliverEntries.add(allEntries.get(0)); // message1
-        final List<Entry> readEntries = new ArrayList<>();
-        readEntries.add(allEntries.get(2)); // message3
+        final CountDownLatch remainingEntriesNum = new CountDownLatch(3);
 
         final Consumer consumer1 = createMockConsumer();
         doReturn("consumer1").when(consumer1).consumerName();
         // Change availablePermits of consumer1 to 0 and then back to normal
         when(consumer1.getAvailablePermits()).thenReturn(0).thenReturn(10);
         doReturn(true).when(consumer1).isWritable();
-        doAnswer(invocationOnMock -> {
-            @SuppressWarnings("unchecked")
-            List<Entry> entries = (List<Entry>) invocationOnMock.getArgument(0);
+        mockSendMessages(consumer1, entries -> {
             for (Entry entry : entries) {
-                remainingEntriesNum.decrementAndGet();
                 actualEntriesToConsumer1.add(entry.getPosition());
+                remainingEntriesNum.countDown();
             }
-            return channelMock;
-        }).when(consumer1).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+        });
 
         final Consumer consumer2 = createMockConsumer();
         doReturn("consumer2").when(consumer2).consumerName();
         when(consumer2.getAvailablePermits()).thenReturn(10);
         doReturn(true).when(consumer2).isWritable();
-        doAnswer(invocationOnMock -> {
-            @SuppressWarnings("unchecked")
-            List<Entry> entries = (List<Entry>) invocationOnMock.getArgument(0);
+        mockSendMessages(consumer2, entries -> {
             for (Entry entry : entries) {
-                remainingEntriesNum.decrementAndGet();
                 actualEntriesToConsumer2.add(entry.getPosition());
+                remainingEntriesNum.countDown();
             }
-            return channelMock;
-        }).when(consumer2).sendMessages(anyList(), any(EntryBatchSizes.class), any(EntryBatchIndexesAcks.class),
-                anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
+        });
 
-        persistentDispatcher.addConsumer(consumer1);
-        persistentDispatcher.addConsumer(consumer2);
+        persistentDispatcher.addConsumer(consumer1).join();
+        persistentDispatcher.addConsumer(consumer2).join();
 
         final Field totalAvailablePermitsField = PersistentDispatcherMultipleConsumers.class
                 .getDeclaredField("totalAvailablePermits");
         totalAvailablePermitsField.setAccessible(true);
         totalAvailablePermitsField.set(persistentDispatcher, 1000);
 
-        final Field redeliveryMessagesField = PersistentDispatcherMultipleConsumers.class
-                .getDeclaredField("redeliveryMessages");
-        redeliveryMessagesField.setAccessible(true);
-        MessageRedeliveryController redeliveryMessages = (MessageRedeliveryController) redeliveryMessagesField
-                .get(persistentDispatcher);
-        redeliveryMessages.add(allEntries.get(0).getLedgerId(), allEntries.get(0).getEntryId(),
-                getStickyKeyHash(allEntries.get(0))); // message1
-        redeliveryMessages.add(allEntries.get(1).getLedgerId(), allEntries.get(1).getEntryId(),
-                getStickyKeyHash(allEntries.get(1))); // message2
+        StickyKeyConsumerSelector selector = persistentDispatcher.getSelector();
+
+        String keyForConsumer1 = generateKeyForConsumer(selector, consumer1);
+        String keyForConsumer2 = generateKeyForConsumer(selector, consumer2);
+
+        // Messages with key1 are routed to consumer1 and messages with key2 are routed to consumer2
+        final List<Entry> allEntries = new ArrayList<>();
+        allEntries.add(createEntry(1, 1, "message1", 1, keyForConsumer1));
+        allEntries.add(createEntry(1, 2, "message2", 2, keyForConsumer1));
+        allEntries.add(createEntry(1, 3, "message3", 3, keyForConsumer2));
+
+        // add first entry to redeliver initially
+        final List<Entry> redeliverEntries = new ArrayList<>();
+        redeliverEntries.add(allEntries.get(0)); // message1
+
+        expectedEntriesToConsumer1.add(allEntries.get(0).getPosition());
+        expectedEntriesToConsumer1.add(allEntries.get(1).getPosition());
+        expectedEntriesToConsumer2.add(allEntries.get(2).getPosition());
 
         // Mock Cursor#asyncReplayEntries
         doAnswer(invocationOnMock -> {
-            @SuppressWarnings("unchecked")
-            Set<Position> positions = (Set<Position>) invocationOnMock.getArgument(0);
-            List<Entry> entries = allEntries.stream().filter(entry -> positions.contains(entry.getPosition()))
+            Set<Position> positionsArg = invocationOnMock.getArgument(0);
+            Set<Position> positions = new TreeSet<>(positionsArg);
+            Set<Position> alreadyReceived = new TreeSet<>();
+            alreadyReceived.addAll(actualEntriesToConsumer1);
+            alreadyReceived.addAll(actualEntriesToConsumer2);
+            List<Entry> entries = allEntries.stream().filter(entry -> entry.getLedgerId() != -1
+                            && positions.contains(entry.getPosition())
+                            && !alreadyReceived.contains(entry.getPosition()))
                     .collect(Collectors.toList());
-            if (!entries.isEmpty()) {
-                ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(1))
-                        .readEntriesComplete(entries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay);
-            }
-            return Collections.emptySet();
-        }).when(cursorMock).asyncReplayEntries(anySet(), any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay), anyBoolean());
+            AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(1);
+            Object ctx = invocationOnMock.getArgument(2);
+            callback.readEntriesComplete(copyEntries(entries), ctx);
+            return alreadyReceived;
+        }).when(cursorMock).asyncReplayEntries(anySet(), any(), any(), anyBoolean());
 
         // Mock Cursor#asyncReadEntriesOrWait
-        AtomicBoolean asyncReadEntriesOrWaitCalled = new AtomicBoolean();
         doAnswer(invocationOnMock -> {
-            if (asyncReadEntriesOrWaitCalled.compareAndSet(false, true)) {
-                ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(readEntries, PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
-            } else {
-                ((PersistentStickyKeyDispatcherMultipleConsumers) invocationOnMock.getArgument(2))
-                        .readEntriesComplete(Collections.emptyList(), PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal);
-            }
+            int maxEntries = invocationOnMock.getArgument(0);
+            Set<Position> alreadyReceived = new TreeSet<>();
+            alreadyReceived.addAll(actualEntriesToConsumer1);
+            alreadyReceived.addAll(actualEntriesToConsumer2);
+            List<Entry> entries = allEntries.stream()
+                    .filter(entry -> entry.getLedgerId() != -1 && !alreadyReceived.contains(entry.getPosition()))
+                    .limit(maxEntries)
+                    .collect(Collectors.toList());
+            AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(2);
+            Object ctx = invocationOnMock.getArgument(3);
+            callback.readEntriesComplete(copyEntries(entries), ctx);
             return null;
-        }).when(cursorMock).asyncReadEntriesOrWait(anyInt(), anyLong(),
-                any(PersistentStickyKeyDispatcherMultipleConsumers.class),
-                eq(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Normal), any());
+        }).when(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
 
-        // (1) Run sendMessagesToConsumers
-        // (2) Attempts to send message1 to consumer1 but skipped because availablePermits is 0
-        // (3) Change availablePermits of consumer1 to 10
-        // (4) Run readMoreEntries internally
-        // (5) Run sendMessagesToConsumers internally
-        // (6) Attempts to send message3 to consumer2 but skipped because redeliveryMessages contains message2
-        persistentDispatcher.sendMessagesToConsumers(PersistentStickyKeyDispatcherMultipleConsumers.ReadType.Replay,
-                redeliverEntries, true);
-        while (remainingEntriesNum.get() > 0) {
-            // (7) Run readMoreEntries and resend message1 to consumer1 and message2-3 to consumer2
-            persistentDispatcher.readMoreEntries();
-        }
+        // add entries to redeliver
+        redeliverEntries.forEach(entry -> {
+            // add extra retain since addEntryToReplay will release it
+            ((EntryImpl) entry).retain();
+            persistentDispatcher.addEntryToReplay(entry);
+        });
+
+        // trigger logic to read entries, includes redelivery logic
+        persistentDispatcher.readMoreEntries();
+
+        assertTrue(remainingEntriesNum.await(5, TimeUnit.SECONDS));
 
         assertThat(actualEntriesToConsumer1).containsExactlyElementsOf(expectedEntriesToConsumer1);
         assertThat(actualEntriesToConsumer2).containsExactlyElementsOf(expectedEntriesToConsumer2);
@@ -525,313 +817,164 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         allEntries.forEach(entry -> entry.release());
     }
 
-    @DataProvider(name = "initializeLastSentPosition")
-    private Object[][] initialLastSentPositionProvider() {
-        return new Object[][] { { false }, { true } };
+    private String generateKeyForConsumer(StickyKeyConsumerSelector selector, Consumer consumer) {
+        int i = 0;
+        while (!Thread.currentThread().isInterrupted()) {
+            String key = "key" + i++;
+            Consumer selectedConsumer = selector.select(key.getBytes(UTF_8));
+            if (selectedConsumer == consumer) {
+                return key;
+            }
+        }
+        return null;
     }
 
-    @Test(dataProvider = "initializeLastSentPosition")
-    public void testLastSentPositionAndIndividuallySentPositions(final boolean initializeLastSentPosition) throws Exception {
-        final Position initialLastSentPosition = PositionFactory.create(1, 10);
-        final LongPairRangeSet<Position> expectedIndividuallySentPositions
-                = new ConcurrentOpenLongPairRangeSet<>(4096, PositionFactory::create);
+    @DataProvider(name = "writableSubscriptionTypes")
+    public Object[][] writableSubscriptionTypes() {
+        return new Object[][] {{false}, {true}};
+    }
 
-        final Field lastSentPositionField = PersistentStickyKeyDispatcherMultipleConsumers.class
-                .getDeclaredField("lastSentPosition");
-        lastSentPositionField.setAccessible(true);
-        final LongPairRangeSet<Position> individuallySentPositions = persistentDispatcher.getIndividuallySentPositionsField();
-        final Supplier<Throwable> clearPosition = () -> {
-            try {
-                lastSentPositionField.set(persistentDispatcher, initializeLastSentPosition ? initialLastSentPosition : null);
-                individuallySentPositions.clear();
-                expectedIndividuallySentPositions.clear();
-            } catch (Throwable e) {
-                return e;
-            }
-            return null;
-        };
-        if (!initializeLastSentPosition) {
-            doReturn(initialLastSentPosition).when(cursorMock).getMarkDeletedPosition();
-            doAnswer(invocationOnMock -> {
-                // skip copy operation
-                return initialLastSentPosition;
-            }).when(cursorMock).processIndividuallyDeletedMessagesAndGetMarkDeletedPosition(any());
+    private PersistentDispatcherMultipleConsumers createWritableTestDispatcher(boolean keyShared) {
+        if (keyShared) {
+            return new PersistentStickyKeyDispatcherMultipleConsumers(
+                    topicMock, cursorMock, subscriptionMock, configMock,
+                    new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
         }
+        return new PersistentDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock);
+    }
 
-        // Assume the range sequence is [1:0, 1:19], [2:0, 2:19], ..., [10:0, 10:19]
-        doAnswer((invocationOnMock -> {
-            final Position position = invocationOnMock.getArgument(0);
-            if (position.getEntryId() > 0) {
-                return PositionFactory.create(position.getLedgerId(), position.getEntryId() - 1);
-            } else if (position.getLedgerId() > 0) {
-                return PositionFactory.create(position.getLedgerId() - 1, 19);
+    @DataProvider(name = "writableRetryTypes")
+    public Object[][] writableRetryTypes() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "writableRetryTypes", timeOut = 30000)
+    public void testWritableResumesBeforeScheduledRetry(boolean keyShared, boolean exponential) throws Exception {
+        persistentDispatcher.close();
+        doReturn(10).when(configMock).getDispatcherRetryBackoffInitialTimeInMs();
+        doReturn(50).when(configMock).getDispatcherRetryBackoffMaxTimeInMs();
+        EventLoopGroup brokerExecutor = brokerMock.executor();
+        ArrayDeque<Runnable> readyTasks = new ArrayDeque<>();
+        List<Long> retryDelays = new ArrayList<>();
+        List<Runnable> delayedTasks = new ArrayList<>();
+        doAnswer(inv -> {
+            readyTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).execute(any(Runnable.class));
+        doAnswer(inv -> {
+            retryDelays.add(inv.getArgument(1, Long.class));
+            delayedTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        PersistentDispatcherMultipleConsumers dispatcher = createWritableTestDispatcher(keyShared);
+        try {
+            dispatcher.addConsumer(consumerMock).join();
+            dispatcher.totalAvailablePermits = 1000;
+            doReturn(false).when(consumerMock).isWritable();
+            dispatcher.readMoreEntries();
+            verify(cursorMock, never()).asyncReadEntriesWithSkipOrWait(
+                    anyInt(), anyLong(), any(), any(), any(), any());
+
+            // Leave the existing retry pending. Writability must not wait for either retry timer.
+            if (exponential) {
+                dispatcher.reScheduleReadWithBackoff();
+                assertThat(retryDelays).hasSize(1);
+                assertThat(retryDelays.get(0)).isPositive();
             } else {
-                throw new NullPointerException();
+                dispatcher.reScheduleRead();
+                assertThat(retryDelays).containsExactly((long) PersistentTopic.MESSAGE_RATE_BACKOFF_MS);
             }
-        })).when(ledgerMock).getPreviousPosition(any(Position.class));
-        doAnswer((invocationOnMock -> {
-            final Position position = invocationOnMock.getArgument(0);
-            if (position.getEntryId() < 19) {
-                return PositionFactory.create(position.getLedgerId(), position.getEntryId() + 1);
-            } else {
-                return PositionFactory.create(position.getLedgerId() + 1, 0);
-            }
-        })).when(ledgerMock).getNextValidPosition(any(Position.class));
-        doReturn(PositionFactory.create(10, 19)).when(ledgerMock).getLastConfirmedEntry();
-        doAnswer((invocationOnMock -> {
-            final Range<Position> range = invocationOnMock.getArgument(0);
-            Position fromPosition = range.lowerEndpoint();
-            boolean fromIncluded = range.lowerBoundType() == BoundType.CLOSED;
-            Position toPosition = range.upperEndpoint();
-            boolean toIncluded = range.upperBoundType() == BoundType.CLOSED;
+            doReturn(true).when(consumerMock).isWritable();
+            dispatcher.notifyChannelWritable(consumerMock);
+            dispatcher.notifyChannelWritable(consumerMock);
+            assertThat(readyTasks).hasSize(1);
+            verify(cursorMock, never()).asyncReadEntriesWithSkipOrWait(
+                    anyInt(), anyLong(), any(), any(), any(), any());
+            readyTasks.remove().run();
+            verify(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+            // The old timer can still fire, but must not start a second read while one is pending.
+            assertThat(delayedTasks).hasSize(1);
+            delayedTasks.get(0).run();
+            verify(cursorMock, times(1)).asyncReadEntriesWithSkipOrWait(
+                    anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            dispatcher.close();
+        }
+    }
 
-            if (fromPosition.getLedgerId() == toPosition.getLedgerId()) {
-                // If the 2 positions are in the same ledger
-                long count = toPosition.getEntryId() - fromPosition.getEntryId() - 1;
-                count += fromIncluded ? 1 : 0;
-                count += toIncluded ? 1 : 0;
-                return count;
-            } else {
-                long count = 0;
-                // If the from & to are pointing to different ledgers, then we need to :
-                // 1. Add the entries in the ledger pointed by toPosition
-                count += toPosition.getEntryId();
-                count += toIncluded ? 1 : 0;
+    @Test(dataProvider = "writableSubscriptionTypes", timeOut = 10000)
+    public void testWritableNotificationRespectsDispatchRateLimit(boolean keyShared) throws Exception {
+        persistentDispatcher.close();
+        EventLoopGroup brokerExecutor = brokerMock.executor();
+        ArrayDeque<Runnable> readyTasks = new ArrayDeque<>();
+        doAnswer(inv -> {
+            readyTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).execute(any(Runnable.class));
+        doReturn(5 * 1024 * 1024).when(configMock).getDispatcherMaxReadSizeBytes();
+        DispatchRateLimiter limiter = mock(DispatchRateLimiter.class);
+        doReturn(0L).when(limiter).getAvailableDispatchRateLimitOnMsg();
+        doReturn(-1L).when(limiter).getAvailableDispatchRateLimitOnByte();
+        doReturn(Optional.of(limiter)).when(topicMock).getDispatchRateLimiter();
+        PersistentDispatcherMultipleConsumers dispatcher = createWritableTestDispatcher(keyShared);
+        try {
+            dispatcher.addConsumer(consumerMock).join();
+            dispatcher.totalAvailablePermits = 1000;
+            dispatcher.notifyChannelWritable(consumerMock);
+            assertThat(readyTasks).hasSize(1);
+            readyTasks.remove().run();
+            verify(cursorMock, never()).asyncReadEntriesWithSkipOrWait(
+                    anyInt(), anyLong(), any(), any(), any(), any());
+            verify(limiter).getAvailableDispatchRateLimitOnMsg();
 
-                // 2. Add the entries in the ledger pointed by fromPosition
-                count += 20 - (fromPosition.getEntryId() + 1);
-                count += fromIncluded ? 1 : 0;
+            // A later event can resume after quota replenishes, without running the pending timer.
+            doReturn(100L).when(limiter).getAvailableDispatchRateLimitOnMsg();
+            dispatcher.notifyChannelWritable(consumerMock);
+            assertThat(readyTasks).hasSize(1);
+            readyTasks.remove().run();
+            verify(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            dispatcher.close();
+        }
+    }
 
-                // 3. Add the whole ledgers entries in between
-                for (long i = fromPosition.getLedgerId() + 1; i < toPosition.getLedgerId(); i++) {
-                    count += 20;
-                }
+    @Test(timeOut = 10000)
+    public void testWritabilityLostDuringSharedSelectionDoesNotRewind() throws Exception {
+        persistentDispatcher.close();
+        PersistentDispatcherMultipleConsumers dispatcher = createWritableTestDispatcher(false);
+        try {
+            dispatcher.addConsumer(consumerMock).join();
+            dispatcher.totalAvailablePermits = 1000;
+            // The availability probe succeeds, but selecting the next consumer sees the changed channel.
+            doReturn(true, false).when(consumerMock).isWritable();
+            dispatcher.readEntriesComplete(new ArrayList<>(List.of(createEntry(1, 1, "message1", 1))),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            assertThat(dispatcher.redeliveryMessages.size()).isEqualTo(1);
+            verify(cursorMock, times(1)).rewind(); // only the initial addConsumer rewind
+            verify(consumerMock, never()).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+        } finally {
+            dispatcher.close();
+        }
+    }
 
-                return count;
-            }
-        })).when(ledgerMock).getNumberOfEntries(any());
-        assertEquals(ledgerMock.getNextValidPosition(PositionFactory.create(1, 0)), PositionFactory.create(1, 1));
-        assertEquals(ledgerMock.getNextValidPosition(PositionFactory.create(1, 19)), PositionFactory.create(2, 0));
-        assertEquals(ledgerMock.getPreviousPosition(PositionFactory.create(2, 0)), PositionFactory.create(1, 19));
-        assertThrows(NullPointerException.class, () -> ledgerMock.getPreviousPosition(PositionFactory.create(0, 0)));
-        assertEquals(ledgerMock.getNumberOfEntries(Range.openClosed(
-                PositionFactory.create(1, 0), PositionFactory.create(1, 0))), 0);
-        assertEquals(ledgerMock.getNumberOfEntries(Range.openClosed(
-                PositionFactory.create(1, -1), PositionFactory.create(1, 9))), 10);
-        assertEquals(ledgerMock.getNumberOfEntries(Range.openClosed(
-                PositionFactory.create(1, 19), PositionFactory.create(2, -1))), 0);
-        assertEquals(ledgerMock.getNumberOfEntries(Range.openClosed(
-                PositionFactory.create(1, 19), PositionFactory.create(2, 9))), 10);
-        assertEquals(ledgerMock.getNumberOfEntries(Range.openClosed(
-                PositionFactory.create(1, -1), PositionFactory.create(3, 19))), 60);
-
-        // Add a consumer
-        final Consumer consumer1 = createMockConsumer();
-        doReturn("consumer1").when(consumer1).consumerName();
-        when(consumer1.getAvailablePermits()).thenReturn(1000);
-        doReturn(true).when(consumer1).isWritable();
-        doReturn(channelMock).when(consumer1).sendMessages(anyList(), any(EntryBatchSizes.class),
-                any(EntryBatchIndexesAcks.class), anyInt(), anyLong(), anyLong(), any(RedeliveryTracker.class));
-        persistentDispatcher.addConsumer(consumer1);
-
-        /*
-         On single ledger
-         */
-
-        // Expected individuallySentPositions (isp): [(1:-1, 1:8]] (init) -> [(1:-1, 1:9]] (update) -> [] (remove)
-        // Expected lastSentPosition (lsp): 1:10 (init) -> 1:10 (remove)
-        // upper bound and the new entry are less than initial last sent position
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, -1, 1, 8);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 9, createMessage("test", 1))), true);
-        assertTrue(individuallySentPositions.isEmpty());
-        assertEquals(persistentDispatcher.getLastSentPosition(), initialLastSentPosition.toString());
-
-        // isp: [(1:-1, 1:9]] -> [(1:-1, 1:10]] -> []
-        // lsp: 1:10 -> 1:10
-        // upper bound is less than initial last sent position
-        // upper bound and the new entry are less than or equal to initial last sent position
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, -1, 1, 9);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 10, createMessage("test", 1))), true);
-        assertTrue(individuallySentPositions.isEmpty());
-        assertEquals(persistentDispatcher.getLastSentPosition(), initialLastSentPosition.toString());
-
-        // isp: [(1:-1, 1:2], (1:3, 1:4], (1:5, 1:6]] -> [(1:-1, 1:2], (1:3, 1:4], (1:5, 1:6], (1:9, 1:10]] -> []
-        // lsp: 1:10 -> 1:10
-        // upper bound and the new entry are less than or equal to initial last sent position
-        // individually sent positions has multiple ranges
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, -1, 1, 2);
-        individuallySentPositions.addOpenClosed(1, 3, 1, 4);
-        individuallySentPositions.addOpenClosed(1, 5, 1, 6);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 10, createMessage("test", 1))), true);
-        assertTrue(individuallySentPositions.isEmpty());
-        assertEquals(persistentDispatcher.getLastSentPosition(), initialLastSentPosition.toString());
-
-        // isp: [(1:-1, 1:10]] -> [(1:-1, 1:11]] -> []
-        // lsp: 1:10 -> 1:11
-        // upper bound is less than or equal to initial last sent position
-        // the new entry is next position of initial last sent position
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, -1, 1, 10);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 11, createMessage("test", 1))), true);
-        assertTrue(individuallySentPositions.isEmpty());
-        assertEquals(persistentDispatcher.getLastSentPosition(), PositionFactory.create(1, 11).toString());
-
-        // isp: [(1:-1, 1:9]] -> [(1:-1, 1:9], (1:10, 1:11]] -> []
-        // lsp: 1:10 -> 1:11
-        // upper bound is less than initial last sent position
-        // the new entry is next position of initial last sent position
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, -1, 1, 9);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 11, createMessage("test", 1))), true);
-        assertTrue(individuallySentPositions.isEmpty());
-        assertEquals(persistentDispatcher.getLastSentPosition(), PositionFactory.create(1, 11).toString());
-
-        // isp: [(1:11, 1:15]] -> [(1:10, 1:15]] -> []
-        // lsp: 1:10 -> 1:15
-        // upper bound is greater than initial last sent position
-        // the range doesn't contain next position of initial last sent position
-        // the new entry is next position of initial last sent position
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, 11, 1, 15);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 11, createMessage("test", 1))), true);
-        assertTrue(individuallySentPositions.isEmpty());
-        assertEquals(persistentDispatcher.getLastSentPosition(), PositionFactory.create(1, 15).toString());
-
-        // isp: [(1:11, 1:15]] -> [(1:10, 1:16]] -> []
-        // lsp: 1:10 -> 1:16
-        // upper bound is greater than initial last sent position
-        // the range doesn't contain next position of initial last sent position
-        // the new entries contain next position of initial last sent position
-        // first of the new entries is less than initial last sent position
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, 11, 1, 15);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 9, createMessage("test", 1)),
-                        EntryImpl.create(1, 11, createMessage("test", 2)),
-                        EntryImpl.create(1, 16, createMessage("test", 3))), true);
-        assertTrue(individuallySentPositions.isEmpty());
-        assertEquals(persistentDispatcher.getLastSentPosition(), PositionFactory.create(1, 16).toString());
-
-        // isp: [(1:11, 1:15]] -> [(1:11, 1:15]] -> [(1:11, 1:15]]
-        // lsp: 1:10 -> 1:10
-        // upper bound is greater than initial last sent position
-        // the range doesn't contain next position of initial last sent position
-        // the new entry isn't  next position of initial last sent position
-        // the range contains the new entry
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, 11, 1, 15);
-        expectedIndividuallySentPositions.addOpenClosed(1, 11, 1, 15);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 15, createMessage("test", 1))), true);
-        assertEquals(individuallySentPositions.toString(), expectedIndividuallySentPositions.toString());
-        assertEquals(persistentDispatcher.getLastSentPosition(), initialLastSentPosition.toString());
-
-        // isp: [(1:11, 1:15]] -> [(1:11, 1:16]] -> [(1:11, 1:16]]
-        // lsp: 1:10 -> 1:10
-        // upper bound is greater than initial last sent position
-        // the range doesn't contain next position of initial last sent position
-        // the new entry isn't next position of initial last sent position
-        // the range doesn't contain the new entry
-        // the new entry is next position of upper bound
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, 11, 1, 15);
-        expectedIndividuallySentPositions.addOpenClosed(1, 11, 1, 16);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 16, createMessage("test", 1))), true);
-        assertEquals(individuallySentPositions.toString(), expectedIndividuallySentPositions.toString());
-        assertEquals(persistentDispatcher.getLastSentPosition(), initialLastSentPosition.toString());
-
-        // isp: [(1:11, 1:15]] -> [(1:11, 1:15], (1:16, 1:17]] -> [(1:11, 1:15], (1:16, 1:17]]
-        // lsp: 1:10 -> 1:10
-        // upper bound is greater than initial last sent position
-        // the range doesn't contain next position of initial last sent position
-        // the new entry isn't next position of initial last sent position
-        // the range doesn't contain the new entry
-        // the new entry isn't next position of upper bound
-        // the new entry is same ledger
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, 11, 1, 15);
-        expectedIndividuallySentPositions.addOpenClosed(1, 11, 1, 15);
-        expectedIndividuallySentPositions.addOpenClosed(1, 16, 1, 17);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 17, createMessage("test", 1))), true);
-        assertEquals(individuallySentPositions.toString(), expectedIndividuallySentPositions.toString());
-        assertEquals(persistentDispatcher.getLastSentPosition(), initialLastSentPosition.toString());
-
-        /*
-        On multiple contiguous ledgers
-         */
-
-        // isp: [(1:11, 1:18]] -> [(1:11, 1:18], (2:-1, 2:0]] -> [(1:11, 1:18], (2:-1, 2:0]]
-        // lsp: 1:10 -> 1:10
-        // upper bound is greater than initial last sent position
-        // the range doesn't contain next position of initial last sent position
-        // the new entry isn't next position of initial last sent position
-        // the range doesn't contain the new entry
-        // the new entry isn't next position of upper bound
-        // the new entry isn't same ledger
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, 11, 1, 18);
-        expectedIndividuallySentPositions.addOpenClosed(1, 11, 1, 18);
-        expectedIndividuallySentPositions.addOpenClosed(2, -1, 2, 0);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(2, 0, createMessage("test", 1))), true);
-        assertEquals(individuallySentPositions.toString(), expectedIndividuallySentPositions.toString());
-        assertEquals(persistentDispatcher.getLastSentPosition(), initialLastSentPosition.toString());
-
-        // isp: [(1:11, 1:19], (2:-1, 2:0]] -> [(1:10, 1:19], (2:-1, 2:0]] -> []
-        // lsp: 1:10 -> 2:0
-        // upper bound is greater than initial last sent position
-        // the range doesn't contain next position of initial last sent position
-        // the new entry is next position of initial last sent position
-        // the new entry isn't same ledger
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, 11, 1, 19);
-        individuallySentPositions.addOpenClosed(2, -1, 2, 0);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 11, createMessage("test", 1))), true);
-        assertTrue(individuallySentPositions.isEmpty());
-        assertEquals(persistentDispatcher.getLastSentPosition(), PositionFactory.create(2, 0).toString());
-
-        // isp: [(1:11, 1:19], (2:-1, 2:19], (3:-1, 3:0]] -> [(1:10, 1:19], (2:-1, 2:19], (3:-1, 3:0]] -> []
-        // lsp: 1:10 -> 3:0
-        // upper bound is greater than initial last sent position
-        // the range doesn't contain next position of initial last sent position
-        // the new entry is next position of initial last sent position
-        // the new entry isn't same ledger
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, 11, 1, 19);
-        individuallySentPositions.addOpenClosed(2, -1, 2, 19);
-        individuallySentPositions.addOpenClosed(3, -1, 3, 0);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(1, 11, createMessage("test", 1))), true);
-        assertTrue(individuallySentPositions.isEmpty());
-        assertEquals(persistentDispatcher.getLastSentPosition(), PositionFactory.create(3, 0).toString());
-
-        // isp: [(1:11, 1:19], (2:-1, 2:0]] -> [(1:11, 1:19], (2:-1, 2:1]] -> [(1:11, 1:19], (2:-1, 2:1]]
-        // lsp: 1:10 -> 1:10
-        // upper bound is greater than initial last sent position
-        // the range doesn't contain next position of initial last sent position
-        // the new entry isn't next position of initial last sent position
-        // the new entry isn't same ledger
-        assertNull(clearPosition.get());
-        individuallySentPositions.addOpenClosed(1, 11, 1, 19);
-        individuallySentPositions.addOpenClosed(2, -1, 2, 0);
-        expectedIndividuallySentPositions.addOpenClosed(1, 11, 1, 19);
-        expectedIndividuallySentPositions.addOpenClosed(2, -1, 2, 1);
-        persistentDispatcher.sendMessagesToConsumers(PersistentDispatcherMultipleConsumers.ReadType.Normal,
-                Arrays.asList(EntryImpl.create(2, 1, createMessage("test", 1))), true);
-        assertEquals(individuallySentPositions.toString(), expectedIndividuallySentPositions.toString());
-        assertEquals(persistentDispatcher.getLastSentPosition(), initialLastSentPosition.toString());
+    @Test(dataProvider = "writableSubscriptionTypes", timeOut = 30000)
+    public void testUnwritableReadCompletionWaitsForNotification(boolean keyShared) throws Exception {
+        persistentDispatcher.close();
+        PersistentDispatcherMultipleConsumers dispatcher = createWritableTestDispatcher(keyShared);
+        try {
+            dispatcher.addConsumer(consumerMock).join();
+            dispatcher.totalAvailablePermits = 1000;
+            doReturn(false).when(consumerMock).isWritable();
+            dispatcher.readEntriesComplete(new ArrayList<>(List.of(createEntry(1, 1, "message1", 1))),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            verify(consumerMock, never()).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            assertThat(dispatcher.redeliveryMessages.size()).isEqualTo(1);
+            verify(brokerMock.executor(), never()).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            verify(cursorMock, never()).asyncReadEntriesWithSkipOrWait(
+                    anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            dispatcher.close();
+        }
     }
 
     @DataProvider(name = "testBackoffDelayWhenNoMessagesDispatched")
@@ -840,91 +983,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     }
 
     @Test(dataProvider = "testBackoffDelayWhenNoMessagesDispatched")
-    public void testBackoffDelayWhenNoMessagesDispatched(boolean dispatchMessagesInSubscriptionThread, boolean isKeyShared)
-            throws Exception {
+    public void testBackoffDelayWhenNoMessagesDispatched(boolean dispatchMessagesInSubscriptionThread,
+            boolean isKeyShared) throws Exception {
         persistentDispatcher.close();
-
-        List<Long> retryDelays = new CopyOnWriteArrayList<>();
-        doReturn(dispatchMessagesInSubscriptionThread).when(configMock).isDispatcherDispatchMessagesInSubscriptionThread();
-
-        PersistentDispatcherMultipleConsumers dispatcher;
-        if (isKeyShared) {
-            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
-                    topicMock, cursorMock, subscriptionMock, configMock,
-                    new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)) {
-                @Override
-                protected void reScheduleReadInMs(long readAfterMs) {
-                    retryDelays.add(readAfterMs);
-                }
-            };
-        } else {
-            dispatcher = new PersistentDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock) {
-                @Override
-                protected void reScheduleReadInMs(long readAfterMs) {
-                    retryDelays.add(readAfterMs);
-                }
-            };
-        }
-
-        // add a consumer without permits to trigger the retry behavior
-        consumerMockAvailablePermits.set(0);
-        dispatcher.addConsumer(consumerMock);
-
-        // call "readEntriesComplete" directly to test the retry behavior
-        List<Entry> entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
-        Awaitility.await().untilAsserted(() -> {
-                    assertEquals(retryDelays.size(), 1);
-                    assertEquals(retryDelays.get(0), 10, "Initial retry delay should be 10ms");
-                }
-        );
-        // test the second retry delay
-        entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
-        Awaitility.await().untilAsserted(() -> {
-                    assertEquals(retryDelays.size(), 2);
-                    double delay = retryDelays.get(1);
-                    assertEquals(delay, 20.0, 2.0, "Second retry delay should be 20ms (jitter <-10%)");
-                }
-        );
-        // verify the max retry delay
-        for (int i = 0; i < 100; i++) {
-            entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-            dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
-        }
-        Awaitility.await().untilAsserted(() -> {
-                    assertEquals(retryDelays.size(), 102);
-                    double delay = retryDelays.get(101);
-                    assertEquals(delay, 50.0, 5.0, "Max delay should be 50ms (jitter <-10%)");
-                }
-        );
-        // unblock to check that the retry delay is reset
-        consumerMockAvailablePermits.set(1000);
-        entries = List.of(EntryImpl.create(1, 2, createMessage("message2", 1, "key2")));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
-        // wait that the possibly async handling has completed
-        Awaitility.await().untilAsserted(() -> assertFalse(dispatcher.isSendInProgress()));
-
-        // now block again to check the next retry delay so verify it was reset
-        consumerMockAvailablePermits.set(0);
-        entries = List.of(EntryImpl.create(1, 3, createMessage("message3", 1, "key3")));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
-        Awaitility.await().untilAsserted(() -> {
-                    assertEquals(retryDelays.size(), 103);
-                    assertEquals(retryDelays.get(0), 10, "Resetted retry delay should be 10ms");
-                }
-        );
-    }
-
-    @Test(dataProvider = "testBackoffDelayWhenNoMessagesDispatched")
-    public void testBackoffDelayWhenRetryDelayDisabled(boolean dispatchMessagesInSubscriptionThread, boolean isKeyShared)
-            throws Exception {
-        persistentDispatcher.close();
-
-        // it should be possible to disable the retry delay
-        // by setting retryBackoffInitialTimeInMs and retryBackoffMaxTimeInMs to 0
-        retryBackoffInitialTimeInMs=0;
-        retryBackoffMaxTimeInMs=0;
 
         List<Long> retryDelays = new CopyOnWriteArrayList<>();
         doReturn(dispatchMessagesInSubscriptionThread).when(configMock)
@@ -951,19 +1012,107 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
 
         // add a consumer without permits to trigger the retry behavior
         consumerMockAvailablePermits.set(0);
-        dispatcher.addConsumer(consumerMock);
+        dispatcher.addConsumer(consumerMock).join();
 
         // call "readEntriesComplete" directly to test the retry behavior
-        List<Entry> entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        List<Entry> entries = List.of(createEntry(1, 1, "message1", 1));
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        Awaitility.await().untilAsserted(() -> {
+                    assertEquals(retryDelays.size(), 1);
+                    assertEquals(retryDelays.get(0), 10, "Initial retry delay should be 10ms");
+                }
+        );
+        // test the second retry delay
+        entries = List.of(createEntry(1, 1, "message1", 1));
+        dispatcher.readEntriesComplete(new ArrayList<>(entries),
+                PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        Awaitility.await().untilAsserted(() -> {
+                    assertEquals(retryDelays.size(), 2);
+                    double delay = retryDelays.get(1);
+                    assertEquals(delay, 20.0, 2.0, "Second retry delay should be 20ms (jitter <-10%)");
+                }
+        );
+        // verify the max retry delay
+        for (int i = 0; i < 100; i++) {
+            entries = List.of(createEntry(1, 1, "message1", 1));
+            dispatcher.readEntriesComplete(new ArrayList<>(entries),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        }
+        Awaitility.await().untilAsserted(() -> {
+                    assertEquals(retryDelays.size(), 102);
+                    double delay = retryDelays.get(101);
+                    assertEquals(delay, 50.0, 5.0, "Max delay should be 50ms (jitter <-10%)");
+                }
+        );
+        // unblock to check that the retry delay is reset
+        consumerMockAvailablePermits.set(1000);
+        entries = List.of(createEntry(1, 2, "message2", 1, "key2"));
+        dispatcher.readEntriesComplete(new ArrayList<>(entries),
+                PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        // wait that the possibly async handling has completed
+        Awaitility.await().untilAsserted(() -> assertFalse(dispatcher.isSendInProgress()));
+
+        // now block again to check the next retry delay so verify it was reset
+        consumerMockAvailablePermits.set(0);
+        entries = List.of(createEntry(1, 3, "message3", 1, "key3"));
+        dispatcher.readEntriesComplete(new ArrayList<>(entries), PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        Awaitility.await().untilAsserted(() -> {
+                    assertEquals(retryDelays.size(), 103);
+                    assertEquals(retryDelays.get(0), 10, "Resetted retry delay should be 10ms");
+                }
+        );
+    }
+
+    @Test(dataProvider = "testBackoffDelayWhenNoMessagesDispatched")
+    public void testBackoffDelayWhenRetryDelayDisabled(boolean dispatchMessagesInSubscriptionThread,
+                                                       boolean isKeyShared) throws Exception {
+        persistentDispatcher.close();
+
+        // it should be possible to disable the retry delay
+        // by setting retryBackoffInitialTimeInMs and retryBackoffMaxTimeInMs to 0
+        retryBackoffInitialTimeInMs = 0;
+        retryBackoffMaxTimeInMs = 0;
+
+        List<Long> retryDelays = new CopyOnWriteArrayList<>();
+        doReturn(dispatchMessagesInSubscriptionThread).when(configMock)
+                .isDispatcherDispatchMessagesInSubscriptionThread();
+
+        PersistentDispatcherMultipleConsumers dispatcher;
+        if (isKeyShared) {
+            dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                    topicMock, cursorMock, subscriptionMock, configMock,
+                    new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)) {
+                @Override
+                protected void reScheduleReadInMs(long readAfterMs) {
+                    retryDelays.add(readAfterMs);
+                }
+            };
+        } else {
+            dispatcher = new PersistentDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock) {
+                @Override
+                protected void reScheduleReadInMs(long readAfterMs) {
+                    retryDelays.add(readAfterMs);
+                }
+            };
+        }
+
+        // add a consumer without permits to trigger the retry behavior
+        consumerMockAvailablePermits.set(0);
+        dispatcher.addConsumer(consumerMock).join();
+
+        // call "readEntriesComplete" directly to test the retry behavior
+        List<Entry> entries = List.of(createEntry(1, 1, "message1", 1));
+        dispatcher.readEntriesComplete(new ArrayList<>(entries),
+                PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 1);
                     assertEquals(retryDelays.get(0), 0, "Initial retry delay should be 0ms");
                 }
         );
         // test the second retry delay
-        entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        entries = List.of(createEntry(1, 1, "message1", 1));
+        dispatcher.readEntriesComplete(new ArrayList<>(entries),
+                PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 2);
                     double delay = retryDelays.get(1);
@@ -972,8 +1121,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         );
         // verify the max retry delay
         for (int i = 0; i < 100; i++) {
-            entries = List.of(EntryImpl.create(1, 1, createMessage("message1", 1)));
-            dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            entries = List.of(createEntry(1, 1, "message1", 1));
+            dispatcher.readEntriesComplete(new ArrayList<>(entries),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
         }
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 102);
@@ -983,15 +1133,17 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         );
         // unblock to check that the retry delay is reset
         consumerMockAvailablePermits.set(1000);
-        entries = List.of(EntryImpl.create(1, 2, createMessage("message2", 1, "key2")));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        entries = List.of(createEntry(1, 2, "message2", 1, "key2"));
+        dispatcher.readEntriesComplete(new ArrayList<>(entries),
+                PersistentDispatcherMultipleConsumers.ReadType.Normal);
         // wait that the possibly async handling has completed
         Awaitility.await().untilAsserted(() -> assertFalse(dispatcher.isSendInProgress()));
 
         // now block again to check the next retry delay so verify it was reset
         consumerMockAvailablePermits.set(0);
-        entries = List.of(EntryImpl.create(1, 3, createMessage("message3", 1, "key3")));
-        dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
+        entries = List.of(createEntry(1, 3, "message3", 1, "key3"));
+        dispatcher.readEntriesComplete(new ArrayList<>(entries),
+                PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
                     assertEquals(retryDelays.size(), 103);
                     assertEquals(retryDelays.get(0), 0, "Resetted retry delay should be 0ms");
@@ -1012,7 +1164,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         AtomicInteger reScheduleReadInMsCalled = new AtomicInteger(0);
         AtomicBoolean delayAllMessages = new AtomicBoolean(true);
 
-        PersistentDispatcherMultipleConsumers dispatcher;
+        AbstractPersistentDispatcherMultipleConsumers dispatcher;
         if (isKeyShared) {
             dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
                     topicMock, cursorMock, subscriptionMock, configMock,
@@ -1023,7 +1175,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 }
 
                 @Override
-                public synchronized void readMoreEntries() {
+                protected synchronized void internalReadMoreEntries() {
                     readMoreEntriesCalled.incrementAndGet();
                 }
 
@@ -1044,7 +1196,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
                 }
 
                 @Override
-                public synchronized void readMoreEntries() {
+                protected synchronized void internalReadMoreEntries() {
                     readMoreEntriesCalled.incrementAndGet();
                 }
 
@@ -1059,19 +1211,11 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             };
         }
 
-        doAnswer(invocationOnMock -> {
-            GenericFutureListener<Future<Void>> listener = invocationOnMock.getArgument(0);
-            Future<Void> future = mock(Future.class);
-            when(future.isDone()).thenReturn(true);
-            listener.operationComplete(future);
-            return channelMock;
-        }).when(channelMock).addListener(any());
-
         // add a consumer with permits
         consumerMockAvailablePermits.set(1000);
-        dispatcher.addConsumer(consumerMock);
+        dispatcher.addConsumer(consumerMock).join();
 
-        List<Entry> entries = new ArrayList<>(List.of(EntryImpl.create(1, 1, createMessage("message1", 1))));
+        List<Entry> entries = new ArrayList<>(List.of(createEntry(1, 1, "message1", 1)));
         dispatcher.readEntriesComplete(entries, PersistentDispatcherMultipleConsumers.ReadType.Normal);
         Awaitility.await().untilAsserted(() -> {
             assertEquals(reScheduleReadInMsCalled.get(), 0, "reScheduleReadInMs should not be called");
@@ -1079,22 +1223,86 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         });
     }
 
-    private ByteBuf createMessage(String message, int sequenceId) {
-        return createMessage(message, sequenceId, "testKey");
+    @Test
+    public void testEntryBucketDispatchRoutesByStampedRange() {
+        // PIP-486: the entry-bucket dispatcher routes a stamped entry as a whole by its entry-bucket
+        // (entry_hash_min normalized to the bucket's canonical hash), not by the message key.
+        KeySharedMeta ksm = new KeySharedMeta().setKeySharedMode(KeySharedMode.STICKY)
+                .setEntryBucketDispatch(true);
+        ksm.addHashRange().setStart(0x0000).setEnd(0x3FFF);
+        ksm.addHashRange().setStart(0x4000).setEnd(0x7FFF);
+        ksm.addHashRange().setStart(0x8000).setEnd(0xBFFF);
+        ksm.addHashRange().setStart(0xC000).setEnd(0xFFFF);
+        PersistentEntryBucketDispatcherMultipleConsumers bucketDispatcher =
+                new PersistentEntryBucketDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock,
+                        configMock, ksm);
+        EntryImpl entry = createEntry(1, 1, "msg", 1, "some-key");
+        try {
+            MessageMetadata stamped = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1)
+                    .setEntryHashMin(0x4567).setEntryHashMax(0x4FFF);
+            assertEquals(bucketDispatcher.getStickyKeyHash(
+                    EntryAndMetadata.create(entry, stamped)), 0x4000);
+
+            // Bucket 0's canonical hash is nudged to 1 (0 is the reserved "hash not set" sentinel).
+            MessageMetadata zero = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1)
+                    .setEntryHashMin(0).setEntryHashMax(0x3FFF);
+            assertEquals(bucketDispatcher.getStickyKeyHash(
+                    EntryAndMetadata.create(entry, zero)), 1);
+
+            // Unstamped entries (non-batched messages) fall back to the message key's hash,
+            // normalized to the same canonical bucket value.
+            MessageMetadata unstamped = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1).setPartitionKey("some-key");
+            assertEquals(bucketDispatcher.getStickyKeyHash(
+                            EntryAndMetadata.create(entry, unstamped)),
+                    bucketDispatcher.getSelector().makeStickyKeyHash("some-key".getBytes(UTF_8)));
+        } finally {
+            entry.release();
+        }
     }
 
-    private ByteBuf createMessage(String message, int sequenceId, String key) {
+    @Test
+    public void testStampedEntryStillRoutesByKeyWithoutEntryBucketDispatch() {
+        // Without the entryBucketDispatch flag (any plain Key_Shared subscription), a stamped entry
+        // keeps dispatching by the message key — the stamp is ignored.
+        EntryImpl entry = createEntry(1, 1, "msg", 1, "some-key");
+        try {
+            MessageMetadata stamped = new MessageMetadata()
+                    .setProducerName("p").setSequenceId(1).setPublishTime(1)
+                    .setPartitionKey("some-key")
+                    .setEntryHashMin(0x1234).setEntryHashMax(0x5678);
+            assertEquals(persistentDispatcher.getStickyKeyHash(
+                            EntryAndMetadata.create(entry, stamped)),
+                    persistentDispatcher.getSelector().makeStickyKeyHash("some-key".getBytes(UTF_8)));
+        } finally {
+            entry.release();
+        }
+    }
+
+    private EntryImpl createEntry(long ledgerId, long entryId, String message, long sequenceId) {
+        return createEntry(ledgerId, entryId, message, sequenceId, "testKey");
+    }
+
+    private EntryImpl createEntry(long ledgerId, long entryId, String message, long sequenceId, String key) {
+        ByteBuf data = createMessage(message, sequenceId, key);
+        EntryImpl entry = EntryImpl.create(ledgerId, entryId, data);
+        data.release();
+        return entry;
+    }
+
+    private ByteBuf createMessage(String message, long sequenceId, String key) {
         MessageMetadata messageMetadata = new MessageMetadata()
                 .setSequenceId(sequenceId)
                 .setProducerName("testProducer")
                 .setPartitionKey(key)
                 .setPartitionKeyB64Encoded(false)
                 .setPublishTime(System.currentTimeMillis());
-        return serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, Unpooled.copiedBuffer(message.getBytes(UTF_8)));
-    }
-
-    private int getStickyKeyHash(Entry entry) {
-        byte[] stickyKey = Commands.peekStickyKey(entry.getDataBuffer(), topicName, subscriptionName);
-        return StickyKeyConsumerSelector.makeStickyKeyHash(stickyKey);
+        ByteBuf payload = Unpooled.copiedBuffer(message.getBytes(UTF_8));
+        ByteBuf byteBuf = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c,
+                messageMetadata, payload);
+        payload.release();
+        return byteBuf;
     }
 }

@@ -24,14 +24,12 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 @SuppressWarnings({"checkstyle:JavadocType"})
 public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
-
-    private static final Logger log = LoggerFactory.getLogger(JvmDefaultGCMetricsLogger.class);
 
     private volatile long accumulatedFullGcCount = 0;
     private volatile long currentFullGcCount = 0;
@@ -58,7 +56,7 @@ public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
             getTotalSafepointTimeHandle.invoke(runtime);
             getSafepointCountHandle.invoke(runtime);
         } catch (Throwable e) {
-            log.warn("Failed to get Runtime bean", e);
+            log.warn().exception(e).log("Failed to get Runtime bean");
         }
     }
 
@@ -129,7 +127,7 @@ public class JvmDefaultGCMetricsLogger implements JvmGCMetricsLogger {
             accumulatedFullGcCount = newSafePointCount;
 
         } catch (Exception e) {
-            log.error("Failed to collect GC stats: {}", e.getMessage());
+            log.error().exceptionMessage(e).log("Failed to collect GC stats");
         }
     }
 

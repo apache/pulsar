@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.socket.client;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.google.common.util.concurrent.RateLimiter;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.FileInputStream;
@@ -31,7 +32,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -42,8 +42,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
+import lombok.CustomLog;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
+import org.HdrHistogram.Recorder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -53,26 +55,26 @@ import org.apache.pulsar.testclient.CmdBase;
 import org.apache.pulsar.testclient.IMessageFormatter;
 import org.apache.pulsar.testclient.PerfClientUtils;
 import org.apache.pulsar.testclient.PositiveNumberParameterConvert;
-import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
+import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
-import picocli.CommandLine.Spec;
 
 @Command(name = "websocket-producer", description = "Test pulsar websocket producer performance.")
+@CustomLog
 public class PerformanceClient extends CmdBase {
 
-    private static final LongAdder messagesSent = new LongAdder();
-    private static final LongAdder bytesSent = new LongAdder();
-    private static final LongAdder totalMessagesSent = new LongAdder();
-    private static final LongAdder totalBytesSent = new LongAdder();
+    private final LongAdder messagesSent = new LongAdder();
+    private final LongAdder bytesSent = new LongAdder();
+    private final LongAdder totalMessagesSent = new LongAdder();
+    private final LongAdder totalBytesSent = new LongAdder();
+
+    private final Recorder recorder =
+            new Recorder(SimpleTestProducerSocket.MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
     private static IMessageFormatter messageFormatter = null;
 
     @Option(names = { "-cf", "--conf-file" }, description = "Configuration file")
@@ -137,12 +139,8 @@ public class PerformanceClient extends CmdBase {
         super("websocket-producer");
     }
 
-
-    @Spec
-    CommandSpec spec;
-
     public void loadArguments() {
-        CommandLine commander = spec.commandLine();
+        CommandLine commander = getCommander();
 
         if (isBlank(this.authPluginClassName) && !isBlank(this.deprecatedAuthPluginClassName)) {
             this.authPluginClassName = this.deprecatedAuthPluginClassName;
@@ -216,8 +214,10 @@ public class PerformanceClient extends CmdBase {
             String delimiter = this.payloadDelimiter.equals("\\n") ? "\n" : this.payloadDelimiter;
             String[] payloadList = new String(Files.readAllBytes(payloadFilePath), StandardCharsets.UTF_8)
                     .split(delimiter);
-            log.info("Reading payloads from {} and {} records read", payloadFilePath.toAbsolutePath(),
-                    payloadList.length);
+            log.info()
+                    .attr("payloads", payloadFilePath.toAbsolutePath())
+                    .attr("payloadsCount", payloadList.length)
+                    .log("Reading payloads from and records read");
             for (String payload : payloadList) {
                 payloadByteList.add(payload.getBytes(StandardCharsets.UTF_8));
             }
@@ -237,21 +237,22 @@ public class PerformanceClient extends CmdBase {
         HashMap<String, Tuple> producersMap = new HashMap<>();
         String topicName = this.topics.get(0);
         String restPath = TopicName.get(topicName).getRestPath();
-        String produceBaseEndPoint = TopicName.get(topicName).isV2()
-                ? this.proxyURL + "ws/v2/producer/" + restPath : this.proxyURL + "ws/producer/" + restPath;
+        String produceBaseEndPoint = this.proxyURL + "ws/v2/producer/" + restPath;
+        HttpClient httpClient = new HttpClient();
+        httpClient.setSslContextFactory(new SslContextFactory.Client(true));
         for (int i = 0; i < this.numTopics; i++) {
             String topic = this.numTopics > 1 ? produceBaseEndPoint + i : produceBaseEndPoint;
             URI produceUri = URI.create(topic);
 
-            WebSocketClient produceClient = new WebSocketClient(new SslContextFactory(true));
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            WebSocketClient produceClient = new WebSocketClient(httpClient);
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
 
             if (StringUtils.isNotBlank(this.authPluginClassName) && StringUtils.isNotBlank(this.authParams)) {
                 try {
                     Authentication auth = AuthenticationFactory.create(this.authPluginClassName,
                             this.authParams);
                     auth.start();
-                    AuthenticationDataProvider authData = auth.getAuthData();
+                    AuthenticationDataProvider authData = auth.getAuthData(produceUri.getHost());
                     if (authData.hasDataForHttp()) {
                         for (Map.Entry<String, String> kv : authData.getHttpHeaders()) {
                             produceRequest.setHeader(kv.getKey(), kv.getValue());
@@ -259,19 +260,25 @@ public class PerformanceClient extends CmdBase {
                     }
                 } catch (Exception e) {
                     log.error("Authentication plugin error: " + e.getMessage());
+                    if (PerfClientUtils.hasInterruptedException(e)) {
+                        Thread.currentThread().interrupt();
+                    }
                 }
             }
 
-            SimpleTestProducerSocket produceSocket = new SimpleTestProducerSocket();
+            SimpleTestProducerSocket produceSocket = new SimpleTestProducerSocket(recorder);
 
             try {
                 produceClient.start();
-                produceClient.connect(produceSocket, produceUri, produceRequest);
+                produceClient.connect(produceSocket, produceRequest);
             } catch (IOException e1) {
-                log.error("Fail in connecting: [{}]", e1.getMessage());
+                log.error().exceptionMessage(e1).log("Fail in connecting");
                 return;
             } catch (Exception e1) {
-                log.error("Fail in starting client[{}]", e1.getMessage());
+                log.error().exceptionMessage(e1).log("Fail in starting client");
+                if (PerfClientUtils.hasInterruptedException(e1)) {
+                    Thread.currentThread().interrupt();
+                }
                 return;
             }
 
@@ -288,18 +295,22 @@ public class PerformanceClient extends CmdBase {
                 long testEndTime = startTime + (long) (this.testTime * 1e9);
                 // Send messages on all topics/producers
                 long totalSent = 0;
-                while (true) {
+                while (!Thread.currentThread().isInterrupted()) {
                     for (String topic : producersMap.keySet()) {
                         if (this.testTime > 0 && System.nanoTime() > testEndTime) {
-                            log.info("------------- DONE (reached the maximum duration: [{} seconds] of production) "
-                                    + "--------------", this.testTime);
+                            log.info()
+                                    .attr("duration", this.testTime)
+                                    .log("------------- DONE (reached the maximum duration:"
+                                            + " [ seconds] of production) --------------");
                             PerfClientUtils.exit(0);
                         }
 
                         if (this.numMessages > 0) {
                             if (totalSent >= this.numMessages) {
-                                log.trace("------------- DONE (reached the maximum number: [{}] of production) "
-                                        + "--------------", this.numMessages);
+                                log.trace()
+                                        .attr("number", this.numMessages)
+                                        .log("------------- DONE (reached the maximum"
+                                                + " number: [] of production) --------------");
                                 Thread.sleep(10000);
                                 PerfClientUtils.exit(0);
                             }
@@ -343,7 +354,7 @@ public class PerformanceClient extends CmdBase {
         Histogram reportHistogram = null;
 
         String statsFileName = "perf-websocket-producer-" + System.currentTimeMillis() + ".hgrm";
-        log.info("Dumping latency stats to {} \n", statsFileName);
+        log.info().attr("stats", statsFileName).log("Dumping latency stats to \n");
 
         PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
         HistogramLogWriter histogramLogWriter = new HistogramLogWriter(histogramLog);
@@ -352,10 +363,11 @@ public class PerformanceClient extends CmdBase {
         histogramLogWriter.outputLogFormatVersion();
         histogramLogWriter.outputLegend();
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 break;
             }
 
@@ -366,20 +378,19 @@ public class PerformanceClient extends CmdBase {
             double rate = messagesSent.sumThenReset() / elapsed;
             double throughput = bytesSent.sumThenReset() / elapsed / 1024 / 1024 * 8;
 
-            reportHistogram = SimpleTestProducerSocket.recorder.getIntervalHistogram(reportHistogram);
+            reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
-            log.info(
-                    "Throughput produced: {} msg --- {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} ms "
-                            + "- 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - 99.99pct: {} ms",
-                    INTFORMAT.format(total),
-                    THROUGHPUTFORMAT.format(rate),
-                    THROUGHPUTFORMAT.format(throughput),
-                    DEC.format(reportHistogram.getMean() / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0));
+            log.infof("Throughput produced: %7d msg --- %8.1f msg/s --- %8.1f Mbit/s"
+                            + " --- Latency: mean: %7.3f ms - med: %7.3f ms"
+                            + " - 95pct: %7.3f ms - 99pct: %7.3f ms"
+                            + " - 99.9pct: %7.3f ms - 99.99pct: %7.3f ms",
+                    total, rate, throughput,
+                    reportHistogram.getMean() / 1000.0,
+                    reportHistogram.getValueAtPercentile(50) / 1000.0,
+                    reportHistogram.getValueAtPercentile(95) / 1000.0,
+                    reportHistogram.getValueAtPercentile(99) / 1000.0,
+                    reportHistogram.getValueAtPercentile(99.9) / 1000.0,
+                    reportHistogram.getValueAtPercentile(99.99) / 1000.0);
 
             histogramLogWriter.outputIntervalHistogram(reportHistogram);
             reportHistogram.reset();
@@ -393,12 +404,16 @@ public class PerformanceClient extends CmdBase {
 
     }
 
+    @SuppressWarnings("unchecked")
     static IMessageFormatter getMessageFormatter(String formatterClass) {
         try {
             ClassLoader classLoader = PerformanceClient.class.getClassLoader();
             Class clz = classLoader.loadClass(formatterClass);
             return (IMessageFormatter) clz.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
+            if (PerfClientUtils.hasInterruptedException(e)) {
+                Thread.currentThread().interrupt();
+            }
             return null;
         }
     }
@@ -408,11 +423,12 @@ public class PerformanceClient extends CmdBase {
         loadArguments();
         PerfClientUtils.printJVMInformation(log);
         long start = System.nanoTime();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        Thread shutdownHookThread = PerfClientUtils.addShutdownHook(() -> {
             printAggregatedThroughput(start);
             printAggregatedStats();
-        }));
+        });
         runPerformanceTest();
+        PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
     }
 
     private class Tuple {
@@ -433,33 +449,29 @@ public class PerformanceClient extends CmdBase {
 
     }
 
-    private static void printAggregatedThroughput(long start) {
+    private void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesSent.sum() / elapsed;
         double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
-        log.info(
-                "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s",
-                totalMessagesSent,
-                TOTALFORMAT.format(rate),
-                TOTALFORMAT.format(throughput));
+        log.infof("Aggregated throughput stats --- %d records sent --- %.3f msg/s --- %.3f Mbit/s",
+                totalMessagesSent.sum(), rate, throughput);
     }
 
-    private static void printAggregatedStats() {
-        Histogram reportHistogram = SimpleTestProducerSocket.recorder.getIntervalHistogram();
+    private void printAggregatedStats() {
+        Histogram reportHistogram = recorder.getIntervalHistogram();
 
-        log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
-                        + "- 99.99pct: {} - 99.999pct: {} - Max: {}",
-                DEC.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
-                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
-                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
-                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
+        log.infof("Aggregated latency stats --- Latency: mean: %7.3f ms"
+                        + " - med: %d - 95pct: %d - 99pct: %d"
+                        + " - 99.9pct: %d - 99.99pct: %d"
+                        + " - 99.999pct: %d - Max: %d",
+                reportHistogram.getMean(),
+                reportHistogram.getValueAtPercentile(50),
+                reportHistogram.getValueAtPercentile(95),
+                reportHistogram.getValueAtPercentile(99),
+                reportHistogram.getValueAtPercentile(99.9),
+                reportHistogram.getValueAtPercentile(99.99),
+                reportHistogram.getValueAtPercentile(99.999),
+                reportHistogram.getMaxValue());
     }
-
-    static final DecimalFormat THROUGHPUTFORMAT = new PaddingDecimalFormat("0.0", 8);
-    static final DecimalFormat DEC = new PaddingDecimalFormat("0.000", 7);
-    static final DecimalFormat TOTALFORMAT = new DecimalFormat("0.000");
-    static final DecimalFormat INTFORMAT = new PaddingDecimalFormat("0", 7);
-    private static final Logger log = LoggerFactory.getLogger(PerformanceClient.class);
 
 }

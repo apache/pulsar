@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.Map;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.Map;
 
 public class PulsarClientConfigurationOverrideTest {
     @Test

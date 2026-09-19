@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Map;
+import lombok.CustomLog;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.tuple.Pair;
@@ -30,8 +31,6 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Load shedding strategy which will attempt to shed exactly one bundle on brokers which are overloaded, that is, whose
@@ -45,10 +44,8 @@ import org.slf4j.LoggerFactory;
  * when determining which bundles to unload. If you are looking for a strategy that spreads load evenly across
  * all brokers, see {@link ThresholdShedder}.
  */
+@CustomLog
 public class OverloadShedder implements LoadSheddingStrategy {
-
-    private static final Logger log = LoggerFactory.getLogger(OverloadShedder.class);
-
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
 
     private static final double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
@@ -78,10 +75,8 @@ public class OverloadShedder implements LoadSheddingStrategy {
                     conf.getLoadBalancerBandwidthInResourceWeight(),
                     conf.getLoadBalancerBandwidthOutResourceWeight());
             if (currentUsage < overloadThreshold) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Broker is not overloaded, ignoring at this point ({})", broker,
-                            localData.printResourceUsage());
-                }
+                log.debug().attr("broker", broker).attr("resourceUsage", localData.printResourceUsage())
+                        .log("Broker is not overloaded, ignoring at this point");
                 return;
             }
 
@@ -92,9 +87,9 @@ public class OverloadShedder implements LoadSheddingStrategy {
 
             double minimumThroughputToOffload = brokerCurrentThroughput * percentOfTrafficToOffload;
 
-            log.info(
-                    "Attempting to shed load on {}, which has resource usage {}% above threshold {}%"
-                            + " -- Offloading at least {} MByte/s of traffic ({})",
+            log.infof(
+                    "Attempting to shed load on %s, which has resource usage %s%% above threshold %s%%"
+                            + " -- Offloading at least %s MByte/s of traffic (%s)",
                     broker, 100 * currentUsage, 100 * overloadThreshold, minimumThroughputToOffload / 1024 / 1024,
                     localData.printResourceUsage());
 
@@ -131,12 +126,12 @@ public class OverloadShedder implements LoadSheddingStrategy {
                    }
                 });
             } else if (localData.getBundles().size() == 1) {
-                log.warn(
-                        "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
+                log.warnf(
+                        "HIGH USAGE WARNING : Sole namespace bundle %s is overloading broker %s. "
                                 + "No Load Shedding will be done on this broker",
                         localData.getBundles().iterator().next(), broker);
             } else {
-                log.warn("Broker {} is overloaded despite having no bundles", broker);
+                log.warn().attr("broker", broker).log("Broker is overloaded despite having no bundles");
             }
 
         });

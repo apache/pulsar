@@ -18,12 +18,19 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -31,14 +38,56 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedger
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 class OpReadEntry implements ReadEntriesCallback {
 
+    /**
+     * JVM-wide nesting limit, read once at class initialization. Clamp to at least one so a queued completion
+     * can make progress instead of repeatedly rescheduling itself.
+     */
+    static final int MAX_NESTED_INLINE_COMPLETIONS = readMaxNestedInlineCompletions(System.getProperties());
+    // Match CompletableFuture's common-pool threshold; a disabled pool can accept work without executing it.
+    private static final boolean USE_COMMON_POOL = ForkJoinPool.getCommonPoolParallelism() > 1;
+
+    static {
+        log.debug().attr("maxReadCompletionDepth", MAX_NESTED_INLINE_COMPLETIONS)
+                .attr("useCommonPool", USE_COMMON_POOL)
+                .log("Initialized managed-ledger read completion depth limit");
+    }
+
+    @VisibleForTesting
+    static int readMaxNestedInlineCompletions(Properties properties) {
+        String configuredDepth = properties.getProperty("pulsar.managedLedger.maxReadCompletionDepth");
+        if (configuredDepth != null) {
+            try {
+                return Math.max(1, Integer.decode(configuredDepth));
+            } catch (NumberFormatException ignored) {
+                // Match Integer.getInteger: a malformed property uses the default.
+            }
+        }
+        return 10;
+    }
+
+    /** Nesting depth of read completions running inline on the current thread. */
+    private static final FastThreadLocal<int[]> INLINE_COMPLETION_DEPTH = new FastThreadLocal<>() {
+        @Override
+        protected int[] initialValue() {
+            return new int[1];
+        }
+    };
+    static final OpReadEntry WAITING_READ_OP_FOR_CLOSED_CURSOR = new OpReadEntry();
+    private static final AtomicInteger opReadIdGenerator = new AtomicInteger(1);
+    /**
+     * id for this read operation. Value can be negative when integer value overflow happens.
+     * Used for waitingReadOp consistency so the the correct instance is handled after the instance has already been
+     * recycled.
+     */
+    int id;
     ManagedCursorImpl cursor;
     Position readPosition;
     private int count;
+    long maxSizeBytes;
     private ReadEntriesCallback callback;
     Object ctx;
 
@@ -48,13 +97,18 @@ class OpReadEntry implements ReadEntriesCallback {
     Position maxPosition;
 
     Predicate<Position> skipCondition;
+    boolean skipOpenLedgerFullyAcked = false;
 
     public static OpReadEntry create(ManagedCursorImpl cursor, Position readPositionRef, int count,
-            ReadEntriesCallback callback, Object ctx, Position maxPosition, Predicate<Position> skipCondition) {
+                                     long maxSizeBytes, ReadEntriesCallback callback, Object ctx, Position maxPosition,
+                                     Predicate<Position> skipCondition,
+                                     boolean skipOpenLedgerFullyAcked) {
         OpReadEntry op = RECYCLER.get();
+        op.id = opReadIdGenerator.getAndIncrement();
         op.readPosition = cursor.ledger.startReadOperationOnLedger(readPositionRef);
         op.cursor = cursor;
         op.count = count;
+        op.maxSizeBytes = maxSizeBytes;
         op.callback = callback;
         op.entries = new ArrayList<>();
         if (maxPosition == null) {
@@ -62,12 +116,18 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         op.maxPosition = maxPosition;
         op.skipCondition = skipCondition;
+        op.skipOpenLedgerFullyAcked = skipOpenLedgerFullyAcked;
         op.ctx = ctx;
         op.nextReadPosition = PositionFactory.create(op.readPosition);
         return op;
     }
 
-    void internalReadEntriesComplete(List<Entry> returnedEntries, Object ctx, Position lastPosition) {
+    private void internalReadEntriesComplete(List<Entry> returnedEntries) {
+        if (returnedEntries.isEmpty()) {
+            log.warn().attr("op", this).log("Read no entries unexpectedly");
+            checkReadCompletion();
+            return;
+        }
         // Filter the returned entries for individual deleted messages
         int entriesCount = returnedEntries.size();
         long entriesSize = 0;
@@ -76,19 +136,18 @@ class OpReadEntry implements ReadEntriesCallback {
         }
         cursor.updateReadStats(entriesCount, entriesSize);
 
-        if (entriesCount != 0) {
-            lastPosition = returnedEntries.get(entriesCount - 1).getPosition();
-        }
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Read entries succeeded batch_size={} cumulative_size={} requested_count={}",
-                    cursor.ledger.getName(), cursor.getName(), returnedEntries.size(), entries.size(), count);
-        }
+        log.debug()
+                .attr("managedLedger", cursor.ledger.getName())
+                .attr("cursor", cursor.getName())
+                .attr("batchSize", returnedEntries.size())
+                .attr("cumulativeSize", entries.size())
+                .attr("requestedCount", count)
+                .log("Read entries succeeded");
 
-        List<Entry> filteredEntries = Collections.emptyList();
-        if (entriesCount != 0) {
-            filteredEntries = cursor.filterReadEntries(returnedEntries);
-            entries.addAll(filteredEntries);
-        }
+        // Entries might be released after `filterReadEntries`, so retrieve the last position before that
+        final var lastPosition = returnedEntries.get(entriesCount - 1).getPosition();
+        final var filteredEntries = cursor.filterReadEntries(returnedEntries);
+        entries.addAll(filteredEntries);
 
         // if entries have been filtered out then try to skip reading of already deletedMessages in that range
         final Position nexReadPosition = entriesCount != filteredEntries.size()
@@ -99,23 +158,39 @@ class OpReadEntry implements ReadEntriesCallback {
 
     @Override
     public void readEntriesComplete(List<Entry> returnedEntries, Object ctx) {
-        internalReadEntriesComplete(returnedEntries, ctx, null);
+        try {
+            internalReadEntriesComplete(returnedEntries);
+        } catch (Throwable throwable) {
+            log.error().attr("op", this).exception(throwable)
+                    .log("Fallback to readEntriesFailed for exception in readEntriesComplete");
+            readEntriesFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+        }
     }
 
     @Override
     public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+        try {
+            internalReadEntriesFailed(exception, ctx);
+        } catch (Throwable throwable) {
+            // At least we should complete the callback
+            fail(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
+        }
+    }
+
+    private void internalReadEntriesFailed(ManagedLedgerException exception, Object ctx) {
         cursor.readOperationCompleted();
 
         if (!entries.isEmpty()) {
             // There were already some entries that were read before, we can return them
-            cursor.ledger.getExecutor().execute(() -> {
-                callback.readEntriesComplete(entries, ctx);
-                recycle();
-            });
-        } else if (cursor.getConfig().isAutoSkipNonRecoverableData()
+            complete(ctx);
+        } else if (!cursor.isClosed() && cursor.getConfig().isAutoSkipNonRecoverableData()
                 && exception instanceof NonRecoverableLedgerException) {
-            log.warn("[{}][{}] read failed from ledger at position:{} : {}", cursor.ledger.getName(), cursor.getName(),
-                    readPosition, exception.getMessage());
+            log.warn()
+                    .attr("managedLedger", cursor.ledger.getName())
+                    .attr("cursor", cursor.getName())
+                    .attr("readPosition", readPosition)
+                    .exceptionMessage(exception)
+                    .log("Read failed from ledger");
             final ManagedLedgerImpl ledger = (ManagedLedgerImpl) cursor.getManagedLedger();
             Position nexReadPosition;
             Long lostLedger = null;
@@ -129,30 +204,33 @@ class OpReadEntry implements ReadEntriesCallback {
             }
             // fail callback if it couldn't find next valid ledger
             if (nexReadPosition == null) {
-                callback.readEntriesFailed(exception, ctx);
-                cursor.ledger.mbean.recordReadEntriesError();
-                recycle();
+                fail(exception, ctx);
                 return;
             }
             updateReadPosition(nexReadPosition);
             if (lostLedger != null) {
                 cursor.getManagedLedger().skipNonRecoverableLedger(lostLedger);
+            } else {
+                cursor.skipNonRecoverableEntries(readPosition, nexReadPosition);
             }
             checkReadCompletion();
         } else {
             if (!(exception instanceof TooManyRequestsException)) {
-                log.warn("[{}][{}] read failed from ledger at position:{}", cursor.ledger.getName(),
-                        cursor.getName(), readPosition, exception);
+                log.warn()
+                        .attr("managedLedger", cursor.ledger.getName())
+                        .attr("cursor", cursor.getName())
+                        .attr("readPosition", readPosition)
+                        .exception(exception)
+                        .log("Read failed from ledger");
             } else {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}][{}] read throttled failed from ledger at position:{}", cursor.ledger.getName(),
-                            cursor.getName(), readPosition);
-                }
+                log.debug()
+                        .attr("managedLedger", cursor.ledger.getName())
+                        .attr("cursor", cursor.getName())
+                        .attr("readPosition", readPosition)
+                        .log("Read throttled failed from ledger");
             }
 
-            callback.readEntriesFailed(exception, ctx);
-            cursor.ledger.mbean.recordReadEntriesError();
-            recycle();
+            fail(exception, ctx);
         }
     }
 
@@ -175,12 +253,8 @@ class OpReadEntry implements ReadEntriesCallback {
             // The reading was already completed, release resources and trigger callback
             try {
                 cursor.readOperationCompleted();
-
             } finally {
-                cursor.ledger.getExecutor().execute(() -> {
-                    callback.readEntriesComplete(entries, ctx);
-                    recycle();
-                });
+                complete(ctx);
             }
         }
     }
@@ -195,6 +269,22 @@ class OpReadEntry implements ReadEntriesCallback {
         this.recyclerHandle = recyclerHandle;
     }
 
+    // no-op constructor for EMPTY instance
+    private OpReadEntry() {
+        this.recyclerHandle = null;
+        this.callback = new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                // no-op
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                // no-op
+            }
+        };
+    }
+
     private static final Recycler<OpReadEntry> RECYCLER = new Recycler<>() {
         @Override
         protected OpReadEntry newObject(Recycler.Handle<OpReadEntry> recyclerHandle) {
@@ -203,7 +293,13 @@ class OpReadEntry implements ReadEntriesCallback {
     };
 
     public void recycle() {
+        if (recyclerHandle == null) {
+            // This is the no-op instance, do not recycle
+            return;
+        }
+        id = -1;
         count = 0;
+        maxSizeBytes = NO_MAX_SIZE_LIMIT;
         cursor = null;
         readPosition = null;
         callback = null;
@@ -212,8 +308,110 @@ class OpReadEntry implements ReadEntriesCallback {
         nextReadPosition = null;
         maxPosition = null;
         skipCondition = null;
+        skipOpenLedgerFullyAcked = false;
         recyclerHandle.recycle(this);
     }
 
-    private static final Logger log = LoggerFactory.getLogger(OpReadEntry.class);
+    private void complete(Object ctx) {
+        if (cursor.ledger.isReadEntriesCallbackInline() || cursor.ledger.getExecutor().isCurrentThread()) {
+            completeWithDepthLimit(ctx);
+        } else {
+            try {
+                cursor.ledger.getExecutor().execute(() -> completeWithDepthLimit(ctx));
+            } catch (RejectedExecutionException e) {
+                failCompletion(e, ctx);
+            }
+        }
+    }
+
+    private void completeWithDepthLimit(Object ctx) {
+        // Both modes can complete inline. Bound nested callbacks even on the ledger executor.
+        int[] depth = INLINE_COMPLETION_DEPTH.get();
+        if (depth[0] < MAX_NESTED_INLINE_COMPLETIONS) {
+            depth[0]++;
+            try {
+                completeNow(ctx);
+            } finally {
+                depth[0]--;
+            }
+        } else {
+            try {
+                // Queue so the current callback stack can unwind. An inline cached-read chain can then continue
+                // on common-pool workers until a cross-ledger read, cache miss, cursor wait, or caller handoff
+                // changes its execution context. Legacy mode retains ledger-executor affinity.
+                if (cursor.ledger.isReadEntriesCallbackInline() && USE_COMMON_POOL) {
+                    ForkJoinPool.commonPool().execute(() -> completeWithDepthLimit(ctx));
+                } else {
+                    cursor.ledger.getExecutor().execute(() -> completeWithDepthLimit(ctx));
+                }
+            } catch (RejectedExecutionException e) {
+                failCompletion(e, ctx);
+            }
+        }
+    }
+
+    private void failCompletion(RejectedExecutionException exception, Object ctx) {
+        // Read accounting has already completed, but ownership never reached the callback.
+        for (Entry entry : entries) {
+            try {
+                entry.release();
+            } catch (Throwable t) {
+                log.error().exception(t).log("Failed to release entry after read-completion executor rejection");
+            }
+        }
+        entries.clear();
+        fail(ManagedLedgerException.getManagedLedgerException(exception), ctx);
+    }
+
+    private void completeNow(Object ctx) {
+        try {
+            callback.readEntriesComplete(entries, ctx);
+            recycle();
+        } catch (Throwable throwable) {
+            log.error().attr("op", this)
+                    .attr("lastPosition", lastEntryPosition())
+                    .exception(throwable)
+                    .log("readEntriesComplete failed");
+        }
+    }
+
+    private void fail(ManagedLedgerException e, Object ctx) {
+        try {
+            callback.readEntriesFailed(e, ctx);
+            cursor.ledger.mbean.recordReadEntriesError();
+            recycle();
+        } catch (Throwable throwable) {
+            log.error().attr("op", this).exception(throwable).exceptionMessage(e)
+                    .log("readEntriesFailed failed");
+        }
+    }
+
+    @Override
+    public String toString() {
+        final var cursor = this.cursor;
+        final var readPosition = this.readPosition;
+        final var nextReadPosition = this.nextReadPosition;
+        final var entries = this.entries;
+        final var maxPosition = this.maxPosition;
+        final var count = this.count;
+        if (cursor != null) {
+            return cursor.ledger.getName() + " " + cursor.getName() + "{ readPosition: "
+                    + (readPosition != null ? readPosition : "(null)") + ", nextReadPosition: "
+                    + (nextReadPosition != null ? nextReadPosition : "(null)") + ", maxPosition: "
+                    + (maxPosition != null ? maxPosition : "(null)") + ", entries count: "
+                    + (entries != null ? entries.size() : "(null)") + ", count: " + count + " }";
+        } else {
+            return "(null)";
+        }
+    }
+
+    private String lastEntryPosition() {
+        final var entries = this.entries;
+        if (entries != null) {
+            return entries.isEmpty() ? "(empty)" : entries.get(entries.size() - 1).getPosition().toString();
+        } else {
+            return "(null)";
+        }
+    }
+
 }

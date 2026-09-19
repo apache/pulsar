@@ -20,12 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.github.merlimat.slog.Logger;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 
 /**
  * Used to make all tasks that will modify subscriptions will be executed one by one, and skip the unnecessary updating.
@@ -44,18 +45,80 @@ import org.apache.commons.lang3.tuple.Pair;
  * When you are using this client connect to the broker whose version < 2.11, there is only one scenario: [3] and all
  *   the event will run in the same thread.
  */
-@Slf4j
 @SuppressFBWarnings("EI_EXPOSE_REP2")
 public class PatternConsumerUpdateQueue {
+    private static final Logger LOG = Logger.get(PatternConsumerUpdateQueue.class);
+    private final Logger log;
+    private final LinkedBlockingQueue<UpdateTask> pendingTasks;
 
-    private static final Pair<UpdateSubscriptionType, Collection<String>> RECHECK_OP =
-            Pair.of(UpdateSubscriptionType.RECHECK, null);
-
-    private final LinkedBlockingQueue<Pair<UpdateSubscriptionType, Collection<String>>> pendingTasks;
-
-    private final PatternMultiTopicsConsumerImpl patternConsumer;
+    private final PatternMultiTopicsConsumerImpl<?> patternConsumer;
 
     private final PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener;
+
+    static class UpdateTask {
+        private final UpdateSubscriptionType type;
+
+        UpdateTask(UpdateSubscriptionType type) {
+            this.type = type;
+        }
+    }
+
+    static class RecheckTask extends UpdateTask {
+        public static final RecheckTask INSTANCE = new RecheckTask();
+        private RecheckTask() {
+            super(UpdateSubscriptionType.RECHECK);
+        }
+
+        @Override
+        public String toString() {
+            return "RecheckTask";
+        }
+    }
+
+    static class InitTask extends UpdateTask {
+        public static final InitTask INSTANCE = new InitTask();
+        private InitTask() {
+            super(UpdateSubscriptionType.CONSUMER_INIT);
+        }
+
+        @Override
+        public String toString() {
+            return "InitTask";
+        }
+    }
+
+    static class TopicsAddedOrRemovedTask extends UpdateTask {
+        private final Collection<String> addedTopics;
+        private final Collection<String> removedTopics;
+        private final String topicsHash;
+
+        public TopicsAddedOrRemovedTask(Collection<String> addedTopics, Collection<String> removedTopics,
+                                        String topicsHash) {
+            super(UpdateSubscriptionType.TOPICS_CHANGED);
+            this.addedTopics = addedTopics;
+            this.removedTopics = removedTopics;
+            this.topicsHash = topicsHash;
+        }
+
+        @Override
+        public String toString() {
+            return "TopicsAddedOrRemovedTask{" + "addedTopics=" + addedTopics + ", removedTopics=" + removedTopics
+                    + ", topicsHash='" + topicsHash + '\'' + '}';
+        }
+    }
+
+    static class WatchTopicListSuccessTask extends UpdateTask {
+        private final CommandWatchTopicListSuccess response;
+        private final String localStateTopicsHash;
+        private final int epoch;
+
+        WatchTopicListSuccessTask(CommandWatchTopicListSuccess response, String localStateTopicsHash, int epoch) {
+            super(UpdateSubscriptionType.WATCH_TOPIC_LIST_SUCCESS);
+            this.response = response;
+            this.localStateTopicsHash = localStateTopicsHash;
+            this.epoch = epoch;
+        }
+    }
 
     /**
      * Whether there is a task is in progress, this variable is used to confirm whether a next-task triggering is
@@ -75,58 +138,56 @@ public class PatternConsumerUpdateQueue {
 
     private boolean closed;
 
-    public PatternConsumerUpdateQueue(PatternMultiTopicsConsumerImpl patternConsumer) {
+    public PatternConsumerUpdateQueue(PatternMultiTopicsConsumerImpl<?> patternConsumer) {
         this(patternConsumer, patternConsumer.topicsChangeListener);
     }
 
     /** This constructor is only for test. **/
     @VisibleForTesting
-    public PatternConsumerUpdateQueue(PatternMultiTopicsConsumerImpl patternConsumer,
+    @SuppressWarnings("this-escape")
+    public PatternConsumerUpdateQueue(PatternMultiTopicsConsumerImpl<?> patternConsumer,
                                       PatternMultiTopicsConsumerImpl.TopicsChangedListener topicsChangeListener) {
         this.patternConsumer = patternConsumer;
         this.topicsChangeListener = topicsChangeListener;
         this.pendingTasks = new LinkedBlockingQueue<>();
+        this.log = LOG.with()
+                .attr("subscription", () -> patternConsumer.getSubscription())
+                .build();
         // To avoid subscribing and topics changed events execute concurrently, let the change events starts after the
         // subscribing task.
-        doAppend(Pair.of(UpdateSubscriptionType.CONSUMER_INIT, null));
+        doAppend(InitTask.INSTANCE);
     }
 
-    synchronized void appendTopicsAddedOp(Collection<String> topics) {
-        if (topics == null || topics.isEmpty()) {
-            return;
-        }
-        doAppend(Pair.of(UpdateSubscriptionType.TOPICS_ADDED, topics));
-    }
-
-    synchronized void appendTopicsRemovedOp(Collection<String> topics) {
-        if (topics == null || topics.isEmpty()) {
-            return;
-        }
-        doAppend(Pair.of(UpdateSubscriptionType.TOPICS_REMOVED, topics));
+    synchronized void appendTopicsChangedOp(Collection<String> addedTopics, Collection<String> deletedTopics,
+                                            String topicsHash) {
+        doAppend(new TopicsAddedOrRemovedTask(addedTopics, deletedTopics, topicsHash));
     }
 
     synchronized void appendRecheckOp() {
-        doAppend(RECHECK_OP);
+        doAppend(RecheckTask.INSTANCE);
     }
 
-    synchronized void doAppend(Pair<UpdateSubscriptionType, Collection<String>> task) {
-        if (log.isDebugEnabled()) {
-            log.debug("Pattern consumer [{}] try to append task. {} {}", patternConsumer.getSubscription(),
-                    task.getLeft(), task.getRight() == null ? "" : task.getRight());
-        }
+    synchronized void appendWatchTopicListSuccessOp(CommandWatchTopicListSuccess response, String localStateTopicsHash,
+                                              int epoch) {
+        doAppend(new WatchTopicListSuccessTask(response, localStateTopicsHash, epoch));
+    }
+
+    synchronized void doAppend(UpdateTask task) {
+            log.debug().attr("task", task)
+                    .log("Pattern consumer try to append task");
         // Once there is a recheck task in queue, it means other tasks can be skipped.
         if (recheckTaskInQueue) {
             return;
         }
 
         // Once there are too many tasks in queue, compress them as a recheck task.
-        if (pendingTasks.size() >= 30 && !task.getLeft().equals(UpdateSubscriptionType.RECHECK)) {
+        if (pendingTasks.size() >= 30 && task.type != UpdateSubscriptionType.RECHECK) {
             appendRecheckOp();
             return;
         }
 
         pendingTasks.add(task);
-        if (task.getLeft().equals(UpdateSubscriptionType.RECHECK)) {
+        if (task.type == UpdateSubscriptionType.RECHECK) {
             recheckTaskInQueue = true;
         }
 
@@ -141,7 +202,7 @@ public class PatternConsumerUpdateQueue {
             return;
         }
 
-        final Pair<UpdateSubscriptionType, Collection<String>> task = pendingTasks.poll();
+        final UpdateTask task = pendingTasks.poll();
 
         // No pending task.
         if (task == null) {
@@ -150,22 +211,22 @@ public class PatternConsumerUpdateQueue {
         }
 
         // If there is a recheck task in queue, skip others and only call the recheck task.
-        if (recheckTaskInQueue && !task.getLeft().equals(UpdateSubscriptionType.RECHECK)) {
+        if (recheckTaskInQueue && task.type != UpdateSubscriptionType.RECHECK) {
             triggerNextTask();
             return;
         }
 
         // Execute pending task.
         CompletableFuture<Void> newTaskFuture = null;
-        switch (task.getLeft()) {
+        switch (task.type) {
             case CONSUMER_INIT: {
                 newTaskFuture = patternConsumer.getSubscribeFuture().thenAccept(__ -> {}).exceptionally(ex -> {
                     // If the subscribe future was failed, the consumer will be closed.
                     synchronized (PatternConsumerUpdateQueue.this) {
                         this.closed = true;
                         patternConsumer.closeAsync().exceptionally(ex2 -> {
-                            log.error("Pattern consumer failed to close, this error may left orphan consumers."
-                                    + " Subscription: {}", patternConsumer.getSubscription());
+                            log.error()
+                                    .log("Pattern consumer failed to close, this error may leave orphan consumers");
                             return null;
                         });
                     }
@@ -173,12 +234,33 @@ public class PatternConsumerUpdateQueue {
                 });
                 break;
             }
-            case TOPICS_ADDED: {
-                newTaskFuture = topicsChangeListener.onTopicsAdded(task.getRight());
-                break;
-            }
-            case TOPICS_REMOVED: {
-                newTaskFuture = topicsChangeListener.onTopicsRemoved(task.getRight());
+            case TOPICS_CHANGED: {
+                TopicsAddedOrRemovedTask topicsAddedOrRemovedTask = (TopicsAddedOrRemovedTask) task;
+                newTaskFuture = topicsChangeListener.onTopicsRemoved(topicsAddedOrRemovedTask.removedTopics)
+                        .thenCompose(__ ->
+                                topicsChangeListener.onTopicsAdded(topicsAddedOrRemovedTask.addedTopics))
+                        .thenRun(() -> {
+                            if (!patternConsumer.supportsTopicListWatcherReconcile()) {
+                                // Ignore the topics hash until topic-list watcher reconciliation is supported.
+                                // Broker-side state can be stale, which would trigger unnecessary reconciliation.
+                                // The client will reconcile later when it fetches the topic list after the next
+                                // patternAutoDiscoveryPeriod interval.
+                                // Brokers that support watcher reconciliation also refresh broker-side state
+                                // when reconciliation is requested.
+                                // Older brokers have known topic-listing bugs (issue 25192: system topics included),
+                                // so their hash is not reliable anyway.
+                                return;
+                            }
+                            String localHash = patternConsumer.getLocalStateTopicsHash();
+                            String brokerHash = topicsAddedOrRemovedTask.topicsHash;
+                            if (brokerHash != null && brokerHash.length() > 0 && !brokerHash.equals(localHash)) {
+                                log.info().attr("pattern", patternConsumer.getPattern().inputPattern())
+                                        .attr("local", localHash)
+                                        .attr("broker", brokerHash)
+                                        .log("Hash mismatch detected, triggering reconciliation");
+                                appendRecheckOp();
+                            }
+                        });
                 break;
             }
             case RECHECK: {
@@ -187,21 +269,23 @@ public class PatternConsumerUpdateQueue {
                 newTaskFuture = patternConsumer.recheckTopicsChange();
                 break;
             }
+            case WATCH_TOPIC_LIST_SUCCESS: {
+                WatchTopicListSuccessTask watchTopicListSuccessTask = (WatchTopicListSuccessTask) task;
+                newTaskFuture = patternConsumer.handleWatchTopicListSuccess(watchTopicListSuccessTask.response,
+                        watchTopicListSuccessTask.localStateTopicsHash, watchTopicListSuccessTask.epoch);
+                break;
+            }
             default: {
                 throw new RuntimeException("Un-support UpdateSubscriptionType");
             }
         }
-        if (log.isDebugEnabled()) {
-            log.debug("Pattern consumer [{}] starting task. {} {} ", patternConsumer.getSubscription(),
-                    task.getLeft(), task.getRight() == null ? "" : task.getRight());
-        }
+            log.debug().attr("task", task)
+                    .log("Pattern consumer starting task");
         // Trigger next pending task.
-        taskInProgress = Pair.of(task.getLeft(), newTaskFuture);
+        taskInProgress = Pair.of(task.type, newTaskFuture);
         newTaskFuture.thenAccept(ignore -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Pattern consumer [{}] task finished. {} {} ", patternConsumer.getSubscription(),
-                        task.getLeft(), task.getRight() == null ? "" : task.getRight());
-            }
+                log.debug().attr("finished", task)
+                        .log("Pattern consumer task finished");
             triggerNextTask();
         }).exceptionally(ex -> {
             /**
@@ -209,8 +293,9 @@ public class PatternConsumerUpdateQueue {
              * - Skip if there is already a recheck task in queue.
              * - Skip if the last recheck task has been executed after the current time.
              */
-            log.error("Pattern consumer [{}] task finished. {} {}. But it failed", patternConsumer.getSubscription(),
-                    task.getLeft(), task.getRight() == null ? "" : task.getRight(), ex);
+            log.error().attr("task", task)
+                    .exception(ex)
+                    .log("Pattern consumer task failed");
             // Skip if there is already a recheck task in queue.
             synchronized (PatternConsumerUpdateQueue.this) {
                 if (recheckTaskInQueue || PatternConsumerUpdateQueue.this.closed) {
@@ -242,13 +327,13 @@ public class PatternConsumerUpdateQueue {
     }
 
     private enum UpdateSubscriptionType {
-        /** A marker that indicates the consumer's subscribe task.**/
+        /** A marker that indicates the consumer's subscribe task. **/
         CONSUMER_INIT,
-        /** Triggered by {@link PatternMultiTopicsConsumerImpl#topicsChangeListener}.**/
-        TOPICS_ADDED,
-        /** Triggered by {@link PatternMultiTopicsConsumerImpl#topicsChangeListener}.**/
-        TOPICS_REMOVED,
+        /** Triggered by topic list watcher when topics changed. **/
+        TOPICS_CHANGED,
         /** A fully check for pattern consumer. **/
-        RECHECK;
+        RECHECK,
+        /** Handle initial watch topic list success response. **/
+        WATCH_TOPIC_LIST_SUCCESS;
     }
 }

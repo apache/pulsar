@@ -22,12 +22,10 @@ import io.netty.buffer.ByteBuf;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -45,7 +43,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 
-@Slf4j
+@CustomLog
 public class TopicSchema {
 
     private final Map<String, Schema<?>> cachedSchemas = new HashMap<>();
@@ -55,9 +53,7 @@ public class TopicSchema {
 
     public TopicSchema(PulsarClient client, ClassLoader functionsClassloader) {
         this.client = client;
-        this.functionsClassloader = AccessController.doPrivileged(
-                (PrivilegedAction<URLClassLoader>) () -> new URLClassLoader(new URL[0], functionsClassloader)
-        );
+        this.functionsClassloader = new URLClassLoader(new URL[0], functionsClassloader);
     }
 
     /**
@@ -153,6 +149,7 @@ public class TopicSchema {
         return newSchemaInstance(clazz, type, new ConsumerConfig());
     }
 
+    @SuppressWarnings("unchecked") // schema type casts are safe for the given schema type
     private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type, ConsumerConfig conf) {
         switch (type) {
         case NONE:
@@ -196,7 +193,7 @@ public class TopicSchema {
 
     private static boolean isProtobufClass(Class<?> pojoClazz) {
         try {
-            Class<?> protobufBaseClass = Class.forName("com.google.protobuf.GeneratedMessageV3");
+            Class<?> protobufBaseClass = Class.forName("com.google.protobuf.Message");
             return protobufBaseClass.isAssignableFrom(pojoClazz);
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             // If function does not have protobuf in classpath then it cannot be protobuf

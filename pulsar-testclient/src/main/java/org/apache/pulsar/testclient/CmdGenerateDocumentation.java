@@ -23,15 +23,13 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.proxy.socket.client.PerformanceClient;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
-import picocli.CommandLine.Spec;
 
-@Slf4j
+@CustomLog
 @Command(name = "gen-doc", description = "Generate documentation automatically.")
 public class CmdGenerateDocumentation extends CmdBase{
 
@@ -42,21 +40,20 @@ public class CmdGenerateDocumentation extends CmdBase{
         super("gen-doc");
     }
 
-    @Spec
-    CommandSpec spec;
-
     @Override
     public void run() throws Exception {
-        CommandLine commander = spec.commandLine();
+        CommandLine commander = getCommander();
 
         Map<String, Class<?>> cmdClassMap = new LinkedHashMap<>();
         cmdClassMap.put("produce", PerformanceProducer.class);
         cmdClassMap.put("consume", PerformanceConsumer.class);
         cmdClassMap.put("transaction", PerformanceTransaction.class);
         cmdClassMap.put("read", PerformanceReader.class);
+        cmdClassMap.put("produce-v4", PerformanceProducerV4.class);
+        cmdClassMap.put("consume-v4", PerformanceConsumerV4.class);
+        cmdClassMap.put("transaction-v4", PerformanceTransactionV4.class);
+        cmdClassMap.put("read-v4", PerformanceReaderV4.class);
         cmdClassMap.put("monitor-brokers", BrokerMonitor.class);
-        cmdClassMap.put("simulation-client", LoadSimulationClient.class);
-        cmdClassMap.put("simulation-controller", LoadSimulationController.class);
         cmdClassMap.put("websocket-producer", PerformanceClient.class);
         cmdClassMap.put("managed-ledger", ManagedLedgerWriter.class);
 

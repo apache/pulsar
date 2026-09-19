@@ -181,6 +181,7 @@ public class BrokerLoadData {
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
 
+    @SuppressWarnings("deprecation")
     private void updateWeightedMaxEMA(ServiceConfiguration conf) {
         var historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
         var weightedMax = getMaxResourceUsageWithWeight(
@@ -218,6 +219,7 @@ public class BrokerLoadData {
         reportedAt = 0;
     }
 
+    @SuppressWarnings("deprecation")
     public String toString(ServiceConfiguration conf) {
         return String.format("cpu= %.2f%%, memory= %.2f%%, directMemory= %.2f%%, "
                         + "bandwidthIn= %.2f%%, bandwidthOut= %.2f%%, "

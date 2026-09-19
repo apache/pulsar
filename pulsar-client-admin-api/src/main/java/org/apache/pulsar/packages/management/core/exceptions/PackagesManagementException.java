@@ -22,6 +22,8 @@ package org.apache.pulsar.packages.management.core.exceptions;
  * Packages management related exceptions.
  */
 public class PackagesManagementException extends Exception {
+    private static final long serialVersionUID = 1L;
+
     /**
      * Constructs an {@code PackagesManagementException} with the specified cause.
      *
@@ -56,6 +58,8 @@ public class PackagesManagementException extends Exception {
 
 
     public static class NotFoundException extends PackagesManagementException {
+        private static final long serialVersionUID = 1L;
+
         /**
          * Constructs an {@code NotFoundException} with the specified cause.
          *
@@ -90,6 +94,8 @@ public class PackagesManagementException extends Exception {
     }
 
     public static class MetadataFormatException extends PackagesManagementException {
+        private static final long serialVersionUID = 1L;
+
         /**
          * Constructs an {@code MetadataFormatException} with the specified detail message.
          *

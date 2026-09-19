@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -29,7 +28,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiConsumer;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
@@ -126,6 +124,7 @@ public class BrokerFilterTestBase {
     }
 
     public BrokerLookupData getLookupData(String version, String loadManagerClassName) {
+        String brokerId = "localhost:8080";
         String webServiceUrl = "http://localhost:8080";
         String webServiceUrlTls = "https://localhoss:8081";
         String pulsarServiceUrl = "pulsar://localhost:6650";
@@ -134,7 +133,7 @@ public class BrokerFilterTestBase {
         Map<String, String> protocols = new HashMap<>(){{
             put("kafka", "9092");
         }};
-        return new BrokerLookupData(
+        return new BrokerLookupData(brokerId,
                 webServiceUrl, webServiceUrlTls, pulsarServiceUrl,
                 pulsarServiceUrlTls, advertisedListeners, protocols, true, true,
                 loadManagerClassName, -1, version, Collections.emptyMap());

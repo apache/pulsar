@@ -22,7 +22,9 @@ import java.lang.reflect.Method;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
@@ -31,8 +33,6 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -41,10 +41,8 @@ import org.testng.annotations.BeforeMethod;
 /**
  * A class runs several bookie servers for testing.
  */
+@CustomLog
 public abstract class MockedBookKeeperTestCase {
-
-    static final Logger LOG = LoggerFactory.getLogger(MockedBookKeeperTestCase.class);
-
     protected FaultInjectionMetadataStore metadataStore;
 
     // BookKeeper related variables
@@ -56,6 +54,7 @@ public abstract class MockedBookKeeperTestCase {
     protected ClientConfiguration baseClientConf = new ClientConfiguration();
 
     protected OrderedScheduler executor;
+    protected OrderedExecutor bkExecutor;
     protected ExecutorService cachedExecutor;
 
     public MockedBookKeeperTestCase() {
@@ -69,7 +68,7 @@ public abstract class MockedBookKeeperTestCase {
 
     @BeforeMethod(alwaysRun = true)
     public void setUp(Method method) throws Exception {
-        LOG.info(">>>>>> starting {}", method);
+        log.info().attr("value", method).log(">>>>>> starting");
         metadataStore = new FaultInjectionMetadataStore(MetadataStoreExtended.create("memory:local",
                 MetadataStoreConfig.builder()
                         .metadataStoreName("metastore-" + method.getName())
@@ -78,43 +77,50 @@ public abstract class MockedBookKeeperTestCase {
             // start bookkeeper service
             startBookKeeper();
         } catch (Exception e) {
-            LOG.error("Error setting up", e);
+            log.error().exception(e).log("Error setting up");
             throw e;
         }
 
-        ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
+        ManagedLedgerFactoryConfig conf = createManagedLedgerFactoryConfig();
         factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, conf);
+    }
+
+    protected ManagedLedgerFactoryConfig createManagedLedgerFactoryConfig() {
+        return new ManagedLedgerFactoryConfig();
     }
 
     @AfterMethod(alwaysRun = true)
     public void tearDown(Method method) {
         try {
-            LOG.info("@@@@@@@@@ stopping " + method);
+            log.info("@@@@@@@@@ stopping " + method);
             factory.shutdown();
             factory = null;
             stopBookKeeper();
             stopMetadataStore();
             metadataStore.close();
-            LOG.info("--------- stopped {}", method);
+            log.info().attr("value", method).log("--------- stopped");
         } catch (Exception e) {
-            LOG.error("tearDown Error", e);
+            log.error().exception(e).log("tearDown Error");
         }
     }
 
     @BeforeClass(alwaysRun = true)
     public void setUpClass() {
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(2).name("test").build();
+        // The mock BookKeeper client needs an OrderedExecutor (not an OrderedScheduler) as its main worker pool.
+        bkExecutor = OrderedExecutor.newBuilder().numThreads(2).name("test-bk").build();
         cachedExecutor = Executors.newCachedThreadPool();
     }
 
     @AfterClass(alwaysRun = true)
     public void tearDownClass() {
         executor.shutdownNow();
+        bkExecutor.shutdownNow();
         cachedExecutor.shutdownNow();
     }
 
     /**
-     * Start cluster
+     * Start cluster.
      *
      * @throws Exception
      */
@@ -125,7 +131,7 @@ public abstract class MockedBookKeeperTestCase {
 
         metadataStore.put("/ledgers/LAYOUT", "1\nflat:1".getBytes(), Optional.empty());
 
-        bkc = new PulsarMockBookKeeper(executor);
+        bkc = new PulsarMockBookKeeper(bkExecutor);
     }
 
     protected void stopBookKeeper() throws Exception {

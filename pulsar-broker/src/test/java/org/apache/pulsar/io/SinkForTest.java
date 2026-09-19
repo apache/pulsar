@@ -19,7 +19,6 @@
 package org.apache.pulsar.io;
 
 import java.util.Map;
-
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;

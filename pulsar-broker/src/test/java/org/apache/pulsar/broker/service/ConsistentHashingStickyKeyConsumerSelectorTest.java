@@ -31,11 +31,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
+import java.util.TreeSet;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.commons.lang3.mutable.MutableInt;
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
 import org.apache.pulsar.client.api.Range;
 import org.assertj.core.data.Offset;
 import org.mockito.Mockito;
@@ -45,8 +48,82 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
+    @Test(timeOut = 30000)
+    public void testConcurrentLookupDuringMembershipChanges() throws Exception {
+        var selector = new ConsistentHashingStickyKeyConsumerSelector(20, true, 127);
+        Consumer stable = createMockConsumer("stable", "stable", 1);
+        Consumer changing = createMockConsumer("changing", "changing", 2);
+        selector.addConsumer(stable).join();
+        var readers = Executors.newFixedThreadPool(3);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<?>> results = new ArrayList<>();
+        try {
+            for (int thread = 0; thread < 3; thread++) {
+                results.add(readers.submit(() -> {
+                    start.await();
+                    for (int i = 0; i < 30000; i++) {
+                        Consumer selected = selector.select(1 + i % 127);
+                        Assert.assertTrue(selected == stable || selected == changing);
+                    }
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (int i = 0; i < 500; i++) {
+                selector.addConsumer(changing).join();
+                selector.removeConsumer(changing);
+            }
+            for (Future<?> result : results) {
+                result.get(20, TimeUnit.SECONDS);
+            }
+            for (int hash = 1; hash <= 127; hash++) {
+                Assert.assertSame(selector.select(hash), stable);
+            }
+        } finally {
+            start.countDown();
+            readers.shutdownNow();
+            Assert.assertTrue(readers.awaitTermination(5, TimeUnit.SECONDS));
+        }
+    }
+
     @Test
-    public void testConsumerSelect() throws ConsumerAssignException {
+    public void testLookupMatchesAssignmentsAcrossMembershipChanges() {
+        ConsistentHashingStickyKeyConsumerSelector selector =
+                new ConsistentHashingStickyKeyConsumerSelector(20, true, 127);
+        List<Consumer> consumers = List.of(createMockConsumer("same", "first", 1),
+                createMockConsumer("same", "second", 2), createMockConsumer("other", "third", 3),
+                createMockConsumer("last", "fourth", 4));
+        for (Consumer consumer : consumers) {
+            selector.addConsumer(consumer).join();
+            assertLookupMatchesAssignments(selector);
+        }
+        for (int i : new int[]{1, 0, 3, 2}) {
+            selector.removeConsumer(consumers.get(i));
+            assertLookupMatchesAssignments(selector);
+        }
+        Assert.assertNull(selector.select(Integer.MIN_VALUE));
+        Assert.assertNull(selector.select(Integer.MAX_VALUE));
+    }
+
+    private static void assertLookupMatchesAssignments(ConsistentHashingStickyKeyConsumerSelector selector) {
+        Map<Consumer, List<Range>> assignments = selector.getConsumerKeyHashRanges();
+        for (int hash = 1; hash <= 127; hash++) {
+            Consumer expected = null;
+            for (var entry : assignments.entrySet()) {
+                for (Range range : entry.getValue()) {
+                    if (range.contains(hash)) {
+                        expected = entry.getKey();
+                    }
+                }
+            }
+            Assert.assertSame(selector.select(hash), expected, "hash=" + hash);
+        }
+        Assert.assertSame(selector.select(Integer.MIN_VALUE), selector.select(1));
+        Assert.assertSame(selector.select(Integer.MAX_VALUE), selector.select(1));
+    }
+
+    @Test
+    public void testConsumerSelect() {
 
         ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(200);
         String key1 = "anyKey";
@@ -61,100 +138,101 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         when(consumer2.consumerName()).thenReturn("c2");
         selector.addConsumer(consumer2);
 
-        final int N = 1000;
-        final double PERCENT_ERROR = 0.20; // 20 %
+        // Use repeatable keys so random sampling cannot make the distribution assertions flaky.
+        final int num = 1000;
+        final double percentError = 0.20; // 20 %
 
         Map<String, Integer> selectionMap = new HashMap<>();
-        for (int i = 0; i < N; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+        for (int i = 0; i < num; i++) {
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
 
         // Check that keys got assigned uniformely to consumers
-        Assert.assertEquals(selectionMap.get("c1"), N/2, N/2 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c2"), N/2, N/2 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c1"), num / 2, num / 2 * percentError);
+        Assert.assertEquals(selectionMap.get("c2"), num / 2, num / 2 * percentError);
         selectionMap.clear();
 
         Consumer consumer3 = mock(Consumer.class);
         when(consumer3.consumerName()).thenReturn("c3");
         selector.addConsumer(consumer3);
 
-        for (int i = 0; i < N; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+        for (int i = 0; i < num; i++) {
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
 
-        Assert.assertEquals(selectionMap.get("c1"), N/3, N/3 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c2"), N/3, N/3 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c3"), N/3, N/3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c1"), num / 3, num / 3 * percentError);
+        Assert.assertEquals(selectionMap.get("c2"), num / 3, num / 3 * percentError);
+        Assert.assertEquals(selectionMap.get("c3"), num / 3, num / 3 * percentError);
         selectionMap.clear();
 
         Consumer consumer4 = mock(Consumer.class);
         when(consumer4.consumerName()).thenReturn("c4");
         selector.addConsumer(consumer4);
 
-        for (int i = 0; i < N; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+        for (int i = 0; i < num; i++) {
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
 
-        Assert.assertEquals(selectionMap.get("c1"), N/4, N/4 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c2"), N/4, N/4 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c3"), N/4, N/4 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c4"), N/4, N/4 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c1"), num / 4, num / 4 * percentError);
+        Assert.assertEquals(selectionMap.get("c2"), num / 4, num / 4 * percentError);
+        Assert.assertEquals(selectionMap.get("c3"), num / 4, num / 4 * percentError);
+        Assert.assertEquals(selectionMap.get("c4"), num / 4, num / 4 * percentError);
         selectionMap.clear();
 
         selector.removeConsumer(consumer1);
 
-        for (int i = 0; i < N; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+        for (int i = 0; i < num; i++) {
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
 
-        Assert.assertEquals(selectionMap.get("c2"), N/3, N/3 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c3"), N/3, N/3 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c4"), N/3, N/3 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c2"), num / 3, num / 3 * percentError);
+        Assert.assertEquals(selectionMap.get("c3"), num / 3, num / 3 * percentError);
+        Assert.assertEquals(selectionMap.get("c4"), num / 3, num / 3 * percentError);
         selectionMap.clear();
 
         selector.removeConsumer(consumer2);
-        for (int i = 0; i < N; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+        for (int i = 0; i < num; i++) {
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
 
         System.err.println(selectionMap);
-        Assert.assertEquals(selectionMap.get("c3"), N/2, N/2 * PERCENT_ERROR);
-        Assert.assertEquals(selectionMap.get("c4"), N/2, N/2 * PERCENT_ERROR);
+        Assert.assertEquals(selectionMap.get("c3"), num / 2, num / 2 * percentError);
+        Assert.assertEquals(selectionMap.get("c4"), num / 2, num / 2 * percentError);
         selectionMap.clear();
 
         selector.removeConsumer(consumer3);
-        for (int i = 0; i < N; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+        for (int i = 0; i < num; i++) {
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
 
-        Assert.assertEquals(selectionMap.get("c4").intValue(), N);
+        Assert.assertEquals(selectionMap.get("c4").intValue(), num);
     }
 
 
     @Test
-    public void testGetConsumerKeyHashRanges() throws BrokerServiceException.ConsumerAssignException {
+    public void testGetConsumerKeyHashRanges() {
         ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(3);
         List<String> consumerName = Arrays.asList("consumer1", "consumer2", "consumer3");
         List<Consumer> consumers = new ArrayList<>();
-        long id=0;
+        long id = 0;
         for (String s : consumerName) {
             Consumer consumer = createMockConsumer(s, s, id++);
             selector.addConsumer(consumer);
@@ -168,20 +246,20 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         Map<Consumer, List<Range>> expectedResult = new HashMap<>();
         assertThat(consumers.get(0).consumerName()).isEqualTo("consumer1");
         expectedResult.put(consumers.get(0), Arrays.asList(
-                Range.of(95615213, 440020355),
-                Range.of(440020356, 455987436),
-                Range.of(1189794593, 1264144431)));
+                Range.of(14359, 18366),
+                Range.of(29991, 39817),
+                Range.of(52980, 60442)));
         assertThat(consumers.get(1).consumerName()).isEqualTo("consumer2");
         expectedResult.put(consumers.get(1), Arrays.asList(
-                Range.of(939655188, 1189794592),
-                Range.of(1314727625, 1977451233),
-                Range.of(1977451234, 2016237253)));
+                Range.of(1, 6668),
+                Range.of(39818, 52979),
+                Range.of(60443, 63679),
+                Range.of(65184, 65535)));
         assertThat(consumers.get(2).consumerName()).isEqualTo("consumer3");
         expectedResult.put(consumers.get(2), Arrays.asList(
-                Range.of(0, 95615212),
-                Range.of(455987437, 939655187),
-                Range.of(1264144432, 1314727624),
-                Range.of(2016237254, 2147483646)));
+                Range.of(6669, 14358),
+                Range.of(18367, 29990),
+                Range.of(63680, 65183)));
         Map<Consumer, List<Range>> consumerKeyHashRanges = selector.getConsumerKeyHashRanges();
         assertThat(consumerKeyHashRanges).containsExactlyInAnyOrderEntriesOf(expectedResult);
 
@@ -195,12 +273,12 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             }
             previousRange = range;
         }
-        assertThat(allRanges.stream().mapToInt(r -> r.getEnd() - r.getStart() + 1).sum()).isEqualTo(Integer.MAX_VALUE);
+        Range totalRange = selector.getKeyHashRange();
+        assertThat(allRanges.stream().mapToInt(Range::size).sum()).isEqualTo(totalRange.size());
     }
 
     @Test
-    public void testConsumersGetSufficientlyAccuratelyEvenlyMapped()
-            throws BrokerServiceException.ConsumerAssignException {
+    public void testConsumersGetSufficientlyAccuratelyEvenlyMapped() {
         ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(200);
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
@@ -247,12 +325,12 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
     private static void printConsumerRangesStats(ConsistentHashingStickyKeyConsumerSelector selector) {
         selector.getConsumerKeyHashRanges().entrySet().stream()
                 .map(entry -> Map.entry(entry.getKey(),
-                        entry.getValue().stream().mapToInt(r -> r.getEnd() - r.getStart() + 1).sum()))
+                        entry.getValue().stream().mapToInt(Range::size).sum()))
                 .sorted(Map.Entry.comparingByKey(Comparator.comparing(Consumer::toString)))
                 .forEach(entry -> System.out.println(
                         String.format("consumer: %s total ranges size: %d ratio: %.2f%%", entry.getKey(),
                                 entry.getValue(),
-                                ((double) entry.getValue() / (Integer.MAX_VALUE - 1)) * 100.0d)));
+                                ((double) entry.getValue() / selector.getKeyHashRange().size()) * 100.0d)));
     }
 
     private static Consumer createMockConsumer(String consumerName, String toString, long id) {
@@ -323,7 +401,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selector.addConsumer(consumer);
         }
 
-        int hashRangeSize = Integer.MAX_VALUE;
+        int hashRangeSize = selector.getKeyHashRange().size();
         int validationPointCount = 200;
         int increment = hashRangeSize / (validationPointCount + 1);
         List<Consumer> selectedConsumerBeforeRemoval = new ArrayList<>();
@@ -342,13 +420,14 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         for (Consumer removedConsumer : consumers) {
             selector.removeConsumer(removedConsumer);
             removedConsumers.add(removedConsumer);
+            Map<Consumer, List<Range>> consumerKeyHashRanges = selector.getConsumerKeyHashRanges();
             for (int i = 0; i < validationPointCount; i++) {
                 int hash = i * increment;
                 Consumer selected = selector.select(hash);
                 Consumer expected = selectedConsumerBeforeRemoval.get(i);
                 if (!removedConsumers.contains(expected)) {
                     assertThat(selected.consumerId()).as("validationPoint %d, removed %s, hash %d ranges %s", i,
-                            removedConsumer.toString(), hash, selector.getConsumerKeyHashRanges()).isEqualTo(expected.consumerId());
+                            removedConsumer.toString(), hash, consumerKeyHashRanges).isEqualTo(expected.consumerId());
                 }
             }
         }
@@ -441,7 +520,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             selector.addConsumer(consumer);
         }
 
-        int hashRangeSize = Integer.MAX_VALUE;
+        int hashRangeSize = selector.getKeyHashRange().size();
         int validationPointCount = 200;
         int increment = hashRangeSize / (validationPointCount + 1);
         List<Consumer> selectedConsumerBeforeRemoval = new ArrayList<>();
@@ -466,23 +545,27 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
                 Consumer selected = selector.select(hash);
                 Consumer expected = selectedConsumerBeforeRemoval.get(j);
                 if (!addedConsumers.contains(addedConsumer)) {
-                    assertThat(selected.consumerId()).as("validationPoint %d, hash %d", j, hash).isEqualTo(expected.consumerId());
+                    assertThat(selected.consumerId()).as("validationPoint %d, hash %d", j, hash)
+                            .isEqualTo(expected.consumerId());
                 }
             }
         }
     }
 
     @Test
-    public void testShouldNotChangeMappingWhenConsumerLeavesAndRejoins() {
-        final ConsistentHashingStickyKeyConsumerSelector selector = new ConsistentHashingStickyKeyConsumerSelector(100);
+    public void testShouldContainMinimalMappingChangesWhenConsumerLeavesAndRejoins() {
+        final ConsistentHashingStickyKeyConsumerSelector selector =
+                new ConsistentHashingStickyKeyConsumerSelector(100, true);
         final String consumerName = "consumer";
-        final int numOfInitialConsumers = 25;
+        final int numOfInitialConsumers = 10;
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < numOfInitialConsumers; i++) {
             final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
             consumers.add(consumer);
             selector.addConsumer(consumer);
         }
+
+        ConsumerHashAssignmentsSnapshot assignmentsBefore = selector.getConsumerHashAssignmentsSnapshot();
 
         Map<Consumer, List<Range>> expected = selector.getConsumerKeyHashRanges();
         assertThat(selector.getConsumerKeyHashRanges()).as("sanity check").containsExactlyInAnyOrderEntriesOf(expected);
@@ -492,7 +575,95 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumers.get(0));
         selector.addConsumer(consumers.get(numOfInitialConsumers / 2));
 
-        assertThat(selector.getConsumerKeyHashRanges()).as("ranges shouldn't change").containsExactlyInAnyOrderEntriesOf(expected);
+        ConsumerHashAssignmentsSnapshot assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
+        int removedRangesSize = assignmentsBefore.diffRanges(assignmentsAfter).keySet().stream()
+                .mapToInt(Range::size)
+                .sum();
+        double allowedremovedRangesPercentage = 1; // 1%
+        int hashRangeSize = selector.getKeyHashRange().size();
+        int allowedremovedRanges = (int) (hashRangeSize * (allowedremovedRangesPercentage / 100.0d));
+        assertThat(removedRangesSize).describedAs("Allow up to %d%% of total hash range size to be impacted",
+                allowedremovedRangesPercentage).isLessThan(allowedremovedRanges);
+    }
+
+    @Test
+    public void testShouldNotSwapExistingConsumers() {
+        final ConsistentHashingStickyKeyConsumerSelector selector =
+                new ConsistentHashingStickyKeyConsumerSelector(200, true);
+        final String consumerName = "consumer";
+        final int consumerCount = 100;
+        List<Consumer> consumers = new ArrayList<>();
+        for (int i = 0; i < consumerCount; i++) {
+            final Consumer consumer = createMockConsumer(consumerName + i, "index " + i, i);
+            consumers.add(consumer);
+            selector.addConsumer(consumer);
+        }
+        ConsumerHashAssignmentsSnapshot assignmentsBefore = selector.getConsumerHashAssignmentsSnapshot();
+        for (int i = 0; i < consumerCount; i++) {
+            Consumer consumer = consumers.get(i);
+
+            // remove consumer
+            selector.removeConsumer(consumer);
+
+            ConsumerHashAssignmentsSnapshot assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
+            ImpactedConsumersResult impactedConsumersAfterRemoval = assignmentsBefore
+                    .resolveImpactedConsumers(assignmentsAfter);
+            assertThat(impactedConsumersAfterRemoval.getRemovedHashRanges())
+                    .describedAs(
+                            "when a consumer is removed, the removed hash ranges should only be from "
+                                    + "the removed consumer")
+                    .containsOnlyKeys(consumer);
+            List<Range> allAddedRangesAfterRemoval = ConsumerHashAssignmentsSnapshot.mergeOverlappingRanges(
+                    impactedConsumersAfterRemoval.getAddedHashRanges().values().stream()
+                            .map(UpdatedHashRanges::asRanges).flatMap(List::stream)
+                            .collect(Collectors.toCollection(TreeSet::new))
+            );
+            assertThat(allAddedRangesAfterRemoval)
+                    .describedAs(
+                            "when a consumer is removed, all its hash ranges should appear "
+                                    + "in added hash ranges"
+                    )
+                    .containsExactlyElementsOf(assignmentsBefore.getRangesByConsumer().get(consumer));
+            assignmentsBefore = assignmentsAfter;
+
+            // add consumer back
+            selector.addConsumer(consumer);
+
+            assignmentsAfter = selector.getConsumerHashAssignmentsSnapshot();
+            List<Range> addedConsumerRanges = assignmentsAfter.getRangesByConsumer().get(consumer);
+
+            ImpactedConsumersResult impactedConsumersAfterAdding = assignmentsBefore
+                    .resolveImpactedConsumers(assignmentsAfter);
+            Map<Consumer, UpdatedHashRanges> removedHashRanges = impactedConsumersAfterAdding.getRemovedHashRanges();
+            ConsumerHashAssignmentsSnapshot finalAssignmentsBefore = assignmentsBefore;
+            assertThat(removedHashRanges).allSatisfy((c, removedHashRange) -> {
+                assertThat(removedHashRange
+                        .isFullyContainedInRanges(finalAssignmentsBefore.getRangesByConsumer().get(c)))
+                        .isTrue();
+                assertThat(removedHashRange
+                        .isFullyContainedInRanges(addedConsumerRanges))
+                        .isTrue();
+            }).describedAs("when a consumer is added back, all removed hash ranges should be ones "
+                    + "that are moved from existing consumers to the new consumer.");
+
+            List<Range> allRemovedRanges =
+                    ConsumerHashAssignmentsSnapshot.mergeOverlappingRanges(
+                            removedHashRanges.values().stream()
+                                    .map(UpdatedHashRanges::asRanges)
+                                    .flatMap(List::stream).collect(Collectors.toCollection(TreeSet::new)));
+            assertThat(allRemovedRanges)
+                    .describedAs("all removed ranges should be the same as the ranges of the added consumer")
+                    .containsExactlyElementsOf(addedConsumerRanges);
+            List<Range> allAddedRangesAfterAdding = ConsumerHashAssignmentsSnapshot.mergeOverlappingRanges(
+                    impactedConsumersAfterAdding.getAddedHashRanges().values().stream()
+                            .map(UpdatedHashRanges::asRanges)
+                            .flatMap(List::stream).collect(Collectors.toCollection(TreeSet::new)));
+            assertThat(addedConsumerRanges)
+                    .describedAs("all added ranges should be the same as the ranges of the added consumer")
+                    .containsExactlyElementsOf(allAddedRangesAfterAdding);
+
+            assignmentsBefore = assignmentsAfter;
+        }
     }
 
     @Test
@@ -501,7 +672,7 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         final String consumerName = "consumer";
         final int numOfInitialConsumers = 50;
         final int validationPointCount = 200;
-        final List<Integer> pointsToTest = pointsToTest(validationPointCount);
+        final List<Integer> pointsToTest = pointsToTest(validationPointCount, selector.getKeyHashRange().size());
         List<Consumer> consumers = new ArrayList<>();
         for (int i = 0; i < numOfInitialConsumers; i++) {
             final Consumer consumer = createMockConsumer(consumerName, "index " + i, i);
@@ -533,17 +704,44 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
             int point = pointsToTest.get(j);
             Consumer selected = selector.select(point);
             Consumer expected = selectedConsumersBeforeRemove.get(j);
-            assertThat(selected.consumerId()).as("validationPoint %d, hash %d", j, point).isEqualTo(expected.consumerId());
+            assertThat(selected.consumerId()).as("validationPoint %d, hash %d", j, point)
+                    .isEqualTo(expected.consumerId());
         }
     }
 
-    private List<Integer> pointsToTest(int validationPointCount) {
+    private List<Integer> pointsToTest(int validationPointCount, int hashRangeSize) {
         List<Integer> res = new ArrayList<>();
-        int hashRangeSize = Integer.MAX_VALUE;
         final int increment = hashRangeSize / (validationPointCount + 1);
         for (int i = 0; i < validationPointCount; i++) {
-            res.add(i * increment);
+            res.add(Math.max(i * increment, hashRangeSize - 1));
         }
         return res;
+    }
+
+    @Test(enabled = false)
+    public void testPerformanceOfAdding1000ConsumersWith100Points() {
+        // test that adding 1000 consumers with 100 points runs in a reasonable time.
+        // This takes about 1 second on Apple M3
+        // this unit test can be used for basic profiling
+        final ConsistentHashingStickyKeyConsumerSelector selector =
+                new ConsistentHashingStickyKeyConsumerSelector(100, true);
+        for (int i = 0; i < 1000; i++) {
+            // use real class to avoid Mockito over head
+            final Consumer consumer = new Consumer("consumer" + i, 0) {
+                @Override
+                public int hashCode() {
+                    return consumerName().hashCode();
+                }
+
+                @Override
+                public boolean equals(Object obj) {
+                    if (obj instanceof Consumer) {
+                        return consumerName().equals(((Consumer) obj).consumerName());
+                    }
+                    return false;
+                }
+            };
+            selector.addConsumer(consumer);
+        }
     }
 }

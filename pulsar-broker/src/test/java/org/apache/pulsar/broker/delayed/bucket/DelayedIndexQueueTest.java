@@ -22,14 +22,14 @@ import static org.apache.pulsar.broker.delayed.bucket.DelayedIndexQueue.COMPARAT
 import java.util.ArrayList;
 import java.util.List;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class DelayedIndexQueueTest {
 
     @Test
@@ -89,7 +89,7 @@ public class DelayedIndexQueueTest {
         segmentListB.add(new SnapshotSegment());
 
         List<DelayedIndex> listC = new ArrayList<>();
-        for (int i = 10; i < 30; i+=2) {
+        for (int i = 10; i < 30; i += 2) {
             DelayedIndex delayedIndex =
                     new DelayedIndex().setTimestamp(i).setLedgerId(2L).setEntryId(1L);
 
@@ -111,7 +111,10 @@ public class DelayedIndexQueueTest {
         while (!delayedIndexQueue.isEmpty()) {
             DelayedIndex pop = new DelayedIndex();
             delayedIndexQueue.popToObject(pop);
-            log.info("{} , {}, {}", pop.getTimestamp(), pop.getLedgerId(), pop.getEntryId());
+            log.info().attr("timestamp", pop.getTimestamp())
+                    .attr("ledgerId", pop.getLedgerId())
+                    .attr("entryId", pop.getEntryId())
+                    .log("Popped delayed index");
             count++;
             if (!delayedIndexQueue.isEmpty()) {
                 DelayedIndex peek = delayedIndexQueue.peek();
@@ -124,7 +127,7 @@ public class DelayedIndexQueueTest {
     }
 
     @Test
-    public void TripleLongPriorityDelayedIndexQueueTest() {
+    public void tripleLongPriorityDelayedIndexQueueTest() {
 
         @Cleanup
         TripleLongPriorityQueue queue = new TripleLongPriorityQueue();

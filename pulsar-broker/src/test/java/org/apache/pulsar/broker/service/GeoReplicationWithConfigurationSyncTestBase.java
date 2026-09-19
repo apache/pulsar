@@ -23,7 +23,7 @@ import com.google.common.io.Resources;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -35,16 +35,16 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 
-@Slf4j
+@CustomLog
 public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRetrySupport {
 
     protected final String defaultTenant = "public";
     protected final String defaultNamespace = defaultTenant + "/default";
-    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
+    private static final String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
             .getPath();
-    final static String brokerCertPath =
+    private static final String brokerCertPath =
             Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    final static String brokerKeyPath =
+    private static final String brokerKeyPath =
             Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
     protected final String cluster1 = "r1";
@@ -77,9 +77,9 @@ public abstract class GeoReplicationWithConfigurationSyncTestBase extends TestRe
         brokerConfigZk2.start();
 
         // Start BK.
-        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble1.start();
-        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble2.start();
     }
 

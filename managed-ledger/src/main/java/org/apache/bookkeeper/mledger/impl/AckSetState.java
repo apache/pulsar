@@ -18,6 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import org.jspecify.annotations.Nullable;
+
 /**
  * Interface to manage the ackSet state attached to a position.
  * Helpers in {@link AckSetStateUtil} to create positions with
@@ -28,7 +30,7 @@ public interface AckSetState {
      * Get the ackSet bitset information encoded as a long array.
      * @return the ackSet
      */
-    long[] getAckSet();
+    @Nullable long[] getAckSet();
 
     /**
      * Set the ackSet bitset information as a long array.

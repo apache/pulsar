@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.client.cli;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Properties;
@@ -40,7 +44,10 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -58,7 +65,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     public void setup() throws Exception {
-        super.internalSetup();
+        super.baseSetup();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -71,7 +78,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
     public void testInitialization() throws InterruptedException, ExecutionException, PulsarAdminException {
 
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
         properties.setProperty("memoryLimit", "10M");
 
@@ -79,8 +86,9 @@ public class PulsarClientToolTest extends BrokerTestBase {
 
         TenantInfoImpl tenantInfo = createDefaultTenantInfo();
         admin.tenants().createTenant(tenantName, tenantInfo);
+        admin.namespaces().createNamespace(tenantName + "/ns");
 
-        String topicName = String.format("persistent://%s/ns/topic-scale-ns-0/topic", tenantName);
+        String topicName = String.format("persistent://%s/ns/topic", tenantName);
 
         int numberOfMessages = 10;
 
@@ -119,7 +127,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
     public void testNonDurableSubscribe() throws Exception {
 
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("non-durable");
@@ -159,17 +167,141 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Assert.assertFalse(future.isCompletedExceptionally());
         future.get();
 
+        // The V5-based pulsar-client has no non-durable subscription mode: --subscription-mode
+        // NonDurable falls back to a durable subscription (with a warning). So unlike the v4
+        // client, the subscription is NOT removed when the consumer disconnects — it persists.
+        // testNonDurableSubscribeWithV4Client covers the v4 behaviour.
+        assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
+    }
+
+    /**
+     * The v4 counterpart of {@link #testNonDurableSubscribe()}: {@code consume-v4} really creates a
+     * non-durable subscription, so it disappears once the consumer disconnects. This is the
+     * behaviour the V5-based {@code consume} cannot express.
+     */
+    @Test(timeOut = 60000)
+    public void testNonDurableSubscribeWithV4Client() throws Exception {
+
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = getTopicWithRandomSuffix("non-durable-v4");
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        int numberOfMessages = 10;
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+                String[] args = {"consume-v4", "-t", "Exclusive", "-s", "sub-name", "-n",
+                        Integer.toString(numberOfMessages), "--hex", "-m", "NonDurable", "-r", "30", topicName};
+                Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+                future.complete(null);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+
+        // Make sure subscription has been created
+        retryStrategically((test) -> {
+            try {
+                return admin.topics().getSubscriptions(topicName).size() == 1;
+            } catch (Exception e) {
+                return false;
+            }
+        }, 10, 500);
+
+        assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
+        PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
+
+        String[] args = {"produce-v4", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages),
+                "-r", "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+        Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
+        Assert.assertFalse(future.isCompletedExceptionally());
+        future.get();
+
         Awaitility.await()
                 .ignoreExceptions()
                 .atMost(Duration.ofMillis(20000))
-                .until(()->admin.topics().getSubscriptions(topicName).size() == 0);
+                .until(() -> admin.topics().getSubscriptions(topicName).isEmpty());
+    }
+
+    /**
+     * The reason {@code consume-v4} exists: the V5 {@code QueueConsumer} cannot seek to a timestamp.
+     * {@code --start-timestamp} must skip everything published before the boundary even though the
+     * subscription starts at {@code Earliest}, and {@code --end-timestamp} must stop the loop at the
+     * boundary before the requested message count is reached.
+     */
+    @Test(timeOut = 60000)
+    public void testConsumeV4StartAndEndTimestamp() throws Exception {
+        Properties properties = initializeToolProperties();
+
+        final String topicName = getTopicWithRandomSuffix("timestamp-v4");
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false).create();
+        producer.send("before-1".getBytes(StandardCharsets.UTF_8));
+        producer.send("before-2".getBytes(StandardCharsets.UTF_8));
+
+        final long boundary = lastPublishTime(topicName);
+        // Publish times have millisecond resolution, so let the clock pass the boundary to make the
+        // next two messages strictly newer than it.
+        Awaitility.await()
+                .pollDelay(Duration.ZERO)
+                .pollInterval(Duration.ofMillis(1))
+                .until(() -> System.currentTimeMillis() > boundary);
+        producer.send("after-1".getBytes(StandardCharsets.UTF_8));
+        producer.send("after-2".getBytes(StandardCharsets.UTF_8));
+
+        // --start-timestamp seeks past the two older messages, even though the subscription starts
+        // at Earliest.
+        String seekOutput = runCapturingStdout(properties, "consume-v4", "-s", "start-sub",
+                "-p", "Earliest", "-n", "2", "-stp", Long.toString(boundary + 1), topicName);
+        assertThat(seekOutput).contains("after-1", "after-2")
+                .doesNotContain("before-1", "before-2");
+
+        // --end-timestamp stops the loop at the boundary, so only the two older messages are
+        // consumed even though four were requested.
+        String endOutput = runCapturingStdout(properties, "consume-v4", "-s", "end-sub",
+                "-p", "Earliest", "-n", "4", "-etp", Long.toString(boundary), topicName);
+        assertThat(endOutput).contains("before-1", "before-2")
+                .doesNotContain("after-1", "after-2");
+    }
+
+    /** Publish time of the last message currently on the topic, read with the v4 client. */
+    private long lastPublishTime(String topicName) throws Exception {
+        @Cleanup
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
+                .startMessageId(MessageId.earliest).create();
+        long publishTime = 0L;
+        while (reader.hasMessageAvailable()) {
+            publishTime = reader.readNext().getPublishTime();
+        }
+        return publishTime;
+    }
+
+    private static String runCapturingStdout(Properties properties, String... args) {
+        ByteArrayOutputStream consoleOutput = new ByteArrayOutputStream();
+        PrintStream originalOut = System.out;
+        System.setOut(new PrintStream(consoleOutput, true, StandardCharsets.UTF_8));
+        try {
+            assertEquals(new PulsarClientTool(properties).run(args), 0);
+        } finally {
+            System.setOut(originalOut);
+        }
+        return consoleOutput.toString(StandardCharsets.UTF_8);
     }
 
     @Test(timeOut = 60000)
     public void testDurableSubscribe() throws Exception {
 
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("durable");
@@ -211,7 +343,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
     @Test(timeOut = 20000)
     public void testRead() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("reader");
@@ -258,10 +390,45 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 .until(()->admin.topics().getSubscriptions(topicName).size() == 0);
     }
 
+    @Test(timeOut = 30000)
+    public void testAutoConsumeSchema() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = getTopicWithRandomSuffix("auto-consume");
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        // Produce a JSON-schema message with the v4 client so the topic carries a real schema; the
+        // CLI then consumes it with `-st auto_consume`, exercising the V5 generic-record path.
+        @Cleanup
+        Producer<TestKey> producer = pulsarClient.newProducer(Schema.JSON(TestKey.class))
+                .topic(topicName).create();
+        producer.send(new TestKey("my-key", Integer.MAX_VALUE));
+
+        ByteArrayOutputStream consoleOutput = new ByteArrayOutputStream();
+        PrintStream originalOut = System.out;
+        System.setOut(new PrintStream(consoleOutput, true, StandardCharsets.UTF_8));
+        try {
+            PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
+            String[] args = {"consume", "-s", "sub-name", "-n", "1", "-st", "auto_consume",
+                    "-p", "Earliest", topicName};
+            Assert.assertEquals(pulsarClientToolConsumer.run(args), 0);
+        } finally {
+            System.setOut(originalOut);
+        }
+
+        String output = consoleOutput.toString(StandardCharsets.UTF_8);
+        assertTrue(output.contains("keyA"), output);
+        assertTrue(output.contains("my-key"), output);
+        assertTrue(output.contains("keyB"), output);
+        assertTrue(output.contains(Integer.toString(Integer.MAX_VALUE)), output);
+    }
+
     @Test(timeOut = 20000)
     public void testEncryption() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("encryption");
@@ -302,10 +469,13 @@ public class PulsarClientToolTest extends BrokerTestBase {
         }
     }
 
-    @Test(timeOut = 20000)
+    // Longer timeout than the other cases: this test forces an immediate burst of async sends
+    // through the V5 producer right after create(), which can race the scalable-topic segment
+    // layout becoming active and retry with exponential backoff before the first batch lands.
+    @Test(timeOut = 60000)
     public void testDisableBatching() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("disable-batching");
@@ -409,11 +579,11 @@ public class PulsarClientToolTest extends BrokerTestBase {
         assertEquals(pulsarClientTool.rootParams.getProxyServiceURL(), "pulsar+ssl://my-proxy-pulsar:4443");
         assertEquals(pulsarClientTool.rootParams.getProxyProtocol(), ProxyProtocol.SNI);
     }
-    
+
     @Test
     public void testSendMultipleMessage() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
         final String topicName = getTopicWithRandomSuffix("test-multiple-msg");
@@ -433,7 +603,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
     }
 
     private static String getTopicWithRandomSuffix(String localNameBase) {
-        return String.format("persistent://prop/ns-abc/test/%s-%s", localNameBase, UUID.randomUUID().toString());
+        return String.format("persistent://prop/ns-abc/%s-%s", localNameBase, UUID.randomUUID().toString());
     }
 
 
@@ -469,12 +639,14 @@ public class PulsarClientToolTest extends BrokerTestBase {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class TestKey {
-        public String key_a;
-        public int key_b;
+        public String keyA;
+        public int keyB;
 
     }
 
-    @Test
+    // KeyValue schema production has no V5 equivalent (`produce` rejects --key-value-encoding-type
+    // with a clear message), so it is exercised through the v4-client command.
+    @Test(timeOut = 60000)
     public void testProduceKeyValueSchemaInlineValue() throws Exception {
 
         Properties properties = initializeToolProperties();
@@ -494,10 +666,11 @@ public class PulsarClientToolTest extends BrokerTestBase {
         executor.execute(() -> {
             try {
                 PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = {"produce",
+                String[] args = {"produce-v4",
                         "-kvet", "inline",
                         "-ks", String.format("json:%s", keySchema.getSchemaInfo().getSchemaDefinition()),
-                        "-kvk", ObjectMapperFactory.getMapper().writer().writeValueAsString(new TestKey("my-key", Integer.MAX_VALUE)),
+                        "-kvk", ObjectMapperFactory.getMapper().writer().writeValueAsString(
+                                new TestKey("my-key", Integer.MAX_VALUE)),
                         "-vs", "string",
                         "-m", "test",
                         topicName};
@@ -507,11 +680,13 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 future.completeExceptionally(t);
             }
         });
+        // Surface a produce-v4 failure as itself rather than as a null message below.
+        future.get();
         final Message<KeyValue<TestKey, String>> message = consumer.receive(10, TimeUnit.SECONDS);
         assertNotNull(message);
         assertFalse(message.hasKey());
-        Assert.assertEquals(message.getValue().getKey().key_a, "my-key");
-        Assert.assertEquals(message.getValue().getKey().key_b, Integer.MAX_VALUE);
+        Assert.assertEquals(message.getValue().getKey().keyA, "my-key");
+        Assert.assertEquals(message.getValue().getKey().keyB, Integer.MAX_VALUE);
         Assert.assertEquals(message.getValue().getValue(), "test");
     }
 
@@ -523,7 +698,8 @@ public class PulsarClientToolTest extends BrokerTestBase {
         };
     }
 
-    @Test(dataProvider = "keyValueKeySchema")
+    // As above: KeyValue schema production is exercised through the v4-client command.
+    @Test(dataProvider = "keyValueKeySchema", timeOut = 60000)
     public void testProduceKeyValueSchemaFileValue(String schema) throws Exception {
 
         Properties properties = initializeToolProperties();
@@ -549,13 +725,14 @@ public class PulsarClientToolTest extends BrokerTestBase {
         Files.write(file.toPath(), keySchema.encode(new TestKey("my-key", Integer.MAX_VALUE)));
 
         @Cleanup
-        Consumer<KeyValue<TestKey, String>> consumer = pulsarClient.newConsumer(Schema.KeyValue(keySchema, Schema.STRING))
+        Consumer<KeyValue<TestKey, String>> consumer =
+                pulsarClient.newConsumer(Schema.KeyValue(keySchema, Schema.STRING))
                 .topic(topicName).subscriptionName("sub").subscribe();
 
         executor.execute(() -> {
             try {
                 PulsarClientTool pulsarClientToolConsumer = new PulsarClientTool(properties);
-                String[] args = {"produce",
+                String[] args = {"produce-v4",
                         "-k", "partitioning-key",
                         "-kvet", "inline",
                         "-ks", String.format("%s:%s", schema, keySchema.getSchemaInfo().getSchemaDefinition()),
@@ -569,17 +746,19 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 future.completeExceptionally(t);
             }
         });
+        // Surface a produce-v4 failure as itself rather than as a null message below.
+        future.get();
         final Message<KeyValue<TestKey, String>> message = consumer.receive(10, TimeUnit.SECONDS);
         assertNotNull(message);
         // -k should not be considered
         assertFalse(message.hasKey());
-        Assert.assertEquals(message.getValue().getKey().key_a, "my-key");
-        Assert.assertEquals(message.getValue().getKey().key_b, Integer.MAX_VALUE);
+        Assert.assertEquals(message.getValue().getKey().keyA, "my-key");
+        Assert.assertEquals(message.getValue().getKey().keyB, Integer.MAX_VALUE);
     }
 
     private Properties initializeToolProperties() {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
         return properties;
     }

@@ -25,6 +25,7 @@ import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProducerStats;
 
+@SuppressWarnings("deprecation")
 public class ConsumerStatsDisabled implements ConsumerStatsRecorder {
     private static final long serialVersionUID = 1L;
 

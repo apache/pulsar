@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import com.google.common.collect.Streams;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.BatchCallback;
+import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -54,6 +55,16 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
     // Replaces pulsar_ml_cursor_readLedgerSize
     public static final String INCOMING_BYTE_COUNTER = "pulsar.broker.managed_ledger.cursor.incoming.size";
     private final ObservableLongMeasurement incomingByteCounter;
+
+    // Broker-level counters incremented when cursor persistence silently truncates ack state.
+    // See managedLedgerMaxUnackedRangesToPersist and managedLedgerMaxBatchDeletedIndexToPersist.
+    public static final String PERSIST_UNACKED_RANGES_TRUNCATED =
+            "pulsar.broker.managed_ledger.cursor.persist.unacked_ranges.truncated";
+    private final LongCounter persistUnackedRangesTruncated;
+
+    public static final String PERSIST_BATCH_DELETED_INDEXES_TRUNCATED =
+            "pulsar.broker.managed_ledger.cursor.persist.batch_deleted_indexes.truncated";
+    private final LongCounter persistBatchDeletedIndexesTruncated;
 
     private final BatchCallback batchCallback;
 
@@ -96,6 +107,22 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
                 .setDescription("The total amount of data read from the ledger.")
                 .buildObserver();
 
+        persistUnackedRangesTruncated = meter
+                .counterBuilder(PERSIST_UNACKED_RANGES_TRUNCATED)
+                .setUnit("{truncation}")
+                .setDescription("The number of times a cursor exceeded"
+                        + " managedLedgerMaxUnackedRangesToPersist, causing ack state to be truncated"
+                        + " at persistence. Ack state beyond the limit is lost on broker restart.")
+                .build();
+
+        persistBatchDeletedIndexesTruncated = meter
+                .counterBuilder(PERSIST_BATCH_DELETED_INDEXES_TRUNCATED)
+                .setUnit("{truncation}")
+                .setDescription("The number of times a cursor exceeded"
+                        + " managedLedgerMaxBatchDeletedIndexToPersist, causing batch deleted index state"
+                        + " to be truncated at persistence. State beyond the limit is lost on broker restart.")
+                .build();
+
         batchCallback = meter.batchCallback(() -> factory.getManagedLedgers()
                         .values()
                         .stream()
@@ -113,6 +140,14 @@ public class OpenTelemetryManagedCursorStats implements AutoCloseable {
     @Override
     public void close() {
         batchCallback.close();
+    }
+
+    public void incrementPersistUnackedRangesTruncated(ManagedCursor cursor) {
+        persistUnackedRangesTruncated.add(1, cursor.getManagedCursorAttributes().getAttributes());
+    }
+
+    public void incrementPersistBatchDeletedIndexesTruncated(ManagedCursor cursor) {
+        persistBatchDeletedIndexesTruncated.add(1, cursor.getManagedCursorAttributes().getAttributes());
     }
 
     private void recordMetrics(ManagedCursor cursor) {

@@ -65,11 +65,12 @@ public class SchemaCompatibilityStrategyTest extends PulsarCliTestSuite {
     public void testSchemaCompatibilityStrategyCmdWithNamespaceLevel() throws Exception {
         String ns = generateNamespaceName();
         String fullNS = "public/" + ns;
-        pulsarAdmin.namespaces().createNamespace("public/"+ns);
+        pulsarAdmin.namespaces().createNamespace("public/" + ns);
 
         String topicName = generateTopicName(ns, "test-schema-compatibility-strategy",
                 true);
-        pulsarAdmin.namespaces().setSchemaCompatibilityStrategy(fullNS, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        pulsarAdmin.namespaces().setSchemaCompatibilityStrategy(fullNS,
+                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
         pulsarAdmin.topics().createNonPartitionedTopic(topicName);
 
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("topicPolicies",

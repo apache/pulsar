@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResourcesBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -205,20 +206,24 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return LocalDateTimeSchema.of();
     }
 
+    @SuppressWarnings("rawtypes")
     public <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
         return AvroSchema.of(schemaDefinition);
     }
 
-    public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(
+    @SuppressWarnings("rawtypes")
+    public <T extends com.google.protobuf.Message> Schema<T> newProtobufSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufSchema.of(schemaDefinition);
     }
 
-    public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
+    @SuppressWarnings("rawtypes")
+    public <T extends com.google.protobuf.Message> Schema<T> newProtobufNativeSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufNativeSchema.of(schemaDefinition);
     }
 
+    @SuppressWarnings("rawtypes")
     public <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
         return JSONSchema.of(schemaDefinition);
     }
@@ -327,7 +332,7 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @return the jsonified schema info
      */
     public String jsonifySchemaInfo(SchemaInfo schemaInfo) {
-        return SchemaUtils.jsonifySchemaInfo(schemaInfo);
+        return SchemaUtils.jsonifySchemaInfo(schemaInfo, true);
     }
 
     /**
@@ -402,5 +407,10 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
             }
         }
         return new TopicMessageIdImpl(topic, messageIdAdv);
+    }
+
+    @Override
+    public PulsarClientSharedResourcesBuilder newSharedResourcesBuilder() {
+        return new PulsarClientSharedResourcesBuilderImpl();
     }
 }

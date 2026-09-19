@@ -113,6 +113,9 @@ public class ResourceQuotaCalculatorImplTest extends MockedPulsarServiceBaseTest
 
     @Test
     public void testNeedToReportLocalUsage() {
+        // This field is 0 when the schedulers of `ResourceGroupService` are not started, then `needToReportLocalUsage`
+        // will always return true. Set it to a non-zero value to test the percentage change logic.
+        ResourceGroupService.maxIntervalForSuppressingReportsMSecs = 60 * 1000L; // 1 minute
         // If the percentage change (increase or decrease) in usage is more than 5% for
         // either bytes or messages, send a report.
         Assert.assertFalse(rqCalc.needToReportLocalUsage(1040, 1000, 104, 100, System.currentTimeMillis()));

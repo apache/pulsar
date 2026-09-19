@@ -26,7 +26,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
-
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import java.net.InetSocketAddress;
@@ -120,6 +119,7 @@ public class ProtocolHandlersTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testNewChannelInitializersSuccess() {
         ChannelInitializer<SocketChannel> i1 = mock(ChannelInitializer.class);
         ChannelInitializer<SocketChannel> i2 = mock(ChannelInitializer.class);
@@ -145,6 +145,7 @@ public class ProtocolHandlersTest {
     }
 
     @Test(expectedExceptions = RuntimeException.class)
+    @SuppressWarnings("unchecked")
     public void testNewChannelInitializersOverlapped() {
         ChannelInitializer<SocketChannel> i1 = mock(ChannelInitializer.class);
         ChannelInitializer<SocketChannel> i2 = mock(ChannelInitializer.class);

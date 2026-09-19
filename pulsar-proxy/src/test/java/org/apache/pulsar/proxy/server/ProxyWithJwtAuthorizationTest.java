@@ -18,27 +18,33 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
-
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.core.Response;
+import java.lang.reflect.Method;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.core.Response;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
+import org.apache.pulsar.broker.authorization.MultiRolesTokenAuthorizationProvider;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
@@ -59,27 +65,46 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyWithJwtAuthorizationTest.class);
     private static final String CLUSTER_NAME = "proxy-authorization";
 
-    private final String ADMIN_ROLE = "admin";
-    private final String PROXY_ROLE = "proxy";
-    private final String BROKER_ROLE = "broker";
-    private final String CLIENT_ROLE = "client";
-    private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    private static final String ADMIN_ROLE = "admin";
+    private static final String PROXY_ROLE = "proxy";
+    private static final String BROKER_ROLE = "broker";
+    private static final String CLIENT_ROLE = "client";
+    private static final String ANONYMOUS_ROLE = "anonymous";
+    @SuppressWarnings("deprecation")
+    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
 
-    private final String ADMIN_TOKEN = Jwts.builder().setSubject(ADMIN_ROLE).signWith(SECRET_KEY).compact();
-    private final String PROXY_TOKEN = Jwts.builder().setSubject(PROXY_ROLE).signWith(SECRET_KEY).compact();
-    private final String BROKER_TOKEN = Jwts.builder().setSubject(BROKER_ROLE).signWith(SECRET_KEY).compact();
-    private final String CLIENT_TOKEN = Jwts.builder().setSubject(CLIENT_ROLE).signWith(SECRET_KEY).compact();
+    private final String adminToken;
+    private final String proxyToken;
+    private final String brokerToken;
+    private final String clientToken;
+    private final boolean multiRoles;
+    private final String roleClaim;
+
+    @Factory(dataProvider = "authorizationModes")
+    public ProxyWithJwtAuthorizationTest(boolean multiRoles, String roleClaim) {
+        this.multiRoles = multiRoles;
+        this.roleClaim = roleClaim;
+        adminToken = Jwts.builder().claim(roleClaim, ADMIN_ROLE).signWith(SECRET_KEY).compact();
+        proxyToken = Jwts.builder().claim(roleClaim, PROXY_ROLE).signWith(SECRET_KEY).compact();
+        brokerToken = Jwts.builder().claim(roleClaim, BROKER_ROLE).signWith(SECRET_KEY).compact();
+        clientToken = Jwts.builder().claim(roleClaim, CLIENT_ROLE).signWith(SECRET_KEY).compact();
+    }
+
+    @DataProvider
+    public static Object[][] authorizationModes() {
+        return new Object[][]{{false, "sub"}, {false, "roles"}, {true, "roles"}};
+    }
 
     private ProxyService proxyService;
     private WebServer webServer;
@@ -87,12 +112,30 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
     private Authentication proxyClientAuthentication;
 
     @BeforeMethod
+    public void setupForTest(Method method) throws Exception {
+        String anonymousRole = method.getName().equals("testAnonymousClientPermissionsWithSuperUserProxy")
+                ? ANONYMOUS_ROLE : null;
+        conf.setAuthenticateOriginalAuthData(
+                !method.getName().equals("testForwardedPrincipalPermissions"));
+        proxyConfig.setForwardAuthorizationCredentials(true);
+        conf.setAnonymousUserRole(anonymousRole);
+        proxyConfig.setAnonymousUserRole(anonymousRole);
+        setup();
+    }
+
     @Override
     protected void setup() throws Exception {
         // enable auth&auth and use JWT at broker
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
-        conf.getProperties().setProperty("tokenSecretKey", "data:;base64," + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
+        if (multiRoles) {
+            conf.setAuthorizationProvider(MultiRolesTokenAuthorizationProvider.class.getName());
+        }
+        if (!"sub".equals(roleClaim)) {
+            conf.getProperties().setProperty("tokenAuthClaim", roleClaim);
+        }
+        conf.getProperties().setProperty("tokenSecretKey", "data:;base64,"
+                + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
 
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add(ADMIN_ROLE);
@@ -102,7 +145,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         conf.setProxyRoles(Collections.singleton(PROXY_ROLE));
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        conf.setBrokerClientAuthenticationParameters(BROKER_TOKEN);
+        conf.setBrokerClientAuthenticationParameters(brokerToken);
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
@@ -115,7 +158,11 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(false);
-        proxyConfig.getProperties().setProperty("tokenSecretKey", "data:;base64," + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
+        if (!"sub".equals(roleClaim)) {
+            proxyConfig.getProperties().setProperty("tokenAuthClaim", roleClaim);
+        }
+        proxyConfig.getProperties().setProperty("tokenSecretKey", "data:;base64,"
+                + Base64.getEncoder().encodeToString(SECRET_KEY.getEncoded()));
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerWebServiceURL(pulsar.getWebServiceAddress());
 
@@ -126,7 +173,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         // enable auth&auth and use JWT at proxy
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
-        proxyConfig.setBrokerClientAuthenticationParameters(PROXY_TOKEN);
+        proxyConfig.setBrokerClientAuthenticationParameters(proxyToken);
         proxyConfig.setAuthenticationProviders(providers);
         proxyConfig.setStatusFilePath("./src/test/resources/vip_status.html");
 
@@ -137,6 +184,12 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         proxyClientAuthentication.start();
         proxyService = Mockito.spy(new ProxyService(proxyConfig, authService, proxyClientAuthentication));
         webServer = new WebServer(proxyConfig, authService);
+    }
+
+    @Override
+    protected void customizeNewPulsarAdminBuilder(PulsarAdminBuilder builder) {
+        super.customizeNewPulsarAdminBuilder(builder);
+        builder.authentication(AuthenticationFactory.token(adminToken));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -156,6 +209,173 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         webServer.start();
     }
 
+    @Test
+    public void testAnonymousClientPermissionsWithSuperUserProxy() throws Exception {
+        startProxy();
+        admin.clusters().createCluster(CLUSTER_NAME,
+                ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("anonymous-client",
+                new TenantInfoImpl(Set.of(ADMIN_ROLE), Set.of(CLUSTER_NAME)));
+        admin.namespaces().createNamespace("anonymous-client/ns");
+        String allowedTopic = "persistent://anonymous-client/ns/allowed";
+        String consumeOnlyTopic = "persistent://anonymous-client/ns/consume-only";
+        String produceOnlyTopic = "persistent://anonymous-client/ns/produce-only";
+        String deniedTopic = "persistent://anonymous-client/ns/denied";
+        for (String topic : List.of(allowedTopic, consumeOnlyTopic, produceOnlyTopic, deniedTopic)) {
+            admin.topics().createNonPartitionedTopic(topic);
+        }
+        admin.topics().grantPermission(allowedTopic, ANONYMOUS_ROLE, Set.of(AuthAction.produce, AuthAction.consume));
+        admin.topics().grantPermission(consumeOnlyTopic, ANONYMOUS_ROLE, Set.of(AuthAction.consume));
+        admin.topics().grantPermission(produceOnlyTopic, ANONYMOUS_ROLE, Set.of(AuthAction.produce));
+
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+                .operationTimeout(5, TimeUnit.SECONDS).build();
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer().topic(allowedTopic).subscriptionName("sub").subscribe();
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer().topic(allowedTopic).create();
+        producer.send(new byte[]{1});
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        assertThat(message).isNotNull();
+        assertThat(message.getData()).containsExactly((byte) 1);
+
+        // Each topic permits lookup through the other action, so these exercise produce/consume authorization.
+        assertThatThrownBy(() -> {
+            try (Producer<byte[]> ignored = client.newProducer().topic(consumeOnlyTopic).create()) {
+                // Creation should be rejected.
+            }
+        }).isInstanceOf(PulsarClientException.AuthorizationException.class);
+        assertThatThrownBy(() -> {
+            try (Consumer<byte[]> ignored = client.newConsumer().topic(produceOnlyTopic)
+                    .subscriptionName("sub").subscribe()) {
+                // Subscription should be rejected.
+            }
+        }).isInstanceOf(PulsarClientException.AuthorizationException.class);
+
+        @Cleanup
+        PulsarAdmin anonymousAdmin = PulsarAdmin.builder().serviceHttpUrl(webServer.getServiceUri().toString()).build();
+        assertThat(anonymousAdmin.topics().getStats(allowedTopic)).isNotNull();
+        assertThatThrownBy(() -> anonymousAdmin.topics().getStats(deniedTopic))
+                .isInstanceOf(PulsarAdminException.NotAuthorizedException.class);
+    }
+
+    @DataProvider
+    public Object[][] forwardedCredentialSettings() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(dataProvider = "forwardedCredentialSettings")
+    public void testForwardedPrincipalPermissions(boolean forwardCredentials) throws Exception {
+        proxyConfig.setForwardAuthorizationCredentials(forwardCredentials);
+        startProxy();
+        admin.clusters().createCluster(CLUSTER_NAME,
+                ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("forwarded-client",
+                new TenantInfoImpl(Set.of(ADMIN_ROLE), Set.of(CLUSTER_NAME)));
+        String namespace = "forwarded-client/ns";
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setSubscriptionAuthMode(namespace, SubscriptionAuthMode.Prefix);
+        String allowedTopic = "persistent://" + namespace + "/allowed";
+        String consumeOnlyTopic = "persistent://" + namespace + "/consume-only";
+        String produceOnlyTopic = "persistent://" + namespace + "/produce-only";
+        String additionalRoleTopic = "persistent://" + namespace + "/additional-role";
+        for (String topic : List.of(allowedTopic, consumeOnlyTopic, produceOnlyTopic, additionalRoleTopic)) {
+            admin.topics().createNonPartitionedTopic(topic);
+        }
+        admin.topics().grantPermission(allowedTopic, CLIENT_ROLE, Set.of(AuthAction.produce, AuthAction.consume));
+        admin.topics().grantPermission(consumeOnlyTopic, CLIENT_ROLE, Set.of(AuthAction.consume));
+        admin.topics().grantPermission(produceOnlyTopic, CLIENT_ROLE, Set.of(AuthAction.produce));
+        admin.topics().grantPermission(additionalRoleTopic, "additional-role",
+                Set.of(AuthAction.produce, AuthAction.consume));
+
+        String token = Jwts.builder()
+                .claim(roleClaim, multiRoles ? new String[]{CLIENT_ROLE, "additional-role"} : CLIENT_ROLE)
+                .signWith(SECRET_KEY).compact();
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+                .authentication(AuthenticationFactory.token(token)).operationTimeout(5, TimeUnit.SECONDS).build();
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer().topic(allowedTopic)
+                .subscriptionName(CLIENT_ROLE + "-sub").subscribe();
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer().topic(allowedTopic).create();
+        producer.send(new byte[]{1});
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        assertThat(message).isNotNull();
+        assertThat(message.getData()).containsExactly((byte) 1);
+
+        // Lookup is allowed on these topics; the requested action must still be checked.
+        assertThatThrownBy(() -> {
+            try (Producer<byte[]> ignored = client.newProducer().topic(consumeOnlyTopic).create()) {
+                // Creation should be rejected.
+            }
+        }).isInstanceOf(PulsarClientException.AuthorizationException.class);
+        assertThatThrownBy(() -> {
+            try (Consumer<byte[]> ignored = client.newConsumer().topic(produceOnlyTopic)
+                    .subscriptionName(CLIENT_ROLE + "-sub").subscribe()) {
+                // Subscription should be rejected.
+            }
+        }).isInstanceOf(PulsarClientException.AuthorizationException.class);
+        assertThatThrownBy(() -> {
+            try (Consumer<byte[]> ignored = client.newConsumer().topic(allowedTopic)
+                    .subscriptionName("other-sub").subscribe()) {
+                // Subscription prefix must match the forwarded principal.
+            }
+        }).isInstanceOf(PulsarClientException.AuthorizationException.class);
+        assertThatThrownBy(() -> {
+            try (Producer<byte[]> ignored = client.newProducer().topic(additionalRoleTopic).create()) {
+                // Additional roles require original-client authentication.
+            }
+        }).isInstanceOf(PulsarClientException.AuthorizationException.class);
+    }
+
+    @Test
+    public void testMultiRoleClientPermissionsWithSuperUserProxy() throws Exception {
+        assertThat(conf.isAuthenticateOriginalAuthData()).isTrue();
+        assertThat(proxyConfig.isForwardAuthorizationCredentials()).isTrue();
+        startProxy();
+        createAdminClient();
+        admin.clusters().createCluster(CLUSTER_NAME,
+                ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.tenants().createTenant("multi-role",
+                new TenantInfoImpl(Set.of(ADMIN_ROLE), Set.of(CLUSTER_NAME)));
+        admin.namespaces().createNamespace("multi-role/ns");
+        String allowedTopic = "persistent://multi-role/ns/allowed";
+        String deniedTopic = "persistent://multi-role/ns/denied";
+        admin.topics().createNonPartitionedTopic(allowedTopic);
+        admin.topics().createNonPartitionedTopic(deniedTopic);
+        admin.topics().grantPermission(allowedTopic, CLIENT_ROLE, Set.of(AuthAction.produce, AuthAction.consume));
+        admin.topics().grantPermission(deniedTopic, "other-client", Set.of(AuthAction.produce, AuthAction.consume));
+
+        String token = Jwts.builder()
+                .claim(roleClaim, multiRoles ? new String[]{"unprivileged", CLIENT_ROLE} : CLIENT_ROLE)
+                .signWith(SECRET_KEY).compact();
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+                .authentication(AuthenticationFactory.token(token)).operationTimeout(5, TimeUnit.SECONDS).build();
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer().topic(allowedTopic).subscriptionName("sub").subscribe();
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer().topic(allowedTopic).create();
+        producer.send(new byte[]{1});
+        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+        assertThat(message).isNotNull();
+        assertThat(message.getData()).containsExactly((byte) 1);
+
+        assertThatThrownBy(() -> {
+            try (Producer<byte[]> ignored = client.newProducer().topic(deniedTopic).create()) {
+                // Creation should be rejected.
+            }
+        }).isInstanceOf(PulsarClientException.AuthorizationException.class);
+        assertThatThrownBy(() -> {
+            try (Consumer<byte[]> ignored = client.newConsumer().topic(deniedTopic)
+                    .subscriptionName("sub").subscribe()) {
+                // Subscription should be rejected.
+            }
+        }).isInstanceOf(PulsarClientException.AuthorizationException.class);
+    }
+
     /**
      * <pre>
      * It verifies jwt + Authentication + Authorization (client -> proxy -> broker).
@@ -170,16 +390,19 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
      */
     @Test
     public void testProxyAuthorization() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         startProxy();
         createAdminClient();
         @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
-        String namespaceName = "my-property/proxy-authorization/my-ns";
+        String namespaceName = "my-property/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
+                .serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
@@ -188,31 +411,35 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer;
         try {
             consumer = proxyClient.newConsumer()
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
+                    .topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
             Assert.fail("should have failed with authorization error");
         } catch (Exception ex) {
             // excepted
             admin.namespaces().grantPermissionOnNamespace(namespaceName, CLIENT_ROLE,
-                    Sets.newHashSet(AuthAction.consume, AuthAction.create_topic));
-            log.info("-- Admin permissions {} ---", admin.namespaces().getPermissions(namespaceName));
+                    Sets.newHashSet(AuthAction.consume));
+            log.info()
+                    .attr("getPermissions", admin.namespaces().getPermissions(namespaceName))
+                    .log("-- Admin permissions ---");
             consumer = proxyClient.newConsumer()
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
+                    .topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
         }
 
         Producer<byte[]> producer;
         try {
             producer = proxyClient.newProducer(Schema.BYTES)
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1").create();
+                    .topic("persistent://my-property/my-ns/my-topic1").create();
             Assert.fail("should have failed with authorization error");
         } catch (Exception ex) {
             // excepted
             admin.namespaces().grantPermissionOnNamespace(namespaceName, CLIENT_ROLE,
                     Sets.newHashSet(AuthAction.produce, AuthAction.consume));
-            log.info("-- Admin permissions {} ---", admin.namespaces().getPermissions(namespaceName));
+            log.info()
+                    .attr("getPermissions", admin.namespaces().getPermissions(namespaceName))
+                    .log("-- Admin permissions ---");
             producer = proxyClient.newProducer(Schema.BYTES)
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1").create();
+                    .topic("persistent://my-property/my-ns/my-topic1").create();
         }
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
@@ -226,7 +453,9 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug()
+                    .attr("receivedMessage", receivedMessage)
+                    .log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             count++;
@@ -235,7 +464,9 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         Assert.assertEquals(msgs, count);
         consumer.acknowledgeCumulative(msg);
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     /**
@@ -251,7 +482,9 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
      */
     @Test
     public void testUpdatePartitionNumAndReconnect() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         startProxy();
         createAdminClient();
@@ -278,9 +511,9 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES)
                 .topic(topicName).create();
-        final int MSG_NUM = 10;
+        final int msgNum = 10;
         Set<String> messageSet = new HashSet<>();
-        for (int i = 0; i < MSG_NUM; i++) {
+        for (int i = 0; i < msgNum; i++) {
             String message = "my-message-" + i;
             messageSet.add(message);
             producer.send(message.getBytes());
@@ -288,10 +521,12 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
 
         Message<byte[]> msg;
         Set<String> receivedMessageSet = new HashSet<>();
-        for (int i = 0; i < MSG_NUM; i++) {
+        for (int i = 0; i < msgNum; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug()
+                    .attr("receivedMessage", receivedMessage)
+                    .log("Received message");
             String expectedMessage = "my-message-" + i;
             receivedMessageSet.add(expectedMessage);
             consumer.acknowledgeAsync(msg);
@@ -311,17 +546,19 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                 .topic(topicName).create();
 
         messageSet.clear();
-        for (int i = 0; i < MSG_NUM; i++) {
+        for (int i = 0; i < msgNum; i++) {
             String message = "my-message-" + i;
             messageSet.add(message);
             producer.send(message.getBytes());
         }
 
         receivedMessageSet.clear();
-        for (int i = 0; i < MSG_NUM; i++) {
+        for (int i = 0; i < msgNum; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug()
+                    .attr("receivedMessage", receivedMessage)
+                    .log("Received message");
             String expectedMessage = "my-message-" + i;
             receivedMessageSet.add(expectedMessage);
             consumer.acknowledgeAsync(msg);
@@ -349,7 +586,9 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         } catch (PulsarClientException.AuthorizationException ex) {
             // ok
         }
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     /**
@@ -367,39 +606,42 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
      */
     @Test
     public void testProxyAuthorizationWithPrefixSubscriptionAuthMode() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         startProxy();
         createAdminClient();
         @Cleanup
         PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), PulsarClient.builder());
 
-        String namespaceName = "my-property/proxy-authorization/my-ns";
+        String namespaceName = "my-property/my-ns";
 
-        admin.clusters().createCluster("proxy-authorization", ClusterData.builder().serviceUrl(brokerUrl.toString()).build());
+        admin.clusters().createCluster("proxy-authorization", ClusterData.builder()
+                .serviceUrl(brokerUrl.toString()).build());
 
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
         admin.namespaces().grantPermissionOnNamespace(namespaceName, CLIENT_ROLE,
-                Sets.newHashSet(AuthAction.produce, AuthAction.consume, AuthAction.create_topic));
+                Sets.newHashSet(AuthAction.produce, AuthAction.consume));
         admin.namespaces().setSubscriptionAuthMode(namespaceName, SubscriptionAuthMode.Prefix);
 
         Consumer<byte[]> consumer;
         try {
             consumer = proxyClient.newConsumer()
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
+                    .topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
             Assert.fail("should have failed with authorization error");
         } catch (Exception ex) {
             // excepted
             consumer = proxyClient.newConsumer()
-                    .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1")
+                    .topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName(CLIENT_ROLE + "-sub1").subscribe();
         }
 
         Producer<byte[]> producer = proxyClient.newProducer(Schema.BYTES)
-                .topic("persistent://my-property/proxy-authorization/my-ns/my-topic1").create();
+                .topic("persistent://my-property/my-ns/my-topic1").create();
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
             String message = "my-message-" + i;
@@ -412,7 +654,9 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug()
+                    .attr("receivedMessage", receivedMessage)
+                    .log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
             count++;
@@ -421,12 +665,16 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         Assert.assertEquals(msgs, count);
         consumer.acknowledgeCumulative(msg);
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     @Test
     void testGetStatus() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
         final PulsarResources resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
                 registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
         final AuthenticationService authService = new AuthenticationService(
@@ -436,7 +684,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                 registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         @Cleanup
-        final Client client = javax.ws.rs.client.ClientBuilder
+        final Client client = jakarta.ws.rs.client.ClientBuilder
                 .newClient(new ClientConfig().register(LoggingFeature.class));
         try {
             final Response r = client.target(webServer.getServiceUri()).path("/status.html").request().get();
@@ -444,12 +692,16 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         } finally {
             webServer.stop();
         }
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     @Test
     void testGetMetrics() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
         startProxy();
         PulsarResources resource = new PulsarResources(registerCloseable(new ZKMetadataStore(mockZooKeeper)),
                 registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal)));
@@ -461,7 +713,7 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
                 registerCloseable(new BrokerDiscoveryProvider(proxyConfig, resource)), proxyClientAuthentication);
         webServer.start();
         @Cleanup
-        Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        Client client = jakarta.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         try {
             Response r = client.target(webServer.getServiceUri()).path("/metrics").request().get();
             Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
@@ -479,19 +731,22 @@ public class ProxyWithJwtAuthorizationTest extends ProducerConsumerBase {
         } finally {
             webServer.stop();
         }
-        log.info("-- Exiting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Exiting test --");
     }
 
     private void createAdminClient() throws Exception {
         closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(webServer.getServiceUri().toString())
-                .authentication(AuthenticationFactory.token(ADMIN_TOKEN)).build());
+                .authentication(AuthenticationFactory.token(adminToken)).build());
     }
 
+    @SuppressWarnings("deprecation")
     private PulsarClient createPulsarClient(String proxyServiceUrl, ClientBuilder clientBuilder)
             throws PulsarClientException {
         return clientBuilder.serviceUrl(proxyServiceUrl).statsInterval(0, TimeUnit.SECONDS)
-                .authentication(AuthenticationFactory.token(CLIENT_TOKEN))
+                .authentication(AuthenticationFactory.token(clientToken))
                 .operationTimeout(1000, TimeUnit.MILLISECONDS).build();
     }
 }

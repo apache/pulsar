@@ -22,7 +22,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
@@ -31,11 +31,10 @@ import org.apache.pulsar.transaction.coordinator.TransactionTimeoutTracker;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 
-
 /**
  * The transaction recover tracker implementation {@link TransactionRecoverTracker}.
  */
-@Slf4j
+@CustomLog
 public class TransactionRecoverTrackerImpl implements TransactionRecoverTracker {
 
     private final long tcId;

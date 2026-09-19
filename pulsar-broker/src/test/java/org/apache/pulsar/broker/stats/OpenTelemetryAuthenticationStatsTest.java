@@ -48,6 +48,7 @@ public class OpenTelemetryAuthenticationStatsTest extends BrokerTestBase {
 
     private SecretKey secretKey;
     private AuthenticationProvider provider;
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     @Override

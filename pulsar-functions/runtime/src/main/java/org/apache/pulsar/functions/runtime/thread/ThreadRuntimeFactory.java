@@ -20,9 +20,9 @@ package org.apache.pulsar.functions.runtime.thread;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Optional;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -49,7 +49,7 @@ import org.apache.pulsar.functions.worker.WorkerConfig;
 /**
  * Thread based function container factory implementation.
  */
-@Slf4j
+@CustomLog
 @NoArgsConstructor
 public class ThreadRuntimeFactory implements RuntimeFactory {
 
@@ -204,9 +204,10 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                     secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
             secretsProvider =
                     (SecretsProvider) Reflections.createInstance(secretsProviderClassName, this.rootClassLoader);
-            log.info("Initializing secrets provider {} with configs: {}",
-                    secretsProvider.getClass().getName(),
-                    secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
+            log.info().attr("className", secretsProvider.getClass().getName())
+                    .attr("config", secretsProviderConfigurator
+                            .getSecretsProviderConfig(instanceConfig.getFunctionDetails()))
+                    .log("Initializing secrets provider");
             secretsProvider
                     .init(secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
         }
@@ -241,7 +242,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         try {
             pulsarClient.close();
         } catch (PulsarClientException e) {
-            log.warn("Failed to close pulsar client when closing function container factory", e);
+            log.warn().exception(e)
+                    .log("Failed to close pulsar client when closing function container factory");
         }
         if (pulsarAdmin != null) {
             pulsarAdmin.close();

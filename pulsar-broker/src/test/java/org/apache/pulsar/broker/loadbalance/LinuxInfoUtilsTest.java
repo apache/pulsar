@@ -23,11 +23,11 @@ import static org.mockito.Mockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import java.nio.file.Files;
 import java.util.stream.Stream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.mockito.MockedStatic;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class LinuxInfoUtilsTest {
 

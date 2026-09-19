@@ -90,6 +90,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         assertEquals(testData, readResult);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 60000)
     public void testReadWriteLargeDataOperations() throws ExecutionException, InterruptedException {
         byte[] data = RandomUtils.nextBytes(8192 * 3 + 4096);
@@ -168,7 +169,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         storage.deleteAsync(testPath).get();
 
         // list again and not file under the path
-        paths= storage.listAsync("").get();
+        paths = storage.listAsync("").get();
         assertEquals(paths.size(), 0);
 
 

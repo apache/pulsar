@@ -26,7 +26,7 @@ import java.util.EnumSet;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Consumer;
@@ -51,7 +51,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTestBase {
 
     protected String superUserAuthToken;
@@ -96,8 +96,11 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
                 .clusterName(clusterName)
                 .build();
 
-        log.info("Setting up cluster {} with token authentication  and {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+        log.info()
+                .attr("cluster", spec.clusterName())
+                .attr("and", spec.numBookies())
+                .attr("bookies", spec.numBrokers())
+                .log("Setting up cluster with token authentication and bookies, brokers");
 
         pulsarCluster = PulsarCluster.forSpec(spec);
 
@@ -126,7 +129,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
         pulsarCluster.start();
 
-        log.info("Cluster {} is setup", spec.clusterName());
+        log.info().attr("cluster", spec.clusterName()).log("Cluster is setup");
     }
 
     @AfterClass(alwaysRun = true)
@@ -344,15 +347,15 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
         admin.namespaces().createNamespace(namespace, Collections.singleton(pulsarCluster.getClusterName()));
         admin.namespaces().grantPermissionOnNamespace(namespace, REGULAR_USER_ROLE, EnumSet.allOf(AuthAction.class));
 
-        final int TokenExpiryTimeSecs = 2;
-        String initialToken = this.createClientTokenWithExpiry(TokenExpiryTimeSecs, TimeUnit.SECONDS);
+        final int tokenExpiryTimeSecs = 2;
+        String initialToken = this.createClientTokenWithExpiry(tokenExpiryTimeSecs, TimeUnit.SECONDS);
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
                 .authentication(AuthenticationFactory.token(() -> {
                     try {
-                        return createClientTokenWithExpiry(TokenExpiryTimeSecs, TimeUnit.SECONDS);
+                        return createClientTokenWithExpiry(tokenExpiryTimeSecs, TimeUnit.SECONDS);
                     } catch (Exception e) {
                         return null;
                     }
@@ -369,7 +372,7 @@ public abstract class PulsarTokenAuthenticationBaseSuite extends PulsarClusterTe
 
         producer1.close();
 
-        Thread.sleep(TimeUnit.SECONDS.toMillis(TokenExpiryTimeSecs));
+        Thread.sleep(TimeUnit.SECONDS.toMillis(tokenExpiryTimeSecs));
 
         @Cleanup
         Producer<String> producer2 = client.newProducer(Schema.STRING)

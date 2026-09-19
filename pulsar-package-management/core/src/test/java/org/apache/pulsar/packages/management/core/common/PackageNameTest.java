@@ -116,4 +116,27 @@ public class PackageNameTest {
         PackageName name = PackageName.get("function://public/default/test");
         Assert.assertEquals("function://public/default/test@latest", name.toString());
     }
+
+    @Test
+    public void testPathTraversalBypassConstructor() throws Exception {
+        // Use the package-private constructor annotated with @VisibleForTesting
+        // to inject a traversal payload directly, bypassing normal Splitter validation.
+        PackageName packageName = new PackageName(
+                PackageType.FUNCTION,
+                "tenant-a/../../system-tenant",
+                "ns",
+                "name",
+                "v1"
+        );
+
+        // Verify that path separators in package components are percent-encoded in the generated REST path.
+        String expectedSafePath = "function/tenant-a%2F..%2F..%2Fsystem-tenant/ns/name/v1";
+
+        // Invoke the method under test
+        String actualPath = packageName.toRestPath();
+
+        // This assertion verifies that traversal characters are encoded rather than emitted as raw slashes.
+        Assert.assertEquals(actualPath, expectedSafePath,
+                "The toRestPath method must encode path traversal characters in package components.");
+    }
 }

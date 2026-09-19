@@ -26,7 +26,7 @@ USER root
 COPY target/scripts /pulsar/bin
 RUN chmod a+rx /pulsar/bin/*
 
-RUN apk add --no-cache supervisor
+RUN apk add --no-cache supervisor jq
 
 RUN mkdir -p /var/log/pulsar \
     && mkdir -p /var/run/supervisor/ \
@@ -39,3 +39,19 @@ RUN mv /etc/supervisord/conf.d/supervisord.conf /etc/supervisord.conf
 COPY target/certificate-authority /pulsar/certificate-authority/
 
 COPY target/java-test-functions.jar /pulsar/examples/
+
+# copy buildtools.jar to /pulsar/lib so that org.apache.pulsar.tests.ExtendedNettyLeakDetector can be used
+COPY target/buildtools.jar /pulsar/lib/
+
+ARG INSTALL_ASYNC_PROFILER=false
+ARG ASYNC_PROFILER_VERSION=4.5
+# install async-profiler from https://github.com/async-profiler/async-profiler/releases to /opt/async-profiler
+RUN if [ "${INSTALL_ASYNC_PROFILER}" = "true" ]; then \
+    mkdir -p /opt/async-profiler \
+    && cd /opt/async-profiler \
+    && curl -L \
+    "https://github.com/async-profiler/async-profiler/releases/download/v${ASYNC_PROFILER_VERSION}/async-profiler-${ASYNC_PROFILER_VERSION}-linux-$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "x64").tar.gz" \
+    | tar -zxvf - --strip-components=1; \
+    else \
+    echo "async-profiler installation skipped"; \
+    fi

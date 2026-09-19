@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import lombok.Cleanup;
-import org.apache.commons.lang.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -182,7 +182,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
     /**
      *
-     * It verifies anti-affinity-namespace assignment with failure-domain
+     * It verifies anti-affinity-namespace assignment with failure-domain.
      *
      * <pre>
      * Domain     Brokers-count
@@ -206,7 +206,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testAntiAffinityNamespaceFilteringWithDomain() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns";
+        final String namespace = "my-tenant/my-ns";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity";
         final String bundle = "/0x00000000_0xffffffff";
@@ -285,7 +285,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     }
 
     /**
-     * It verifies anti-affinity-namespace assignment without failure-domain enabled
+     * It verifies anti-affinity-namespace assignment without failure-domain enabled.
      *
      * <pre>
      *  Anti-affinity-namespace assignment
@@ -302,7 +302,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testAntiAffinityNamespaceFilteringWithoutDomain() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns-wo-domain";
+        final String namespace = "my-tenant/my-ns-wo-domain";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity-wo-domain";
         final String bundle = "/0x00000000_0xffffffff";
@@ -394,8 +394,8 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         final String broker2 = secondaryHost;
         final String cluster = pulsar1.getConfiguration().getClusterName();
         final String tenant = "tenant-" + UUID.randomUUID();
-        final String namespace1 = tenant + "/" + cluster + "/ns1";
-        final String namespace2 = tenant + "/" + cluster + "/ns2";
+        final String namespace1 = tenant + "/ns1";
+        final String namespace2 = tenant + "/ns2";
         final String namespaceAntiAffinityGroup = "group";
 
         FailureDomain domain1 = FailureDomain.builder()
@@ -421,10 +421,10 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
             assertTrue(isLoadManagerUpdatedDomainCache(secondaryLoadManager));
         });
 
-        ServiceUnitId serviceUnit1 = makeBundle(tenant, cluster, "ns1");
+        ServiceUnitId serviceUnit1 = makeBundle(tenant, "ns1");
         String selectedBroker1 = selectBroker(serviceUnit1, primaryLoadManager);
 
-        ServiceUnitId serviceUnit2 = makeBundle(tenant, cluster, "ns2");
+        ServiceUnitId serviceUnit2 = makeBundle(tenant, "ns2");
         String selectedBroker2 = selectBroker(serviceUnit2, primaryLoadManager);
 
         assertNotEquals(selectedBroker1, selectedBroker2);
@@ -450,7 +450,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
     @Test
     public void testLoadSheddingUtilWithAntiAffinityNamespace() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns-load-shedding-util";
+        final String namespace = "my-tenant/my-ns-load-shedding-util";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity-load-shedding-util";
         final String bundle = "/0x00000000_0xffffffff";
@@ -493,14 +493,14 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
 
     /**
      * It verifies that load-manager::shouldAntiAffinityNamespaceUnload checks that unloading should only happen if all
-     * brokers have same number of anti-affinity namespaces
+     * brokers have same number of anti-affinity namespaces.
      *
      * @throws Exception
      */
     @Test
     public void testLoadSheddingWithAntiAffinityNamespace() throws Exception {
 
-        final String namespace = "my-tenant/test/my-ns-load-shedding";
+        final String namespace = "my-tenant/my-ns-load-shedding";
         final int totalNamespaces = 5;
         final String namespaceAntiAffinityGroup = "my-antiaffinity-load-shedding";
         final String bundle = "0x00000000_0xffffffff";
@@ -535,12 +535,14 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         return !brokerToFailureDomainMap.isEmpty();
     }
 
-    private NamespaceBundle makeBundle(final String property, final String cluster, final String namespace) {
-        return nsFactory.getBundle(NamespaceName.get(property, cluster, namespace),
+    @SuppressWarnings("unchecked")
+    private NamespaceBundle makeBundle(final String tenant, final String namespace) {
+        return nsFactory.getBundle(NamespaceName.get(tenant, namespace),
                 Range.range(NamespaceBundles.FULL_LOWER_BOUND, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND,
                         BoundType.CLOSED));
     }
 
+    @SuppressWarnings("unchecked")
     private static void filterAntiAffinityGroupOwnedBrokers(
             PulsarService pulsar,
             String assignedNamespace,
@@ -558,6 +560,7 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         }
     }
 
+    @SuppressWarnings("unchecked")
     private static boolean shouldAntiAffinityNamespaceUnload(
             String namespace,
             String bundle,

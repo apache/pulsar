@@ -65,6 +65,16 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** Get the publish time of the earliest message in the backlog. */
     public long earliestMsgPublishTimeInBacklog;
 
+    /**
+     * Age of oldest unacknowledged message for this subscription, in seconds.
+     * <p>
+     * This is a best-effort cached value from the broker's periodic subscription backlog-age refresh. The value is
+     * {@code -1} when it is unknown, not applicable, the subscription has no backlog, or the broker has disabled
+     * subscription backlog-age computation.
+     * </p>
+     */
+    public long oldestBacklogMessageAgeSeconds = -1;
+
     /** Number of entries in the subscription backlog that do not contain the delay messages. */
     public long msgBacklogNoDelayed;
 
@@ -92,6 +102,9 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     /** Total rate of messages expired on this subscription (msg/s). */
     public double msgRateExpired;
+
+    /** The count of expired messages on this subscription. */
+    public long msgExpired;
 
     /** Total messages expired on this subscription. */
     public long totalMsgExpired;
@@ -129,11 +142,21 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
     /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
     public Map<String, String> consumersAfterMarkDeletePosition;
 
-    /** The last sent position of the cursor. This is for Key_Shared subscription. */
-    public String lastSentPosition;
+    /**
+     * For Key_Shared AUTO_SPLIT ordered subscriptions: The current number of hashes in the draining state.
+     */
+    public int drainingHashesCount;
 
-    /** Set of individually sent ranges. This is for Key_Shared subscription. */
-    public String individuallySentPositions;
+    /**
+     * For Key_Shared AUTO_SPLIT ordered subscriptions: The total number of hashes cleared from the draining state
+     * for the connected consumers.
+     */
+    public long drainingHashesClearedTotal;
+
+    /**
+     * For Key_Shared AUTO_SPLIT ordered subscriptions: The total number of unacked messages for all draining hashes.
+     */
+    public int drainingHashesUnackedMessages;
 
     /** The number of non-contiguous deleted messages ranges. */
     public int nonContiguousDeletedMessagesRanges;
@@ -158,6 +181,24 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
 
     public long filterRescheduledMsgCount;
 
+    /** total number of times message dispatching was throttled on a subscription due to subscription rate limits. */
+    public long dispatchThrottledMsgEventsBySubscriptionLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to subscription rate limits. */
+    public long dispatchThrottledBytesEventsBySubscriptionLimit;
+
+    /** total number of times message dispatching was throttled on a subscription due to topic rate limits. */
+    public long dispatchThrottledMsgEventsByTopicLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to topic rate limits. */
+    public long dispatchThrottledBytesEventsByTopicLimit;
+
+    /** total number of times message dispatching was throttled on a subscription due to broker rate limits. */
+    public long dispatchThrottledMsgEventsByBrokerLimit;
+
+    /** total number of times bytes dispatching was throttled on a subscription due to broker rate limits. */
+    public long dispatchThrottledBytesEventsByBrokerLimit;
+
     public SubscriptionStatsImpl() {
         this.consumers = new ArrayList<>();
         this.consumersAfterMarkDeletePosition = new LinkedHashMap<>();
@@ -181,20 +222,31 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         unackedMessages = 0;
         type = null;
         msgRateExpired = 0;
+        msgExpired = 0;
         totalMsgExpired = 0;
         lastExpireTimestamp = 0L;
         lastMarkDeleteAdvancedTimestamp = 0L;
         consumers.clear();
         consumersAfterMarkDeletePosition.clear();
+        drainingHashesCount = 0;
+        drainingHashesClearedTotal = 0L;
+        drainingHashesUnackedMessages = 0;
         nonContiguousDeletedMessagesRanges = 0;
         nonContiguousDeletedMessagesRangesSerializedSize = 0;
         earliestMsgPublishTimeInBacklog = 0L;
+        oldestBacklogMessageAgeSeconds = -1;
         delayedMessageIndexSizeInBytes = 0;
         subscriptionProperties.clear();
         filterProcessedMsgCount = 0;
         filterAcceptedMsgCount = 0;
         filterRejectedMsgCount = 0;
         filterRescheduledMsgCount = 0;
+        dispatchThrottledMsgEventsBySubscriptionLimit = 0;
+        dispatchThrottledBytesEventsBySubscriptionLimit = 0;
+        dispatchThrottledMsgEventsByBrokerLimit = 0;
+        dispatchThrottledBytesEventsByBrokerLimit = 0;
+        dispatchThrottledMsgEventsByTopicLimit = 0;
+        dispatchThrottledBytesEventsByTopicLimit = 0;
         bucketDelayedIndexStats.clear();
     }
 
@@ -217,6 +269,7 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         this.unackedMessages += stats.unackedMessages;
         this.type = stats.type;
         this.msgRateExpired += stats.msgRateExpired;
+        this.msgExpired += stats.msgExpired;
         this.totalMsgExpired += stats.totalMsgExpired;
         this.isReplicated |= stats.isReplicated;
         this.isDurable |= stats.isDurable;
@@ -232,6 +285,9 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
         }
         this.allowOutOfOrderDelivery |= stats.allowOutOfOrderDelivery;
         this.consumersAfterMarkDeletePosition.putAll(stats.consumersAfterMarkDeletePosition);
+        this.drainingHashesCount += stats.drainingHashesCount;
+        this.drainingHashesClearedTotal += stats.drainingHashesClearedTotal;
+        this.drainingHashesUnackedMessages += stats.drainingHashesUnackedMessages;
         this.nonContiguousDeletedMessagesRanges += stats.nonContiguousDeletedMessagesRanges;
         this.nonContiguousDeletedMessagesRangesSerializedSize += stats.nonContiguousDeletedMessagesRangesSerializedSize;
         if (this.earliestMsgPublishTimeInBacklog != 0 && stats.earliestMsgPublishTimeInBacklog != 0) {
@@ -245,12 +301,20 @@ public class SubscriptionStatsImpl implements SubscriptionStats {
                     stats.earliestMsgPublishTimeInBacklog
             );
         }
+        this.oldestBacklogMessageAgeSeconds = Math.max(
+                this.oldestBacklogMessageAgeSeconds, stats.oldestBacklogMessageAgeSeconds);
         this.delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
         this.subscriptionProperties.putAll(stats.subscriptionProperties);
         this.filterProcessedMsgCount += stats.filterProcessedMsgCount;
         this.filterAcceptedMsgCount += stats.filterAcceptedMsgCount;
         this.filterRejectedMsgCount += stats.filterRejectedMsgCount;
         this.filterRescheduledMsgCount += stats.filterRescheduledMsgCount;
+        this.dispatchThrottledMsgEventsBySubscriptionLimit += stats.dispatchThrottledMsgEventsBySubscriptionLimit;
+        this.dispatchThrottledBytesEventsBySubscriptionLimit += stats.dispatchThrottledBytesEventsBySubscriptionLimit;
+        this.dispatchThrottledMsgEventsByBrokerLimit += stats.dispatchThrottledMsgEventsByBrokerLimit;
+        this.dispatchThrottledBytesEventsByBrokerLimit += stats.dispatchThrottledBytesEventsByBrokerLimit;
+        this.dispatchThrottledMsgEventsByTopicLimit += stats.dispatchThrottledMsgEventsByTopicLimit;
+        this.dispatchThrottledBytesEventsByTopicLimit += stats.dispatchThrottledBytesEventsByTopicLimit;
         stats.bucketDelayedIndexStats.forEach((k, v) -> {
             TopicMetricBean topicMetricBean =
                     this.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());

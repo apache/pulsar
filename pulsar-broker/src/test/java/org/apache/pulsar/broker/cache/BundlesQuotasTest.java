@@ -88,7 +88,7 @@ public class BundlesQuotasTest {
     @Test
     public void testGetSetBundleQuota() throws Exception {
         BundlesQuotas bundlesQuotas = new BundlesQuotas(pulsar);
-        NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/test/ns-2"),
+        NamespaceBundle testBundle = new NamespaceBundle(NamespaceName.get("pulsar/ns-2"),
                 Range.closedOpen(0L, (long) Integer.MAX_VALUE),
                 bundleFactory);
         ResourceQuota quota2 = new ResourceQuota();

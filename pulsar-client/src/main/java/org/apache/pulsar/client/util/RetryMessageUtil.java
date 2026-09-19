@@ -31,4 +31,12 @@ public class RetryMessageUtil {
     public static final int MAX_RECONSUMETIMES = 16;
     public static final String RETRY_GROUP_TOPIC_SUFFIX = "-RETRY";
     public static final String DLQ_GROUP_TOPIC_SUFFIX = "-DLQ";
+
+    public static String getRetryTopic(String topic, String subscription) {
+        return topic + "-" + subscription + RETRY_GROUP_TOPIC_SUFFIX;
+    }
+
+    public static String getDLQTopic(String topic, String subscription) {
+        return topic + "-" + subscription + DLQ_GROUP_TOPIC_SUFFIX;
+    }
 }

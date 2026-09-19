@@ -23,9 +23,9 @@ import static org.mockito.Mockito.spy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -33,7 +33,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.TopicType;
 
-@Slf4j
+@CustomLog
 public abstract class OwnerShipForCurrentServerTestBase {
 
     public static final String CLUSTER_NAME = "test";
@@ -75,7 +75,6 @@ public abstract class OwnerShipForCurrentServerTestBase {
             conf.setConfigurationMetadataStoreUrl("zk:localhost:3181");
             conf.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
             conf.setBookkeeperClientExposeStatsToPrometheus(true);
-            conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
 
             conf.setBrokerShutdownTimeoutMs(0L);
             conf.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
@@ -113,7 +112,7 @@ public abstract class OwnerShipForCurrentServerTestBase {
                 pulsarClient = null;
             }
             if (pulsarTestContexts.size() > 0) {
-                for(int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
+                for (int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
                     pulsarTestContexts.get(i).close();
                 }
                 pulsarTestContexts.clear();
@@ -124,7 +123,7 @@ public abstract class OwnerShipForCurrentServerTestBase {
             }
 
         } catch (Exception e) {
-            log.warn("Failed to clean up mocked pulsar service:", e);
+            log.warn().exception(e).log("Failed to clean up mocked pulsar service");
         }
     }
 }

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.schema.generic;
 
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
@@ -40,10 +41,16 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
     protected GenericSchemaImpl(SchemaInfo schemaInfo) {
         super(schemaInfo);
 
-        this.fields = schema.getFields()
-                .stream()
-                .map(f -> new Field(f.name(), f.pos()))
-                .collect(Collectors.toList());
+        try {
+            this.fields = schema.getFields()
+                    .stream()
+                    .map(f -> new Field(f.name(), f.pos()))
+                    .collect(Collectors.toList());
+        } catch (AvroRuntimeException avroRuntimeException) {
+            // Rewrite error log.
+            throw new AvroRuntimeException("Schema typed [" + schema.getClass().getName() + "], simple-type:["
+                    + schema.getType() + "] is not supported. schema-content: " + schema);
+        }
     }
 
     @Override

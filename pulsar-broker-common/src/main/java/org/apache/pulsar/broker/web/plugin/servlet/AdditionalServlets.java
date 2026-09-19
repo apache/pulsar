@@ -21,8 +21,8 @@ package org.apache.pulsar.broker.web.plugin.servlet;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Map;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -30,7 +30,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 /**
  * A collection of loaded additional servlets.
  */
-@Slf4j
+@CustomLog
 public class AdditionalServlets implements AutoCloseable {
 
     private static final String ADDITIONAL_SERVLET_DIRECTORY = "additionalServletDirectory";
@@ -102,9 +102,9 @@ public class AdditionalServlets implements AutoCloseable {
                 if (servletWithClassLoader != null) {
                     builder.put(servletName, servletWithClassLoader);
                 }
-                log.info("Successfully loaded additional servlet for name `{}`", servletName);
+                log.info().attr("servlet", servletName).log("Successfully loaded additional servlet");
             } catch (IOException e) {
-                log.error("Failed to load the additional servlet for name `" + servletName + "`", e);
+                log.error().attr("servlet", servletName).exception(e).log("Failed to load the additional servlet");
                 throw new RuntimeException("Failed to load the additional servlet for name `" + servletName + "`");
             }
         }

@@ -21,10 +21,12 @@ package org.apache.pulsar.client.cli;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import java.util.Properties;
+import lombok.Getter;
 import picocli.CommandLine.PropertiesDefaultProvider;
 
 class PulsarClientPropertiesProvider extends PropertiesDefaultProvider {
     private static final String brokerServiceUrlKey = "brokerServiceUrl";
+    @Getter
     private final Properties properties;
 
     private PulsarClientPropertiesProvider(Properties properties) {

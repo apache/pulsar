@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -159,7 +160,7 @@ public class PerformanceBaseArgumentsTest {
             args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
             try {
                 args.parse(new String[]{});
-            }catch (CommandLine.ParameterException e){
+            } catch (CommandLine.ParameterException e){
                 calledVar2.set(true);
             }
             Assert.assertTrue(calledVar2.get());
@@ -208,7 +209,7 @@ public class PerformanceBaseArgumentsTest {
             baseArgument.parseCLI();
             baseArgument.getCommander().execute(cliArgs);
 
-            // Assert 
+            // Assert
             assertEquals(baseArgument.memoryLimit, expectedMemoryLimit);
         }
     }
@@ -249,7 +250,40 @@ public class PerformanceBaseArgumentsTest {
             // Act
             baseArgument.parseCLI();
 
-            // Assert 
+            // Assert
+            assertEquals(baseArgument.memoryLimit, PerformanceBaseArguments.DEFAULT_MEMORY_LIMIT_BYTES);
+            assertEquals(baseArgument.memoryLimit, (long) (0.5d * DirectMemoryUtils.jvmMaxDirectMemory()));
+        }
+    }
+
+    @Test
+    public void testMemoryLimitCanBeDisabled() throws Exception {
+        for (String cmd : List.of(
+                "pulsar-perf read",
+                "pulsar-perf produce",
+                "pulsar-perf consume",
+                "pulsar-perf transaction"
+        )) {
+            // Arrange
+            final PerformanceBaseArguments baseArgument = new PerformanceBaseArguments("") {
+                @Override
+                public void run() throws Exception {
+
+                }
+
+            };
+            String confFile = "./src/test/resources/perf_client1.conf";
+            Properties prop = new Properties(System.getProperties());
+            try (FileInputStream fis = new FileInputStream(confFile)) {
+                prop.load(fis);
+            }
+            baseArgument.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+            baseArgument.parse(new String[]{"-ml", "0"});
+
+            // Act
+            baseArgument.parseCLI();
+
+            // Assert
             assertEquals(baseArgument.memoryLimit, 0L);
         }
     }

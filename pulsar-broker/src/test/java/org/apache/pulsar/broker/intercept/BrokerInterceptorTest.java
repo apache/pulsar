@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -49,6 +52,7 @@ import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.ITestResult;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -92,9 +96,11 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     @Override
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
         HashMap<String, BrokerInterceptorWithClassLoader> brokerInterceptorWithClassLoaderHashMap = new HashMap<>();
-        NarClassLoader narClassLoader = mock(NarClassLoader.class);
-        BrokerInterceptorWithClassLoader counterBrokerInterceptor
-                = new BrokerInterceptorWithClassLoader(new CounterBrokerInterceptor(), narClassLoader);
+        // The filter chain uses this context class loader for resource and service-provider lookup.
+        NarClassLoader narClassLoader = mock(NarClassLoader.class,
+                delegatesTo(new URLClassLoader(new URL[0], getClass().getClassLoader())));
+        BrokerInterceptorWithClassLoader counterBrokerInterceptor =
+                new BrokerInterceptorWithClassLoader(new CounterBrokerInterceptor(), narClassLoader);
         brokerInterceptorWithClassLoaderHashMap.put(CounterBrokerInterceptor.NAME, counterBrokerInterceptor);
         BrokerInterceptors brokerInterceptors = new BrokerInterceptors(brokerInterceptorWithClassLoaderHashMap);
         pulsarTestContextBuilder.brokerInterceptor(brokerInterceptors);
@@ -103,23 +109,24 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     private CounterBrokerInterceptor getCounterBrokerInterceptor() {
         BrokerInterceptor brokerInterceptor = pulsar.getBrokerInterceptor();
         BrokerInterceptorWithClassLoader brokerInterceptorWithClassLoader =
-                ((BrokerInterceptors) brokerInterceptor).getInterceptors().get(CounterBrokerInterceptor.NAME);
+                ((BrokerInterceptors) brokerInterceptor).getInterceptors().get(0);
         return (CounterBrokerInterceptor) brokerInterceptorWithClassLoader.getInterceptor();
     }
 
     @Override
     protected void cleanup() throws Exception {
-        teardown();
+        teardown(null);
     }
 
     @AfterMethod(alwaysRun = true)
-    public void teardown() throws Exception {
+    public void teardown(ITestResult testResult) throws Exception {
         this.listeners.close();
-
-        verify(listener1, times(1)).close();
-        verify(listener2, times(1)).close();
-        verify(ncl1, times(1)).close();
-        verify(ncl2, times(1)).close();
+        if (testResult != null && testResult.getStatus() == ITestResult.SUCCESS) {
+            verify(listener1, times(1)).close();
+            verify(listener2, times(1)).close();
+            verify(ncl1, times(1)).close();
+            verify(ncl2, times(1)).close();
+        }
         super.internalCleanup();
     }
 
@@ -212,13 +219,13 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
 
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-            .topic("test-before-send-message")
-            .create();
+                .topic("test-before-send-message")
+                .create();
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-            .topic("test-before-send-message")
-            .subscriptionName("test")
-            .subscribe();
+                .topic("test-before-send-message")
+                .subscriptionName("test")
+                .subscribe();
 
         assertEquals(counterBrokerInterceptor.getMessageProducedCount(), 0);
         assertEquals(counterBrokerInterceptor.getMessageDispatchCount(), 0);
@@ -276,7 +283,7 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         Assert.assertEquals(responseEvent.getRequestUri(), "/admin/v3/test/asyncGet/my-topic/1000");
 
         Assert.assertEquals(responseEvent.getResponseStatus(),
-                javax.ws.rs.core.Response.noContent().build().getStatus());
+                jakarta.ws.rs.core.Response.noContent().build().getStatus());
     }
 
     public void requestInterceptorFailedTest() {

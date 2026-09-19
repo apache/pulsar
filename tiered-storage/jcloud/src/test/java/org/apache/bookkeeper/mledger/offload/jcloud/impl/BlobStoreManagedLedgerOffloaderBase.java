@@ -26,6 +26,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
@@ -39,10 +40,11 @@ import org.testng.annotations.AfterMethod;
 public abstract class BlobStoreManagedLedgerOffloaderBase {
 
     public static final String BUCKET = "pulsar-unittest";
-    protected static final int DEFAULT_BLOCK_SIZE = 5*1024*1024;
-    protected static final int DEFAULT_READ_BUFFER_SIZE = 1*1024*1024;
+    protected static final int DEFAULT_BLOCK_SIZE = 5 * 1024 * 1024;
+    protected static final int DEFAULT_READ_BUFFER_SIZE = 1 * 1024 * 1024;
 
     protected final OrderedScheduler scheduler;
+    protected final OrderedExecutor bkExecutor;
     protected final PulsarMockBookKeeper bk;
     protected final JCloudBlobStoreProvider provider;
     protected TieredStorageConfiguration config;
@@ -51,7 +53,9 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
 
     protected BlobStoreManagedLedgerOffloaderBase() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(5).name("offloader").build();
-        bk = new PulsarMockBookKeeper(scheduler);
+        // The mock BookKeeper client needs an OrderedExecutor (not an OrderedScheduler) as its main worker pool.
+        bkExecutor = OrderedExecutor.newBuilder().numThreads(1).name("offloader-bk").build();
+        bk = new PulsarMockBookKeeper(bkExecutor);
         provider = getBlobStoreProvider();
     }
 
@@ -65,6 +69,7 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
     public void cleanup() throws Exception {
         entryOffsetsCache.close();
         scheduler.shutdownNow();
+        bkExecutor.shutdownNow();
     }
 
     protected static MockManagedLedger createMockManagedLedger() {
@@ -141,15 +146,15 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
     protected ReadHandle buildReadHandle(int maxBlockSize, int blockCount) throws Exception {
         Assert.assertTrue(maxBlockSize > DataBlockHeaderImpl.getDataStartOffset());
 
-        LedgerHandle lh = bk.createLedger(1,1,1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
+        LedgerHandle lh = bk.createLedger(1, 1, 1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
 
         int i = 0;
         int bytesWrittenCurrentBlock = DataBlockHeaderImpl.getDataStartOffset();
         int blocksWritten = 1;
 
         while (blocksWritten < blockCount
-               || bytesWrittenCurrentBlock < maxBlockSize/2) {
-            byte[] entry = ("foobar"+i).getBytes();
+               || bytesWrittenCurrentBlock < maxBlockSize / 2) {
+            byte[] entry = ("foobar" + i).getBytes();
             int sizeInBlock = entry.length + 12 /* ENTRY_HEADER_SIZE */;
 
             if (bytesWrittenCurrentBlock + sizeInBlock > maxBlockSize) {

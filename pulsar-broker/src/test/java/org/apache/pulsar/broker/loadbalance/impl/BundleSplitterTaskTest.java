@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadData;
@@ -35,22 +38,18 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
 /**
  * @author hezhangjian
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class BundleSplitterTaskTest {
 
-    public final static String CA_CERT_FILE_PATH =
+    public static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    public final static String BROKER_CERT_FILE_PATH =
+    public static final String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    public final static String BROKER_KEY_FILE_PATH =
+    public static final String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
 
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -60,7 +59,7 @@ public class BundleSplitterTaskTest {
     @BeforeMethod
     void setup() throws Exception {
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
         // Start broker
         ServiceConfiguration config = new ServiceConfiguration();

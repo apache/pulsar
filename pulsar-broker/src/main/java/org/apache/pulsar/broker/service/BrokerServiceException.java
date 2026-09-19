@@ -188,6 +188,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class NotAuthorizedException extends BrokerServiceException {
+        public NotAuthorizedException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class SubscriptionInvalidCursorPosition extends BrokerServiceException {
         public SubscriptionInvalidCursorPosition(String msg) {
             super(msg);
@@ -218,6 +224,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class ConnectionClosedException extends BrokerServiceException {
+        public ConnectionClosedException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class TopicBacklogQuotaExceededException extends BrokerServiceException {
         @Getter
         private final BacklogQuota.RetentionPolicy retentionPolicy;
@@ -225,12 +237,6 @@ public class BrokerServiceException extends Exception {
         public TopicBacklogQuotaExceededException(BacklogQuota.RetentionPolicy retentionPolicy) {
             super("Cannot create producer on topic with backlog quota exceeded");
             this.retentionPolicy = retentionPolicy;
-        }
-    }
-
-    public static class UnauthorizedException extends BrokerServiceException {
-        public UnauthorizedException(String msg) {
-            super(msg);
         }
     }
 
@@ -277,6 +283,8 @@ public class BrokerServiceException extends Exception {
             return ServerError.InvalidTxnStatus;
         } else if (t instanceof NotAllowedException) {
             return ServerError.NotAllowedError;
+        } else if (t instanceof NotAuthorizedException) {
+            return ServerError.AuthorizationError;
         } else if (t instanceof ProducerFencedException) {
             return ServerError.ProducerFenced;
         } else if (t instanceof TransactionConflictException) {

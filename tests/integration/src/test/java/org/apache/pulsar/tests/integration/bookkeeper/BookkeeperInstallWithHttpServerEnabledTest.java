@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.tests.integration.bookkeeper;
 
-import lombok.extern.slf4j.Slf4j;
+import static java.util.stream.Collectors.joining;
+import static org.testng.Assert.assertEquals;
+import java.util.stream.Stream;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
@@ -27,15 +30,10 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import java.util.stream.Stream;
-
-import static java.util.stream.Collectors.joining;
-import static org.testng.Assert.assertEquals;
-
 /**
  * Test bookkeeper setup with http server enabled.
  */
-@Slf4j
+@CustomLog
 public class BookkeeperInstallWithHttpServerEnabledTest extends PulsarClusterTestBase {
 
     @BeforeClass(alwaysRun = true)
@@ -56,13 +54,16 @@ public class BookkeeperInstallWithHttpServerEnabledTest extends PulsarClusterTes
                 .clusterName(clusterName)
                 .build();
 
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+        log.info()
+                .attr("cluster", spec.clusterName())
+                .attr("with", spec.numBookies())
+                .attr("bookies", spec.numBrokers())
+                .log("Setting up cluster with bookies, brokers");
 
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
-        log.info("Cluster {} is setup", spec.clusterName());
+        log.info().attr("cluster", spec.clusterName()).log("Cluster is setup");
     }
 
     @AfterClass(alwaysRun = true)
@@ -80,5 +81,15 @@ public class BookkeeperInstallWithHttpServerEnabledTest extends PulsarClusterTes
                 "http://localhost:8000/heartbeat");
         assertEquals(result.getExitCode(), 0);
         assertEquals(result.getStdout(), "OK\n");
+    }
+
+    @Test
+    public void testGetBookieMetrics() throws Exception {
+        ContainerExecResult result = pulsarCluster.getAnyBookie().execCmd(
+                PulsarCluster.CURL,
+                "-X",
+                "GET",
+                "http://localhost:8000/metrics");
+        assertEquals(result.getExitCode(), 0);
     }
 }

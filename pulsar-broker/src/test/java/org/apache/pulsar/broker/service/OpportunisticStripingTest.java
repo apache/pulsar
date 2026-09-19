@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertTrue;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.api.BookKeeper;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
@@ -26,8 +28,6 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertTrue;
 import org.testng.annotations.Test;
 
 /**
@@ -54,6 +54,7 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
         config.getProperties().setProperty("bookkeeper_opportunisticStriping", "true");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testOpportunisticStriping() throws Exception {
 
@@ -62,7 +63,7 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();) {
 
-            final String ns1 = "prop/usc/opportunistic1";
+            final String ns1 = "prop/opportunistic1";
             admin.namespaces().createNamespace(ns1);
 
             final String topic1 = "persistent://" + ns1 + "/my-topic";

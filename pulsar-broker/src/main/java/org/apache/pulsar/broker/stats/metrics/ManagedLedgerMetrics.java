@@ -52,8 +52,7 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
         this.metricsCollection = new ArrayList<>();
         this.ledgersByDimensionMap = new HashMap<>();
         this.tempAggregatedMetricsMap = new HashMap<>();
-        this.statsPeriodSeconds = pulsar.getManagedLedgerFactory()
-                .getConfig().getStatsPeriodSeconds();
+        this.statsPeriodSeconds = pulsar.getDefaultManagedLedgerFactory().getConfig().getStatsPeriodSeconds();
     }
 
     @Override

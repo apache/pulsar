@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.client.api.url.URL;
 
+@SuppressWarnings("deprecation")
 public class AuthenticationProviderBasic implements AuthenticationProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
     private static final String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";

@@ -31,7 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -50,7 +50,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
-@Slf4j
+@CustomLog
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     @Override
@@ -126,6 +126,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setBusyWaitEnabled(conf.isEnableBusyWait());
         bkConf.setNumWorkerThreads(conf.getBookkeeperClientNumWorkerThreads());
         bkConf.setThrottleValue(conf.getBookkeeperClientThrottleValue());
+        bkConf.setZkTimeout((int) conf.getMetadataStoreSessionTimeoutMillis());
         bkConf.setAddEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setReadEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setSpeculativeReadTimeout(conf.getBookkeeperClientSpeculativeReadTimeoutInMillis());
@@ -163,7 +164,10 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setNumIOThreads(conf.getBookkeeperClientNumIoThreads());
         PropertiesUtils.filterAndMapProperties(conf.getProperties(), "bookkeeper_")
                 .forEach((key, value) -> {
-                    log.info("Applying BookKeeper client configuration setting {}={}", key, value);
+                    log.info()
+                            .attr("key", key)
+                            .attr("value", value)
+                            .log("Applying BookKeeper client configuration setting");
                     bkConf.setProperty(key, value);
                 });
         return bkConf;

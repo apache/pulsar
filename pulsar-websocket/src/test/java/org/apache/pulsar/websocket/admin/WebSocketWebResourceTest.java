@@ -22,36 +22,33 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
-import java.lang.reflect.Method;
-
-import javax.naming.AuthenticationException;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriInfo;
-
 import com.google.common.collect.Sets;
-
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriInfo;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import javax.naming.AuthenticationException;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.RestException;
+import org.apache.pulsar.websocket.WebSocketService;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.RestException;
-import org.apache.pulsar.websocket.WebSocketService;
 
 public class WebSocketWebResourceTest {
 
@@ -60,6 +57,8 @@ public class WebSocketWebResourceTest {
     private static final String UNAUTHORIZED_USER = "unauthorized";
 
     private TopicName topicName;
+    private AutoCloseable mockAnnotations;
+    private final List<Object> ownedMocks = new ArrayList<>();
 
     @InjectMocks
     @Spy
@@ -71,9 +70,14 @@ public class WebSocketWebResourceTest {
     @Mock
     private UriInfo uri;
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setup(Method method) throws Exception {
-        MockitoAnnotations.openMocks(this);
+        mockAnnotations = MockitoAnnotations.openMocks(this);
+        ownedMocks.add(webResource);
+        ownedMocks.add(servletContext);
+        ownedMocks.add(httpRequest);
+        ownedMocks.add(uri);
 
         ServiceConfiguration config = new ServiceConfiguration();
         config.setSuperUserRoles(Sets.newHashSet(SUPER_USER));
@@ -128,12 +132,35 @@ public class WebSocketWebResourceTest {
         // Mock UriInfo
         when(uri.getRequestUri()).thenReturn(null);
 
-        topicName = TopicName.get("persistent://tenant/cluster/ns/dest");
+        topicName = TopicName.get("persistent://tenant/ns/dest");
     }
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() throws Exception {
-        this.webResource = null;
+        try {
+            Mockito.reset(ownedMocks.toArray());
+        } finally {
+            try {
+                ownedMocks.forEach(mock -> Mockito.framework().clearInlineMock(mock));
+                if (mockAnnotations != null) {
+                    mockAnnotations.close();
+                }
+            } finally {
+                ownedMocks.clear();
+                mockAnnotations = null;
+                webResource = null;
+                servletContext = null;
+                httpRequest = null;
+                uri = null;
+                topicName = null;
+            }
+        }
+    }
+
+    private <T> T mock(Class<T> type) {
+        T mock = Mockito.mock(type);
+        ownedMocks.add(mock);
+        return mock;
     }
 
     @Test

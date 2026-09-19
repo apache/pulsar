@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
+
+/*
  * This class was adapted from NiFi NAR Utils
  * https://github.com/apache/nifi/tree/master/nifi-nar-bundles/nifi-framework-bundle/nifi-framework/nifi-nar-utils
  */
@@ -33,16 +34,13 @@ import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * <p>
@@ -124,7 +122,7 @@ import lombok.extern.slf4j.Slf4j;
  * NAR.
  * </p>
  */
-@Slf4j
+@CustomLog
 public class NarClassLoader extends URLClassLoader {
 
     private static final FileFilter JAR_FILTER = pathname -> {
@@ -147,13 +145,7 @@ public class NarClassLoader extends URLClassLoader {
                                                 String narExtractionDirectory)
         throws IOException {
         File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
-        return AccessController.doPrivileged(new PrivilegedAction<NarClassLoader>() {
-            @SneakyThrows
-            @Override
-            public NarClassLoader run() {
-                return new NarClassLoader(unpacked, additionalJars, parent);
-            }
-        });
+        return new NarClassLoader(unpacked, additionalJars, parent);
     }
 
     public static List<File> getClasspathFromArchive(File narPath, String narExtractionDirectory) throws IOException {
@@ -188,9 +180,7 @@ public class NarClassLoader extends URLClassLoader {
             }
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("Created class loader with paths: {}", Arrays.toString(getURLs()));
-        }
+        log.debug().attr("paths", () -> Arrays.toString(getURLs())).log("Created class loader with paths");
     }
 
     public File getWorkingDirectory() {
@@ -244,7 +234,7 @@ public class NarClassLoader extends URLClassLoader {
             try {
                 addURL(f.toURI().toURL());
             } catch (IOException e) {
-                log.error("Failed to add entry to classpath: {}", f, e);
+                log.error().attr("entry", f).exception(e).log("Failed to add entry to classpath");
             }
         });
     }
@@ -254,7 +244,7 @@ public class NarClassLoader extends URLClassLoader {
         classPathEntries.add(root);
         File dependencies = new File(root, "META-INF/bundled-dependencies");
         if (!dependencies.isDirectory()) {
-            log.warn("{} does not contain META-INF/bundled-dependencies!", root);
+            log.warn().attr("root", root).log("does not contain META-INF/bundled-dependencies!");
         }
         classPathEntries.add(dependencies);
         if (dependencies.isDirectory()) {
@@ -271,7 +261,7 @@ public class NarClassLoader extends URLClassLoader {
     protected String findLibrary(final String libname) {
         File dependencies = new File(narWorkingDirectory, "META-INF/bundled-dependencies");
         if (!dependencies.isDirectory()) {
-            log.warn("{} does not contain META-INF/bundled-dependencies!", narWorkingDirectory);
+            log.warn().attr("directory", narWorkingDirectory).log("does not contain META-INF/bundled-dependencies!");
         }
 
         final File nativeDir = new File(dependencies, "native");
@@ -298,7 +288,7 @@ public class NarClassLoader extends URLClassLoader {
     @Override
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
         if (closed.get()) {
-            log.warn("Loading class {} from a closed classloader ({})", name, this);
+            log.warn().attr("class", name).attr("classloader", this).log("Loading class from a closed classloader");
         }
         return super.loadClass(name, resolve);
     }

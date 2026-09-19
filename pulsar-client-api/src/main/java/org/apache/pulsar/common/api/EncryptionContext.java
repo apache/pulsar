@@ -39,6 +39,8 @@ public class EncryptionContext {
     private CompressionType compressionType;
     private int uncompressedMessageSize;
     private Optional<Integer> batchSize;
+    // Indicates whether the message payload remains encrypted (true) or has been successfully decrypted (false)
+    private boolean isEncrypted;
 
     /**
      * Encryption key with metadata.

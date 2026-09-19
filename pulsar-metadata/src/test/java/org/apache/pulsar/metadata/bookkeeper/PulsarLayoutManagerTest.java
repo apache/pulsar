@@ -24,7 +24,7 @@ import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.meta.LayoutManager;
 import org.apache.bookkeeper.meta.LayoutManager.LedgerLayoutExistsException;
 import org.apache.bookkeeper.meta.LedgerLayout;
@@ -34,7 +34,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarLayoutManagerTest extends BaseMetadataStoreTest {
 
     private static final int managerVersion = 0xabcd;

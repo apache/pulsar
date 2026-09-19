@@ -33,10 +33,10 @@ import io.netty.handler.codec.socksx.v5.DefaultSocks5CommandResponse;
 import io.netty.handler.codec.socksx.v5.Socks5AddressType;
 import io.netty.handler.codec.socksx.v5.Socks5CommandStatus;
 import io.netty.handler.codec.socksx.v5.Socks5CommandType;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.socks5.Socks5Server;
 
-@Slf4j
+@CustomLog
 public class CommandRequestHandler extends SimpleChannelInboundHandler<DefaultSocks5CommandRequest> {
 
     private final Socks5Server socks5Server;
@@ -46,7 +46,8 @@ public class CommandRequestHandler extends SimpleChannelInboundHandler<DefaultSo
     }
 
     @Override
-    protected void channelRead0(final ChannelHandlerContext clientChannelContext, DefaultSocks5CommandRequest msg) throws Exception {
+    protected void channelRead0(final ChannelHandlerContext clientChannelContext, DefaultSocks5CommandRequest msg)
+            throws Exception {
         if (Socks5CommandType.CONNECT.equals(msg.type())) {
             Bootstrap bootstrap = new Bootstrap();
             bootstrap.group(socks5Server.getBoss())
@@ -63,13 +64,13 @@ public class CommandRequestHandler extends SimpleChannelInboundHandler<DefaultSo
 
                 public void operationComplete(final ChannelFuture future) throws Exception {
                     if (future.isSuccess()) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("connected : {} {}", msg.dstAddr(), msg.dstPort());
-                        }
+                        log.debug().attr("dstAddr", msg.dstAddr()).attr("dstPort", msg.dstPort()).log("Connected");
                         clientChannelContext.pipeline().addLast(new TargetHandler(future));
-                        clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(Socks5CommandStatus.SUCCESS, Socks5AddressType.IPv4));
+                        clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(
+                                Socks5CommandStatus.SUCCESS, Socks5AddressType.IPv4));
                     } else {
-                        clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(Socks5CommandStatus.FAILURE, Socks5AddressType.IPv4));
+                        clientChannelContext.writeAndFlush(new DefaultSocks5CommandResponse(
+                                Socks5CommandStatus.FAILURE, Socks5AddressType.IPv4));
                     }
                 }
             });

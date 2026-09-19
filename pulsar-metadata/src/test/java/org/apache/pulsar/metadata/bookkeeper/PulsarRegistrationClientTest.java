@@ -39,11 +39,13 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.bookkeeper.discover.*;
+import org.apache.bookkeeper.discover.BookieServiceInfo;
+import org.apache.bookkeeper.discover.RegistrationClient;
+import org.apache.bookkeeper.discover.RegistrationManager;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.versioning.Version;
@@ -58,7 +60,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test of {@link RegistrationManager}.
  */
-@Slf4j
+@CustomLog
 public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
     private static Set<BookieId> prepareNBookies(int num) {
@@ -338,8 +340,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
             b.getValue().forEach(x -> bookies.put(x, true));
         };
 
-        int BOOKIES = 10;
-        Set<BookieId> addresses = prepareNBookies(BOOKIES);
+        int expectedBookies = 10;
+        Set<BookieId> addresses = prepareNBookies(expectedBookies);
 
         if (isWritable) {
             result(rc.watchWritableBookies(listener));
@@ -353,11 +355,12 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         Awaitility.await().untilAsserted(() -> {
             assertFalse(updates.isEmpty());
-            assertEquals(bookies.size(), BOOKIES);
+            assertEquals(bookies.size(), expectedBookies);
         });
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testNetworkDelayWithBkZkManager() throws Throwable {
         final String zksConnectionString = zks.getConnectionString();
@@ -367,7 +370,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         ZooKeeper zk = new ZooKeeper(zksConnectionString, 5000, null);
         final ServerConfiguration serverConfiguration = new ServerConfiguration();
         serverConfiguration.setZkLedgersRootPath(ledgersRoot);
-        final FaultInjectableZKRegistrationManager rm = new FaultInjectableZKRegistrationManager(serverConfiguration, zk);
+        final FaultInjectableZKRegistrationManager rm =
+                new FaultInjectableZKRegistrationManager(serverConfiguration, zk);
         rm.prepareFormat();
         // prepare registration client
         @Cleanup

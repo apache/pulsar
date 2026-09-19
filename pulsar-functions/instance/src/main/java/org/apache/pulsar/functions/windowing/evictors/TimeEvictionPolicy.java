@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.windowing.evictors;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.windowing.Event;
 import org.apache.pulsar.functions.windowing.EvictionContext;
 import org.apache.pulsar.functions.windowing.EvictionPolicy;
@@ -26,7 +26,7 @@ import org.apache.pulsar.functions.windowing.EvictionPolicy;
 /**
  * Eviction policy that evicts events based on time duration.
  */
-@Slf4j
+@CustomLog
 public class TimeEvictionPolicy<T> implements EvictionPolicy<T, EvictionContext> {
 
     private final long windowLength;
@@ -76,9 +76,10 @@ public class TimeEvictionPolicy<T> implements EvictionPolicy<T, EvictionContext>
                 delta = context.getReferenceTime() - prevContext.getReferenceTime()
                         - context.getSlidingInterval();
                 if (Math.abs(delta) > 100) {
-                    log.warn(String.format("Possible clock drift or long running computation in window; "
-                            + "Previous eviction time: %s, current eviction time: %s", prevContext
-                            .getReferenceTime(), context.getReferenceTime()));
+                    log.warn()
+                            .attr("previousEvictionTime", prevContext.getReferenceTime())
+                            .attr("currentEvictionTime", context.getReferenceTime())
+                            .log("Possible clock drift or long running computation in window");
                 }
             }
         }

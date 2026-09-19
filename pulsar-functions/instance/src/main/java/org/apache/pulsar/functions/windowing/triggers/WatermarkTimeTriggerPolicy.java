@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.windowing.triggers;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.windowing.DefaultEvictionContext;
 import org.apache.pulsar.functions.windowing.Event;
 import org.apache.pulsar.functions.windowing.EvictionPolicy;
@@ -30,7 +30,7 @@ import org.apache.pulsar.functions.windowing.WindowManager;
  * Handles watermark events and triggers {@link TriggerHandler#onTrigger()} for each window
  * interval that has events to be processed up to the watermark ts.
  */
-@Slf4j
+@CustomLog
 public class WatermarkTimeTriggerPolicy<T> implements TriggerPolicy<T, Long> {
     private final long slidingIntervalMs;
     private final TriggerHandler handler;
@@ -80,9 +80,10 @@ public class WatermarkTimeTriggerPolicy<T> implements TriggerPolicy<T, Long> {
     private void handleWaterMarkEvent(Event<T> event) {
         long watermarkTs = event.getTimestamp();
         long windowEndTs = nextWindowEndTs;
-        if (log.isDebugEnabled()) {
-            log.debug("Window end ts {} Watermark ts {}", windowEndTs, watermarkTs);
-        }
+        log.debug()
+                .attr("windowEndTs", windowEndTs)
+                .attr("watermarkTs", watermarkTs)
+                .log("Window end ts and Watermark ts");
         while (windowEndTs <= watermarkTs) {
             long currentCount = windowManager.getEventCount(windowEndTs);
             evictionPolicy.setContext(new DefaultEvictionContext(windowEndTs, currentCount));
@@ -95,14 +96,14 @@ public class WatermarkTimeTriggerPolicy<T> implements TriggerPolicy<T, Long> {
                  * window intervals based on event ts.
                  */
                 long ts = getNextAlignedWindowTs(windowEndTs, watermarkTs);
-                if (log.isDebugEnabled()) {
-                    log.debug("Next aligned window end ts {}", ts);
-                }
+                log.debug()
+                        .attr("nextAlignedWindowEndTs", ts)
+                        .log("Next aligned window end ts");
                 if (ts == Long.MAX_VALUE) {
-                    if (log.isDebugEnabled()) {
-                        log.debug("No events to process between {} and watermark ts {}",
-                                windowEndTs, watermarkTs);
-                    }
+                    log.debug()
+                            .attr("windowEndTs", windowEndTs)
+                            .attr("watermarkTs", watermarkTs)
+                            .log("No events to process between window end and watermark");
                     break;
                 }
                 windowEndTs = ts;

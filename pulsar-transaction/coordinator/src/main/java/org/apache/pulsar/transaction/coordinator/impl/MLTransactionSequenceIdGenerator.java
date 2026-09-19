@@ -22,19 +22,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Store max sequenceID in ManagedLedger properties, in order to recover transaction log.
  */
+@CustomLog
 public class MLTransactionSequenceIdGenerator implements ManagedLedgerInterceptor {
-
-    private static final Logger log = LoggerFactory.getLogger(MLTransactionSequenceIdGenerator.class);
     private static final long TC_ID_NOT_USED = -1L;
     public static final String MAX_LOCAL_TXN_ID = "max_local_txn_id";
     private final AtomicLong sequenceId = new AtomicLong(TC_ID_NOT_USED);

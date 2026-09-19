@@ -19,28 +19,36 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Objects;
+import lombok.SneakyThrows;
 import lombok.ToString;
 
 /**
  * Configuration of bookkeeper persistence policies.
  */
 @ToString
-public class PersistencePolicies {
+public class PersistencePolicies implements Cloneable {
     private int bookkeeperEnsemble;
     private int bookkeeperWriteQuorum;
     private int bookkeeperAckQuorum;
     private double managedLedgerMaxMarkDeleteRate;
+    private String managedLedgerStorageClassName;
 
     public PersistencePolicies() {
-        this(2, 2, 2, 0.0);
+        this(2, 2, 2, -1, null);
     }
 
     public PersistencePolicies(int bookkeeperEnsemble, int bookkeeperWriteQuorum, int bookkeeperAckQuorum,
-            double managedLedgerMaxMarkDeleteRate) {
+                               double managedLedgerMaxMarkDeleteRate) {
+        this(bookkeeperEnsemble, bookkeeperWriteQuorum, bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate, null);
+    }
+
+    public PersistencePolicies(int bookkeeperEnsemble, int bookkeeperWriteQuorum, int bookkeeperAckQuorum,
+            double managedLedgerMaxMarkDeleteRate, String managedLedgerStorageClassName) {
         this.bookkeeperEnsemble = bookkeeperEnsemble;
         this.bookkeeperWriteQuorum = bookkeeperWriteQuorum;
         this.bookkeeperAckQuorum = bookkeeperAckQuorum;
         this.managedLedgerMaxMarkDeleteRate = managedLedgerMaxMarkDeleteRate;
+        this.managedLedgerStorageClassName = managedLedgerStorageClassName;
     }
 
     public int getBookkeeperEnsemble() {
@@ -59,10 +67,20 @@ public class PersistencePolicies {
         return managedLedgerMaxMarkDeleteRate;
     }
 
+    public String getManagedLedgerStorageClassName() {
+        return managedLedgerStorageClassName;
+    }
+
+    @SneakyThrows
+    @Override
+    protected PersistencePolicies clone() {
+        return PersistencePolicies.class.cast(super.clone());
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(bookkeeperEnsemble, bookkeeperWriteQuorum,
-                bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate);
+                bookkeeperAckQuorum, managedLedgerMaxMarkDeleteRate, managedLedgerStorageClassName);
     }
     @Override
     public boolean equals(Object obj) {
@@ -71,7 +89,8 @@ public class PersistencePolicies {
             return bookkeeperEnsemble == other.bookkeeperEnsemble
                     && bookkeeperWriteQuorum == other.bookkeeperWriteQuorum
                     && bookkeeperAckQuorum == other.bookkeeperAckQuorum
-                    && managedLedgerMaxMarkDeleteRate == other.managedLedgerMaxMarkDeleteRate;
+                    && managedLedgerMaxMarkDeleteRate == other.managedLedgerMaxMarkDeleteRate
+                    && managedLedgerStorageClassName == other.managedLedgerStorageClassName;
         }
 
         return false;

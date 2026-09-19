@@ -30,7 +30,7 @@ import java.util.function.Supplier;
 import lombok.Setter;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.functions.instance.stats.PrometheusTextFormat;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
 
 public class WorkerStatsManager {
 
@@ -307,14 +307,14 @@ public class WorkerStatsManager {
   private void generateLeaderMetrics(StringWriter stream) {
     if (isLeader.get()) {
 
-      List<Function.FunctionMetaData> metadata = functionMetaDataManager.getAllFunctionMetaData();
+      List<FunctionMetaData> metadata = functionMetaDataManager.getAllFunctionMetaData();
       // get total number functions
       long totalFunctions = metadata.size();
       writeMetric(TOTAL_FUNCTIONS_COUNT, totalFunctions, stream);
 
       // get total expected number of instances
       long totalInstances = 0;
-      for (Function.FunctionMetaData entry : metadata) {
+      for (FunctionMetaData entry : metadata) {
         totalInstances += entry.getFunctionDetails().getParallelism();
       }
       writeMetric(TOTAL_EXPECTED_INSTANCE_COUNT, totalInstances, stream);

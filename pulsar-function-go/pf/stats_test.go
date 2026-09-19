@@ -28,10 +28,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	prometheus_client "github.com/prometheus/client_model/go"
 )
@@ -196,7 +196,7 @@ func TestInstanceControlMetrics(t *testing.T) {
 	instance := newGoInstance()
 	t.Cleanup(instance.close)
 	instanceClient := instanceCommunicationClient(t, instance)
-	_, err := instanceClient.GetMetrics(context.Background(), &empty.Empty{})
+	_, err := instanceClient.GetMetrics(context.Background(), &emptypb.Empty{})
 	assert.NoError(t, err, "err communicating with instance control: %v", err)
 
 	testLabels := []string{"userMetricControlTest1", "userMetricControlTest2"}
@@ -209,7 +209,7 @@ func TestInstanceControlMetrics(t *testing.T) {
 	}
 	time.Sleep(time.Second)
 
-	metrics, err := instanceClient.GetMetrics(context.Background(), &empty.Empty{})
+	metrics, err := instanceClient.GetMetrics(context.Background(), &emptypb.Empty{})
 	assert.NoError(t, err, "err communicating with instance control: %v", err)
 	for value, label := range testLabels {
 		assert.Containsf(t, metrics.UserMetrics, label, "user metrics should contain metric %s", label)

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -29,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import lombok.CustomLog;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -38,22 +41,17 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.testng.Assert.assertEquals;
 
 /**
  * Test Mutual Authentication.
  * Test connect set success, and producer consumer works well.
  */
 @Test(groups = "broker-api")
+@CustomLog
 public class MutualAuthenticationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(MutualAuthenticationTest.class);
 
     private MutualAuthentication mutualAuth;
 
@@ -85,11 +83,12 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
                 throw new AuthenticationException();
             }
 
-            log.debug("authenticate in client. passed in :{}, send: {}",
-                dataString, new String(toSend.getBytes(), UTF_8));
+            log.debug().attr("passedIn", dataString).attr("send", new String(toSend.getBytes(), UTF_8))
+                    .log("authenticate in client. passed in , send");
             return toSend;
         }
     }
+    @SuppressWarnings("deprecation")
 
     public static class MutualAuthentication implements Authentication {
         @Override
@@ -121,7 +120,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
             // noop
         }
     }
-
+    @SuppressWarnings("deprecation")
 
     public static class MutualAuthenticationState implements AuthenticationState {
         private boolean isComplete = false;
@@ -145,8 +144,9 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
                 throw new AuthenticationException();
             }
 
-            log.debug("authenticate in server. passed in :{}, send: {}",
-                dataString, toSend.getBytes() == null ? "null" : new String(toSend.getBytes(), UTF_8));
+            log.debug().attr("passedIn", dataString)
+                    .attr("send", toSend.getBytes() == null ? "null" : new String(toSend.getBytes(), UTF_8))
+                    .log("authenticate in server. passed in , send");
             return toSend;
         }
 
@@ -160,6 +160,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
             return isComplete;
         }
     }
+    @SuppressWarnings("deprecation")
 
     public static class MutualAuthenticationProvider implements AuthenticationProvider {
         @Override
@@ -219,7 +220,7 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
 
     @Test
     public void testAuthentication() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         String topic = "persistent://my-property/my-ns/test-authentication";
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic)
@@ -238,13 +239,13 @@ public class MutualAuthenticationTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
         consumer.acknowledgeCumulative(msg);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test

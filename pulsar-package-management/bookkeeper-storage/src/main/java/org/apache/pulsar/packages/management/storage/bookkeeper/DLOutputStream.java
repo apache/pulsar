@@ -23,7 +23,7 @@ import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.distributedlog.LogRecord;
 import org.apache.distributedlog.api.AsyncLogWriter;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -31,12 +31,21 @@ import org.apache.distributedlog.api.DistributedLogManager;
 /**
  * DistributedLog Output Stream.
  */
-@Slf4j
+@CustomLog
 class DLOutputStream {
 
     private final DistributedLogManager distributedLogManager;
     private final AsyncLogWriter writer;
-    private final byte[] readBuffer = new byte[8192];
+    /*
+     * The LogRecord structure is:
+     * -------------------
+     * Bytes 0 - 7                      : Metadata (Long)
+     * Bytes 8 - 15                     : TxId (Long)
+     * Bytes 16 - 19                    : Payload length (Integer)
+     * Bytes 20 - 20+payload.length-1   : Payload (Byte[])
+     * So the max buffer size should be LogRecord.MAX_LOGRECORD_SIZE - 2 * (Long.SIZE / 8) - Integer.SIZE / 8
+     */
+    private final byte[] readBuffer = new byte[LogRecord.MAX_LOGRECORD_SIZE - 2 * (Long.SIZE / 8) - Integer.SIZE / 8];
     private long offset = 0L;
 
     private DLOutputStream(DistributedLogManager distributedLogManager, AsyncLogWriter writer) {
@@ -51,9 +60,10 @@ class DLOutputStream {
 
     private void writeAsyncHelper(InputStream is, CompletableFuture<DLOutputStream> result) {
         try {
-            int read = is.read(readBuffer);
-            if (read != -1) {
-                log.info("write something into the ledgers offset: {}, length: {}", offset, read);
+            int read = is.readNBytes(readBuffer, 0, readBuffer.length);
+            if (read > 0) {
+                log.debug().attr("offset", offset).attr("length", read)
+                        .log("Write something into the ledgers");
                 final ByteBuf writeBuf = Unpooled.wrappedBuffer(readBuffer, 0, read);
                 offset += writeBuf.readableBytes();
                 final LogRecord record = new LogRecord(offset, writeBuf);
@@ -66,7 +76,7 @@ class DLOutputStream {
                 result.complete(this);
             }
         } catch (IOException e) {
-            log.error("Failed to get all records from the input stream", e);
+            log.error().exception(e).log("Failed to get all records from the input stream");
             result.completeExceptionally(e);
         }
     }

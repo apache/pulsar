@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
+
+/*
  * RuntimeSpawner is the module responsible for running one particular instance servicing one
  * function. It is responsible for starting/stopping the instance and passing data to the
  * instance and getting the results back.
@@ -24,20 +25,18 @@
 package org.apache.pulsar.functions.runtime;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.utils.FunctionCommon;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionStatus;
 
-@Slf4j
+@CustomLog
 public class RuntimeSpawner implements AutoCloseable {
 
     @Getter
@@ -48,7 +47,7 @@ public class RuntimeSpawner implements AutoCloseable {
 
     @Getter
     private Runtime runtime;
-    private ScheduledFuture processLivenessCheckTimer;
+    private ScheduledFuture<?> processLivenessCheckTimer;
     private int numRestarts;
     private long instanceLivenessCheckFreqMs;
     private Throwable runtimeDeathException;
@@ -76,8 +75,11 @@ public class RuntimeSpawner implements AutoCloseable {
 
     public void start() throws Exception {
         FunctionDetails details = this.instanceConfig.getFunctionDetails();
-        log.info("{}/{}/{}-{} RuntimeSpawner starting function", details.getTenant(), details.getNamespace(),
-                details.getName(), this.instanceConfig.getInstanceId());
+        log.info().attr("tenant", details.getTenant())
+                .attr("namespace", details.getNamespace())
+                .attr("name", details.getName())
+                .attr("instanceId", this.instanceConfig.getInstanceId())
+                .log("RuntimeSpawner starting function");
 
         runtime.start();
 
@@ -87,17 +89,21 @@ public class RuntimeSpawner implements AutoCloseable {
                     .scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
                         Runtime runtime = RuntimeSpawner.this.runtime;
                         if (runtime != null && !runtime.isAlive()) {
-                            log.error("{}/{}/{} Function Container is dead with following exception. Restarting.",
-                                    details.getTenant(),
-                                    details.getNamespace(), details.getName(), runtime.getDeathException());
+                            log.error().attr("tenant", details.getTenant())
+                                    .attr("namespace", details.getNamespace())
+                                    .attr("name", details.getName())
+                                    .exception(runtime.getDeathException())
+                                    .log("Function Container is dead. Restarting");
                             // Just for the sake of sanity, just destroy the runtime
                             try {
                                 runtime.stop();
                                 runtimeDeathException = runtime.getDeathException();
                                 runtime.start();
                             } catch (Exception e) {
-                                log.error("{}/{}/{}-{} Function Restart failed", details.getTenant(),
-                                        details.getNamespace(), details.getName(), e, e);
+                                log.error().attr("tenant", details.getTenant())
+                                        .attr("namespace", details.getNamespace())
+                                        .attr("name", details.getName())
+                                        .exception(e).log("Function Restart failed");
                             }
                             numRestarts++;
                         }
@@ -117,24 +123,19 @@ public class RuntimeSpawner implements AutoCloseable {
             return FutureUtil.failedFuture(new IllegalStateException("Function runtime is not started yet"));
         }
         return runtime.getFunctionStatus(instanceId).thenApply(f -> {
-           FunctionStatus.Builder builder = FunctionStatus.newBuilder();
-           builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(String.valueOf(instanceId));
-            if (!f.getRunning() && runtimeDeathException != null) {
-                builder.setFailureException(runtimeDeathException.getMessage());
+            FunctionStatus status = new FunctionStatus();
+            status.copyFrom(f);
+            status.setNumRestarts(numRestarts);
+            status.setInstanceId(String.valueOf(instanceId));
+            if (!f.isRunning() && runtimeDeathException != null) {
+                status.setFailureException(runtimeDeathException.getMessage());
             }
-           return builder.build();
+            return status;
         });
     }
 
     public CompletableFuture<String> getFunctionStatusAsJson(int instanceId) {
-        return this.getFunctionStatus(instanceId).thenApply(msg -> {
-            try {
-                return FunctionCommon.printJson(msg);
-            } catch (IOException e) {
-                throw new RuntimeException(
-                        instanceConfig.getFunctionDetails().getName() + " Exception parsing getStatus", e);
-            }
-        });
+        return this.getFunctionStatus(instanceId).thenApply(msg -> msg.toString());
     }
 
     @Override
@@ -148,7 +149,7 @@ public class RuntimeSpawner implements AutoCloseable {
             try {
                 runtime.stop();
             } catch (Exception e) {
-                log.warn("Failed to stop function runtime: {}", e, e);
+                log.warn().exception(e).log("Failed to stop function runtime");
             }
             runtime = null;
         }

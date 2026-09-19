@@ -30,7 +30,7 @@ import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
@@ -58,8 +58,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
-@Test(groups = "broker")
+@CustomLog
+@Test(groups = "broker-replication")
 public class ReplicationTxnTest extends OneWayReplicatorTestBase {
 
     private boolean transactionBufferSegmentedSnapshotEnabled = false;
@@ -113,6 +113,7 @@ public class ReplicationTxnTest extends OneWayReplicatorTestBase {
                 SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN, new PartitionedTopicMetadata(txnLogPartitions));
     }
 
+    @SuppressWarnings("unchecked")
     private void pubAndSubOneMsg(String topic, String subscription) throws Exception {
         Consumer consumer1 = client1.newConsumer(Schema.STRING).topic(topic).subscriptionName(subscription)
                 .isAckReceiptEnabled(true).subscribe();
@@ -187,14 +188,14 @@ public class ReplicationTxnTest extends OneWayReplicatorTestBase {
         for (int i = 0; i < txnLogPartitions; i++) {
             TopicName txnLog = TopicName.get(TopicDomain.persistent.value(),
                     NamespaceName.SYSTEM_NAMESPACE, TRANSACTION_LOG_PREFIX + i);
-            assertNotNull(pulsar1.getManagedLedgerFactory()
+            assertNotNull(pulsar1.getDefaultManagedLedgerFactory()
                     .getManagedLedgerInfo(txnLog.getPersistenceNamingEncoding()));
             assertFalse(broker1.getTopics().containsKey(txnLog.toString()));
         }
         // __transaction_pending_ack: it only uses ML, will not create topic.
         TopicName pendingAck = TopicName.get(
                 MLPendingAckStore.getTransactionPendingAckStoreSuffix(topic, subscription));
-        assertNotNull(pulsar1.getManagedLedgerFactory()
+        assertNotNull(pulsar1.getDefaultManagedLedgerFactory()
                 .getManagedLedgerInfo(pendingAck.getPersistenceNamingEncoding()));
         assertFalse(broker1.getTopics().containsKey(pendingAck.toString()));
         // __transaction_buffer_snapshot.
@@ -222,6 +223,7 @@ public class ReplicationTxnTest extends OneWayReplicatorTestBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testOngoingMessagesWillNotBeReplicated() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp");
         final String subscription = "s1";

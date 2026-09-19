@@ -18,9 +18,9 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Entry;
@@ -45,7 +45,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
         config.setMaxCacheSize(0);
         ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger");
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger", defaultConfig());
         ManagedCursor cursor = ledger.openCursor("c1");
         ManagedLedgerMBeanImpl mbean = ledger.mbean;
 
@@ -59,7 +59,7 @@ public class ManagedLedgerMBeanTest extends MockedBookKeeperTestCase {
         mbean.addAddEntryLatencySample(1, TimeUnit.MILLISECONDS);
         mbean.addAddEntryLatencySample(10, TimeUnit.MILLISECONDS);
         mbean.addAddEntryLatencySample(1, TimeUnit.SECONDS);
-        
+
         mbean.addLedgerAddEntryLatencySample(1, TimeUnit.MILLISECONDS);
         mbean.addLedgerAddEntryLatencySample(10, TimeUnit.MILLISECONDS);
         mbean.addLedgerAddEntryLatencySample(1, TimeUnit.SECONDS);

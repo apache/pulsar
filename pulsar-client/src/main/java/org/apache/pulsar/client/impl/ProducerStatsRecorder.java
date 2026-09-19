@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.ProducerStats;
 
+@SuppressWarnings("deprecation")
 public interface ProducerStatsRecorder extends ProducerStats {
     void updateNumMsgsSent(long numMsgs, long totalMsgsSize);
 

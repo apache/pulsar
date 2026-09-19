@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -31,12 +32,13 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwt;
+import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -50,10 +52,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import javax.naming.AuthenticationException;
-import javax.servlet.http.HttpServletRequest;
 import lombok.Cleanup;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -61,11 +63,37 @@ import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToke
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.mockito.Mockito;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class AuthenticationProviderTokenTest {
 
     private static final String SUBJECT = "my-test-subject";
+
+    @DataProvider
+    public Object[][] roleClaims() {
+        return new Object[][]{
+                {"writer", Set.of("writer")},
+                {List.of("reader", "writer", "reader"), Set.of("reader", "writer")},
+                {List.of(), Set.of()},
+                {null, Set.of()},
+                {123, Set.of()},
+                {List.of("writer", 123), Set.of()}
+        };
+    }
+
+    @Test(dataProvider = "roleClaims")
+    public void testAuthenticateRolesFromValidatedClaims(Object claim, Set<String> expectedRoles) throws Exception {
+        SecretKey key = Jwts.SIG.HS256.key().build();
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.getProperties().setProperty("tokenSecretKey", AuthTokenUtils.encodeKeyBase64(key));
+        @Cleanup
+        TokenAuthenticationProvider provider = new AuthenticationProviderToken();
+        provider.initialize(AuthenticationProvider.Context.builder().config(config).build());
+        String token = Jwts.builder().subject(SUBJECT).claim("permissions", claim).signWith(key).compact();
+        assertThat(provider.authenticateRolesAsync(new AuthenticationDataCommand(token), "permissions").get())
+                .isEqualTo(expectedRoles);
+    }
 
     @Test
     public void testInvalidInitialize() throws Exception {
@@ -82,6 +110,7 @@ public class AuthenticationProviderTokenTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSerializeSecretKey() {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -92,16 +121,17 @@ public class AuthenticationProviderTokenTest {
                 .compact();
 
         @SuppressWarnings("unchecked")
-        Jwt<?, Claims> jwt = Jwts.parserBuilder()
+        Jws<Claims> jwt = Jwts.parser()
                 .setSigningKey(AuthTokenUtils.decodeSecretKey(secretKey.getEncoded()))
                 .build()
-                .parse(token);
+                .parseSignedClaims(token);
 
         assertNotNull(jwt);
         assertNotNull(jwt.getBody());
         assertEquals(jwt.getBody().getSubject(), SUBJECT);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSerializeKeyPair() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -109,21 +139,23 @@ public class AuthenticationProviderTokenTest {
         String privateKey = AuthTokenUtils.encodeKeyBase64(keyPair.getPrivate());
         String publicKey = AuthTokenUtils.encodeKeyBase64(keyPair.getPublic());
 
-        String token = AuthTokenUtils.createToken(AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKey), SignatureAlgorithm.RS256),
+        String token = AuthTokenUtils.createToken(
+                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKey), SignatureAlgorithm.RS256),
                 SUBJECT,
                 Optional.empty());
 
         @SuppressWarnings("unchecked")
-        Jwt<?, Claims> jwt = Jwts.parserBuilder()
-                .setSigningKey(AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
+        Jws<Claims> jwt = Jwts.parser().setSigningKey(
+                        AuthTokenUtils.decodePublicKey(Decoders.BASE64.decode(publicKey), SignatureAlgorithm.RS256))
                 .build()
-                .parse(token);
+                .parseSignedClaims(token);
 
         assertNotNull(jwt);
         assertNotNull(jwt.getBody());
         assertEquals(jwt.getBody().getSubject(), SUBJECT);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKey() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -234,6 +266,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTrimAuthSecretKeyFilePath() throws Exception {
         String space = " ";
@@ -254,6 +287,7 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyFromFile() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -290,6 +324,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyFromValidFile() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -325,6 +360,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyFromDataBase64() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -357,6 +393,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyPair() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.RS256);
@@ -375,7 +412,8 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        PrivateKey privateKey =
+                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
         String token = AuthTokenUtils.createToken(privateKey, SUBJECT, Optional.empty());
 
         // Pulsar protocol auth
@@ -395,6 +433,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyPairWithCustomClaim() throws Exception {
         String authRoleClaim = "customClaim";
@@ -418,7 +457,9 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        PrivateKey privateKey =
+                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        @SuppressWarnings("deprecation")
         String token = Jwts.builder()
                 .setClaims(new HashMap<String, Object>() {{
                     put(authRoleClaim, authRole);
@@ -444,6 +485,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthSecretKeyPairWithECDSA() throws Exception {
         KeyPair keyPair = Keys.keyPairFor(SignatureAlgorithm.ES256);
@@ -464,7 +506,8 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.ES256);
+        PrivateKey privateKey =
+                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.ES256);
         String token = AuthTokenUtils.createToken(privateKey, SUBJECT, Optional.empty());
 
         // Pulsar protocol auth
@@ -560,6 +603,7 @@ public class AuthenticationProviderTokenTest {
         });
     }
 
+    @SuppressWarnings("deprecation")
     @Test(expectedExceptions = AuthenticationException.class)
     public void testAuthenticateWhenInvalidTokenIsPassed() throws AuthenticationException, IOException {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -731,7 +775,7 @@ public class AuthenticationProviderTokenTest {
         AuthData expiredAuthData = AuthData.of(expiringToken.getBytes());
 
         // It is important that this call doesn't fail because we no longer authenticate the auth data at construction
-        AuthenticationState authState = provider.newAuthState(expiredAuthData,null, null);
+        AuthenticationState authState = provider.newAuthState(expiredAuthData, null, null);
         // The call to authenticate the token is the call that fails
         assertThrows(AuthenticationException.class, () -> authState.authenticate(expiredAuthData));
     }
@@ -821,6 +865,7 @@ public class AuthenticationProviderTokenTest {
         testTokenAudienceWithDifferentConfig(properties, audienceClaim, audiences);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testArrayTypeRoleClaim() throws Exception {
         String authRoleClaim = "customClaim";
@@ -844,7 +889,9 @@ public class AuthenticationProviderTokenTest {
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
         // Use private key to generate token
-        PrivateKey privateKey = AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        PrivateKey privateKey =
+                AuthTokenUtils.decodePrivateKey(Decoders.BASE64.decode(privateKeyStr), SignatureAlgorithm.RS256);
+        @SuppressWarnings("deprecation")
         String token = Jwts.builder()
                 .setClaims(new HashMap<String, Object>() {{
                     put(authRoleClaim, Arrays.asList(authRole, "other-role"));
@@ -869,6 +916,7 @@ public class AuthenticationProviderTokenTest {
         provider.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTokenSettingPrefix() throws Exception {
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
@@ -908,6 +956,7 @@ public class AuthenticationProviderTokenTest {
                 .getProperty(prefix + AuthenticationProviderToken.CONF_TOKEN_AUDIENCE);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTokenFromHttpParams() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -934,6 +983,7 @@ public class AuthenticationProviderTokenTest {
         assertTrue(doFilter, "Authentication should have passed");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTokenFromHttpHeaders() throws Exception {
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
@@ -975,7 +1025,7 @@ public class AuthenticationProviderTokenTest {
         conf.setProperties(properties);
         provider.initialize(AuthenticationProvider.Context.builder().config(conf).build());
 
-        AuthenticationState authState = provider.newAuthState(null,null, null);
+        AuthenticationState authState = provider.newAuthState(null, null, null);
 
         // Haven't authenticated yet, so cannot get role when using constructor with no auth data
         assertThrows(AuthenticationException.class, authState::getAuthRole);
@@ -1000,6 +1050,7 @@ public class AuthenticationProviderTokenTest {
         assertNotEquals(firstAuthDataSource, secondAuthDataSource);
     }
 
+    @SuppressWarnings("deprecation")
     private static String createTokenWithAudience(Key signingKey, String audienceClaim, List<String> audience) {
         JwtBuilder builder = Jwts.builder()
                 .setSubject(SUBJECT)
@@ -1016,8 +1067,9 @@ public class AuthenticationProviderTokenTest {
                 Lists.newArrayList(brokerAudience));
     }
 
+    @SuppressWarnings("deprecation")
     private static void testTokenAudienceWithDifferentConfig(Properties properties,
-                                                             String audienceClaim, List<String> audiences) throws Exception {
+                                                        String audienceClaim, List<String> audiences) throws Exception {
         @Cleanup
         AuthenticationProviderToken provider = new AuthenticationProviderToken();
         SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);

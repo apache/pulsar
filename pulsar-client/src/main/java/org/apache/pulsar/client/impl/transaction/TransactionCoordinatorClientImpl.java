@@ -18,46 +18,39 @@
  */
 package org.apache.pulsar.client.impl.transaction;
 
-import java.io.IOException;
-import java.util.ArrayList;
+import com.google.common.annotations.VisibleForTesting;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.CoordinatorClientStateException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.TransactionMetaStoreHandler;
-import org.apache.pulsar.client.util.MathUtils;
 import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.api.proto.TxnAction;
-import org.apache.pulsar.common.naming.SystemTopicNames;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * Transaction coordinator client based topic assigned.
+ * Transaction coordinator client. Coordinator <em>location</em> is delegated to a {@link TcDiscovery}
+ * strategy chosen from the broker's {@code supports_tc_metadata_discovery} feature flag at
+ * {@link #startAsync()}: {@link WatchTcAssignmentsDiscovery} when the broker advertises the
+ * metadata-store election, else {@link AssignTopicTcDiscovery} (the assign-topic mechanism). The
+ * routing surface here ({@code newTransaction} round-robin, {@code commit}/{@code abort} by
+ * {@code TxnID.mostSigBits}) is the same for both.
  */
+@CustomLog
 public class TransactionCoordinatorClientImpl implements TransactionCoordinatorClient {
 
-    private static final Logger LOG = LoggerFactory.getLogger(TransactionCoordinatorClientImpl.class);
-
     private final PulsarClientImpl pulsarClient;
-    private TransactionMetaStoreHandler[] handlers;
-    private ConcurrentLongHashMap<TransactionMetaStoreHandler> handlerMap =
-            ConcurrentLongHashMap.<TransactionMetaStoreHandler>newBuilder()
-                    .expectedItems(16)
-                    .concurrencyLevel(1)
-                    .build();
-    private final AtomicLong epoch = new AtomicLong(0);
+    private volatile TcDiscovery discovery;
 
     private static final AtomicReferenceFieldUpdater<TransactionCoordinatorClientImpl, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(TransactionCoordinatorClientImpl.class, State.class, "state");
@@ -79,43 +72,40 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     @Override
     public CompletableFuture<Void> startAsync() {
         if (STATE_UPDATER.compareAndSet(this, State.NONE, State.STARTING)) {
-            return pulsarClient.getPartitionedTopicMetadata(
-                            SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartitionedTopicName(), true, false)
-                .thenCompose(partitionMeta -> {
-                    List<CompletableFuture<Void>> connectFutureList = new ArrayList<>();
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Transaction meta store assign partition is {}.", partitionMeta.partitions);
-                    }
-                    if (partitionMeta.partitions > 0) {
-                        handlers = new TransactionMetaStoreHandler[partitionMeta.partitions];
-                        for (int i = 0; i < partitionMeta.partitions; i++) {
-                            CompletableFuture<Void> connectFuture = new CompletableFuture<>();
-                            connectFutureList.add(connectFuture);
-                            TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
-                                    i, pulsarClient, getTCAssignTopicName(i), connectFuture);
-                            handlers[i] = handler;
-                            handlerMap.put(i, handler);
-                            handler.start();
-                        }
-                    } else {
-                        return FutureUtil.failedFuture(new TransactionCoordinatorClientException(
-                                "The broker doesn't enable the transaction coordinator, "
-                                        + "or the transaction coordinator has not initialized"));
-                    }
-
-                    STATE_UPDATER.set(TransactionCoordinatorClientImpl.this, State.READY);
-
-                    return FutureUtil.waitForAll(connectFutureList);
-                });
+            return selectDiscovery()
+                    .thenCompose(selected -> {
+                        this.discovery = selected;
+                        log.info().attr("discovery", selected.getClass().getSimpleName())
+                                .log("Transaction coordinator discovery selected");
+                        return selected.start();
+                    })
+                    .thenRun(() -> STATE_UPDATER.set(this, State.READY));
         } else {
             return FutureUtil.failedFuture(
                     new CoordinatorClientStateException("Can not start while current state is " + state));
         }
     }
 
-    private String getTCAssignTopicName(int partition) {
-        return SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN
-                + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
+    /**
+     * Choose the discovery strategy by client/SDK kind, not by broker capability. A v5 SDK client
+     * sets the internal {@code scalableTransactions} config flag and uses the metadata-store
+     * coordinator (assignment watch); a v4 SDK client leaves it unset and uses the legacy
+     * assign-topic coordinator. This keeps v4 and v5 transactions independent on the same cluster:
+     * flipping the broker default to enable the v5 TC must not silently re-route v4 clients to it,
+     * since the v5 TC notifies participants via metadata-store events that the legacy transaction
+     * buffer / pending-ack store don't consume.
+     */
+    private CompletableFuture<TcDiscovery> selectDiscovery() {
+        if (!pulsarClient.getConfiguration().isScalableTransactions()) {
+            return CompletableFuture.completedFuture(new AssignTopicTcDiscovery(pulsarClient));
+        }
+        // The metadata-store assignment watch needs a binary connection. A v5 client on an
+        // http:// service URL is a misconfiguration — fail clearly rather than silently downgrade.
+        if (!pulsarClient.getLookup().isBinaryProtoLookupService()) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidServiceURL(
+                    "Scalable-topics transactions require a pulsar:// service URL", null));
+        }
+        return CompletableFuture.completedFuture(new WatchTcAssignmentsDiscovery(pulsarClient));
     }
 
     @Override
@@ -131,19 +121,17 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
     public CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> result = new CompletableFuture<>();
         if (getState() == State.CLOSING || getState() == State.CLOSED) {
-            LOG.warn("The transaction meta store is closing or closed, doing nothing.");
+            log.warn("The transaction meta store is closing or closed, doing nothing.");
             result.complete(null);
         } else {
-            if (handlers != null) {
-                for (TransactionMetaStoreHandler handler : handlers) {
-                    try {
-                        handler.close();
-                    } catch (IOException e) {
-                        LOG.warn("Close transaction meta store handler error", e);
-                    }
+            if (discovery != null) {
+                try {
+                    discovery.close();
+                } catch (Exception e) {
+                    log.warn().exception(e).log("Close transaction coordinator discovery error");
                 }
+                discovery = null;
             }
-            this.handlers = null;
             result.complete(null);
         }
         return result;
@@ -174,7 +162,12 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
-        return nextHandler().newTransactionAsync(timeout, unit);
+        TransactionMetaStoreHandler handler = discovery.nextHandler();
+        if (handler == null) {
+            return FutureUtil.failedFuture(new TransactionCoordinatorClientException(
+                    "No transaction coordinator is currently available"));
+        }
+        return handler.newTransactionAsync(timeout, unit);
     }
 
     @Override
@@ -189,7 +182,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
-        TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
+        TransactionMetaStoreHandler handler = discovery.handlerForCoordinator(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
                     new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
@@ -210,7 +203,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<Void> addSubscriptionToTxnAsync(TxnID txnID, String topic, String subscription) {
-        TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
+        TransactionMetaStoreHandler handler = discovery.handlerForCoordinator(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
                     new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
@@ -233,7 +226,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<Void> commitAsync(TxnID txnID) {
-        TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
+        TransactionMetaStoreHandler handler = discovery.handlerForCoordinator(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
                     new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
@@ -253,7 +246,7 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
 
     @Override
     public CompletableFuture<Void> abortAsync(TxnID txnID) {
-        TransactionMetaStoreHandler handler = handlerMap.get(txnID.getMostSigBits());
+        TransactionMetaStoreHandler handler = discovery.handlerForCoordinator(txnID.getMostSigBits());
         if (handler == null) {
             return FutureUtil.failedFuture(
                     new TransactionCoordinatorClientException.MetaStoreHandlerNotExistsException(
@@ -267,8 +260,19 @@ public class TransactionCoordinatorClientImpl implements TransactionCoordinatorC
         return state;
     }
 
-    private TransactionMetaStoreHandler nextHandler() {
-        int index = MathUtils.signSafeMod(epoch.incrementAndGet(), handlers.length);
-        return handlers[index];
+    /** @return the current coordinator handlers. Visible for testing. */
+    @VisibleForTesting
+    public Collection<TransactionMetaStoreHandler> getHandlers() {
+        return discovery == null ? List.of() : discovery.handlers();
+    }
+
+    /**
+     * @return {@code true} if coordinator discovery uses the metadata-store assignment watch (rather
+     *     than the assign-topic fallback). Visible for testing so integration tests can assert the
+     *     watch path was actually exercised.
+     */
+    @VisibleForTesting
+    public boolean isUsingMetadataDiscovery() {
+        return discovery instanceof WatchTcAssignmentsDiscovery;
     }
 }

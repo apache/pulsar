@@ -19,8 +19,11 @@
 package org.apache.pulsar.metadata.api;
 
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyExistsException;
@@ -116,6 +119,24 @@ public interface MetadataCache<T> {
     CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction);
 
     /**
+     * Atomic read-modify-update with secondary index entries refreshed from the new value.
+     *
+     * <p>Equivalent to {@link #readModifyUpdate(String, Function)} but on each successful
+     * write the {@code indexExtractor} is invoked on the new value and the resulting
+     * {@code indexName -> secondaryKey} map is associated with the record. See
+     * {@link #create(String, Object, Function)} for the index-extractor contract.
+     *
+     * @param path           the path of the object in the metadata store
+     * @param modifyFunction read-modify-update function
+     * @param indexExtractor function that derives secondary index entries from the new value
+     * @return a future that completes with the new stored value
+     */
+    default CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction,
+                                                  Function<T, Map<String, String>> indexExtractor) {
+        return readModifyUpdate(path, modifyFunction);
+    }
+
+    /**
      * Create a new object in the metadata store.
      * <p>
      * This operation will make sure to keep the cache consistent.
@@ -131,22 +152,59 @@ public interface MetadataCache<T> {
     CompletableFuture<Void> create(String path, T value);
 
     /**
+     * Create a new object in the metadata store with secondary index entries derived from
+     * the value.
+     *
+     * <p>The {@code indexExtractor} is invoked with the new value and returns a map of
+     * {@code indexName -> secondaryKey}. Stores that support native secondary indexes
+     * (e.g. Oxia) persist these alongside the record so that
+     * {@link MetadataStore#findByIndex} can serve queries efficiently. Stores that don't
+     * support indexes ignore the hints; the value is still written normally.
+     *
+     * @param path the path of the object in the metadata store
+     * @param value the object to insert
+     * @param indexExtractor function that derives secondary index entries from the value
+     * @return a future to track the completion of the operation
+     * @throws AlreadyExistsException if the object is already present
+     */
+    default CompletableFuture<Void> create(String path, T value,
+                                           Function<T, Map<String, String>> indexExtractor) {
+        return create(path, value);
+    }
+
+    /**
      * Create or update the value of the given path in the metadata store without version comparison.
-     * <p>
-     * This method is equivalent to
-     * {@link org.apache.pulsar.metadata.api.extended.MetadataStoreExtended#put(String, byte[], Optional, EnumSet)} or
-     * {@link MetadataStore#put(String, byte[], Optional)} if the metadata store does not support this extended API,
-     * with `Optional.empty()` as the 3rd argument. It means if the path does not exist, it will be created. If the path
-     * already exists, the new value will override the old value.
-     * </p>
+     *
+     * <p>If the path does not exist it will be created; if it exists, the new value will override the old
+     * value. Recognized options include {@link Option.Ephemeral}, {@link Option.Sequential},
+     * {@link Option.SecondaryIndex}, and {@link Option.PartitionKey}. Pass {@link Set#of()} for none.
+     *
      * @param path the path of the object in the metadata store
      * @param value the object to put in the metadata store
-     * @param options the create options if the path does not in the metadata store
+     * @param opts the set of {@link Option options} for this operation
      * @return the future that indicates if this operation failed, it could fail with
      *   {@link java.io.IOException} if the value failed to be serialized
      *   {@link MetadataStoreException} if the metadata store operation failed
      */
-    CompletableFuture<Void> put(String path, T value, EnumSet<CreateOption> options);
+    CompletableFuture<Void> put(String path, T value, Set<Option> opts);
+
+    /**
+     * Legacy {@code EnumSet<CreateOption>} form of {@link #put(String, Object, Set)}. Translates the
+     * {@link CreateOption} set into the canonical {@code Set<Option>} form and forwards to the canonical method.
+     */
+    default CompletableFuture<Void> put(String path, T value, EnumSet<CreateOption> options) {
+        if (options == null || options.isEmpty()) {
+            return put(path, value, Set.of());
+        }
+        Set<Option> opts = new HashSet<>();
+        if (options.contains(CreateOption.Ephemeral)) {
+            opts.add(Option.Ephemeral.INSTANCE);
+        }
+        if (options.contains(CreateOption.Sequential)) {
+            opts.add(Option.Sequential.INSTANCE);
+        }
+        return put(path, value, opts);
+    }
 
     /**
      * Delete an object from the metadata store.

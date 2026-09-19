@@ -19,13 +19,13 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  * Key based batch message container.
@@ -36,15 +36,29 @@ import org.slf4j.LoggerFactory;
  * batched into multiple batch messages:
  * [(k1, v1), (k1, v2), (k1, v3)], [(k2, v1), (k2, v2), (k2, v3)], [(k3, v1), (k3, v2), (k3, v3)]
  */
+@CustomLog
 class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
     private final Map<String, BatchMessageContainerImpl> batches = new HashMap<>();
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] add message to batch, num messages in batch so far is {}", topicName,
-                    producer.getProducerName(), numMessagesInBatch);
+            log.debug().attr("topic", topicName)
+                    .attr("producerName", producer.getProducerName())
+                    .attr("numMessagesInBatch", numMessagesInBatch)
+                    .log("add message to batch");
+        if (numMessagesInBatch == 0) {
+            // The whole container shares one transaction identity; hasSameTxn keeps later messages consistent
+            // with it. Capturing it here rather than in hasSameTxn keeps that check side-effect free.
+            //
+            // Both fields are assigned unconditionally, so a plain first message resets them. An inner batch
+            // whose first add fails to allocate clears itself and stays empty, which leaves the count at zero
+            // without clearing this container: a leftover transaction id would then be inherited by the next,
+            // plain, first message and would wrongly admit later messages of that transaction.
+            boolean msgHasTxn = msg.getMessageBuilder().hasTxnidMostBits()
+                    && msg.getMessageBuilder().hasTxnidLeastBits();
+            currentTxnidMostBits = msgHasTxn ? msg.getMessageBuilder().getTxnidMostBits() : -1L;
+            currentTxnidLeastBits = msgHasTxn ? msg.getMessageBuilder().getTxnidLeastBits() : -1L;
         }
         String key = getKey(msg);
         final BatchMessageContainerImpl batchMessageContainer = batches.computeIfAbsent(key,
@@ -95,35 +109,45 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
 
     @Override
     public List<ProducerImpl.OpSendMsg> createOpSendMsgs() throws IOException {
+        // In key based batching, the sequence ids might not be ordered, for example,
+        // | key | sequence id list |
+        // | :-- | :--------------- |
+        // | A | 0, 3, 4 |
+        // | B | 1, 2 |
+        // The message order should be 1, 2, 0, 3, 4 so that a message with a sequence id <= 4 should be dropped.
+        // However, for a MessageMetadata with both `sequence_id` and `highest_sequence_id` fields, the broker will
+        // expect a strict order so that the batch of key "A" (0, 3, 4) will be dropped.
+        // Therefore, we should update the `sequence_id` field to the highest sequence id and remove the
+        // `highest_sequence_id` field to allow the weak order.
+        batches.values().forEach(batchMessageContainer -> {
+            batchMessageContainer.setLowestSequenceId(batchMessageContainer.getHighestSequenceId());
+        });
+        List<BatchMessageContainerImpl> sorted = batches.values().stream().sorted((o1, o2) ->
+                (int) (o1.getLowestSequenceId() - o2.getLowestSequenceId())
+        ).collect(Collectors.toList());
+        // Build the sub-batches in order: when a later sub-batch fails to build, the operations already built
+        // never reach the send queue and must be released here, or their commands leak.
+        List<ProducerImpl.OpSendMsg> ops = new ArrayList<>(sorted.size());
         try {
-            // In key based batching, the sequence ids might not be ordered, for example,
-            // | key | sequence id list |
-            // | :-- | :--------------- |
-            // | A | 0, 3, 4 |
-            // | B | 1, 2 |
-            // The message order should be 1, 2, 0, 3, 4 so that a message with a sequence id <= 4 should be dropped.
-            // However, for a MessageMetadata with both `sequence_id` and `highest_sequence_id` fields, the broker will
-            // expect a strict order so that the batch of key "A" (0, 3, 4) will be dropped.
-            // Therefore, we should update the `sequence_id` field to the highest sequence id and remove the
-            // `highest_sequence_id` field to allow the weak order.
-            batches.values().forEach(batchMessageContainer -> {
-                batchMessageContainer.setLowestSequenceId(batchMessageContainer.getHighestSequenceId());
-            });
-            return batches.values().stream().sorted((o1, o2) ->
-                    (int) (o1.getLowestSequenceId() - o2.getLowestSequenceId())
-            ).map(batchMessageContainer -> {
-                try {
-                    return batchMessageContainer.createOpSendMsg();
-                } catch (IOException e) {
-                    throw new IllegalStateException(e);
-                }
-            }).collect(Collectors.toList());
-        } catch (IllegalStateException e) {
-            if (e.getCause() instanceof IOException) {
-                throw (IOException) e.getCause();
-            } else {
-                throw e;
+            for (BatchMessageContainerImpl batchMessageContainer : sorted) {
+                ops.add(batchMessageContainer.createOpSendMsg());
             }
+        } catch (Throwable t) {
+            for (int i = 0; i < ops.size(); i++) {
+                ProducerImpl.OpSendMsg op = ops.get(i);
+                if (op != null) {
+                    sorted.get(i).releaseOrphanedOpCmd(op);
+                }
+            }
+            throw t;
+        }
+        return ops;
+    }
+
+    @Override
+    public void resetPayloadAfterFailedPublishing() {
+        for (BatchMessageContainerImpl batch : batches.values()) {
+            batch.resetPayloadAfterFailedPublishing();
         }
     }
 
@@ -140,7 +164,5 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         }
         return msg.getKey();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(BatchMessageKeyBasedContainer.class);
 
 }

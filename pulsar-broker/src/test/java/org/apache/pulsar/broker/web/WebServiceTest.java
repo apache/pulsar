@@ -56,6 +56,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.PulsarService;
@@ -72,14 +73,12 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.tls.PemReader;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.Response;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -89,24 +88,24 @@ import org.testng.annotations.Test;
  * tests for now as this test class was added quite a bit after the class was written.
  */
 @Test(groups = "broker")
+@CustomLog
 public class WebServiceTest {
 
     private PulsarTestContext pulsarTestContext;
     private PulsarService pulsar;
-    private String BROKER_LOOKUP_URL;
-    private String BROKER_LOOKUP_URL_TLS;
+    private String brokerLookUpUrl;
+    private String brokerLookUpUrlTls;
 
-    private final static String CA_CERT_FILE_PATH =
+    private static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
-    private final static String BROKER_CERT_FILE_PATH =
+    private static final String BROKER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    private final static String BROKER_KEY_FILE_PATH =
+    private static final String BROKER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    private final static String CLIENT_CERT_FILE_PATH =
+    private static final String CLIENT_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
-    private final static String CLIENT_KEY_FILE_PATH =
+    private static final String CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-
 
     @Test
     public void testWebExecutorMetrics() throws Exception {
@@ -176,7 +175,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableTls option is enabled, WebServcie is available both on HTTP and HTTPS.
+     * Test that if enableTls option is enabled, WebService is available both on HTTP and HTTPS.
      *
      * @throws Exception
      */
@@ -198,7 +197,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableTls option is disabled, WebServcie is available only on HTTP.
+     * Test that if enableTls option is disabled, WebService is available only on HTTP.
      *
      * @throws Exception
      */
@@ -221,7 +220,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableAuth option and allowInsecure option are enabled, WebServcie requires trusted/untrusted client
+     * Test that if enableAuth option and allowInsecure option are enabled, WebService requires trusted/untrusted client
      * certificate.
      *
      * @throws Exception
@@ -245,7 +244,7 @@ public class WebServiceTest {
     }
 
     /**
-     * Test that if enableAuth option is enabled, WebServcie requires trusted client certificate.
+     * Test that if enableAuth option is enabled, WebService requires trusted client certificate.
      *
      * @throws Exception
      */
@@ -269,12 +268,13 @@ public class WebServiceTest {
 
     @Test
     public void testRateLimiting() throws Exception {
-        setupEnv(false, false, false, false, 10.0, false);
+        double rateLimit = 10.0;
+        setupEnv(false, false, false, false, rateLimit, false);
 
-        // setupEnv makes a HTTP call to create the cluster.
+        // setupEnv makes HTTP calls to create the cluster, tenant, and namespace.
         var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, 1);
+                Result.ACCEPTED.attributes, 3);
         assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
                 .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
                 .hasLongSumSatisfying(
@@ -283,12 +283,12 @@ public class WebServiceTest {
         // Make requests without exceeding the max rate
         for (int i = 0; i < 5; i++) {
             makeHttpRequest(false, false);
-            Thread.sleep(200);
+            Thread.sleep(rateLimitPauseMillis(rateLimit));
         }
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, 6);
+                Result.ACCEPTED.attributes, 8);
         assertThat(metrics).noneSatisfy(metricData -> assertThat(metricData)
                 .hasName(RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME)
                 .hasLongSumSatisfying(
@@ -306,7 +306,7 @@ public class WebServiceTest {
 
         metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
-                Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(6));
+                Result.ACCEPTED.attributes, value -> assertThat(value).isGreaterThan(8));
         assertMetricLongSumValue(metrics, RateLimitingFilter.RATE_LIMIT_REQUEST_COUNT_METRIC_NAME,
                 Result.REJECTED.attributes, value -> assertThat(value).isPositive());
     }
@@ -366,7 +366,8 @@ public class WebServiceTest {
 
         // Create local cluster
         String localCluster = "test";
-        pulsar.getPulsarResources().getClusterResources().createCluster(localCluster, ClusterDataImpl.builder().build());
+        pulsar.getPulsarResources().getClusterResources().createCluster(localCluster,
+                ClusterDataImpl.builder().build());
         TenantInfo info2 = TenantInfo.builder()
                 .adminRoles(Collections.singleton(StringUtils.repeat("*", 1 * 1024)))
                 .allowedClusters(Sets.newHashSet(localCluster))
@@ -421,10 +422,10 @@ public class WebServiceTest {
                 }
             }
 
-            log.info("Response Content: {}", content);
+            log.info().attr("responseContent", content).log("Response Content");
             assertTrue(content.toString().contains("process_cpu_seconds_total"));
         } catch (IOException e) {
-            log.error("Failed to decompress the content, likely the content is not compressed ", e);
+            log.error().exception(e).log("Failed to decompress the content, likely the content is not compressed ");
             fail();
         } finally {
             connection.disconnect();
@@ -459,7 +460,7 @@ public class WebServiceTest {
             connection.disconnect();
         }
 
-        log.info("Response Content: {}", content);
+        log.info().attr("responseContent", content).log("Response Content");
 
         assertTrue(content.toString().contains("process_cpu_seconds_total"));
     }
@@ -470,8 +471,8 @@ public class WebServiceTest {
             if (useTls) {
                 KeyManager[] keyManagers = null;
                 if (useAuth) {
-                    Certificate[] tlsCert = SecurityUtility.loadCertificatesFromPemFile(CLIENT_CERT_FILE_PATH);
-                    PrivateKey tlsKey = SecurityUtility.loadPrivateKeyFromPemFile(CLIENT_KEY_FILE_PATH);
+                    Certificate[] tlsCert = PemReader.loadCertificatesFromPemFile(CLIENT_CERT_FILE_PATH);
+                    PrivateKey tlsKey = PemReader.loadPrivateKeyFromPemFile(CLIENT_KEY_FILE_PATH);
 
                     KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
                     ks.load(null, null);
@@ -485,12 +486,12 @@ public class WebServiceTest {
                 SSLContext sslCtx = SSLContext.getInstance("TLS");
                 sslCtx.init(keyManagers, trustManagers, new SecureRandom());
                 HttpsURLConnection.setDefaultSSLSocketFactory(sslCtx.getSocketFactory());
-                response = new URL(BROKER_LOOKUP_URL_TLS).openStream();
+                response = new URL(brokerLookUpUrlTls).openStream();
             } else {
-                response = new URL(BROKER_LOOKUP_URL).openStream();
+                response = new URL(brokerLookUpUrl).openStream();
             }
             String resp = CharStreams.toString(new InputStreamReader(response));
-            log.info("Response: {}", resp);
+            log.info().attr("response", resp).log("Response");
             return resp;
         } finally {
             Closeables.close(response, false);
@@ -544,13 +545,13 @@ public class WebServiceTest {
 
         pulsar = pulsarTestContext.getPulsarService();
 
-        String BROKER_URL_BASE = "http://localhost:" + pulsar.getListenPortHTTP().get();
-        String BROKER_URL_BASE_TLS = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);
-        String serviceUrl = BROKER_URL_BASE;
+        String brokerUrlBase = "http://localhost:" + pulsar.getListenPortHTTP().get();
+        String brokerUrlBaseTls = "https://localhost:" + pulsar.getListenPortHTTPS().orElse(-1);
+        String serviceUrl = brokerUrlBase;
 
         PulsarAdminBuilder adminBuilder = PulsarAdmin.builder();
         if (enableTls && enableAuth) {
-            serviceUrl = BROKER_URL_BASE_TLS;
+            serviceUrl = brokerUrlBaseTls;
 
             Map<String, String> authParams = new HashMap<>();
             authParams.put("tlsCertFile", CLIENT_CERT_FILE_PATH);
@@ -559,10 +560,10 @@ public class WebServiceTest {
             adminBuilder.authentication(AuthenticationTls.class.getName(), authParams).allowTlsInsecureConnection(true);
         }
 
-        BROKER_LOOKUP_URL = BROKER_URL_BASE
-                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
-        BROKER_LOOKUP_URL_TLS = BROKER_URL_BASE_TLS
-                + "/lookup/v2/destination/persistent/my-property/local/my-namespace/my-topic";
+        brokerLookUpUrl = brokerUrlBase
+                + "/lookup/v2/topic/persistent/my-property/my-namespace/my-topic";
+        brokerLookUpUrlTls = brokerUrlBaseTls
+                + "/lookup/v2/topic/persistent/my-property/my-namespace/my-topic";
         @Cleanup
         PulsarAdmin pulsarAdmin = adminBuilder.serviceHttpUrl(serviceUrl).build();
 
@@ -572,6 +573,32 @@ public class WebServiceTest {
         } catch (ConflictException ce) {
             // This is OK.
         }
+        sleepForRateLimiter(rateLimit);
+
+        try {
+            pulsarAdmin.tenants().createTenant("my-property",
+                    TenantInfo.builder().allowedClusters(Sets.newHashSet(config.getClusterName())).build());
+        } catch (Exception e) {
+            // This is OK.
+        }
+        sleepForRateLimiter(rateLimit);
+
+        try {
+            pulsarAdmin.namespaces().createNamespace("my-property/my-namespace");
+        } catch (Exception e) {
+            // This is OK.
+        }
+        sleepForRateLimiter(rateLimit);
+    }
+
+    private static void sleepForRateLimiter(double rateLimit) throws InterruptedException {
+        if (rateLimit > 0) {
+            Thread.sleep(rateLimitPauseMillis(rateLimit));
+        }
+    }
+
+    private static long rateLimitPauseMillis(double rateLimit) {
+        return (long) Math.ceil((1000.0 / rateLimit) * 2);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -587,5 +614,4 @@ public class WebServiceTest {
         pulsar = null;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(WebServiceTest.class);
 }

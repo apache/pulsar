@@ -34,7 +34,7 @@ public class FloatSchemaTest {
                 (byte) (longData >>> 24),
                 (byte) (longData >>> 16),
                 (byte) (longData >>> 8),
-                ((Long)longData).byteValue()
+                ((Long) longData).byteValue()
         };
         Assert.assertEquals(expected, schema.encode(data));
     }

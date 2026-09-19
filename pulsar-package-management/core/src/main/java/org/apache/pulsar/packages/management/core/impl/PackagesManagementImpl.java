@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
@@ -38,9 +39,45 @@ import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementE
 /**
  * Packages management implementation.
  */
+@Slf4j
 public class PackagesManagementImpl implements PackagesManagement {
 
     private PackagesStorage storage;
+    private final boolean jsonSerializationEnabled;
+    private final boolean allowLegacyJavaSerialization;
+
+    public PackagesManagementImpl() {
+        this(true, true, false);
+    }
+
+    public PackagesManagementImpl(boolean jsonSerializationEnabled, boolean allowLegacyJavaSerialization) {
+        this(jsonSerializationEnabled, allowLegacyJavaSerialization, true);
+    }
+
+    private PackagesManagementImpl(boolean jsonSerializationEnabled, boolean allowLegacyJavaSerialization,
+                                   boolean logConfigWarnings) {
+        this.jsonSerializationEnabled = jsonSerializationEnabled;
+        this.allowLegacyJavaSerialization = allowLegacyJavaSerialization;
+        if (logConfigWarnings) {
+            if (allowLegacyJavaSerialization) {
+                log.warn("Reading legacy Java-serialized package metadata is enabled "
+                        + "(packagesManagementAllowLegacyJavaSerialization=true). Re-upload existing packages "
+                        + "or let organic updateMeta calls rewrite them as JSON, then disable this flag. "
+                        + "This default is scheduled to flip to false in a future Pulsar release.");
+            }
+            if (!jsonSerializationEnabled) {
+                log.warn("Package metadata is being written in the legacy Java serialization format "
+                        + "(packagesManagementJsonSerializationEnabled=false). JSON is preferred; this flag "
+                        + "exists only for rollback and will be removed in a future Pulsar release.");
+            }
+            if (!jsonSerializationEnabled && !allowLegacyJavaSerialization) {
+                log.warn("packagesManagementJsonSerializationEnabled=false combined with "
+                        + "packagesManagementAllowLegacyJavaSerialization=false means new writes use Java "
+                        + "serialization but reads reject it — existing entries will fail to load. This is "
+                        + "likely a misconfiguration.");
+            }
+        }
+    }
 
     @Override
     public void initialize(PackagesStorage storage) {
@@ -85,7 +122,8 @@ public class PackagesManagementImpl implements PackagesManagement {
                     future.completeExceptionally(throwable);
                     return;
                 }
-                try (ByteArrayInputStream in = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+                try (ByteArrayInputStream in = new ByteArrayInputStream(
+                        PackageMetadataUtil.toBytes(metadata, jsonSerializationEnabled))) {
                     storage.deleteAsync(metadataPath)
                         .thenCompose(aVoid -> storage.writeAsync(metadataPath, in))
                         .whenComplete((aVoid, t) -> {
@@ -107,7 +145,8 @@ public class PackagesManagementImpl implements PackagesManagement {
     private CompletableFuture<Void> writeMeta(PackageName packageName, PackageMetadata metadata) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         String metadataPath = metadataPath(packageName);
-        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(
+                PackageMetadataUtil.toBytes(metadata, jsonSerializationEnabled))) {
             storage.writeAsync(metadataPath, inputStream)
                 .whenComplete((aVoid, t) -> {
                     if (t != null) {
@@ -236,7 +275,8 @@ public class PackagesManagementImpl implements PackagesManagement {
     private CompletableFuture<PackageMetadata> metadataReadFromStream(ByteArrayOutputStream outputStream) {
         CompletableFuture<PackageMetadata> future = new CompletableFuture<>();
         try {
-            PackageMetadata metadata = PackageMetadataUtil.fromBytes(outputStream.toByteArray());
+            PackageMetadata metadata = PackageMetadataUtil.fromBytes(
+                    outputStream.toByteArray(), allowLegacyJavaSerialization);
             future.complete(metadata);
         } catch (PackagesManagementException.MetadataFormatException e) {
             future.completeExceptionally(e);

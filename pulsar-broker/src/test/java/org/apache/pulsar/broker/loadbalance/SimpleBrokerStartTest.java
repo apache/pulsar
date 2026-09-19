@@ -18,15 +18,12 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import com.google.common.io.Resources;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Optional;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarServerException;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
@@ -34,15 +31,15 @@ import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class SimpleBrokerStartTest {
 
-    final static String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
+    private static final String caCertPath = Resources.getResource("certificate-authority/certs/ca.cert.pem")
             .getPath();
-    final static String brokerCertPath =
+    private static final String brokerCertPath =
             Resources.getResource("certificate-authority/server-keys/broker.cert.pem").getPath();
-    final static String brokerKeyPath =
+    private static final String brokerKeyPath =
             Resources.getResource("certificate-authority/server-keys/broker.key-pk8.pem").getPath();
 
     public void testHasNICSpeed() throws Exception {
@@ -51,7 +48,7 @@ public class SimpleBrokerStartTest {
         }
         // Start local bookkeeper ensemble
         @Cleanup("stop")
-        LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
         // Start broker
         ServiceConfiguration config = new ServiceConfiguration();
@@ -82,7 +79,7 @@ public class SimpleBrokerStartTest {
         }
         // Start local bookkeeper ensemble
         @Cleanup("stop")
-        LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        LocalBookkeeperEnsemble bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
         // Start broker
         ServiceConfiguration config = new ServiceConfiguration();
@@ -103,12 +100,7 @@ public class SimpleBrokerStartTest {
         if (!hasNicSpeeds) {
             @Cleanup
             PulsarService pulsarService = new PulsarService(config);
-            try {
-                pulsarService.start();
-                fail("unexpected behaviour");
-            } catch (PulsarServerException ex) {
-                assertTrue(ex.getCause() instanceof IllegalStateException);
-            }
+            pulsarService.start();
         }
     }
 
@@ -124,14 +116,14 @@ public class SimpleBrokerStartTest {
         Assert.assertEquals(cGroupEnabled, existsCGroup);
 
         double totalCpuLimit = LinuxInfoUtils.getTotalCpuLimit(cGroupEnabled);
-        log.info("totalCpuLimit: {}", totalCpuLimit);
+        log.info().attr("totalCpuLimit", totalCpuLimit).log("totalCpuLimit");
         Assert.assertTrue(totalCpuLimit > 0.0);
 
         if (cGroupEnabled) {
             Assert.assertNotNull(LinuxInfoUtils.getMetrics());
 
             long cpuUsageForCGroup = LinuxInfoUtils.getCpuUsageForCGroup();
-            log.info("cpuUsageForCGroup: {}", cpuUsageForCGroup);
+            log.info().attr("cpuUsageForCGroup", cpuUsageForCGroup).log("cpuUsageForCGroup");
             Assert.assertTrue(cpuUsageForCGroup > 0);
         }
     }

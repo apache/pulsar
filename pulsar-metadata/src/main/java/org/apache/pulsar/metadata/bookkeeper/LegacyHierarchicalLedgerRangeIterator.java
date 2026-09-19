@@ -27,7 +27,7 @@ import java.util.NavigableSet;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.util.StringUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -44,7 +44,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
  * <i>(ledgersRootPath)/00/0000/L0001</i>. So each znode could have at most 10000 ledgers, which avoids
  * errors during garbage collection due to lists of children that are too long.
  */
-@Slf4j
+@CustomLog
 public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.LedgerRangeIterator {
 
     private static final String MAX_ID_SUFFIX = "9999";
@@ -69,7 +69,7 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
      * Iterate next level1 znode.
      *
      * @return false if have visited all level1 nodes
-     * @throws InterruptedException/KeeperException if error occurs reading zookeeper children
+     * @throws InterruptedException/ExecutionException/TimeoutException if error occurs reading zookeeper children
      */
     private boolean nextL1Node() throws ExecutionException, InterruptedException, TimeoutException {
         l2NodesIter = null;
@@ -83,7 +83,9 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
             if (!isLedgerParentNode(curL1Nodes)) {
                 continue;
             }
-            List<String> l2Nodes = store.getChildren(ledgersRoot + "/" + curL1Nodes)
+            String path = ledgersRoot + "/" + curL1Nodes;
+            List<String> l2Nodes = store.sync(path)
+                    .thenCompose(__ -> store.getChildrenFromStore(path))
                     .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
             l2NodesIter = l2Nodes.iterator();
             if (!l2NodesIter.hasNext()) {
@@ -99,7 +101,8 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
             boolean hasMoreElements = false;
             try {
                 if (l1NodesIter == null) {
-                    List<String> l1Nodes = store.getChildren(ledgersRoot)
+                    List<String> l1Nodes = store.sync(ledgersRoot)
+                            .thenCompose(__ -> store.getChildrenFromStore(ledgersRoot))
                             .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
                     l1NodesIter = l1Nodes.iterator();
                     hasMoreElements = nextL1Node();
@@ -162,7 +165,8 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
         String nodePath = nodeBuilder.toString();
         List<String> ledgerNodes = null;
         try {
-            ledgerNodes = store.getChildren(nodePath).get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+            ledgerNodes = store.sync(nodePath).thenCompose(__ -> store.getChildrenFromStore(nodePath))
+                    .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
         } catch (ExecutionException | TimeoutException e) {
             throw new IOException("Error when get child nodes from zk", e);
         } catch (InterruptedException e) {
@@ -171,10 +175,9 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
         }
         NavigableSet<Long> zkActiveLedgers =
                 HierarchicalLedgerUtils.ledgerListToSet(ledgerNodes, ledgersRoot, nodePath);
-        if (log.isDebugEnabled()) {
-            log.debug("All active ledgers from ZK for hash node "
-                    + level1 + "/" + level2 + " : " + zkActiveLedgers);
-        }
+        log.debug().attr("hashNode", level1 + "/" + level2)
+                .attr("ledgers", zkActiveLedgers)
+                .log("All active ledgers from ZK for hash node");
 
         return new LedgerManager.LedgerRange(zkActiveLedgers.subSet(getStartLedgerIdByLevel(level1, level2), true,
                 getEndLedgerIdByLevel(level1, level2), true));

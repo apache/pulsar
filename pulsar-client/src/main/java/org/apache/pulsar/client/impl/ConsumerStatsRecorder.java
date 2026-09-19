@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.ProducerStats;
 
+@SuppressWarnings("deprecation")
 public interface ConsumerStatsRecorder extends ConsumerStats {
     void updateNumMsgsReceived(Message<?> message);
 

@@ -44,11 +44,12 @@ import picocli.CommandLine.Option;
 public class CompactorToolTest {
 
     /**
-     * Test broker-tool generate docs
+     * Test broker-tool generate docs.
      *
      * @throws Exception
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenerateDocs() throws Exception {
         PrintStream oldStream = System.out;
         try {
