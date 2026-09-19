@@ -777,7 +777,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void seedMaxReadPositionMovedForwardTimestamp() {
-        lastMaxReadPositionMovedForwardTimestamp = Clock.systemUTC().millis();
+        // An empty topic has no data to snapshot. Recheck after publishing the controller reference to cover
+        // entries added during construction, while publishes after activation update the timestamp themselves.
+        if (ledger.getNumberOfEntries() > 0) {
+            lastMaxReadPositionMovedForwardTimestamp = Clock.systemUTC().millis();
+        }
     }
 
     @Override
