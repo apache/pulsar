@@ -18,12 +18,14 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.Range;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -41,6 +43,14 @@ import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
  *
  * <p/>The ManagedCursor is used to read from the ManagedLedger and to signal when the consumer is done with the
  * messages that it has read before.
+ *
+ * <p>Depending on the completion policy in {@link ManagedLedgerConfig}, successful read callbacks may run before the
+ * asynchronous read method returns, including on the calling thread for a cache hit, or on another completing thread.
+ * Failure callbacks can run inline regardless of that policy. Callers must coordinate reads advancing the cursor and
+ * processing of their results: finish processing a result, or safely hand off its ownership, before the next read.
+ * The next read may be initiated from a callback, but callers must account for reentrant completion. Do not infer
+ * callback ordering or exclusive access to caller state from the order of entries within a result or the callback
+ * thread. See {@link ReadEntriesCallback} for completion and entry ownership responsibilities.
  */
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
@@ -160,8 +170,11 @@ public interface ManagedCursor {
     /**
      * Asynchronously read entries from the ManagedLedger.
      *
+     * <p>The byte limit estimates the entry count using average entry sizes; it is not a strict limit on the returned
+     * entries' total size. A logical read may use multiple storage requests to retrieve the requested entry range.
+     *
      * @param numberOfEntriesToRead maximum number of entries to return
-     * @param maxSizeBytes          max size in bytes of the entries to return
+     * @param maxSizeBytes          estimated maximum size in bytes of the entries to return
      * @param callback              callback object
      * @param ctx                   opaque context
      * @param maxPosition           max position can read
@@ -368,6 +381,25 @@ public interface ManagedCursor {
      * @return the number of entries
      */
     long getNumberOfEntriesInBacklog(boolean isPrecise);
+
+    /**
+     * Return whether this cursor has non-deleted messages in backlog.
+     *
+     * @return true if there is at least one entry in backlog
+     */
+    default boolean hasBacklog() {
+        return hasBacklog(true);
+    }
+
+    /**
+     * Return whether this cursor has non-deleted messages in backlog.
+     *
+     * @param isPrecise set to true to get a precise backlog check
+     * @return true if there is at least one entry in backlog
+     */
+    default boolean hasBacklog(boolean isPrecise) {
+        return getNumberOfEntriesInBacklog(isPrecise) > 0;
+    }
 
     /**
      * This signals that the reader is done with all the entries up to "position" (included). This can potentially
@@ -861,6 +893,20 @@ public interface ManagedCursor {
     ManagedLedger getManagedLedger();
 
     /**
+     * Schedule a continuation of a read callback.
+     *
+     * <p>Implementations that deliver read callbacks on a dedicated execution context should override this method
+     * to run the continuation on that same execution context.
+     *
+     * @param callback the callback continuation
+     * @param delay the delay before executing the continuation
+     * @param unit the time unit of the delay
+     */
+    default void scheduleReadCallback(Runnable callback, long delay, TimeUnit unit) {
+        CompletableFuture.delayedExecutor(delay, unit).execute(catchingAndLoggingThrowables(callback));
+    }
+
+    /**
      * Get last individual deleted range.
      * @return range
      */
@@ -875,6 +921,14 @@ public interface ManagedCursor {
      * Get deleted batch indexes list for a batch message.
      */
     long[] getDeletedBatchIndexesAsLongArray(Position position);
+
+    /**
+     * Get deleted batch indexes using ledger and entry IDs. Implementations may avoid creating a position when
+     * no batch-index acknowledgements are recorded. The default preserves existing cursor implementations.
+     */
+    default long[] getDeletedBatchIndexesAsLongArray(long ledgerId, long entryId) {
+        return getDeletedBatchIndexesAsLongArray(PositionFactory.create(ledgerId, entryId));
+    }
 
     /**
      * @return the managed cursor stats MBean

@@ -60,7 +60,7 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     @Override
     public void init() throws Exception {
         super.init();
-        this.bk = new PulsarMockBookKeeper(scheduler);
+        this.bk = new PulsarMockBookKeeper(bkExecutor);
         this.toWrite = buildReadHandle();
         map.put("ManagedLedgerName", managedLedgerName);
     }

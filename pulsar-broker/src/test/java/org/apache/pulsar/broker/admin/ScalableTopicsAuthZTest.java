@@ -153,6 +153,16 @@ public class ScalableTopicsAuthZTest extends AuthZTest {
     }
 
     @Test
+    public void testGetSegmentStatsAuthZ() throws Exception {
+        final String topic = randomTopic();
+        superUserAdmin.scalableTopics().createScalableTopic(topic, 1);
+        @Cleanup PulsarAdmin nobody = nobodyAdmin();
+        assertNotAuthorized(() -> nobody.scalableTopics().getSegmentStats(topic, 0L));
+        assertAuthorized(() -> tenantManagerAdmin.scalableTopics().getSegmentStats(topic, 0L));
+        assertAuthorized(() -> superUserAdmin.scalableTopics().getSegmentStats(topic, 0L));
+    }
+
+    @Test
     public void testCreateSubscriptionAuthZ() throws Exception {
         final String topic = randomTopic();
         superUserAdmin.scalableTopics().createScalableTopic(topic, 1);

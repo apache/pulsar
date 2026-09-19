@@ -182,12 +182,12 @@ ci_report_netty_leaks() {
   fi
 
   # check if there are any netty_leak_*.txt files in the container logs
-  local container_logs_dir="tests/integration/target/container-logs"
+  local container_logs_dir="tests/integration/build/container-logs"
   if [ -d "$container_logs_dir" ]; then
     local container_netty_leak_dump_dir="$NETTY_LEAK_DUMP_DIR/container-logs"
     mkdir -p "$container_netty_leak_dump_dir"
     while read -r file; do
-      # example file name "tests/integration/target/container-logs/ltnizrzm-standalone/var-log-pulsar.tar.gz"
+      # example file name "tests/integration/build/container-logs/ltnizrzm-standalone/var-log-pulsar.tar.gz"
       # take ltnizrzm-standalone part
       container_name=$(basename "$(dirname "$file")")
       target_dir="$container_netty_leak_dump_dir/$container_name"

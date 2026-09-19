@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
@@ -113,6 +117,43 @@ public class SegmentLayout {
     }
 
     /**
+     * Number of merge operations in a segment's ancestry, including the segment itself.
+     *
+     * <p>A merge is the only operation that produces a segment with more than one parent
+     * (a split produces children with exactly one parent), so the merge depth is the count
+     * of segments in this segment's ancestor chain — itself included — that have
+     * {@code parentIds.size() >= 2}.
+     *
+     * <p>Used by auto split/merge (PIP-483) to cap split↔merge churn: a pair is only
+     * merge-eligible while neither side's merge depth has reached the configured maximum,
+     * which bounds the merge depth of the resulting child.
+     *
+     * @param segmentId the segment to measure
+     * @return the number of merges in this segment's lineage (0 for a never-merged segment)
+     */
+    public int mergeDepth(long segmentId) {
+        int depth = 0;
+        Deque<Long> toVisit = new ArrayDeque<>();
+        Set<Long> visited = new HashSet<>();
+        toVisit.add(segmentId);
+        while (!toVisit.isEmpty()) {
+            long id = toVisit.poll();
+            if (!visited.add(id)) {
+                continue;
+            }
+            SegmentInfo segment = allSegments.get(id);
+            if (segment == null) {
+                continue;
+            }
+            if (segment.parentIds().size() >= 2) {
+                depth++;
+            }
+            toVisit.addAll(segment.parentIds());
+        }
+        return depth;
+    }
+
+    /**
      * Produce a new layout by splitting a segment at its midpoint.
      *
      * @param segmentId the active segment to split
@@ -135,11 +176,15 @@ public class SegmentLayout {
         long childId1 = nextSegmentId;
         long childId2 = nextSegmentId + 1;
 
+        // PIP-486: a split divides the parent's entry-buckets between its children — N/2 each (at least
+        // 1) — so the topic's total stays ≈ the budget as it fans out into more, narrower segments.
+        List<Integer> childEntryBucketSplits =
+                EntryBucketSplits.equalWidth(Math.max(1, segment.bucketCount() / 2));
         SegmentInfo sealedParent = segment.sealed(newEpoch, nowMs, List.of(childId1, childId2));
         SegmentInfo child1 = SegmentInfo.active(childId1, splitRanges[0],
-                List.of(segmentId), newEpoch, nowMs);
+                List.of(segmentId), newEpoch, nowMs).withEntryBucketSplits(childEntryBucketSplits);
         SegmentInfo child2 = SegmentInfo.active(childId2, splitRanges[1],
-                List.of(segmentId), newEpoch, nowMs);
+                List.of(segmentId), newEpoch, nowMs).withEntryBucketSplits(childEntryBucketSplits);
 
         Map<Long, SegmentInfo> newSegments = new LinkedHashMap<>(allSegments);
         newSegments.put(segmentId, sealedParent);
@@ -159,6 +204,16 @@ public class SegmentLayout {
      * @return a new SegmentLayout with the merge applied
      */
     public SegmentLayout mergeSegments(long segmentId1, long segmentId2, long nowMs) {
+        return mergeSegments(segmentId1, segmentId2, nowMs, EntryBucketSplits.MAX_BUCKETS);
+    }
+
+    /**
+     * As {@link #mergeSegments(long, long, long)}, clamping the merged segment's entry-bucket
+     * count to {@code maxBucketsPerSegment} (the configured per-segment ceiling): the merged
+     * segment recovers the parents' buckets, but never past the hard ceiling.
+     */
+    public SegmentLayout mergeSegments(long segmentId1, long segmentId2, long nowMs,
+                                       int maxBucketsPerSegment) {
         SegmentInfo seg1 = allSegments.get(segmentId1);
         SegmentInfo seg2 = allSegments.get(segmentId2);
         if (seg1 == null || seg2 == null) {
@@ -176,15 +231,61 @@ public class SegmentLayout {
         long mergedId = nextSegmentId;
         HashRange mergedRange = seg1.hashRange().merge(seg2.hashRange());
 
+        // PIP-486: a merge is the inverse of a split — the merged segment recovers both parents' buckets
+        // (N1 + N2), so the topic's total entry-bucket count stays ≈ the budget as segments coalesce.
+        List<Integer> mergedEntryBucketSplits = EntryBucketSplits.equalWidth(
+                Math.min(seg1.bucketCount() + seg2.bucketCount(), maxBucketsPerSegment));
         SegmentInfo sealed1 = seg1.sealed(newEpoch, nowMs, List.of(mergedId));
         SegmentInfo sealed2 = seg2.sealed(newEpoch, nowMs, List.of(mergedId));
         SegmentInfo merged = SegmentInfo.active(mergedId, mergedRange,
-                List.of(segmentId1, segmentId2), newEpoch, nowMs);
+                List.of(segmentId1, segmentId2), newEpoch, nowMs)
+                .withEntryBucketSplits(mergedEntryBucketSplits);
 
         Map<Long, SegmentInfo> newSegments = new LinkedHashMap<>(allSegments);
         newSegments.put(segmentId1, sealed1);
         newSegments.put(segmentId2, sealed2);
         newSegments.put(mergedId, merged);
+
+        return new SegmentLayout(newEpoch, nextSegmentId + 1, newSegments);
+    }
+
+    /**
+     * Produce a new layout by rebucketing a segment: seal it and create a single successor
+     * with the <b>same hash range</b> but a new entry-bucket boundary list (PIP-486 "rebucket
+     * rollover"). A segment's bucketing is immutable for its life, so changing N is a layout
+     * operation: the sealed predecessor drains under its old buckets while the successor takes
+     * new writes under the new ones — the ordinary seal → successor flow, so per-key order
+     * across the change is preserved by the existing machinery.
+     *
+     * @param segmentId the active segment to rebucket
+     * @param newSplits the successor's entry-bucket split points (ascending start hashes of
+     *                  buckets {@code 1..N-1}; empty = a single bucket spanning the ring)
+     * @param nowMs     wall-clock millis used as the parent's seal time and the successor's
+     *                  create time
+     * @return a new SegmentLayout with the rollover applied
+     */
+    public SegmentLayout rebucketSegment(long segmentId, List<Integer> newSplits, long nowMs) {
+        SegmentInfo segment = allSegments.get(segmentId);
+        if (segment == null) {
+            throw new IllegalArgumentException("Segment not found: " + segmentId);
+        }
+        if (!segment.isActive()) {
+            throw new IllegalArgumentException("Cannot rebucket non-active segment: " + segmentId);
+        }
+        if (newSplits.equals(segment.entryBucketSplits())) {
+            throw new IllegalArgumentException(
+                    "Segment " + segmentId + " already has the requested entry-bucket splits");
+        }
+
+        long newEpoch = epoch + 1;
+        long successorId = nextSegmentId;
+        SegmentInfo sealedParent = segment.sealed(newEpoch, nowMs, List.of(successorId));
+        SegmentInfo successor = SegmentInfo.active(successorId, segment.hashRange(),
+                List.of(segmentId), newEpoch, nowMs).withEntryBucketSplits(newSplits);
+
+        Map<Long, SegmentInfo> newSegments = new LinkedHashMap<>(allSegments);
+        newSegments.put(segmentId, sealedParent);
+        newSegments.put(successorId, successor);
 
         return new SegmentLayout(newEpoch, nextSegmentId + 1, newSegments);
     }
@@ -235,14 +336,17 @@ public class SegmentLayout {
     }
 
     /**
-     * Convert back to metadata for persistence.
+     * Convert back to metadata for persistence, carrying over the non-layout fields
+     * (properties, per-topic auto-scale policy) from the record being replaced. Layout
+     * mutations must never silently drop fields they don't model.
      */
-    public ScalableTopicMetadata toMetadata(Map<String, String> properties) {
+    public ScalableTopicMetadata toMetadata(ScalableTopicMetadata original) {
         return ScalableTopicMetadata.builder()
                 .epoch(epoch)
                 .nextSegmentId(nextSegmentId)
                 .segments(new LinkedHashMap<>(allSegments))
-                .properties(properties)
+                .properties(original.getProperties())
+                .autoScalePolicy(original.getAutoScalePolicy())
                 .build();
     }
 

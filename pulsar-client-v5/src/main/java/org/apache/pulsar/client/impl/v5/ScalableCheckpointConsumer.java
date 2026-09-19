@@ -28,8 +28,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedTransferQueue;
-import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.v5.Checkpoint;
@@ -64,6 +62,9 @@ import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
 final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
 
     private static final Logger LOG = Logger.get(ScalableCheckpointConsumer.class);
+    /** Buffer bound for backpressure. The checkpoint consumer has no ConsumerConfigurationData;
+     * its per-segment readers use the default reader queue size, so mirror that here. */
+    private static final int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
     private final Logger log;
 
     private final PulsarClientV5 client;
@@ -81,7 +82,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
     private final ConcurrentHashMap<Long, CompletableFuture<Reader<T>>> segmentReaders = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> lastReceivedPositions =
             new ConcurrentHashMap<>();
-    private final LinkedTransferQueue<MessageV5<T>> messageQueue = new LinkedTransferQueue<>();
+    private final V5ReceiveQueue<T> receiveQueue;
 
     private volatile boolean closed = false;
     private final AsyncCheckpointConsumerV5<T> asyncView;
@@ -99,6 +100,9 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         this.topicName = topicName;
         this.startPosition = startPosition;
         this.consumerName = consumerName;
+        this.receiveQueue = new V5ReceiveQueue<>(
+                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer(),
+                DEFAULT_RECEIVER_QUEUE_SIZE);
         this.log = LOG.with().attr("topic", topicName).build();
         this.asyncView = new AsyncCheckpointConsumerV5<>(this);
     }
@@ -168,51 +172,18 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
 
     @Override
     public Message<T> receive() throws PulsarClientException {
-        try {
-            return advanceCheckpoint(messageQueue.take());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return advanceCheckpoint(receiveQueue.take());
     }
 
     @Override
     public Message<T> receive(Duration timeout) throws PulsarClientException {
-        try {
-            return advanceCheckpoint(messageQueue.poll(timeout.toMillis(), TimeUnit.MILLISECONDS));
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return advanceCheckpoint(receiveQueue.poll(timeout));
     }
 
     @Override
     public Messages<T> receiveMulti(int maxMessages, Duration timeout) throws PulsarClientException {
-        List<Message<T>> batch = new ArrayList<>();
-        long deadlineNanos = System.nanoTime() + timeout.toNanos();
-
-        while (batch.size() < maxMessages) {
-            long remainingNanos = deadlineNanos - System.nanoTime();
-            if (remainingNanos <= 0) {
-                break;
-            }
-            try {
-                MessageV5<T> msg = messageQueue.poll(remainingNanos, TimeUnit.NANOSECONDS);
-                if (msg == null) {
-                    break;
-                }
-                batch.add(advanceCheckpoint(msg));
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new PulsarClientException("Receive interrupted", e);
-            }
-            // Drain whatever else is immediately ready up to maxMessages.
-            List<Message<T>> drained = new ArrayList<>();
-            messageQueue.drainTo(drained, maxMessages - batch.size());
-            for (Message<T> drainedMsg : drained) {
-                batch.add(advanceCheckpoint(drainedMsg));
-            }
-        }
+        List<Message<T>> batch = receiveQueue.receiveMulti(maxMessages, timeout);
+        batch.forEach(this::advanceCheckpoint);
         return new MessagesV5<>(batch);
     }
 
@@ -258,22 +229,17 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
     // --- Async internals ---
 
     CompletableFuture<Message<T>> receiveAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return receive();
-            } catch (PulsarClientException e) {
-                throw new CompletionException(e);
-            }
-        });
+        return receiveQueue.receiveAsync().thenApply(this::advanceCheckpoint);
     }
 
     CompletableFuture<Message<T>> receiveAsync(Duration timeout) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return receive(timeout);
-            } catch (PulsarClientException e) {
-                throw new CompletionException(e);
-            }
+        return receiveQueue.receiveAsync(timeout).thenApply(this::advanceCheckpoint);
+    }
+
+    CompletableFuture<List<Message<T>>> receiveMultiAsync(int maxMessages, Duration timeout) {
+        return receiveQueue.receiveMultiAsync(maxMessages, timeout).thenApply(batch -> {
+            batch.forEach(this::advanceCheckpoint);
+            return batch;
         });
     }
 
@@ -283,6 +249,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
 
     CompletableFuture<Void> closeAsync() {
         closed = true;
+        receiveQueue.close();
         try {
             sourceHandle.close();
         } catch (Exception e) {
@@ -344,7 +311,9 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
         org.apache.pulsar.client.api.MessageId startMsgId = resolveStartPosition(segment.segmentId());
 
         var segConf = new org.apache.pulsar.client.impl.conf.ReaderConfigurationData<T>();
-        segConf.getTopicNames().add(segment.segmentTopicName());
+        // Legacy segments wrap an externally managed persistent:// topic; regular ones use the
+        // computed segment:// URI. attachTopicName() collapses both into the right URI.
+        segConf.getTopicNames().add(segment.attachTopicName());
         segConf.setStartMessageId(startMsgId);
         if (consumerName != null) {
             segConf.setReaderName(consumerName + "-seg-" + segment.segmentId());
@@ -413,10 +382,13 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
             // taken right after the app received message N could already point past
             // N+1 if the read loop got ahead). The advance happens in receive() /
             // receiveMulti() instead, where the message crosses into application code.
-            messageQueue.add(new MessageV5<>(v4Msg, segmentId));
-            if (!closed) {
-                startReadLoop(reader, segmentId);
-            }
+            // Re-arm only once the buffer has room, so a slow consumer pauses this reader
+            // instead of pre-fetching unboundedly.
+            receiveQueue.offer(new MessageV5<>(v4Msg, segmentId)).thenRun(() -> {
+                if (!closed) {
+                    startReadLoop(reader, segmentId);
+                }
+            });
         }).exceptionally(ex -> {
             Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null
                     ? ce.getCause() : ex;
@@ -429,7 +401,7 @@ final class ScalableCheckpointConsumer<T> implements CheckpointConsumer<T> {
                     .TopicTerminatedException) {
                 // Sealed segment fully drained server-side. Close the reader and drop
                 // it from the map so resources are released; the segment's data has
-                // already crossed into messageQueue.
+                // already crossed into receiveQueue.
                 log.info().attr("segmentId", segmentId)
                         .log("Sealed segment drained, closing reader");
                 segmentReaders.remove(segmentId);

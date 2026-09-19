@@ -19,6 +19,7 @@
 package org.apache.pulsar.compaction;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.ReferenceCountUtil;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -39,6 +40,7 @@ import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.CompactionReaderImpl;
@@ -334,7 +336,7 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
         Map<String, byte[]> metadata =
                 LedgerMetadataUtils.buildMetadataForCompactedLedger(
                         phaseOneResult.topic, phaseOneResult.lastId.toByteArray());
-        return createLedger(bk, metadata)
+        return createLedger(bk, metadata, phaseOneResult.topic)
                 .thenCompose((ledger) -> {
                     log.info()
                             .attr("topic", phaseOneResult.topic)
@@ -451,25 +453,47 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
             return CompletableFuture.completedFuture(false);
         }
         CompletableFuture<Boolean> bkf = new CompletableFuture<>();
+        ByteBuf serialized = null;
+        boolean acquired = false;
         try {
-            ByteBuf serialized = batchMessageContainer.toByteBuf();
+            serialized = batchMessageContainer.toByteBuf();
             outstanding.acquire();
+            acquired = true;
             mxBean.addCompactionWriteOp(topic, serialized.readableBytes());
             long start = System.nanoTime();
             lh.asyncAddEntry(serialized,
                     (rc, ledger, eid, ctx) -> {
                         outstanding.release();
-                        mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
+                        try {
+                            mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
+                        } catch (Throwable t) {
+                            // This callback can run synchronously inside asyncAddEntry: an exception escaping
+                            // it would reach the caller's catch, which would release the permit and the
+                            // buffer a second time - both already belong to the completed write here.
+                            log.warn().exception(t).log("Failed to record the compaction write latency");
+                        }
                         if (rc != BKException.Code.OK) {
                             bkf.completeExceptionally(BKException.create(rc));
                         } else {
                             bkf.complete(true);
                         }
                     }, null);
+            // Ownership transferred to BookKeeper's write; it releases the buffer when done.
+            serialized = null;
 
         } catch (Throwable t) {
+            // toByteBuf() already cleared the container: nobody else holds the buffer if the hand-off
+            // never happened.
+            ReferenceCountUtil.safeRelease(serialized);
+            // Release the permit only when it was taken: a lost one stalls the next flush on acquire(),
+            // a surplus one raises the outstanding-writes limit.
+            if (acquired) {
+                outstanding.release();
+            }
             log.error().exception(t).log("Failed to add entry");
-            batchMessageContainer.discard((Exception) t);
+            // discard(Exception) cannot take an Error: wrap non-Exception Throwables so the batch container is
+            // always cleared here and stays reusable after a failed flush.
+            batchMessageContainer.discard(t instanceof Exception ? (Exception) t : new PulsarClientException(t));
             bkf.completeExceptionally(t);
             return bkf;
         }

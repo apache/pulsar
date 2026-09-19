@@ -18,13 +18,29 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static javax.ws.rs.core.Response.Status.PRECONDITION_FAILED;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import io.swagger.annotations.Example;
-import io.swagger.annotations.ExampleProperty;
+import static jakarta.ws.rs.core.Response.Status.PRECONDITION_FAILED;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.Suspended;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -37,19 +53,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.Suspended;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -80,13 +83,12 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 public class ClustersBase extends AdminResource {
 
     @GET
-    @ApiOperation(
-            value = "Get the list of all the Pulsar clusters.",
-            response = String.class,
-            responseContainer = "Set")
+    @Operation(summary = "Get the list of all the Pulsar clusters.")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Return a list of clusters."),
-            @ApiResponse(code = 500, message = "Internal server error.")
+            @ApiResponse(responseCode = "200", description = "Return a list of clusters.",
+                    content = @Content(array = @ArraySchema(
+                            schema = @Schema(implementation = String.class), uniqueItems = true))),
+            @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void getClusters(@Suspended AsyncResponse asyncResponse) {
         clusterResources().listAsync()
@@ -101,19 +103,19 @@ public class ClustersBase extends AdminResource {
 
     @GET
     @Path("/{cluster}")
-    @ApiOperation(
-        value = "Get the configuration for the specified cluster.",
-        response = ClusterDataImpl.class,
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Get the configuration for the specified cluster.",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Return the cluster data.", response = ClusterDataImpl.class),
-            @ApiResponse(code = 403, message = "Don't have admin permission."),
-            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
-            @ApiResponse(code = 500, message = "Internal server error.")
+            @ApiResponse(responseCode = "200", description = "Return the cluster data.",
+                    content = @Content(schema = @Schema(implementation = ClusterDataImpl.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission."),
+            @ApiResponse(responseCode = "404", description = "Cluster doesn't exist."),
+            @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void getCluster(@Suspended AsyncResponse asyncResponse,
-                           @ApiParam(value = "The cluster name", required = true)
+                           @Parameter(description = "The cluster name", required = true)
                            @PathParam("cluster") String cluster) {
         validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.GET_CLUSTER)
                 .thenCompose(__ -> clusterResources().getClusterAsync(cluster))
@@ -132,32 +134,33 @@ public class ClustersBase extends AdminResource {
 
     @PUT
     @Path("/{cluster}")
-    @ApiOperation(
-        value = "Create a new cluster.",
-        notes = "This operation requires Pulsar superuser privileges, and the name cannot contain the '/' characters."
+    @Operation(
+        summary = "Create a new cluster.",
+        description = "This operation requires Pulsar superuser privileges, and the name cannot contain the '/'"
+                + " characters."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Cluster has been created."),
-            @ApiResponse(code = 400, message = "Bad request parameter."),
-            @ApiResponse(code = 403, message = "You don't have admin permission to create the cluster."),
-            @ApiResponse(code = 409, message = "Cluster already exists."),
-            @ApiResponse(code = 412, message = "Cluster name is not valid."),
-            @ApiResponse(code = 500, message = "Internal server error.")
+            @ApiResponse(responseCode = "200", description = "Cluster has been created."),
+            @ApiResponse(responseCode = "400", description = "Bad request parameter."),
+            @ApiResponse(responseCode = "403", description = "You don't have admin permission to create the cluster."),
+            @ApiResponse(responseCode = "409", description = "Cluster already exists."),
+            @ApiResponse(responseCode = "412", description = "Cluster name is not valid."),
+            @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void createCluster(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true)
+        @Parameter(description = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The cluster data",
+        @RequestBody(
+            description = "The cluster data",
             required = true,
-            examples = @Example(
-                value = @ExampleProperty(
-                    mediaType = MediaType.APPLICATION_JSON,
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = @ExampleObject(
                     value = """
                             {
                                "serviceUrl": "http://pulsar.example.com:8080",
-                               "brokerServiceUrl": "pulsar://pulsar.example.com:6651",
+                               "brokerServiceUrl": "pulsar://pulsar.example.com:6651"
                             }
                             """
                 )
@@ -202,26 +205,26 @@ public class ClustersBase extends AdminResource {
 
     @POST
     @Path("/{cluster}")
-    @ApiOperation(
-        value = "Update the configuration for a cluster.",
-        notes = "This operation requires Pulsar superuser privileges.")
+    @Operation(
+        summary = "Update the configuration for a cluster.",
+        description = "This operation requires Pulsar superuser privileges.")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Cluster has been updated."),
-            @ApiResponse(code = 400, message = "Bad request parameter."),
-            @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
-            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
-            @ApiResponse(code = 500, message = "Internal server error.")
+            @ApiResponse(responseCode = "200", description = "Cluster has been updated."),
+            @ApiResponse(responseCode = "400", description = "Bad request parameter."),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission or policies are read-only."),
+            @ApiResponse(responseCode = "404", description = "Cluster doesn't exist."),
+            @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void updateCluster(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true)
+        @Parameter(description = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(
-            value = "The cluster data",
+        @RequestBody(
+            description = "The cluster data",
             required = true,
-            examples = @Example(
-                value = @ExampleProperty(
-                    mediaType = MediaType.APPLICATION_JSON,
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = @ExampleObject(
                     value = """
                             {
                                "serviceUrl": "http://pulsar.example.com:8080",
@@ -260,21 +263,21 @@ public class ClustersBase extends AdminResource {
 
     @GET
     @Path("/{cluster}/migrate")
-    @ApiOperation(
-        value = "Get the cluster migration configuration for the specified cluster.",
-        response = ClusterDataImpl.class,
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Get the cluster migration configuration for the specified cluster.",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Return the cluster data.", response = ClusterDataImpl.class),
-            @ApiResponse(code = 403, message = "Don't have admin permission."),
-            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
-            @ApiResponse(code = 500, message = "Internal server error.")
+            @ApiResponse(responseCode = "200", description = "Return the cluster data.",
+                    content = @Content(schema = @Schema(implementation = ClusterDataImpl.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission."),
+            @ApiResponse(responseCode = "404", description = "Cluster doesn't exist."),
+            @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void getClusterMigration(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(
-            value = "The cluster name",
+        @Parameter(
+            description = "The cluster name",
             required = true
         )
         @PathParam("cluster") String cluster) {
@@ -301,28 +304,28 @@ public class ClustersBase extends AdminResource {
 
     @POST
     @Path("/{cluster}/migrate")
-    @ApiOperation(
-        value = "Update the configuration for a cluster migration.",
-        notes = "This operation requires Pulsar superuser privileges.")
+    @Operation(
+        summary = "Update the configuration for a cluster migration.",
+        description = "This operation requires Pulsar superuser privileges.")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Cluster has been updated."),
-            @ApiResponse(code = 400, message = "Cluster url must not be empty."),
-            @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
-            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
-            @ApiResponse(code = 500, message = "Internal server error.")
+            @ApiResponse(responseCode = "200", description = "Cluster has been updated."),
+            @ApiResponse(responseCode = "400", description = "Cluster url must not be empty."),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission or policies are read-only."),
+            @ApiResponse(responseCode = "404", description = "Cluster doesn't exist."),
+            @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void updateClusterMigration(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true)
+        @Parameter(description = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(value = "Is cluster migrated", required = true)
+        @Parameter(description = "Is cluster migrated", required = true)
         @QueryParam("migrated") boolean isMigrated,
-        @ApiParam(
-            value = "The cluster url data",
+        @RequestBody(
+            description = "The cluster url data",
             required = true,
-            examples = @Example(
-                value = @ExampleProperty(
-                    mediaType = MediaType.APPLICATION_JSON,
+            content = @Content(
+                mediaType = MediaType.APPLICATION_JSON,
+                examples = @ExampleObject(
                     value = """
                             {
                                "serviceUrl": "http://pulsar.example.com:8080",
@@ -365,25 +368,24 @@ public class ClustersBase extends AdminResource {
 
     @POST
     @Path("/{cluster}/peers")
-    @ApiOperation(
-        value = "Update peer-cluster-list for a cluster.",
-        notes = "This operation requires Pulsar superuser privileges.")
+    @Operation(
+        summary = "Update peer-cluster-list for a cluster.",
+        description = "This operation requires Pulsar superuser privileges.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cluster has been updated."),
-            @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
-            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
-            @ApiResponse(code = 412, message = "Peer cluster doesn't exist."),
-            @ApiResponse(code = 500, message = "Internal server error.")
+            @ApiResponse(responseCode = "204", description = "Cluster has been updated."),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission or policies are read-only."),
+            @ApiResponse(responseCode = "404", description = "Cluster doesn't exist."),
+            @ApiResponse(responseCode = "412", description = "Peer cluster doesn't exist."),
+            @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void setPeerClusterNames(@Suspended AsyncResponse asyncResponse,
-                                    @ApiParam(value = "The cluster name", required = true)
+                                    @Parameter(description = "The cluster name", required = true)
                                     @PathParam("cluster") String cluster,
-                                    @ApiParam(
-                                        value = "The list of peer cluster names",
+                                    @RequestBody(
+                                        description = "The list of peer cluster names",
                                         required = true,
-                                        examples = @Example(
-                                        value = @ExampleProperty(mediaType = MediaType.APPLICATION_JSON,
-                                        value = """
+                                        content = @Content(mediaType = MediaType.APPLICATION_JSON,
+                                        examples = @ExampleObject(value = """
                                                 [
                                                    "cluster-a",
                                                    "cluster-b"
@@ -441,19 +443,20 @@ public class ClustersBase extends AdminResource {
 
     @GET
     @Path("/{cluster}/peers")
-    @ApiOperation(
-            value = "Get the peer-cluster data for the specified cluster.",
-            response = String.class,
-            responseContainer = "Set",
-            notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+            summary = "Get the peer-cluster data for the specified cluster.",
+            description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "Don't have admin permission."),
-            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
-            @ApiResponse(code = 500, message = "Internal server error.")
+            @ApiResponse(responseCode = "200", description = "Get the peer-cluster data for the specified cluster.",
+                    content = @Content(array = @ArraySchema(
+                            schema = @Schema(implementation = String.class), uniqueItems = true))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission."),
+            @ApiResponse(responseCode = "404", description = "Cluster doesn't exist."),
+            @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void getPeerCluster(@Suspended AsyncResponse asyncResponse,
-                               @ApiParam(value = "The cluster name", required = true)
+                               @Parameter(description = "The cluster name", required = true)
                                @PathParam("cluster") String cluster) {
         validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.GET_PEER_CLUSTER)
                 .thenCompose(__ -> clusterResources().getClusterAsync(cluster))
@@ -473,19 +476,19 @@ public class ClustersBase extends AdminResource {
 
     @DELETE
     @Path("/{cluster}")
-    @ApiOperation(
-        value = "Delete an existing cluster.",
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Delete an existing cluster.",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cluster has been deleted."),
-            @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
-            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
-            @ApiResponse(code = 412, message = "Cluster is not empty."),
-            @ApiResponse(code = 500, message = "Internal server error.")
+            @ApiResponse(responseCode = "204", description = "Cluster has been deleted."),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission or policies are read-only."),
+            @ApiResponse(responseCode = "404", description = "Cluster doesn't exist."),
+            @ApiResponse(responseCode = "412", description = "Cluster is not empty."),
+            @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void deleteCluster(@Suspended AsyncResponse asyncResponse,
-                              @ApiParam(value = "The cluster name", required = true)
+                              @Parameter(description = "The cluster name", required = true)
                               @PathParam("cluster") String cluster) {
         validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.DELETE_CLUSTER)
                 .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
@@ -536,20 +539,22 @@ public class ClustersBase extends AdminResource {
 
     @GET
     @Path("/{cluster}/namespaceIsolationPolicies")
-    @ApiOperation(
-        value = "Get the namespace isolation policies assigned to the cluster.",
-        response = NamespaceIsolationDataImpl.class,
-        responseContainer = "Map",
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Get the namespace isolation policies assigned to the cluster.",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "Don't have admin permission."),
-            @ApiResponse(code = 404, message = "Cluster doesn't exist."),
-            @ApiResponse(code = 500, message = "Internal server error.")
+            @ApiResponse(responseCode = "200",
+                    description = "Get the namespace isolation policies assigned to the cluster.",
+                    content = @Content(schema = @Schema(type = "object",
+                            additionalPropertiesSchema = NamespaceIsolationDataImpl.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission."),
+            @ApiResponse(responseCode = "404", description = "Cluster doesn't exist."),
+            @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void getNamespaceIsolationPolicies(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true) @PathParam("cluster") String cluster
+        @Parameter(description = "The cluster name", required = true) @PathParam("cluster") String cluster
     ) {
         validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.READ)
                 .thenCompose(__ -> validateClusterExistAsync(cluster, Status.NOT_FOUND))
@@ -594,21 +599,23 @@ public class ClustersBase extends AdminResource {
 
     @GET
     @Path("/{cluster}/namespaceIsolationPolicies/{policyName}")
-    @ApiOperation(
-            value = "Get the single namespace isolation policy assigned to the cluster.",
-            response = NamespaceIsolationDataImpl.class,
-            notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+            summary = "Get the single namespace isolation policy assigned to the cluster.",
+            description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "Don't have admin permission."),
-            @ApiResponse(code = 404, message = "Policy doesn't exist."),
-            @ApiResponse(code = 412, message = "Cluster doesn't exist."),
-            @ApiResponse(code = 500, message = "Internal server error.")
+            @ApiResponse(responseCode = "200",
+                    description = "Get the single namespace isolation policy assigned to the cluster.",
+                    content = @Content(schema = @Schema(implementation = NamespaceIsolationDataImpl.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission."),
+            @ApiResponse(responseCode = "404", description = "Policy doesn't exist."),
+            @ApiResponse(responseCode = "412", description = "Cluster doesn't exist."),
+            @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void getNamespaceIsolationPolicy(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true) @PathParam("cluster") String cluster,
-        @ApiParam(value = "The name of the namespace isolation policy", required = true)
+        @Parameter(description = "The cluster name", required = true) @PathParam("cluster") String cluster,
+        @Parameter(description = "The name of the namespace isolation policy", required = true)
         @PathParam("policyName") String policyName
     ) {
         validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.READ)
@@ -633,21 +640,24 @@ public class ClustersBase extends AdminResource {
 
     @GET
     @Path("/{cluster}/namespaceIsolationPolicies/brokers")
-    @ApiOperation(
-        value = "Get list of brokers with namespace-isolation policies attached to them.",
-        response = BrokerNamespaceIsolationDataImpl.class,
-        responseContainer = "set",
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Get list of brokers with namespace-isolation policies attached to them.",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-        @ApiResponse(code = 403, message = "Don't have admin permission."),
-        @ApiResponse(code = 404, message = "Namespace-isolation policies not found."),
-        @ApiResponse(code = 412, message = "Cluster doesn't exist."),
-        @ApiResponse(code = 500, message = "Internal server error.")
+        @ApiResponse(responseCode = "200",
+                description = "Get list of brokers with namespace-isolation policies attached to them.",
+                content = @Content(array = @ArraySchema(
+                        schema = @Schema(implementation = BrokerNamespaceIsolationDataImpl.class),
+                        uniqueItems = true))),
+        @ApiResponse(responseCode = "403", description = "Don't have admin permission."),
+        @ApiResponse(responseCode = "404", description = "Namespace-isolation policies not found."),
+        @ApiResponse(responseCode = "412", description = "Cluster doesn't exist."),
+        @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void getBrokersWithNamespaceIsolationPolicy(
             @Suspended AsyncResponse asyncResponse,
-            @ApiParam(value = "The cluster name", required = true)
+            @Parameter(description = "The cluster name", required = true)
             @PathParam("cluster") String cluster) {
         validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.READ)
                 .thenCompose(__ -> validateClusterExistAsync(cluster, Status.PRECONDITION_FAILED))
@@ -690,22 +700,24 @@ public class ClustersBase extends AdminResource {
 
     @GET
     @Path("/{cluster}/namespaceIsolationPolicies/brokers/{broker}")
-    @ApiOperation(
-        value = "Get a broker with namespace-isolation policies attached to it.",
-        response = BrokerNamespaceIsolationDataImpl.class,
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Get a broker with namespace-isolation policies attached to it.",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-        @ApiResponse(code = 403, message = "Don't have admin permission."),
-        @ApiResponse(code = 404, message = "Namespace-isolation policies/ Broker not found."),
-        @ApiResponse(code = 412, message = "Cluster doesn't exist."),
-        @ApiResponse(code = 500, message = "Internal server error.")
+        @ApiResponse(responseCode = "200",
+                description = "Get a broker with namespace-isolation policies attached to it.",
+                content = @Content(schema = @Schema(implementation = BrokerNamespaceIsolationDataImpl.class))),
+        @ApiResponse(responseCode = "403", description = "Don't have admin permission."),
+        @ApiResponse(responseCode = "404", description = "Namespace-isolation policies/ Broker not found."),
+        @ApiResponse(responseCode = "412", description = "Cluster doesn't exist."),
+        @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void getBrokerWithNamespaceIsolationPolicy(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true)
+        @Parameter(description = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(value = "The broker name (<broker-hostname>:<web-service-port>)", required = true,
+        @Parameter(description = "The broker name (<broker-hostname>:<web-service-port>)", required = true,
             example = "broker1:8080")
         @PathParam("broker") String broker) {
         validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.READ)
@@ -726,25 +738,25 @@ public class ClustersBase extends AdminResource {
 
     @POST
     @Path("/{cluster}/namespaceIsolationPolicies/{policyName}")
-    @ApiOperation(
-        value = "Set namespace isolation policy.",
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Set namespace isolation policy.",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-        @ApiResponse(code = 204, message = "Set namespace isolation policy successfully."),
-        @ApiResponse(code = 400, message = "Namespace isolation policy data is invalid."),
-        @ApiResponse(code = 403, message = "Don't have admin permission or policies are read-only."),
-        @ApiResponse(code = 404, message = "Namespace isolation policy doesn't exist."),
-        @ApiResponse(code = 412, message = "Cluster doesn't exist."),
-        @ApiResponse(code = 500, message = "Internal server error.")
+        @ApiResponse(responseCode = "204", description = "Set namespace isolation policy successfully."),
+        @ApiResponse(responseCode = "400", description = "Namespace isolation policy data is invalid."),
+        @ApiResponse(responseCode = "403", description = "Don't have admin permission or policies are read-only."),
+        @ApiResponse(responseCode = "404", description = "Namespace isolation policy doesn't exist."),
+        @ApiResponse(responseCode = "412", description = "Cluster doesn't exist."),
+        @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void setNamespaceIsolationPolicy(
         @Suspended final AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true)
+        @Parameter(description = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(value = "The namespace isolation policy name", required = true)
+        @Parameter(description = "The namespace isolation policy name", required = true)
         @PathParam("policyName") String policyName,
-        @ApiParam(value = "The namespace isolation policy data", required = true)
+        @RequestBody(description = "The namespace isolation policy data", required = true)
         NamespaceIsolationDataImpl policyData
     ) {
         validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.WRITE)
@@ -890,37 +902,39 @@ public class ClustersBase extends AdminResource {
             List<CompletableFuture<Void>> futures = clusterLocalNamespaces.stream()
                     .map(namespaceName -> adminClient.namespaces().unloadAsync(namespaceName))
                     .collect(Collectors.toList());
-            return FutureUtil.waitForAll(futures).thenAccept(__ -> {
+            return FutureUtil.waitForAll(futures).thenAcceptAsync(__ -> {
                 try {
-                    // write load info to load manager to make the load happens fast
+                    // Write the load report so the unloaded namespaces rebalance quickly. Run it on the
+                    // broker executor rather than the admin-client callback thread that completes the
+                    // unload futures, because writeLoadReportOnZookeeper blocks on a metadata-store write.
                     pulsar().getLoadManager().get().writeLoadReportOnZookeeper(true);
                 } catch (Exception e) {
                     log.warn()
                             .exception(e)
                             .log("Failed to writeLoadReportOnZookeeper.");
                 }
-            });
+            }, pulsar().getExecutor());
         });
     }
 
     @DELETE
     @Path("/{cluster}/namespaceIsolationPolicies/{policyName}")
-    @ApiOperation(
-        value = "Delete namespace isolation policy.",
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Delete namespace isolation policy.",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-        @ApiResponse(code = 204, message = "Delete namespace isolation policy successfully."),
-        @ApiResponse(code = 403, message = "Don't have admin permission or policies are read only."),
-        @ApiResponse(code = 404, message = "Namespace isolation policy doesn't exist."),
-        @ApiResponse(code = 412, message = "Cluster doesn't exist."),
-        @ApiResponse(code = 500, message = "Internal server error.")
+        @ApiResponse(responseCode = "204", description = "Delete namespace isolation policy successfully."),
+        @ApiResponse(responseCode = "403", description = "Don't have admin permission or policies are read only."),
+        @ApiResponse(responseCode = "404", description = "Namespace isolation policy doesn't exist."),
+        @ApiResponse(responseCode = "412", description = "Cluster doesn't exist."),
+        @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void deleteNamespaceIsolationPolicy(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true)
+        @Parameter(description = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(value = "The namespace isolation policy name", required = true)
+        @Parameter(description = "The namespace isolation policy name", required = true)
         @PathParam("policyName") String policyName
     ) {
         validateBothSuperuserAndClusterPolicyOperation(cluster, PolicyName.NAMESPACE_ISOLATION, PolicyOperation.WRITE)
@@ -957,25 +971,26 @@ public class ClustersBase extends AdminResource {
 
     @POST
     @Path("/{cluster}/failureDomains/{domainName}")
-    @ApiOperation(
-        value = "Set the failure domain of the cluster.",
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Set the failure domain of the cluster.",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-        @ApiResponse(code = 204, message = "Set the failure domain of the cluster successfully."),
-        @ApiResponse(code = 403, message = "Don't have admin permission."),
-        @ApiResponse(code = 404, message = "Failure domain doesn't exist."),
-        @ApiResponse(code = 409, message = "Broker already exists in another domain."),
-        @ApiResponse(code = 412, message = "Cluster doesn't exist."),
-        @ApiResponse(code = 500, message = "Internal server error.")
+        @ApiResponse(responseCode = "204", description = "Set the failure domain of the cluster successfully."),
+        @ApiResponse(responseCode = "403", description = "Don't have admin permission."),
+        @ApiResponse(responseCode = "404", description = "Failure domain doesn't exist."),
+        @ApiResponse(responseCode = "409", description = "Broker already exists in another domain."),
+        @ApiResponse(responseCode = "412", description = "Cluster doesn't exist."),
+        @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void setFailureDomain(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true)
+        @Parameter(description = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(value = "The failure domain name", required = true)
+        @Parameter(description = "The failure domain name", required = true)
         @PathParam("domainName") String domainName,
-        @ApiParam(value = "The configuration data of a failure domain", required = true) FailureDomainImpl domain
+        @RequestBody(description = "The configuration data of a failure domain", required = true)
+        FailureDomainImpl domain
     ) {
         validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.UPDATE_FAILURE_DOMAIN)
                 .thenCompose(__ -> validateClusterExistAsync(cluster, PRECONDITION_FAILED))
@@ -1012,19 +1027,20 @@ public class ClustersBase extends AdminResource {
 
     @GET
     @Path("/{cluster}/failureDomains")
-    @ApiOperation(
-        value = "Get the cluster failure domains.",
-        response = FailureDomainImpl.class,
-        responseContainer = "Map",
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Get the cluster failure domains.",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-        @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 500, message = "Internal server error")
+        @ApiResponse(responseCode = "200", description = "Get the cluster failure domains.",
+                content = @Content(schema = @Schema(type = "object",
+                        additionalPropertiesSchema = FailureDomainImpl.class))),
+        @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public void getFailureDomains(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true)
+        @Parameter(description = "The cluster name", required = true)
         @PathParam("cluster") String cluster
     ) {
         validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.GET_FAILURE_DOMAIN)
@@ -1073,22 +1089,23 @@ public class ClustersBase extends AdminResource {
 
     @GET
     @Path("/{cluster}/failureDomains/{domainName}")
-    @ApiOperation(
-        value = "Get a domain in a cluster",
-        response = FailureDomainImpl.class,
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Get a domain in a cluster",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-        @ApiResponse(code = 403, message = "Don't have admin permission"),
-        @ApiResponse(code = 404, message = "FailureDomain doesn't exist"),
-        @ApiResponse(code = 412, message = "Cluster doesn't exist"),
-        @ApiResponse(code = 500, message = "Internal server error")
+        @ApiResponse(responseCode = "200", description = "Get a domain in a cluster",
+                content = @Content(schema = @Schema(implementation = FailureDomainImpl.class))),
+        @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+        @ApiResponse(responseCode = "404", description = "FailureDomain doesn't exist"),
+        @ApiResponse(responseCode = "412", description = "Cluster doesn't exist"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public void getDomain(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true)
+        @Parameter(description = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(value = "The failure domain name", required = true)
+        @Parameter(description = "The failure domain name", required = true)
         @PathParam("domainName") String domainName
     ) {
         validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.GET_FAILURE_DOMAIN)
@@ -1112,22 +1129,22 @@ public class ClustersBase extends AdminResource {
 
     @DELETE
     @Path("/{cluster}/failureDomains/{domainName}")
-    @ApiOperation(
-        value = "Delete the failure domain of the cluster",
-        notes = "This operation requires Pulsar superuser privileges."
+    @Operation(
+        summary = "Delete the failure domain of the cluster",
+        description = "This operation requires Pulsar superuser privileges."
     )
     @ApiResponses(value = {
-        @ApiResponse(code = 200, message = "Delete the failure domain of the cluster successfully"),
-        @ApiResponse(code = 403, message = "Don't have admin permission or policy is read only"),
-        @ApiResponse(code = 404, message = "FailureDomain doesn't exist"),
-        @ApiResponse(code = 412, message = "Cluster doesn't exist"),
-        @ApiResponse(code = 500, message = "Internal server error")
+        @ApiResponse(responseCode = "200", description = "Delete the failure domain of the cluster successfully"),
+        @ApiResponse(responseCode = "403", description = "Don't have admin permission or policy is read only"),
+        @ApiResponse(responseCode = "404", description = "FailureDomain doesn't exist"),
+        @ApiResponse(responseCode = "412", description = "Cluster doesn't exist"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     public void deleteFailureDomain(
         @Suspended AsyncResponse asyncResponse,
-        @ApiParam(value = "The cluster name", required = true)
+        @Parameter(description = "The cluster name", required = true)
         @PathParam("cluster") String cluster,
-        @ApiParam(value = "The failure domain name", required = true)
+        @Parameter(description = "The failure domain name", required = true)
         @PathParam("domainName") String domainName
     ) {
         validateBothSuperuserAndClusterOperation(cluster, ClusterOperation.DELETE_FAILURE_DOMAIN)

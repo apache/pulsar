@@ -20,20 +20,18 @@ package org.apache.pulsar.metadata.coordination.impl;
 
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.google.common.annotations.VisibleForTesting;
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
-import org.apache.pulsar.metadata.api.MetadataCache;
-import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.AlreadyClosedException;
@@ -52,13 +50,18 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     private final String path;
     private final MetadataSerde<T> serde;
     private final MetadataStoreExtended store;
-    private final MetadataCache<T> cache;
     private final Consumer<LeaderElectionState> stateChangesListener;
-    private final ScheduledFuture<?> updateCachedValueFuture;
 
     private LeaderElectionState leaderElectionState;
     private Optional<Long> version = Optional.empty();
     private Optional<T> proposedValue;
+
+    // The leader value as known by the election cycle (the leader can only change through an
+    // election cycle). Pending while no leader is known — election in progress or the leader node
+    // deleted — and completed with the leader value once the election settles. Readers of
+    // getLeaderValue() wait on it (bounded by leaderElectionCompletionTimeoutSeconds);
+    // getLeaderValueIfPresent() takes a non-blocking snapshot of it.
+    private CompletableFuture<Optional<T>> currentLeaderFuture = new CompletableFuture<>();
 
     private final ScheduledExecutorService executor;
     private final FutureUtil.Sequencer<Void> sequencer;
@@ -71,16 +74,21 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     private static final int LEADER_ELECTION_RETRY_DELAY_SECONDS = 5;
 
+    // Upper bound for getLeaderValue() waiting on an election that never settles, aligned with the
+    // default metadata-store operation timeout (the broker's metadataStoreOperationTimeoutSeconds).
+    private volatile int leaderElectionCompletionTimeoutSeconds = 30;
+
+    @VisibleForTesting
+    void setLeaderElectionCompletionTimeoutSeconds(int leaderElectionCompletionTimeoutSeconds) {
+        this.leaderElectionCompletionTimeoutSeconds = leaderElectionCompletionTimeoutSeconds;
+    }
+
     LeaderElectionImpl(MetadataStoreExtended store, Class<T> clazz, String path,
             Consumer<LeaderElectionState> stateChangesListener,
                        ScheduledExecutorService executor) {
         this.path = path;
         this.serde = new JSONMetadataSerdeSimpleType<>(TypeFactory.defaultInstance().constructSimpleType(clazz, null));
         this.store = store;
-        MetadataCacheConfig<?> metadataCacheConfig = MetadataCacheConfig.builder()
-                .expireAfterWriteMillis(-1L)
-                .build();
-        this.cache = store.getMetadataCache(clazz, metadataCacheConfig);
         this.leaderElectionState = LeaderElectionState.NoLeader;
         this.internalState = InternalState.Init;
         this.stateChangesListener = stateChangesListener;
@@ -88,13 +96,38 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         this.sequencer = FutureUtil.Sequencer.create();
         store.registerListener(this::handlePathNotification);
         store.registerSessionListener(this::handleSessionNotification);
-        updateCachedValueFuture = executor.scheduleWithFixedDelay(this::getLeaderValue,
-                metadataCacheConfig.getRefreshAfterWriteMillis() / 2,
-                metadataCacheConfig.getRefreshAfterWriteMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * Record the leader value determined by the election cycle, waking up any getLeaderValue()
+     * callers waiting for the election to settle.
+     */
+    private synchronized void leaderKnown(Optional<T> leaderValue) {
+        if (currentLeaderFuture.isDone()) {
+            currentLeaderFuture = CompletableFuture.completedFuture(leaderValue);
+        } else {
+            currentLeaderFuture.complete(leaderValue);
+        }
+    }
+
+    /**
+     * Mark the leader as unknown (the leader node was deleted) so getLeaderValue() callers wait for
+     * the next election cycle to settle instead of observing a stale value.
+     */
+    private synchronized void leaderUnknown() {
+        if (currentLeaderFuture.isDone()) {
+            currentLeaderFuture = new CompletableFuture<>();
+        }
     }
 
     @Override
     public synchronized CompletableFuture<LeaderElectionState> elect(T proposedValue) {
+        if (internalState == InternalState.Closed) {
+            // Reopened after close() (e.g. the broker's LeaderElectionService is close()d and then
+            // start()ed again): reset so a fresh election cycle runs and readers wait for it.
+            leaderElectionState = LeaderElectionState.NoLeader;
+            currentLeaderFuture = new CompletableFuture<>();
+        }
         if (leaderElectionState != LeaderElectionState.NoLeader) {
             return CompletableFuture.completedFuture(leaderElectionState);
         }
@@ -112,12 +145,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             } else {
                 return tryToBecomeLeader();
             }
-        }).thenCompose(leaderElectionState -> {
-            // make sure that the cache contains the current leader
-            // so that getLeaderValueIfPresent works on all brokers
-            cache.refresh(path);
-            return cache.get(path)
-                    .thenApply(__ -> leaderElectionState);
         });
     }
 
@@ -137,6 +164,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 log.info().attr("value", existingValue).attr("path", path).attr("stat", res.getStat())
                         .log("Keeping the existing value as it's from the same session");
                 // The value is still valid because it was created in the same session
+                leaderKnown(Optional.of(existingValue));
                 changeState(LeaderElectionState.Leading);
                 return CompletableFuture.completedFuture(LeaderElectionState.Leading);
             } else {
@@ -160,6 +188,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }
 
         // If the existing value is different, it means there's already another leader
+        leaderKnown(Optional.of(existingValue));
         changeState(LeaderElectionState.Following);
         return CompletableFuture.completedFuture(LeaderElectionState.Following);
     }
@@ -190,37 +219,19 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 .thenAccept(stat -> {
                     synchronized (LeaderElectionImpl.this) {
                         if (internalState == InternalState.ElectionInProgress) {
-                            // Do a get() in order to force a notification later, if the z-node disappears
-                            cache.get(path)
-                                    .thenRun(() -> {
-                                        synchronized (LeaderElectionImpl.this) {
-                                            log.info().attr("path", path).attr("value", value)
-                                                    .log("Acquired leadership");
-                                            internalState = InternalState.LeaderIsPresent;
-                                            if (leaderElectionState != LeaderElectionState.Leading) {
-                                                leaderElectionState = LeaderElectionState.Leading;
-                                                try {
-                                                    stateChangesListener.accept(leaderElectionState);
-                                                } catch (Throwable t) {
-                                                    log.warn().exception(t).log("Exception in state change listener");
-                                                }
-                                            }
-                                            result.complete(leaderElectionState);
-                                        }
-                                    }).exceptionally(ex -> {
-                                        // We fail to do the get(), so clean up the leader election fail the whole
-                                        // operation
-                                        log.warn().attr("path", path).exception(ex)
-                                                .log("Failed to get the current state after acquiring leadership."
-                                                        + " Conditionally deleting current entry.");
-                                        store.delete(path, Optional.of(stat.getVersion()))
-                                                .thenRun(() -> result.completeExceptionally(ex))
-                                                .exceptionally(ex2 -> {
-                                                    result.completeExceptionally(ex2);
-                                                    return null;
-                                                });
-                                        return null;
-                                    });
+                            log.info().attr("path", path).attr("value", value)
+                                    .log("Acquired leadership");
+                            internalState = InternalState.LeaderIsPresent;
+                            leaderKnown(Optional.of(value));
+                            if (leaderElectionState != LeaderElectionState.Leading) {
+                                leaderElectionState = LeaderElectionState.Leading;
+                                try {
+                                    stateChangesListener.accept(leaderElectionState);
+                                } catch (Throwable t) {
+                                    log.warn().exception(t).log("Exception in state change listener");
+                                }
+                            }
+                            result.complete(leaderElectionState);
                         } else {
                             log.info().attr("path", path).attr("value", value).attr("stat", stat)
                                     .log("Leadership was lost. Conditionally deleting entry.");
@@ -259,7 +270,6 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     @Override
     public void close() throws Exception {
-        updateCachedValueFuture.cancel(true);
         try {
             asyncClose().join();
         } catch (CompletionException e) {
@@ -274,6 +284,12 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }
 
         internalState = InternalState.Closed;
+        // A closed election reports "no leader" rather than waiting or failing: callers like the
+        // extensible load manager's handleNoChannelOwnerError() key off the resulting
+        // "no channel owner" condition to restart the election.
+        if (!currentLeaderFuture.isDone()) {
+            currentLeaderFuture.complete(Optional.empty());
+        }
 
         if (leaderElectionState != LeaderElectionState.Leading) {
             return CompletableFuture.completedFuture(null);
@@ -283,6 +299,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 .thenAccept(__ -> {
                             synchronized (LeaderElectionImpl.this) {
                                 leaderElectionState = LeaderElectionState.NoLeader;
+                                // The deleted leader node was ours and a closed instance no longer
+                                // observes elections; don't keep reporting ourselves as leader.
+                                currentLeaderFuture = CompletableFuture.completedFuture(Optional.empty());
                             }
                         }
                 );
@@ -295,12 +314,61 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     @Override
     public CompletableFuture<Optional<T>> getLeaderValue() {
-        return cache.get(path);
+        CompletableFuture<Optional<T>> future;
+        synchronized (this) {
+            if (internalState == InternalState.Init) {
+                // This instance never participated in the election (a pure observer, e.g.
+                // BookKeeper's MetadataDrivers helpers querying the current auditor): there is no
+                // local election cycle to wait for, so the store content is the authoritative
+                // answer.
+                return readLeaderValueFromStore();
+            }
+            future = currentLeaderFuture;
+        }
+        if (future.isDone()) {
+            // Hand out a derived future so callers cannot complete the internal one.
+            return future.thenApply(value -> value);
+        }
+        int timeoutSeconds = leaderElectionCompletionTimeoutSeconds;
+        return FutureUtil.addTimeoutHandling(whenLeaderKnown(future),
+                Duration.ofSeconds(timeoutSeconds), executor,
+                () -> FutureUtil.createTimeoutException(
+                        "Leader election on path " + path + " did not complete within "
+                                + timeoutSeconds + " seconds",
+                        LeaderElectionImpl.class, "getLeaderValue()"));
+    }
+
+    private CompletableFuture<Optional<T>> readLeaderValueFromStore() {
+        return store.get(path).thenApply(optRes -> optRes.map(res -> {
+            try {
+                return serde.deserialize(path, res.getValue(), res.getStat());
+            } catch (Throwable t) {
+                throw new CompletionException(t);
+            }
+        }));
+    }
+
+    // Track the internal future without exposing it: completing/cancelling the returned future
+    // (e.g. by the timeout handling) must not complete the election's own future.
+    private CompletableFuture<Optional<T>> whenLeaderKnown(CompletableFuture<Optional<T>> future) {
+        CompletableFuture<Optional<T>> result = new CompletableFuture<>();
+        future.whenComplete((value, ex) -> {
+            if (ex != null) {
+                result.completeExceptionally(ex);
+            } else {
+                result.complete(value);
+            }
+        });
+        return result;
     }
 
     @Override
     public Optional<T> getLeaderValueIfPresent() {
-        return cache.getIfCached(path);
+        CompletableFuture<Optional<T>> future;
+        synchronized (this) {
+            future = currentLeaderFuture;
+        }
+        return future.isDone() && !future.isCompletedExceptionally() ? future.join() : Optional.empty();
     }
 
     private void handleSessionNotification(SessionEvent event) {
@@ -338,6 +406,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                 }
 
                 leaderElectionState = LeaderElectionState.NoLeader;
+                // The leader is unknown until the re-election below settles; getLeaderValue()
+                // callers wait for it instead of observing the stale value.
+                leaderUnknown();
 
                 if (proposedValue.isPresent()) {
                     elect()

@@ -101,11 +101,10 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
         try (StorageAdminClient storageAdminClient = new SimpleStorageAdminClientImpl(
              StorageClientSettings.newBuilder().serviceUri(stateStorageServiceUrl).build(),
              ClientResources.create().scheduler())){
-            StreamConfiguration streamConf = StreamConfiguration.newBuilder(DEFAULT_STREAM_CONF)
+            StreamConfiguration streamConf = new StreamConfiguration().copyFrom(DEFAULT_STREAM_CONF)
                 .setInitialNumRanges(4)
                 .setMinNumRanges(4)
-                .setStorageType(StorageType.TABLE)
-                .build();
+                .setStorageType(StorageType.TABLE);
             Stopwatch elapsedWatch = Stopwatch.createStarted();
 
             Exception lastException = null;
@@ -115,9 +114,9 @@ public class BKStateStoreProviderImpl implements StateStoreProvider {
                     return;
                 } catch (NamespaceNotFoundException nnfe) {
                     try {
-                        result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
-                                .setDefaultStreamConf(streamConf)
-                                .build()));
+                        NamespaceConfiguration nsConf = new NamespaceConfiguration();
+                        nsConf.setDefaultStreamConf().copyFrom(streamConf);
+                        result(storageAdminClient.createNamespace(tableNs, nsConf));
                     } catch (Exception e) {
                         // there might be two clients conflicting at creating table, so let's retrieve the table again
                         // to make sure the table is created.

@@ -18,10 +18,10 @@
  */
 package org.apache.pulsar.websocket.admin;
 
+import jakarta.ws.rs.core.Response.Status;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import javax.ws.rs.core.Response.Status;
 import lombok.CustomLog;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;

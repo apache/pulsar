@@ -23,6 +23,7 @@ import static org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl.removeIde
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -31,7 +32,6 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
-import javax.ws.rs.core.Response;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -636,14 +636,6 @@ public class PulsarWorkerService implements WorkerService {
             }
         }
 
-        if (null != functionRuntimeManager) {
-            try {
-                functionRuntimeManager.close();
-            } catch (Exception e) {
-                log.warn().exception(e).log("Failed to close function runtime manager");
-            }
-        }
-
         if (null != clusterServiceCoordinator) {
             clusterServiceCoordinator.close();
         }
@@ -654,6 +646,14 @@ public class PulsarWorkerService implements WorkerService {
 
         if (null != schedulerManager) {
             schedulerManager.close();
+        }
+
+        if (null != functionRuntimeManager) {
+            try {
+                functionRuntimeManager.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("Failed to close function runtime manager");
+            }
         }
 
         if (null != leaderService) {

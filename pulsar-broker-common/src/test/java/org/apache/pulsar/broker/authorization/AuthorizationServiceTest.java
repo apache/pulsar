@@ -18,11 +18,18 @@
  */
 package org.apache.pulsar.broker.authorization;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
+import java.io.IOException;
 import java.util.HashSet;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -49,6 +56,60 @@ public class AuthorizationServiceTest {
         conf.setProxyRoles(proxyRoles);
         conf.setAuthorizationProvider(MockAuthorizationProvider.class.getName());
         authorizationService = new AuthorizationService(conf, null);
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    public void testContextDelegatesToLegacyInitializer() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        PulsarResources resources = mock(PulsarResources.class);
+        AuthenticationService authenticationService = mock(AuthenticationService.class);
+        AuthorizationProvider provider = mock(AuthorizationProvider.class, CALLS_REAL_METHODS);
+        provider.initialize(AuthorizationProvider.InitialContext.builder()
+                .config(config).pulsarResources(resources).authenticationService(authenticationService).build());
+        verify(provider).initialize(config, resources);
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    public void testPulsarProviderInitializers() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        PulsarResources resources = mock(PulsarResources.class);
+        try (PulsarAuthorizationProvider provider = new PulsarAuthorizationProvider()) {
+            provider.initialize(AuthorizationProvider.InitialContext.builder()
+                    .config(config).pulsarResources(resources).build());
+            assertThat(provider.conf).isSameAs(config);
+            assertThat(provider.pulsarResources).isSameAs(resources);
+
+            ServiceConfiguration legacyConfig = new ServiceConfiguration();
+            PulsarResources legacyResources = mock(PulsarResources.class);
+            provider.initialize(legacyConfig, legacyResources);
+            assertThat(provider.conf).isSameAs(legacyConfig);
+            assertThat(provider.pulsarResources).isSameAs(legacyResources);
+        }
+    }
+
+    public static class LegacyPulsarProvider extends PulsarAuthorizationProvider {
+        private int initializationCount;
+
+        @Override
+        @SuppressWarnings("deprecation")
+        public void initialize(ServiceConfiguration config, PulsarResources resources) throws IOException {
+            super.initialize(config, resources);
+            initializationCount++;
+        }
+    }
+
+    @Test
+    public void testContextInitializesLegacyPulsarSubclass() throws Exception {
+        ServiceConfiguration config = new ServiceConfiguration();
+        PulsarResources resources = mock(PulsarResources.class);
+        try (LegacyPulsarProvider provider = new LegacyPulsarProvider()) {
+            provider.initialize(new AuthorizationProvider.InitialContext(config, resources, null));
+            assertThat(provider.initializationCount).isEqualTo(1);
+            assertThat(provider.conf).isSameAs(config);
+            assertThat(provider.pulsarResources).isSameAs(resources);
+        }
     }
 
     /**

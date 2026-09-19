@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.WebTarget;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.MetadataMigration;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.migration.MigrationState;

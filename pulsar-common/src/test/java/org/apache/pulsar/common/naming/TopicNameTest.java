@@ -195,6 +195,41 @@ public class TopicNameTest {
     }
 
     @Test
+    public void testValidateTopicNameForCreation() {
+        // A trailing space in the full name is trimmed by clients, so the topic would be created under one
+        // name and addressed under the trimmed one. Only trailing whitespace is unreachable this way: a
+        // leading space in the local name sits mid-string in a fully-qualified name and is not trimmed.
+        String[] invalidNames = {
+                "persistent://myprop/myns/mytopic ",
+                "persistent://myprop/myns/mytopic\t",
+                "persistent://myprop/myns/mytopic\n",
+                "non-persistent://myprop/myns/mytopic ",
+                // leading space is allowed, but a trailing space is still trimmed away
+                "persistent://myprop/myns/ mytopic ",
+        };
+        for (String invalidName : invalidNames) {
+            TopicName topicName = TopicName.get(invalidName);
+            assertFalse(TopicName.isValidForCreation(topicName), invalidName);
+            assertThrows(IllegalArgumentException.class,
+                    () -> TopicName.validateTopicNameForCreation(topicName));
+        }
+
+        // Whitespace inside the local name (including a leading space) round-trips correctly and stays allowed.
+        String[] validNames = {
+                "persistent://myprop/myns/my topic",
+                "persistent://myprop/myns/mytopic",
+                "persistent://myprop/myns/mytopic-partition-0",
+                "non-persistent://myprop/myns/my topic",
+                "persistent://myprop/myns/ mytopic",
+        };
+        for (String validName : validNames) {
+            TopicName topicName = TopicName.get(validName);
+            assertTrue(TopicName.isValidForCreation(topicName), validName);
+            TopicName.validateTopicNameForCreation(topicName);
+        }
+    }
+
+    @Test
     public void testDecodeEncode() throws Exception {
         String encodedName = "a%3Aen-in_in_business_content_item_20150312173022_https%5C%3A";
         String rawName = "a:en-in_in_business_content_item_20150312173022_https\\:";
@@ -516,5 +551,27 @@ public class TopicNameTest {
                 () -> TopicName.toFullTopicName("persistent://tenant/cluster/ns/topic"));
         assertThrows(IllegalArgumentException.class,
                 () -> TopicName.toFullTopicName("non-persistent://tenant/cluster/ns/topic"));
+    }
+
+    @Test
+    public void testToScalableTopic() {
+        // topic://... is returned as-is.
+        TopicName already = TopicName.get("topic://tenant/ns/x");
+        assertEquals(already.toScalableTopic(), already);
+
+        // persistent://... is re-expressed in the topic:// domain.
+        assertEquals(TopicName.get("persistent://tenant/ns/x").toScalableTopic().toString(),
+                "topic://tenant/ns/x");
+
+        // Short forms normalise to persistent://public/default/... first, then to topic://.
+        assertEquals(TopicName.get("my-topic").toScalableTopic().toString(),
+                "topic://public/default/my-topic");
+        assertEquals(TopicName.get("tenant/ns/my-topic").toScalableTopic().toString(),
+                "topic://tenant/ns/my-topic");
+
+        // A -partition-K suffix is stripped: the partition resolves to the base topic's
+        // scalable identity, not topic://.../x-partition-K.
+        assertEquals(TopicName.get("persistent://tenant/ns/x-partition-3").toScalableTopic().toString(),
+                "topic://tenant/ns/x");
     }
 }

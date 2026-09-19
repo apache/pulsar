@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -136,12 +136,13 @@ public class MessageTTLTest extends BrokerTestBase {
         Policies policies = admin.namespaces().getPolicies(namespace);
         policies.message_ttl_in_seconds = 10;
         topicRefMock.onPoliciesUpdate(policies);
-        verify(topicRefMock, times(1)).checkMessageExpiry();
+        // checkMessageExpiry now runs asynchronously on the messageExpiryMonitor thread, so wait for it.
+        verify(topicRefMock, timeout(5000).times(1)).checkMessageExpiry();
 
         TopicPolicies topicPolicies = new TopicPolicies();
         topicPolicies.setMessageTTLInSeconds(5);
         topicRefMock.onUpdate(topicPolicies);
-        verify(topicRefMock, times(2)).checkMessageExpiry();
+        verify(topicRefMock, timeout(5000).times(2)).checkMessageExpiry();
     }
 
     @Test

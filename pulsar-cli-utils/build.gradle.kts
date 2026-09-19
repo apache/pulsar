@@ -22,6 +22,6 @@ plugins {
 }
 
 dependencies {
-    implementation(libs.picocli)
+    api(libs.picocli)
     implementation(libs.commons.lang3)
 }

@@ -50,7 +50,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testWebSocketNonDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
         final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();
@@ -88,16 +88,16 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
             Assert.assertFalse(future.isCompletedExceptionally());
         }
 
-        Awaitility.await()
-                .ignoreExceptions().untilAsserted(() -> {
-            Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 0);
-        });
+        // The V5-based pulsar-client has no non-durable subscription mode: --subscription-mode
+        // NonDurable falls back to a durable subscription, so it persists after the consumer
+        // disconnects rather than being removed.
+        Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
     }
 
     @Test(timeOut = 30000)
     public void testWebSocketDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
         final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();
@@ -145,7 +145,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testWebSocketReader() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
         final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();

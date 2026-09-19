@@ -31,11 +31,19 @@ import lombok.experimental.UtilityClass;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
+import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
+import org.apache.pulsar.client.api.v5.config.MemorySize;
+import org.apache.pulsar.client.api.v5.config.ProxyProtocol;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
+import org.apache.pulsar.tls.TlsPolicy;
 
 /**
  * Utility for test clients.
@@ -43,6 +51,23 @@ import org.apache.pulsar.common.util.DirectMemoryUtils;
 @CustomLog
 @UtilityClass
 public class PerfClientUtils {
+
+    /**
+     * Number of significant decimal digits kept by the perf clients' latency histograms.
+     *
+     * <p>HdrHistogram sizes a fixed-range histogram's counts array proportionally to
+     * {@code 2^ceil(log2(2 * 10^digits))}, so every extra digit multiplies the allocation by
+     * roughly 10. At 5 digits (HdrHistogram's maximum) a single {@code Recorder} over the ranges
+     * used here costs 14-16 MB, and a command holds several of them (a live and a cumulative
+     * recorder per measured latency), so the running subcommand pays a multiple of that.
+     *
+     * <p>3 digits bounds the error of a reported percentile at 0.1%. That is far below the
+     * run-to-run variance of a benchmark, and finer than the reports resolve anyway: the
+     * microsecond-based tools print milliseconds with {@code %.3f}, and the millisecond-based
+     * ones print whole milliseconds with {@code %d}. It is also HdrHistogram's own recommended
+     * default.
+     */
+    public static final int LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS = 3;
 
     private static volatile  Consumer<Integer> exitProcedure = System::exit;
 
@@ -94,11 +119,6 @@ public class PerfClientUtils {
             clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
         }
 
-        if (isNotBlank(arguments.sslfactoryPlugin)) {
-            clientBuilder.sslFactoryPlugin(arguments.sslfactoryPlugin)
-                    .sslFactoryPluginParams(arguments.sslFactoryPluginParams);
-        }
-
         if (arguments.tlsAllowInsecureConnection != null) {
             clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
         }
@@ -110,7 +130,120 @@ public class PerfClientUtils {
         if (isNotBlank(arguments.listenerName)) {
             clientBuilder.listenerName(arguments.listenerName);
         }
+
+        // PIP-478: pin the same two provider axes the V5 builder and the admin builder pin, so that
+        // `pulsar-perf produce-v4 --jsse-provider/--jca-provider` really runs on those providers
+        // rather than silently falling back to the JVM provider search order. ClientBuilder has no
+        // fluent setter for either, so this mirrors createAdminBuilderFromArguments and writes them
+        // onto the underlying configuration.
+        if (clientBuilder instanceof ClientBuilderImpl clientBuilderImpl
+                && (isNotBlank(arguments.jsseProvider) || isNotBlank(arguments.jcaProvider))) {
+            ClientConfigurationData conf = clientBuilderImpl.getClientConfigurationData();
+            if (isNotBlank(arguments.jsseProvider)) {
+                conf.setJsseProvider(arguments.jsseProvider);
+            }
+            if (isNotBlank(arguments.jcaProvider)) {
+                conf.setJcaProvider(arguments.jcaProvider);
+            }
+        }
         return clientBuilder;
+    }
+
+    /**
+     * Build a V5 {@link PulsarClientBuilder} from the perf CLI arguments.
+     *
+     * <p>The V5 client is used by the perf commands so they work transparently against both
+     * regular and scalable topics — the V5 SDK detects the topic kind via {@code topic://} vs
+     * {@code persistent://} lookup and routes accordingly.
+     *
+     * <p>A few v4 settings have no direct V5 equivalent and are dropped here: {@code --stats-
+     * interval-seconds} (V5 stats are OpenTelemetry-driven), {@code --max-lookup-request} (V5
+     * does not expose a public knob), and {@code --busy-wait} (no V5 equivalent). All other
+     * relevant flags map 1:1.
+     */
+    public static PulsarClientBuilder createV5ClientBuilderFromArguments(PerformanceBaseArguments arguments)
+            throws org.apache.pulsar.client.api.v5.PulsarClientException {
+
+        ConnectionPolicy.Builder connectionPolicy = ConnectionPolicy.builder()
+                .connectionsPerBroker(arguments.maxConnections)
+                .ioThreads(arguments.ioThreads)
+                .callbackThreads(arguments.listenerThreads);
+        if (isNotBlank(arguments.proxyServiceURL)) {
+            ProxyProtocol v5Proto = arguments.proxyProtocol != null
+                    ? ProxyProtocol.valueOf(arguments.proxyProtocol.name())
+                    : null;
+            connectionPolicy.proxy(arguments.proxyServiceURL, v5Proto);
+        }
+
+        PulsarClientBuilder builder = org.apache.pulsar.client.api.v5.PulsarClient.builder()
+                .serviceUrl(arguments.serviceURL)
+                .memoryLimit(MemorySize.ofBytes(arguments.memoryLimit))
+                .connectionPolicy(connectionPolicy.build())
+                .openTelemetry(AutoConfiguredOpenTelemetrySdk.builder()
+                        .addPropertiesSupplier(() -> Map.of("otel.sdk.disabled", "true"))
+                        .build().getOpenTelemetrySdk());
+
+        if (isNotBlank(arguments.authPluginClassName)) {
+            builder.authentication(arguments.authPluginClassName, arguments.authParams);
+        }
+
+        if (wantsTls(arguments)) {
+            TlsPolicy.Builder tls = TlsPolicy.builder();
+            if (isNotBlank(arguments.tlsTrustCertsFilePath)) {
+                tls.trustCertsFilePath(arguments.tlsTrustCertsFilePath);
+            }
+            if (arguments.tlsAllowInsecureConnection != null) {
+                tls.allowInsecureConnection(arguments.tlsAllowInsecureConnection);
+            }
+            if (arguments.tlsHostnameVerificationEnable != null) {
+                tls.enableHostnameVerification(arguments.tlsHostnameVerificationEnable);
+            }
+            // PIP-478: both provider axes, so a FIPS run can pin BCJSSE and BCFIPS together. Format-
+            // independent — they apply to PEM and keystore material alike.
+            if (isNotBlank(arguments.jsseProvider)) {
+                tls.jsseProvider(arguments.jsseProvider);
+            }
+            if (isNotBlank(arguments.jcaProvider)) {
+                tls.jcaProvider(arguments.jcaProvider);
+            }
+            builder.tlsPolicy(tls.build());
+        }
+
+        if (isNotBlank(arguments.listenerName)) {
+            builder.listenerName(arguments.listenerName);
+        }
+
+        return builder;
+    }
+
+    /**
+     * Whether the arguments express an actual intent to use TLS, and so whether a {@code TlsPolicy} should be
+     * wired onto the V5 builder at all — {@code PulsarClientBuilderV5#tlsPolicy} unconditionally flips
+     * {@code useTls=true}, so setting one against a plaintext endpoint makes the client attempt a TLS
+     * handshake the broker will close.
+     *
+     * <p>The Boolean flags arrive as {@code Boolean.FALSE} (not {@code null}) whenever picocli's
+     * default-value resolution fires without the flag being passed, so "non-null" cannot mean "the user
+     * wanted TLS". TLS is on when the URL is {@code pulsar+ssl://}, when a trust-cert path was supplied, or
+     * when {@code tlsAllowInsecureConnection} was explicitly {@code TRUE}.
+     *
+     * <p>{@code tlsHostnameVerificationEnable} is deliberately <em>not</em> one of those signals. Hostname
+     * verification is on by default since Pulsar 5.0 (PIP-478) and {@code conf/client.conf} ships that
+     * default, so picocli's {@code descriptionKey} resolution hands us {@code TRUE} on every invocation in a
+     * distribution, whether or not TLS was wanted. Reading it as intent forces a TLS handshake against a
+     * plaintext {@code pulsar://} endpoint, which fails with "Connection closed while SSL/TLS handshake was
+     * in progress". It still configures the policy once TLS is on for one of the reasons above.
+     *
+     * <p>Package-private for {@code PerfClientUtilsTest} (VisibleForTesting).
+     *
+     * @param arguments the parsed perf-tool arguments
+     * @return whether a {@code TlsPolicy} should be configured
+     */
+    static boolean wantsTls(PerformanceBaseArguments arguments) {
+        boolean tlsByUrl = arguments.serviceURL != null && arguments.serviceURL.startsWith("pulsar+ssl://");
+        boolean tlsByTrustPath = isNotBlank(arguments.tlsTrustCertsFilePath);
+        boolean tlsByAllowInsecure = Boolean.TRUE.equals(arguments.tlsAllowInsecureConnection);
+        return tlsByUrl || tlsByTrustPath || tlsByAllowInsecure;
     }
 
     public static PulsarAdminBuilder createAdminBuilderFromArguments(PerformanceBaseArguments arguments,
@@ -125,17 +258,29 @@ public class PerfClientUtils {
             pulsarAdminBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
         }
 
-        if (isNotBlank(arguments.sslfactoryPlugin)) {
-            pulsarAdminBuilder.sslFactoryPlugin(arguments.sslfactoryPlugin)
-                    .sslFactoryPluginParams(arguments.sslFactoryPluginParams);
-        }
-
         if (arguments.tlsAllowInsecureConnection != null) {
             pulsarAdminBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
         }
 
         if (arguments.tlsHostnameVerificationEnable != null) {
             pulsarAdminBuilder.enableTlsHostnameVerification(arguments.tlsHostnameVerificationEnable);
+        }
+
+        // PIP-478: the admin leg must be pinned on the same two axes as the binary leg above, otherwise
+        // `pulsar-perf --jsse-provider/--jca-provider` would parse the broker certificate for its HTTPS admin
+        // calls through the JVM provider search order while the data connection is pinned — a FIPS-shaped run
+        // rather than a FIPS one, on the tool whose flags exist to validate exactly that. PulsarAdminBuilder has
+        // no fluent setter for either axis, so this mirrors BrokerService.configAdminTlsSettings and writes them
+        // onto the underlying configuration.
+        if (pulsarAdminBuilder instanceof PulsarAdminBuilderImpl adminBuilderImpl
+                && (isNotBlank(arguments.jsseProvider) || isNotBlank(arguments.jcaProvider))) {
+            ClientConfigurationData adminConf = adminBuilderImpl.getConf();
+            if (isNotBlank(arguments.jsseProvider)) {
+                adminConf.setJsseProvider(arguments.jsseProvider);
+            }
+            if (isNotBlank(arguments.jcaProvider)) {
+                adminConf.setJcaProvider(arguments.jcaProvider);
+            }
         }
 
         return pulsarAdminBuilder;
@@ -164,7 +309,14 @@ public class PerfClientUtils {
         // clear interrupted status and restore later
         boolean wasInterrupted = Thread.currentThread().interrupted();
         try {
-            Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
+            try {
+                Runtime.getRuntime().removeShutdownHook(shutdownHookThread);
+            } catch (IllegalStateException e) {
+                // JVM shutdown is already in progress (e.g. Ctrl-C), so the hook is being run by the
+                // JVM itself: just wait for it rather than failing the command with a stack trace.
+                shutdownHookThread.join();
+                return;
+            }
             shutdownHookThread.start();
             shutdownHookThread.join();
         } finally {
@@ -192,6 +344,49 @@ public class PerfClientUtils {
         } finally {
             if (wasInterrupted) {
                 Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /** {@link #closeClient(PulsarClient)} overload for the V5 client used by the perf tools. */
+    public static void closeClient(org.apache.pulsar.client.api.v5.PulsarClient client) {
+        if (client == null) {
+            return;
+        }
+        boolean wasInterrupted = Thread.currentThread().interrupted();
+        try {
+            client.close();
+        } catch (org.apache.pulsar.client.api.v5.PulsarClientException e) {
+            log.error().exception(e).log("Failed to close client");
+        } finally {
+            if (wasInterrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
+    }
+
+    /**
+     * Open a transaction on the V5 client, retrying briefly while the transaction-coordinator handler
+     * finishes its asynchronous connect. The first {@code newTransaction()} right after the client is
+     * built can race that connect and fail with {@code MetaStoreHandlerNotReadyException}; the perf
+     * tools open their initial transaction before building producers/consumers, so they hit this
+     * window (whereas a tool that builds participants first gives the handler time to connect).
+     *
+     * @param client the V5 client to open the transaction on
+     * @return a new transaction once the coordinator is ready
+     */
+    public static org.apache.pulsar.client.api.v5.Transaction newTransactionWithRetry(
+            org.apache.pulsar.client.api.v5.PulsarClient client)
+            throws org.apache.pulsar.client.api.v5.PulsarClientException, InterruptedException {
+        long deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(30);
+        while (true) {
+            try {
+                return client.newTransaction();
+            } catch (org.apache.pulsar.client.api.v5.PulsarClientException e) {
+                if (System.currentTimeMillis() > deadline || hasInterruptedException(e)) {
+                    throw e;
+                }
+                Thread.sleep(200);
             }
         }
     }

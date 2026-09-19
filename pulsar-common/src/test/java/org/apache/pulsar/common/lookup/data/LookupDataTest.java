@@ -35,8 +35,8 @@ public class LookupDataTest {
 
     @Test
     public void withConstructor() {
-        LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
-                                         "http://localhost:8081");
+        LookupData data = new LookupData(null, "pulsar://localhost:8888", "pulsar://localhost:8884",
+                "http://localhost:8080", "http://localhost:8081");
         assertEquals(data.getBrokerUrl(), "pulsar://localhost:8888");
         assertEquals(data.getHttpUrl(), "http://localhost:8080");
     }
@@ -44,8 +44,8 @@ public class LookupDataTest {
     @SuppressWarnings("unchecked")
     @Test
     public void serializeToJsonTest() throws Exception {
-        LookupData data = new LookupData("pulsar://localhost:8888", "pulsar://localhost:8884", "http://localhost:8080",
-                                         "http://localhost:8081");
+        LookupData data = new LookupData(null, "pulsar://localhost:8888", "pulsar://localhost:8884",
+                "http://localhost:8080", "http://localhost:8081");
         ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
         String json = mapper.writeValueAsString(data);
 
@@ -109,7 +109,7 @@ public class LookupDataTest {
     }
 
     private LocalBrokerData getModularLoadManagerLoadReport(String brokerUrl, ResourceUsage bandwidthIn) {
-        LocalBrokerData report = new LocalBrokerData(brokerUrl, null, null, null);
+        LocalBrokerData report = new LocalBrokerData(null, brokerUrl, null, null, null);
         report.setBandwidthIn(bandwidthIn);
         return report;
     }

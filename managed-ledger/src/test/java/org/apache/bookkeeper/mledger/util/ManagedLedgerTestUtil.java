@@ -19,9 +19,21 @@
 package org.apache.bookkeeper.mledger.util;
 
 import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 
 @CustomLog
 public abstract class ManagedLedgerTestUtil {
+
+    /**
+     * Creates the default test config with inline read completion enabled, matching the broker default.
+     * Disables message metadata parsing because most tests store raw bytes rather than Pulsar messages.
+     */
+    public static ManagedLedgerConfig defaultConfig() {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setPulsarMessageEntries(false);
+        config.setReadEntriesCallbackInline(true);
+        return config;
+    }
 
     public static <T> T retry(ThrowingSupplier<T> supplier) {
         return retry(10, supplier);

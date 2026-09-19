@@ -91,6 +91,8 @@ public class ProxyWithAuthorizationNegTest extends ProducerConsumerBase {
         conf.setTopicLevelPoliciesEnabled(false);
 
         conf.setAuthenticationEnabled(true);
+        // TLS client certificates are authenticated at the proxy and cannot be forwarded to the broker.
+        conf.setAuthenticateOriginalAuthData(false);
         conf.setAuthorizationEnabled(true);
 
         conf.setBrokerServicePortTls(Optional.of(0));

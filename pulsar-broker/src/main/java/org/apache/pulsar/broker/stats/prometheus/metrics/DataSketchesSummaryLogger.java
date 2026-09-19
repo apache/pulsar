@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import com.yahoo.sketches.quantiles.DoublesSketch;
-import com.yahoo.sketches.quantiles.DoublesUnion;
-import com.yahoo.sketches.quantiles.DoublesUnionBuilder;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.LongAdder;
+import org.apache.datasketches.kll.KllDoublesSketch;
 
 public class DataSketchesSummaryLogger {
 
@@ -36,7 +34,7 @@ public class DataSketchesSummaryLogger {
     /*
      * These are the sketches where all the aggregated results are published.
      */
-    private volatile DoublesSketch values;
+    private volatile KllDoublesSketch values;
     private final LongAdder countAdder = new LongAdder();
     private final DoubleAdder sumAdder = new DoubleAdder();
 
@@ -60,10 +58,10 @@ public class DataSketchesSummaryLogger {
         current = replacement;
         replacement = local;
 
-        final DoublesUnion aggregateValues = new DoublesUnionBuilder().build();
+        final KllDoublesSketch aggregateValues = KllDoublesSketch.newHeapInstance();
         local.record(aggregateValues, null);
 
-        values = aggregateValues.getResultAndReset();
+        values = aggregateValues;
     }
 
     public long getCount() {
@@ -75,7 +73,7 @@ public class DataSketchesSummaryLogger {
     }
 
     public double getQuantileValue(double quantile) {
-        DoublesSketch s = values;
-        return s != null ? s.getQuantile(quantile) : Double.NaN;
+        KllDoublesSketch s = values;
+        return (s != null && !s.isEmpty()) ? s.getQuantile(quantile) : Double.NaN;
     }
 }

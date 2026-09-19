@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.scalable;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -37,6 +38,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.resources.SubscriptionType;
@@ -48,7 +51,9 @@ import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -94,6 +99,7 @@ public class ScalableTopicServiceTest {
         scalableTopicsAdmin = mock(ScalableTopics.class);
 
         when(brokerService.getPulsar()).thenReturn(pulsar);
+        when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
         when(brokerService.getTopicIfExists(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         when(pulsar.getBrokerId()).thenReturn(BROKER_ID);
@@ -114,6 +120,14 @@ public class ScalableTopicServiceTest {
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(scalableTopicsAdmin.terminateSegmentAsync(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(null));
+
+        // Stats: no segment is owned locally; the segment-stats admin endpoint is mocked.
+        NamespaceService namespaceService = mock(NamespaceService.class);
+        when(pulsar.getNamespaceService()).thenReturn(namespaceService);
+        when(namespaceService.isServiceUnitOwnedAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(false));
+        when(scalableTopicsAdmin.getSegmentStatsAsync(anyString(), anyLong()))
+                .thenAnswer(inv -> CompletableFuture.completedFuture(new SegmentTopicStats()));
 
         service = new ScalableTopicService(brokerService, resources, coordinationService);
         service.start();
@@ -292,9 +306,12 @@ public class ScalableTopicServiceTest {
         service.createSubscription(tn, "sub-a", SubscriptionType.STREAM).get();
 
         ScalableTopicStats stats = service.getStats(tn).get();
-        assertEquals(stats.getActiveSegments(), 3);
-        assertEquals(stats.getTotalSegments(), 3);
+        assertEquals(stats.getLayout().getSegments().size(), 3);
+        assertTrue(stats.getLayout().getSegments().values().stream()
+                .allMatch(ScalableTopicStats.LayoutSegment::isActive));
         assertEquals(stats.getSubscriptions().keySet(), java.util.Set.of("sub-a"));
+        assertEquals(stats.getSubscriptions().get("sub-a").getType(), ScalableSubscriptionType.STREAM,
+                "the type recorded by createSubscription is reported");
     }
 
     // --- consumer registration delegation ---
@@ -325,9 +342,20 @@ public class ScalableTopicServiceTest {
         service.createScalableTopic(tn, 2).get();
         assertTrue(resources.scalableTopicExistsAsync(tn).get());
 
+        // Seed child records under the topic — a subscription and a per-segment load
+        // record — to verify the delete is recursive and takes everything with it.
+        resources.createSubscriptionAsync(tn, "sub-a",
+                org.apache.pulsar.broker.resources.SubscriptionType.STREAM).get();
+        resources.reportSegmentLoadAsync(tn, 0,
+                new org.apache.pulsar.common.scalable.SegmentLoadStats(1, 1, 1, 1)).get();
+
         service.deleteScalableTopic(tn).get();
 
         assertFalse(resources.scalableTopicExistsAsync(tn).get());
+        assertFalse(resources.subscriptionExistsAsync(tn, "sub-a").get(),
+                "topic delete must remove subscription records");
+        assertFalse(resources.getSegmentLoadAsync(tn, 0).get().isPresent(),
+                "topic delete must remove segment load records");
         verify(scalableTopicsAdmin, org.mockito.Mockito.atLeast(2))
                 .deleteSegmentAsync(anyString(), anyBoolean());
     }

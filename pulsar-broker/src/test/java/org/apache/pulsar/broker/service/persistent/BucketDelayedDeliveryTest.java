@@ -22,6 +22,7 @@ import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPER
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Multimap;
@@ -48,6 +49,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -124,6 +126,61 @@ public class BucketDelayedDeliveryTest extends DelayedDeliveryTest {
 
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher2.getNumberOfDelayedMessages(), 1000));
         Assert.assertEquals(bucketKeys, bucketKeys2);
+    }
+
+    @Test
+    public void testIncrementPartitionsDoesNotCopyBucketDelayedDeliveryState() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/testBucketStatePartitionExpansion");
+        String subscriptionName = "sub";
+        admin.topics().createPartitionedTopic(topic, 1);
+        String sourcePartition = TopicName.get(topic).getPartition(0).toString();
+
+        @Cleanup
+        Consumer<String> sourceConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(sourcePartition)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(sourcePartition)
+                .enableBatching(false)
+                .create();
+
+        for (int i = 0; i < 1000; i++) {
+            producer.newMessage().value("msg").deliverAfter(1, TimeUnit.HOURS).send();
+        }
+
+        Dispatcher sourceDispatcher = pulsar.getBrokerService().getTopicReference(sourcePartition)
+                .get().getSubscription(subscriptionName).getDispatcher();
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertEquals(sourceDispatcher.getNumberOfDelayedMessages(), 1000));
+        List<String> bucketKeys = ((AbstractPersistentDispatcherMultipleConsumers) sourceDispatcher)
+                .getCursor().getCursorProperties().keySet().stream()
+                .filter(key -> key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX + "delayed.bucket")).toList();
+        assertFalse(bucketKeys.isEmpty());
+
+        admin.topics().updatePartitionedTopic(topic, 2);
+
+        String newPartition = TopicName.get(topic).getPartition(1).toString();
+        PersistentTopic newTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(newPartition)
+                .orElseThrow();
+        Map<String, String> newCursorProperties = newTopic.getSubscription(subscriptionName)
+                .getCursor().getCursorProperties();
+        assertTrue(newCursorProperties == null
+                || newCursorProperties.keySet().stream().noneMatch(bucketKeys::contains));
+
+        @Cleanup
+        Consumer<String> newPartitionConsumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(newPartition)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscribe();
+        Dispatcher newPartitionDispatcher = newTopic.getSubscription(subscriptionName).getDispatcher();
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(newPartitionDispatcher.getNumberOfDelayedMessages(), 0));
+        assertTrue(((AbstractPersistentDispatcherMultipleConsumers) sourceDispatcher).getCursor().getCursorProperties()
+                .keySet().containsAll(bucketKeys));
     }
 
 

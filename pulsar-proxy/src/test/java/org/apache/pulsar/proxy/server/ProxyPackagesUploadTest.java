@@ -39,7 +39,7 @@ import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.request.body.multipart.FilePart;
 import org.asynchttpclient.request.body.multipart.StringPart;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

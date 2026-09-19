@@ -77,6 +77,7 @@ import org.apache.pulsar.common.api.proto.CommandScalableTopicClose;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicLookup;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribe;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicSubscribeResponse;
+import org.apache.pulsar.common.api.proto.CommandScalableTopicUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandScalableTopicUpdate;
 import org.apache.pulsar.common.api.proto.CommandSeek;
 import org.apache.pulsar.common.api.proto.CommandSend;
@@ -514,6 +515,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleCommandScalableTopicAssignmentUpdate(cmd.getScalableTopicAssignmentUpdate());
                 break;
 
+            case SCALABLE_TOPIC_UNSUBSCRIBE:
+                checkArgument(cmd.hasScalableTopicUnsubscribe());
+                handleCommandScalableTopicUnsubscribe(cmd.getScalableTopicUnsubscribe());
+                break;
+
             case WATCH_SCALABLE_TOPICS:
                 checkArgument(cmd.hasWatchScalableTopics());
                 handleCommandWatchScalableTopics(cmd.getWatchScalableTopics());
@@ -527,6 +533,21 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
             case WATCH_SCALABLE_TOPICS_CLOSE:
                 checkArgument(cmd.hasWatchScalableTopicsClose());
                 handleCommandWatchScalableTopicsClose(cmd.getWatchScalableTopicsClose());
+                break;
+
+            case WATCH_TC_ASSIGNMENTS:
+                checkArgument(cmd.hasWatchTcAssignments());
+                handleCommandWatchTcAssignments(cmd.getWatchTcAssignments());
+                break;
+
+            case WATCH_TC_ASSIGNMENTS_UPDATE:
+                checkArgument(cmd.hasWatchTcAssignmentsUpdate());
+                handleCommandWatchTcAssignmentsUpdate(cmd.getWatchTcAssignmentsUpdate());
+                break;
+
+            case WATCH_TC_ASSIGNMENTS_CLOSE:
+                checkArgument(cmd.hasWatchTcAssignmentsClose());
+                handleCommandWatchTcAssignmentsClose(cmd.getWatchTcAssignmentsClose());
                 break;
 
             default:
@@ -822,6 +843,11 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
+    protected void handleCommandScalableTopicUnsubscribe(
+            CommandScalableTopicUnsubscribe commandScalableTopicUnsubscribe) {
+        throw new UnsupportedOperationException();
+    }
+
     protected void handleCommandWatchScalableTopics(
             org.apache.pulsar.common.api.proto.CommandWatchScalableTopics commandWatchScalableTopics) {
         throw new UnsupportedOperationException();
@@ -836,6 +862,23 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     protected void handleCommandWatchScalableTopicsClose(
             org.apache.pulsar.common.api.proto.CommandWatchScalableTopicsClose
                     commandWatchScalableTopicsClose) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTcAssignments(
+            org.apache.pulsar.common.api.proto.CommandWatchTcAssignments commandWatchTcAssignments) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTcAssignmentsUpdate(
+            org.apache.pulsar.common.api.proto.CommandWatchTcAssignmentsUpdate
+                    commandWatchTcAssignmentsUpdate) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleCommandWatchTcAssignmentsClose(
+            org.apache.pulsar.common.api.proto.CommandWatchTcAssignmentsClose
+                    commandWatchTcAssignmentsClose) {
         throw new UnsupportedOperationException();
     }
 

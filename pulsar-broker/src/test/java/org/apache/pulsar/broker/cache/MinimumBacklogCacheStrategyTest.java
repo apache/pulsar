@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.cache;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -150,7 +151,7 @@ public class MinimumBacklogCacheStrategyTest extends ProducerConsumerBase {
         latch.await();
 
         // Verify: EntryCache has been invalidated
-        verify(entryCache, atLeastOnce()).insert(any());
+        verify(entryCache, atLeastOnce()).insert(any(), anyBoolean());
 
         for (int i = 0; i < totalSub; i++) {
             consumers[i].close();

@@ -37,7 +37,7 @@ dependencyResolutionManagement {
         }
     }
 
-    // override docker-jdk version with -PdockerJavaVersion=21|25
+    // override docker-jdk version with -PdockerJavaVersion=21|25|26
     val overrideDockerJavaVersion = settings.providers.gradleProperty("dockerJavaVersion")
     if (overrideDockerJavaVersion.isPresent) {
         versionCatalogs {
@@ -50,11 +50,13 @@ dependencyResolutionManagement {
 
 rootProject.name = "pulsar"
 
-// Running this build requires Java 21 or 25. Version check can be skipped with -PskipJavaVersionCheck parameter.
+// Running this build requires Java 21, 25 or 26. Version check can be skipped with -PskipJavaVersionCheck parameter.
 val javaVersion = providers.provider { JavaVersion.current() }
-val statisfiedJavaVersion = javaVersion.map { it == JavaVersion.VERSION_21 || it == JavaVersion.VERSION_25 }
+val statisfiedJavaVersion = javaVersion.map {
+    it == JavaVersion.VERSION_21 || it == JavaVersion.VERSION_25 || it == JavaVersion.VERSION_26
+}
 require(providers.gradleProperty("skipJavaVersionCheck").isPresent || statisfiedJavaVersion.get()) {
-    "This build requires Java 21 or 25, but is running on Java ${javaVersion.get()}. Pass -PskipJavaVersionCheck to skip this check."
+    "This build requires Java 21, 25 or 26, but is running on Java ${javaVersion.get()}. Pass -PskipJavaVersionCheck to skip this check."
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -68,13 +70,12 @@ include("pulsar-bom")
 
 // Tier 0 — no internal dependencies
 include("buildtools")
-// Maven artifactId is "bouncy-castle-bc" (directory is "bouncy-castle/bc")
-include("bouncy-castle:bouncy-castle-bc")
-project(":bouncy-castle:bouncy-castle-bc").projectDir = file("bouncy-castle/bc")
-include("bouncy-castle:bcfips")
 include("pulsar-config-validation")
 include("pulsar-client-api")
 include("pulsar-client-api-v5")
+// Focused, dependency-light SPI modules (PIP-478): TLS factory SPI and HTTP client SPI
+include("pulsar-tls-factory-api")
+include("pulsar-http-client-api")
 
 // Tier 1
 include("pulsar-client-admin-api")
@@ -175,15 +176,14 @@ include("pulsar-package-management:pulsar-package-bookkeeper-storage")
 project(":pulsar-package-management:pulsar-package-bookkeeper-storage").projectDir = file("pulsar-package-management/bookkeeper-storage")
 
 // Tier 6.5 — jetty upgrade modules
-include("jetty-upgrade:pulsar-bookkeeper-prometheus-metrics-provider")
-project(":jetty-upgrade:pulsar-bookkeeper-prometheus-metrics-provider").projectDir = file("jetty-upgrade/bookkeeper-prometheus-metrics-provider")
 include("jetty-upgrade:pulsar-zookeeper-prometheus-metrics")
 project(":jetty-upgrade:pulsar-zookeeper-prometheus-metrics").projectDir = file("jetty-upgrade/zookeeper-prometheus-metrics")
 include("jetty-upgrade:zookeeper-with-patched-admin")
 project(":jetty-upgrade:zookeeper-with-patched-admin").projectDir = file("jetty-upgrade/zookeeper-with-patched-admin")
 
-// Tier 6.5 — bouncy castle test
-include("bouncy-castle:bcfips-include-test")
+// Tier 6.5 — FIPS BouncyCastle TLS integration test
+include("tests:pulsar-client-test-bcfips")
+project(":tests:pulsar-client-test-bcfips").projectDir = file("tests/pulsar-client-test-bcfips")
 
 // Tier 7
 include("pulsar-proxy")
@@ -196,9 +196,15 @@ include("pulsar-broker-auth-oidc")
 include("pulsar-broker-auth-sasl")
 include("pulsar-client-auth-sasl")
 
+// Tier 9 — shaded utility modules (in core-modules)
+include("pulsar-client-fastutil-minimized")
+include("pulsar-broker-fastutil-minimized")
+
 // Tier 10 — shaded client modules (in core-modules)
 include("pulsar-client-shaded")
 include("pulsar-client-all")
+include("pulsar-client-v5-all")
+include("pulsar-client-v5-shaded")
 include("pulsar-client-admin-shaded")
 
 // Tier 11 — distribution (server is in core-modules)
@@ -263,7 +269,12 @@ project(":tests:integration").projectDir = file("tests/integration")
 
 include("tests:pulsar-client-shade-test")
 project(":tests:pulsar-client-shade-test").projectDir = file("tests/pulsar-client-shade-test")
+include("tests:pulsar-client-admin-v5-test")
+include("tests:pulsar-client-v5-shade-test")
+include("tests:pulsar-client-v5-all-test")
 include("tests:pulsar-client-admin-shade-test")
 project(":tests:pulsar-client-admin-shade-test").projectDir = file("tests/pulsar-client-admin-shade-test")
 include("tests:pulsar-client-all-shade-test")
 project(":tests:pulsar-client-all-shade-test").projectDir = file("tests/pulsar-client-all-shade-test")
+include("tests:pulsar-client-native-image")
+project(":tests:pulsar-client-native-image").projectDir = file("tests/pulsar-client-native-image")

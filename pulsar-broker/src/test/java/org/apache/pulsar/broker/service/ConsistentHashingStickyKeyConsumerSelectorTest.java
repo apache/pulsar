@@ -32,7 +32,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.commons.lang3.mutable.MutableInt;
@@ -44,6 +47,80 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ConsistentHashingStickyKeyConsumerSelectorTest {
+
+    @Test(timeOut = 30000)
+    public void testConcurrentLookupDuringMembershipChanges() throws Exception {
+        var selector = new ConsistentHashingStickyKeyConsumerSelector(20, true, 127);
+        Consumer stable = createMockConsumer("stable", "stable", 1);
+        Consumer changing = createMockConsumer("changing", "changing", 2);
+        selector.addConsumer(stable).join();
+        var readers = Executors.newFixedThreadPool(3);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<?>> results = new ArrayList<>();
+        try {
+            for (int thread = 0; thread < 3; thread++) {
+                results.add(readers.submit(() -> {
+                    start.await();
+                    for (int i = 0; i < 30000; i++) {
+                        Consumer selected = selector.select(1 + i % 127);
+                        Assert.assertTrue(selected == stable || selected == changing);
+                    }
+                    return null;
+                }));
+            }
+            start.countDown();
+            for (int i = 0; i < 500; i++) {
+                selector.addConsumer(changing).join();
+                selector.removeConsumer(changing);
+            }
+            for (Future<?> result : results) {
+                result.get(20, TimeUnit.SECONDS);
+            }
+            for (int hash = 1; hash <= 127; hash++) {
+                Assert.assertSame(selector.select(hash), stable);
+            }
+        } finally {
+            start.countDown();
+            readers.shutdownNow();
+            Assert.assertTrue(readers.awaitTermination(5, TimeUnit.SECONDS));
+        }
+    }
+
+    @Test
+    public void testLookupMatchesAssignmentsAcrossMembershipChanges() {
+        ConsistentHashingStickyKeyConsumerSelector selector =
+                new ConsistentHashingStickyKeyConsumerSelector(20, true, 127);
+        List<Consumer> consumers = List.of(createMockConsumer("same", "first", 1),
+                createMockConsumer("same", "second", 2), createMockConsumer("other", "third", 3),
+                createMockConsumer("last", "fourth", 4));
+        for (Consumer consumer : consumers) {
+            selector.addConsumer(consumer).join();
+            assertLookupMatchesAssignments(selector);
+        }
+        for (int i : new int[]{1, 0, 3, 2}) {
+            selector.removeConsumer(consumers.get(i));
+            assertLookupMatchesAssignments(selector);
+        }
+        Assert.assertNull(selector.select(Integer.MIN_VALUE));
+        Assert.assertNull(selector.select(Integer.MAX_VALUE));
+    }
+
+    private static void assertLookupMatchesAssignments(ConsistentHashingStickyKeyConsumerSelector selector) {
+        Map<Consumer, List<Range>> assignments = selector.getConsumerKeyHashRanges();
+        for (int hash = 1; hash <= 127; hash++) {
+            Consumer expected = null;
+            for (var entry : assignments.entrySet()) {
+                for (Range range : entry.getValue()) {
+                    if (range.contains(hash)) {
+                        expected = entry.getKey();
+                    }
+                }
+            }
+            Assert.assertSame(selector.select(hash), expected, "hash=" + hash);
+        }
+        Assert.assertSame(selector.select(Integer.MIN_VALUE), selector.select(1));
+        Assert.assertSame(selector.select(Integer.MAX_VALUE), selector.select(1));
+    }
 
     @Test
     public void testConsumerSelect() {
@@ -61,13 +138,14 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         when(consumer2.consumerName()).thenReturn("c2");
         selector.addConsumer(consumer2);
 
+        // Use repeatable keys so random sampling cannot make the distribution assertions flaky.
         final int num = 1000;
         final double percentError = 0.20; // 20 %
 
         Map<String, Integer> selectionMap = new HashMap<>();
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
@@ -82,8 +160,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumer3);
 
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
@@ -98,8 +176,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.addConsumer(consumer4);
 
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
@@ -113,8 +191,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
         selector.removeConsumer(consumer1);
 
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
@@ -126,8 +204,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
         selector.removeConsumer(consumer2);
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }
@@ -139,8 +217,8 @@ public class ConsistentHashingStickyKeyConsumerSelectorTest {
 
         selector.removeConsumer(consumer3);
         for (int i = 0; i < num; i++) {
-            String key = UUID.randomUUID().toString();
-            Consumer selectedConsumer = selector.select(key.getBytes());
+            String key = "key " + i;
+            Consumer selectedConsumer = selector.select(key.getBytes(StandardCharsets.UTF_8));
             int count = selectionMap.computeIfAbsent(selectedConsumer.consumerName(), c -> 0);
             selectionMap.put(selectedConsumer.consumerName(), count + 1);
         }

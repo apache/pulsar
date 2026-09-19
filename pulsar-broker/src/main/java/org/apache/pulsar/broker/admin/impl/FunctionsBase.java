@@ -18,26 +18,27 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import io.swagger.annotations.Example;
-import io.swagger.annotations.ExampleProperty;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionDefinition;
@@ -59,27 +60,28 @@ public class FunctionsBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Creates a new Pulsar Function in cluster mode")
+    @Operation(summary = "Creates a new Pulsar Function in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (The Pulsar Function already exists, etc.)"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully created")
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400",
+                    description = "Invalid request (The Pulsar Function already exists, etc.)"),
+            @ApiResponse(responseCode = "408", description = "Request timeout"),
+            @ApiResponse(responseCode = "200", description = "Pulsar Function successfully created")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void registerFunction(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function")
+            @Parameter(description = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
             final @FormDataParam("url") String functionPkgUrl,
-            @ApiParam(
-                    value = "You can submit a function (in any languages that you are familiar with) \n"
+            @Parameter(
+                    description = "You can submit a function (in any languages that you are familiar with) \n"
                             + "to a Pulsar cluster. Follow the steps below. \n"
                             + "1. Create a JSON object using some of the following parameters.\n"
                             + "A JSON value presenting configuration payload of a Pulsar Function.\n"
@@ -142,7 +144,7 @@ public class FunctionsBase extends AdminResource {
                             + "- **retainOrdering**\n"
                             + "  Function consumes and processes messages in order.\n"
                             + "- **outputSchemaType**\n"
-                            + "   Represents either a builtin schema type (for example: 'avro', 'json', ect)"
+                            + "   Represents either a builtin schema type (for example: 'avro', 'json', etc)"
                             + " or the class name for a Schema implementation."
                             + "- **subName**\n"
                             + "  Pulsar source subscription name. User can specify a subscription-name"
@@ -159,64 +161,42 @@ public class FunctionsBase extends AdminResource {
                             + "- **userConfig**\n"
                             + "  A map of user-defined configurations (specified as a JSON object).\n"
                             + "- **secrets**\n"
-                            + "  This is a map of secretName(that is how the secret is going to be accessed"
+                            + "  This is a map of secretName (that is how the secret is going to be accessed"
                             + " in the Pulsar Function via context) to an object that"
                             + "  encapsulates how the secret is fetched by the underlying secrets provider."
-                            + " The type of an value here can be found by the"
+                            + " The type of a value here can be found by the"
                             + "  SecretProviderConfigurator.getSecretObjectType() method. \n"
                             + "- **cleanupSubscription**\n"
                             + "  Whether the subscriptions of a Pulsar Function created or used should be deleted"
                             + " when the Pulsar Function is deleted.\n"
-                            + "2. Encapsulate the JSON object to a multipart object.",
-                    examples = @Example(
-                            value = {
-                                @ExampleProperty(
-                                    mediaType = MediaType.TEXT_PLAIN,
-                                        value = """
-                                            Examples
-                                            1. Create a JSON object
-                                             {
-                                               "inputs": "persistent://public/default/input-topic",
-                                               "parallelism": "4",
-                                               "output": "persistent://public/default/output-topic",
-                                               "log-topic": "persistent://public/default/log-topic",
-                                               "classname": "org.example.test.ExclamationFunction",
-                                               "jar": "java-function-1.0-SNAPSHOT.jar"
-                                             }
-                                            2. Encapsulate the JSON object to a multipart object (in Python)
-                                            from requests_toolbelt.multipart.encoder import MultipartEncoders
-                                            mp_encoder = MultipartEncoder([('functionConfig',(None, json.dumps(config),\
-                                             'application/json'))])"""
-                                )
-                            }
-                    )
-            )
+                            + "2. Encapsulate the JSON object to a multipart object.")
             final @FormDataParam("functionConfig") FunctionConfig functionConfig) {
         functions().registerFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
             functionPkgUrl, functionConfig, authParams());
     }
 
     @PUT
-    @ApiOperation(value = "Updates a Pulsar Function currently running in cluster mode")
+    @Operation(summary = "Updates a Pulsar Function currently running in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request (The Pulsar Function doesn't exist, etc.)"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully updated")
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400",
+                    description = "Invalid request (The Pulsar Function doesn't exist, etc.)"),
+            @ApiResponse(responseCode = "200", description = "Pulsar Function successfully updated")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public void updateFunction(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function")
+            @Parameter(description = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
             final @FormDataParam("data") InputStream uploadedInputStream,
             final @FormDataParam("data") FormDataContentDisposition fileDetail,
             final @FormDataParam("url") String functionPkgUrl,
-            @ApiParam(
-                    value = "A JSON value presenting configuration payload of a Pulsar Function."
+            @Parameter(
+                    description = "A JSON value presenting configuration payload of a Pulsar Function."
                             + " An example of the expected Pulsar Function can be found here.\n"
                             + "- **autoAck**\n"
                             + "  Whether or not the framework acknowledges messages automatically.\n"
@@ -275,7 +255,7 @@ public class FunctionsBase extends AdminResource {
                             + "- **retainOrdering**\n"
                             + "  Function consumes and processes messages in order.\n"
                             + "- **outputSchemaType**\n"
-                            + "   Represents either a builtin schema type (for example: 'avro', 'json', ect)"
+                            + "   Represents either a builtin schema type (for example: 'avro', 'json', etc)"
                             + " or the class name for a Schema implementation."
                             + "- **subName**\n"
                             + "  Pulsar source subscription name. User can specify"
@@ -292,32 +272,16 @@ public class FunctionsBase extends AdminResource {
                             + "- **userConfig**\n"
                             + "  A map of user-defined configurations (specified as a JSON object).\n"
                             + "- **secrets**\n"
-                            + "  This is a map of secretName(that is how the secret is going to be accessed"
+                            + "  This is a map of secretName (that is how the secret is going to be accessed"
                             + " in the Pulsar Function via context) to an object that"
                             + "  encapsulates how the secret is fetched by the underlying secrets provider."
-                            + " The type of an value here can be found by the"
+                            + " The type of a value here can be found by the"
                             + "  SecretProviderConfigurator.getSecretObjectType() method. \n"
                             + "- **cleanupSubscription**\n"
                             + "  Whether the subscriptions of a Pulsar Function created or used"
-                            + " should be deleted when the Pulsar Function is deleted.\n",
-                    examples = @Example(
-                            value = @ExampleProperty(
-                                    mediaType = MediaType.APPLICATION_JSON,
-                                    value = """
-                                            {
-                                              "inputs": "persistent://public/default/input-topic",
-                                              "parallelism": 4,
-                                              "output": "persistent://public/default/output-topic",
-                                              "log-topic": "persistent://public/default/log-topic",
-                                              "classname": "org.example.test.ExclamationFunction",
-                                              "jar": "java-function-1.0-SNAPSHOT.jar"
-                                            }
-                                            """
-                            )
-                    )
-            )
+                            + " should be deleted when the Pulsar Function is deleted.\n")
             final @FormDataParam("functionConfig") FunctionConfig functionConfig,
-            @ApiParam(value = "The update options is for the Pulsar Function that needs to be updated.")
+            @Parameter(description = "The update options is for the Pulsar Function that needs to be updated.")
             final @FormDataParam("updateOptions") UpdateOptionsImpl updateOptions) throws IOException {
 
         functions().updateFunction(tenant, namespace, functionName, uploadedInputStream, fileDetail,
@@ -326,185 +290,205 @@ public class FunctionsBase extends AdminResource {
 
 
     @DELETE
-    @ApiOperation(value = "Deletes a Pulsar Function currently running in cluster mode")
+    @Operation(summary = "Deletes a Pulsar Function currently running in cluster mode")
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 200, message = "The Pulsar Function was successfully deleted")
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function doesn't exist"),
+            @ApiResponse(responseCode = "408", description = "Request timeout"),
+            @ApiResponse(responseCode = "200", description = "The Pulsar Function was successfully deleted")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     public void deregisterFunction(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function")
+            @Parameter(description = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
         functions().deregisterFunction(tenant, namespace, functionName, authParams());
     }
 
     @GET
-    @ApiOperation(
-            value = "Fetches information about a Pulsar Function currently running in cluster mode",
-            response = FunctionConfig.class
+    @Operation(
+            summary = "Fetches information about a Pulsar Function currently running in cluster mode"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
+            @ApiResponse(responseCode = "200",
+                    description = "Fetches information about a Pulsar Function currently running in cluster mode",
+                    content = @Content(schema = @Schema(implementation = FunctionConfig.class))),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "408", description = "Request timeout"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function doesn't exist")
     })
     @Path("/{tenant}/{namespace}/{functionName}")
     public FunctionConfig getFunctionInfo(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function")
+            @Parameter(description = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
         return functions().getFunctionInfo(tenant, namespace, functionName, authParams());
     }
 
     @GET
-    @ApiOperation(
-            value = "Displays the status of a Pulsar Function instance",
-            response = FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class
+    @Operation(
+            summary = "Displays the status of a Pulsar Function instance"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
+            @ApiResponse(responseCode = "200", description = "Displays the status of a Pulsar Function instance",
+                    content = @Content(schema = @Schema(
+                            implementation = FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this function"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function doesn't exist")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/status")
     public FunctionStatus.FunctionInstanceStatus.FunctionInstanceStatusData getFunctionInstanceStatus(
-            @ApiParam(value = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function") final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function") final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The instanceId of a Pulsar Function (if instance-id is not provided,"
-                    + " the stats of all instances is returned") final @PathParam("instanceId")
+            @Parameter(description = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
+            @Parameter(description = "The namespace of a Pulsar Function")
+            final @PathParam("namespace") String namespace,
+            @Parameter(description = "The name of a Pulsar Function")
+            final @PathParam("functionName") String functionName,
+            @Parameter(description = "The instanceId of a Pulsar Function (if instance-id is not provided,"
+                    + " the stats of all instances is returned)") final @PathParam("instanceId")
                     String instanceId) throws IOException {
         return functions().getFunctionInstanceStatus(tenant, namespace, functionName,
                 instanceId, uri.getRequestUri(), authParams());
     }
 
     @GET
-    @ApiOperation(
-            value = "Displays the status of a Pulsar Function",
-            response = FunctionStatus.class
+    @Operation(
+            summary = "Displays the status of a Pulsar Function"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
+            @ApiResponse(responseCode = "200", description = "Displays the status of a Pulsar Function",
+                    content = @Content(schema = @Schema(implementation = FunctionStatus.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this function"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function doesn't exist")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/status")
     public FunctionStatus getFunctionStatus(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function")
+            @Parameter(description = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
         return functions().getFunctionStatus(tenant, namespace, functionName, uri.getRequestUri(),
                 authParams());
     }
 
     @GET
-    @ApiOperation(
-            value = "Displays the stats of a Pulsar Function",
-            response = FunctionStatsImpl.class
+    @Operation(
+            summary = "Displays the stats of a Pulsar Function"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
+            @ApiResponse(responseCode = "200", description = "Displays the stats of a Pulsar Function",
+                    content = @Content(schema = @Schema(implementation = FunctionStatsImpl.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this function"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function doesn't exist")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/stats")
     public FunctionStatsImpl getFunctionStats(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function")
+            @Parameter(description = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) throws IOException {
         return functions().getFunctionStats(tenant, namespace, functionName,
                 uri.getRequestUri(), authParams());
     }
 
     @GET
-    @ApiOperation(
-            value = "Displays the stats of a Pulsar Function instance",
-            response = FunctionInstanceStatsDataImpl.class
+    @Operation(
+            summary = "Displays the stats of a Pulsar Function instance"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The Pulsar Function doesn't exist")
+            @ApiResponse(responseCode = "200", description = "Displays the stats of a Pulsar Function instance",
+                    content = @Content(schema = @Schema(implementation = FunctionInstanceStatsDataImpl.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this function"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function doesn't exist")
     })
     @Produces(MediaType.APPLICATION_JSON)
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stats")
     public FunctionInstanceStatsDataImpl getFunctionInstanceStats(
-            @ApiParam(value = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function") final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function") final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The instanceId of a Pulsar Function"
-                    + " (if instance-id is not provided, the stats of all instances is returned") final @PathParam(
+            @Parameter(description = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
+            @Parameter(description = "The namespace of a Pulsar Function")
+            final @PathParam("namespace") String namespace,
+            @Parameter(description = "The name of a Pulsar Function")
+            final @PathParam("functionName") String functionName,
+            @Parameter(description = "The instanceId of a Pulsar Function"
+                    + " (if instance-id is not provided, the stats of all instances is returned)") final @PathParam(
                     "instanceId") String instanceId) throws IOException {
         return functions().getFunctionsInstanceStats(tenant, namespace, functionName, instanceId,
                 uri.getRequestUri(), authParams());
     }
 
     @GET
-    @ApiOperation(
-            value = "Lists all Pulsar Functions currently deployed in a given namespace",
-            response = String.class,
-            responseContainer = "Collection"
+    @Operation(
+            summary = "Lists all Pulsar Functions currently deployed in a given namespace"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions")
+            @ApiResponse(responseCode = "200",
+                    description = "Lists all Pulsar Functions currently deployed in a given namespace",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = String.class)))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions")
     })
     @Path("/{tenant}/{namespace}")
     public List<String> listFunctions(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace) {
         return functions().listFunctions(tenant, namespace, authParams());
     }
 
     @POST
-    @ApiOperation(
-            value = "Triggers a Pulsar Function with a user-specified value or file data",
-            response = String.class
+    @Operation(
+            summary = "Triggers a Pulsar Function with a user-specified value or file data"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
-            @ApiResponse(code = 408, message = "Request timeout"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200",
+                    description = "Triggers a Pulsar Function with a user-specified value or file data",
+                    content = @Content(schema = @Schema(implementation = String.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function does not exist"),
+            @ApiResponse(responseCode = "408", description = "Request timeout"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/trigger")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
     public String triggerFunction(
-            @ApiParam(value = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function") final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function") final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The value with which you want to trigger the Pulsar Function") final @FormDataParam(
-                    "data") String triggerValue,
-            @ApiParam(value = "The path to the file that contains the data with"
+            @Parameter(description = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
+            @Parameter(description = "The namespace of a Pulsar Function")
+            final @PathParam("namespace") String namespace,
+            @Parameter(description = "The name of a Pulsar Function")
+            final @PathParam("functionName") String functionName,
+            @Parameter(description = "The value with which you want to trigger the Pulsar Function")
+            final @FormDataParam("data") String triggerValue,
+            @Parameter(description = "The path to the file that contains the data with"
                     + " which you'd like to trigger the Pulsar Function") final @FormDataParam("dataStream")
                     InputStream triggerStream,
-            @ApiParam(value = "The specific topic name that the Pulsar Function"
+            @Parameter(description = "The specific topic name that the Pulsar Function"
                     + " consumes from which you want to inject the data to") final @FormDataParam("topic")
                     String topic) {
         return functions().triggerFunction(tenant, namespace, functionName, triggerValue,
@@ -512,39 +496,40 @@ public class FunctionsBase extends AdminResource {
     }
 
     @GET
-    @ApiOperation(
-        value = "Fetch the current state associated with a Pulsar Function",
-        response = FunctionState.class
+    @Operation(
+        summary = "Fetch the current state associated with a Pulsar Function"
     )
     @ApiResponses(value = {
-        @ApiResponse(code = 400, message = "Invalid request"),
-        @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-        @ApiResponse(code = 404, message = "The key does not exist"),
-        @ApiResponse(code = 500, message = "Internal server error")
+        @ApiResponse(responseCode = "200", description = "Fetch the current state associated with a Pulsar Function",
+                content = @Content(schema = @Schema(implementation = FunctionState.class))),
+        @ApiResponse(responseCode = "400", description = "Invalid request"),
+        @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+        @ApiResponse(responseCode = "404", description = "The key does not exist"),
+        @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
     public FunctionState getFunctionState(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function")
+            @Parameter(description = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The stats key")
+            @Parameter(description = "The stats key")
             final @PathParam("key") String key) {
         return functions().getFunctionState(tenant, namespace, functionName, key, authParams());
     }
 
     @POST
-    @ApiOperation(
-            value = "Put the state associated with a Pulsar Function"
+    @Operation(
+            summary = "Put the state associated with a Pulsar Function"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Operation successful"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200", description = "Operation successful"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/state/{key}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
@@ -557,132 +542,139 @@ public class FunctionsBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(value = "Restart an instance of a Pulsar Function")
+    @Operation(summary = "Restart an instance of a Pulsar Function")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Operation successful"),
-            @ApiResponse(code = 307, message = "Current broker doesn't serve the namespace of this function"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200", description = "Operation successful"),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this function"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartFunction(
-            @ApiParam(value = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function") final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function") final @PathParam("functionName") String functionName,
-            @ApiParam(value =
-                    "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are restarted")
+            @Parameter(description = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
+            @Parameter(description = "The namespace of a Pulsar Function")
+            final @PathParam("namespace") String namespace,
+            @Parameter(description = "The name of a Pulsar Function")
+            final @PathParam("functionName") String functionName,
+            @Parameter(description =
+                    "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are restarted)")
             final @PathParam("instanceId") String instanceId) {
         functions().restartFunctionInstance(tenant, namespace, functionName, instanceId,
                 uri.getRequestUri(), authParams());
     }
 
     @POST
-    @ApiOperation(value = "Restart all instances of a Pulsar Function")
+    @Operation(summary = "Restart all instances of a Pulsar Function")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Operation successful"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200", description = "Operation successful"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/restart")
     @Consumes(MediaType.APPLICATION_JSON)
     public void restartFunction(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function")
+            @Parameter(description = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
         functions().restartFunctionInstances(tenant, namespace, functionName, authParams());
     }
 
     @POST
-    @ApiOperation(value = "Stop an instance of a Pulsar Function")
+    @Operation(summary = "Stop an instance of a Pulsar Function")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Operation successful"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200", description = "Operation successful"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopFunction(
-            @ApiParam(value = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function") final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function") final @PathParam("functionName") String functionName,
-            @ApiParam(value =
-                    "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are stopped. ")
+            @Parameter(description = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
+            @Parameter(description = "The namespace of a Pulsar Function")
+            final @PathParam("namespace") String namespace,
+            @Parameter(description = "The name of a Pulsar Function")
+            final @PathParam("functionName") String functionName,
+            @Parameter(description =
+                    "The instanceId of a Pulsar Function (if instance-id is not provided, all instances are stopped.)")
             final @PathParam("instanceId") String instanceId) {
         functions().stopFunctionInstance(tenant, namespace, functionName, instanceId,
                 uri.getRequestUri(), authParams());
     }
 
     @POST
-    @ApiOperation(value = "Stop all instances of a Pulsar Function")
+    @Operation(summary = "Stop all instances of a Pulsar Function")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Operation successful"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200", description = "Operation successful"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/stop")
     @Consumes(MediaType.APPLICATION_JSON)
     public void stopFunction(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function")
+            @Parameter(description = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
         functions().stopFunctionInstances(tenant, namespace, functionName, authParams());
     }
 
     @POST
-    @ApiOperation(value = "Start an instance of a Pulsar Function")
+    @Operation(summary = "Start an instance of a Pulsar Function")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Operation successful"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200", description = "Operation successful"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startFunction(
-            @ApiParam(value = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function") final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function") final @PathParam("functionName") String functionName,
-            @ApiParam(value = "The instanceId of a Pulsar Function"
-                    + " (if instance-id is not provided, all instances sre started. ") final @PathParam("instanceId")
+            @Parameter(description = "The tenant of a Pulsar Function") final @PathParam("tenant") String tenant,
+            @Parameter(description = "The namespace of a Pulsar Function")
+            final @PathParam("namespace") String namespace,
+            @Parameter(description = "The name of a Pulsar Function")
+            final @PathParam("functionName") String functionName,
+            @Parameter(description = "The instanceId of a Pulsar Function"
+                    + " (if instance-id is not provided, all instances are started.)") final @PathParam("instanceId")
                     String instanceId) {
         functions().startFunctionInstance(tenant, namespace, functionName, instanceId,
                 uri.getRequestUri(), authParams());
     }
 
     @POST
-    @ApiOperation(value = "Start all instances of a Pulsar Function")
+    @Operation(summary = "Start all instances of a Pulsar Function")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Operation successful"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 404, message = "The Pulsar Function does not exist"),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200", description = "Operation successful"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "404", description = "The Pulsar Function does not exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/{tenant}/{namespace}/{functionName}/start")
     @Consumes(MediaType.APPLICATION_JSON)
     public void startFunction(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function")
+            @Parameter(description = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName) {
         functions().startFunctionInstances(tenant, namespace, functionName, authParams());
     }
 
     @POST
-    @ApiOperation(
-            value = "Uploads Pulsar Function file data (Admin only)",
+    @Operation(
+            summary = "Uploads Pulsar Function file data (Admin only)",
             hidden = true
     )
     @Path("/upload")
@@ -693,8 +685,8 @@ public class FunctionsBase extends AdminResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Downloads Pulsar Function file data (Admin only)",
+    @Operation(
+            summary = "Downloads Pulsar Function file data (Admin only)",
             hidden = true
     )
     @Path("/download")
@@ -703,34 +695,36 @@ public class FunctionsBase extends AdminResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Downloads Pulsar Function file data",
+    @Operation(
+            summary = "Downloads Pulsar Function file data",
             hidden = true
     )
     @Path("/{tenant}/{namespace}/{functionName}/download")
     public StreamingOutput downloadFunction(
-            @ApiParam(value = "The tenant of a Pulsar Function")
+            @Parameter(description = "The tenant of a Pulsar Function")
             final @PathParam("tenant") String tenant,
-            @ApiParam(value = "The namespace of a Pulsar Function")
+            @Parameter(description = "The namespace of a Pulsar Function")
             final @PathParam("namespace") String namespace,
-            @ApiParam(value = "The name of a Pulsar Function")
+            @Parameter(description = "The name of a Pulsar Function")
             final @PathParam("functionName") String functionName,
-            @ApiParam(value = "Whether to download the transform-function")
+            @Parameter(description = "Whether to download the transform-function")
             final @QueryParam("transform-function") boolean transformFunction) {
 
         return functions().downloadFunction(tenant, namespace, functionName, authParams(), transformFunction);
     }
 
     @GET
-    @ApiOperation(
-            value = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
-            response = ConnectorDefinition.class,
-            responseContainer = "List"
+    @Operation(
+            summary = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout")
+            @ApiResponse(responseCode = "200",
+                    description = "Fetches a list of supported Pulsar IO connectors currently running in cluster mode",
+                    content = @Content(array =
+                            @ArraySchema(schema = @Schema(implementation = ConnectorDefinition.class)))),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "408", description = "Request timeout")
     })
     @Path("/connectors")
     @Deprecated
@@ -742,14 +736,15 @@ public class FunctionsBase extends AdminResource {
     }
 
     @POST
-    @ApiOperation(
-            value = "Reload the built-in Functions"
+    @Operation(
+            summary = "Reload the built-in Functions"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Operation successful"),
-            @ApiResponse(code = 401, message = "This operation requires super-user access"),
-            @ApiResponse(code = 503, message = "Function worker service is now initializing. Please try again later."),
-            @ApiResponse(code = 500, message = "Internal server error")
+            @ApiResponse(responseCode = "200", description = "Operation successful"),
+            @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "503",
+                    description = "Function worker service is now initializing. Please try again later."),
+            @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @Path("/builtins/reload")
     public void reloadBuiltinFunctions() throws IOException {
@@ -757,15 +752,16 @@ public class FunctionsBase extends AdminResource {
     }
 
     @GET
-    @ApiOperation(
-            value = "Fetches the list of built-in Pulsar functions",
-            response = FunctionDefinition.class,
-            responseContainer = "List"
+    @Operation(
+            summary = "Fetches the list of built-in Pulsar functions"
     )
     @ApiResponses(value = {
-            @ApiResponse(code = 403, message = "The requester doesn't have admin permissions"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 408, message = "Request timeout")
+            @ApiResponse(responseCode = "200", description = "Fetches the list of built-in Pulsar functions",
+                    content = @Content(array =
+                            @ArraySchema(schema = @Schema(implementation = FunctionDefinition.class)))),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have admin permissions"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "408", description = "Request timeout")
     })
     @Path("/builtins")
     @Produces(MediaType.APPLICATION_JSON)
@@ -774,14 +770,14 @@ public class FunctionsBase extends AdminResource {
     }
 
     @PUT
-    @ApiOperation(value = "Updates a Pulsar Function on the worker leader", hidden = true)
+    @Operation(summary = "Updates a Pulsar Function on the worker leader", hidden = true)
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Operation successful"),
-            @ApiResponse(code = 403, message = "The requester doesn't have super-user permissions"),
-            @ApiResponse(code = 404, message = "The function does not exist"),
-            @ApiResponse(code = 400, message = "Invalid request"),
-            @ApiResponse(code = 307, message = "Redirecting to the worker leader"),
-            @ApiResponse(code = 200, message = "Pulsar Function successfully updated")
+            @ApiResponse(responseCode = "200", description = "Operation successful"),
+            @ApiResponse(responseCode = "403", description = "The requester doesn't have super-user permissions"),
+            @ApiResponse(responseCode = "404", description = "The function does not exist"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "307", description = "Redirecting to the worker leader"),
+            @ApiResponse(responseCode = "200", description = "Pulsar Function successfully updated")
     })
     @Path("/leader/{tenant}/{namespace}/{functionName}")
     @Consumes(MediaType.MULTIPART_FORM_DATA)
