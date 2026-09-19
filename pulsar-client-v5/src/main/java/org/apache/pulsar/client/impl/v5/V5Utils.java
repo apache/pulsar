@@ -30,21 +30,32 @@ final class V5Utils {
     }
 
     /**
-     * Parse a topic string and ensure it uses the {@code topic://} domain.
+     * Parse a topic string passed to a V5 builder and validate it for the scalable-topic
+     * lookup session.
      *
-     * <p>V5 scalable topics always use the {@code topic://} domain. If the user passes
-     * a bare name (e.g. {@code "my-topic"} or {@code "tenant/ns/my-topic"}), the standard
-     * {@link TopicName#get(String)} would default to {@code persistent://}. This method
-     * re-wraps the parsed name with the correct domain.
+     * <p>Accepts three input forms, preserving the domain so the broker can decide
+     * whether the lookup resolves to a real DAG (natively scalable topic) or a synthetic
+     * layout (regular topic that has not yet been migrated):
+     * <ul>
+     *   <li>{@code topic://tenant/ns/x} — explicitly scalable.</li>
+     *   <li>{@code persistent://tenant/ns/x} — regular topic; if it has been migrated the
+     *       broker promotes it to its {@code topic://} identity and returns the real DAG,
+     *       otherwise it returns a synthetic layout that wraps the existing partitions.</li>
+     *   <li>Short forms ({@code my-topic} or {@code tenant/ns/my-topic}) — normalised by
+     *       {@link TopicName#get(String)} to {@code persistent://public/default/...} or
+     *       {@code persistent://tenant/ns/...}; treated like any other persistent input.</li>
+     * </ul>
      *
-     * <p>If the input already has the {@code topic://} scheme it is returned as-is.
+     * <p>Rejects {@code non-persistent://} with {@link UnsupportedOperationException}:
+     * scalable topics are always backed by managed ledgers, and the V5 SDK has no path
+     * to a non-persistent topic.
      */
-    static TopicName asScalableTopicName(String topic) {
+    static TopicName parseScalableTopicInput(String topic) {
         TopicName tn = TopicName.get(topic);
-        if (tn.getDomain() == TopicDomain.topic) {
-            return tn;
+        if (tn.getDomain() == TopicDomain.non_persistent) {
+            throw new UnsupportedOperationException(
+                    "V5 does not support non-persistent:// topics: " + topic);
         }
-        return TopicName.get(TopicDomain.topic.value(),
-                tn.getNamespaceObject(), tn.getLocalName());
+        return tn;
     }
 }

@@ -58,6 +58,10 @@ public class ConnectionHandler {
     protected final int randomKeyForSelectConnection;
 
     private volatile Boolean useProxy;
+    // The explicit target broker for connections that bypass topic lookup (v5 TC metadata-store
+    // discovery). Remembered so the error-retry path (reconnectLater) re-dials the same leader
+    // instead of falling back to the service URL. Null means "use the normal lookup path".
+    private volatile URI explicitHostURI;
 
     interface Connection {
 
@@ -94,6 +98,18 @@ public class ConnectionHandler {
 
     protected void grabCnx() {
         grabCnx(Optional.empty());
+    }
+
+    /**
+     * Connect to a specific broker {@code hostURI}, routing through the proxy when {@code useProxy}
+     * is true (logical = the broker, physical = the proxy) or directly otherwise. Used by the v5
+     * transaction coordinator's metadata-store discovery, where the elected leader's address is
+     * known but, behind a proxy, isn't directly reachable.
+     */
+    protected void grabCnx(URI hostURI, boolean useProxy) {
+        this.useProxy = useProxy;
+        this.explicitHostURI = hostURI;
+        grabCnx(Optional.of(hostURI));
     }
 
     protected void grabCnx(Optional<URI> hostURI) {
@@ -189,7 +205,15 @@ public class ConnectionHandler {
         if (state.changeToConnecting()) {
             state.client.timer().newTimeout(timeout -> {
                 log.info("Reconnecting after connection was closed");
-                grabCnx();
+                // Re-dial the explicit leader target (v5 TC discovery) if set; otherwise the normal
+                // lookup path. Without this, a first-attempt failure during failover would fall back
+                // to the service URL and never reach the partition's new leader.
+                URI target = explicitHostURI;
+                if (target != null) {
+                    grabCnx(Optional.of(target));
+                } else {
+                    grabCnx();
+                }
             }, delayMs, TimeUnit.MILLISECONDS);
         } else {
             log.info("Ignoring reconnection request");
@@ -203,6 +227,15 @@ public class ConnectionHandler {
     public void connectionClosed(ClientCnx cnx, Optional<Long> initialConnectionDelayMs, Optional<URI> hostUrl) {
         lastConnectionClosedTimestamp = System.currentTimeMillis();
         duringConnect.set(false);
+        // Only handlers already pinned to an explicit host (v5 TC metadata-store discovery) update
+        // the pin here, so a later first-attempt failure (reconnectLater) re-dials the current
+        // leader rather than falling back to the service URL. For lookup-based handlers
+        // (producers/consumers), the broker-assigned redirect in hostUrl may be wrong or stale:
+        // it is honored for the immediate reconnect attempt below only, and retries after a
+        // failure go through a fresh topic lookup instead of staying pinned to it.
+        if (explicitHostURI != null) {
+            hostUrl.ifPresent(uri -> this.explicitHostURI = uri);
+        }
         state.client.getCnxPool().releaseConnection(cnx);
         if (CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null)) {
             if (!state.changeToConnecting()) {

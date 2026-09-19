@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.compaction;
 
-import io.netty.buffer.ByteBuf;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -138,17 +137,12 @@ public class EventTimeOrderCompactor extends AbstractTwoPhaseCompactor<Pair<Mess
   }
 
   protected MessageCompactionData extractMessageCompactionData(RawMessage m, MessageMetadata metadata) {
-    ByteBuf headersAndPayload = m.getHeadersAndPayload();
-    if (metadata.hasPartitionKey()) {
-      int size = headersAndPayload.readableBytes();
-      if (metadata.hasUncompressedSize()) {
-        size = metadata.getUncompressedSize();
-      }
-      return new MessageCompactionData(m.getMessageId(), metadata.getPartitionKey(),
-          size, metadata.getEventTime());
-    } else {
+    Pair<String, Integer> keyAndSize = extractKeyAndSize(m, metadata);
+    if (keyAndSize == null) {
       return null;
     }
+    return new MessageCompactionData(m.getMessageId(), keyAndSize.getLeft(),
+        keyAndSize.getRight(), metadata.getEventTime());
   }
 
   private List<MessageCompactionData> extractMessageCompactionDataFromBatch(RawMessage msg, MessageMetadata metadata)

@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.proto;
 
 import static org.testng.Assert.assertEquals;
-
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.ProcessingGuarantees;
 import org.testng.annotations.Test;

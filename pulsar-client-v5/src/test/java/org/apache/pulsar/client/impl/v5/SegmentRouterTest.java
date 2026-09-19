@@ -21,17 +21,26 @@ package org.apache.pulsar.client.impl.v5;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
 import org.apache.pulsar.common.scalable.HashRange;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.testng.annotations.Test;
 
 public class SegmentRouterTest {
 
     private static ActiveSegment seg(long id, int start, int end) {
-        return new ActiveSegment(id, HashRange.of(start, end), "persistent://t/n/seg-" + id);
+        return new ActiveSegment(id, HashRange.of(start, end), "persistent://t/n/seg-" + id, null,
+                List.of(), List.of());
+    }
+
+    /** Build a legacy segment (synthetic-layout entry wrapping an externally managed persistent:// topic). */
+    private static ActiveSegment legacySeg(long id, int start, int end, String underlying) {
+        return new ActiveSegment(id, HashRange.of(start, end), "segment://t/n/x/" + id, underlying,
+                List.of(), List.of());
     }
 
     // --- route(key, ...) ---
@@ -123,6 +132,61 @@ public class SegmentRouterTest {
         assertThrows(IllegalStateException.class, () -> router.routeRoundRobin(List.of()));
     }
 
+    // --- mod-N routing for synthetic layouts (all legacy segments) ---
+
+    @Test
+    public void testAllLegacySegmentsRouteModN() {
+        // Synthetic layout for a 4-partition regular topic: 4 legacy segments
+        // with segment_id == partition_index. routing must match v4 partitioned-topic
+        // routing (signSafeMod(murmurHash3_32(key), N)).
+        SegmentRouter router = new SegmentRouter();
+        int n = 4;
+        List<ActiveSegment> segments = List.of(
+                legacySeg(0, 0x0000, 0x3FFF, "persistent://t/n/x-partition-0"),
+                legacySeg(1, 0x4000, 0x7FFF, "persistent://t/n/x-partition-1"),
+                legacySeg(2, 0x8000, 0xBFFF, "persistent://t/n/x-partition-2"),
+                legacySeg(3, 0xC000, 0xFFFF, "persistent://t/n/x-partition-3"));
+
+        // For a synthetic layout, the router must NOT use hash ranges — it must do
+        // mod-N over segment_id. Verify a handful of keys land on the expected
+        // partition computed exactly as v4 would.
+        for (String key : new String[]{"a", "customer-1", "customer-2", "order-99", ""}) {
+            int hash32 = Murmur3_32Hash.getInstance().makeHash(key.getBytes(StandardCharsets.UTF_8));
+            int mod = hash32 % n;
+            int expected = mod < 0 ? mod + n : mod;
+            assertEquals(router.route(key, segments), expected,
+                    "key=" + key + " expected v4 mod-N partition " + expected);
+        }
+    }
+
+    @Test
+    public void testMixedLegacyAndRegularStillUsesHashRouting() {
+        // After migration, the DAG has sealed legacy parents + active range-based children.
+        // Routing on the active set is range-based — the all-legacy special-case only
+        // triggers when *every* active segment is a legacy segment.
+        SegmentRouter router = new SegmentRouter();
+        List<ActiveSegment> mixed = List.of(
+                legacySeg(0, 0x0000, 0x7FFF, "persistent://t/n/x-partition-0"),
+                seg(1, 0x8000, 0xFFFF));
+
+        // pick a key whose hash falls in the range owned by the *regular* segment;
+        // it must land there, not on segment_id=mod.
+        String regularKey = findKeyInRange(0x8000, 0xFFFF);
+        assertEquals(router.route(regularKey, mixed), 1L);
+    }
+
+    @Test
+    public void testAllLegacyRoutingIsDeterministic() {
+        SegmentRouter router = new SegmentRouter();
+        List<ActiveSegment> segments = List.of(
+                legacySeg(0, 0x0000, 0x7FFF, "persistent://t/n/x-partition-0"),
+                legacySeg(1, 0x8000, 0xFFFF, "persistent://t/n/x-partition-1"));
+        long first = router.route("stable", segments);
+        for (int i = 0; i < 20; i++) {
+            assertEquals(router.route("stable", segments), first);
+        }
+    }
+
     // --- hash ---
 
     @Test
@@ -145,8 +209,26 @@ public class SegmentRouterTest {
     public void testHashStringAndBytesAgree() {
         String key = "some-key";
         int fromString = SegmentRouter.hash(key);
-        int fromBytes = SegmentRouter.hash(key.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        int fromBytes = SegmentRouter.hash(key.getBytes(StandardCharsets.UTF_8));
         assertEquals(fromString, fromBytes);
+    }
+
+    @Test
+    public void testMurmurDecouplesIntoSegmentAndBucketHash() {
+        // One Murmur3 hash splits into two independent 16-bit halves: high → segment, low → bucket.
+        for (String key : new String[]{"a", "order-42", "customer-99", ""}) {
+            int m = SegmentRouter.murmur(key.getBytes(StandardCharsets.UTF_8));
+            int seg = SegmentRouter.segmentHash(m);
+            int bucket = SegmentRouter.entryBucketHash(m);
+            // Both halves are 16-bit.
+            assertTrue(seg >= 0 && seg <= 0xFFFF, "segmentHash out of 16-bit range: " + seg);
+            assertTrue(bucket >= 0 && bucket <= 0xFFFF, "entryBucketHash out of 16-bit range: " + bucket);
+            // They are exactly the high and low halves of the same hash.
+            assertEquals(seg, (m >>> 16) & 0xFFFF);
+            assertEquals(bucket, m & 0xFFFF);
+            // The hash(key) convenience agrees with the decoupled segment hash.
+            assertEquals(SegmentRouter.hash(key), seg);
+        }
     }
 
     // --- helpers ---

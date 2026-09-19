@@ -26,7 +26,10 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.ImmutableSet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -40,10 +43,11 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import javax.security.auth.login.Configuration;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
@@ -356,12 +360,11 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testMaxInflightContext() throws Exception {
         @Cleanup
         AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
         HttpServletRequest servletRequest = mock(HttpServletRequest.class);
-        doReturn("Init").when(servletRequest).getHeader("State");
+        doReturn(SaslConstants.SASL_STATE_CLIENT_INIT).when(servletRequest).getHeader(SaslConstants.SASL_HEADER_STATE);
         conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
         conf.setMaxInflightSaslContext(1);
         saslServer.initialize(AuthenticationProvider.Context.builder().config(conf).build());
@@ -370,14 +373,65 @@ public class SaslAuthenticateTest extends ProducerConsumerBase {
             AuthenticationDataProvider dataProvider =  authSasl.getAuthData("localhost");
             AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
             doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
-                    servletRequest).getHeader("SASL-Token");
-            doReturn(String.valueOf(i)).when(servletRequest).getHeader("SASL-Server-ID");
+                    servletRequest).getHeader(SaslConstants.SASL_AUTH_TOKEN);
+            doReturn(String.valueOf(i)).when(servletRequest).getHeader(SaslConstants.SASL_STATE_SERVER);
             saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
         }
-        Field field = AuthenticationProviderSasl.class.getDeclaredField("authStates");
-        field.setAccessible(true);
-        Cache<Long, AuthenticationState> cache = (Cache<Long, AuthenticationState>) field.get(saslServer);
+        Cache<Long, AuthenticationState> cache = saslServer.getAuthStates();
         //only 1 context was left in the memory
-        assertEquals(cache.asMap().size(), 1);
+        // Caffeine may perform size-based eviction asynchronously, so force maintenance before asserting.
+        cache.cleanUp();
+        assertEquals(cache.asMap().size(), conf.getMaxInflightSaslContext());
+    }
+
+    @Test
+    public void testMaxInflightContextWithDelayedCaffeineMaintenance() throws Exception {
+        @Cleanup
+        AuthenticationProviderSasl saslServer = new AuthenticationProviderSasl();
+        HttpServletRequest servletRequest = mock(HttpServletRequest.class);
+        doReturn(SaslConstants.SASL_STATE_CLIENT_INIT).when(servletRequest).getHeader(SaslConstants.SASL_HEADER_STATE);
+        conf.setInflightSaslContextExpiryMs(Integer.MAX_VALUE);
+        conf.setMaxInflightSaslContext(1);
+        saslServer.initialize(AuthenticationProvider.Context.builder().config(conf).build());
+
+        CountDownLatch maintenanceStarted = new CountDownLatch(1);
+        CountDownLatch allowMaintenance = new CountDownLatch(1);
+        @Cleanup("shutdownNow")
+        ExecutorService maintenanceExecutor = Executors.newSingleThreadExecutor();
+        Cache<Long, AuthenticationState> delayedMaintenanceCache = Caffeine.newBuilder()
+                .maximumSize(conf.getMaxInflightSaslContext())
+                .expireAfterWrite(conf.getInflightSaslContextExpiryMs(), TimeUnit.MILLISECONDS)
+                .executor(command -> maintenanceExecutor.execute(() -> {
+                    maintenanceStarted.countDown();
+                    try {
+                        allowMaintenance.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    command.run();
+                }))
+                .build();
+        saslServer.setAuthStates(delayedMaintenanceCache);
+
+        try {
+            for (int i = 0; i < 10; i++) {
+                AuthenticationDataProvider dataProvider = authSasl.getAuthData("localhost");
+                AuthData initData1 = dataProvider.authenticate(AuthData.INIT_AUTH_DATA);
+                doReturn(Base64.getEncoder().encodeToString(initData1.getBytes())).when(
+                        servletRequest).getHeader(SaslConstants.SASL_AUTH_TOKEN);
+                doReturn(String.valueOf(i)).when(servletRequest).getHeader(SaslConstants.SASL_STATE_SERVER);
+                saslServer.authenticateHttpRequest(servletRequest, mock(HttpServletResponse.class));
+            }
+            assertTrue(maintenanceStarted.await(5, TimeUnit.SECONDS));
+
+            Cache<Long, AuthenticationState> cache = saslServer.getAuthStates();
+            assertTrue(cache.asMap().size() > conf.getMaxInflightSaslContext());
+
+            // Caffeine may perform size-based eviction asynchronously, so force maintenance before asserting.
+            cache.cleanUp();
+            assertEquals(cache.asMap().size(), conf.getMaxInflightSaslContext());
+        } finally {
+            allowMaintenance.countDown();
+        }
     }
 }

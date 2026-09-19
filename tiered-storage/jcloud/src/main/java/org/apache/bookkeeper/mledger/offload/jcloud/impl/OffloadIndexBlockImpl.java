@@ -38,8 +38,7 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.apache.bookkeeper.net.BookieId;
-import org.apache.bookkeeper.proto.DataFormats;
-import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
+import org.apache.bookkeeper.proto.LedgerMetadataFormat;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 @CustomLog
@@ -181,7 +180,7 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
         private int ackQuorumSize;
         private long lastEntryId;
         private long length;
-        private DataFormats.LedgerMetadataFormat.DigestType digestType;
+        private LedgerMetadataFormat.DigestType digestType;
         private long ctime;
         private State state;
         private Map<String, byte[]> customMetadata = Maps.newHashMap();
@@ -199,14 +198,14 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
             this.state = org.apache.bookkeeper.client.api.LedgerMetadata.State.valueOf(
                     ledgerMetadataFormat.getState().toString());
 
-            if (ledgerMetadataFormat.getCustomMetadataCount() > 0) {
-                ledgerMetadataFormat.getCustomMetadataList().forEach(
-                        entry -> this.customMetadata.put(entry.getKey(), entry.getValue().toByteArray()));
+            if (ledgerMetadataFormat.getCustomMetadatasCount() > 0) {
+                ledgerMetadataFormat.getCustomMetadatasList().forEach(
+                        entry -> this.customMetadata.put(entry.getKey(), entry.getValue()));
             }
 
-            ledgerMetadataFormat.getSegmentList().forEach(segment -> {
+            ledgerMetadataFormat.getSegmentsList().forEach(segment -> {
                 ArrayList<BookieId> addressArrayList = new ArrayList<>();
-                segment.getEnsembleMemberList().forEach(address -> {
+                segment.getEnsembleMembersList().forEach(address -> {
                     try {
                         addressArrayList.add(BookieId.parse(address));
                     } catch (IllegalArgumentException e) {
@@ -325,9 +324,9 @@ public class OffloadIndexBlockImpl implements OffloadIndexBlock {
     }
 
     private static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
-        LedgerMetadataFormat.Builder builder = LedgerMetadataFormat.newBuilder();
-        builder.mergeFrom(bytes);
-        return new InternalLedgerMetadata(builder.build());
+        LedgerMetadataFormat builder = new LedgerMetadataFormat();
+        builder.parseFrom(bytes);
+        return new InternalLedgerMetadata(builder);
     }
 
     private OffloadIndexBlock fromStream(DataInputStream dis) throws IOException {

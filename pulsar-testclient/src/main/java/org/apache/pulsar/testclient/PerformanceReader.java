@@ -18,67 +18,36 @@
  */
 package org.apache.pulsar.testclient;
 
-import static org.apache.pulsar.testclient.PerfClientUtils.addShutdownHook;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.util.concurrent.RateLimiter;
-import java.util.ArrayList;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.time.Duration;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
-import lombok.CustomLog;
-import org.HdrHistogram.Histogram;
-import org.HdrHistogram.Recorder;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.client.api.ReaderListener;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.client.api.v5.Checkpoint;
+import org.apache.pulsar.client.api.v5.CheckpointConsumer;
+import org.apache.pulsar.client.api.v5.CheckpointConsumerBuilder;
+import org.apache.pulsar.client.api.v5.Message;
+import org.apache.pulsar.client.api.v5.PulsarClient;
+import org.apache.pulsar.client.api.v5.PulsarClientException;
+import org.apache.pulsar.client.api.v5.schema.Schema;
 import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
 
+/**
+ * A client program to test pulsar reader performance with the V5 client API.
+ *
+ * <p>V5 has no {@code Reader}; the closest equivalent is the {@code CheckpointConsumer}, which is
+ * what this command measures. Everything that is not V5-specific lives in
+ * {@link PerformanceReaderBase}; the v4 {@code Reader} is driven by {@link PerformanceReaderV4}
+ * under the {@code read-v4} name.
+ */
 @Command(name = "read", description = "Test pulsar reader performance.")
-@CustomLog
-public class PerformanceReader extends PerformanceTopicListArguments {
-    private static final LongAdder messagesReceived = new LongAdder();
-    private static final LongAdder bytesReceived = new LongAdder();
+public class PerformanceReader
+        extends PerformanceReaderBase<PulsarClient, CheckpointConsumer<byte[]>, Message<byte[]>> {
 
-    private static final LongAdder totalMessagesReceived = new LongAdder();
-    private static final LongAdder totalBytesReceived = new LongAdder();
+    private ExecutorService readerExec;
 
-    private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
-
-    @Option(names = {"-r", "--rate"}, description = "Simulate a slow message reader (rate in msg/s)")
-    public double rate = 0;
-
-    @Option(names = {"-m",
-            "--start-message-id"}, description = "Start message id. This can be either 'earliest', "
-            + "'latest' or a specific message id by using 'lid:eid'")
-    public String startMessageId = "earliest";
-
-    @Option(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
-    public int receiverQueueSize = 1000;
-
-    @Option(names = {"-n",
-            "--num-messages"}, description = "Number of messages to consume in total. If <= 0, "
-            + "it will keep consuming")
-    public long numMessages = 0;
-
-    @Option(names = {
-            "--use-tls"}, description = "Use TLS encryption on the connection", descriptionKey = "useTls")
-    public boolean useTls;
-
-    @Option(names = {"-time",
-            "--test-duration"}, description = "Test duration in secs. If <= 0, it will keep consuming")
-    public long testTime = 0;
     public PerformanceReader() {
         super("read");
     }
@@ -86,160 +55,105 @@ public class PerformanceReader extends PerformanceTopicListArguments {
     @Override
     public void validate() throws Exception {
         super.validate();
-        if (startMessageId != "earliest" && startMessageId != "latest"
-                && (startMessageId.split(":")).length != 2) {
-            String errMsg = String.format("invalid start message ID '%s', must be either either 'earliest', "
-                    + "'latest' or a specific message id by using 'lid:eid'", startMessageId);
-            throw new Exception(errMsg);
+        // V5 CheckpointConsumer accepts earliest / latest / a serialized Checkpoint byte array.
+        // It does not expose the v4 "lid:eid" specific MessageId form, so reject it explicitly.
+        if (!"earliest".equals(startMessageId) && !"latest".equals(startMessageId)) {
+            throw new Exception(String.format("invalid start message ID '%s'. V5 CheckpointConsumer "
+                    + "only accepts 'earliest' or 'latest'; the v4 'lid:eid' form is not supported. "
+                    + "Use read-v4 for the v4 reader, which does support it.",
+                    startMessageId));
         }
     }
 
     @Override
-    @SuppressWarnings("deprecation")
-    public void run() throws Exception {
-        // Dump config variables
-        PerfClientUtils.printJVMInformation(log);
-        ObjectMapper m = new ObjectMapper();
-        ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info().attr("config", w.writeValueAsString(this)).log("Starting Pulsar performance reader with config");
-
-        final RateLimiter limiter = this.rate > 0 ? RateLimiter.create(this.rate) : null;
-        ReaderListener<byte[]> listener = (reader, msg) -> {
-            messagesReceived.increment();
-            bytesReceived.add(msg.getData().length);
-
-            totalMessagesReceived.increment();
-            totalBytesReceived.add(msg.getData().length);
-
-            if (this.numMessages > 0 && totalMessagesReceived.sum() >= this.numMessages) {
-                log.info().attr("number", this.numMessages).log("DONE (reached the maximum number: of consumption");
-                PerfClientUtils.exit(0);
-            }
-
-            if (limiter != null) {
-                limiter.acquire();
-            }
-
-            long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
-            if (latencyMillis >= 0) {
-                recorder.recordValue(latencyMillis);
-                cumulativeRecorder.recordValue(latencyMillis);
-            }
-        };
-
-        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(this)
-                .enableTls(this.useTls);
-
-        PulsarClient pulsarClient = clientBuilder.build();
-
-        List<CompletableFuture<Reader<byte[]>>> futures = new ArrayList<>();
-
-        MessageId startMessageId;
-        if ("earliest".equals(this.startMessageId)) {
-            startMessageId = MessageId.earliest;
-        } else if ("latest".equals(this.startMessageId)) {
-            startMessageId = MessageId.latest;
-        } else {
-            String[] parts = this.startMessageId.split(":");
-            startMessageId = new MessageIdImpl(Long.parseLong(parts[0]), Long.parseLong(parts[1]), -1);
+    protected void prepareRun() {
+        if (this.useTls) {
+            log.info("--use-tls has no effect on V5 (TLS is enabled automatically when the service URL "
+                    + "uses pulsar+ssl:// — pass that scheme via --service-url instead).");
         }
-
-        ReaderBuilder<byte[]> readerBuilder = pulsarClient.newReader() //
-                .readerListener(listener) //
-                .receiverQueueSize(this.receiverQueueSize) //
-                .startMessageId(startMessageId);
-
-        for (int i = 0; i < this.numTopics; i++) {
-            final TopicName topicName = TopicName.get(this.topics.get(i));
-
-            futures.add(readerBuilder.clone().topic(topicName.toString()).createAsync());
+        if (this.receiverQueueSize != 1000) {
+            log.info("--receiver-queue-size has no effect on V5 CheckpointConsumer.");
         }
+    }
 
-        FutureUtil.waitForAll(futures).get();
+    @Override
+    protected PulsarClient createClient() throws PulsarClientException {
+        return PerfClientUtils.createV5ClientBuilderFromArguments(this).build();
+    }
 
-        log.info().attr("reading", this.numTopics).log("Start reading from topics");
+    @Override
+    protected void closeClient(PulsarClient client) {
+        PerfClientUtils.closeClient(client);
+    }
 
-        final long start = System.nanoTime();
-        Thread shutdownHookThread = addShutdownHook(() -> {
-            printAggregatedThroughput(start);
-            printAggregatedStats();
-        });
+    @Override
+    protected CompletableFuture<CheckpointConsumer<byte[]>> createReaderAsync(PulsarClient client, String topic) {
+        Checkpoint startPosition = "earliest".equals(this.startMessageId)
+                ? Checkpoint.earliest()
+                : Checkpoint.latest();
+        CheckpointConsumerBuilder<byte[]> b = client.newCheckpointConsumer(Schema.bytes())
+                .topic(topic)
+                .startPosition(startPosition);
+        return b.createAsync();
+    }
 
-        if (this.testTime > 0) {
-            TimerTask timoutTask = new TimerTask() {
-                @Override
-                public void run() {
-                    log.info()
-                            .attr("duration", testTime)
-                            .log("------------- DONE (reached the maximum duration:"
-                                    + " [ seconds] of consumption) --------------");
-                    PerfClientUtils.exit(0);
-                }
-            };
-            Timer timer = new Timer();
-            timer.schedule(timoutTask, this.testTime * 1000);
+    @Override
+    protected int messageSize(Message<byte[]> msg) {
+        return msg.value().length;
+    }
+
+    @Override
+    protected long publishTimeMillis(Message<byte[]> msg) {
+        return msg.publishTime().toEpochMilli();
+    }
+
+    /**
+     * V5 has no ReaderListener — drive each consumer from a dedicated poll thread that calls
+     * receive(timeout) and runs the same per-message handler the v4 listener does.
+     */
+    @Override
+    protected void startReading(List<CheckpointConsumer<byte[]>> readers) {
+        readerExec = Executors.newCachedThreadPool(
+                new DefaultThreadFactory("pulsar-perf-reader-poll"));
+        for (CheckpointConsumer<byte[]> consumer : readers) {
+            readerExec.submit(() -> readLoop(consumer));
         }
+    }
 
-        long oldTime = System.nanoTime();
-        Histogram reportHistogram = null;
+    @Override
+    protected void stopReading() {
+        if (readerExec == null) {
+            return;
+        }
+        readerExec.shutdownNow();
+        try {
+            if (!readerExec.awaitTermination(10, TimeUnit.SECONDS)) {
+                log.warn("Reader poll executor did not terminate within timeout");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
 
+    private void readLoop(CheckpointConsumer<byte[]> consumer) {
         while (!Thread.currentThread().isInterrupted()) {
+            Message<byte[]> msg;
             try {
-                Thread.sleep(10000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
+                msg = consumer.receive(Duration.ofSeconds(1));
+            } catch (Exception e) {
+                if (PerfClientUtils.hasInterruptedException(e)) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+                log.warn().exception(e).log("receive failed; retrying");
+                continue;
             }
-
-            long now = System.nanoTime();
-            double elapsed = (now - oldTime) / 1e9;
-            long total = totalMessagesReceived.sum();
-            double rate = messagesReceived.sumThenReset() / elapsed;
-            double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
-
-            reportHistogram = recorder.getIntervalHistogram(reportHistogram);
-            log.infof("Read throughput: %7d msg --- %.3f msg/s --- %.3f Mbit/s"
-                            + " --- Latency: mean: %.3f ms - med: %d"
-                            + " - 95pct: %d - 99pct: %d"
-                            + " - 99.9pct: %d - 99.99pct: %d - Max: %d",
-                    total, rate, throughput,
-                    reportHistogram.getMean(),
-                    reportHistogram.getValueAtPercentile(50),
-                    reportHistogram.getValueAtPercentile(95),
-                    reportHistogram.getValueAtPercentile(99),
-                    reportHistogram.getValueAtPercentile(99.9),
-                    reportHistogram.getValueAtPercentile(99.99),
-                    reportHistogram.getMaxValue());
-
-            reportHistogram.reset();
-            oldTime = now;
+            if (msg == null) {
+                continue;
+            }
+            if (handleMessage(msg)) {
+                return;
+            }
         }
-
-        PerfClientUtils.closeClient(pulsarClient);
-        PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
-    }
-    private static void printAggregatedThroughput(long start) {
-        double elapsed = (System.nanoTime() - start) / 1e9;
-        double rate = totalMessagesReceived.sum() / elapsed;
-        double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
-        log.infof("Aggregated throughput stats --- %d records received --- %.3f msg/s --- %.3f Mbit/s",
-                totalMessagesReceived.sum(), rate, throughput);
-    }
-
-    private static void printAggregatedStats() {
-        Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
-
-        log.infof("Aggregated latency stats --- Latency: mean: %.3f ms"
-                        + " - med: %d - 95pct: %d - 99pct: %d"
-                        + " - 99.9pct: %d - 99.99pct: %d"
-                        + " - 99.999pct: %d - Max: %d",
-                reportHistogram.getMean(),
-                reportHistogram.getValueAtPercentile(50),
-                reportHistogram.getValueAtPercentile(95),
-                reportHistogram.getValueAtPercentile(99),
-                reportHistogram.getValueAtPercentile(99.9),
-                reportHistogram.getValueAtPercentile(99.99),
-                reportHistogram.getValueAtPercentile(99.999),
-                reportHistogram.getMaxValue());
     }
 }

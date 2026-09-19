@@ -20,8 +20,7 @@ package org.apache.pulsar.common.policies.data;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
@@ -34,8 +33,8 @@ import org.apache.commons.lang3.StringUtils;
 /**
  * The data of namespace isolation configuration.
  */
-@ApiModel(
-        value = "NamespaceIsolationData",
+@Schema(
+        name = "NamespaceIsolationData",
         description = "The data of namespace isolation configuration"
 )
 @Data
@@ -43,30 +42,30 @@ import org.apache.commons.lang3.StringUtils;
 @NoArgsConstructor
 public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
 
-    @ApiModelProperty(
+    @Schema(
             name = "namespaces",
-            value = "The list of namespaces to apply this namespace isolation data"
+            description = "The list of namespaces to apply this namespace isolation data"
     )
     private List<String> namespaces;
 
-    @ApiModelProperty(
+    @Schema(
             name = "primary",
-            value = "The list of primary brokers for serving the list of namespaces in this isolation policy"
+            description = "The list of primary brokers for serving the list of namespaces in this isolation policy"
     )
     private List<String> primary;
 
-    @ApiModelProperty(
+    @Schema(
             name = "secondary",
-            value = "The list of secondary brokers for serving the list of namespaces in this isolation policy"
+            description = "The list of secondary brokers for serving the list of namespaces in this isolation policy"
     )
     private List<String> secondary;
 
-    @ApiModelProperty(
+    @Schema(
             name = "auto_failover_policy",
-            value = "The data of auto-failover policy configuration",
+            description = "The data of auto-failover policy configuration",
             example =
                     "{"
-                            + "  \"policy_type\": \"min_available\""
+                            + "  \"policy_type\": \"min_available\","
                             + "  \"parameters\": {"
                             + "    \"\": \"\""
                             + "  }"
@@ -75,9 +74,9 @@ public class NamespaceIsolationDataImpl implements NamespaceIsolationData {
     @JsonProperty("auto_failover_policy")
     private AutoFailoverPolicyData autoFailoverPolicy;
 
-    @ApiModelProperty(
+    @Schema(
             name = "unload_scope",
-            value = "The type of unload to perform while applying the new isolation policy.",
+            description = "The type of unload to perform while applying the new isolation policy.",
             example = "'changed' (default) for unloading only the namespaces whose placement is actually changing. "
                     + "'all_matching' for unloading all matching namespaces. 'none' for not unloading any namespaces."
     )

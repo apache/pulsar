@@ -21,15 +21,15 @@ package org.apache.pulsar.broker.lookup;
 import static org.apache.pulsar.common.protocol.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.protocol.Commands.newLookupResponse;
 import io.netty.buffer.ByteBuf;
+import jakarta.ws.rs.Encoded;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
 import java.net.InetAddress;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.Encoded;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
+import java.util.concurrent.Semaphore;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -60,8 +60,10 @@ public class TopicLookupBase extends PulsarWebResource {
 
     protected CompletableFuture<LookupData> internalLookupTopicAsync(final TopicName topicName, boolean authoritative,
                                                                      String listenerName) {
-        if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
-            log.warn().attr("topic", topicName).log("No broker was found available for topic");
+        Semaphore lookupRequestSemaphore = pulsar().getBrokerService().getLookupRequestSemaphore();
+        if (!lookupRequestSemaphore.tryAcquire()) {
+            log.warn().attr("topic", topicName)
+                    .log("Cannot acquire lookup request semaphore, rejecting lookup request");
             return FutureUtil.failedFuture(new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
         }
         return validateGlobalNamespaceOwnershipAsync(topicName.getNamespaceObject())
@@ -89,13 +91,13 @@ public class TopicLookupBase extends PulsarWebResource {
                         throw new RestException(Response.Status.NOT_FOUND,
                                 String.format("Topic not found %s", topicName.toString()));
                     }
+                    LookupOptions lookupOptions = LookupOptions.builder()
+                            .advertisedListenerName(listenerName)
+                            .webServiceAdvertisedListenerName(getWebServiceListenerName())
+                            .authoritative(authoritative)
+                            .build();
                     CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService()
-                            .getBrokerServiceUrlAsync(topicName,
-                                    LookupOptions.builder()
-                                            .advertisedListenerName(listenerName)
-                                            .authoritative(authoritative)
-                                            .loadTopicsInBundle(false)
-                                            .build());
+                            .getBrokerServiceUrlAsync(topicName, lookupOptions);
 
                     return lookupFuture.thenApply(optionalResult -> {
                         if (optionalResult == null || !optionalResult.isPresent()) {
@@ -103,52 +105,43 @@ public class TopicLookupBase extends PulsarWebResource {
                             throw new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE);
                         }
 
-                        LookupResult result = optionalResult.get();
+                        LookupResult lookupResult = optionalResult.get();
+
+                        if (lookupResult.isLoadManagerMigration()) {
+                            URI redirectUri = lookupResult.toLookupRedirectUri(uri.getRequestUri());
+                            log.debug().log("Redirecting to a broker with the expected load manager.");
+                            throw new WebApplicationException(Response.temporaryRedirect(redirectUri).build());
+                        }
+
                         // We have found either a broker that owns the topic, or a broker to
                         // which we should redirect the client to
-                        if (result.isRedirect()) {
-                            boolean newAuthoritative = result.isAuthoritativeRedirect();
-                            URI redirect;
-                            try {
-                                String redirectUrl = isRequestHttps() ? result.getLookupData().getHttpUrlTls()
-                                        : result.getLookupData().getHttpUrl();
-                                if (redirectUrl == null) {
-                                    log.error("Redirected cluster's service url is not configured");
-                                    throw new RestException(Response.Status.PRECONDITION_FAILED,
-                                            "Redirected cluster's service url is not configured.");
-                                }
-                                String lookupPath = LOOKUP_PATH;
-                                String path = String.format("%s%s%s?authoritative=%s",
-                                        redirectUrl, lookupPath, topicName.getLookupName(), newAuthoritative);
-                                path = listenerName == null ? path : path + "&listenerName=" + listenerName;
-                                redirect = new URI(path);
-                            } catch (URISyntaxException e) {
-                                log.error()
-                                        .attr("topic", topicName)
-                                        .exception(e)
-                                        .log("Error in preparing redirect url");
-                                throw new RestException(Response.Status.PRECONDITION_FAILED, e.getMessage());
+                        if (lookupResult.isRedirect()) {
+                            URI requestUri = uri.getRequestUri();
+                            if (!requestUri.getPath().startsWith(LOOKUP_PATH)) {
+                                throw new UnsupportedOperationException(
+                                        "This implementation expects that the requestUri is a topic lookup.");
                             }
-                                log.debug()
-                                        .attr("topic", topicName)
-                                        .attr("redirect", redirect)
-                                        .log("Redirect lookup for topic");
-                                throw new WebApplicationException(
-                                        Response.temporaryRedirect(redirect).build());
+                            URI redirectUri = lookupResult.toLookupRedirectUri(requestUri);
+                            log.debug()
+                                    .attr("topic", topicName)
+                                    .attr("redirectUri", redirectUri)
+                                    .log("Redirect lookup for topic");
+                            throw new WebApplicationException(Response.temporaryRedirect(redirectUri).build());
                         } else {
                             // Found broker owning the topic
-                                log.debug()
-                                        .attr("topic", topicName)
-                                        .attr("broker", result.getLookupData())
-                                        .log("Lookup succeeded for topic - broker");
-                                                        pulsar().getBrokerService().getLookupRequestSemaphore()
-                                                                .release();
-                            return result.getLookupData();
+                            log.debug()
+                                    .attr("topic", topicName)
+                                    .attr("broker", lookupResult.getLookupData())
+                                    .log("Lookup succeeded for topic - broker");
+                            return lookupResult.getLookupData();
                         }
                     });
-                }).exceptionally(ex -> {
-                    pulsar().getBrokerService().getLookupRequestSemaphore().release();
-                    throw FutureUtil.wrapToCompletionException(ex);
+                }).handle((lookupData, throwable) -> {
+                    lookupRequestSemaphore.release();
+                    if (throwable != null) {
+                        throw FutureUtil.wrapToCompletionException(throwable);
+                    }
+                    return lookupData;
                 });
     }
 
@@ -276,21 +269,22 @@ public class TopicLookupBase extends PulsarWebResource {
                         .properties(properties)
                         .build();
                 pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, options)
-                        .thenAccept(lookupResult -> {
-                                LOG.debug()
-                                        .attr("toString", topicName.toString())
-                                        .attr("result", lookupResult)
-                                        .log("Lookup result");
-                                                        if (!lookupResult.isPresent()) {
+                        .thenAccept(optLookupResult -> {
+                            LOG.debug()
+                                    .attr("toString", topicName.toString())
+                                    .attr("result", optLookupResult)
+                                    .log("Lookup result");
+                            if (!optLookupResult.isPresent()) {
                                 lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady,
                                         "No broker was available to own " + topicName, requestId));
                                 return;
                             }
 
-                            LookupData lookupData = lookupResult.get().getLookupData();
+                            LookupResult lookupResult = optLookupResult.get();
+                            LookupData lookupData = lookupResult.getLookupData();
                             printWarnLogIfLookupResUnexpected(topicName, lookupData, options, pulsarService);
-                            if (lookupResult.get().isRedirect()) {
-                                boolean newAuthoritative = lookupResult.get().isAuthoritativeRedirect();
+                            if (lookupResult.isRedirect()) {
+                                boolean newAuthoritative = lookupResult.isAuthoritativeRedirect();
                                 lookupfuture.complete(
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
                                                 newAuthoritative, LookupType.Redirect, requestId, false));

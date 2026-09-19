@@ -18,28 +18,29 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiParam;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.parameters.RequestBody;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.Encoded;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.POST;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.Suspended;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.Encoded;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.Suspended;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
@@ -64,7 +65,7 @@ import org.apache.pulsar.common.naming.TopicName;
 @CustomLog
 @Path("/segments")
 @Produces(MediaType.APPLICATION_JSON)
-@Api(value = "/segments", description = "Segment topic admin APIs", tags = "segments")
+@Tag(name = "segments", description = "Segment topic admin APIs")
 public class Segments extends AdminResource {
 
     private TopicName segmentTopicName(String tenant, String namespace,
@@ -75,25 +76,25 @@ public class Segments extends AdminResource {
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/{descriptor}")
-    @ApiOperation(value = "Create a segment topic on the owning broker. Super-user only.")
+    @Operation(summary = "Create a segment topic on the owning broker. Super-user only.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Segment topic created successfully"),
-            @ApiResponse(code = 401, message = "This operation requires super-user access"),
-            @ApiResponse(code = 403, message = "This operation requires super-user access"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Segment topic created successfully"),
+            @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "403", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void createSegment(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify the parent topic name", required = true)
+            @Parameter(description = "Specify the parent topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @Parameter(description = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
             @PathParam("descriptor") String descriptor,
-            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @Parameter(description = "Whether leader broker redirected this call to this broker.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "Subscriptions to create on the new segment")
+            @RequestBody(description = "Subscriptions to create on the new segment")
             List<String> subscriptions) {
         validateNamespaceName(tenant, namespace);
         TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
@@ -132,24 +133,24 @@ public class Segments extends AdminResource {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/{descriptor}/terminate")
-    @ApiOperation(value = "Terminate a segment topic so no more messages can be published. Super-user only.")
+    @Operation(summary = "Terminate a segment topic so no more messages can be published. Super-user only.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Segment topic terminated successfully"),
-            @ApiResponse(code = 401, message = "This operation requires super-user access"),
-            @ApiResponse(code = 403, message = "This operation requires super-user access"),
-            @ApiResponse(code = 404, message = "Segment topic not found"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Segment topic terminated successfully"),
+            @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "403", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "404", description = "Segment topic not found"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void terminateSegment(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify the parent topic name", required = true)
+            @Parameter(description = "Specify the parent topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @Parameter(description = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
             @PathParam("descriptor") String descriptor,
-            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @Parameter(description = "Whether leader broker redirected this call to this broker.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, namespace);
         TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
@@ -183,26 +184,26 @@ public class Segments extends AdminResource {
 
     @PUT
     @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}")
-    @ApiOperation(value = "Create a subscription cursor on the segment topic at the earliest"
+    @Operation(summary = "Create a subscription cursor on the segment topic at the earliest"
             + " position. Super-user only.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Subscription cursor created (or already existed)"),
-            @ApiResponse(code = 401, message = "This operation requires super-user access"),
-            @ApiResponse(code = 403, message = "This operation requires super-user access"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Subscription cursor created (or already existed)"),
+            @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "403", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void createSubscription(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify the parent topic name", required = true)
+            @Parameter(description = "Specify the parent topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @Parameter(description = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
             @PathParam("descriptor") String descriptor,
-            @ApiParam(value = "Subscription name", required = true)
+            @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription,
-            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @Parameter(description = "Whether leader broker redirected this call to this broker.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, namespace);
         TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
@@ -229,25 +230,25 @@ public class Segments extends AdminResource {
 
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}")
-    @ApiOperation(value = "Delete a subscription cursor on the segment topic. Super-user only.")
+    @Operation(summary = "Delete a subscription cursor on the segment topic. Super-user only.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Subscription cursor deleted (or never existed)"),
-            @ApiResponse(code = 401, message = "This operation requires super-user access"),
-            @ApiResponse(code = 403, message = "This operation requires super-user access"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Subscription cursor deleted (or never existed)"),
+            @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "403", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void deleteSubscription(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify the parent topic name", required = true)
+            @Parameter(description = "Specify the parent topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @Parameter(description = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
             @PathParam("descriptor") String descriptor,
-            @ApiParam(value = "Subscription name", required = true)
+            @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription,
-            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @Parameter(description = "Whether leader broker redirected this call to this broker.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, namespace);
         TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
@@ -284,26 +285,26 @@ public class Segments extends AdminResource {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}/backlog")
-    @ApiOperation(value = "Number of unconsumed entries in the segment topic for the "
+    @Operation(summary = "Number of unconsumed entries in the segment topic for the "
             + "given subscription. Super-user only.")
     @ApiResponses(value = {
-            @ApiResponse(code = 401, message = "This operation requires super-user access"),
-            @ApiResponse(code = 403, message = "This operation requires super-user access"),
-            @ApiResponse(code = 404, message = "Segment topic or subscription not found"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "403", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "404", description = "Segment topic or subscription not found"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void getSubscriptionBacklog(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify the parent topic name", required = true)
+            @Parameter(description = "Specify the parent topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @Parameter(description = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
             @PathParam("descriptor") String descriptor,
-            @ApiParam(value = "Subscription name", required = true)
+            @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription,
-            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @Parameter(description = "Whether leader broker redirected this call to this broker.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, namespace);
         TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
@@ -337,29 +338,29 @@ public class Segments extends AdminResource {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}/seek")
-    @ApiOperation(value = "Reset the segment topic's subscription cursor to the given timestamp."
+    @Operation(summary = "Reset the segment topic's subscription cursor to the given timestamp."
             + " Super-user only.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Cursor reset successfully"),
-            @ApiResponse(code = 401, message = "This operation requires super-user access"),
-            @ApiResponse(code = 403, message = "This operation requires super-user access"),
-            @ApiResponse(code = 404, message = "Segment topic or subscription not found"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Cursor reset successfully"),
+            @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "403", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "404", description = "Segment topic or subscription not found"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void seekSubscription(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify the parent topic name", required = true)
+            @Parameter(description = "Specify the parent topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @Parameter(description = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
             @PathParam("descriptor") String descriptor,
-            @ApiParam(value = "Subscription name", required = true)
+            @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription,
-            @ApiParam(value = "Wall-clock millis since the unix epoch", required = true)
+            @Parameter(description = "Wall-clock millis since the unix epoch", required = true)
             @QueryParam("timestamp") long timestampMs,
-            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @Parameter(description = "Whether leader broker redirected this call to this broker.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, namespace);
         TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
@@ -412,27 +413,27 @@ public class Segments extends AdminResource {
 
     @POST
     @Path("/{tenant}/{namespace}/{topic}/{descriptor}/subscription/{subscription}/skip-all")
-    @ApiOperation(value = "Skip every undelivered message on the segment topic's subscription —"
+    @Operation(summary = "Skip every undelivered message on the segment topic's subscription —"
             + " advance the cursor to the end. Super-user only.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Backlog cleared successfully"),
-            @ApiResponse(code = 401, message = "This operation requires super-user access"),
-            @ApiResponse(code = 403, message = "This operation requires super-user access"),
-            @ApiResponse(code = 404, message = "Segment topic or subscription not found"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Backlog cleared successfully"),
+            @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "403", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "404", description = "Segment topic or subscription not found"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void clearSubscriptionBacklog(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify the parent topic name", required = true)
+            @Parameter(description = "Specify the parent topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @Parameter(description = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
             @PathParam("descriptor") String descriptor,
-            @ApiParam(value = "Subscription name", required = true)
+            @Parameter(description = "Subscription name", required = true)
             @PathParam("subscription") String subscription,
-            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @Parameter(description = "Whether leader broker redirected this call to this broker.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(tenant, namespace);
         TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);
@@ -467,25 +468,25 @@ public class Segments extends AdminResource {
 
     @DELETE
     @Path("/{tenant}/{namespace}/{topic}/{descriptor}")
-    @ApiOperation(value = "Delete a segment topic. Super-user only.")
+    @Operation(summary = "Delete a segment topic. Super-user only.")
     @ApiResponses(value = {
-            @ApiResponse(code = 204, message = "Segment topic deleted successfully"),
-            @ApiResponse(code = 401, message = "This operation requires super-user access"),
-            @ApiResponse(code = 403, message = "This operation requires super-user access"),
-            @ApiResponse(code = 500, message = "Internal server error")})
+            @ApiResponse(responseCode = "204", description = "Segment topic deleted successfully"),
+            @ApiResponse(responseCode = "401", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "403", description = "This operation requires super-user access"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void deleteSegment(
             @Suspended final AsyncResponse asyncResponse,
-            @ApiParam(value = "Specify the tenant", required = true)
+            @Parameter(description = "Specify the tenant", required = true)
             @PathParam("tenant") String tenant,
-            @ApiParam(value = "Specify the namespace", required = true)
+            @Parameter(description = "Specify the namespace", required = true)
             @PathParam("namespace") String namespace,
-            @ApiParam(value = "Specify the parent topic name", required = true)
+            @Parameter(description = "Specify the parent topic name", required = true)
             @PathParam("topic") @Encoded String encodedTopic,
-            @ApiParam(value = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
+            @Parameter(description = "Segment descriptor (e.g. 0000-7fff-1)", required = true)
             @PathParam("descriptor") String descriptor,
-            @ApiParam(value = "Whether leader broker redirected this call to this broker.")
+            @Parameter(description = "Whether leader broker redirected this call to this broker.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @ApiParam(value = "Force deletion")
+            @Parameter(description = "Force deletion")
             @QueryParam("force") @DefaultValue("false") boolean force) {
         validateNamespaceName(tenant, namespace);
         TopicName segmentTopic = segmentTopicName(tenant, namespace, encodedTopic, descriptor);

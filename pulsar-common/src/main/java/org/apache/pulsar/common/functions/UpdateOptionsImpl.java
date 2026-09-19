@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.functions;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -28,10 +27,10 @@ import lombok.NoArgsConstructor;
  */
 @Data
 @NoArgsConstructor
-@ApiModel(value = "UpdateOptions", description = "Options while updating the sink")
+@Schema(name = "UpdateOptions", description = "Options while updating the sink")
 public class UpdateOptionsImpl implements UpdateOptions {
-    @ApiModelProperty(
-            value = "Whether or not to update the auth data",
+    @Schema(
+            description = "Whether or not to update the auth data",
             name = "update-auth-data")
     private boolean updateAuthData = false;
 }

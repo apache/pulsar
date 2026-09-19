@@ -30,6 +30,7 @@
             <class name="org.apache.pulsar.tests.integration.messaging.NonDurableConsumerMessagingTest" />
             <class name="org.apache.pulsar.tests.integration.messaging.MessagingSmokeTest" />
             <class name="org.apache.pulsar.tests.integration.admin.AdminTest" />
+            <class name="org.apache.pulsar.tests.integration.topics.TestScalableTopicMigration" />
 
             <class name="org.apache.pulsar.tests.integration.oxia.OxiaSmokeTest" />
         </classes>

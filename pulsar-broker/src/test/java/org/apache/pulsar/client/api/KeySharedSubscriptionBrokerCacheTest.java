@@ -100,7 +100,7 @@ public class KeySharedSubscriptionBrokerCacheTest extends ProducerConsumerBase {
         // Important: this is currently necessary to make use of cache for replay queue reads
         conf.setCacheEvictionByMarkDeletedPosition(true);
 
-        conf.setManagedLedgerMaxReadsInFlightSizeInMB(100);
+        conf.setManagedLedgerMaxReadsInFlightSizeInMB(100L);
         conf.setDispatcherRetryBackoffInitialTimeInMs(0);
         conf.setDispatcherRetryBackoffMaxTimeInMs(0);
         conf.setKeySharedUnblockingIntervalMs(0);

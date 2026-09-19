@@ -107,6 +107,37 @@ public class TopicName implements ServiceUnitId {
         }
     }
 
+    /**
+     * Checks whether a topic name can be used to create a new topic.
+     *
+     * <p>Pulsar clients trim the <em>entire</em> topic string before resolving it (see
+     * {@link org.apache.pulsar.client.api.ConsumerBuilder#topic(String...)}), so a topic whose full name has
+     * surrounding whitespace would be created under one name but addressed under the trimmed name. Checking the
+     * full name (rather than only the local name) matches that client behavior: a leading space in the local name
+     * of a fully-qualified name sits in the middle of the string and is not trimmed by clients, so it stays
+     * allowed.
+     *
+     * <p>This is only meant to be checked on topic creation paths, so topics which already have such a name
+     * remain listable, readable and deletable.
+     */
+    public static boolean isValidForCreation(TopicName topicName) {
+        String topic = topicName.toString();
+        return topic.equals(StringUtils.trim(topic));
+    }
+
+    /**
+     * Validates that a topic name can be used to create a new topic.
+     *
+     * @throws IllegalArgumentException if the topic name cannot be used to create a topic
+     * @see #isValidForCreation(TopicName)
+     */
+    public static void validateTopicNameForCreation(TopicName topicName) {
+        if (!isValidForCreation(topicName)) {
+            throw new IllegalArgumentException("Invalid topic name: '" + topicName
+                    + "'. Topic name must not have leading or trailing whitespace.");
+        }
+    }
+
     public static String getPartitionPattern(String topic) {
         return "^" + Pattern.quote(get(topic).getPartitionedTopicName().toString()) + "-partition-[0-9]+$";
     }
@@ -298,6 +329,25 @@ public class TopicName implements ServiceUnitId {
         }
         String partitionName = this.toString() + PARTITIONED_TOPIC_SUFFIX + index;
         return get(partitionName);
+    }
+
+    /**
+     * Returns this topic re-expressed in the scalable {@code topic://...} domain,
+     * regardless of the original input domain. Used to derive the canonical
+     * scalable-topic identity for a name the user may have spelled as
+     * {@code persistent://...} or short-form.
+     *
+     * <p>Any {@code -partition-K} suffix is stripped, so a partition name like
+     * {@code persistent://t/n/x-partition-3} resolves to the base topic's scalable
+     * identity {@code topic://t/n/x}, not {@code topic://t/n/x-partition-3}.
+     */
+    public TopicName toScalableTopic() {
+        if (domain == TopicDomain.topic) {
+            return this;
+        }
+        TopicName base = isPartitioned() ? get(getPartitionedTopicName()) : this;
+        return get(TopicDomain.topic.value() + "://" + base.getNamespace()
+                + "/" + base.getEncodedLocalName());
     }
 
     /**

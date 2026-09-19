@@ -28,10 +28,18 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 public interface AdditionalServlet extends AutoCloseable {
     /**
      * The servlet implementation type enum.
-     * Currently, only {@link AdditionalServletType#JAVAX_SERVLET} is supported.
+     * <p>
+     * {@link AdditionalServletType#JAKARTA_SERVLET} servlets implement {@code jakarta.servlet.Servlet}, the
+     * servlet API of the Jetty environment the broker and the proxy run, and are the preferred style going
+     * forward. {@link AdditionalServletType#JAVAX_SERVLET} servlets implement the legacy
+     * {@code javax.servlet.Servlet} interface and are adapted to {@code jakarta.servlet.Servlet} before they are
+     * registered, so that plugins built against the {@code javax.servlet} API keep working without
+     * recompilation. Both styles can coexist within a single broker/proxy and both go through the same filter
+     * chain. See PIP-472.
      */
     enum AdditionalServletType {
-        JAVAX_SERVLET
+        JAVAX_SERVLET,
+        JAKARTA_SERVLET
     }
 
     /**
@@ -61,7 +69,9 @@ public interface AdditionalServlet extends AutoCloseable {
      * The returned object's type must be compatible with the servlet interface class
      * specified by the {@link AdditionalServletType} returned from {@link #getServletType()}.
      * For example, if {@link #getServletType()} returns {@link AdditionalServletType#JAVAX_SERVLET},
-     * the returned object must implement {@code javax.servlet.Servlet}.
+     * the returned object must implement {@code javax.servlet.Servlet}; if it returns
+     * {@link AdditionalServletType#JAKARTA_SERVLET}, the returned object must implement
+     * {@code jakarta.servlet.Servlet}.
      * </p>
      *
      * @return the servlet instance implementing the appropriate servlet interface

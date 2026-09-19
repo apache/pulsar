@@ -21,17 +21,22 @@ package org.apache.pulsar.websocket;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import javax.servlet.http.HttpServletRequest;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -43,11 +48,97 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
 import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
-import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class ReaderHandlerTest {
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testInvalidMessageIdBase64ReturnsBadRequest() throws IOException {
+        WebSocketService wss = mock(WebSocketService.class);
+        PulsarClient mockedClient = mock(PulsarClient.class);
+        when(wss.getPulsarClient()).thenReturn(mockedClient);
+        ReaderBuilder<byte[]> mockedReaderBuilder = mock(ReaderBuilder.class);
+        when(mockedClient.newReader()).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.topic(any())).thenReturn(mockedReaderBuilder);
+        // Ensure the chain doesn't NPE after startMessageId() if parsing unexpectedly succeeds.
+        when(mockedReaderBuilder.startMessageId(any())).thenReturn(mockedReaderBuilder);
+
+        Map<String, String[]> params = new HashMap<>();
+        params.put("messageId", new String[] { "invalidMessageId" });
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
+        when(request.getParameterMap()).thenReturn(params);
+
+        JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
+        new ReaderHandler(wss, request, servletUpgradeResponse);
+
+        verify(servletUpgradeResponse, times(1))
+                .sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testInvalidMessageIdBytesReturnsBadRequest() throws IOException {
+        WebSocketService wss = mock(WebSocketService.class);
+        PulsarClient mockedClient = mock(PulsarClient.class);
+        when(wss.getPulsarClient()).thenReturn(mockedClient);
+        ReaderBuilder<byte[]> mockedReaderBuilder = mock(ReaderBuilder.class);
+        when(mockedClient.newReader()).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.topic(any())).thenReturn(mockedReaderBuilder);
+        // Ensure the chain doesn't NPE after startMessageId() if parsing unexpectedly succeeds.
+        when(mockedReaderBuilder.startMessageId(any())).thenReturn(mockedReaderBuilder);
+
+        // "AQID" is valid Base64, but it doesn't decode into a valid Pulsar MessageId structure.
+        Map<String, String[]> params = new HashMap<>();
+        params.put("messageId", new String[] { "AQID" });
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
+        when(request.getParameterMap()).thenReturn(params);
+
+        JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
+        new ReaderHandler(wss, request, servletUpgradeResponse);
+
+        verify(servletUpgradeResponse, times(1))
+                .sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testInvalidMessageIdRuntimeParseFailureReturnsBadRequest() throws IOException {
+        WebSocketService wss = mock(WebSocketService.class);
+        PulsarClient mockedClient = mock(PulsarClient.class);
+        when(wss.getPulsarClient()).thenReturn(mockedClient);
+        ReaderBuilder<byte[]> mockedReaderBuilder = mock(ReaderBuilder.class);
+        when(mockedClient.newReader()).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.topic(any())).thenReturn(mockedReaderBuilder);
+        // Ensure the chain doesn't NPE after startMessageId() if parsing unexpectedly succeeds.
+        when(mockedReaderBuilder.startMessageId(any())).thenReturn(mockedReaderBuilder);
+
+        MessageIdData invalidBatchMessageId = new MessageIdData()
+                .setLedgerId(1)
+                .setEntryId(2)
+                .setBatchIndex(0)
+                .setBatchSize(-1);
+        Map<String, String[]> params = new HashMap<>();
+        params.put("messageId", new String[] {
+                Base64.getEncoder().encodeToString(invalidBatchMessageId.toByteArray()) });
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
+        when(request.getParameterMap()).thenReturn(params);
+
+        JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
+        new ReaderHandler(wss, request, servletUpgradeResponse);
+
+        verify(servletUpgradeResponse, times(1))
+                .sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+    }
 
     @Test
     @SuppressWarnings("unchecked")
@@ -68,7 +159,7 @@ public class ReaderHandlerTest {
         when(consumerImp.getSubscription()).thenReturn(subName);
         when(mockedReader.getConsumer()).thenReturn(consumerImp);
         HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getRequestURI()).thenReturn("/ws/v2/producer/persistent/my-property/my-ns/my-topic");
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
         // create reader handler
         JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
         ReaderHandler readerHandler = new ReaderHandler(wss, request, servletUpgradeResponse);
@@ -97,7 +188,7 @@ public class ReaderHandlerTest {
         when(consumerImp.getSubscription()).thenReturn(subName);
         when(mockedReader.getMultiTopicsConsumer()).thenReturn(consumerImp);
         HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getRequestURI()).thenReturn("/ws/v2/producer/persistent/my-property/my-ns/my-topic");
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
         // create reader handler
         JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
         ReaderHandler readerHandler = new ReaderHandler(wss, request, servletUpgradeResponse);
@@ -122,7 +213,7 @@ public class ReaderHandlerTest {
         IllegalReader illegalReader = new IllegalReader();
         when(mockedReaderBuilder.create()).thenReturn(illegalReader);
         HttpServletRequest request = mock(HttpServletRequest.class);
-        when(request.getRequestURI()).thenReturn("/ws/v2/producer/persistent/my-property/my-ns/my-topic");
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
         // create reader handler
         JettyServerUpgradeResponse servletUpgradeResponse = spy(JettyServerUpgradeResponse.class);
         new ReaderHandler(wss, request, servletUpgradeResponse);

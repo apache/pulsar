@@ -23,6 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
+import io.netty.channel.EventLoopGroup;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -35,6 +36,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -96,7 +98,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     protected final MessageRedeliveryController redeliveryMessages;
     protected final RedeliveryTracker redeliveryTracker;
 
-    private Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
+    private volatile Optional<DelayedDeliveryTracker> delayedDeliveryTracker = Optional.empty();
 
     protected volatile boolean havePendingRead = false;
     protected volatile boolean havePendingReplayRead = false;
@@ -212,7 +214,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                     .log("Attempting to add a consumer that already registered");
         }
 
-        consumerList.add(consumer);
+        addConsumerToList(consumer);
         if (consumerList.size() > 1
                 && consumer.getPriorityLevel() < consumerList.get(consumerList.size() - 2).getPriorityLevel()) {
             consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
@@ -229,10 +231,12 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
-        // decrement unack-message count for removed consumer
-        addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
-            consumerList.remove(consumer);
+            // decrement unack-message count for removed consumer. Only the removal that actually
+            // unregisters the consumer may debit it, otherwise removing an already-removed consumer
+            // debits the same messages again and drives the subscription counter negative.
+            addUnAckedMessages(-consumer.getUnackedMessages());
+            removeConsumerFromList(consumer);
             log.info()
                     .attr("consumer", consumer)
                     .attr("size", consumer.getPendingAcks().size())
@@ -244,9 +248,12 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                 consumer.getPendingAcks().forEach((ledgerId, entryId, batchSize, stickyKeyHash) -> {
                     addMessageToReplay(ledgerId, entryId, stickyKeyHash);
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
+                // Restore the invariant that the dispatcher total equals the sum of the removal balances of the
+                // remaining consumers. Exclude Flow permits that have not updated the dispatcher total yet.
+                int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
+                totalAvailablePermits -= availablePermits;
                 log.debug()
-                        .attr("availablePermits", consumer.getAvailablePermits())
+                        .attr("availablePermits", availablePermits)
                         .attr("totalAvailablePermits", totalAvailablePermits)
                         .log("Decreased totalAvailablePermits by in PersistentDispatcherMultipleConsumers. "
                                 + "New dispatcher permit count is");
@@ -259,7 +266,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
              * are not mismatch with {@link #consumerSet}. See more detail: https://github.com/apache/pulsar/pull/22270.
              */
             log.error().attr("consumer", consumer).log("Trying to remove a non-connected consumer");
-            consumerList.removeIf(c -> consumer.equals(c));
+            // The debit belongs to the removal that unregisters the consumer; do not repeat it here.
+            removeConsumersFromList(c -> consumer.equals(c));
             if (consumerList.isEmpty()) {
                 clearComponentsAfterRemovedAllConsumers();
             }
@@ -280,13 +288,23 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().executor().execute(() -> {
-            internalConsumerFlow(consumer, additionalNumberOfMessages);
-        });
+        EventLoopGroup flowExecutor = topic.getBrokerService().executor();
+        try {
+            flowExecutor.execute(() -> internalConsumerFlow(consumer, additionalNumberOfMessages));
+        } catch (RejectedExecutionException e) {
+            // Leave the permits pending so removal excludes this unapplied Flow during broker shutdown.
+            log.debug()
+                    .attr("consumer", consumer)
+                    .attr("executorShutdown", flowExecutor.isShuttingDown())
+                    .exception(e)
+                    .log("Unable to schedule flow control update");
+        }
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        if (!consumerSet.contains(consumer)) {
+        // The queued Flow task is no longer pending, even if the consumer was removed while the task was waiting.
+        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
+        if (!containsConsumerInstance(consumer)) {
             log.debug()
                     .attr("consumer", consumer)
                     .log("Ignoring flow control from disconnected consumer");
@@ -311,7 +329,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         topic.getBrokerService().executor().execute(this::readMoreEntries);
     }
 
-    public synchronized void readMoreEntries() {
+    @Override
+    protected synchronized void internalReadMoreEntries() {
         if (cursor.isClosed()) {
             log.debug("Cursor is already closed, skipping read more entries");
             return;
@@ -528,11 +547,13 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             this.delayedDeliveryTracker = Optional.empty();
         }
 
-        delayedDeliveryTracker.ifPresent(DelayedDeliveryTracker::close);
+        CompletableFuture<Void> closeTrackerFuture = delayedDeliveryTracker
+                .map(DelayedDeliveryTracker::closeAsync)
+                .orElseGet(() -> CompletableFuture.completedFuture(null));
         dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
 
-        return disconnectConsumers
-                ? disconnectAllConsumers(false, assignedBrokerLookupData) : CompletableFuture.completedFuture(null);
+        return closeTrackerFuture.thenCompose(__ -> disconnectConsumers
+                ? disconnectAllConsumers(false, assignedBrokerLookupData) : CompletableFuture.completedFuture(null));
     }
 
     @Override
@@ -614,7 +635,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
                 .attr("consumerCount", consumerList.size())
                 .log("Distributing messages to consumers");
 
-        long size = entries.stream().mapToLong(Entry::getLength).sum();
+        long size = getTotalBytesSize(entries);
         updatePendingBytesToDispatch(size);
 
         // dispatch messages to a separate thread, but still in order for this subscription
@@ -866,7 +887,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
             // Set the wait time to -1 to avoid rescheduling the read.
             waitTimeMillis = -1;
         } else if (exception instanceof NoMoreEntriesToReadException) {
-            if (cursor.getNumberOfEntriesInBacklog(false) == 0) {
+            if (!cursor.hasBacklog(false)) {
                 // Topic has been terminated and there are no more entries to read
                 // Notify the consumer only if all the messages were already acknowledged
                 checkAndApplyReachedEndOfTopicOrTopicMigration(consumerList);
@@ -1207,12 +1228,12 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         return true;
     }
 
-    protected synchronized boolean shouldPauseDeliveryForDelayTracker() {
-        return delayedDeliveryTracker.isPresent() && delayedDeliveryTracker.get().shouldPauseAllDeliveries();
+    protected boolean shouldPauseDeliveryForDelayTracker() {
+        return delayedDeliveryTracker.map(DelayedDeliveryTracker::shouldPauseAllDeliveries).orElse(false);
     }
 
     @Override
-    public synchronized long getNumberOfDelayedMessages() {
+    public long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L);
     }
 
@@ -1278,7 +1299,7 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         }
         // consider dispatch is stuck if : dispatcher has backlog, available-permits and there is no pending read
         if (isAtleastOneConsumerAvailable() && !havePendingReplayRead && !havePendingRead
-                && cursor.getNumberOfEntriesInBacklog(false) > 0) {
+                && cursor.hasBacklog(false)) {
             log.warn("Dispatcher is stuck and unblocking by issuing reads");
             readMoreEntries();
             return true;
@@ -1290,21 +1311,15 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
         return topic;
     }
 
-
-    public synchronized long getDelayedTrackerMemoryUsage() {
+    public long getDelayedTrackerMemoryUsage() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getBufferMemoryUsage).orElse(0L);
     }
 
-    public synchronized Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
-        if (delayedDeliveryTracker.isEmpty()) {
-            return Collections.emptyMap();
-        }
-
-        if (delayedDeliveryTracker.get() instanceof BucketDelayedDeliveryTracker) {
-            return ((BucketDelayedDeliveryTracker) delayedDeliveryTracker.get()).genTopicMetricMap();
-        }
-
-        return Collections.emptyMap();
+    public Map<String, TopicMetricBean> getBucketDelayedIndexStats() {
+        return delayedDeliveryTracker
+                .filter(BucketDelayedDeliveryTracker.class::isInstance)
+                .map(tracker -> ((BucketDelayedDeliveryTracker) tracker).genTopicMetricMap())
+                .orElse(Collections.emptyMap());
     }
 
     @Override

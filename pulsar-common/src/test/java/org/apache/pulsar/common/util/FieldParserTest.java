@@ -96,6 +96,18 @@ public class FieldParserTest {
     }
 
     @Test
+    public void testMapWithEqualsSignAndEmptyValue() {
+        Map<String, String> properties = new HashMap<>();
+        properties.put("stringStringMap", "key1=value=1,key2=");
+
+        MyConfig config = new MyConfig();
+        FieldParser.update(properties, config);
+
+        assertEquals(config.stringStringMap.get("key1"), "value=1");
+        assertEquals(config.stringStringMap.get("key2"), "");
+    }
+
+    @Test
     public void testNullStrValue() throws Exception {
         class TestMap {
             public List<String> list;

@@ -18,111 +18,259 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import io.netty.buffer.ByteBuf;
-import java.util.ArrayList;
-import java.util.List;
+import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
+import java.util.Arrays;
 import javax.annotation.concurrent.NotThreadSafe;
 import lombok.Getter;
-import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
+/**
+ * A growable array of {@code long} values backed by heap-allocated segments.
+ *
+ * <p>This class provides a logical contiguous {@code long[]} whose size may exceed
+ * {@link Integer#MAX_VALUE}. Internally, the storage is split into fixed-size
+ * segments, allowing capacities larger than a single Java array while keeping
+ * element access in constant time.
+ *
+ * <p>Segment layout invariant:
+ * <ul>
+ *   <li>Every segment except the last has length {@code segmentSize}.</li>
+ *   <li>The last segment may be partially filled.</li>
+ *   <li>{@code capacity} always equals the total number of allocated elements
+ *       across all segments.</li>
+ * </ul>
+ *
+ * <p>The segment invariant guarantees that the bit based address mapping
+ * ({@code offset >>> segmentShift}, {@code offset & segmentMask}) remains
+ * valid for every logical offset.
+ *
+ * <p>Growing and shrinking preserve existing contents while maintaining the
+ * segment layout invariant.
+ *
+ * <p>This class is not thread-safe.
+ */
 @NotThreadSafe
 public class SegmentedLongArray implements AutoCloseable {
 
-    private static final int SIZE_OF_LONG = 8;
+    /**
+     * Default number of {@code long} values in a full segment. Production behavior
+     * is fixed by this constant; tests may override it via the
+     * {@link #SegmentedLongArray(long, int) package-private constructor}.
+     */
+    static final int DEFAULT_SEGMENT_SIZE = 2 * 1024 * 1024;
 
-    private static final int MAX_SEGMENT_SIZE = 2 * 1024 * 1024; // 2M longs -> 16 MB
-    private final List<ByteBuf> buffers = new ArrayList<>();
+    static {
+        assert Integer.bitCount(DEFAULT_SEGMENT_SIZE) == 1
+                : "DEFAULT_SEGMENT_SIZE must be a power of 2";
+    }
 
+    private final int segmentSize;
+    private final int segmentShift;
+    private final int segmentMask;
+
+    private long[][] segments;
+    private int segmentCount;
+
+    /** Minimum capacity to which this array may be shrunk. */
     @Getter
     private final long initialCapacity;
 
+    /** Logical capacity, measured in {@code long} elements. */
     @Getter
     private long capacity;
 
+    /** Total bytes allocated by all live backing segments. */
+    private long allocatedBytes;
+
+    /**
+     * Creates a segmented array with the specified initial capacity and the default
+     * segment size ({@link #DEFAULT_SEGMENT_SIZE}).
+     *
+     * @param initialCapacity initial capacity in {@code long} elements
+     * @throws IllegalArgumentException if {@code initialCapacity <= 0}
+     */
     public SegmentedLongArray(long initialCapacity) {
-        long remainingToAdd = initialCapacity;
+        this(initialCapacity, DEFAULT_SEGMENT_SIZE);
+    }
 
-        // Add first segment
-        int sizeToAdd = (int) Math.min(remainingToAdd, MAX_SEGMENT_SIZE);
-        ByteBuf buffer = PulsarByteBufAllocator.DEFAULT.directBuffer(sizeToAdd * SIZE_OF_LONG);
-        buffer.writerIndex(sizeToAdd * SIZE_OF_LONG);
-        buffers.add(buffer);
-        remainingToAdd -= sizeToAdd;
+    /**
+     * Creates a segmented array with a custom segment size.
+     *
+     * <p>Intended for unit tests that exercise multi-segment grow/shrink behavior
+     * without allocating production-sized (16 MiB) backing arrays. Production
+     * callers should use {@link #SegmentedLongArray(long)}.
+     *
+     * @param initialCapacity initial capacity in {@code long} elements
+     * @param segmentSize     number of {@code long} values per full segment; must be
+     *                        a positive power of two
+     * @throws IllegalArgumentException if {@code initialCapacity <= 0} or
+     *                                  {@code segmentSize} is not a positive power of two
+     */
+    @VisibleForTesting
+    SegmentedLongArray(long initialCapacity, int segmentSize) {
+        checkArgument(initialCapacity > 0, "initialCapacity must be positive");
+        checkArgument(segmentSize > 0 && Integer.bitCount(segmentSize) == 1,
+                "segmentSize must be a positive power of two");
+        this.segmentSize = segmentSize;
+        this.segmentShift = Integer.numberOfTrailingZeros(segmentSize);
+        this.segmentMask = segmentSize - 1;
+        this.initialCapacity = initialCapacity;
+        this.capacity = initialCapacity;
+        allocateSegments(initialCapacity);
+    }
 
-        // Add the remaining segments, all at full segment size, if necessary
-        while (remainingToAdd > 0) {
-            buffer = PulsarByteBufAllocator.DEFAULT.directBuffer(MAX_SEGMENT_SIZE * SIZE_OF_LONG);
-            buffer.writerIndex(MAX_SEGMENT_SIZE * SIZE_OF_LONG);
-            buffers.add(buffer);
-            remainingToAdd -= MAX_SEGMENT_SIZE;
+    /**
+     * Allocates the initial segment layout.
+     */
+    private void allocateSegments(long longCapacity) {
+        segmentCount = Math.max(1, (int) ((longCapacity + segmentSize - 1) / segmentSize));
+        segments = new long[segmentCount][];
+
+        long remaining = longCapacity;
+        long bytes = 0;
+
+        for (int i = 0; i < segmentCount; i++) {
+            int size = (int) Math.min(segmentSize, remaining);
+            segments[i] = new long[size];
+            bytes += (long) size * Long.BYTES;
+            remaining -= size;
         }
 
-        this.initialCapacity = initialCapacity;
-        this.capacity = this.initialCapacity;
+        allocatedBytes = bytes;
     }
 
     public void writeLong(long offset, long value) {
-        int bufferIdx = (int) (offset / MAX_SEGMENT_SIZE);
-        int internalIdx = (int) (offset % MAX_SEGMENT_SIZE);
-        buffers.get(bufferIdx).setLong(internalIdx * SIZE_OF_LONG, value);
+        long[] segment = segments[(int) (offset >>> segmentShift)];
+        segment[(int) (offset & segmentMask)] = value;
     }
 
     public long readLong(long offset) {
-        int bufferIdx = (int) (offset / MAX_SEGMENT_SIZE);
-        int internalIdx = (int) (offset % MAX_SEGMENT_SIZE);
-        return buffers.get(bufferIdx).getLong(internalIdx * SIZE_OF_LONG);
+        long[] segment = segments[(int) (offset >>> segmentShift)];
+        return segment[(int) (offset & segmentMask)];
+    }
+
+    /**
+     * Ensures that the backing storage can hold at least {@code required}
+     * elements.
+     *
+     * @param required minimum required capacity in {@code long} elements
+     */
+    public void ensureCapacity(long required) {
+        if (required <= capacity) {
+            return;
+        }
+
+        long geometric;
+        if (capacity < segmentSize) {
+            geometric = Math.min(
+                    capacity + (capacity <= 256 ? capacity : capacity / 2),
+                    segmentSize);
+        } else {
+            geometric = capacity + segmentSize;
+        }
+
+        growTo(Math.max(required, geometric));
     }
 
     public void increaseCapacity() {
-        if (capacity < MAX_SEGMENT_SIZE) {
-            // Resize the current buffer to bigger capacity
-            capacity += (capacity <= 256 ? capacity : capacity / 2);
-            capacity = Math.min(capacity, MAX_SEGMENT_SIZE);
-            buffers.get(0).capacity((int) this.capacity * SIZE_OF_LONG);
-            buffers.get(0).writerIndex((int) this.capacity * SIZE_OF_LONG);
-        } else {
-            // Let's add 1 mode buffer to the list
-            int bufferSize = MAX_SEGMENT_SIZE * SIZE_OF_LONG;
-            ByteBuf buffer = PulsarByteBufAllocator.DEFAULT.directBuffer(bufferSize, bufferSize);
-            buffer.writerIndex(bufferSize);
-            buffers.add(buffer);
-            capacity += MAX_SEGMENT_SIZE;
-        }
+        ensureCapacity(capacity + 1);
     }
 
+    /**
+     * Expands the backing storage to exactly {@code newCapacity}.
+     */
+    private void growTo(long newCapacity) {
+        if (newCapacity <= capacity) {
+            return;
+        }
+
+        int newSegmentCount = (int) ((newCapacity + segmentSize - 1) / segmentSize);
+
+        if (segments.length < newSegmentCount) {
+            segments = Arrays.copyOf(segments, newSegmentCount);
+        }
+
+        // If the current last segment becomes an interior segment,
+        // it must be expanded to preserve the bit-based address mapping.
+        if (newSegmentCount > segmentCount && segmentCount >= 1) {
+            int oldLastIdx = segmentCount - 1;
+            if (segments[oldLastIdx].length < segmentSize) {
+                resizeLastSegment(oldLastIdx, segmentSize);
+            }
+        }
+
+        for (int i = segmentCount; i < newSegmentCount - 1; i++) {
+            segments[i] = new long[segmentSize];
+            allocatedBytes += (long) segmentSize * Long.BYTES;
+        }
+
+        int newLastIdx = newSegmentCount - 1;
+        int newLastSize = (int) (newCapacity - (long) newLastIdx * segmentSize);
+
+        if (newLastIdx >= segmentCount) {
+            segments[newLastIdx] = new long[newLastSize];
+            allocatedBytes += (long) newLastSize * Long.BYTES;
+        } else {
+            resizeLastSegment(newLastIdx, newLastSize);
+        }
+
+        segmentCount = newSegmentCount;
+        capacity = newCapacity;
+    }
+
+    private void resizeLastSegment(int idx, int newSize) {
+        long[] old = segments[idx];
+        if (old.length == newSize) {
+            return;
+        }
+
+        allocatedBytes += (long) (newSize - old.length) * Long.BYTES;
+        segments[idx] = Arrays.copyOf(old, newSize);
+    }
+
+    /**
+     * Shrinks the backing storage to {@code newCapacity}.
+     *
+     * @param newCapacity target capacity in {@code long} elements
+     */
     public void shrink(long newCapacity) {
         if (newCapacity >= capacity || newCapacity < initialCapacity) {
             return;
         }
 
-        long sizeToReduce = capacity - newCapacity;
-        while (sizeToReduce >= MAX_SEGMENT_SIZE && buffers.size() > 1) {
-            ByteBuf b = buffers.remove(buffers.size() - 1);
-            b.release();
-            capacity -= MAX_SEGMENT_SIZE;
-            sizeToReduce -= MAX_SEGMENT_SIZE;
+        int newSegmentCount = (int) ((newCapacity + segmentSize - 1) / segmentSize);
+        int newLastIdx = newSegmentCount - 1;
+        int newLastSize = (int) (newCapacity - (long) newLastIdx * segmentSize);
+
+        for (int i = newSegmentCount; i < segmentCount; i++) {
+            allocatedBytes -= (long) segments[i].length * Long.BYTES;
+            segments[i] = null;
         }
 
-        if (buffers.size() == 1 && sizeToReduce > 0) {
-            // We should also reduce the capacity of the first buffer
-            capacity -= sizeToReduce;
-            ByteBuf oldBuffer = buffers.get(0);
-            ByteBuf newBuffer = PulsarByteBufAllocator.DEFAULT.directBuffer((int) capacity * SIZE_OF_LONG);
-            oldBuffer.getBytes(0, newBuffer, (int) capacity * SIZE_OF_LONG);
-            oldBuffer.release();
-            buffers.set(0, newBuffer);
+        resizeLastSegment(newLastIdx, newLastSize);
+
+        segmentCount = newSegmentCount;
+        capacity = newCapacity;
+
+        if (segments.length > Math.max(segmentCount * 2L, 16)) {
+            segments = Arrays.copyOf(segments, segmentCount);
         }
     }
 
     @Override
     public void close() {
-        buffers.forEach(ByteBuf::release);
+        segments = null;
+        segmentCount = 0;
+        capacity = 0;
+        allocatedBytes = 0;
     }
 
     /**
-     * The amount of memory used to back the array of longs.
+     * Returns the physical heap memory reserved by the backing arrays.
+     *
+     * @return allocated bytes occupied by all backing segments
      */
     public long bytesCapacity() {
-        return capacity * SIZE_OF_LONG;
+        return allocatedBytes;
     }
 }

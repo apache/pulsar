@@ -20,23 +20,29 @@ package org.apache.pulsar.broker.resources;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.CacheGetResult;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
@@ -60,6 +66,8 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     private static final String SCALABLE_TOPIC_PATH = "/topics";
     private static final String SUBSCRIPTIONS_SEGMENT = "subscriptions";
     private static final String CONSUMERS_SEGMENT = "consumers";
+    private static final String SEGMENTS_SEGMENT = "segments";
+    private static final String LOAD_SEGMENT = "load";
 
     /**
      * Use the topic's {@code properties} map verbatim as the secondary-index entries.
@@ -73,6 +81,7 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
 
     private final MetadataCache<SubscriptionMetadata> subscriptionCache;
     private final MetadataCache<ConsumerRegistration> consumerRegistrationCache;
+    private final MetadataCache<SegmentLoadStats> segmentLoadCache;
 
     /**
      * Per-path listeners for scalable-topic metadata events. Each listener watches a
@@ -103,6 +112,7 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         super(store, ScalableTopicMetadata.class, operationTimeoutSec);
         this.subscriptionCache = store.getMetadataCache(SubscriptionMetadata.class);
         this.consumerRegistrationCache = store.getMetadataCache(ConsumerRegistration.class);
+        this.segmentLoadCache = store.getMetadataCache(SegmentLoadStats.class);
         // Single shared metadata-store listener fans out to both per-path and
         // per-namespace subscribers. Per-subscriber lifecycle goes through the
         // register / deregister methods below.
@@ -256,7 +266,10 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     }
 
     public CompletableFuture<Void> deleteScalableTopicAsync(TopicName tn) {
-        return deleteAsync(topicPath(tn));
+        // Recursive: the topic record has children — the controller leader lock, the
+        // subscriptions (and their consumer registrations), and the per-segment load
+        // records — all of which must go with the topic.
+        return getStore().deleteRecursive(topicPath(tn));
     }
 
     public CompletableFuture<Boolean> scalableTopicExistsAsync(TopicName tn) {
@@ -297,7 +310,7 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
         // know index cardinalities up front). The predicate then enforces AND across
         // every filter on the loaded record.
         Map.Entry<String, String> indexFilter = propertyFilters.entrySet().iterator().next();
-        java.util.function.Predicate<org.apache.pulsar.metadata.api.GetResult> matchesAll = result -> {
+        Predicate<GetResult> matchesAll = result -> {
             try {
                 ScalableTopicMetadata md =
                         mapper.readValue(result.getValue(), ScalableTopicMetadata.class);
@@ -315,19 +328,23 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                 return false;
             }
         };
-        return getStore().findByIndex(scanPathPrefix,
-                        indexFilter.getKey(), indexFilter.getValue(), matchesAll)
-                // Native-index implementations don't apply the fallback predicate, so
-                // re-check here. On the fallback path this is a no-op (predicate already
-                // applied) but cheap.
-                .thenApply(results -> results.stream()
-                        .filter(matchesAll)
-                        .map(r -> {
-                            String path = r.getStat().getPath();
-                            String encoded = path.substring(path.lastIndexOf('/') + 1);
-                            return TopicName.get("topic", ns, Codec.decode(encoded)).toString();
-                        })
-                        .collect(Collectors.toList()));
+        List<GetResult> results = new ArrayList<>();
+        return getStore().scanByIndex(scanPathPrefix,
+                        indexFilter.getKey(), indexFilter.getValue(), indexFilter.getValue(),
+                        matchesAll,
+                        ScanConsumer.collectInto(results))
+                .thenApply(__ ->
+                        // Native-index implementations don't apply the fallback predicate, so
+                        // re-check here. On the fallback path this is a no-op (predicate already
+                        // applied) but cheap.
+                        results.stream()
+                                .filter(matchesAll)
+                                .map(r -> {
+                                    String path = r.getStat().getPath();
+                                    String encoded = path.substring(path.lastIndexOf('/') + 1);
+                                    return TopicName.get("topic", ns, Codec.decode(encoded)).toString();
+                                })
+                                .collect(Collectors.toList()));
     }
 
     // --- Subscriptions ---
@@ -424,6 +441,53 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
     /**
      * Get the metadata store path for the controller leader lock.
      */
+    // --- Segment load records (PIP-483 auto split/merge) ---
+
+    /**
+     * Upsert a segment's load record. Written by the broker that owns the segment's
+     * {@code segment://} topic, only when the rates have changed materially since the last
+     * write (the materiality decision lives in {@code SegmentLoadReporter}).
+     *
+     * <p>An identical value is NOT rewritten: the record's {@code Stat} modification time is
+     * what the controller uses as "cold since" for the merge window, so a no-op rewrite —
+     * e.g. the first report after segment ownership moved to a broker with an empty
+     * last-written cache — would spuriously reset the window and starve merges under
+     * frequent rebalancing.
+     */
+    public CompletableFuture<Void> reportSegmentLoadAsync(TopicName tn, long segmentId,
+                                                          SegmentLoadStats stats) {
+        String path = segmentLoadPath(tn, segmentId);
+        return segmentLoadCache.get(path).thenCompose(existing -> {
+            if (existing.isPresent() && existing.get().equals(stats)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return segmentLoadCache.readModifyUpdateOrCreate(path, __ -> stats)
+                    .thenApply(__ -> null);
+        });
+    }
+
+    /**
+     * Read a segment's load record together with its metadata {@link Stat} — the controller's
+     * auto-scaling evaluator uses {@code stat.getModificationTimestamp()} to tell how long the
+     * segment has held its current load (the "cold for at least mergeWindow" check).
+     *
+     * @return the value and its stat, or empty if no record has been written yet
+     */
+    public CompletableFuture<Optional<CacheGetResult<SegmentLoadStats>>> getSegmentLoadAsync(
+            TopicName tn, long segmentId) {
+        return segmentLoadCache.getWithStats(segmentLoadPath(tn, segmentId));
+    }
+
+    /** Delete a segment's load record (best-effort; tolerates a missing record). */
+    public CompletableFuture<Void> deleteSegmentLoadAsync(TopicName tn, long segmentId) {
+        return segmentLoadCache.delete(segmentLoadPath(tn, segmentId))
+                .exceptionally(ignoreMissing());
+    }
+
+    public String segmentLoadPath(TopicName tn, long segmentId) {
+        return joinPath(topicPath(tn), SEGMENTS_SEGMENT, Long.toString(segmentId), LOAD_SEGMENT);
+    }
+
     public String controllerLockPath(TopicName tn) {
         return joinPath(topicPath(tn), "controller");
     }
