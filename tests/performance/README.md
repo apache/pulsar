@@ -80,6 +80,11 @@ file without interpreting unrelated sections. The launcher writes the fully reso
 `resolved-config.yaml` in the run directory and mounts that file into workload containers. A workload command can
 select its subtree with `--config-path`.
 
+The `iotTelemetry` workload can run traffic before measurements begin. Use `warmupSeconds` with a positive `rate`,
+or use `warmupMessages` when `rate: 0`; the two settings are mutually exclusive. Warmup traffic remains part of
+delivery and ordering validation. Producer throughput and the epoch-millisecond JFR measurement boundaries in
+`producer-summary.json` cover only the configured measurement messages.
+
 Use a top-level `extends` entry to inherit one file or an ordered list of files:
 
 ```yaml

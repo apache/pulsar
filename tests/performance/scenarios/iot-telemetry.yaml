@@ -31,6 +31,9 @@ workloads:
     topicPrefix: persistent://public/default/iot-telemetry-
     subscriptionPrefix: iot-application-
     durationSeconds: 120
+    # Warmup traffic is validated but excluded from throughput and the exported measurement window.
+    warmupSeconds: 20
+    warmupMessages: 0
     rate: 1000
     numberOfMessages: 0
     payloadBytes: 64

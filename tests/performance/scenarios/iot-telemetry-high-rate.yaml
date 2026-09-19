@@ -27,6 +27,8 @@ cluster:
 workloads:
   iotTelemetry:
     rate: 0
+    warmupSeconds: 0
+    warmupMessages: 1000000
     numberOfMessages: 5000000
     deviceCount: 1000000
     gatewayCount: 500

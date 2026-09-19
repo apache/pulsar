@@ -5,7 +5,7 @@ gateways and fanning out to independent applications:
 
 - 300,000 possible device IDs, 100 gateway clients and 30 persistent topics;
 - one stable binary device ID key and a monotonic per-device counter in each 64-byte message;
-- 1,000 messages/second for 120 seconds;
+- a 20-second warmup followed by 1,000 measured messages/second for 120 seconds;
 - 20 applications, each using its own Key_Shared subscription across 100 isolated client instances;
 - shared PIP-234 client resources within each producer or application process; and
 - broker-side producer deduplication with stable, unique producer names and explicit producer sequence IDs.
@@ -62,9 +62,16 @@ Set `batchingEnabled` in the workload section to compare batched and unbatched k
 changing the tool implementation. Batched runs use `BatcherBuilder.KEY_BASED`, which keeps each batch to
 one key as required for Key_Shared delivery.
 
+Warmup messages exercise the same producer, client, connection, topic and consumer paths as measured messages. They
+remain in the monotonic device sequences and end-to-end delivery checks, but are excluded from throughput. For a
+rate-limited workload, set `warmupSeconds`; for an unrestricted workload, set `warmupMessages`. Do not set both.
+`producer-summary.json` records the warmup and measurement counts and epoch-millisecond measurement boundaries so
+the same window can be selected from broker and client JFRs.
+
 Set `rate: 0` together with a positive `numberOfMessages` to remove producer pacing. Set
 `precreateProducers: true` to open every gateway/topic producer before throughput timing begins. The producer
-summary records elapsed time and whole-run messages/second.
+summary reports `messagesPerSecond` only for the post-warmup measurement phase and retains
+`wholeRunMessagesPerSecond` as startup and warmup context.
 
 ## Async-profiler
 
