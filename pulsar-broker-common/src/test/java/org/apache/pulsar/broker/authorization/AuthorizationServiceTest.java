@@ -179,6 +179,19 @@ public class AuthorizationServiceTest {
     }
 
     @Test(dataProvider = "roles")
+    public void testTopicAutoCreationAsync(String role, String originalRole, boolean shouldPass) throws Exception {
+        boolean isAllowed = authorizationService.allowTopicAutoCreationAsync(TopicName.get("topic"),
+                originalRole, role, null, null).get();
+        checkResult(shouldPass, isAllowed);
+    }
+
+    @Test
+    public void testTopicAutoCreationAllowedByDefault() throws Exception {
+        AuthorizationProvider provider = mock(AuthorizationProvider.class, CALLS_REAL_METHODS);
+        assertTrue(provider.allowTopicAutoCreationAsync(TopicName.get("topic"), "any-role", null).get());
+    }
+
+    @Test(dataProvider = "roles")
     public void testNamespacePolicyOperationAsync(String role, String originalRole, boolean shouldPass)
             throws Exception {
         boolean isAuthorized = authorizationService.allowNamespacePolicyOperationAsync(

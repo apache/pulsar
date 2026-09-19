@@ -83,7 +83,7 @@ public class TopicLookupBase extends PulsarWebResource {
                         if (exists) {
                             return CompletableFuture.completedFuture(true);
                         }
-                        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName);
+                        return isAllowAutoTopicCreationAsync(topicName);
                     });
                 })
                 .thenCompose(exist -> {

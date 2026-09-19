@@ -106,13 +106,13 @@ public class DagWatchSessionTest {
 
     @Test
     public void testStartFailsWhenTopicMetadataMissingAndAutoCreateDisallowed() {
-        // topic://... input + no scalable metadata + auto-create disallowed by policy =
+        // topic://... input + no scalable metadata + auto-create disallowed by policy or authorization =
         // TopicNotFound. (When auto-create is allowed the topic is created instead — covered
         // end-to-end by V5ScalableTopicAutoCreateTest.) Synthetic layouts are only produced
         // for persistent://... input (regular topics).
         when(resources.getScalableTopicMetadataAsync(TOPIC, true))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
-        when(brokerService.isAllowAutoTopicCreationAsync(TOPIC))
+        when(cnx.isAllowAutoTopicCreationAsync(TOPIC))
                 .thenReturn(CompletableFuture.completedFuture(false));
 
         CompletableFuture<ScalableTopicLayoutResponse> future = session.start();
@@ -156,7 +156,7 @@ public class DagWatchSessionTest {
             assertTrue(e.getCause().getMessage().contains("not found"), e.getCause().getMessage());
         }
         // The opt-out short-circuits before policy is consulted and nothing is created.
-        verify(brokerService, never()).isAllowAutoTopicCreationAsync(any(TopicName.class));
+        verify(cnx, never()).isAllowAutoTopicCreationAsync(any(TopicName.class));
         verify(brokerService, never()).getScalableTopicService();
     }
 
