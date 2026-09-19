@@ -21,10 +21,9 @@
 
 # Performance testing
 
-This directory documents repeatable performance experiments and their analysis. The container based
-profiling harness lives under [`tests/integration`](../integration); its recordings normally land in
-`tests/integration/build/pulsar-profiling`. Keep scenario files, commands, results and interpretation
-here so that a later run can reproduce the same workload.
+This directory contains standalone performance scenarios, workload applications, their launcher, and guidance
+for repeatable profiling and analysis. Keep scenario files, commands, results and interpretation together so a
+later run can reproduce the same workload.
 
 For micro-level questions about one class or method, use the JMH benchmarks in
 [`microbench`](../../microbench). JMH is the benchmark harness; this directory is for documenting the
@@ -32,9 +31,92 @@ end-to-end profiling scenario, profile collection, analysis and conclusions. A u
 the workload definition, the revision under test, the profiler options, the raw recording and the
 resulting analysis together.
 
-## Profiling an integration-test cluster
+Performance scenarios belong in this directory. Build reusable, mountable workload applications in
+[`tools`](tools) with `./gradlew :tests:performance:tools:installDist`, describe workloads in
+[`scenarios`](scenarios), and run them through the standalone [`launcher`](launcher). The launcher owns the
+Testcontainers cluster and workload lifecycle directly, consumes recursively merged YAML, persists the resolved
+configuration and run artifacts, and does not use a unit-test framework as a process runner. Shared scenario
+loading is implemented in [`common`](common).
 
-Run the built-in scenarios with:
+The original profiling harness under `tests/integration` uses TestNG classes as wrappers around a manually run
+performance workload. That runner is deprecated: TestNG discovery and test lifecycle add no useful test semantics
+to these long-running profiling scenarios and make them harder to invoke and automate as standalone jobs. It is
+retained temporarily for its existing v4 and v5 `pulsar-perf` scenarios while they are migrated. Add new scenarios,
+workload applications and profiling support to `tests/performance` and the standalone launcher instead.
+
+## Running standalone scenarios
+
+The IoT scenarios exercise keyed telemetry fanout, ordering, client restart and saturation behavior. Run the
+host-sized scenario with:
+
+```bash
+./gradlew :tests:performance:launcher:run \
+  --args='--config tests/performance/scenarios/iot-telemetry-local.yaml'
+```
+
+Use the `profile` task when the selected scenario contains async-profiler options:
+
+```bash
+./gradlew :tests:performance:launcher:profile \
+  --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
+```
+
+The Gradle tasks build the Pulsar test image and the workload distribution before launching the scenario. See
+[the IoT scenario reference](iot-telemetry.md) for topology, correctness checks and output details.
+
+## Scenario configuration format
+
+Scenario YAML is a reusable configuration tree rather than a format tied to a test class. The shared loader in
+[`common`](common) resolves the tree; launchers and workload applications select the subtree they own. The
+standalone launcher uses these top-level sections:
+
+- `cluster`: the Pulsar topology and broker or BookKeeper environment settings;
+- `workloads`: named workload configurations, currently including `iotTelemetry`;
+- `profiling`: optional async-profiler settings for the broker, producer and consumer processes; and
+- `output`: the run-artifact directory.
+
+Workload-specific fields live below their workload name so another launcher or application can reuse the same
+file without interpreting unrelated sections. The launcher writes the fully resolved tree to
+`resolved-config.yaml` in the run directory and mounts that file into workload containers. A workload command can
+select its subtree with `--config-path`.
+
+Use a top-level `extends` entry to inherit one file or an ordered list of files:
+
+```yaml
+extends: [cluster.yaml, workloads/iot-base.yaml]
+workloads:
+  iotTelemetry:
+    rate: 1000
+    clientRestartFraction: 0.1
+profiling:
+  brokerOptions: event=cpu,interval=10ms,jfrsync=profile
+  producerOptions: ~
+output:
+  directory: build/performance/iot-restart-profile
+```
+
+Each inherited path is resolved relative to the file that declares it; absolute paths also work. Parents can
+inherit other files recursively. Parents are applied in list order and the current file is applied last. Mappings
+merge recursively, while scalar values and lists replace earlier values. An explicit YAML `null` or `~` removes
+an inherited entry. Cycles, missing files, non-mapping roots and invalid `extends` entries are rejected.
+
+For one-off standalone overrides, prefix an existing scalar path with `PULSAR_PERFORMANCE_`, uppercase it and
+separate path elements with underscores. The loader preserves the scalar's YAML type. For example:
+
+```bash
+PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=2000 \
+./gradlew :tests:performance:launcher:run \
+  --args='--config tests/performance/scenarios/iot-telemetry-local.yaml'
+```
+
+Environment overrides are applied after inheritance. They only update paths present in the resolved tree, which
+keeps misspelled or workload-inapplicable settings from creating new configuration. Store maintained scenarios in
+[`scenarios`](scenarios); use environment overrides for temporary measurements rather than as the only record of
+a workload.
+
+## Legacy TestNG profiling runner
+
+The deprecated TestNG runner remains available for the existing scenarios:
 
 ```bash
 ./gradlew :tests:integration:profilingIntegrationTest
@@ -43,7 +125,7 @@ Run the built-in scenarios with:
 
 The first command profiles the v5 scalable-topic scenario. The second uses the v4 client against a
 classic `persistent://` topic. Both variants profile a single broker and write recordings and command
-output under `tests/integration/build/pulsar-profiling`.
+output under `tests/integration/build/pulsar-profiling`. Do not use this runner as the basis for new scenarios.
 
 The harness accepts a YAML scenario file through `PULSAR_PROFILING_CONFIG`. Start with
 [`pulsar-profiling.yaml`](scenarios/pulsar-profiling.yaml); omitted values retain the existing defaults. The
@@ -94,35 +176,11 @@ The harness saves `resolved-config.yaml` with inheritance and environment overri
 For v4 production, `--num-producers` remains the producer count per topic and is distributed across
 the isolated clients; when the counts differ, producers are assigned round-robin as evenly as possible.
 
-### Inheriting scenario configurations
-
-Use a top-level `extends` to inherit one file or a list of files:
-
-```yaml
-extends: [cluster.yaml, workloads/many-producers.yaml]
-load:
-  subscriptionType: Shared
-cluster:
-  brokerEnvs:
-    preciseDispatcherFlowControl: ~
-output:
-  directory: build/pulsar-profiling/shared
-```
-
-Each path is relative to the file declaring it; absolute paths also work. Parents can themselves
-inherit other files. Starting with the harness defaults, the loader visits each parent recursively
-in the listed order, then applies the current file. Later values win, mappings merge recursively,
-and scalar values and lists replace earlier values. Shared ancestors are applied on each visit;
-inheritance cycles, missing files and invalid `extends` entries are rejected. Environment overrides
-are applied last, and `resolved-config.yaml` contains the resulting values without `extends`.
-
-An explicit YAML `null` or `~` removes an entry, including a harness default. For example, the
-`preciseDispatcherFlowControl` removal above leaves that broker setting to the broker's own default.
-Deleting a mapping removes all its entries; a later mapping starts fresh. Required workload fields
-must still have valid values in the final configuration.
-
 ## Reproducible scenarios
 
+- [IoT telemetry fanout and ordering](iot-telemetry.md): keyed telemetry through interchangeable gateways
+  to Key_Shared applications, including isolated shared-resource clients, restart validation, a 500-connection
+  saturation workload, and standalone async-profiler integration.
 - [Read-completion queue isolation](read-completion-isolation.md): 500 producers on separate
   connections to one persistent topic, with one Exclusive consumer. Includes the
   [scenario YAML](scenarios/read-completion-isolation.yaml), an inherited
@@ -143,6 +201,41 @@ Render the CPU, wall-clock, allocation and lock views with:
 The `.jfr` files can also be opened in [Eclipse Mission Control](https://adoptium.net/jmc) or IntelliJ
 IDEA. Do not use `jfr summary` as a measure of profile completeness: recordings made with
 `jfrsync=profile` contain profiler samples that the JDK summary does not show.
+
+On macOS, add the JDK Mission Control application launcher to a directory on `PATH`:
+
+```bash
+mkdir -p ~/.local/bin
+ln -s /Applications/JDK\ Mission\ Control.app/Contents/MacOS/jmc ~/.local/bin/jmc
+```
+
+JDK Mission Control requires an absolute recording path. From the directory containing a recording, open it with:
+
+```bash
+jmc -open "$PWD/<recording.jfr>"
+```
+
+The following shell function accepts a relative or absolute path and resolves it before launching JMC. Add it to
+`~/.zshrc` or the corresponding shell startup file:
+
+```bash
+jmc-open() {
+  if [ "$#" -ne 1 ]; then
+    echo "usage: jmc-open <recording.jfr>" >&2
+    return 2
+  fi
+  local recording directory
+  recording=$1
+  directory=$(cd "$(dirname "$recording")" && pwd -P) || return
+  jmc -open "$directory/$(basename "$recording")"
+}
+```
+
+With IntelliJ IDEA's command-line launcher installed, open a recording directly with:
+
+```bash
+idea <recording.jfr>
+```
 
 ### Jafar MCP analysis
 
