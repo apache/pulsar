@@ -1584,7 +1584,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 });
     }
 
-    private void waitForCleanups(String broker, boolean gracefully, int maxWaitTimeInMillis) {
+    private void waitForCleanups(String broker, boolean gracefully, boolean systemBundles, int maxWaitTimeInMillis) {
         long started = System.currentTimeMillis();
         while (System.currentTimeMillis() - started < maxWaitTimeInMillis) {
             boolean cleaned = true;
@@ -1593,7 +1593,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                 var serviceUnit = etr.getKey();
                 var data = etr.getValue();
 
-                if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString())) {
+                if (serviceUnit.startsWith(SYSTEM_NAMESPACE.toString()) != systemBundles) {
                     continue;
                 }
 
@@ -1756,7 +1756,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             // can cause the cluster to be temporarily unstable.
             // Hence, we clean the non-system bundles first and gracefully wait for them.
             // After that, we clean the system bundles, if any.
-            waitForCleanups(broker, gracefully, OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
+            waitForCleanups(broker, gracefully, false, OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
             this.totalOrphanServiceUnitCleanupCnt += orphanServiceUnitCleanupCnt;
             this.totalInactiveBrokerCleanupCnt++;
         }
@@ -1765,18 +1765,28 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         var orphanSystemServiceUnitIter = orphanSystemServiceUnits.entrySet().iterator();
         while (orphanSystemServiceUnitIter.hasNext()) {
             var orphanSystemServiceUnit = orphanSystemServiceUnitIter.next();
+            var current = tableview.get(orphanSystemServiceUnit.getKey());
+            // Ordinary-bundle cleanup may have taken long enough for this system bundle to change owners.
+            if (current == null || !(Objects.equals(broker, current.dstBroker()) && isActiveState(current.state())
+                    || Objects.equals(broker, current.sourceBroker()) && isInFlightState(current.state()))) {
+                continue;
+            }
             log.info().attr("unit", orphanSystemServiceUnit.getKey()).log("Overriding orphan system service unit");
             overrideFutures.add(
-                    overrideOwnership(orphanSystemServiceUnit.getKey(), orphanSystemServiceUnit.getValue(), broker,
-                            gracefully));
-            tryWaitForOverrides(overrideFutures, !orphanSystemServiceUnitIter.hasNext());
+                    overrideOwnership(orphanSystemServiceUnit.getKey(), current, broker, gracefully));
+            tryWaitForOverrides(overrideFutures, false);
         }
+        tryWaitForOverrides(overrideFutures, true);
 
         try {
             tableview.flush(OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
         } catch (Exception e) {
             log.error().exception(e).log("Failed to flush the in-flight system bundle override messages");
         }
+
+        // System bundles must stay last, but their overrides can lose a version conflict just like ordinary
+        // bundles. Re-read ownership and retry only bundles still owned by the broker being cleaned up.
+        waitForCleanups(broker, gracefully, true, OWNERSHIP_CLEAN_UP_MAX_WAIT_TIME_IN_MILLIS);
 
         double cleanupTime = TimeUnit.NANOSECONDS
                 .toMillis((System.nanoTime() - startTime));
