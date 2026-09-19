@@ -28,6 +28,8 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Lock;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumersClassic;
@@ -255,6 +257,70 @@ public class SharedSubscriptionUnackedMessagesAccountingTest extends ProducerCon
             brokerService.checkUnAckMessageDispatching();
             assertThat(brokerService.isBrokerDispatchingBlocked()).isFalse();
             assertThat(dispatcher.isBlockedDispatcherOnUnackedMsgs()).isFalse();
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testBrokerUnblockWaitsForInFlightRegistration() throws Exception {
+        conf.setMaxUnackedMessagesPerSubscription(1000);
+        String topicName = newTopicName();
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                     .topic(topicName).enableBatching(false).create();
+             org.apache.pulsar.client.api.Consumer<String> client = pulsarClient.newConsumer(Schema.STRING)
+                     .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Shared)
+                     .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS).isAckReceiptEnabled(true).subscribe()) {
+            List<MessageId> messages = new ArrayList<>();
+            for (int i = 0; i < UNACKED_MESSAGES; i++) {
+                producer.send("unacked-" + i);
+                messages.add(client.receive(5, TimeUnit.SECONDS).getMessageId());
+            }
+            BrokerService broker = pulsar.getBrokerService();
+            PersistentTopic topic = (PersistentTopic) broker.getTopicReference(topicName).orElseThrow();
+            Subscription subscription = topic.getSubscription(SUBSCRIPTION);
+            AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                    (AbstractPersistentDispatcherMultipleConsumers) subscription.getDispatcher();
+            synchronized (subscription) {
+                broker.checkUnAckMessageDispatching();
+                // The scan is waiting for this subscription. ACK through the real completion path first.
+                client.acknowledgeAsync(messages.subList(1, messages.size())).get(5, TimeUnit.SECONDS);
+                assertThat(broker.getTotalUnackedMessages()).isEqualTo(1);
+                Lock registrationLock = broker.getUnackedMessagesLock().readLock();
+                AtomicReference<Thread> checker = new AtomicReference<>();
+                CompletableFuture<Void> unblock;
+                registrationLock.lock();
+                try {
+                    // Model a scan still inside its read-side critical section. A global unblock must wait
+                    // before changing its flag or selecting dispatchers, not just before clearing their flags.
+                    unblock = CompletableFuture.runAsync(() -> {
+                        checker.set(Thread.currentThread());
+                        broker.checkUnAckMessageDispatching();
+                    });
+                    Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> {
+                        Thread thread = checker.get();
+                        if (thread == null) {
+                            return false;
+                        }
+                        ThreadInfo info = ManagementFactory.getThreadMXBean().getThreadInfo(thread.getId(), 100);
+                        return info != null && info.getThreadState() == Thread.State.WAITING
+                                && Arrays.stream(info.getStackTrace()).anyMatch(frame ->
+                                        frame.getMethodName().equals("checkUnAckMessageDispatching"));
+                    });
+                    assertThat(broker.isBrokerDispatchingBlocked())
+                            .as("broker state remains blocked until registration finishes").isTrue();
+                } finally {
+                    registrationLock.unlock();
+                }
+                unblock.get(5, TimeUnit.SECONDS);
+            }
+            assertThat(broker.isBrokerDispatchingBlocked()).isFalse();
+            assertThat(dispatcher.isBlockedDispatcherOnUnackedMsgs()).isFalse();
+            client.acknowledgeAsync(messages.get(0)).get(5, TimeUnit.SECONDS);
+            assertUnackedMessagesCleared(dispatcher, broker, "global unblock");
+            producer.send("after-unblock");
+            Message<String> resumed = client.receive(5, TimeUnit.SECONDS);
+            assertThat(resumed).isNotNull();
+            client.acknowledgeAsync(resumed).get(5, TimeUnit.SECONDS);
+            assertUnackedMessagesCleared(dispatcher, broker, "delivery resumed");
         }
     }
 
