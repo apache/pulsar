@@ -569,7 +569,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         result.thenAccept(isAuthorized -> {
             if (!isAuthorized) {
                 log.warn("Role {} or OriginalRole {} is not authorized to perform operation {} on topic {}",
-                        authRole, originalPrincipal, operation, topicName);
+                        authenticationRoleLoggingAnonymizer.anonymize(authRole),
+                        authenticationRoleLoggingAnonymizer.anonymize(originalPrincipal), operation, topicName);
             }
         });
         return result;
