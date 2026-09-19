@@ -278,7 +278,7 @@ public class AutoScalePolicyEvaluatorTest {
                 Map.of(0L, sample(0, 0, 0, SPLIT_BYTES_OUT + 1, old()));
         AutoScaleDecision d = decide(layout, load, Map.of(), baseConfig().build());
         assertTrue(d instanceof AutoScaleDecision.Split, d.toString());
-        assertEquals(((AutoScaleDecision.Split) d).reason(), "bytesRateOut");
+        assertEquals(((AutoScaleDecision.Split) d).reason(), "byteRateOut");
     }
 
     @Test

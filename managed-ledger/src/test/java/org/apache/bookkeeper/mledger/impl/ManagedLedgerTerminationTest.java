@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.rawEntryConfig;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -39,7 +39,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void terminateSimple() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(rawEntryConfig()));
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
 
@@ -56,7 +56,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void terminateReopen() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(rawEntryConfig()));
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
 
@@ -66,7 +66,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
         ledger.close();
 
-        ledger = factory.open("my_test_ledger", initManagedLedgerConfig(rawEntryConfig()));
+        ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         try {
             ledger.addEntry("entry-1".getBytes());
@@ -78,7 +78,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void terminateWithCursor() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(rawEntryConfig()));
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor c1 = ledger.openCursor("c1");
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
@@ -101,7 +101,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void terminateWithCursorReadOrWait() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(rawEntryConfig()));
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor c1 = ledger.openCursor("c1");
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
@@ -132,7 +132,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void terminateWithNonDurableCursor() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(rawEntryConfig()));
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
         Position p1 = ledger.addEntry("entry-1".getBytes());

@@ -184,6 +184,8 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                             + "-r " + load.produceRate() + " "
                             + "-s " + load.messageSize() + " "
                             + (load.batchingEnabled() ? "" : "-db ")
+                            + (load.messageKeyGenerationMode() == null || load.messageKeyGenerationMode().isEmpty()
+                                    ? "" : "--message-key-generation-mode " + load.messageKeyGenerationMode() + " ")
                             + "--num-producers " + load.producerCount() + " "
                             + "--num-io-threads " + load.producerIoThreads() + " "
                             + "--max-connections 1 "
