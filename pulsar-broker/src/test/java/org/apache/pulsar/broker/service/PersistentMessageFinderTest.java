@@ -43,6 +43,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -692,6 +693,11 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         doReturn(pulsarService).when(brokerService).pulsar();
         ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
         doReturn(serviceConfiguration).when(pulsarService).getConfig();
+        doAnswer(invocation -> {
+            Callable<Void> action = invocation.getArgument(0);
+            action.call();
+            return true;
+        }).when(mock).runWithTopicCloseReadLock(any());
         return mock;
     }
 
