@@ -35,6 +35,7 @@ permissions:
 jobs:
   main:
     name: Check pull request title
+    if: ${{ github.repository == 'apache/pulsar' }}
     runs-on: ubuntu-latest
     steps:
       - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1

@@ -4233,6 +4233,76 @@ public class ServerCnxTest {
     }
 
     @Test(timeOut = 30000)
+    public void testAddPartitionToTxnRefusedWhenOnePartitionIsDenied() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(true);
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationService)
+                .allowTopicOperationAsync(eq(TopicName.get("tenant/ns/denied")),
+                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newAddPartitionToTxn(89L, 1L, 12L,
+                List.of("tenant/ns/allowed", "tenant/ns/denied")));
+        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
+
+        assertEquals(response.getError(), ServerError.AuthorizationError);
+        verify(txnStore, never()).addProducedPartitionToTxn(any(TxnID.class), any());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testAddPartitionToTxnRequiresProducePermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newAddPartitionToTxn(89L, 1L, 12L, List.of("tenant/ns/topic1")));
+        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
+
+        assertEquals(response.getError(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get("tenant/ns/topic1")),
+                eq(TopicOperation.PRODUCE), any(), any(), any(), any());
+        verify(txnStore, never()).addProducedPartitionToTxn(any(TxnID.class), any());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testAddSubscriptionToTxnRequiresConsumePermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        final Subscription sub = new Subscription();
+        sub.setTopic("topic1");
+        sub.setSubscription("sub1");
+
+        channel.writeInbound(Commands.newAddSubscriptionToTxn(89L, 1L, 12L, List.of(sub)));
+        CommandAddSubscriptionToTxnResponse response = (CommandAddSubscriptionToTxnResponse) getResponse();
+
+        assertEquals(response.getError(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get("topic1")),
+                eq(TopicOperation.CONSUME), any(), any(), any(), argThat(arg ->
+                        arg instanceof AuthenticationDataSubscription
+                                && "sub1".equals(((AuthenticationDataSubscription) arg).getSubscription())));
+        verify(txnStore, never()).addAckedPartitionToTxn(any(TxnID.class), any());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
     public void sendEndTxnResponse() throws Exception {
         final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
         when(txnStore.getTxnMeta(any())).thenReturn(CompletableFuture.completedFuture(mock(TxnMeta.class)));

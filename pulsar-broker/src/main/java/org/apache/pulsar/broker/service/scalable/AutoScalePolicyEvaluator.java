@@ -204,11 +204,11 @@ public final class AutoScalePolicyEvaluator {
             String reason = null;
             double[] ratios = {
                     stats.msgRateIn() / config.splitMsgRateIn(),
-                    stats.bytesRateIn() / config.splitBytesRateIn(),
+                    stats.byteRateIn() / config.splitBytesRateIn(),
                     stats.msgRateOut() / config.splitMsgRateOut(),
-                    stats.bytesRateOut() / config.splitBytesRateOut(),
+                    stats.byteRateOut() / config.splitBytesRateOut(),
             };
-            String[] reasons = {"msgRateIn", "bytesRateIn", "msgRateOut", "bytesRateOut"};
+            String[] reasons = {"msgRateIn", "byteRateIn", "msgRateOut", "byteRateOut"};
             for (int i = 0; i < ratios.length; i++) {
                 if (ratios[i] > score) {
                     score = ratios[i];
@@ -316,9 +316,9 @@ public final class AutoScalePolicyEvaluator {
         }
         SegmentLoadStats stats = sample.stats();
         return stats.msgRateIn() < config.mergeMsgRateIn()
-                && stats.bytesRateIn() < config.mergeBytesRateIn()
+                && stats.byteRateIn() < config.mergeBytesRateIn()
                 && stats.msgRateOut() < config.mergeMsgRateOut()
-                && stats.bytesRateOut() < config.mergeBytesRateOut();
+                && stats.byteRateOut() < config.mergeBytesRateOut();
     }
 
     // --- Helpers ---
@@ -334,7 +334,7 @@ public final class AutoScalePolicyEvaluator {
 
     private static double combinedRate(long segmentId, Map<Long, SegmentLoadSample> load) {
         SegmentLoadStats s = statsOf(segmentId, load);
-        return s.msgRateIn() + s.bytesRateIn() + s.msgRateOut() + s.bytesRateOut();
+        return s.msgRateIn() + s.byteRateIn() + s.msgRateOut() + s.byteRateOut();
     }
 
     /** Ceiling integer division for positive operands. */
