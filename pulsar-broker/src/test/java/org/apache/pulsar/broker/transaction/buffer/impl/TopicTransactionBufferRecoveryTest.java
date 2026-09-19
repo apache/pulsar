@@ -31,7 +31,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -159,11 +158,9 @@ public class TopicTransactionBufferRecoveryTest extends ProducerConsumerBase {
     }
 
     /**
-     * While the transaction buffer is recovering, normal publishes don't move the max read position, so they
-     * don't update the topic's lastMaxReadPositionMovedForwardTimestamp either. When recovery completes, the
-     * transaction buffer must account for the messages published during recovery and trigger the
-     * maxReadPositionMovedForward callback; otherwise ReplicatedSubscriptionsController would consider the topic
-     * to have no new data and never start a subscription snapshot until further traffic arrives.
+     * While the transaction buffer is recovering, normal publishes don't move the max read position. Recovery
+     * must account for those messages when it completes. Without a replicated-subscription controller, handling
+     * the resulting callback must leave the snapshot timestamp disabled.
      */
     @Test(dataProvider = "snapshotExists")
     public void testMaxReadPositionMovedForwardForMessagesPublishedDuringRecovery(boolean snapshotExists)
@@ -195,11 +192,11 @@ public class TopicTransactionBufferRecoveryTest extends ProducerConsumerBase {
             recoverFuture.complete(snapshotExists ? PositionFactory.EARLIEST : null);
 
             Awaitility.await().untilAsserted(() -> {
-                assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp() > 0,
-                        "Completed recovery should move the max read position forward for the messages"
-                                + " published during recovery");
                 assertEquals(persistentTopic.getTransactionBuffer().getMaxReadPosition(),
                         persistentTopic.getManagedLedger().getLastConfirmedEntry());
+                assertEquals(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp(), 0L,
+                        "Topics without a replicated-subscription controller should not maintain"
+                                + " the snapshot timestamp");
             });
         } finally {
             pulsar.setTransactionBufferProvider(originalProvider);

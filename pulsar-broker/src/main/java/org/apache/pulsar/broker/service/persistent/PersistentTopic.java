@@ -290,7 +290,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     private final TopicTransactionBuffer.MaxReadPositionCallBack maxReadPositionCallBack =
             (oldPosition, newPosition) -> updateMaxReadPositionMovedForwardTimestamp();
 
-    // Record the last time max read position is moved forward, unless it's a marker message.
+    // Record the last time max read position moved forward while replicated-subscription snapshots are active.
+    // Controller creation seeds this timestamp so that data published before activation is included in a snapshot.
     @Getter
     private volatile long lastMaxReadPositionMovedForwardTimestamp = 0;
 
@@ -746,7 +747,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void updateMaxReadPositionMovedForwardTimestamp() {
+        if (replicatedSubscriptionsController.isEmpty()) {
+            return;
+        }
         lastMaxReadPositionMovedForwardTimestamp = Clock.systemUTC().millis();
+    }
+
+    private void seedMaxReadPositionMovedForwardTimestamp() {
+        // An empty topic has no data to snapshot. Recheck after publishing the controller reference to cover
+        // entries added during construction, while publishes after activation update the timestamp themselves.
+        if (ledger.getNumberOfEntries() > 0) {
+            lastMaxReadPositionMovedForwardTimestamp = Clock.systemUTC().millis();
+        }
     }
 
     @Override
@@ -4823,8 +4835,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         if (shouldBeEnabled && !isCurrentlyEnabled && isEnableReplicatedSubscriptions && replicationEnabled) {
             log.info("[{}] Enabling replicated subscriptions controller", topic);
+            // Force the new controller's first snapshot to cover messages published before it was enabled.
+            // Seed before construction because the controller schedules its first snapshot from its constructor.
+            seedMaxReadPositionMovedForwardTimestamp();
             replicatedSubscriptionsController = Optional.of(new ReplicatedSubscriptionsController(this,
                     brokerService.pulsar().getConfiguration().getClusterName()));
+            // Cover a max-read-position advance racing with construction, before the controller became visible.
+            seedMaxReadPositionMovedForwardTimestamp();
         } else if (isCurrentlyEnabled && (!shouldBeEnabled || !isEnableReplicatedSubscriptions
                 || !replicationEnabled)) {
             log.info("[{}] Disabled replicated subscriptions controller", topic);

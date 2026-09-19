@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -242,8 +242,8 @@ public class TransactionProduceTest extends TransactionTestBase {
     }
 
     @Test
-    public void testUpdateLastMaxReadPositionMovedForwardTimestampForTransactionalPublish() throws Exception {
-        final String topic = NAMESPACE1 + "/testUpdateLastMaxReadPositionMovedForwardTimestampForTransactionalPublish";
+    public void testSkipMaxReadPositionTimestampWithoutReplicatedSubscriptions() throws Exception {
+        final String topic = NAMESPACE1 + "/testSkipMaxReadPositionTimestampWithoutReplicatedSubscriptions";
         PulsarClient pulsarClient = this.pulsarClient;
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -257,15 +257,15 @@ public class TransactionProduceTest extends TransactionTestBase {
         PersistentTopic persistentTopic = getTopic(topic);
         long lastMaxReadPositionMovedForwardTimestamp = persistentTopic.getLastMaxReadPositionMovedForwardTimestamp();
 
-        // transactional publish will not update lastMaxReadPositionMovedForwardTimestamp
+        // A transactional publish does not move the max read position until the transaction is resolved.
         producer.newMessage(txn).value("hello world".getBytes()).send();
-        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp()
-                == lastMaxReadPositionMovedForwardTimestamp);
+        assertEquals(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp(),
+                lastMaxReadPositionMovedForwardTimestamp);
 
-        // commit transaction will update lastMaxReadPositionMovedForwardTimestamp
+        // Committing moves the max read position, but an ordinary topic does not need the snapshot timestamp.
         txn.commit().get();
-        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp()
-                > lastMaxReadPositionMovedForwardTimestamp);
+        assertEquals(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp(),
+                lastMaxReadPositionMovedForwardTimestamp);
     }
 
     private PersistentTopic getTopic(String topic) throws ExecutionException, InterruptedException {
