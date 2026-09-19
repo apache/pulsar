@@ -1669,6 +1669,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (isDuplicatedChunk) {
                     doAcknowledge(msgId, AckType.Individual, Collections.emptyMap(), null);
                 }
+                // A last chunk does not get its permit returned at the top of this method (only
+                // chunkId != last is credited there). Since this duplicated chunk is discarded here,
+                // return its permit to avoid leaking the broker's flow-control credit.
+                if (msgMetadata.getChunkId() == (msgMetadata.getNumChunksFromMsg() - 1)) {
+                    increaseAvailablePermits(cnx);
+                }
                 return null;
             }
             // means we lost the first chunk: should never happen
@@ -1685,6 +1691,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             chunkedMessagesMap.remove(msgMetadata.getUuid());
             compressedPayload.release();
+            // This discarded chunk consumed a broker flow-control permit. Non-last chunks already
+            // had their permit returned at the top of this method (increaseAvailablePermits when
+            // chunkId != last); the last chunk did not. Return it here so that tearing a chunked
+            // message apart (expiry/eviction/orphaned last chunk) does not leak permits, which would
+            // otherwise drain the consumer's available permits to zero and stall dispatch.
+            if (msgMetadata.getChunkId() == (msgMetadata.getNumChunksFromMsg() - 1)) {
+                increaseAvailablePermits(cnx);
+            }
             if (expireTimeOfIncompleteChunkedMessageMillis > 0
                     && System.currentTimeMillis() > (msgMetadata.getPublishTime()
                             + expireTimeOfIncompleteChunkedMessageMillis)) {
