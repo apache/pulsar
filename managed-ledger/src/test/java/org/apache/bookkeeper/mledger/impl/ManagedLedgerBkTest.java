@@ -112,7 +112,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
     public void testEstimatedUnackedSizeDuringRolloverWithPendingAdd() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ManagedLedgerConfig config = rawEntryConfig()
+        ManagedLedgerConfig config = defaultConfig()
                 .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2)
                 .setRetentionSizeInMB(-1).setRetentionTime(-1, TimeUnit.MILLISECONDS);
         config.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
@@ -180,7 +180,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
     public void testEstimatedUnackedSizeRejectsUnconfirmedEntryInEmptyLedger() throws Exception {
         @Cleanup("shutdown")
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
-        ManagedLedgerConfig config = rawEntryConfig()
+        ManagedLedgerConfig config = defaultConfig()
                 .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2)
                 .setRetentionSizeInMB(-1).setRetentionTime(-1, TimeUnit.MILLISECONDS);
         config.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
