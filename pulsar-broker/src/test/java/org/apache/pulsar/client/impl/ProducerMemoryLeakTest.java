@@ -21,15 +21,30 @@ package org.apache.pulsar.client.impl;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mockStatic;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.DefaultSelectStrategyFactory;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.util.concurrent.DefaultEventExecutorChooserFactory;
+import io.netty.util.concurrent.RejectedExecutionHandlers;
+import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.CompressionType;
@@ -39,6 +54,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -52,6 +69,229 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
 
+    @Test
+    public void testDeferredOversizedMessageClosesProducerInCallback() throws Exception {
+        try (PulsarClientImpl client = (PulsarClientImpl) newPulsarClient()) {
+            String topic = newTopicName();
+            ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) client.newProducer()
+                    .topic(topic).enableBatching(false).maxPendingMessages(10);
+            CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+            AtomicInteger callbacks = new AtomicInteger();
+            try (ProducerImpl<byte[]> producer = new ProducerImpl<>(client, topic, builder.getConf(), created,
+                    -1, Schema.BYTES, null, Optional.empty()) {
+                @Override
+                protected ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages,
+                                                 MessageId messageId, MessageMetadata metadata, ByteBuf payload) {
+                    ByteBufPair cmd = super.sendMessage(producerId, sequenceId, numMessages,
+                            messageId, metadata, payload);
+                    // Put the real deferred-schema recovery in the reconnect window before its size check.
+                    ClientCnx cnx = getClientCnx();
+                    connectionClosed(cnx, Optional.of(60_000L), Optional.empty());
+                    cnx.channel().close();
+                    return cmd;
+                }
+
+                @Override
+                protected void onSendAcknowledgement(Message<?> message, MessageId messageId, Throwable error) {
+                    callbacks.incrementAndGet();
+                    super.onSendAcknowledgement(message, messageId, error);
+                }
+            }) {
+                created.get(10, TimeUnit.SECONDS);
+                producer.getConnectionHandler().setMaxMessageSize(1024);
+                ClientCnx cnx = producer.getClientCnx();
+                cnx.channel().config().setAutoRead(false);
+                MsgPayloadTouchableMessageBuilder<String> message =
+                        new MsgPayloadTouchableMessageBuilder<>(producer, Schema.STRING);
+                try {
+                    CompletableFuture<MessageId> send = message.value("x".repeat(800))
+                            .property("large-metadata", "y".repeat(400)).sendAsync();
+                    CompletableFuture<MessageId> completion = send.whenComplete((id, error) -> producer.closeAsync());
+                    assertEquals(producer.getPendingQueueSize(), 1);
+                    cnx.channel().config().setAutoRead(true);
+                    try {
+                        completion.get(10, TimeUnit.SECONDS);
+                        fail("Expected the deferred command to exceed the message size limit");
+                    } catch (ExecutionException error) {
+                        assertTrue(error.getCause() instanceof PulsarClientException.InvalidMessageException);
+                    }
+                    // A barrier also waits for recovery cleanup after the callback has completed the future.
+                    cnx.channel().eventLoop().submit(() -> { }).get(10, TimeUnit.SECONDS);
+                    assertEquals(callbacks.get(), 1);
+                    assertEquals(producer.getPendingQueueSize(), 0);
+                    assertEquals(producer.availableSendPermitsForTesting(), 10);
+                    assertEquals(client.getMemoryLimitController().currentUsage(), 0L);
+                    assertEquals(message.payload.refCnt(), 1);
+                } finally {
+                    cnx.channel().config().setAutoRead(true);
+                    if (message.payload.refCnt() > 0) {
+                        message.release();
+                    }
+                }
+            }
+        }
+    }
+
+    @DataProvider
+    public Object[][] chunkWriteFailures() {
+        return new Object[][] {{false, 0}, {false, 1}, {false, 2}, {true, 0}, {true, 1}, {true, 2}};
+    }
+
+    @Test(dataProvider = "chunkWriteFailures")
+    public void testChunkedSendStopsAfterRejectedWrite(boolean blockIfQueueFull, int rejectedChunk) throws Exception {
+        AtomicReference<Thread> rejectNextTaskFrom = new AtomicReference<>();
+        // Use a real socket/event loop. Make its task queue reject one write submission from the sender;
+        // rejecting by thread keeps broker responses and cleanup tasks running normally.
+        NioEventLoopGroup eventLoops = new NioEventLoopGroup(1, (Executor) null,
+                DefaultEventExecutorChooserFactory.INSTANCE, SelectorProvider.provider(),
+                DefaultSelectStrategyFactory.INSTANCE, RejectedExecutionHandlers.reject(),
+                capacity -> new ConcurrentLinkedQueue<>() {
+                    @Override
+                    public boolean offer(Runnable task) {
+                        if (rejectNextTaskFrom.compareAndSet(Thread.currentThread(), null)) {
+                            return false;
+                        }
+                        return super.offer(task);
+                    }
+                });
+        ClientConfigurationData configuration = new ClientConfigurationData();
+        configuration.setServiceUrl(getBrokerServiceUrl());
+        try (PulsarClientImpl client = new PulsarClientImpl(configuration, eventLoops)) {
+            String topic = newTopicName();
+            ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) client.newProducer()
+                    .topic(topic).enableBatching(false).enableChunking(true).chunkMaxMessageSize(100)
+                    .maxPendingMessages(10).blockIfQueueFull(blockIfQueueFull);
+            CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+            AtomicInteger builtChunks = new AtomicInteger();
+            AtomicInteger callbacks = new AtomicInteger();
+            AtomicReference<ProducerImpl.ChunkedMessageCtx> context = new AtomicReference<>();
+            try (ProducerImpl<byte[]> producer = new ProducerImpl<>(client, topic, builder.getConf(), created,
+                    -1, Schema.BYTES, null, Optional.empty()) {
+                @Override
+                protected void processOpSendMsg(OpSendMsg op) {
+                    builtChunks.incrementAndGet();
+                    context.set(op.chunkedMessageCtx);
+                    if (op.chunkId == rejectedChunk) {
+                        rejectNextTaskFrom.set(Thread.currentThread());
+                    }
+                    super.processOpSendMsg(op);
+                }
+
+                @Override
+                protected void onSendAcknowledgement(Message<?> message, MessageId messageId, Throwable error) {
+                    callbacks.incrementAndGet();
+                    super.onSendAcknowledgement(message, messageId, error);
+                }
+            }) {
+                created.get(10, TimeUnit.SECONDS);
+                ClientCnx cnx = producer.getClientCnx();
+                cnx.channel().config().setAutoRead(false);
+                MsgPayloadTouchableMessageBuilder<byte[]> message = newMessage(producer);
+                try {
+                    CompletableFuture<MessageId> send = message.value(new byte[250]).sendAsync();
+                    try {
+                        send.get(10, TimeUnit.SECONDS);
+                        fail("Expected the chunk write submission to fail");
+                    } catch (ExecutionException expected) {
+                        assertTrue(expected.getCause().getCause() instanceof RejectedExecutionException);
+                    }
+                    assertEquals(builtChunks.get(), rejectedChunk + 1);
+                    assertEquals(callbacks.get(), 1);
+                    assertEquals(producer.getPendingQueueSize(), rejectedChunk);
+                    assertEquals(producer.availableSendPermitsForTesting(), 10 - rejectedChunk);
+                    assertEquals(client.getMemoryLimitController().currentUsage(), 0L);
+                    cnx.channel().config().setAutoRead(true);
+                    producer.close();
+                    Awaitility.await().untilAsserted(() -> {
+                        assertEquals(context.get().refCnt(), 0);
+                        assertEquals(message.payload.refCnt(), 1);
+                    });
+                    assertEquals(producer.getPendingQueueSize(), 0);
+                    assertEquals(producer.availableSendPermitsForTesting(), 10);
+                    assertEquals(client.getMemoryLimitController().currentUsage(), 0L);
+                    assertEquals(callbacks.get(), 1);
+                } finally {
+                    rejectNextTaskFrom.set(null);
+                    cnx.channel().config().setAutoRead(true);
+                    message.release();
+                }
+            }
+        } finally {
+            eventLoops.shutdownGracefully(0, 0, TimeUnit.SECONDS).sync();
+        }
+    }
+
+    @Test
+    public void testInterruptedChunkedSendReleasesUnbuiltChunks() throws Exception {
+        try (PulsarClientImpl client = (PulsarClientImpl) newPulsarClient()) {
+            String topic = newTopicName();
+            ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) client.newProducer()
+                    .topic(topic).enableBatching(false).enableChunking(true).chunkMaxMessageSize(100)
+                    .maxPendingMessages(1).blockIfQueueFull(true);
+            CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+            CountDownLatch firstChunkQueued = new CountDownLatch(1);
+            AtomicReference<ProducerImpl.ChunkedMessageCtx> context = new AtomicReference<>();
+            try (ProducerImpl<byte[]> producer = new ProducerImpl<>(client, topic, builder.getConf(), created,
+                    -1, Schema.BYTES, null, Optional.empty()) {
+                @Override
+                protected void processOpSendMsg(OpSendMsg op) {
+                    context.set(op.chunkedMessageCtx);
+                    super.processOpSendMsg(op);
+                    firstChunkQueued.countDown();
+                }
+            }) {
+                created.get(10, TimeUnit.SECONDS);
+                ClientCnx cnx = producer.getClientCnx();
+                cnx.channel().config().setAutoRead(false);
+                MsgPayloadTouchableMessageBuilder<byte[]> message = newMessage(producer);
+                CompletableFuture<MessageId> sendResult = new CompletableFuture<>();
+                AtomicBoolean interruptPreserved = new AtomicBoolean();
+                Thread sender = new Thread(() -> {
+                    try {
+                        CompletableFuture<MessageId> send = message.value(new byte[250]).sendAsync();
+                        interruptPreserved.set(Thread.currentThread().isInterrupted());
+                        send.whenComplete((id, error) -> {
+                            if (error != null) {
+                                sendResult.completeExceptionally(error);
+                            } else {
+                                sendResult.complete(id);
+                            }
+                        });
+                    } catch (Throwable error) {
+                        sendResult.completeExceptionally(error);
+                    }
+                }, "interrupted-chunk-sender");
+                try {
+                    sender.start();
+                    assertTrue(firstChunkQueued.await(10, TimeUnit.SECONDS));
+                    Awaitility.await().until(() -> sender.getState() == Thread.State.WAITING);
+                    sender.interrupt();
+                    try {
+                        sendResult.get(10, TimeUnit.SECONDS);
+                        fail("Expected interruption while acquiring the second chunk's permit");
+                    } catch (ExecutionException expected) {
+                        assertTrue(expected.getCause().getCause() instanceof InterruptedException);
+                    }
+                    assertTrue(interruptPreserved.get());
+                    cnx.channel().config().setAutoRead(true);
+                    producer.close();
+                    cnx.channel().eventLoop().submit(() -> { }).get(10, TimeUnit.SECONDS);
+                    assertEquals(context.get().refCnt(), 0);
+                    assertEquals(producer.availableSendPermitsForTesting(), 1);
+                    assertEquals(client.getMemoryLimitController().currentUsage(), 0L);
+                    assertEquals(message.payload.refCnt(), 1);
+                } finally {
+                    sender.interrupt();
+                    sender.join(10_000);
+                    assertFalse(sender.isAlive());
+                    cnx.channel().config().setAutoRead(true);
+                    if (message.payload != null) {
+                        message.release();
+                    }
+                }
+            }
+        }
+    }
 
     @Test
     @SuppressWarnings("unchecked")
