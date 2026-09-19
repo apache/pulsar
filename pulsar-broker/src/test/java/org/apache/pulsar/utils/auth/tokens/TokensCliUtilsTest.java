@@ -26,6 +26,7 @@ import io.jsonwebtoken.JwsHeader;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Field;
 import java.time.Instant;
@@ -56,9 +57,10 @@ public class TokensCliUtilsTest {
     @Test
     public void testCreateToken() {
         PrintStream oldStream = System.out;
+        ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+        PrintStream capturedStream = captureOutputForCurrentThread(baoStream, oldStream);
         try {
-            ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
-            System.setOut(new PrintStream(baoStream));
+            System.setOut(capturedStream);
 
             new TokensCliUtils().execute(new String[]{"create-secret-key", "--base64"});
             String secretKey = baoStream.toString();
@@ -89,6 +91,7 @@ public class TokensCliUtilsTest {
             throw new RuntimeException(e);
         } finally {
             System.setOut(oldStream);
+            capturedStream.close();
         }
     }
 
@@ -96,10 +99,11 @@ public class TokensCliUtilsTest {
     public void commandCreateToken_WhenCreatingATokenWithExpiryTime_ShouldHaveTheDesiredExpireTime(String expireTime,
                                                                                 int expireAsSec) throws Exception {
         PrintStream oldStream = System.out;
+        ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+        PrintStream capturedStream = captureOutputForCurrentThread(baoStream, oldStream);
         try {
             //Arrange
-            ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
-            System.setOut(new PrintStream(baoStream));
+            System.setOut(capturedStream);
 
             String[] command = {"create", "--secret-key",
                     "data:;base64,u+FxaxYWpsTfxeEmMh8fQeS3g2jfXw4+sGIv+PTY+BY=",
@@ -129,6 +133,7 @@ public class TokensCliUtilsTest {
             throw new RuntimeException(e);
         } finally {
             System.setOut(oldStream);
+            capturedStream.close();
         }
     }
 
@@ -140,9 +145,10 @@ public class TokensCliUtilsTest {
     @Test
     public void testGenerateDocs() throws Exception {
         PrintStream oldStream = System.out;
+        ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
+        PrintStream capturedStream = captureOutputForCurrentThread(baoStream, oldStream);
         try {
-            ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
-            System.setOut(new PrintStream(baoStream));
+            System.setOut(capturedStream);
 
             new TokensCliUtils().execute(new String[]{"gen-doc"});
 
@@ -162,7 +168,32 @@ public class TokensCliUtilsTest {
 
         } finally {
             System.setOut(oldStream);
+            capturedStream.close();
         }
+    }
+
+    private static PrintStream captureOutputForCurrentThread(ByteArrayOutputStream captured, PrintStream original) {
+        Thread testThread = Thread.currentThread();
+        // Shared brokers can still log while the CLI runs. Keep their output out of the captured token.
+        return new PrintStream(new OutputStream() {
+            @Override
+            public void write(int b) {
+                if (Thread.currentThread() == testThread) {
+                    captured.write(b);
+                } else {
+                    original.write(b);
+                }
+            }
+
+            @Override
+            public void write(byte[] b, int off, int len) {
+                if (Thread.currentThread() == testThread) {
+                    captured.write(b, off, len);
+                } else {
+                    original.write(b, off, len);
+                }
+            }
+        });
     }
 
     private void assertInnerClass(String className, String message) throws Exception {
