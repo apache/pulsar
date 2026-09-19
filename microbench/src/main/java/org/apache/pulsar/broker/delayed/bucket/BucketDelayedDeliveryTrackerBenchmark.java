@@ -53,15 +53,18 @@ import org.openjdk.jmh.annotations.Warmup;
  * <p>This benchmark measures tracker throughput under different read/write ratios
  * and initial message counts without implying a specific lock implementation.
  *
- * <p>Run with: mvn exec:java -Dexec.mainClass="org.openjdk.jmh.Main"
- *           -Dexec.args="BucketDelayedDeliveryTrackerBenchmark"
+ * <p>Run with:
+ * <pre>
+ *   ./gradlew :microbench:shadowJar
+ *   java -jar microbench/build/libs/microbench-*-benchmarks.jar BucketDelayedDeliveryTrackerBenchmark
+ * </pre>
  */
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.SECONDS)
 @State(Scope.Benchmark)
-@Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-@Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 1)
-@Fork(1)
+@Warmup(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 3)
+@Measurement(time = 10, timeUnit = TimeUnit.SECONDS, iterations = 5)
+@Fork(2)
 public class BucketDelayedDeliveryTrackerBenchmark {
 
     /**
