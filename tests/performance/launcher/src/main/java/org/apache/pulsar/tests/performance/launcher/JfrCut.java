@@ -21,9 +21,12 @@ package org.apache.pulsar.tests.performance.launcher;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Set;
@@ -36,14 +39,35 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
 /**
- * Writes the events overlapping a time interval to a new JFR recording.
+ * Creates a smaller JFR recording for a selected interval of a longer recording.
  *
- * <p>Call {@link #cut(Path, Instant, Instant, Path)} directly when embedding the cutter, or invoke this class as a
- * command-line application through the {@code runJfrCut} Gradle task.
+ * <p>Performance recordings commonly start before clients, connections and application code have finished warming
+ * up. Startup, class loading, JIT compilation and warmup traffic can then dominate a short profile even when the
+ * experiment reports throughput for a later steady measurement interval. Cutting the JFR to the same interval makes
+ * CPU, allocation and lock profiles correspond to the reported measurement and makes profiles from separate runs
+ * easier to compare.
+ *
+ * <p>The cutter keeps the source JFR chunk headers, including the actual recording start, end and duration. It also
+ * retains one-time JVM and host configuration events that normally occur before the selected interval. The result can
+ * therefore still be interpreted in JDK Mission Control with the JVM flags, runtime configuration and machine details
+ * that produced the measured events. Keeping the complete source recording alongside the cut recording remains useful
+ * when investigating startup or shutdown behavior.
+ *
+ * <p>Boundaries can be supplied as absolute {@link Instant} values through {@link #cut(Path, Instant, Instant, Path)}.
+ * {@link #cutUsingTimeExpressions(Path, String, String, Path)} additionally accepts ISO-8601 timestamps, epoch
+ * milliseconds and offsets from the recording start such as {@code 5s}. A missing boundary selects the corresponding
+ * beginning or end of the recording. {@link #recordingInfo(Path)} reads the source timestamps directly from its JFR
+ * chunk headers.
+ *
+ * <p>Applications can call these methods directly. For one-off use, invoke this class through the {@code runJfrCut}
+ * Gradle task.
  */
 @Command(name = "jfr-cut", mixinStandardHelpOptions = true,
         description = "Write events overlapping a time interval to a new JFR recording")
 public final class JfrCut implements Callable<Integer> {
+    private static final int JFR_CHUNK_HEADER_SIZE = 68;
+    private static final byte[] JFR_MAGIC = {'F', 'L', 'R', 0};
+    private static final long NANOS_PER_SECOND = 1_000_000_000L;
     private static final Set<String> JVM_CONTEXT_EVENTS = Set.of(
             "jdk.ActiveRecording",
             "jdk.ActiveSetting",
@@ -90,7 +114,7 @@ public final class JfrCut implements Callable<Integer> {
             description = "Exclusive ISO-8601 instant, epoch milliseconds, or offset such as 5s")
     private String to;
 
-    @Option(names = "--info", description = "Show the recording event range and duration")
+    @Option(names = "--info", description = "Show the recording start, end and total duration")
     private boolean showInfo;
 
     private JfrCut() {
@@ -122,7 +146,7 @@ public final class JfrCut implements Callable<Integer> {
 
     /**
      * Resolves command-line time expressions and cuts a recording without invoking {@link #main(String[])}.
-     * Relative values such as {@code 5s} are measured from the first event in the recording. A {@code null} start
+     * Relative values such as {@code 5s} are measured from the recording start. A {@code null} start
      * or end selects the corresponding recording boundary.
      */
     public static void cutUsingTimeExpressions(Path input, String from, String to, Path output) throws IOException {
@@ -213,28 +237,75 @@ public final class JfrCut implements Callable<Integer> {
         return input.resolveSibling(basename + ".cut.jfr");
     }
 
-    /** Returns the first and last event times and their duration. */
+    /** Returns the start, end and total duration recorded in the JFR chunk headers. */
     public static RecordingInfo recordingInfo(Path input) throws IOException {
-        Instant start = null;
-        Instant end = null;
-        try (RecordingFile recording = new RecordingFile(input.toAbsolutePath().normalize())) {
-            while (recording.hasMoreEvents()) {
-                RecordedEvent event = recording.readEvent();
-                if (start == null || event.getStartTime().isBefore(start)) {
-                    start = event.getStartTime();
+        long firstStartNanos = Long.MAX_VALUE;
+        long lastEndNanos = Long.MIN_VALUE;
+        Path normalizedInput = input.toAbsolutePath().normalize();
+        try (FileChannel channel = FileChannel.open(normalizedInput, StandardOpenOption.READ)) {
+            long fileSize = channel.size();
+            long chunkOffset = 0;
+            while (chunkOffset < fileSize) {
+                ByteBuffer header = ByteBuffer.allocate(JFR_CHUNK_HEADER_SIZE);
+                readFully(channel, header, chunkOffset);
+                header.flip();
+                for (byte expected : JFR_MAGIC) {
+                    if (header.get() != expected) {
+                        throw new IOException("Invalid JFR chunk at offset " + chunkOffset + " in " + input);
+                    }
                 }
-                if (end == null || event.getEndTime().isAfter(end)) {
-                    end = event.getEndTime();
+                header.getShort();
+                header.getShort();
+                long chunkSize = header.getLong();
+                header.getLong();
+                header.getLong();
+                long startNanos = header.getLong();
+                long durationNanos = header.getLong();
+                if (chunkSize < JFR_CHUNK_HEADER_SIZE || chunkSize > fileSize - chunkOffset
+                        || durationNanos < 0) {
+                    throw new IOException("Invalid JFR chunk header at offset " + chunkOffset + " in " + input);
                 }
+                final long endNanos;
+                try {
+                    endNanos = Math.addExact(startNanos, durationNanos);
+                } catch (ArithmeticException overflow) {
+                    throw new IOException("JFR chunk timestamp overflow at offset " + chunkOffset + " in " + input,
+                            overflow);
+                }
+                firstStartNanos = Math.min(firstStartNanos, startNanos);
+                lastEndNanos = Math.max(lastEndNanos, endNanos);
+                chunkOffset += chunkSize;
             }
         }
-        if (start == null) {
-            throw new IOException("Cannot cut a JFR recording with no events: " + input);
+        if (firstStartNanos == Long.MAX_VALUE) {
+            throw new IOException("Cannot inspect an empty JFR recording: " + input);
         }
-        return new RecordingInfo(start, end, Duration.between(start, end));
+        final long totalDurationNanos;
+        try {
+            totalDurationNanos = Math.subtractExact(lastEndNanos, firstStartNanos);
+        } catch (ArithmeticException overflow) {
+            throw new IOException("JFR recording duration overflow in " + input, overflow);
+        }
+        Instant start = epochNanosToInstant(firstStartNanos);
+        Instant end = epochNanosToInstant(lastEndNanos);
+        return new RecordingInfo(start, end, Duration.ofNanos(totalDurationNanos));
     }
 
-    /** Event time range found in a JFR recording. */
+    private static void readFully(FileChannel channel, ByteBuffer target, long position) throws IOException {
+        while (target.hasRemaining()) {
+            int read = channel.read(target, position + target.position());
+            if (read < 0) {
+                throw new IOException("Truncated JFR chunk header at offset " + position);
+            }
+        }
+    }
+
+    private static Instant epochNanosToInstant(long epochNanos) {
+        return Instant.ofEpochSecond(Math.floorDiv(epochNanos, NANOS_PER_SECOND),
+                Math.floorMod(epochNanos, NANOS_PER_SECOND));
+    }
+
+    /** Time range stored in a JFR recording's chunk headers. */
     public record RecordingInfo(Instant start, Instant end, Duration duration) {
         Instant exclusiveEnd() {
             return end.equals(Instant.MAX) ? end : end.plusNanos(1);

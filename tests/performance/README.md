@@ -118,9 +118,11 @@ recording after a successful cut, or `profiling.createMeasurementRecording: fals
 recording. Both options default to `true` and apply to broker, producer and consumer recordings.
 
 Use the same cutter independently to select a different interval from an existing recording. `--from` and `--to`
-accept ISO-8601 instants, epoch milliseconds, or offsets from the first event such as `500ms`, `5s`, `2m`, `1h`,
+accept ISO-8601 instants, epoch milliseconds, or offsets from the recording start such as `500ms`, `5s`, `2m`, `1h`,
 or `PT5S`. Omit `--from` to select from the beginning, or omit `--to` to select through the end. Use `--info`
-without either boundary to display the first and last event times and duration; it can also accompany a cut. The
+without either boundary to display the actual recording start, end and total duration from the JFR chunk headers;
+it can also accompany a cut. JFR cutting preserves those source chunk timestamps, so the original recording period
+remains available in the cut file and in JDK Mission Control. The
 task requires JDK 19 or newer because it uses the public JFR recording writer added in that release:
 
 ```bash

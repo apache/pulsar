@@ -57,6 +57,7 @@ public class JfrCutTest {
             assertEquals(markers(output), List.of("measurement"));
             assertEquals(markers(input), List.of("before", "measurement", "after"));
             assertTrue(eventNames(output).contains("jdk.JVMInformation"));
+            assertEquals(JfrCut.recordingInfo(output), JfrCut.recordingInfo(input));
         } finally {
             deleteDirectory(directory);
         }
@@ -140,7 +141,7 @@ public class JfrCutTest {
         Path directory = Files.createTempDirectory("jfr-relative-cut-test");
         try {
             Path input = directory.resolve("input.jfr");
-            createRecording(input);
+            Instant[] measurementInterval = createRecording(input);
             Path fromBeginning = directory.resolve("from-beginning.jfr");
             Path throughEnd = directory.resolve("through-end.jfr");
 
@@ -150,7 +151,8 @@ public class JfrCutTest {
             assertEquals(markers(fromBeginning), List.of("before", "measurement", "after"));
             assertEquals(markers(throughEnd), List.of("before", "measurement", "after"));
             JfrCut.RecordingInfo info = JfrCut.recordingInfo(input);
-            assertTrue(!info.end().isBefore(info.start()));
+            assertTrue(!info.start().isAfter(measurementInterval[0]));
+            assertTrue(!info.end().isBefore(measurementInterval[1]));
             assertEquals(info.duration(), Duration.between(info.start(), info.end()));
         } finally {
             deleteDirectory(directory);
