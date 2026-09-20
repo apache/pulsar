@@ -1375,7 +1375,7 @@ public class BrokerService implements Closeable {
                             }
                             return;
                         }
-
+                        context.close(timedOut);
                         final var latency = context.getSnapshot().description();
                         if (timedOut) {
                             log.warn()
@@ -1391,7 +1391,6 @@ public class BrokerService implements Closeable {
                         }
                         context.recordTopicLoadFailureMetric(unwrapped);
                     } finally {
-                        context.close(timedOut);
                         if (timedOut) {
                             context.runAfterPendingActionsComplete(() -> log.warn()
                                     .attr("topic", topicName)

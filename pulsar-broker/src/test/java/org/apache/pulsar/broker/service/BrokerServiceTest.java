@@ -209,6 +209,27 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testTimeoutSnapshotIncludesFailureStateAndPendingSteps() {
+        TopicLoadingContext context = new TopicLoadingContext(
+                TopicName.get("persistent://public/default/test-timeout"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Void> pendingFuture = new CompletableFuture<>();
+        context.trace("namespace-policies", pendingFuture);
+
+        // This is the same order used by the topic-future completion observer before it emits the timeout log.
+        context.close(true);
+        var snapshot = context.getSnapshot();
+
+        assertFalse(snapshot.completed());
+        assertFalse(snapshot.success());
+        assertTrue(snapshot.description().contains("state: failure"));
+        assertTrue(snapshot.description().contains("pending steps: namespace-policies"));
+        assertTrue(snapshot.description().contains("timeout timestamp:"));
+
+        pendingFuture.complete(null);
+    }
+
+    @Test
     public void testConcurrentPolicyLoadFailureReasonUsesFirstPendingReason() {
         TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
                 new CompletableFuture<>(), mock(PulsarStats.class));
