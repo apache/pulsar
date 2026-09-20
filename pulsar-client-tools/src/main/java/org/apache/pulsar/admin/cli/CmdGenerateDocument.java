@@ -56,11 +56,12 @@ public class CmdGenerateDocument extends CmdBase {
         @Parameters(description = "Please specify the module name, if not, documents will be generated for all modules."
                 + "Optional modules(clusters, tenants, brokers, broker-stats, namespaces, topics, schemas, bookies,"
                 + "functions, ns-isolation-policy, resource-quotas, functions, sources, sinks)")
-        private java.util.List<String> modules;
+        private List<String> modules;
 
         @Override
         void run() throws PulsarAdminException {
             StringBuilder sb = new StringBuilder();
+            generatedModule.clear();
             if (modules == null || modules.isEmpty()) {
                 pulsarAdminCommandSpec.parent().subcommands().forEach((k, v) ->
                         this.generateDocument(sb, k, v)
@@ -74,6 +75,7 @@ public class CmdGenerateDocument extends CmdBase {
                     this.generateDocument(sb, module, commandLine);
                 });
             }
+            print(sb.toString());
         }
 
         private boolean needsLangSupport(String module, String subK) {
@@ -85,11 +87,9 @@ public class CmdGenerateDocument extends CmdBase {
 
         private void generateDocument(StringBuilder sb, String module, CommandLine obj) {
             // Filter the deprecated command
-            if (generatedModule.contains(module)) {
+            if (!generatedModule.add(obj.getCommandName())) {
                 return;
             }
-            String commandName = obj.getCommandName();
-            generatedModule.add(commandName);
 
             sb.append("# ").append(module).append("\n\n");
             sb.append(getCommandDescription(obj)).append("\n");
@@ -103,7 +103,9 @@ public class CmdGenerateDocument extends CmdBase {
                 sb.append("**Command:**\n\n");
                 sb.append("```shell\n$ pulsar-admin ").append(module).append(" ")
                         .append(subK).append(" options").append("\n```\n\n");
-                List<ArgSpec> options = obj.getCommandSpec().args();
+                List<ArgSpec> options = subV.getCommandSpec().args().stream()
+                        .filter(arg -> arg instanceof OptionSpec && !arg.hidden())
+                        .toList();
                 if (options.size() > 0) {
                     sb.append("**Options:**\n\n");
                     sb.append("|Flag|Description|Default|");
@@ -115,21 +117,19 @@ public class CmdGenerateDocument extends CmdBase {
                     }
                 }
                 options.forEach(ele -> {
-                    if (ele.hidden() || !(ele instanceof OptionSpec)) {
-                        return;
-                    }
-
                     String argDescription = getArgDescription(ele);
                     String[] descriptions = argDescription.replace("\n", " ").split(" #");
                     sb.append("| `").append(Arrays.toString(((OptionSpec) ele).names()))
                             .append("` | ").append(descriptions[0])
-                            .append("|").append(ele.defaultValue()).append("|");
-                    if (needsLangSupport(module, subK) && descriptions.length > 1) {
-                        sb.append(descriptions[1]);
+                            .append("|").append(ele.defaultValueString());
+                    if (needsLangSupport(module, subK)) {
+                        sb.append("|");
+                        if (descriptions.length > 1) {
+                            sb.append(descriptions[1]);
+                        }
                     }
                     sb.append("|\n");
                 });
-                System.out.println(sb);
             });
         }
     }
