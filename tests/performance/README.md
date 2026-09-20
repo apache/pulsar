@@ -84,8 +84,9 @@ The `iotTelemetry` workload can run traffic before measurements begin. Use `warm
 or use `warmupMessages` when `rate: 0`; the two settings are mutually exclusive. `warmupRounds` repeats that
 traffic, and `warmupRoundDelaySeconds` adds an idle stabilization period after each fully drained round, including
 the final round. The default is one round with no delay. Warmup traffic remains part of
-delivery and ordering validation. Producer throughput and the epoch-millisecond JFR measurement boundaries in
-`producer-summary.json` cover only the configured measurement messages.
+delivery and ordering validation. Producer throughput and the epoch-millisecond measurement boundaries in
+`producer-summary.json` cover only the configured measurement messages. The launcher uses the start boundary to
+remove warmup from the derived JFR while retaining everything recorded afterward.
 
 Use a top-level `extends` entry to inherit one file or an ordered list of files:
 
@@ -110,8 +111,9 @@ merge recursively, while scalar values and lists replace earlier values. An expl
 an inherited entry. Cycles, missing files, non-mapping roots and invalid `extends` entries are rejected.
 
 Profiled standalone runs retain the complete JFR and also create a sibling whose name ends in
-`.measurement.jfr`. The measurement recording contains events that overlap the producer's recorded measurement
-interval, excluding startup and warmup work. One-time JVM, host, recording setting and runtime configuration events
+`.measurement.jfr`. The measurement recording contains events from the producer's recorded measurement start through
+the end of each process recording, excluding startup and warmup work without dropping asynchronous completion,
+consumer validation, or shutdown activity after the producer finishes sending. One-time JVM, host, recording setting and runtime configuration events
 are copied from the beginning of the complete recording so JDK Mission Control can describe the source JVM. Set
 `profiling.retainOriginalRecording: false` to remove the complete
 recording after a successful cut, or `profiling.createMeasurementRecording: false` to keep only the complete
@@ -130,8 +132,9 @@ task requires JDK 19 or newer because it uses the public JFR recording writer ad
   --args='--input /tmp/full.jfr --from 5s --to 2m --output /tmp/measurement.jfr --info'
 ```
 
-Java code can call `JfrCut.cut(Path input, Instant from, Instant to, Path output)` directly without invoking the
-command-line entry point. `JfrCut.cutUsingTimeExpressions(...)` provides the relative and omitted-boundary syntax,
+Java code can call `JfrCut.cut(Path input, Instant from, Instant to, Path output)` or
+`JfrCut.cutFrom(Path input, Instant from, Path output)` directly without invoking the command-line entry point.
+`JfrCut.cutUsingTimeExpressions(...)` provides the relative and omitted-boundary syntax,
 and `JfrCut.recordingInfo(...)` returns the event range. Events overlapping the half-open interval `[from, to)`
 are retained.
 

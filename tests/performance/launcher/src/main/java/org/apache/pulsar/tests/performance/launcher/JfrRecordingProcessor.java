@@ -48,13 +48,13 @@ final class JfrRecordingProcessor {
         }
     }
 
-    static void process(Set<Path> recordings, Instant from, Instant to,
+    static void process(Set<Path> recordings, Instant from,
                         boolean retainOriginal, boolean createMeasurementRecording) throws IOException {
         IOException failure = null;
         for (Path recording : recordings) {
             try {
                 if (createMeasurementRecording) {
-                    JfrCut.cut(recording, from, to, measurementPath(recording));
+                    JfrCut.cutFrom(recording, from, measurementPath(recording));
                 }
                 if (!retainOriginal) {
                     Files.delete(recording);

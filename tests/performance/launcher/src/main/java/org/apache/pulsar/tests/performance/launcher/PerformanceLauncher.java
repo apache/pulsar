@@ -176,13 +176,12 @@ public class PerformanceLauncher implements Callable<Integer> {
         if (profilingEnabled) {
             JsonNode summary = loader.mapper().readTree(runOutput.resolve("producer/producer-summary.json").toFile());
             Instant measurementStart = Instant.ofEpochMilli(requiredLong(summary, "measurementStartEpochMs"));
-            Instant measurementEnd = Instant.ofEpochMilli(requiredLong(summary, "measurementEndEpochMs"));
             Set<Path> recordings = JfrRecordingProcessor.findOriginalRecordings(runOutput);
             recordings.removeAll(recordingsBeforeRun);
             if (recordings.isEmpty()) {
                 throw new IllegalStateException("Profiling completed without producing a JFR recording");
             }
-            JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd,
+            JfrRecordingProcessor.process(recordings, measurementStart,
                     retainOriginalRecording, createMeasurementRecording);
         }
         return 0;

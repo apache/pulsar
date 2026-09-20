@@ -54,10 +54,11 @@ import picocli.CommandLine.Option;
  * when investigating startup or shutdown behavior.
  *
  * <p>Boundaries can be supplied as absolute {@link Instant} values through {@link #cut(Path, Instant, Instant, Path)}.
- * {@link #cutUsingTimeExpressions(Path, String, String, Path)} additionally accepts ISO-8601 timestamps, epoch
- * milliseconds and offsets from the recording start such as {@code 5s}. A missing boundary selects the corresponding
- * beginning or end of the recording. {@link #recordingInfo(Path)} reads the source timestamps directly from its JFR
- * chunk headers.
+ * {@link #cutFrom(Path, Instant, Path)} removes only the prefix before a boundary, which is appropriate when work
+ * triggered during a measurement can finish later. {@link #cutUsingTimeExpressions(Path, String, String, Path)}
+ * additionally accepts ISO-8601 timestamps, epoch milliseconds and offsets from the recording start such as
+ * {@code 5s}. A missing boundary selects the corresponding beginning or end of the recording.
+ * {@link #recordingInfo(Path)} reads the source timestamps directly from its JFR chunk headers.
  *
  * <p>Applications can call these methods directly. For one-off use, invoke this class through the {@code runJfrCut}
  * Gradle task.
@@ -175,6 +176,25 @@ public final class JfrCut implements Callable<Integer> {
         if (!from.isBefore(to)) {
             throw new IllegalArgumentException("JFR cut start must be before its end");
         }
+        cut(input, output, event -> isJvmContextEvent(event)
+                || event.getStartTime().isBefore(to) && !event.getEndTime().isBefore(from));
+    }
+
+    /**
+     * Removes events that finished before {@code from} while retaining the remainder of the recording. One-time JVM,
+     * host, recording setting, and runtime configuration events are retained even when they precede the boundary.
+     * This is useful for removing benchmark startup and warmup without discarding asynchronous work that finishes
+     * after the measured producer activity has ended.
+     *
+     * @param input source JFR recording
+     * @param from inclusive start boundary
+     * @param output destination JFR recording, which must differ from {@code input}
+     */
+    public static void cutFrom(Path input, Instant from, Path output) throws IOException {
+        cut(input, output, event -> isJvmContextEvent(event) || !event.getEndTime().isBefore(from));
+    }
+
+    private static void cut(Path input, Path output, Predicate<RecordedEvent> filter) throws IOException {
         Path normalizedInput = input.toAbsolutePath().normalize();
         Path normalizedOutput = output.toAbsolutePath().normalize();
         if (normalizedInput.equals(normalizedOutput)) {
@@ -184,8 +204,7 @@ public final class JfrCut implements Callable<Integer> {
         Path temporary = normalizedOutput.resolveSibling(normalizedOutput.getFileName() + ".tmp");
         Files.deleteIfExists(temporary);
         try (RecordingFile recording = new RecordingFile(normalizedInput)) {
-            write(recording, temporary, event -> isJvmContextEvent(event)
-                    || event.getStartTime().isBefore(to) && !event.getEndTime().isBefore(from));
+            write(recording, temporary, filter);
         }
         try {
             Files.move(temporary, normalizedOutput, StandardCopyOption.ATOMIC_MOVE,

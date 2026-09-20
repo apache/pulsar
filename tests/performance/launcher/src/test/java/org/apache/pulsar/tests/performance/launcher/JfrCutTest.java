@@ -69,14 +69,16 @@ public class JfrCutTest {
         Path directory = Files.createTempDirectory("jfr-retention-test");
         try {
             Path input = directory.resolve("profile.jfr");
-            createRecording(input);
+            Instant[] interval = createRecording(input);
             Path measurement = JfrRecordingProcessor.measurementPath(input);
 
-            JfrRecordingProcessor.process(Set.of(input), Instant.EPOCH,
-                    Instant.now().plus(1, ChronoUnit.HOURS), retainOriginal, createMeasurement);
+            JfrRecordingProcessor.process(Set.of(input), interval[0], retainOriginal, createMeasurement);
 
             assertEquals(Files.exists(input), retainOriginal);
             assertEquals(Files.exists(measurement), createMeasurement);
+            if (createMeasurement) {
+                assertEquals(markers(measurement), List.of("measurement", "after"));
+            }
         } finally {
             deleteDirectory(directory);
         }
