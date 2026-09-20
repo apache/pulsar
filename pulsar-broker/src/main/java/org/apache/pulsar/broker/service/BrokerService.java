@@ -4293,6 +4293,30 @@ public class BrokerService implements Closeable {
                     .attr("name", dispatcher.getName())
                     .attr("totalUnackedMessages", dispatcher.getTotalUnackedMessages())
                     .log("Blocking dispatcher due to reached max broker limit");
+            // ACKs update the count without this lock and may have seen the dispatcher as not yet blocked.
+            // Either the ACK observes our flag or this post-registration check observes its reduced count.
+            if (dispatcher.getTotalUnackedMessages() < maxUnackedMsgsPerDispatcher / 2) {
+                unblockDispatcherIfBelowLowWatermark(dispatcher);
+            }
+        }
+    }
+
+    private void unblockDispatcherIfBelowLowWatermark(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        boolean unblocked = false;
+        // The registration read lock has been released: never upgrade it or schedule reads under this lock.
+        lock.writeLock().lock();
+        try {
+            if (blockedDispatchers.contains(dispatcher)
+                    && dispatcher.getTotalUnackedMessages() < maxUnackedMsgsPerDispatcher / 2) {
+                dispatcher.unBlockDispatcherOnUnackedMsgs();
+                blockedDispatchers.remove(dispatcher);
+                unblocked = true;
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+        if (unblocked) {
+            resumeUnblockedDispatchers(List.of(dispatcher));
         }
     }
 
