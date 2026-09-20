@@ -28,6 +28,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import jdk.jfr.Event;
 import jdk.jfr.Name;
 import jdk.jfr.Recording;
@@ -55,6 +56,7 @@ public class JfrCutTest {
 
             assertEquals(markers(output), List.of("measurement"));
             assertEquals(markers(input), List.of("before", "measurement", "after"));
+            assertTrue(eventNames(output).contains("jdk.JVMInformation"));
         } finally {
             deleteDirectory(directory);
         }
@@ -174,6 +176,7 @@ public class JfrCutTest {
     private static Instant[] createRecording(Path path) throws Exception {
         try (Recording recording = new Recording()) {
             recording.enable(MarkerEvent.class);
+            recording.enable("jdk.JVMInformation");
             recording.start();
             marker("before");
             Thread.sleep(10);
@@ -201,6 +204,12 @@ public class JfrCutTest {
                 .filter(event -> event.getEventType().getName().equals(EVENT_NAME))
                 .map(event -> event.getString("marker"))
                 .toList();
+    }
+
+    private static Set<String> eventNames(Path path) throws Exception {
+        return RecordingFile.readAllEvents(path).stream()
+                .map(event -> event.getEventType().getName())
+                .collect(Collectors.toSet());
     }
 
     private static void deleteDirectory(Path directory) throws Exception {

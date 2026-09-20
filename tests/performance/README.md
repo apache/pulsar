@@ -111,7 +111,9 @@ an inherited entry. Cycles, missing files, non-mapping roots and invalid `extend
 
 Profiled standalone runs retain the complete JFR and also create a sibling whose name ends in
 `.measurement.jfr`. The measurement recording contains events that overlap the producer's recorded measurement
-interval, excluding startup and warmup. Set `profiling.retainOriginalRecording: false` to remove the complete
+interval, excluding startup and warmup work. One-time JVM, host, recording setting and runtime configuration events
+are copied from the beginning of the complete recording so JDK Mission Control can describe the source JVM. Set
+`profiling.retainOriginalRecording: false` to remove the complete
 recording after a successful cut, or `profiling.createMeasurementRecording: false` to keep only the complete
 recording. Both options default to `true` and apply to broker, producer and consumer recordings.
 

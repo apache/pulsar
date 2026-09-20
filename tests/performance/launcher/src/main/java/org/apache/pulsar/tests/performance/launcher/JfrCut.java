@@ -26,6 +26,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.Predicate;
 import jdk.jfr.consumer.RecordedEvent;
@@ -43,6 +44,38 @@ import picocli.CommandLine.Option;
 @Command(name = "jfr-cut", mixinStandardHelpOptions = true,
         description = "Write events overlapping a time interval to a new JFR recording")
 public final class JfrCut implements Callable<Integer> {
+    private static final Set<String> JVM_CONTEXT_EVENTS = Set.of(
+            "jdk.ActiveRecording",
+            "jdk.ActiveSetting",
+            "jdk.BooleanFlag",
+            "jdk.CodeCacheConfiguration",
+            "jdk.CompilerConfiguration",
+            "jdk.ContainerConfiguration",
+            "jdk.CPUInformation",
+            "jdk.CPUTimeStampCounter",
+            "jdk.DoubleFlag",
+            "jdk.GCConfiguration",
+            "jdk.GCHeapConfiguration",
+            "jdk.GCSurvivorConfiguration",
+            "jdk.GCTLABConfiguration",
+            "jdk.InitialEnvironmentVariable",
+            "jdk.InitialSecurityProperty",
+            "jdk.InitialSystemProperty",
+            "jdk.IntFlag",
+            "jdk.JVMInformation",
+            "jdk.LongFlag",
+            "jdk.NativeAgent",
+            "jdk.NativeLibrary",
+            "jdk.OSInformation",
+            "jdk.PhysicalMemory",
+            "jdk.StringFlag",
+            "jdk.SwapSpace",
+            "jdk.SystemProcess",
+            "jdk.UnsignedIntFlag",
+            "jdk.UnsignedLongFlag",
+            "jdk.VirtualizationInformation",
+            "jdk.YoungGenerationConfiguration");
+
     @Option(names = "--input", required = true, description = "Source JFR recording")
     private Path input;
 
@@ -105,7 +138,9 @@ public final class JfrCut implements Callable<Integer> {
     }
 
     /**
-     * Writes events that overlap the half-open interval {@code [from, to)}.
+     * Writes events that overlap the half-open interval {@code [from, to)}. One-time JVM, host, recording setting,
+     * and runtime configuration events are retained even when they precede the interval so that tools such as JDK
+     * Mission Control can describe the source JVM.
      *
      * @param input source JFR recording
      * @param from inclusive start of the selected interval
@@ -125,8 +160,8 @@ public final class JfrCut implements Callable<Integer> {
         Path temporary = normalizedOutput.resolveSibling(normalizedOutput.getFileName() + ".tmp");
         Files.deleteIfExists(temporary);
         try (RecordingFile recording = new RecordingFile(normalizedInput)) {
-            write(recording, temporary, event -> event.getStartTime().isBefore(to)
-                    && !event.getEndTime().isBefore(from));
+            write(recording, temporary, event -> isJvmContextEvent(event)
+                    || event.getStartTime().isBefore(to) && !event.getEndTime().isBefore(from));
         }
         try {
             Files.move(temporary, normalizedOutput, StandardCopyOption.ATOMIC_MOVE,
@@ -136,6 +171,10 @@ public final class JfrCut implements Callable<Integer> {
         } finally {
             Files.deleteIfExists(temporary);
         }
+    }
+
+    private static boolean isJvmContextEvent(RecordedEvent event) {
+        return JVM_CONTEXT_EVENTS.contains(event.getEventType().getName());
     }
 
     static Instant parseInstant(String value) {

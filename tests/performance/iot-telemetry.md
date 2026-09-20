@@ -104,7 +104,9 @@ an image that lacks the native agent.
 
 After every profiled process exits, the launcher uses the measurement boundaries from `producer-summary.json` to
 write a sibling `.measurement.jfr` containing events that overlap the measured interval. The complete recording
-is retained by default. Set `profiling.retainOriginalRecording: false` to keep only the measurement recording, or
+is retained by default. The cut recording also retains the one-time JVM, host, recording setting and runtime
+configuration events needed to describe the source JVM in JDK Mission Control. Set
+`profiling.retainOriginalRecording: false` to keep only the measurement recording, or
 `profiling.createMeasurementRecording: false` to keep only the complete recording. If cutting fails, the complete
 recording is preserved even when its retention is disabled.
 
