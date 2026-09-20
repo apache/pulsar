@@ -19,21 +19,26 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import io.netty.channel.Channel;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumersClassic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
-import org.apache.pulsar.common.api.proto.KeySharedMeta;
-import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -131,17 +136,25 @@ public class SharedSubscriptionUnackedMessagesAccountingTest extends ProducerCon
 
     @DataProvider
     public Object[][] subscriptionTypes() {
-        return new Object[][] {{SubscriptionType.Shared}, {SubscriptionType.Key_Shared}};
+        return new Object[][] {
+                {SubscriptionType.Shared, null},
+                {SubscriptionType.Key_Shared, KeySharedPolicy.autoSplitHashRange()},
+                {SubscriptionType.Key_Shared, KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 65535))}};
     }
 
     @Test(dataProvider = "subscriptionTypes", timeOut = 60_000)
-    public void testStaleRemovalDoesNotRemoveEqualReplacement(SubscriptionType subscriptionType) throws Exception {
+    public void testStaleRemovalDoesNotRemoveEqualReplacement(SubscriptionType subscriptionType,
+                                                            KeySharedPolicy keySharedPolicy) throws Exception {
         String topicName = newTopicName();
+        ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(subscriptionType)
+                .consumerName("replacement-test");
+        if (keySharedPolicy != null) {
+            consumerBuilder.keySharedPolicy(keySharedPolicy);
+        }
         try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                      .topic(topicName).enableBatching(false).create();
-             org.apache.pulsar.client.api.Consumer<String> client = pulsarClient.newConsumer(Schema.STRING)
-                     .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(subscriptionType)
-                     .consumerName("replacement-test").subscribe()) {
+             org.apache.pulsar.client.api.Consumer<String> client = consumerBuilder.subscribe()) {
             producer.send("unacked");
             assertThat(client.receive(5, TimeUnit.SECONDS)).isNotNull();
             BrokerService brokerService = pulsar.getBrokerService();
@@ -161,7 +174,7 @@ public class SharedSubscriptionUnackedMessagesAccountingTest extends ProducerCon
                     .subscriptionName(SUBSCRIPTION).subType(original.subType()).isDurable(true)
                     .startMessageId(MessageId.latest).initialPosition(InitialPosition.Latest)
                     .metadata(Collections.emptyMap()).subscriptionProperties(Optional.empty())
-                    .keySharedMeta(new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT))
+                    .keySharedMeta(original.getKeySharedMeta())
                     .build()).get(10, TimeUnit.SECONDS);
             try {
                 assertThat(replacement).isNotSameAs(original).isEqualTo(original);
@@ -183,6 +196,72 @@ public class SharedSubscriptionUnackedMessagesAccountingTest extends ProducerCon
                 replacement.close();
             }
             assertUnackedMessagesCleared(dispatcher, brokerService, "replacement removal");
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testCloseCleansUpStickyAdditionCompletedAfterRemoval() throws Exception {
+        String topicName = newTopicName();
+        try (PulsarClient otherClient = newPulsarClient(pulsar.getBrokerServiceUrl(), 0);
+             Producer<String> producer = otherClient.newProducer(Schema.STRING)
+                     .topic(topicName).enableBatching(false).create();
+             org.apache.pulsar.client.api.Consumer<String> client = pulsarClient.newConsumer(Schema.STRING)
+                     .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Key_Shared)
+                     .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 65535))).subscribe()) {
+            PersistentTopic topic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).orElseThrow();
+            AbstractPersistentDispatcherMultipleConsumers dispatcher =
+                    (AbstractPersistentDispatcherMultipleConsumers) topic.getSubscription(SUBSCRIPTION).getDispatcher();
+            StickyKeyConsumerSelector selector = ((StickyKeyDispatcher) dispatcher).getSelector();
+            Consumer original = dispatcher.getConsumers().get(0);
+            ServerCnx originalCnx = (ServerCnx) original.cnx();
+            Channel channel = originalCnx.ctx().channel();
+            // Drain the initial FLOW so it cannot complete the liveness check instead of the held PONG.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> original.getAvailablePermits() > 0);
+            // Hold the real liveness response without blocking the event loop or mocking the selector.
+            channel.eventLoop().submit(() -> channel.config().setAutoRead(false)).get(10, TimeUnit.SECONDS);
+            try {
+                CompletableFuture<Consumer> adding = topic.subscribe(SubscriptionOption.builder()
+                        .cnx(topic.getProducers().values().iterator().next().getCnx())
+                        .consumerId(1234).consumerName("pending-sticky")
+                        .subscriptionName(SUBSCRIPTION).subType(original.subType()).isDurable(true)
+                        .startMessageId(MessageId.latest).initialPosition(InitialPosition.Latest)
+                        .metadata(Collections.emptyMap()).subscriptionProperties(Optional.empty())
+                        .keySharedMeta(original.getKeySharedMeta()).build());
+                // Wait for the liveness request on its owning event loop. The second consumer is already
+                // registered in the dispatcher, but its selector addition must still be outstanding.
+                originalCnx.ctx().executor().submit(() ->
+                        assertThat(originalCnx.connectionCheckInProgress).isNotNull().isNotDone())
+                        .get(10, TimeUnit.SECONDS);
+                assertThat(adding).isNotDone();
+                assertThat(dispatcher.getConsumers()).hasSize(2);
+                Consumer pending = dispatcher.getConsumers().stream()
+                        .filter(c -> c != original).findFirst().orElseThrow();
+                assertThat(pending.cnx()).isNotSameAs(originalCnx);
+                assertThat(selector.select(0)).isSameAs(original);
+
+                // Consumer.close is also used when cursor reset disconnects consumers while subscribe is pending.
+                pending.close();
+                original.close();
+                assertThat(dispatcher.getConsumers()).isEmpty();
+                assertThat(selector.select(0)).isNull();
+                channel.eventLoop().submit(() -> channel.config().setAutoRead(true)).get(10, TimeUnit.SECONDS);
+                assertThat(adding.get(10, TimeUnit.SECONDS)).isSameAs(pending);
+                assertThat(selector.select(0)).as("late addition installed the removed consumer").isSameAs(pending);
+
+                // ServerCnx repeats close when subscribe completes after the client has already timed out.
+                pending.close();
+                assertThat(selector.getConsumerKeyHashRanges()).as("no orphan range after repeated close").isEmpty();
+                try (org.apache.pulsar.client.api.Consumer<String> successor = pulsarClient.newConsumer(Schema.STRING)
+                        .topic(topicName).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Key_Shared)
+                        .keySharedPolicy(KeySharedPolicy.stickyHashRange().ranges(Range.of(0, 65535)))
+                        .subscribeAsync().get(10, TimeUnit.SECONDS)) {
+                    producer.send("after-cleanup");
+                    assertThat(successor.receive(5, TimeUnit.SECONDS)).isNotNull();
+                }
+            } finally {
+                channel.eventLoop().submit(() -> channel.config().setAutoRead(true)).get(10, TimeUnit.SECONDS);
+            }
         }
     }
 
