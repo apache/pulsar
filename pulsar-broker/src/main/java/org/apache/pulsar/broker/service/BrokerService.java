@@ -131,7 +131,6 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.service.TopicEventsListener.EventStage;
 import org.apache.pulsar.broker.service.TopicEventsListener.TopicEvent;
-import org.apache.pulsar.broker.service.TopicLoadingContext.TopicLoadingStage;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentSystemTopic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
@@ -199,6 +198,7 @@ import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
+import org.apache.pulsar.common.util.LatencyTracer;
 import org.apache.pulsar.common.util.SingleThreadNonConcurrentFixedRateScheduler;
 import org.apache.pulsar.common.util.netty.ChannelFutures;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -260,7 +260,7 @@ public class BrokerService implements Closeable {
     private final Map<String, ConfigField> dynamicConfigurationMap;
     private final Map<String, Consumer<?>> configRegisteredListeners = new ConcurrentHashMap<>();
 
-    private final ConcurrentLinkedQueue<TopicLoadingContext> pendingTopicLoadingQueue;
+    private final ConcurrentLinkedQueue<Pair<TopicLoadingContext, LatencyTracer.TracePoint>> pendingTopicLoadingQueue;
 
     private AuthorizationService authorizationService;
     private final SingleThreadNonConcurrentFixedRateScheduler statsUpdater;
@@ -1350,36 +1350,64 @@ public class BrokerService implements Closeable {
                 final CompletableFuture<Optional<Topic>> topicFuture = FutureUtil.createFutureWithTimeout(
                         Duration.ofSeconds(timeoutSeconds), executor(),
                         () -> FAILED_TO_LOAD_TOPIC_TIMEOUT_EXCEPTION);
-                final var context = new TopicLoadingContext(topicName, createIfMissing, topicFuture);
+                final var context = new TopicLoadingContext(topicName, createIfMissing, topicFuture, pulsarStats);
                 if (properties != null) {
                     context.setProperties(properties);
                 }
-                topicFuture.exceptionally(t -> {
-                    final var latency = context.traceAndGetLatency("fail").description();
-                    final var unwrapped = FutureUtil.unwrapCompletionException(t);
-                    if (unwrapped instanceof TimeoutException) {
-                        log.warn()
-                                .attr("topic", topicName)
-                                .attr("latency", latency)
-                                .log("Failed to load topic within " + timeoutSeconds + " s");
-                    } else {
-                        log.warn()
-                                .attr("topic", topicName)
-                                .attr("latency", latency)
-                                .exception(t)
-                                .log("Failed to load topic");
+                topicFuture.whenComplete((optTopic, throwable) -> {
+                    final Throwable unwrapped = throwable == null ? null : FutureUtil.unwrapCompletionException(throwable);
+                    final boolean timedOut = unwrapped instanceof TimeoutException;
+                    try {
+                        if (throwable == null) {
+                            if (optTopic.isPresent()) {
+                                final var latency = context.getSnapshot();
+                                log.info()
+                                        .attr("topic", topicName)
+                                        .attr("dedupEnabled", optTopic.get().isDeduplicationEnabled())
+                                        .attr("latency", latency.description())
+                                        .log("Loaded topic");
+                                pulsarStats.recordTopicLoadTimeValue(topicName.toString(), latency.elapsedInMillis());
+                            } else {
+                                log.info()
+                                        .attr("topic", topicName)
+                                        .attr("latency", context.getSnapshot().description())
+                                        .log("Topic does not exist");
+                            }
+                            return;
+                        }
+
+                        final var latency = context.getSnapshot().description();
+                        if (timedOut) {
+                            log.warn()
+                                    .attr("topic", topicName)
+                                    .attr("latency", latency)
+                                    .log("Failed to load topic within " + timeoutSeconds + " s");
+                        } else {
+                            log.warn()
+                                    .attr("topic", topicName)
+                                    .attr("latency", latency)
+                                    .exception(throwable)
+                                    .log("Failed to load topic");
+                        }
+                        context.recordTopicLoadFailureMetric(unwrapped);
+                    } finally {
+                        context.close(timedOut);
+                        if (timedOut) {
+                            context.runAfterPendingActionsComplete(() -> log.warn()
+                                    .attr("topic", topicName)
+                                    .attr("latency", context.getSnapshot().description())
+                                    .log("Finished pending topic loading actions after timeout"));
+                        }
                     }
-                    recordTopicLoadFailure(context, unwrapped);
-                    return Optional.empty();
                 });
-                context.trace("topic exists", checkNonPartitionedTopicExists(topicName)).thenAccept(exists -> {
+                context.trace("topic-exists", checkNonPartitionedTopicExists(topicName)).thenAccept(exists -> {
                     if (!exists && !createIfMissing) {
                         topicFuture.complete(Optional.empty());
                         return;
                     }
                     // The topic level policies are not needed now, but the meaning of calling
                     // "getTopicPoliciesBypassSystemTopic" will wait for system topic policies initialization.
-                    final var systemTopicLoadFuture = context.trace(TopicLoadingStage.TOPIC_POLICIES,
+                    final var systemTopicLoadFuture = context.trace("local-topic-policies",
                             getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY));
                     systemTopicLoadFuture.thenRun(() -> {
                         final var inserted = new MutableBoolean(false);
@@ -1393,7 +1421,7 @@ public class BrokerService implements Closeable {
                             // actual loading latency that should not be recorded in metrics.
                             log.info()
                                     .attr("topic", topicName)
-                                    .attr("latency", context.getLatency().description())
+                                    .attr("latency", context.getSnapshot().description())
                                     .log("Finished loading from other concurrent loading task");
                             cachedFuture.whenComplete((optTopic, e) -> {
                                 if (e == null) {
@@ -1406,12 +1434,10 @@ public class BrokerService implements Closeable {
                     }).exceptionally(e -> {
                         log.warn().attr("topic", topicName).log("Topic creation encountered an exception"
                                 + " by initialize topic policies service");
-                        context.setTopicLoadFailureReason(TopicLoadFailureReason.FAILED_LOAD_TOPIC_POLICIES);
                         failTopicFuture(topicName.toString(), topicFuture, e);
                         return null;
                     });
                 }).exceptionally(e -> {
-                    context.setTopicLoadFailureReason(TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE);
                     failTopicFuture(topicName.toString(), topicFuture, e);
                     return null;
                 });
@@ -1473,53 +1499,12 @@ public class BrokerService implements Closeable {
         topicFuture.completeExceptionally(rc);
     }
 
-    private void recordTopicLoadFailure(TopicLoadingContext context, Throwable throwable) {
-        if (throwable instanceof TopicMigratedException) {
-            return;
-        }
-        if (throwable instanceof TimeoutException) {
-            pulsarStats.recordTopicLoadFailed(context.getTopicLoadTimeoutReason());
-        } else if (throwable instanceof ServiceUnitNotReadyException) {
-            pulsarStats.recordTopicLoadFailed(TopicLoadFailureReason.BUNDLE_UNLOADING);
-        } else {
-            TopicLoadFailureReason reason = context.getTopicLoadFailureReason();
-            pulsarStats.recordTopicLoadFailed(reason != null ? reason : TopicLoadFailureReason.OTHERS);
-        }
-    }
-
     private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@NonNull TopicName topicName,
                                                                                  TopicPoliciesService.GetType type) {
         if (ExtensibleLoadManagerImpl.isInternalTopic(topicName.toString())) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
         return pulsar.getTopicPoliciesService().getTopicPoliciesAsync(topicName, type);
-    }
-
-    private <T> CompletableFuture<T> trackTopicLoadFailure(TopicLoadingContext context,
-                                                            TopicLoadingStage stage,
-                                                            TopicLoadFailureReason reason,
-                                                            CompletableFuture<T> future) {
-        if (context == null) {
-            return future;
-        }
-        return context.trace(stage, future).whenComplete((__, throwable) -> {
-            if (throwable != null) {
-                context.setTopicLoadFailureReason(reason);
-            }
-        });
-    }
-
-    private <T> CompletableFuture<T> trackTopicLoadFailure(TopicLoadingContext context,
-                                                            TopicLoadFailureReason reason,
-                                                            CompletableFuture<T> future) {
-        if (context == null) {
-            return future;
-        }
-        return future.whenComplete((__, throwable) -> {
-            if (throwable != null) {
-                context.setTopicLoadFailureReason(reason);
-            }
-        });
     }
 
     public CompletableFuture<Void> deleteTopic(String topic, boolean forceDelete) {
@@ -2097,12 +2082,13 @@ public class BrokerService implements Closeable {
         final var topic = context.getTopicName().toString();
         final var topicFuture = context.getTopicFuture();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        trackTopicLoadFailure(context, TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP,
-                context.trace("ownership", checkTopicNsOwnership(topic)))
+        context.trace("ownership", checkTopicNsOwnership(topic))
                 .thenRun(() -> {
                     final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
+                    LatencyTracer.TracePoint queueTrace = context.startTrace("max-concurrent-loading-limitation");
                     if (topicLoadSemaphore.tryAcquire()) {
+                        context.finishTrace(queueTrace, null);
                         checkOwnershipAndCreatePersistentTopic(context);
                         topicFuture.handle((persistentTopic, ex) -> {
                             // release permit and process pending topic
@@ -2117,7 +2103,7 @@ public class BrokerService implements Closeable {
                             return null;
                         });
                     } else {
-                        pendingTopicLoadingQueue.add(context);
+                        pendingTopicLoadingQueue.add(ImmutablePair.of(context, queueTrace));
                         log.debug().attr("topic", topic).log("topic-loading for added into pending queue");
                     }
                 }).exceptionally(ex -> {
@@ -2162,8 +2148,7 @@ public class BrokerService implements Closeable {
         final var topic = topicName.toString();
         final var topicFuture = context.getTopicFuture();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        trackTopicLoadFailure(context, TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP,
-                context.trace("2nd ownership", checkTopicNsOwnership(topic))).thenRun(() -> {
+        context.trace("ownership", checkTopicNsOwnership(topic)).thenRun(() -> {
             CompletableFuture<Map<String, String>> propertiesFuture;
             if (context.getProperties() == null) {
                 //Read properties from storage when loading topic.
@@ -2171,12 +2156,12 @@ public class BrokerService implements Closeable {
             } else {
                 propertiesFuture = CompletableFuture.completedFuture(context.getProperties());
             }
-            context.trace("properties", propertiesFuture).thenAccept(finalProperties -> {
+            context.trace("properties", propertiesFuture)
+                    .thenAccept(finalProperties -> {
                 context.setProperties(finalProperties);
                 //TODO add topicName in properties?
                 createPersistentTopic0(context);
             }).exceptionally(throwable -> {
-                context.setTopicLoadFailureReason(TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE);
                 failTopicFuture(topic, topicFuture, throwable);
                 return null;
             });
@@ -2200,20 +2185,21 @@ public class BrokerService implements Closeable {
         }
 
         CompletableFuture<Void> maxTopicsCheck = createIfMissing
-                ? checkMaxTopicsPerNamespace(topicName)
+                ? context.trace("max-topics-per-namespace", checkMaxTopicsPerNamespace(topicName))
                 : CompletableFuture.completedFuture(null);
 
-        CompletableFuture<Void> isTopicAlreadyMigrated = checkTopicAlreadyMigrated(topicName);
-        maxTopicsCheck.thenCompose(partitionedTopicMetadata -> validateTopicConsistency(topicName))
+        CompletableFuture<Void> isTopicAlreadyMigrated = context.trace("check-topic-already-migrated",
+                checkTopicAlreadyMigrated(topicName));
+        maxTopicsCheck.thenCompose(__ -> context.trace("validate-topic-consistency",
+                        validateTopicConsistency(topicName)))
                 .thenCompose(__ -> isTopicAlreadyMigrated)
-                .thenCompose(__ -> getManagedLedgerConfig(topicName, context))
-                .thenCombine(trackTopicLoadFailure(context, TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE,
+                .thenCompose(__ -> context.trace("ml-config", getManagedLedgerConfig(topicName, context)))
+                .thenCombine(context.trace("topic-exists",
                         pulsar().getNamespaceService().checkTopicExistsAsync(topicName)).thenApply(n -> {
                             boolean found = n.isExists();
                             n.recycle();
                             return found;
                         }), (managedLedgerConfig, exists) -> {
-            context.trace("ml-config");
             if (isBrokerEntryMetadataEnabled() || isBrokerPayloadProcessorEnabled()) {
                 // init managedLedger interceptor
                 Set<BrokerEntryMetadataInterceptor> interceptors = new HashSet<>();
@@ -2270,32 +2256,26 @@ public class BrokerService implements Closeable {
                 loggerContextBuilder.attr("topic", topicName.toString());
             }
             managedLedgerConfig.setLoggerContext(loggerContextBuilder.build());
-            context.start(TopicLoadingStage.OPEN_ML);
+            final LatencyTracer.TracePoint openMlTracePoint = context.startTrace("open-ml");
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
                     new OpenLedgerCallback() {
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
                             try {
-                                context.finish(TopicLoadingStage.OPEN_ML);
+                                context.finishTrace(openMlTracePoint, null);
                                 PersistentTopic persistentTopic = isSystemTopic(topic)
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : newTopic(topic, ledger, BrokerService.this, PersistentTopic.class);
                                 persistentTopic.setCreateFuture(topicFuture);
-                                context.trace(TopicLoadingStage.INITIALIZE, persistentTopic.initialize(context))
-                                        .thenCompose(__ -> context.trace(TopicLoadingStage.PRE_CREATE_COMPACTED_SUB,
+                                context.trace("init", persistentTopic.initialize(context))
+                                        .thenCompose(__ -> context.trace("pre-create-compacted-sub",
                                                 persistentTopic.preCreateSubscriptionForCompactionIfNeeded()))
-                                        .thenCompose(__ -> context.trace(TopicLoadingStage.REPLICATION,
+                                        .thenCompose(__ -> context.trace("replication",
                                                 persistentTopic.initializeCheckReplication()))
-                                        .thenCompose(v -> context.trace(TopicLoadingStage.DEDUPLICATION,
+                                        .thenCompose(v -> context.trace("deduplication",
                                                 persistentTopic.checkDeduplicationStatus()))
                                         .thenRun(() -> {
-                                            final var latency = context.traceAndGetLatency("done");
-                                            log.info()
-                                                    .attr("topic", topic)
-                                                    .attr("dedupEnabled", persistentTopic.isDeduplicationEnabled())
-                                                    .attr("latency", latency.description())
-                                                    .log("Loaded topic");
-                                            pulsarStats.recordTopicLoadTimeValue(topic, latency.elapsedInMillis());
+                                            final var latency = context.getSnapshot();
                                             if (!topicFuture.complete(Optional.of(persistentTopic))) {
                                                 // Check create persistent topic timeout.
                                                 if (topicFuture.isCompletedExceptionally()) {
@@ -2303,6 +2283,7 @@ public class BrokerService implements Closeable {
                                                             .attr("topic", topic)
                                                             .attr("error",
                                                                     FutureUtil.getException(topicFuture).orElse(null))
+                                                            .attr("latency", latency.description())
                                                             .log("The future is already completed with failure, "
                                                                     + "closing the topic");
                                                 } else {
@@ -2341,8 +2322,6 @@ public class BrokerService implements Closeable {
                                                                 .attr("topic", topic)
                                                                 .log("Get an error when closing topic.");
                                                     }
-                                                    context.setTopicLoadFailureReason(
-                                                            TopicLoadFailureReason.FAILED_INIT);
                                                     topicFuture.completeExceptionally(ex);
                                                 });
                                             });
@@ -2355,14 +2334,14 @@ public class BrokerService implements Closeable {
 
                         @Override
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                            context.finish(TopicLoadingStage.OPEN_ML);
                             if (!createIfMissing && exception instanceof ManagedLedgerNotFoundException) {
+                                context.finishTrace(openMlTracePoint, null);
                                 // We were just trying to load a topic and the topic doesn't exist
                                 pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 loadFuture.completeExceptionally(exception);
                                 topicFuture.complete(Optional.empty());
                             } else {
-                                context.setTopicLoadFailureReason(TopicLoadFailureReason.FAILED_LOAD_ML);
+                                context.finishTrace(openMlTracePoint, exception);
                                 failTopicFuture(topic, topicFuture, new PersistenceException(exception));
                             }
                         }
@@ -2414,19 +2393,19 @@ public class BrokerService implements Closeable {
         NamespaceResources nsr = pulsar.getPulsarResources().getNamespaceResources();
         LocalPoliciesResources lpr = pulsar.getPulsarResources().getLocalPolicies();
         final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
-                trackTopicLoadFailure(context, TopicLoadingStage.TOPIC_POLICIES,
-                        TopicLoadFailureReason.FAILED_LOAD_TOPIC_POLICIES,
-                        getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY));
+                context == null ? getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
+                        : context.trace("local-topic-policies",
+                                getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY));
         final CompletableFuture<Optional<TopicPolicies>> globalTopicPoliciesFuture =
-                trackTopicLoadFailure(context, TopicLoadingStage.TOPIC_POLICIES,
-                        TopicLoadFailureReason.FAILED_LOAD_TOPIC_POLICIES,
-                        getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.GLOBAL_ONLY));
-        final CompletableFuture<Optional<Policies>> nsPolicies = trackTopicLoadFailure(context,
-                TopicLoadingStage.NAMESPACE_POLICIES, TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES,
-                nsr.getPoliciesAsync(namespace));
-        final CompletableFuture<Optional<LocalPolicies>> lcPolicies = trackTopicLoadFailure(context,
-                TopicLoadingStage.NAMESPACE_POLICIES, TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES,
-                lpr.getLocalPoliciesAsync(namespace));
+                context == null ? getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.GLOBAL_ONLY)
+                        : context.trace("global-topic-policies",
+                                getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.GLOBAL_ONLY));
+        final CompletableFuture<Optional<Policies>> nsPolicies = context == null
+                ? nsr.getPoliciesAsync(namespace)
+                : context.trace("namespace-policies", nsr.getPoliciesAsync(namespace));
+        final CompletableFuture<Optional<LocalPolicies>> lcPolicies = context == null
+                ? lpr.getLocalPoliciesAsync(namespace)
+                : context.trace("local-policies", lpr.getLocalPoliciesAsync(namespace));
         return topicPoliciesFuture.thenCombine(globalTopicPoliciesFuture, (topicP, globalTopicP) -> {
             return new ImmutablePair<>(topicP, globalTopicP);
         }).thenCombine(nsPolicies, (topicPoliciesPair, np) -> {
@@ -3903,20 +3882,21 @@ public class BrokerService implements Closeable {
      * permit if it was successful to acquire it.
      */
     private void createPendingLoadTopic() {
-        TopicLoadingContext pendingTopic = pendingTopicLoadingQueue.poll();
-        if (pendingTopic == null) {
+        Pair<TopicLoadingContext, LatencyTracer.TracePoint> contextAndPointPair = pendingTopicLoadingQueue.poll();
+        if (contextAndPointPair == null) {
             return;
         }
 
-        pendingTopic.trace("queued");
-        final String topic = pendingTopic.getTopicName().toString();
+        TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
+        LatencyTracer.TracePoint queuedPoint = contextAndPointPair.getRight();
+        topicLoadingContext.finishTrace(queuedPoint, null);
+        final String topic = topicLoadingContext.getTopicName().toString();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        trackTopicLoadFailure(pendingTopic, TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP,
-                pendingTopic.trace("ownership", checkTopicNsOwnership(topic))).thenRun(() -> {
-            CompletableFuture<Optional<Topic>> pendingFuture = pendingTopic.getTopicFuture();
+        topicLoadingContext.trace("ownership", checkTopicNsOwnership(topic)).thenRun(() -> {
+            CompletableFuture<Optional<Topic>> pendingFuture = topicLoadingContext.getTopicFuture();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();
-            checkOwnershipAndCreatePersistentTopic(pendingTopic);
+            checkOwnershipAndCreatePersistentTopic(topicLoadingContext);
             pendingFuture.handle((persistentTopic, ex) -> {
                 // release permit and process next pending topic
                 if (acquiredPermit) {
@@ -3927,7 +3907,7 @@ public class BrokerService implements Closeable {
             });
         }).exceptionally(e -> {
             log.error().attr("topic", topic).exception(e).log("Failed to create pending topic");
-            pendingTopic.getTopicFuture()
+            topicLoadingContext.getTopicFuture()
                     .completeExceptionally((e instanceof RuntimeException && e.getCause() != null) ? e.getCause() : e);
             // schedule to process next pending topic
             inactivityMonitor.schedule(this::createPendingLoadTopic, 100, MILLISECONDS);
