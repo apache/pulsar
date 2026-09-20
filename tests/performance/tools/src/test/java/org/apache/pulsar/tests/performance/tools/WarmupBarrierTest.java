@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.concurrent.TimeUnit;
 import org.testng.annotations.Test;
 
 public class WarmupBarrierTest {
@@ -32,7 +33,8 @@ public class WarmupBarrierTest {
             WarmupBarrier.markApplicationComplete(directory, 2, 0);
             WarmupBarrier.markApplicationComplete(directory, 2, 1);
 
-            assertThatCode(() -> WarmupBarrier.awaitApplications(directory, 2, 2, 1))
+            long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
+            assertThatCode(() -> WarmupBarrier.awaitApplications(directory, 2, 2, deadlineNanos))
                     .doesNotThrowAnyException();
         } finally {
             try (var paths = Files.walk(directory)) {

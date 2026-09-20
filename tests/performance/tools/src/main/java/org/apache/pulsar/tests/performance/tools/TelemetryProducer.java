@@ -79,6 +79,8 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             long intervalNanos = scenario.rate() == 0 ? 0 : TimeUnit.SECONDS.toNanos(1) / scenario.rate();
             long nextSend = System.nanoTime();
             long startedNanos = nextSend;
+            long runDeadlineNanos = startedNanos
+                    + TimeUnit.SECONDS.toNanos(scenario.consumerTimeoutSeconds());
             long warmupMessageCount = scenario.warmupMessageCount();
             long warmupMessagesPerRound = scenario.warmupMessageCountPerRound();
             long measurementStartedNanos = -1;
@@ -149,7 +151,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                     }
                     int round = Math.toIntExact((sent + 1) / warmupMessagesPerRound);
                     WarmupBarrier.awaitApplications(coordinationDirectory, round, scenario.applicationCount(),
-                            scenario.consumerTimeoutSeconds());
+                            runDeadlineNanos);
                     System.out.println("WARMUP_ROUND_COMPLETE round=" + round + "/" + scenario.warmupRounds()
                             + " produced=" + warmupCompleted.get()
                             + " applicationsReceived=" + scenario.applicationCount()

@@ -38,8 +38,13 @@ public record IotScenario(String serviceUrl, String topicPrefix, String subscrip
                 || subscriptionPrefix == null || subscriptionPrefix.isBlank()) {
             throw new IllegalArgumentException("Service URL, topic prefix and subscription prefix are required");
         }
+        long warmupRuntimeSeconds = warmupSeconds;
+        if (warmupMessages > 0 && rate > 0) {
+            warmupRuntimeSeconds = Math.floorDiv(warmupMessages, rate)
+                    + (warmupMessages % rate == 0 ? 0 : 1);
+        }
         long minimumRuntimeSeconds = Math.addExact(durationSeconds,
-                Math.addExact(Math.multiplyExact((long) warmupSeconds, warmupRounds),
+                Math.addExact(Math.multiplyExact(warmupRuntimeSeconds, warmupRounds),
                         Math.multiplyExact((long) warmupRoundDelaySeconds, warmupRounds)));
         if (durationSeconds < 1 || warmupSeconds < 0 || warmupMessages < 0 || warmupRounds < 1
                 || warmupRoundDelaySeconds < 0

@@ -21,11 +21,10 @@ package org.apache.pulsar.tests.performance.tools;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 
 /** Coordinates warmup delivery without adding per-message work after warmup has completed. */
 final class WarmupBarrier {
-    private static final Duration POLL_INTERVAL = Duration.ofMillis(20);
+    private static final long POLL_INTERVAL_MILLIS = 20;
 
     private WarmupBarrier() {
     }
@@ -35,10 +34,9 @@ final class WarmupBarrier {
         Files.writeString(marker(directory, round, application), "complete\n");
     }
 
-    static void awaitApplications(Path directory, int round, int applications, int timeoutSeconds)
+    static void awaitApplications(Path directory, int round, int applications, long deadlineNanos)
             throws Exception {
-        long deadline = System.nanoTime() + Duration.ofSeconds(timeoutSeconds).toNanos();
-        while (System.nanoTime() < deadline) {
+        while (deadlineNanos - System.nanoTime() > 0) {
             boolean complete = true;
             for (int application = 0; application < applications; application++) {
                 if (!Files.isRegularFile(marker(directory, round, application))) {
@@ -49,7 +47,7 @@ final class WarmupBarrier {
             if (complete) {
                 return;
             }
-            Thread.sleep(POLL_INTERVAL.toMillis());
+            Thread.sleep(POLL_INTERVAL_MILLIS);
         }
         throw new IllegalStateException("Timed out waiting for all " + applications
                 + " applications to receive warmup round " + round);

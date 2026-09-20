@@ -71,6 +71,16 @@ public class IotScenarioTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @Test
+    public void includesRateLimitedMessageWarmupInMinimumRuntime() {
+        assertThatThrownBy(() -> new IotScenario(
+                "pulsar://localhost:6650", "persistent://public/default/iot-", "app-",
+                120, 0, 1_001, 3, 2,
+                100, 1_000, 64, 1_000, 10, 2, 1, 2,
+                2, 2, 100, true, true, 158, 0, 0))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     private static IotScenario scenario(int warmupSeconds, long warmupMessages, int rate, long numberOfMessages) {
         return scenario(warmupSeconds, warmupMessages, 1, 0, rate, numberOfMessages);
     }
