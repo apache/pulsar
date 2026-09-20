@@ -112,6 +112,13 @@ configuration events needed to describe the source JVM in JDK Mission Control. S
 `profiling.createMeasurementRecording: false` to keep only the complete recording. If cutting fails, the complete
 recording is preserved even when its retention is disabled.
 
+The producer writes `produce-latency.hdr` containing send-to-completion latency for measured messages. Each backend
+application writes `consume-latency.hdr` containing broker-publish-to-listener latency for measured messages. Warmup
+messages are excluded from both histograms. Consumer latency is sampled before validation, acknowledgment, and any
+simulated backend processing. Use the launcher's `renderHdrHistograms` Gradle task to merge the backend-application
+histograms by observation count and render the producer and consumer distributions as PNG and SVG; see the
+performance README for the command.
+
 ## Interpreting a run
 
 A successful run sends the configured message count and reports the same number of unique messages for every

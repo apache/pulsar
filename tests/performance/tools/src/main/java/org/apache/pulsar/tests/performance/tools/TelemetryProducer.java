@@ -55,6 +55,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         AtomicLong completed = new AtomicLong();
         AtomicLong warmupCompleted = new AtomicLong();
         AtomicLong measurementCompleted = new AtomicLong();
+        HdrLatencyRecorder sendLatency = new HdrLatencyRecorder();
         Semaphore outstanding = new Semaphore(scenario.maxOutstanding());
         Set<Integer> devicesInFlight = ConcurrentHashMap.newKeySet();
 
@@ -110,8 +111,10 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 long deviceSequence = deviceSequences[device]++;
                 long producerSequence = producerSequences[producerIndex]++;
                 byte[] key = ByteBuffer.allocate(Long.BYTES).putLong(device).array();
-                byte[] payload = TelemetryMessage.encode(device, deviceSequence, scenario.payloadBytes());
+                byte[] payload = TelemetryMessage.encode(device, deviceSequence, measurementMessage,
+                        scenario.payloadBytes());
                 int completedDevice = device;
+                long sendStartedNanos = System.nanoTime();
                 producer.newMessage()
                         .keyBytes(key)
                         .sequenceId(producerSequence)
@@ -124,6 +127,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                                 completed.incrementAndGet();
                                 if (measurementMessage) {
                                     measurementCompleted.incrementAndGet();
+                                    sendLatency.recordNanos(System.nanoTime() - sendStartedNanos);
                                 } else {
                                     warmupCompleted.incrementAndGet();
                                 }
@@ -162,6 +166,8 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             long finishedNanos = System.nanoTime();
             long elapsedNanos = finishedNanos - startedNanos;
             long measurementElapsedNanos = finishedNanos - measurementStartedNanos;
+            sendLatency.write(output.resolve("produce-latency.hdr"), measurementStartEpochMs,
+                    measurementEndEpochMs);
             writeState(deviceSequences);
             Files.writeString(output.resolve("producer-summary.json"),
                     "{\n  \"sent\": " + completed.get()

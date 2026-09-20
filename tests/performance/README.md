@@ -119,6 +119,23 @@ are copied from the beginning of the complete recording so JDK Mission Control c
 recording after a successful cut, or `profiling.createMeasurementRecording: false` to keep only the complete
 recording. Both options default to `true` and apply to broker, producer and consumer recordings.
 
+Every IoT run writes `producer/produce-latency.hdr` with successful measured-message send-completion latency and
+one `consumer-*/consume-latency.hdr` per backend application with measured-message broker-publish-to-listener
+latency. Both use microseconds internally and three significant digits. Warmup messages are tagged in the payload
+and excluded. Consumer latency is recorded on listener entry before sequence validation, acknowledgment, or backend
+processing, so configured processing delays do not inflate messaging latency.
+
+Render the producer distribution together with the count-weighted merge of all backend-application consumer
+histograms as PNG and SVG:
+
+```bash
+./gradlew :tests:performance:launcher:renderHdrHistograms \
+  --args='--run-directory tests/performance/build/iot-telemetry-high-rate-profile'
+```
+
+The default outputs are `latency-histograms.png` and `latency-histograms.svg` in the run directory. Pass
+`--output-prefix /path/to/name` or `--title 'Comparison label'` to change them.
+
 Use the same cutter independently to select a different interval from an existing recording. `--from` and `--to`
 accept ISO-8601 instants, epoch milliseconds, or offsets from the recording start such as `500ms`, `5s`, `2m`, `1h`,
 or `PT5S`. Omit `--from` to select from the beginning, or omit `--to` to select through the end. Use `--info`
