@@ -28,7 +28,9 @@ workloads:
   iotTelemetry:
     rate: 0
     warmupSeconds: 0
-    warmupMessages: 1000000
+    warmupMessages: 500000
+    warmupRounds: 2
+    warmupRoundDelaySeconds: 5
     numberOfMessages: 5000000
     deviceCount: 1000000
     gatewayCount: 500

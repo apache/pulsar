@@ -26,9 +26,11 @@ import java.io.DataInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -73,6 +75,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         String brokerProfileOptions = text(profiling, "brokerOptions");
         String producerProfileOptions = text(profiling, "producerOptions");
         String consumerProfileOptions = text(profiling, "consumerOptions");
+        boolean retainOriginalRecording = booleanValue(profiling, "retainOriginalRecording", true);
+        boolean createMeasurementRecording = booleanValue(profiling, "createMeasurementRecording", true);
         boolean profilingEnabled = brokerProfileOptions != null || producerProfileOptions != null
                 || consumerProfileOptions != null;
         if (profilingEnabled
@@ -88,6 +92,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 : Path.of(loader.select(resolved, "output.directory").textValue());
         runOutput = runOutput.toAbsolutePath().normalize();
         Files.createDirectories(runOutput);
+        Set<Path> recordingsBeforeRun = JfrRecordingProcessor.findOriginalRecordings(runOutput);
         Path brokerProfileDirectory = runOutput.resolve("broker-profile");
         if (brokerProfileOptions != null) {
             Files.createDirectories(brokerProfileDirectory);
@@ -156,7 +161,6 @@ public class PerformanceLauncher implements Callable<Integer> {
                 }
             }
             verifyStates(runOutput, applications);
-            return 0;
         } finally {
             if (producer != null) {
                 saveContainerLog(producer, runOutput.resolve("producer/container.log"));
@@ -169,6 +173,19 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
             cluster.stop();
         }
+        if (profilingEnabled) {
+            JsonNode summary = loader.mapper().readTree(runOutput.resolve("producer/producer-summary.json").toFile());
+            Instant measurementStart = Instant.ofEpochMilli(requiredLong(summary, "measurementStartEpochMs"));
+            Instant measurementEnd = Instant.ofEpochMilli(requiredLong(summary, "measurementEndEpochMs"));
+            Set<Path> recordings = JfrRecordingProcessor.findOriginalRecordings(runOutput);
+            recordings.removeAll(recordingsBeforeRun);
+            if (recordings.isEmpty()) {
+                throw new IllegalStateException("Profiling completed without producing a JFR recording");
+            }
+            JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd,
+                    retainOriginalRecording, createMeasurementRecording);
+        }
+        return 0;
     }
 
     private GenericContainer<?> workloadContainer(PulsarCluster cluster, Path tools, Path configFile,
@@ -210,6 +227,25 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static String text(JsonNode parent, String field) {
         JsonNode value = parent.path(field);
         return value.isTextual() && !value.textValue().isBlank() ? value.textValue() : null;
+    }
+
+    private static boolean booleanValue(JsonNode parent, String field, boolean defaultValue) {
+        JsonNode value = parent.path(field);
+        if (value.isMissingNode() || value.isNull()) {
+            return defaultValue;
+        }
+        if (!value.isBoolean()) {
+            throw new IllegalArgumentException("profiling." + field + " must be a boolean");
+        }
+        return value.booleanValue();
+    }
+
+    private static long requiredLong(JsonNode parent, String field) {
+        JsonNode value = parent.path(field);
+        if (!value.canConvertToLong()) {
+            throw new IllegalArgumentException("Missing numeric producer summary field " + field);
+        }
+        return value.longValue();
     }
 
     private static int waitForExit(GenericContainer<?> container, int timeoutSeconds) throws Exception {

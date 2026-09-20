@@ -61,3 +61,10 @@ tasks.register<JavaExec>("profile") {
     outputs.upToDateWhen { false }
     outputs.cacheIf("profiling runs are never cached") { false }
 }
+
+tasks.register<JavaExec>("runJfrCut") {
+    group = "verification"
+    description = "Inspect or cut a JFR recording to an absolute or recording-relative time interval"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.apache.pulsar.tests.performance.launcher.JfrCut")
+}

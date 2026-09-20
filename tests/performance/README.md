@@ -81,7 +81,9 @@ file without interpreting unrelated sections. The launcher writes the fully reso
 select its subtree with `--config-path`.
 
 The `iotTelemetry` workload can run traffic before measurements begin. Use `warmupSeconds` with a positive `rate`,
-or use `warmupMessages` when `rate: 0`; the two settings are mutually exclusive. Warmup traffic remains part of
+or use `warmupMessages` when `rate: 0`; the two settings are mutually exclusive. `warmupRounds` repeats that
+traffic, and `warmupRoundDelaySeconds` adds an idle stabilization period after each fully drained round, including
+the final round. The default is one round with no delay. Warmup traffic remains part of
 delivery and ordering validation. Producer throughput and the epoch-millisecond JFR measurement boundaries in
 `producer-summary.json` cover only the configured measurement messages.
 
@@ -96,6 +98,8 @@ workloads:
 profiling:
   brokerOptions: event=cpu,interval=10ms,jfrsync=profile
   producerOptions: ~
+  retainOriginalRecording: true
+  createMeasurementRecording: true
 output:
   directory: build/performance/iot-restart-profile
 ```
@@ -104,6 +108,28 @@ Each inherited path is resolved relative to the file that declares it; absolute 
 inherit other files recursively. Parents are applied in list order and the current file is applied last. Mappings
 merge recursively, while scalar values and lists replace earlier values. An explicit YAML `null` or `~` removes
 an inherited entry. Cycles, missing files, non-mapping roots and invalid `extends` entries are rejected.
+
+Profiled standalone runs retain the complete JFR and also create a sibling whose name ends in
+`.measurement.jfr`. The measurement recording contains events that overlap the producer's recorded measurement
+interval, excluding startup and warmup. Set `profiling.retainOriginalRecording: false` to remove the complete
+recording after a successful cut, or `profiling.createMeasurementRecording: false` to keep only the complete
+recording. Both options default to `true` and apply to broker, producer and consumer recordings.
+
+Use the same cutter independently to select a different interval from an existing recording. `--from` and `--to`
+accept ISO-8601 instants, epoch milliseconds, or offsets from the first event such as `500ms`, `5s`, `2m`, `1h`,
+or `PT5S`. Omit `--from` to select from the beginning, or omit `--to` to select through the end. Use `--info`
+without either boundary to display the first and last event times and duration; it can also accompany a cut. The
+task requires JDK 19 or newer because it uses the public JFR recording writer added in that release:
+
+```bash
+./gradlew :tests:performance:launcher:runJfrCut \
+  --args='--input /tmp/full.jfr --from 5s --to 2m --output /tmp/measurement.jfr --info'
+```
+
+Java code can call `JfrCut.cut(Path input, Instant from, Instant to, Path output)` directly without invoking the
+command-line entry point. `JfrCut.cutUsingTimeExpressions(...)` provides the relative and omitted-boundary syntax,
+and `JfrCut.recordingInfo(...)` returns the event range. Events overlapping the half-open interval `[from, to)`
+are retained.
 
 For one-off standalone overrides, prefix an existing scalar path with `PULSAR_PERFORMANCE_`, uppercase it and
 separate path elements with underscores. The loader preserves the scalar's YAML type. For example:

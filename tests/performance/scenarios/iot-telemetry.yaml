@@ -48,6 +48,8 @@ workloads:
     # Warmup traffic is validated but excluded from throughput and the exported measurement window.
     warmupSeconds: 20
     warmupMessages: 0
+    warmupRounds: 1
+    warmupRoundDelaySeconds: 0
     rate: 1000
     numberOfMessages: 0
     payloadBytes: 64

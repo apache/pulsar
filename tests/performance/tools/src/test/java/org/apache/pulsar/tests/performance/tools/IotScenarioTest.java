@@ -42,6 +42,24 @@ public class IotScenarioTest {
     }
 
     @Test
+    public void calculatesMultipleWarmupRounds() {
+        IotScenario scenario = scenario(0, 500_000, 2, 5, 0, 5_000_000);
+
+        assertThat(scenario.warmupMessageCountPerRound()).isEqualTo(500_000);
+        assertThat(scenario.warmupMessageCount()).isEqualTo(1_000_000);
+        assertThat(scenario.messageCount()).isEqualTo(6_000_000);
+        assertThat(scenario.warmupRoundDelaySeconds()).isEqualTo(5);
+    }
+
+    @Test
+    public void defaultsMissingWarmupRoundsToOne() {
+        IotScenario scenario = scenario(0, 1_000, 0, 0, 0, 5_000);
+
+        assertThat(scenario.warmupRounds()).isEqualTo(1);
+        assertThat(scenario.warmupMessageCount()).isEqualTo(1_000);
+    }
+
+    @Test
     public void rejectsTimeBasedWarmupWithoutRateLimit() {
         assertThatThrownBy(() -> scenario(20, 0, 0, 5_000_000))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -54,8 +72,14 @@ public class IotScenarioTest {
     }
 
     private static IotScenario scenario(int warmupSeconds, long warmupMessages, int rate, long numberOfMessages) {
+        return scenario(warmupSeconds, warmupMessages, 1, 0, rate, numberOfMessages);
+    }
+
+    private static IotScenario scenario(int warmupSeconds, long warmupMessages, int warmupRounds,
+                                        int warmupRoundDelaySeconds, int rate, long numberOfMessages) {
         return new IotScenario("pulsar://localhost:6650", "persistent://public/default/iot-", "app-",
-                120, warmupSeconds, warmupMessages, rate, numberOfMessages, 64, 1_000, 10, 2, 1, 2,
+                120, warmupSeconds, warmupMessages, warmupRounds, warmupRoundDelaySeconds,
+                rate, numberOfMessages, 64, 1_000, 10, 2, 1, 2,
                 2, 2, 100, true, true, 300, 0, 0);
     }
 }

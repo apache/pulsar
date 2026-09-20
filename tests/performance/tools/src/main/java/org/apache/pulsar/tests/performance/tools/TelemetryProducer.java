@@ -79,6 +79,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             long nextSend = System.nanoTime();
             long startedNanos = nextSend;
             long warmupMessageCount = scenario.warmupMessageCount();
+            long warmupMessagesPerRound = scenario.warmupMessageCountPerRound();
             long measurementStartedNanos = -1;
             long measurementStartEpochMs = -1;
             for (long sent = 0; sent < scenario.messageCount(); sent++) {
@@ -136,8 +137,24 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 if (wait > 0) {
                     LockSupport.parkNanos(wait);
                 }
+                if (!measurementMessage && warmupMessagesPerRound > 0
+                        && (sent + 1) % warmupMessagesPerRound == 0) {
+                    awaitOutstanding(outstanding, scenario.maxOutstanding());
+                    if (failure.get() != null) {
+                        throw new IllegalStateException("Telemetry warmup send failed", failure.get());
+                    }
+                    int round = Math.toIntExact((sent + 1) / warmupMessagesPerRound);
+                    System.out.println("WARMUP_ROUND_COMPLETE round=" + round + "/" + scenario.warmupRounds()
+                            + " completed=" + warmupCompleted.get()
+                            + " delaySeconds=" + scenario.warmupRoundDelaySeconds());
+                    if (scenario.warmupRoundDelaySeconds() > 0) {
+                        TimeUnit.SECONDS.sleep(scenario.warmupRoundDelaySeconds());
+                    }
+                    // Do not turn time spent draining or paused into a rate-limiter catch-up burst.
+                    nextSend = System.nanoTime();
+                }
             }
-            outstanding.acquire(scenario.maxOutstanding());
+            awaitOutstanding(outstanding, scenario.maxOutstanding());
             if (failure.get() != null) {
                 throw new IllegalStateException("Telemetry send failed", failure.get());
             }
@@ -149,6 +166,9 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             Files.writeString(output.resolve("producer-summary.json"),
                     "{\n  \"sent\": " + completed.get()
                             + ",\n  \"warmupMessages\": " + warmupCompleted.get()
+                            + ",\n  \"warmupMessagesPerRound\": " + warmupMessagesPerRound
+                            + ",\n  \"warmupRounds\": " + scenario.warmupRounds()
+                            + ",\n  \"warmupRoundDelaySeconds\": " + scenario.warmupRoundDelaySeconds()
                             + ",\n  \"measurementMessages\": " + measurementCompleted.get()
                             + ",\n  \"devices\": " + scenario.deviceCount()
                             + ",\n  \"elapsedSeconds\": " + elapsedNanos / 1_000_000_000.0
@@ -172,6 +192,11 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             sharedResources.close();
         }
         return 0;
+    }
+
+    private static void awaitOutstanding(Semaphore outstanding, int permits) throws InterruptedException {
+        outstanding.acquire(permits);
+        outstanding.release(permits);
     }
 
     private Producer<byte[]> createProducer(IotScenario scenario, List<PulsarClient> clients,

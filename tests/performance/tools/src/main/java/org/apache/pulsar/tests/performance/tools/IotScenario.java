@@ -24,6 +24,7 @@ import java.util.List;
 /** Configuration selected from the {@code workloads.iotTelemetry} scenario subtree. */
 public record IotScenario(String serviceUrl, String topicPrefix, String subscriptionPrefix,
                           int durationSeconds, int warmupSeconds, long warmupMessages,
+                          int warmupRounds, int warmupRoundDelaySeconds,
                           int rate, long numberOfMessages, int payloadBytes, int deviceCount,
                           int gatewayCount, int topicCount, int applicationCount,
                           int clientsPerApplication, int ioThreads, int listenerThreads,
@@ -31,18 +32,24 @@ public record IotScenario(String serviceUrl, String topicPrefix, String subscrip
                           int consumerTimeoutSeconds,
                           int clientRestartIntervalSeconds, double clientRestartFraction) {
     public IotScenario {
+        // Preserve compatibility with configurations written before warmup rounds were introduced.
+        warmupRounds = warmupRounds == 0 ? 1 : warmupRounds;
         if (serviceUrl == null || serviceUrl.isBlank() || topicPrefix == null || topicPrefix.isBlank()
                 || subscriptionPrefix == null || subscriptionPrefix.isBlank()) {
             throw new IllegalArgumentException("Service URL, topic prefix and subscription prefix are required");
         }
-        if (durationSeconds < 1 || warmupSeconds < 0 || warmupMessages < 0
+        long minimumRuntimeSeconds = Math.addExact(durationSeconds,
+                Math.addExact(Math.multiplyExact((long) warmupSeconds, warmupRounds),
+                        Math.multiplyExact((long) warmupRoundDelaySeconds, warmupRounds)));
+        if (durationSeconds < 1 || warmupSeconds < 0 || warmupMessages < 0 || warmupRounds < 1
+                || warmupRoundDelaySeconds < 0
                 || (warmupSeconds > 0 && warmupMessages > 0)
                 || (warmupSeconds > 0 && rate == 0)
                 || rate < 0 || numberOfMessages < 0
                 || (rate == 0 && numberOfMessages == 0) || payloadBytes < TelemetryMessage.HEADER_BYTES
                 || deviceCount < 1 || gatewayCount < 1 || topicCount < 1 || applicationCount < 1
                 || clientsPerApplication < 1 || ioThreads < 1 || listenerThreads < 1
-                || maxOutstanding < 1 || consumerTimeoutSeconds < durationSeconds + warmupSeconds
+                || maxOutstanding < 1 || consumerTimeoutSeconds < minimumRuntimeSeconds
                 || clientRestartIntervalSeconds < 0 || clientRestartFraction < 0 || clientRestartFraction > 1) {
             throw new IllegalArgumentException("IoT scenario counts and sizes are invalid");
         }
@@ -53,6 +60,10 @@ public record IotScenario(String serviceUrl, String topicPrefix, String subscrip
     }
 
     public long warmupMessageCount() {
+        return Math.multiplyExact(warmupMessageCountPerRound(), warmupRounds);
+    }
+
+    public long warmupMessageCountPerRound() {
         return warmupMessages > 0
                 ? warmupMessages
                 : Math.multiplyExact((long) warmupSeconds, rate);

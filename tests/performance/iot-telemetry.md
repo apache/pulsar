@@ -65,6 +65,10 @@ one key as required for Key_Shared delivery.
 Warmup messages exercise the same producer, client, connection, topic and consumer paths as measured messages. They
 remain in the monotonic device sequences and end-to-end delivery checks, but are excluded from throughput. For a
 rate-limited workload, set `warmupSeconds`; for an unrestricted workload, set `warmupMessages`. Do not set both.
+The value applies to each of `warmupRounds`. Every round drains its asynchronous sends before
+`warmupRoundDelaySeconds` begins. The delay after the final round gives background JIT compilation and other
+startup work time to settle before the producer records the measurement boundary. This is a stabilization control,
+not a guarantee that the JVM has completed compilation.
 `producer-summary.json` records the warmup and measurement counts and epoch-millisecond measurement boundaries so
 the same window can be selected from broker and client JFRs.
 
@@ -97,6 +101,12 @@ under `broker-profile/`; producer and consumer recordings are written in their c
 The launcher owns each `file=` option so recordings remain inside the run directory. Empty options leave that
 component unprofiled. The ordinary `run` task rejects profiling-enabled YAML rather than silently running with
 an image that lacks the native agent.
+
+After every profiled process exits, the launcher uses the measurement boundaries from `producer-summary.json` to
+write a sibling `.measurement.jfr` containing events that overlap the measured interval. The complete recording
+is retained by default. Set `profiling.retainOriginalRecording: false` to keep only the measurement recording, or
+`profiling.createMeasurementRecording: false` to keep only the complete recording. If cutting fails, the complete
+recording is preserved even when its retention is disabled.
 
 ## Interpreting a run
 
