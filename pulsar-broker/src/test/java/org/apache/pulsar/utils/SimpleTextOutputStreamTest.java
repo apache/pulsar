@@ -24,6 +24,7 @@ import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "utils")
@@ -102,6 +103,28 @@ public class SimpleTextOutputStreamTest {
 
         stream.write(-123456.100456789);
         assertEquals(str(), "-123456.100");
+    }
+
+    @DataProvider
+    public Object[][] fractionalValues() {
+        return new Object[][] {
+            {-0.5, "-0.500"},
+            {-0.05, "-0.050"},
+            {-0.005, "-0.005"},
+            {-0.0005, "-0.0"},
+            {0.5, "0.500"},
+            {0.0005, "0.0"}
+        };
+    }
+
+    @Test(dataProvider = "fractionalValues")
+    public void testFractionalDoubleFormat(double value, String expected) {
+        try {
+            stream.write(value);
+            assertEquals(buf.toString(StandardCharsets.UTF_8), expected);
+        } finally {
+            buf.release();
+        }
     }
 
     @Test
