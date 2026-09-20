@@ -18,11 +18,20 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -30,11 +39,82 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.compaction.PulsarTopicCompactionService;
+import org.apache.pulsar.compaction.StrategicTwoPhaseCompactor;
+import org.apache.pulsar.compaction.TopicCompactionStrategyTest;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class CompactionConcurrencyTest extends SharedPulsarBaseTest {
+
+    @Test(timeOut = 60000)
+    public void testStrategicCompactionCloseFailurePreservesPublishedLedger() throws Exception {
+        String topicName = newTopicName();
+        BookKeeper bookKeeper = getPulsar().getBookKeeperClient();
+        var strategy = new TopicCompactionStrategyTest.DummyTopicCompactionStrategy();
+        var compactor = new StrategicTwoPhaseCompactor(getConfig(), pulsarClient, bookKeeper,
+                getPulsar().getCompactorExecutor());
+        try (var producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create()) {
+            producer.newMessage().key("key").value("original").send();
+            long originalLedgerId = compactor.compact(topicName, strategy).get(15, TimeUnit.SECONDS);
+            PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).get().orElseThrow();
+            var cursor = topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION).getCursor();
+            Awaitility.await().untilAsserted(() -> assertThat(cursor.getProperties())
+                    .containsEntry(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, originalLedgerId));
+            Position originalPosition = cursor.getMarkDeletedPosition();
+            producer.newMessage().key("key").value("updated").send();
+
+            AtomicLong failedLedgerId = new AtomicLong(-1);
+            AtomicReference<Throwable> closeFailure = new AtomicReference<>();
+            var failingCompactor = new StrategicTwoPhaseCompactor(getConfig(), pulsarClient, bookKeeper,
+                    getPulsar().getCompactorExecutor()) {
+                @Override
+                protected CompletableFuture<Void> closeLedger(LedgerHandle ledger) {
+                    failedLedgerId.set(ledger.getId());
+                    // Persist a conflicting close through the real metadata manager. BookKeeper's own
+                    // close path must detect the inconsistent length and report MetadataVersionException.
+                    var ledgerManager = bookKeeper.getLedgerManager();
+                    return ledgerManager.readLedgerMetadata(ledger.getId()).thenCompose(metadata ->
+                            ledgerManager.writeLedgerMetadata(ledger.getId(),
+                                    LedgerMetadataBuilder.from(metadata.getValue()).withClosedState()
+                                            .withLastEntryId(ledger.getLastAddConfirmed())
+                                            .withLength(ledger.getLength() + 1).build(), metadata.getVersion()))
+                            .thenCompose(__ -> super.closeLedger(ledger)
+                                    .whenComplete((ignored, error) -> closeFailure.set(error)));
+                }
+            };
+            assertThatThrownBy(() -> failingCompactor.compact(topicName, strategy).get(15, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(BKException.BKMetadataVersionException.class);
+            assertThat(closeFailure.get()).isInstanceOf(BKException.BKMetadataVersionException.class);
+
+            assertThat(cursor.getProperties())
+                    .containsEntry(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, originalLedgerId);
+            assertThat(cursor.getMarkDeletedPosition()).isEqualTo(originalPosition);
+            var compactedTopic = ((PulsarTopicCompactionService) topic.getTopicCompactionService()).getCompactedTopic();
+            assertThat(compactedTopic.getCompactedTopicContextFuture().get(10, TimeUnit.SECONDS).getLedger().getId())
+                    .isEqualTo(originalLedgerId);
+            assertThat(bookKeeper.getLedgerManager().readLedgerMetadata(originalLedgerId)
+                    .get(10, TimeUnit.SECONDS).getValue().isClosed()).isTrue();
+            assertThatThrownBy(() -> bookKeeper.getLedgerManager().readLedgerMetadata(failedLedgerId.get())
+                    .get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(BKException.BKNoSuchLedgerExistsOnMetadataServerException.class);
+
+            // A normal retry must publish a closed ledger containing the updated value.
+            long retryLedgerId = compactor.compact(topicName, strategy).get(15, TimeUnit.SECONDS);
+            Awaitility.await().untilAsserted(() -> assertThat(cursor.getProperties())
+                    .containsEntry(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, retryLedgerId));
+            assertThat(bookKeeper.getLedgerManager().readLedgerMetadata(retryLedgerId)
+                    .get(10, TimeUnit.SECONDS).getValue().isClosed()).isTrue();
+            try (var reader = pulsarClient.newReader(Schema.STRING).topic(topicName)
+                    .startMessageId(MessageId.earliest).readCompacted(true).create()) {
+                var message = reader.readNext(10, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                assertThat(message.getKey()).isEqualTo("key");
+                assertThat(message.getValue()).isEqualTo("updated");
+            }
+        }
+    }
 
     private void triggerCompactionAndWait(String topicName) throws Exception {
         PersistentTopic persistentTopic =
