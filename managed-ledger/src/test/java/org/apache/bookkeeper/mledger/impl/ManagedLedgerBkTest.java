@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -105,6 +106,108 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         List<Entry> entries = cursor.readEntries(10);
         assertEquals(entries.size(), 10);
         entries.forEach(Entry::release);
+    }
+
+    @Test
+    public void testEstimatedUnackedSizeDuringRolloverWithPendingAdd() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = defaultConfig()
+                .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2)
+                .setRetentionSizeInMB(-1).setRetentionTime(-1, TimeUnit.MILLISECONDS);
+        config.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("pending-add-" + testName, config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+        byte[] data = "entry".getBytes(StandardCharsets.UTF_8);
+        ledger.addEntry(data);
+        Position lastPosition = ledger.addEntry(data);
+        cursor.markDelete(lastPosition);
+        config.setMaxEntriesPerLedger(2);
+
+        CompletableFuture<Position> pendingAdd = new CompletableFuture<>();
+        CountDownLatch resumeBookie = new CountDownLatch(1);
+        CountDownLatch bookieSuspended = new CountDownLatch(1);
+        try {
+            // Both bookies must acknowledge the write. Hold one so the first add to the new ledger stays pending.
+            sleepBookie(getBookie(0), resumeBookie, bookieSuspended);
+            assertThat(bookieSuspended.await(10, TimeUnit.SECONDS)).isTrue();
+            ledger.rollCurrentLedgerIfFull();
+            ledger.asyncAddEntry(data, new AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    pendingAdd.complete(position);
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    pendingAdd.completeExceptionally(exception);
+                }
+            }, null);
+
+            // Rollover itself moves the caught-up cursor to the new ledger's -1 sentinel.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(cursor.getMarkDeletedPosition().getLedgerId()).isGreaterThan(lastPosition.getLedgerId());
+                assertThat(cursor.getMarkDeletedPosition().getEntryId()).isEqualTo(-1);
+                assertThat(ledger.getCurrentLedgerEntries()).isEqualTo(1);
+            });
+            assertThat(cursor.getMarkDeletedPosition().getLedgerId()).isEqualTo(ledger.currentLedger.getId());
+            assertThat(ledger.getLastPosition()).isEqualTo(lastPosition);
+            // Keep the old ledger so the removed-ledger shortcut cannot mask the regression.
+            assertThat(ledger.ledgerExists(lastPosition.getLedgerId())).isTrue();
+            assertThat(pendingAdd).isNotDone();
+            assertThat(cursor.getEstimatedSizeSinceMarkDeletePosition()).isZero();
+        } finally {
+            resumeBookie.countDown();
+        }
+
+        Position newPosition = pendingAdd.get(10, TimeUnit.SECONDS);
+        assertThat(newPosition.getLedgerId()).isGreaterThan(lastPosition.getLedgerId());
+        assertThat(newPosition.getEntryId()).isZero();
+        assertThat(cursor.getEstimatedSizeSinceMarkDeletePosition()).isEqualTo(data.length);
+        List<Entry> entries = cursor.readEntries(1);
+        try {
+            assertThat(entries).hasSize(1);
+            assertThat(entries.get(0).getPosition()).isEqualTo(newPosition);
+            assertThat(entries.get(0).getData()).isEqualTo(data);
+        } finally {
+            entries.forEach(Entry::release);
+        }
+        cursor.markDelete(newPosition);
+        assertThat(cursor.getEstimatedSizeSinceMarkDeletePosition()).isZero();
+    }
+
+    @Test
+    public void testEstimatedUnackedSizeRejectsUnconfirmedEntryInEmptyLedger() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerConfig config = defaultConfig()
+                .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2)
+                .setRetentionSizeInMB(-1).setRetentionTime(-1, TimeUnit.MILLISECONDS);
+        config.setMinimumRolloverTime(0, TimeUnit.MILLISECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("invalid-position-" + testName, config);
+        ManagedCursor cursor = ledger.openCursor("c1");
+        Position lastPosition = ledger.addEntry("entry".getBytes(StandardCharsets.UTF_8));
+        cursor.markDelete(lastPosition);
+        config.setMaxEntriesPerLedger(1);
+        ledger.rollCurrentLedgerIfFull();
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertThat(cursor.getMarkDeletedPosition().getLedgerId()).isGreaterThan(lastPosition.getLedgerId());
+            assertThat(cursor.getMarkDeletedPosition().getEntryId()).isEqualTo(-1);
+        });
+        assertThat(cursor.getEstimatedSizeSinceMarkDeletePosition()).isZero();
+
+        // asyncMarkDelete currently accepts an ahead-of-LAC entry in the next ledger after consuming the old one.
+        // The estimator must not mistake that entry for the valid -1 sentinel just because the ledger is empty.
+        Position invalidPosition = PositionFactory.create(cursor.getMarkDeletedPosition().getLedgerId(), 0);
+        cursor.markDelete(invalidPosition);
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(invalidPosition);
+        assertThat(ledger.getCurrentLedgerEntries()).isZero();
+        assertThat(ledger.getLastPosition()).isEqualTo(lastPosition);
+        assertThat(ledger.ledgerExists(lastPosition.getLedgerId())).isTrue();
+        assertThatThrownBy(cursor::getEstimatedSizeSinceMarkDeletePosition)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("is ahead of the last position");
     }
 
     @Test
