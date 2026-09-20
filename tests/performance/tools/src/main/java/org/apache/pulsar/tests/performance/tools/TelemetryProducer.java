@@ -148,8 +148,11 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                         throw new IllegalStateException("Telemetry warmup send failed", failure.get());
                     }
                     int round = Math.toIntExact((sent + 1) / warmupMessagesPerRound);
+                    WarmupBarrier.awaitApplications(coordinationDirectory, round, scenario.applicationCount(),
+                            scenario.consumerTimeoutSeconds());
                     System.out.println("WARMUP_ROUND_COMPLETE round=" + round + "/" + scenario.warmupRounds()
-                            + " completed=" + warmupCompleted.get()
+                            + " produced=" + warmupCompleted.get()
+                            + " applicationsReceived=" + scenario.applicationCount()
                             + " delaySeconds=" + scenario.warmupRoundDelaySeconds());
                     if (scenario.warmupRoundDelaySeconds() > 0) {
                         TimeUnit.SECONDS.sleep(scenario.warmupRoundDelaySeconds());

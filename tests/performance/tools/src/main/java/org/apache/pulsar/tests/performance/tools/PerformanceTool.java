@@ -55,6 +55,10 @@ public class PerformanceTool implements Callable<Integer> {
         @Option(names = "--output", required = true)
         Path output;
 
+        @Option(names = "--coordination-directory", required = true,
+                description = "Shared directory for workload phase barriers")
+        Path coordinationDirectory;
+
         IotScenario scenario() throws Exception {
             return readScenario(config, configPath);
         }

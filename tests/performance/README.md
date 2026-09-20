@@ -83,10 +83,13 @@ select its subtree with `--config-path`.
 The `iotTelemetry` workload can run traffic before measurements begin. Use `warmupSeconds` with a positive `rate`,
 or use `warmupMessages` when `rate: 0`; the two settings are mutually exclusive. `warmupRounds` repeats that
 traffic, and `warmupRoundDelaySeconds` adds an idle stabilization period after each fully drained round, including
-the final round. The default is one round with no delay. Warmup traffic remains part of
-delivery and ordering validation. Producer throughput and the epoch-millisecond measurement boundaries in
-`producer-summary.json` cover only the configured measurement messages. The launcher uses the start boundary to
-remove warmup from the derived JFR while retaining everything recorded afterward.
+the final round. A round is fully drained only after every backend application has uniquely received its cumulative
+warmup message count; producer send completions alone do not release the barrier. The default is one round with no
+delay. Warmup traffic remains part of delivery and ordering validation. Producer throughput and the
+epoch-millisecond measurement boundaries in
+`producer-summary.json` cover only the configured measurement messages. Every consumer summary records its first
+and last measured-message receipt as metadata. The launcher cuts from the producer measurement start through the
+latest last receipt across all backend applications.
 
 Use a top-level `extends` entry to inherit one file or an ordered list of files:
 
@@ -112,9 +115,10 @@ an inherited entry. Cycles, missing files, non-mapping roots and invalid `extend
 
 Profiled standalone runs retain the complete JFR and also create a sibling whose name ends in
 `.measurement.jfr`. The measurement recording contains events from the producer's recorded measurement start through
-the end of each process recording, excluding startup and warmup work without dropping asynchronous completion,
-consumer validation, or shutdown activity after the producer finishes sending. One-time JVM, host, recording setting and runtime configuration events
-are copied from the beginning of the complete recording so JDK Mission Control can describe the source JVM. Set
+the latest measured-message receipt across all backend applications. This excludes startup, warmup, and shutdown
+while retaining the broker and consumer work needed to deliver every measured message. One-time JVM, host, recording
+setting and runtime configuration events are copied from the beginning of the complete recording so JDK Mission
+Control can describe the source JVM. Set
 `profiling.retainOriginalRecording: false` to remove the complete
 recording after a successful cut, or `profiling.createMeasurementRecording: false` to keep only the complete
 recording. Both options default to `true` and apply to broker, producer and consumer recordings.

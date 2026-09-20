@@ -65,13 +65,14 @@ one key as required for Key_Shared delivery.
 Warmup messages exercise the same producer, client, connection, topic and consumer paths as measured messages. They
 remain in the monotonic device sequences and end-to-end delivery checks, but are excluded from throughput. For a
 rate-limited workload, set `warmupSeconds`; for an unrestricted workload, set `warmupMessages`. Do not set both.
-The value applies to each of `warmupRounds`. Every round drains its asynchronous sends before
-`warmupRoundDelaySeconds` begins. The delay after the final round gives background JIT compilation and other
-startup work time to settle before the producer records the measurement boundary. This is a stabilization control,
-not a guarantee that the JVM has completed compilation.
-`producer-summary.json` records the warmup and measurement counts and epoch-millisecond measurement boundaries.
-The launcher uses the start boundary to remove warmup from broker and client JFRs and retains the rest of each
-recording. Both boundaries remain available for throughput calculations and manually selecting an exact interval.
+The value applies to each of `warmupRounds`. Every round drains its asynchronous sends and waits until every backend
+application has uniquely received the cumulative warmup count before `warmupRoundDelaySeconds` begins. The delay
+after the final round gives background JIT compilation and other startup work time to settle before the producer
+records the measurement boundary. This is a stabilization control, not a guarantee that the JVM has completed
+compilation.
+`producer-summary.json` records the warmup and measurement counts and epoch-millisecond producer boundaries. Each
+`consumer-summary.json` records the first and last measured-message receipt as metadata. The launcher uses the
+producer start and the latest last receipt across all backend applications as the JFR measurement interval.
 
 The base scenario also keeps incidental storage maintenance outside normal measurement windows. Its managed-ledger
 entry, size and time limits allow the topic and cursor ledgers to remain open throughout ordinary runs. BookKeeper
@@ -103,10 +104,11 @@ The launcher owns each `file=` option so recordings remain inside the run direct
 component unprofiled. The ordinary `run` task rejects profiling-enabled YAML rather than silently running with
 an image that lacks the native agent.
 
-After every profiled process exits, the launcher uses the measurement start from `producer-summary.json` to
-write a sibling `.measurement.jfr` containing the remainder of each process recording. This removes startup and
-warmup while retaining asynchronous completion, consumer validation, and shutdown activity after the producer
-finishes sending. The complete recording is retained by default. The cut recording also retains the one-time JVM, host, recording setting and runtime
+After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the producer's
+measurement start through the latest measured-message receipt across all backend applications. The upper boundary
+includes the full millisecond containing that receipt. This removes startup, warmup, and shutdown while retaining
+the broker and consumer work needed to deliver every measured message. The complete recording is retained by
+default. The cut recording also retains the one-time JVM, host, recording setting and runtime
 configuration events needed to describe the source JVM in JDK Mission Control. Set
 `profiling.retainOriginalRecording: false` to keep only the measurement recording, or
 `profiling.createMeasurementRecording: false` to keep only the complete recording. If cutting fails, the complete

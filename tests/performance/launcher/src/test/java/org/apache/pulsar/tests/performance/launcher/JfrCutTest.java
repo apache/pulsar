@@ -72,12 +72,13 @@ public class JfrCutTest {
             Instant[] interval = createRecording(input);
             Path measurement = JfrRecordingProcessor.measurementPath(input);
 
-            JfrRecordingProcessor.process(Set.of(input), interval[0], retainOriginal, createMeasurement);
+            JfrRecordingProcessor.process(Set.of(input), interval[0], interval[1],
+                    retainOriginal, createMeasurement);
 
             assertEquals(Files.exists(input), retainOriginal);
             assertEquals(Files.exists(measurement), createMeasurement);
             if (createMeasurement) {
-                assertEquals(markers(measurement), List.of("measurement", "after"));
+                assertEquals(markers(measurement), List.of("measurement"));
             }
         } finally {
             deleteDirectory(directory);
