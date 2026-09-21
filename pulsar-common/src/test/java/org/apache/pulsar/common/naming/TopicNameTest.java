@@ -574,4 +574,27 @@ public class TopicNameTest {
         assertEquals(TopicName.get("persistent://tenant/ns/x-partition-3").toScalableTopic().toString(),
                 "topic://tenant/ns/x");
     }
+
+    @Test
+    public void testToScalableTopicPreservesLocalName() {
+        // Topic name parsing never URL-decodes local names, so the derived scalable
+        // identity must splice the local name verbatim: both spellings of the same
+        // topic have to resolve to the same identity.
+        TopicName scalable = TopicName.get("persistent://tenant/ns/a b").toScalableTopic();
+        assertEquals(scalable.getLocalName(), "a b");
+        assertEquals(scalable, TopicName.get("topic://tenant/ns/a b"));
+
+        // The identity of "a b" must not collide with a topic literally named "a+b"
+        // (the URL-encoded form of "a b").
+        assertNotEquals(TopicName.get("persistent://tenant/ns/a b").toScalableTopic(),
+                TopicName.get("topic://tenant/ns/a+b"));
+
+        // A literal '%' in the local name must not be re-encoded.
+        assertEquals(TopicName.get("persistent://tenant/ns/x%20y").toScalableTopic().toString(),
+                "topic://tenant/ns/x%20y");
+
+        // Partition stripping keeps the verbatim local name too.
+        assertEquals(TopicName.get("persistent://tenant/ns/a b-partition-3").toScalableTopic().toString(),
+                "topic://tenant/ns/a b");
+    }
 }

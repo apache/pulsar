@@ -55,8 +55,25 @@ public class PerformanceTool implements Callable<Integer> {
         @Option(names = "--output", required = true)
         Path output;
 
+        @Option(names = "--coordination-directory",
+                description = "Shared directory for workload phase barriers (default: <output>/coordination)")
+        Path coordinationDirectory;
+
+        @Option(names = "--run-id",
+                description = "Shared correlation ID, required when warmup is enabled; use a new ID per run")
+        String runId;
+
         IotScenario scenario() throws Exception {
-            return readScenario(config, configPath);
+            IotScenario scenario = readScenario(config, configPath);
+            if (scenario.warmupMessageCount() > 0 && (runId == null || runId.isBlank())) {
+                throw new IllegalArgumentException(
+                        "Warmup requires the same --run-id for the producer and all consumers");
+            }
+            return scenario;
+        }
+
+        Path coordinationDirectory() {
+            return coordinationDirectory != null ? coordinationDirectory : output.resolve("coordination");
         }
     }
 }
