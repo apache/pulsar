@@ -35,9 +35,13 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -48,7 +52,9 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.MessagePayload;
@@ -61,14 +67,18 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.api.proto.CommandMessage;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.Backoff;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ConsumerImplTest {
@@ -91,6 +101,13 @@ public class ConsumerImplTest {
     }
 
     private void createConsumer(ConsumerConfigurationData consumerConf, String topicName) {
+        createConsumer(consumerConf, topicName, null);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void createConsumer(ConsumerConfigurationData consumerConf, String topicName,
+                                ConsumerInterceptor<byte[]> interceptor) {
+        cleanup();
         executorProvider = new ExecutorProvider(1, "ConsumerImplTest");
         internalExecutor = Executors.newSingleThreadScheduledExecutor();
 
@@ -101,8 +118,10 @@ public class ConsumerImplTest {
         CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
 
         consumerConf.setSubscriptionName("test-sub");
+        ConsumerInterceptors<byte[]> interceptors =
+                interceptor == null ? null : new ConsumerInterceptors<>(Collections.singletonList(interceptor));
         consumer = ConsumerImpl.newConsumerImpl(client, topicName, consumerConf,
-                executorProvider, -1, false, subscribeFuture, null, null, null,
+                executorProvider, -1, false, subscribeFuture, null, null, interceptors,
                 true);
         consumer.setState(HandlerState.State.Ready);
     }
@@ -199,12 +218,20 @@ public class ConsumerImplTest {
     }
 
     private void sendChunk(String uuid, int chunkId, int numChunks) {
+        sendChunk(uuid, chunkId, numChunks, chunkId);
+    }
+
+    /**
+     * Delivers one chunk through {@code processMessageChunk} with an explicit entry id, so a test can redeliver a
+     * chunk id under a different message id.
+     */
+    private void sendChunk(String uuid, int chunkId, int numChunks, long entryId) {
         MessageMetadata md = new MessageMetadata()
                 .setProducerName("p").setSequenceId(0).setPublishTime(System.currentTimeMillis())
                 .setUuid(uuid).setChunkId(chunkId).setNumChunksFromMsg(numChunks).setTotalChunkMsgSize(64);
         md.setCompression(CompressionType.NONE);
-        MessageIdData idData = new MessageIdData().setLedgerId(1L).setEntryId(chunkId);
-        MessageIdImpl msgId = new MessageIdImpl(1L, chunkId, -1);
+        MessageIdData idData = new MessageIdData().setLedgerId(1L).setEntryId(entryId);
+        MessageIdImpl msgId = new MessageIdImpl(1L, entryId, -1);
         ByteBuf chunk = Unpooled.wrappedBuffer(new byte[] {1, 2, 3, 4});
         consumer.processMessageChunk(chunk, md, msgId, idData, null);
     }
@@ -221,24 +248,44 @@ public class ConsumerImplTest {
         consumer.expireTimeOfIncompleteChunkedMessageMillis = 0L;
 
         final String uuid = "uuid-dup";
-        // Deliver the first chunk (chunkId == 0) twice for the SAME uuid and SAME (ledgerId, entryId): a redelivered
-        // first chunk of a 2-chunk message. The message never completes, so only the ++/-- bookkeeping is exercised.
-        for (int call = 0; call < 2; call++) {
-            sendChunk(uuid, 0, 2);
+        try {
+            // Deliver the first chunk (chunkId == 0) twice for the SAME uuid and SAME (ledgerId, entryId): a
+            // redelivered first chunk of a 2-chunk message. The message never completes, so only the ++/--
+            // bookkeeping is exercised.
+            for (int call = 0; call < 2; call++) {
+                sendChunk(uuid, 0, 2);
+            }
+
+            int count = consumer.pendingChunkedMessageCount;
+            int mapSize = consumer.chunkedMessagesMap.size();
+            Assert.assertEquals(count, mapSize,
+                    "a redelivered first chunk over-counted pendingChunkedMessageCount (" + count
+                            + ") vs chunkedMessagesMap.size() (" + mapSize + ")");
+
+            // Only this single uuid is ever enqueued, so the queue size equals its occurrence count. After a
+            // redelivered first chunk it must be exactly 1 (stale entry removed, re-added once) — not 2 as the old
+            // double-enqueue did. (GrowableArrayBlockingQueue intentionally doesn't support iteration, so assert on
+            // size().)
+            Assert.assertEquals(consumer.pendingChunkedMessageUuidQueue.size(), 1,
+                    "uuid should appear exactly once in pendingChunkedMessageUuidQueue but queue size was "
+                            + consumer.pendingChunkedMessageUuidQueue.size());
+        } finally {
+            // The message is never completed, so its partial buffer is still live: release it even if an assertion
+            // above failed.
+            releasePendingChunkedMessages();
         }
+    }
 
-        int count = consumer.pendingChunkedMessageCount;
-        int mapSize = consumer.chunkedMessagesMap.size();
-        Assert.assertEquals(count, mapSize,
-                "a redelivered first chunk over-counted pendingChunkedMessageCount (" + count
-                        + ") vs chunkedMessagesMap.size() (" + mapSize + ")");
-
-        // Only this single uuid is ever enqueued, so the queue size equals its occurrence count. After a redelivered
-        // first chunk it must be exactly 1 (stale entry removed, re-added once) — not 2 as the old double-enqueue did.
-        // (GrowableArrayBlockingQueue intentionally doesn't support iteration, so assert on size().)
-        Assert.assertEquals(consumer.pendingChunkedMessageUuidQueue.size(), 1,
-                "uuid should appear exactly once in pendingChunkedMessageUuidQueue but queue size was "
-                        + consumer.pendingChunkedMessageUuidQueue.size());
+    /**
+     * Releases every partial chunked message still held by the consumer, for tests that intentionally leave one.
+     */
+    private void releasePendingChunkedMessages() {
+        for (ConsumerImpl.ChunkedMessageCtx ctx : consumer.chunkedMessagesMap.values()) {
+            if (ctx.chunkedMsgBuffer != null) {
+                ctx.chunkedMsgBuffer.release();
+            }
+        }
+        consumer.chunkedMessagesMap.clear();
     }
 
     /**
@@ -673,4 +720,300 @@ public class ConsumerImplTest {
                 "ack timeout tracking was disabled on a persistent topic");
     }
 
+    /**
+     * A chunk-ack interceptor that records every individually acked message id and can be paused on a latch, so a test
+     * can hold an acknowledgment callback open and observe what the consumer does meanwhile.
+     */
+    private static class RecordingAckInterceptor implements ConsumerInterceptor<byte[]> {
+        final List<MessageId> acked = new CopyOnWriteArrayList<>();
+        final CountDownLatch ackStarted = new CountDownLatch(1);
+        final CountDownLatch ackRelease = new CountDownLatch(1);
+        volatile boolean pauseAcks;
+
+        @Override
+        public void close() {
+        }
+
+        @Override
+        public Message<byte[]> beforeConsume(Consumer<byte[]> consumer, Message<byte[]> message) {
+            return message;
+        }
+
+        @Override
+        public void onAcknowledge(Consumer<byte[]> consumer, MessageId messageId, Throwable exception) {
+            acked.add(messageId);
+            if (pauseAcks) {
+                ackStarted.countDown();
+                try {
+                    ackRelease.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }
+
+        @Override
+        public void onAcknowledgeCumulative(Consumer<byte[]> consumer, MessageId messageId, Throwable exception) {
+        }
+
+        @Override
+        public void onNegativeAcksSend(Consumer<byte[]> consumer, Set<MessageId> messageIds) {
+        }
+
+        @Override
+        public void onAckTimeoutSend(Consumer<byte[]> consumer, Set<MessageId> messageIds) {
+        }
+    }
+
+    private static final String PERSISTENT_TOPIC = "persistent://tenant/ns1/my-topic";
+
+    /**
+     * Delivers one chunk through the real {@code messageReceived} entry point, framed as the broker would send it
+     * (checksum, metadata, payload): chunk {@code chunkId} of a {@code numChunks}-chunk message carrying the given
+     * still-compressed bytes. The entry id doubles as the chunk id.
+     */
+    private void deliverChunk(ClientCnx cnx, String uuid, int chunkId, int numChunks, int totalChunkMsgSize,
+                              CompressionType compressionType, int uncompressedSize, byte[] chunkBytes) {
+        MessageMetadata md = new MessageMetadata()
+                .setProducerName("p").setSequenceId(0).setPublishTime(System.currentTimeMillis())
+                .setUuid(uuid).setChunkId(chunkId).setNumChunksFromMsg(numChunks)
+                .setTotalChunkMsgSize(totalChunkMsgSize)
+                .setCompression(compressionType).setUncompressedSize(uncompressedSize);
+        ByteBuf headersAndPayload = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, md,
+                Unpooled.wrappedBuffer(chunkBytes));
+        CommandMessage cmd = new CommandMessage().setConsumerId(consumer.consumerId);
+        cmd.setMessageId().setLedgerId(1L).setEntryId(chunkId);
+        try {
+            consumer.messageReceived(cmd, headersAndPayload, cnx);
+        } finally {
+            headersAndPayload.release();
+        }
+    }
+
+    private static byte[] zlibCompress(byte[] data) {
+        ByteBuf source = Unpooled.wrappedBuffer(data);
+        ByteBuf compressed = CompressionCodecProvider.getCompressionCodec(CompressionType.ZLIB).encode(source);
+        try {
+            byte[] bytes = new byte[compressed.readableBytes()];
+            compressed.readBytes(bytes);
+            return bytes;
+        } finally {
+            compressed.release();
+            source.release();
+        }
+    }
+
+    private static void assertNoPendingChunkedMessages(ConsumerImpl<?> consumer) {
+        assertThat(consumer.chunkedMessagesMap).as("chunkedMessagesMap").isEmpty();
+        assertThat(consumer.pendingChunkedMessageUuidQueue).as("pendingChunkedMessageUuidQueue").isEmpty();
+        assertThat(consumer.pendingChunkedMessageCount).as("pendingChunkedMessageCount").isZero();
+    }
+
+    /**
+     * The final chunk, delivered through {@code messageReceived}, transfers the assembled buffer out of the context
+     * (removed and recycled under the lock) and decompresses it outside the lock. On success the message must reach
+     * the receive queue with the original payload and a chunk message id, all bookkeeping must be empty, the assembled
+     * buffer released, and the chunk ids registered with the unack tracker.
+     */
+    @Test(timeOut = 30000)
+    public void testFinalChunkThroughMessageReceivedDeliversAssembledMessage() throws Exception {
+        RecordingAckInterceptor interceptor = new RecordingAckInterceptor();
+        createConsumer(consumerConf, PERSISTENT_TOPIC, interceptor);
+        consumer.expireTimeOfIncompleteChunkedMessageMillis = 0L;
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+
+        byte[] original = new byte[4096];
+        new Random(1).nextBytes(original);
+        byte[] compressed = zlibCompress(original);
+        int split = compressed.length / 2;
+        byte[] chunk0 = Arrays.copyOfRange(compressed, 0, split);
+        byte[] chunk1 = Arrays.copyOfRange(compressed, split, compressed.length);
+
+        deliverChunk(cnx, "uuid-ok", 0, 2, compressed.length, CompressionType.ZLIB, original.length, chunk0);
+        ByteBuf assembled = consumer.chunkedMessagesMap.get("uuid-ok").chunkedMsgBuffer;
+        assertThat(assembled).isNotNull();
+        deliverChunk(cnx, "uuid-ok", 1, 2, compressed.length, CompressionType.ZLIB, original.length, chunk1);
+
+        Awaitility.await().untilAsserted(() -> assertThat(consumer.numMessagesInQueue()).isEqualTo(1));
+        Message<byte[]> message = consumer.incomingMessages.poll();
+        assertThat(message).isNotNull();
+        try {
+            assertThat(message.getData()).isEqualTo(original);
+            assertThat(message.getMessageId()).isInstanceOf(ChunkMessageIdImpl.class);
+            assertThat(consumer.unAckedChunkedMessageIdSequenceMap.containsKey(message.getMessageId()))
+                    .as("chunk ids registered with the unack tracker").isTrue();
+            assertThat(assembled.refCnt()).as("assembled buffer released after decompression").isZero();
+            assertNoPendingChunkedMessages(consumer);
+            assertThat(interceptor.acked).as("a successful completion acks nothing").isEmpty();
+        } finally {
+            message.release();
+        }
+    }
+
+    @DataProvider
+    public Object[][] decompressionFailures() {
+        return new Object[][] {
+                // ZLib reports corrupt input as an IOException
+                {"corrupt-input"},
+                // ZLib reports a decoded size that differs from the advertised one as an IllegalArgumentException
+                {"size-mismatch"},
+        };
+    }
+
+    /**
+     * When the final chunk's decompression fails, the assembled buffer has already been detached from its context, so
+     * nothing but this path can release it or dispose of the earlier chunks' message ids. Whether the codec fails with
+     * a checked or an unchecked exception, the buffer must be released, the earlier chunk ids individually acked, the
+     * final chunk discarded, all bookkeeping left empty, and nothing must escape {@code messageReceived}.
+     */
+    @Test(dataProvider = "decompressionFailures", timeOut = 30000)
+    public void testFinalChunkDecompressionFailureThroughMessageReceived(String failure) throws Exception {
+        RecordingAckInterceptor interceptor = new RecordingAckInterceptor();
+        createConsumer(consumerConf, PERSISTENT_TOPIC, interceptor);
+        consumer.expireTimeOfIncompleteChunkedMessageMillis = 0L;
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+
+        byte[] original = new byte[4096];
+        new Random(2).nextBytes(original);
+        byte[] compressed = zlibCompress(original);
+        int uncompressedSize = original.length;
+        if ("corrupt-input".equals(failure)) {
+            // keep the stream header, corrupt the deflate body
+            for (int i = 4; i < compressed.length; i++) {
+                compressed[i] = (byte) ~compressed[i];
+            }
+        } else {
+            uncompressedSize = original.length + 1;
+        }
+        int split = compressed.length / 2;
+        byte[] chunk0 = Arrays.copyOfRange(compressed, 0, split);
+        byte[] chunk1 = Arrays.copyOfRange(compressed, split, compressed.length);
+
+        deliverChunk(cnx, "uuid-bad", 0, 2, compressed.length, CompressionType.ZLIB, uncompressedSize, chunk0);
+        ByteBuf assembled = consumer.chunkedMessagesMap.get("uuid-bad").chunkedMsgBuffer;
+        assertThat(assembled).isNotNull();
+        deliverChunk(cnx, "uuid-bad", 1, 2, compressed.length, CompressionType.ZLIB, uncompressedSize, chunk1);
+
+        assertThat(assembled.refCnt()).as("detached assembled buffer released on decompression failure").isZero();
+        assertNoPendingChunkedMessages(consumer);
+        assertThat(consumer.numMessagesInQueue()).as("no message delivered").isZero();
+        assertThat(consumer.unAckedChunkedMessageIdSequenceMap).as("nothing registered with the unack tracker")
+                .isEmpty();
+        // The earlier chunk (entry 0) is acked individually; the final chunk (entry 1) is discarded with a validation
+        // error straight on the connection, so it is not routed through the interceptor. Two chunks are far below the
+        // flow-control threshold, so that discard is the only write on the connection.
+        assertThat(interceptor.acked).containsExactly(new MessageIdImpl(1L, 0L, -1));
+        verify(cnx.ctx(), times(1)).writeAndFlush(any(), any());
+    }
+
+    /**
+     * Acks decided under {@code chunkedMessageLock} are issued after it is released. The persistent acknowledgments
+     * grouping tracker runs the consumer's acknowledgment interceptors inline, so while the expiry thread is held in
+     * an application interceptor, a chunk arriving on the IO thread must still be processed rather than block on the
+     * lock behind that callback.
+     */
+    @Test(timeOut = 30000)
+    public void testChunkReceiveProceedsWhileExpiryAckInterceptorIsBlocked() throws Exception {
+        RecordingAckInterceptor interceptor = new RecordingAckInterceptor();
+        consumerConf.setMaxPendingChunkedMessage(0);
+        createConsumer(consumerConf, PERSISTENT_TOPIC, interceptor);
+        // Enable expiry but skip the lazy self-scheduling so the test doesn't need a scheduled-executor mock.
+        consumer.expireTimeOfIncompleteChunkedMessageMillis = 1L;
+        consumer.expireChunkMessageTaskScheduled.set(true);
+
+        sendChunk("uuid-expired", 0, 3);
+        consumer.chunkedMessagesMap.get("uuid-expired").receivedTime = 0;
+        interceptor.pauseAcks = true;
+
+        Thread expirer = new Thread(consumer::removeExpireIncompleteChunkedMessages, "expirer-pinned");
+        expirer.start();
+        try {
+            assertThat(interceptor.ackStarted.await(10, TimeUnit.SECONDS))
+                    .as("expiry reached the acknowledgment interceptor").isTrue();
+
+            // The expiry thread is now parked inside the application callback. A chunk for another uuid must still
+            // be processed on the "IO thread".
+            CountDownLatch received = new CountDownLatch(1);
+            Thread receiver = new Thread(() -> {
+                sendChunk("uuid-live", 0, 3);
+                received.countDown();
+            }, "receiver-netty-sim");
+            receiver.start();
+            try {
+                assertThat(received.await(5, TimeUnit.SECONDS))
+                        .as("chunk reception must not wait for the acknowledgment interceptor to return").isTrue();
+            } finally {
+                // never leave the receiver parked on the lock if the assertion fails
+                interceptor.ackRelease.countDown();
+                receiver.join();
+            }
+            assertThat(consumer.chunkedMessagesMap).containsKey("uuid-live");
+            assertThat(consumer.chunkedMessagesMap).doesNotContainKey("uuid-expired");
+        } finally {
+            interceptor.ackRelease.countDown();
+            expirer.join();
+            releasePendingChunkedMessages();
+        }
+        assertThat(interceptor.acked).containsExactly(new MessageIdImpl(1L, 0L, -1));
+    }
+
+    /**
+     * A first chunk arriving under a new message id for a uuid that still has an in-progress context means the earlier
+     * chunks belong to a corrupted chunked message that will never be delivered. Replacing the context must ack those
+     * earlier chunk ids, through the deferred-ack path, and leave the count and queue consistent with the map.
+     */
+    @Test(timeOut = 30000)
+    public void testReplacedCorruptedChunkedMessageAcksItsEarlierChunks() throws Exception {
+        RecordingAckInterceptor interceptor = new RecordingAckInterceptor();
+        createConsumer(consumerConf, PERSISTENT_TOPIC, interceptor);
+        consumer.expireTimeOfIncompleteChunkedMessageMillis = 0L;
+
+        try {
+            // entries 10 and 11: chunks 0 and 1 of a corrupted 3-chunk message that never completes
+            sendChunk("uuid-corrupt", 0, 3, 10L);
+            sendChunk("uuid-corrupt", 1, 3, 11L);
+            ByteBuf corruptedBuffer = consumer.chunkedMessagesMap.get("uuid-corrupt").chunkedMsgBuffer;
+            // entry 20: chunk 0 of the re-published message under the same uuid
+            sendChunk("uuid-corrupt", 0, 3, 20L);
+
+            assertThat(interceptor.acked).as("earlier chunks of the replaced message are acked")
+                    .containsExactly(new MessageIdImpl(1L, 10L, -1), new MessageIdImpl(1L, 11L, -1));
+            assertThat(corruptedBuffer.refCnt()).as("replaced buffer released").isZero();
+            assertThat(consumer.chunkedMessagesMap).containsOnlyKeys("uuid-corrupt");
+            assertThat(consumer.pendingChunkedMessageCount).isEqualTo(1);
+            assertThat(consumer.pendingChunkedMessageUuidQueue.size()).isEqualTo(1);
+        } finally {
+            releasePendingChunkedMessages();
+        }
+    }
+
+    /**
+     * Exceeding {@code maxPendingChunkedMessage} evicts the oldest in-progress chunked message on the receive path.
+     * With {@code autoAckOldestChunkedMessageOnQueueFull} its chunk ids are acked, through the deferred-ack path, and
+     * the eviction keeps the count and queue consistent with the map.
+     */
+    @Test(timeOut = 30000)
+    public void testEvictingOldestPendingChunkedMessageAcksItsChunks() throws Exception {
+        RecordingAckInterceptor interceptor = new RecordingAckInterceptor();
+        consumerConf.setMaxPendingChunkedMessage(1);
+        consumerConf.setAutoAckOldestChunkedMessageOnQueueFull(true);
+        createConsumer(consumerConf, PERSISTENT_TOPIC, interceptor);
+        consumer.expireTimeOfIncompleteChunkedMessageMillis = 0L;
+
+        try {
+            sendChunk("uuid-old", 0, 3, 10L);
+            ByteBuf oldBuffer = consumer.chunkedMessagesMap.get("uuid-old").chunkedMsgBuffer;
+            // a second in-progress message exceeds maxPendingChunkedMessage = 1 and evicts the oldest
+            sendChunk("uuid-new", 0, 3, 20L);
+
+            assertThat(interceptor.acked).as("evicted chunks are acked")
+                    .containsExactly(new MessageIdImpl(1L, 10L, -1));
+            assertThat(oldBuffer.refCnt()).as("evicted buffer released").isZero();
+            assertThat(consumer.chunkedMessagesMap).containsOnlyKeys("uuid-new");
+            assertThat(consumer.pendingChunkedMessageCount).isEqualTo(1);
+            assertThat(consumer.pendingChunkedMessageUuidQueue.size()).isEqualTo(1);
+        } finally {
+            releasePendingChunkedMessages();
+        }
+    }
 }
