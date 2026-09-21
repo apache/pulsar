@@ -128,7 +128,8 @@ public class TopicLoadingContext extends LatencyTracer {
             case "open-ml" -> TopicLoadFailureReason.FAILED_LOAD_ML;
             case "ownership", "2nd-ownership" -> TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP;
             case "topic-exists", "properties" -> TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE;
-            case "init", "pre-create-compacted-sub", "replication", "deduplication" -> TopicLoadFailureReason.FAILED_INIT;
+            case "init", "pre-create-compacted-sub", "replication", "deduplication" ->
+                    TopicLoadFailureReason.FAILED_INIT;
             default -> null;
         };
     }
