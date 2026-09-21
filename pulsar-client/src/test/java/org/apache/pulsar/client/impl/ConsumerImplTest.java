@@ -289,12 +289,13 @@ public class ConsumerImplTest {
     }
 
     /**
-     * A completed chunked message leaves a "ghost" entry in {@code pendingChunkedMessageUuidQueue}: the finalize in
-     * {@code messageReceived} removes the ctx from {@code chunkedMessagesMap} but not from the queue.
-     * {@code removeExpireIncompleteChunkedMessages} must {@code poll} past such null-ctx heads (as
-     * {@code removeOldestPendingChunkedMessage} already does) and keep going; otherwise a ghost at the head halts
-     * expiry and a genuinely-expired incomplete chunk queued behind it is never cleaned (its {@code chunkedMsgBuffer}
-     * leaks and its chunks are never acked).
+     * A uuid whose ctx is no longer in {@code chunkedMessagesMap} but still sits at the head of
+     * {@code pendingChunkedMessageUuidQueue} is a "ghost" head. Every removal path now drops the queue entry along
+     * with the map entry, so this is a defensive invariant of {@code removeExpireIncompleteChunkedMessages}: it must
+     * drop such null-ctx heads and keep scanning (as {@code removeOldestPendingChunkedMessage} does), because a ghost
+     * that stopped the scan would leave every genuinely-expired incomplete chunk behind it uncleaned (its
+     * {@code chunkedMsgBuffer} leaked and its chunks never acked), which is what happened before this invariant was
+     * enforced.
      */
     @Test
     public void testExpiryDrainsPastGhostQueueEntries() throws Exception {
@@ -310,9 +311,9 @@ public class ConsumerImplTest {
         // uuid-B: first chunk of a 2-chunk message -> in-progress, enqueued after A. Never completed.
         sendChunk("uuid-B", 0, 2);
 
-        // Simulate uuid-A completing exactly as the messageReceived finalize does: remove its ctx from the map and
-        // recycle it, but leave its uuid in pendingChunkedMessageUuidQueue -> a ghost head entry. (Releasing the buffer
-        // mirrors the assembled-payload release that completion performs.)
+        // Plant a ghost head by hand: take uuid-A's ctx out of the map and recycle it while leaving its uuid in
+        // pendingChunkedMessageUuidQueue. (Releasing the buffer mirrors the assembled-payload release that a real
+        // completion performs.)
         ConsumerImpl.ChunkedMessageCtx ctxA = consumer.chunkedMessagesMap.remove("uuid-A");
         assertThat(ctxA).isNotNull();
         if (ctxA.chunkedMsgBuffer != null) {
