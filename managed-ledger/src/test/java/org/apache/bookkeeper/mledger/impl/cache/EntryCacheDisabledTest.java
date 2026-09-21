@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.impl.cache;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +41,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryMBeanImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
+import org.apache.bookkeeper.test.DirectThreadBoundExecutor;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.BeforeMethod;
@@ -60,7 +60,7 @@ public class EntryCacheDisabledTest {
         when(mockManagedLedger.getConfig()).thenReturn(managedLedgerConfig);
         when(mockManagedLedger.getMbean()).thenReturn(mock(ManagedLedgerMBeanImpl.class));
         // a same-thread executor, so the read completes before the assertions run
-        when(mockManagedLedger.getExecutor()).thenReturn(MoreExecutors.newDirectExecutorService());
+        when(mockManagedLedger.getExecutor()).thenReturn(new DirectThreadBoundExecutor());
         when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
         ManagedLedgerFactoryImpl mockFactory = mock(ManagedLedgerFactoryImpl.class);
         when(mockFactory.getMbean()).thenReturn(mock(ManagedLedgerFactoryMBeanImpl.class));

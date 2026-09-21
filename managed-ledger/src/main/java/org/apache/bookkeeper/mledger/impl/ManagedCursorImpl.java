@@ -690,8 +690,17 @@ public class ManagedCursorImpl implements ManagedCursor {
             }, null);
         };
         try {
-            bookkeeper.asyncOpenLedger(ledgerId, digestType, getConfig().getPassword(), openCallback,
-                    null, true);
+            bookkeeper.newOpenLedgerOp()
+                    .withRecovery(true)
+                    .withLedgerId(ledgerId)
+                    .withDigestType(digestType.toApiDigestType())
+                    .withPassword(getConfig().getPassword())
+                    .withKeepUpdateMetadata(true)
+                    .withLoggerContext(log)
+                    .withOrderingKey(ledger.getName())
+                    .execute()
+                    .whenComplete((rh, ex) ->
+                            ManagedLedgerImpl.completeOpenCallback(log, ledgerId, openCallback, rh, ex));
         } catch (Throwable t) {
             log.error().attr("ledgerId", ledgerId).exception(t).log("Encountered error on opening cursor ledger");
             openCallback.openComplete(BKException.Code.UnexpectedConditionException, null, null);
@@ -951,12 +960,20 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         int numOfEntriesToRead = applyMaxSizeCap(numberOfEntriesToRead, maxSizeBytes);
+        readEntriesWithSkip(numOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition, skipCondition);
+    }
 
+    /**
+     * Reads {@code numOfEntriesToRead} entries, a count that the caller already capped with {@code maxSizeBytes}, the
+     * size limit the read carries along to bound its storage requests.
+     */
+    private void readEntriesWithSkip(int numOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                     Object ctx, Position maxPosition, Predicate<Position> skipCondition) {
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         // Skip deleted entries.
         skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
-        OpReadEntry op =
-            OpReadEntry.create(this, readPosition, numOfEntriesToRead, callback, ctx, maxPosition, skipCondition, true);
+        OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, maxSizeBytes, callback, ctx,
+                maxPosition, skipCondition, true);
         ledger.asyncReadEntries(op);
     }
 
@@ -1108,12 +1125,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         if (hasMoreEntries() && maxPosition.compareTo(readPosition) >= 0) {
             // If we have available entries, we can read them immediately
             log.debug("Read entries immediately");
-            asyncReadEntriesWithSkip(numberOfEntriesToRead, NO_MAX_SIZE_LIMIT, callback, ctx,
-                    maxPosition, skipCondition);
+            readEntriesWithSkip(numberOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition, skipCondition);
         } else {
             // Skip deleted entries.
             skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
-            OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, callback,
+            OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, maxSizeBytes, callback,
                     ctx, maxPosition, skipCondition, true);
             int opReadId = op.id;
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
@@ -1291,7 +1307,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
         if (markDeletePosition.compareTo(lastPosition) > 0) {
             if (!ledger.ledgerExists(lastPosition.getLedgerId())
-                    || isMarkDeletePositionOnEmptyCurrentLedger(markDeletePosition)) {
+                    || isMarkDeletePositionAtStartOfCurrentLedger(markDeletePosition)) {
                 return 0;
             }
             throw new IllegalArgumentException(String.format(
@@ -1354,10 +1370,14 @@ public class ManagedCursorImpl implements ManagedCursor {
         return adjustedSize;
     }
 
-    private boolean isMarkDeletePositionOnEmptyCurrentLedger(Position markDeletePosition) {
-        return ledger.currentLedger != null
-                && markDeletePosition.getLedgerId() == ledger.currentLedger.getId()
-                && ledger.currentLedgerEntries == 0;
+    private boolean isMarkDeletePositionAtStartOfCurrentLedger(Position markDeletePosition) {
+        // The caller has already checked that mark-delete is ahead of the last confirmed position.
+        // Rollover can move the cursor to this sentinel while the first add is still pending;
+        // currentLedgerEntries includes pending adds, so it cannot identify this state.
+        LedgerHandle currentLedger = ledger.currentLedger;
+        return currentLedger != null
+                && markDeletePosition.getLedgerId() == currentLedger.getId()
+                && markDeletePosition.getEntryId() == -1;
     }
 
     private long getNumberOfEntriesInBacklog() {

@@ -129,7 +129,7 @@ but much existing code isn't, so integration-style is the pragmatic default. See
   namespace. Use `getNamespace()` and `newTopicName()` — never hardcode namespace/topic names, since
   the runtime is shared.
 - **Close/release what the test allocates.** A **`ByteBuf`/buffer leak** (pooled-allocator detection,
-  `-Dpulsar.allocator.pooled=true`) is a **real bug** — fix the missing `release()`. A **thread leak
+  `-Dpulsar.allocator.type=pooled`) is a **real bug** — fix the missing `release()`. A **thread leak
   from `ThreadLeakDetectorListener` is unreliable** (high false-positive rate, notably with
   `SharedPulsarBaseTest` and when `THREAD_LEAK_DETECTOR_WAIT_MILLIS` is too low — ≈`10000` recommended,
   only effective with the Gradle daemon disabled, `--no-daemon`); corroborate before treating it as

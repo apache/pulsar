@@ -224,6 +224,30 @@ public class PulsarConfigurationLoaderTest {
     }
 
     @Test
+    public void testReplicationMaxReadProcessingStepsPerTurn() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("clusterName", "test");
+        ServiceConfiguration defaults = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+        assertEquals(defaults.getReplicationMaxReadProcessingStepsPerTurn(), 64);
+        assertTrue(defaults.isManagedLedgerReadEntriesCallbackInline());
+        assertTrue(isComplete(defaults));
+
+        for (int limit : new int[] {1, 3, 64, 128, 0, -1}) {
+            properties.setProperty("replicationMaxReadProcessingStepsPerTurn", Integer.toString(limit));
+            ServiceConfiguration configuration =
+                    PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
+            assertEquals(configuration.getReplicationMaxReadProcessingStepsPerTurn(), limit);
+            if (limit > 0) {
+                assertTrue(isComplete(configuration));
+            } else {
+                IllegalArgumentException exception =
+                        expectThrows(IllegalArgumentException.class, () -> isComplete(configuration));
+                assertTrue(exception.getMessage().contains("replicationMaxReadProcessingStepsPerTurn"));
+            }
+        }
+    }
+
+    @Test
     public void testBackwardCompatibility() throws IOException {
         File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
         if (testConfigFile.exists()) {
@@ -324,6 +348,10 @@ public class PulsarConfigurationLoaderTest {
         config.setNumIOThreads(config.getNumIOThreads());
         // Extra property not backed by a declared FieldContext field.
         config.getProperties().setProperty("custom.plugin.option", "enabled");
+        // Properties file entries that set declared fields to their default value (as broker.conf does for
+        // nearly every setting) must not be reported as overrides.
+        config.getProperties().setProperty("numIOThreads", String.valueOf(config.getNumIOThreads()));
+        config.getProperties().setProperty("metadataStoreUrl", config.getMetadataStoreUrl());
 
         Map<String, Object> overrides = runtimeConfigurationOverrides(config);
 

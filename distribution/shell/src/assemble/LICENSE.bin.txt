@@ -325,7 +325,7 @@ The Apache Software License, Version 2.0
      - jackson-datatype-jsr310-2.21.6.jar
      - jackson-module-parameter-names-2.21.6.jar
  * Caffeine -- caffeine-3.2.4.jar
- * Conscrypt -- conscrypt-openjdk-uber-2.6.2.jar
+ * Conscrypt -- conscrypt-openjdk-uber-2.6.3.jar
  * Gson
     - gson-2.14.0.jar
  * Guava
@@ -398,10 +398,10 @@ The Apache Software License, Version 2.0
     - slog-0.10.0.jar
 
  * BookKeeper
-    - bookkeeper-common-allocator-4.18.0.jar
-    - cpu-affinity-4.18.0.jar
-    - circe-checksum-4.18.0.jar
-    - native-library-common-4.18.0.jar
+    - bookkeeper-common-allocator-4.18.1.jar
+    - cpu-affinity-4.18.1.jar
+    - circe-checksum-4.18.1.jar
+    - native-library-common-4.18.1.jar
   * AirCompressor
      - aircompressor-2.0.3.jar
  * AsyncHttpClient
