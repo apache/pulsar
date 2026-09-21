@@ -30,7 +30,7 @@ public class LatencyTracer {
 
     private static final long PENDING = -1;
 
-    private final List<TracePoint> tracePoints;
+    protected final List<TracePoint> tracePoints;
     private final NanoTimeSupplier nanoTimeSupplier;
     private final long startNs;
     private final long startTimeInMillis;
