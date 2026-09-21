@@ -25,6 +25,7 @@ plugins {
 dependencies {
     implementation(project(":tests:performance:common"))
     implementation(project(":pulsar-client-original"))
+    implementation(libs.hdrHistogram)
     implementation(libs.picocli)
 
     testImplementation(libs.assertj.core)

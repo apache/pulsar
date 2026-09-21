@@ -53,7 +53,11 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         List<PulsarClient> clients = new ArrayList<>(scenario.gatewayCount());
         AtomicReference<Throwable> failure = new AtomicReference<>();
         AtomicLong completed = new AtomicLong();
-        Semaphore outstanding = new Semaphore(scenario.maxOutstanding());
+        AtomicLong warmupCompleted = new AtomicLong();
+        AtomicLong measurementCompleted = new AtomicLong();
+        HdrLatencyRecorder sendLatency = new HdrLatencyRecorder();
+        int maxOutstanding = Math.min(scenario.maxOutstanding(), scenario.deviceCount());
+        Semaphore outstanding = new Semaphore(maxOutstanding);
         Set<Integer> devicesInFlight = ConcurrentHashMap.newKeySet();
 
         PulsarClientSharedResources sharedResources = SharedClientResources.create(scenario);
@@ -76,11 +80,18 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             long intervalNanos = scenario.rate() == 0 ? 0 : TimeUnit.SECONDS.toNanos(1) / scenario.rate();
             long nextSend = System.nanoTime();
             long startedNanos = nextSend;
+            long runDeadlineNanos = startedNanos
+                    + TimeUnit.SECONDS.toNanos(scenario.consumerTimeoutSeconds());
+            long warmupMessageCount = scenario.warmupMessageCount();
+            long warmupMessagesPerRound = scenario.warmupMessageCountPerRound();
+            long measurementStartedNanos = -1;
+            long measurementStartEpochMs = -1;
             for (long sent = 0; sent < scenario.messageCount(); sent++) {
                 Throwable sendFailure = failure.get();
                 if (sendFailure != null) {
                     throw new IllegalStateException("Telemetry send failed", sendFailure);
                 }
+                outstanding.acquire();
                 int device;
                 do {
                     device = random.nextInt(scenario.deviceCount());
@@ -94,12 +105,19 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                     producers[producerIndex] = producer;
                 }
 
-                outstanding.acquire();
+                boolean measurementMessage = sent >= warmupMessageCount;
+                if (measurementMessage && measurementStartedNanos < 0) {
+                    measurementStartedNanos = System.nanoTime();
+                    measurementStartEpochMs = System.currentTimeMillis();
+                    System.out.println("MEASUREMENT_START epochMs=" + measurementStartEpochMs);
+                }
                 long deviceSequence = deviceSequences[device]++;
                 long producerSequence = producerSequences[producerIndex]++;
                 byte[] key = ByteBuffer.allocate(Long.BYTES).putLong(device).array();
-                byte[] payload = TelemetryMessage.encode(device, deviceSequence, scenario.payloadBytes());
+                byte[] payload = TelemetryMessage.encode(device, deviceSequence, measurementMessage,
+                        scenario.payloadBytes());
                 int completedDevice = device;
+                long sendStartedNanos = System.nanoTime();
                 producer.newMessage()
                         .keyBytes(key)
                         .sequenceId(producerSequence)
@@ -110,6 +128,12 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                                 failure.compareAndSet(null, error);
                             } else {
                                 completed.incrementAndGet();
+                                if (measurementMessage) {
+                                    measurementCompleted.incrementAndGet();
+                                    sendLatency.recordNanos(System.nanoTime() - sendStartedNanos);
+                                } else {
+                                    warmupCompleted.incrementAndGet();
+                                }
                             }
                             devicesInFlight.remove(completedDevice);
                             outstanding.release();
@@ -120,19 +144,54 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 if (wait > 0) {
                     LockSupport.parkNanos(wait);
                 }
+                if (!measurementMessage && warmupMessagesPerRound > 0
+                        && (sent + 1) % warmupMessagesPerRound == 0) {
+                    awaitOutstanding(outstanding, maxOutstanding);
+                    if (failure.get() != null) {
+                        throw new IllegalStateException("Telemetry warmup send failed", failure.get());
+                    }
+                    int round = Math.toIntExact((sent + 1) / warmupMessagesPerRound);
+                    WarmupBarrier.awaitApplications(coordinationDirectory(), runId, round, scenario.applicationCount(),
+                            runDeadlineNanos);
+                    System.out.println("WARMUP_ROUND_COMPLETE round=" + round + "/" + scenario.warmupRounds()
+                            + " produced=" + warmupCompleted.get()
+                            + " applicationsReceived=" + scenario.applicationCount()
+                            + " delaySeconds=" + scenario.warmupRoundDelaySeconds());
+                    if (scenario.warmupRoundDelaySeconds() > 0) {
+                        TimeUnit.SECONDS.sleep(scenario.warmupRoundDelaySeconds());
+                    }
+                    // Do not turn time spent draining or paused into a rate-limiter catch-up burst.
+                    nextSend = System.nanoTime();
+                }
             }
-            outstanding.acquire(scenario.maxOutstanding());
+            awaitOutstanding(outstanding, maxOutstanding);
             if (failure.get() != null) {
                 throw new IllegalStateException("Telemetry send failed", failure.get());
             }
-            long elapsedNanos = System.nanoTime() - startedNanos;
+            long measurementEndEpochMs = System.currentTimeMillis();
+            long finishedNanos = System.nanoTime();
+            long elapsedNanos = finishedNanos - startedNanos;
+            long measurementElapsedNanos = finishedNanos - measurementStartedNanos;
+            sendLatency.write(output.resolve("produce-latency.hdr"), measurementStartEpochMs,
+                    measurementEndEpochMs);
             writeState(deviceSequences);
             Files.writeString(output.resolve("producer-summary.json"),
                     "{\n  \"sent\": " + completed.get()
+                            + ",\n  \"warmupMessages\": " + warmupCompleted.get()
+                            + ",\n  \"warmupMessagesPerRound\": " + warmupMessagesPerRound
+                            + ",\n  \"warmupRounds\": " + scenario.warmupRounds()
+                            + ",\n  \"warmupRoundDelaySeconds\": " + scenario.warmupRoundDelaySeconds()
+                            + ",\n  \"measurementMessages\": " + measurementCompleted.get()
                             + ",\n  \"devices\": " + scenario.deviceCount()
                             + ",\n  \"elapsedSeconds\": " + elapsedNanos / 1_000_000_000.0
+                            + ",\n  \"measurementElapsedSeconds\": "
+                            + measurementElapsedNanos / 1_000_000_000.0
+                            + ",\n  \"wholeRunMessagesPerSecond\": "
+                            + completed.get() * 1_000_000_000.0 / elapsedNanos
                             + ",\n  \"messagesPerSecond\": "
-                            + completed.get() * 1_000_000_000.0 / elapsedNanos + "\n}\n");
+                            + measurementCompleted.get() * 1_000_000_000.0 / measurementElapsedNanos
+                            + ",\n  \"measurementStartEpochMs\": " + measurementStartEpochMs
+                            + ",\n  \"measurementEndEpochMs\": " + measurementEndEpochMs + "\n}\n");
         } finally {
             for (Producer<byte[]> producer : producers) {
                 if (producer != null) {
@@ -145,6 +204,11 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             sharedResources.close();
         }
         return 0;
+    }
+
+    private static void awaitOutstanding(Semaphore outstanding, int permits) throws InterruptedException {
+        outstanding.acquire(permits);
+        outstanding.release(permits);
     }
 
     private Producer<byte[]> createProducer(IotScenario scenario, List<PulsarClient> clients,

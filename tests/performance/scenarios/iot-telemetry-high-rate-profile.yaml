@@ -22,5 +22,7 @@ profiling:
   brokerOptions: event=cpu,interval=10ms,lock=1ms,alloc=2m,jfrsync=profile
   producerOptions: event=cpu,interval=10ms,lock=1ms,alloc=2m,jfrsync=profile
   consumerOptions: ""
+  retainOriginalRecording: true
+  createMeasurementRecording: true
 output:
   directory: build/performance/iot-telemetry-high-rate-profile
