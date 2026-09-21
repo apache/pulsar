@@ -19,15 +19,18 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import lombok.CustomLog;
-import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -39,8 +42,32 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 @CustomLog
 class OpReadEntry implements ReadEntriesCallback {
 
-    /** How deep read completions may nest inline on a ledger thread before one is queued to unwind the stack. */
-    static final int MAX_NESTED_INLINE_COMPLETIONS = 10;
+    /**
+     * JVM-wide nesting limit, read once at class initialization. Clamp to at least one so a queued completion
+     * can make progress instead of repeatedly rescheduling itself.
+     */
+    static final int MAX_NESTED_INLINE_COMPLETIONS = readMaxNestedInlineCompletions(System.getProperties());
+    // Match CompletableFuture's common-pool threshold; a disabled pool can accept work without executing it.
+    private static final boolean USE_COMMON_POOL = ForkJoinPool.getCommonPoolParallelism() > 1;
+
+    static {
+        log.debug().attr("maxReadCompletionDepth", MAX_NESTED_INLINE_COMPLETIONS)
+                .attr("useCommonPool", USE_COMMON_POOL)
+                .log("Initialized managed-ledger read completion depth limit");
+    }
+
+    @VisibleForTesting
+    static int readMaxNestedInlineCompletions(Properties properties) {
+        String configuredDepth = properties.getProperty("pulsar.managedLedger.maxReadCompletionDepth");
+        if (configuredDepth != null) {
+            try {
+                return Math.max(1, Integer.decode(configuredDepth));
+            } catch (NumberFormatException ignored) {
+                // Match Integer.getInteger: a malformed property uses the default.
+            }
+        }
+        return 10;
+    }
 
     /** Nesting depth of read completions running inline on the current thread. */
     private static final FastThreadLocal<int[]> INLINE_COMPLETION_DEPTH = new FastThreadLocal<>() {
@@ -286,13 +313,21 @@ class OpReadEntry implements ReadEntriesCallback {
     }
 
     private void complete(Object ctx) {
-        ThreadBoundExecutor executor = cursor.ledger.getExecutor();
-        // Run inline on the ledger thread to skip the queue hop. A fully cached read completes synchronously and
-        // callers such as OpScan and the replicator issue their next read from this callback, so the nesting is
-        // bounded per thread: past MAX_NESTED_INLINE_COMPLETIONS levels the completion is queued once to unwind
-        // the stack. Independent reads interleaving on the thread do not accumulate, only actual nesting does.
-        int[] depth = executor.isCurrentThread() ? INLINE_COMPLETION_DEPTH.get() : null;
-        if (depth != null && depth[0] < MAX_NESTED_INLINE_COMPLETIONS) {
+        if (cursor.ledger.isReadEntriesCallbackInline() || cursor.ledger.getExecutor().isCurrentThread()) {
+            completeWithDepthLimit(ctx);
+        } else {
+            try {
+                cursor.ledger.getExecutor().execute(() -> completeWithDepthLimit(ctx));
+            } catch (RejectedExecutionException e) {
+                failCompletion(e, ctx);
+            }
+        }
+    }
+
+    private void completeWithDepthLimit(Object ctx) {
+        // Both modes can complete inline. Bound nested callbacks even on the ledger executor.
+        int[] depth = INLINE_COMPLETION_DEPTH.get();
+        if (depth[0] < MAX_NESTED_INLINE_COMPLETIONS) {
             depth[0]++;
             try {
                 completeNow(ctx);
@@ -300,8 +335,32 @@ class OpReadEntry implements ReadEntriesCallback {
                 depth[0]--;
             }
         } else {
-            executor.execute(() -> completeNow(ctx));
+            try {
+                // Queue so the current callback stack can unwind. An inline cached-read chain can then continue
+                // on common-pool workers until a cross-ledger read, cache miss, cursor wait, or caller handoff
+                // changes its execution context. Legacy mode retains ledger-executor affinity.
+                if (cursor.ledger.isReadEntriesCallbackInline() && USE_COMMON_POOL) {
+                    ForkJoinPool.commonPool().execute(() -> completeWithDepthLimit(ctx));
+                } else {
+                    cursor.ledger.getExecutor().execute(() -> completeWithDepthLimit(ctx));
+                }
+            } catch (RejectedExecutionException e) {
+                failCompletion(e, ctx);
+            }
         }
+    }
+
+    private void failCompletion(RejectedExecutionException exception, Object ctx) {
+        // Read accounting has already completed, but ownership never reached the callback.
+        for (Entry entry : entries) {
+            try {
+                entry.release();
+            } catch (Throwable t) {
+                log.error().exception(t).log("Failed to release entry after read-completion executor rejection");
+            }
+        }
+        entries.clear();
+        fail(ManagedLedgerException.getManagedLedgerException(exception), ctx);
     }
 
     private void completeNow(Object ctx) {

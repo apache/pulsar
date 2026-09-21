@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.profiling;
 
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import com.github.dockerjava.api.model.Capability;
 import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -33,6 +34,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.tests.ManualTestUtil;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
@@ -70,7 +72,12 @@ import org.testcontainers.containers.GenericContainer;
  * By default, the .jfr files and logs will go into tests/integration/build/pulsar-profiling
  * You can use jfrconv from async profiler to convert them into html flamegraphs or use other tools such
  * as Eclipse Mission Control (https://adoptium.net/jmc) or IntelliJ to open them.
+ *
+ * @deprecated The TestNG wrapper is retained for the existing v4 and v5 pulsar-perf scenarios while they are
+ * migrated. New performance scenarios should use the standalone launcher under {@code tests/performance}, which
+ * owns the Testcontainers and workload lifecycle directly. See {@code tests/performance/README.md}.
  */
+@Deprecated(forRemoval = false)
 @CustomLog
 public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
     // this assumes that Transparent Huge Pages are available on the host machine
@@ -162,8 +169,10 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                     "bash", "-c", "set -o pipefail; echo $$ > /tmp/command.pid; "
                             + "/pulsar/bin/pulsar-perf consume" + commandSuffix + " " + topicName + " "
                             + "-u pulsar://" + brokerHostname + ":6650 "
-                            + "-st Shared "
-                            + "-q 50000 "
+                            + "-st " + load.subscriptionType() + " "
+                            + "-q " + load.receiverQueueSize() + " "
+                            + "--num-consumers " + load.consumerCount() + " "
+                            + "--num-io-threads " + load.consumerIoThreads() + " "
                             + isolatedClientsOption(load.isolatedConsumers())
                             + "-m " + load.numberOfMessages() + " -ml " + load.consumeMemoryLimit() + " "
                             + "--histogram-file=/testoutput/consume" + commandSuffix
@@ -178,7 +187,13 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                             + "-u pulsar://" + brokerHostname + ":6650 "
                             + "-au http://" + brokerHostname + ":8080 "
                             + "-r " + load.produceRate() + " "
-                            + "-s " + load.messageSize() + " -db "
+                            + "-s " + load.messageSize() + " "
+                            + (load.batchingEnabled() ? "" : "-db ")
+                            + (load.messageKeyGenerationMode() == null || load.messageKeyGenerationMode().isEmpty()
+                                    ? "" : "--message-key-generation-mode " + load.messageKeyGenerationMode() + " ")
+                            + "--num-producers " + load.producerCount() + " "
+                            + "--num-io-threads " + load.producerIoThreads() + " "
+                            + "--max-connections 1 "
                             + isolatedClientsOption(load.isolatedProducers())
                             // maxOutstanding only applies to the v4 client; the v5 client accepts
                             // the flag for back-compat but ignores it
@@ -191,6 +206,19 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
 
         private String isolatedClientsOption(int count) {
             return commandSuffix.equals("-v4") && count > 0 ? "--isolated-clients " + count + " " : "";
+        }
+
+        void enableProfiling(String options, String role) {
+            if (options == null || options.isBlank()) {
+                return;
+            }
+            // Permit native CPU sampling, as for the profiled broker containers.
+            withCreateContainerCmdModifier(cmd -> cmd.getHostConfig()
+                    .withCapAdd(Capability.PERFMON)
+                    .withSecurityOpts(List.of("seccomp=unconfined")));
+            withEnv("PULSAR_EXTRA_OPTS", "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints "
+                    + "-agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start," + options
+                    + ",file=/testoutput/client-" + role + "-%t-%p.jfr");
         }
 
         /**
@@ -270,6 +298,8 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         // This matters only on Linux
         try {
             Files.setPosixFilePermissions(testOutputDir.toPath(), PosixFilePermissions.fromString("rwxrwxrwx"));
+            ObjectMapperFactory.getYamlMapper().getObjectMapper().writeValue(
+                    new File(testOutputDir, "resolved-config.yaml"), profilingConfig);
         } catch (IOException e) {
             throw new UncheckedIOException("Cannot change access to test output directory", e);
         }
@@ -352,6 +382,8 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
                 commandSuffix, load);
         perfConsume = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "perf-consume", "-Xmx1g",
                 commandSuffix, load);
+        perfProduce.enableProfiling(profilingConfig.profiling().producerOptions(), "producer");
+        perfConsume.enableProfiling(profilingConfig.profiling().consumerOptions(), "consumer");
         printStats = new PulsarPerfContainer(testOutputDir, clusterName, brokerHostname, "print-stats", "-Xmx1g",
                 commandSuffix, load);
         specBuilder.externalServices(Map.of(
@@ -366,7 +398,8 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
     /**
      * Drives pulsar-perf against a freshly generated topic and waits for both sides to finish.
      *
-     * The concrete subclasses wrap this in the actual {@code @Test} method: Gradle's TestNG detector
+     * The concrete subclasses in this deprecated runner wrap this in the actual {@code @Test} method: Gradle's
+     * TestNG detector
      * never scans method annotations on an abstract class, so an {@code @Test} that lived only here
      * would leave both subclasses looking like non-test classes and neither would be handed to
      * TestNG. (The detector does follow the superclass chain, so a subclass of a *concrete* base does
@@ -374,6 +407,7 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
      */
     protected void runPulsarPerfBenchmark() throws Exception {
         String topicName = generateTopicName("profiletest", getTopicDomain());
+        prepareTopic(topicName);
         CompletableFuture<Long> consumeFuture = perfConsume.consume(topicName);
         Thread.sleep(1000);
         CompletableFuture<Long> produceFuture = perfProduce.produce(topicName);
@@ -381,7 +415,7 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         printStats.stats(getTopicStatsEndpoints(topicName));
         // pulsar-perf is sized to finish inside this window, so running out of it is a failure.
         FutureUtil.waitForAll(List.of(consumeFuture, produceFuture))
-                .orTimeout(3, TimeUnit.MINUTES)
+                .orTimeout(profilingConfig.load().timeoutSeconds(), TimeUnit.SECONDS)
                 .exceptionally(t -> {
                     log.error().exception(t).log("Failed to run pulsar-perf");
                     throw FutureUtil.wrapToCompletionException(t);
@@ -391,5 +425,8 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
             softly.assertThat(consumeFuture).as("consume should have completed successfully").isCompletedWithValue(0L);
             softly.assertThat(produceFuture).as("produce should have completed successfully").isCompletedWithValue(0L);
         });
+    }
+
+    protected void prepareTopic(String topicName) throws Exception {
     }
 }

@@ -18,20 +18,19 @@
  */
 package org.apache.pulsar.tests.integration.profiling;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
 
 /** Configuration for the profiling scenario harness. */
 final class PulsarProfilingConfig {
     static final String CONFIG_ENV = "PULSAR_PROFILING_CONFIG";
     static final String ENV_PREFIX = "PULSAR_PROFILING_";
 
-    record Config(Cluster cluster, Load load, Output output) {
+    record Config(Cluster cluster, Load load, Profiling profiling, Output output) {
         static Config read() {
             String configFile = System.getenv(CONFIG_ENV);
             return read(configFile == null || configFile.isBlank() ? null : Path.of(configFile),
@@ -39,16 +38,10 @@ final class PulsarProfilingConfig {
         }
 
         static Config read(Path configFile, Map<String, String> environment) {
-            ObjectMapper mapper = ObjectMapperFactory.getYamlMapper().getObjectMapper();
-            ObjectNode root = mapper.valueToTree(defaults());
-            if (configFile != null) {
-                try {
-                    merge(root, mapper.readTree(configFile.toFile()));
-                } catch (IOException e) {
-                    throw new IllegalArgumentException("Cannot read profiling config " + configFile, e);
-                }
-            }
-            applyEnvironmentOverrides(root, environment);
+            YamlScenarioLoader loader = new YamlScenarioLoader();
+            ObjectMapper mapper = loader.mapper();
+            var root = loader.resolve(configFile, mapper.valueToTree(defaults()), environment,
+                    ENV_PREFIX, CONFIG_ENV);
             try {
                 return mapper.treeToValue(root, Config.class);
             } catch (IOException e) {
@@ -84,7 +77,9 @@ final class PulsarProfilingConfig {
                                     Map.entry("isForceGCAllowWhenNoSpace", "true"),
                                     Map.entry("diskUsageLwmThreshold", "0.75"),
                                     Map.entry("diskCheckInterval", "60"))),
-                    new Load(20_000_000, "200M", "200M", Integer.MAX_VALUE, 128, 20_000, 10, 0, 0),
+                    new Load(20_000_000, "200M", "200M", Integer.MAX_VALUE, 128, 20_000, 10, 0, 0,
+                            1, 1, 1, 1, SubscriptionType.Shared, 50_000, 180, false, ""),
+                    new Profiling("", ""),
                     new Output("build/pulsar-profiling"));
         }
     }
@@ -96,87 +91,38 @@ final class PulsarProfilingConfig {
 
     record Load(long numberOfMessages, String produceMemoryLimit, String consumeMemoryLimit,
                 int produceRate, int messageSize, int maxOutstanding, int statsIntervalSeconds,
-                int isolatedProducers, int isolatedConsumers) {
+                int isolatedProducers, int isolatedConsumers, int producerCount, int consumerCount,
+                int producerIoThreads, int consumerIoThreads, SubscriptionType subscriptionType,
+                int receiverQueueSize, int timeoutSeconds, boolean batchingEnabled, String messageKeyGenerationMode) {
+        Load {
+            if (messageKeyGenerationMode != null && !messageKeyGenerationMode.isEmpty()
+                    && !messageKeyGenerationMode.equals("random")
+                    && !messageKeyGenerationMode.equals("autoIncrement")) {
+                throw new IllegalArgumentException("Message key generation mode must be random or autoIncrement");
+            }
+            if (producerCount < 1 || consumerCount < 1 || producerIoThreads < 1 || consumerIoThreads < 1
+                    || isolatedProducers < 0 || isolatedConsumers < 0 || receiverQueueSize < 1 || timeoutSeconds < 1
+                    || numberOfMessages < 1 || produceRate < 1 || subscriptionType == null) {
+                throw new IllegalArgumentException("Profiling counts, rate, queue size and timeout must be positive");
+            }
+            // pulsar-perf divides the message count and rate between workers using integer division.
+            int workers = Math.max(1, isolatedProducers);
+            if (isolatedProducers > producerCount || isolatedConsumers > consumerCount
+                    || numberOfMessages % workers != 0 || produceRate < workers) {
+                throw new IllegalArgumentException("Isolated clients require at least one producer/consumer "
+                        + "per client, a message count divisible by producer clients, and a rate >= producer clients");
+            }
+            if (subscriptionType == SubscriptionType.Exclusive && consumerCount != 1) {
+                throw new IllegalArgumentException("Exclusive subscriptions require exactly one consumer");
+            }
+        }
     }
 
     record Output(String directory) {
     }
 
-    private static void merge(ObjectNode target, JsonNode source) {
-        if (source == null || !source.isObject()) {
-            return;
-        }
-        source.properties().forEach(entry -> {
-            JsonNode current = target.get(entry.getKey());
-            if (current != null && current.isObject() && entry.getValue().isObject()) {
-                merge((ObjectNode) current, entry.getValue());
-            } else {
-                target.set(entry.getKey(), entry.getValue());
-            }
-        });
-    }
-
-    private static void applyEnvironmentOverrides(ObjectNode root, Map<String, String> environment) {
-        ObjectMapper mapper = ObjectMapperFactory.getYamlMapper().getObjectMapper();
-        environment.forEach((name, value) -> {
-            if (!name.startsWith(ENV_PREFIX) || name.equals(CONFIG_ENV)) {
-                return;
-            }
-            String[] path = name.substring(ENV_PREFIX.length()).toLowerCase().split("_");
-            ObjectNode node = root;
-            int pathIndex = 0;
-            while (pathIndex < path.length) {
-                String field = findField(node, path, pathIndex);
-                if (field == null) {
-                    return;
-                }
-                int consumed = field.split("(?=[A-Z])").length;
-                JsonNode existing = node.get(field);
-                if (pathIndex + consumed == path.length) {
-                    node.set(field, parseValue(mapper, value, existing));
-                    return;
-                }
-                if (!(existing instanceof ObjectNode)) {
-                    return;
-                }
-                node = (ObjectNode) existing;
-                pathIndex += consumed;
-            }
-        });
-    }
-
-    private static String findField(ObjectNode node, String[] path, int start) {
-        StringBuilder candidate = new StringBuilder();
-        String result = null;
-        int resultLength = 0;
-        int tokenCount = 0;
-        for (int i = start; i < path.length; i++) {
-            candidate.append(path[i]);
-            tokenCount++;
-            String candidateName = candidate.toString();
-            var fields = node.fieldNames();
-            while (fields.hasNext()) {
-                String field = fields.next();
-                if (field.replace("_", "").equalsIgnoreCase(candidateName)) {
-                    result = field;
-                    resultLength = tokenCount;
-                }
-            }
-        }
-        return result;
-    }
-
-    private static JsonNode parseValue(ObjectMapper mapper, String value, JsonNode existing) {
-        if (existing.isBoolean()) {
-            return mapper.getNodeFactory().booleanNode(Boolean.parseBoolean(value));
-        }
-        if (existing.isIntegralNumber()) {
-            return mapper.getNodeFactory().numberNode(Long.parseLong(value));
-        }
-        if (existing.isFloatingPointNumber()) {
-            return mapper.getNodeFactory().numberNode(Double.parseDouble(value));
-        }
-        return mapper.getNodeFactory().textNode(value);
+    /** Empty options disable profiling for that client process. */
+    record Profiling(String producerOptions, String consumerOptions) {
     }
 
     private PulsarProfilingConfig() {

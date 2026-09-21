@@ -666,7 +666,8 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     /**
      * update the max read position. if the new position is greater than the current max read position,
      * we will trigger the callback, unless the disableCallback is true.
-     * Currently, we only use the callback to update the lastMaxReadPositionMovedForwardTimestamp.
+     * Currently, we only use the callback to update the lastMaxReadPositionMovedForwardTimestamp while a
+     * replicated-subscription controller is active.
      * For non-transactional production, some marker messages will be sent to the topic, in which case we don't need
      * to trigger the callback.
      * @param newPosition new max read position to update.
@@ -689,8 +690,9 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
      * Advance the max read position to the last confirmed entry when recovery finishes. While the transaction
      * buffer is recovering, {@link #syncMaxReadPositionForNormalPublish(Position, boolean)} ignores publishes, so
      * messages published during recovery would otherwise never trigger the maxReadPositionMovedForward callback.
-     * {@link PersistentTopic} uses that callback to maintain lastMaxReadPositionMovedForwardTimestamp, which
-     * ReplicatedSubscriptionsController relies on to detect new data when deciding whether to start a snapshot.
+     * {@link PersistentTopic} uses that callback to maintain lastMaxReadPositionMovedForwardTimestamp while a
+     * ReplicatedSubscriptionsController is active. The controller relies on it to detect new data when deciding
+     * whether to start a snapshot.
      * Must be called while synchronized on this transaction buffer.
      */
     private void updateMaxReadPositionAfterRecovery() {
