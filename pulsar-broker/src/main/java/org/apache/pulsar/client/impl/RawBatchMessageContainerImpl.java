@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import java.nio.ByteBuffer;
 import java.util.Set;
@@ -69,13 +70,26 @@ public class RawBatchMessageContainerImpl extends BatchMessageContainerImpl {
                     compressedPayload.nioBuffer(), targetBuffer);
         } catch (PulsarClientException e) {
             encryptedPayload.release();
-            compressedPayload.release();
+            // The container field still points at compressedPayload (getCompressedBatchMetadataAndPayload
+            // transfers it there), and discard() releases that field. Releasing it here as well would drop a
+            // live buffer back into the pool.
             discard(e);
             throw new RuntimeException("Failed to encrypt payload", e);
         }
         encryptedPayload.writerIndex(targetBuffer.remaining());
         compressedPayload.release();
+        // Ownership moves to the encrypted buffer, so the field follows it instead of dangling on freed memory.
+        batchedMessageMetadataAndPayload = encryptedPayload;
         return encryptedPayload;
+    }
+
+    /**
+     * Test hook to run encryption through a supplied {@link MessageCrypto} instead of the one built lazily
+     * from the batched messages' encryption context.
+     */
+    @VisibleForTesting
+    void setMsgCrypto(MessageCrypto<MessageMetadata, MessageMetadata> msgCrypto) {
+        this.msgCrypto = msgCrypto;
     }
 
     @Override

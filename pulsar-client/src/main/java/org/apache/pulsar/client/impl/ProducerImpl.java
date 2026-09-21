@@ -118,7 +118,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     // Producer id, used to identify a producer within a single connection
     protected final long producerId;
-    // A non-persistent topic cannot carry chunked messages, see the chunk computation in sendAsync
+    // A non-persistent topic cannot carry chunked messages, see isChunkingEnabled()
     private final boolean persistentTopic;
 
     // Variable is updated in a synchronized block
@@ -602,7 +602,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
                 // validate msg-size (For batching this will be check at the batch completion size)
                 int compressedSize = compressedPayload.readableBytes();
-                if (compressedSize > getMaxMessageSize() && !this.conf.isChunkingEnabled()) {
+                if (compressedSize > getMaxMessageSize() && !isChunkingEnabled()) {
                     compressedPayload.release();
                     String compressedStr = conf.getCompressionType() != CompressionType.NONE
                             ? ("compressed (" + conf.getCompressionType() + ")")
@@ -642,9 +642,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // send in chunks
         int totalChunks;
         int payloadChunkSize;
-        // A non-persistent topic never chunks: the slicing below is skipped for it, so computing more than one
-        // chunk here would only make the send loop publish the whole payload once per chunk.
-        if (canAddToBatch(msg) || !conf.isChunkingEnabled() || !persistentTopic) {
+        if (canAddToBatch(msg) || !isChunkingEnabled()) {
             totalChunks = 1;
             payloadChunkSize = getMaxMessageSize();
         } else {
@@ -2876,7 +2874,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * Check if final message size for non-batch and non-chunked messages is larger than max message size.
      */
     private boolean isMessageSizeExceeded(OpSendMsg op) {
-        if (op.msg != null && !conf.isChunkingEnabled()) {
+        if (op.msg != null && !isChunkingEnabled()) {
             int messageSize = op.getMessageHeaderAndPayloadSize();
             if (messageSize > getMaxMessageSize()) {
                 releaseSemaphoreForSendOp(op);
@@ -2892,6 +2890,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private int getMaxMessageSize() {
         return getConnectionHandler().getMaxMessageSize();
+    }
+
+    /**
+     * Whether this producer actually chunks oversized messages. Chunking is only performed on persistent topics,
+     * so on a non-persistent topic the configuration flag is inert: the message is sent as a single frame and
+     * has to pass the same size checks as when chunking is disabled. Every decision that depends on chunking
+     * must go through this method rather than {@code conf.isChunkingEnabled()}, so that the size checks and the
+     * chunk computation cannot disagree.
+     */
+    private boolean isChunkingEnabled() {
+        return conf.isChunkingEnabled() && persistentTopic;
     }
 
     public long getDelayInMillis() {

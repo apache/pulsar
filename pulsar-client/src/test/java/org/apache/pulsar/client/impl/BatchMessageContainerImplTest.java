@@ -402,10 +402,13 @@ public class BatchMessageContainerImplTest {
         // than being swallowed by ReferenceCountUtil.safeRelease.
         payload.retain();
 
-        assertNull(container.createOpSendMsg(), "an oversized batch must not produce an op to send");
+        try {
+            assertNull(container.createOpSendMsg(), "an oversized batch must not produce an op to send");
 
-        assertEquals(payload.refCnt(), 1, "the oversized batch payload was released more than once");
-        payload.release();
+            assertEquals(payload.refCnt(), 1, "the oversized batch payload was released more than once");
+        } finally {
+            ReferenceCountUtil.safeRelease(payload);
+        }
     }
 
     /**
@@ -430,7 +433,7 @@ public class BatchMessageContainerImplTest {
         when(producer.encryptMessage(any(), any())).thenAnswer(invocation -> {
             ByteBuf input = invocation.getArgument(1);
             ByteBuf encrypted = ByteBufAllocator.DEFAULT.buffer(input.readableBytes());
-            encrypted.writeBytes(input.copy());
+            encrypted.writeBytes(input, input.readerIndex(), input.readableBytes());
             input.release();
             encryptedBuffers.add(encrypted);
             return encrypted;
@@ -450,12 +453,15 @@ public class BatchMessageContainerImplTest {
         // time is observable rather than being swallowed by ReferenceCountUtil.safeRelease.
         batchPayload.retain();
 
-        assertNull(container.createOpSendMsg(), "an oversized batch must not produce an op to send");
+        try {
+            assertNull(container.createOpSendMsg(), "an oversized batch must not produce an op to send");
 
-        assertEquals(encryptedBuffers.size(), 1, "expected exactly one encryption");
-        assertEquals(batchPayload.refCnt(), 1,
-                "the pre-encryption batch payload was released again after encryption had already released it");
-        assertEquals(encryptedBuffers.get(0).refCnt(), 0, "the encrypted payload was not released");
-        batchPayload.release();
+            assertEquals(encryptedBuffers.size(), 1, "expected exactly one encryption");
+            assertEquals(batchPayload.refCnt(), 1,
+                    "the pre-encryption batch payload was released again after encryption had already released it");
+            assertEquals(encryptedBuffers.get(0).refCnt(), 0, "the encrypted payload was not released");
+        } finally {
+            ReferenceCountUtil.safeRelease(batchPayload);
+        }
     }
 }

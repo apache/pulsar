@@ -21,10 +21,16 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.api.proto.CompressionType.NONE;
 import static org.apache.pulsar.common.api.proto.CompressionType.ZSTD;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -34,6 +40,7 @@ import java.util.Optional;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.MessageCrypto;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.api.EncryptionContext;
@@ -307,5 +314,42 @@ public class RawBatchMessageContainerImplTest {
         Assert.assertEquals(e.getClass(), IllegalArgumentException.class);
         Assert.assertEquals(container.getNumMessagesInBatch(), 0);
         Assert.assertEquals(container.batchedMessageMetadataAndPayload, null);
+    }
+
+    /**
+     * After compression the container field points at the compressed buffer, and {@code discard()} releases
+     * that field. An encryption failure must therefore leave the release to {@code discard()} instead of also
+     * releasing the buffer itself.
+     */
+    @Test
+    public void testToByteBufWithEncryptionFailureReleasesCompressedPayloadOnce() throws Exception {
+        setEncryptionAndCompression(true, false);
+        RawBatchMessageContainerImpl container = new RawBatchMessageContainerImpl();
+        container.setCryptoKeyReader(cryptoKeyReader);
+        @SuppressWarnings("unchecked")
+        MessageCrypto<MessageMetadata, MessageMetadata> failingCrypto = mock(MessageCrypto.class);
+        when(failingCrypto.getMaxOutputSize(anyInt())).thenAnswer(invocation -> invocation.getArgument(0));
+        doThrow(new PulsarClientException.CryptoException("injected"))
+                .when(failingCrypto).encrypt(any(), any(), any(), any(), any());
+        container.setMsgCrypto(failingCrypto);
+
+        String topic = "my-topic";
+        container.add(createMessage(topic, "hi-1", 0), null);
+        container.add(createMessage(topic, "hi-2", 1), null);
+        // With CompressionType.NONE the codec hands back the same buffer, so this is also the compressed payload.
+        ByteBuf batchPayload = container.batchedMessageMetadataAndPayload;
+        Assert.assertNotNull(batchPayload);
+        // Stand in for anything else still holding the buffer, so that an extra release is observable rather
+        // than being swallowed by ReferenceCountUtil.safeRelease.
+        batchPayload.retain();
+
+        try {
+            Assert.assertThrows(RuntimeException.class, container::toByteBuf);
+            Assert.assertEquals(batchPayload.refCnt(), 1, "the compressed payload was released more than once");
+            Assert.assertEquals(container.getNumMessagesInBatch(), 0);
+            Assert.assertNull(container.batchedMessageMetadataAndPayload);
+        } finally {
+            ReferenceCountUtil.safeRelease(batchPayload);
+        }
     }
 }
