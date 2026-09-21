@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -86,6 +87,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                     + "./gradlew :tests:performance:launcher:profile");
         }
         int applications = workload.path("applicationCount").intValue();
+        String runId = UUID.randomUUID().toString();
         String clusterName = "iot-" + ProcessHandle.current().pid();
         workload.put("serviceUrl", "pulsar://" + clusterName + "-pulsar-broker-0:6650");
 
@@ -95,14 +97,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         Files.createDirectories(runOutput);
         Path coordinationDirectory = runOutput.resolve("coordination");
         Files.createDirectories(coordinationDirectory);
-        try (var existingMarkers = Files.list(coordinationDirectory)) {
-            for (Path marker : existingMarkers
-                    .filter(path -> path.getFileName().toString().startsWith("warmup-round-"))
-                    .filter(path -> path.getFileName().toString().endsWith(".complete"))
-                    .toList()) {
-                Files.deleteIfExists(marker);
-            }
-        }
+        Files.writeString(runOutput.resolve("run-id.txt"), runId + "\n");
         Set<Path> recordingsBeforeRun = JfrRecordingProcessor.findOriginalRecordings(runOutput);
         Path brokerProfileDirectory = runOutput.resolve("broker-profile");
         if (brokerProfileOptions != null) {
@@ -146,7 +141,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 Path appOutput = runOutput.resolve("consumer-" + application);
                 Files.createDirectories(appOutput);
                 consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
-                        coordinationDirectory, appOutput,
+                        coordinationDirectory, runId, appOutput,
                         consumerProfileOptions, "iot-consume", "--application-index", Integer.toString(application))
                         .waitingFor(Wait.forLogMessage(".*READY application=.*", 1)
                                 .withStartupTimeout(Duration.ofMinutes(5))));
@@ -156,7 +151,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             Path producerOutput = runOutput.resolve("producer");
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
-                    coordinationDirectory, producerOutput,
+                    coordinationDirectory, runId, producerOutput,
                     producerProfileOptions, "iot-produce");
             producer.start();
             int timeout = workload.path("consumerTimeoutSeconds").intValue() + 60;
@@ -211,7 +206,7 @@ public class PerformanceLauncher implements Callable<Integer> {
     }
 
     private GenericContainer<?> workloadContainer(PulsarCluster cluster, Path tools, Path configFile,
-                                                   Path coordinationDirectory,
+                                                   Path coordinationDirectory, String runId,
                                                    Path outputDirectory, String profileOptions,
                                                    String command, String... extraArguments) {
         List<String> arguments = new ArrayList<>();
@@ -223,6 +218,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         arguments.add("/performance-output");
         arguments.add("--coordination-directory");
         arguments.add(COORDINATION_MOUNT);
+        arguments.add("--run-id");
+        arguments.add(runId);
         arguments.addAll(List.of(extraArguments));
         String javaOptions = "-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m";
         if (profileOptions != null) {

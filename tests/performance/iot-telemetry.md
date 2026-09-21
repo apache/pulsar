@@ -58,6 +58,16 @@ The Gradle task builds the server test image and the workload distribution befor
 resolves YAML inheritance and `PULSAR_PERFORMANCE_` environment overrides, writes `resolved-config.yaml`
 to the run directory, and mounts that resolved file and the application distribution into each container.
 The `iot-produce` and `iot-consume` commands accept `--config-path` when a different subtree is desired.
+Without warmup, direct tool invocations need only `--config` and `--output` (plus `--application-index` for a
+consumer). With warmup, pass the same fresh `--run-id` to the producer and every consumer. The launcher generates
+this correlation ID automatically and saves it in `run-id.txt`. Barrier markers include the ID so markers left
+by an earlier run cannot release a new run's barrier.
+
+`--coordination-directory` is optional and defaults to `<output>/coordination`. If producer and consumer outputs
+are in different directories, pass a common shared coordination directory explicitly. For example, generate
+`RUN_ID=$(uuidgen)` once and use `--run-id "$RUN_ID" --coordination-directory /tmp/iot-coordination` for every tool
+process in that run. Reusing the directory is fine; use a new run ID for each invocation of the workload.
+
 Set `batchingEnabled` in the workload section to compare batched and unbatched keyed messages without
 changing the tool implementation. Batched runs use `BatcherBuilder.KEY_BASED`, which keeps each batch to
 one key as required for Key_Shared delivery.
@@ -112,12 +122,20 @@ default. The cut recording also retains the one-time JVM, host, recording settin
 configuration events needed to describe the source JVM in JDK Mission Control. Set
 `profiling.retainOriginalRecording: false` to keep only the measurement recording, or
 `profiling.createMeasurementRecording: false` to keep only the complete recording. If cutting fails, the complete
-recording is preserved even when its retention is disabled.
+recording is preserved even when its retention is disabled. Setting both flags to `false` intentionally discards
+all current-run recordings. Earlier runs' recordings are left alone; use a fresh output directory per experiment
+if you want an unambiguous set of artifacts.
+
+The JFR measurement window and broker-publish-to-listener latency assume synchronized producer, consumer, and
+broker clocks. Containers on one Docker host share its clock. When adapting the tools to multiple hosts,
+synchronize their clocks; no clock-skew correction is applied.
 
 The producer writes `produce-latency.hdr` containing send-to-completion latency for measured messages. Each backend
 application writes `consume-latency.hdr` containing broker-publish-to-listener latency for measured messages. Warmup
-messages are excluded from both histograms. Consumer latency is sampled before validation, acknowledgment, and any
-simulated backend processing. Use the launcher's `renderHdrHistograms` Gradle task to merge the backend-application
+messages are excluded from both histograms. The consumer captures its receipt timestamp on listener entry and
+records the sample after payload decoding and key validation, before sequence validation and acknowledgment.
+Decoding and validation time do not contribute to the latency value. Use the launcher's `renderHdrHistograms`
+Gradle task to merge the backend-application
 histograms by observation count and render the producer and consumer distributions as PNG and SVG; see the
 performance README for the command.
 

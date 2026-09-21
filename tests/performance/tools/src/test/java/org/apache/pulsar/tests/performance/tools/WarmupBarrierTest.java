@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.performance.tools;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
@@ -30,11 +31,19 @@ public class WarmupBarrierTest {
     public void waitsForEveryApplicationInTheRound() throws Exception {
         Path directory = Files.createTempDirectory("warmup-barrier-test");
         try {
-            WarmupBarrier.markApplicationComplete(directory, 2, 0);
-            WarmupBarrier.markApplicationComplete(directory, 2, 1);
+            WarmupBarrier.markApplicationComplete(directory, "old-run", 2, 0);
+            WarmupBarrier.markApplicationComplete(directory, "old-run", 2, 1);
+            // Neither a previous run nor a different round can release the current barrier.
+            WarmupBarrier.markApplicationComplete(directory, "current-run", 1, 1);
+            WarmupBarrier.markApplicationComplete(directory, "current-run", 2, 0);
+            long incompleteDeadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50);
+            assertThatThrownBy(() -> WarmupBarrier.awaitApplications(directory, "current-run", 2, 2,
+                    incompleteDeadline)).isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Timed out");
+            WarmupBarrier.markApplicationComplete(directory, "current-run", 2, 1);
 
             long deadlineNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(1);
-            assertThatCode(() -> WarmupBarrier.awaitApplications(directory, 2, 2, deadlineNanos))
+            assertThatCode(() -> WarmupBarrier.awaitApplications(directory, "current-run", 2, 2, deadlineNanos))
                     .doesNotThrowAnyException();
         } finally {
             try (var paths = Files.walk(directory)) {

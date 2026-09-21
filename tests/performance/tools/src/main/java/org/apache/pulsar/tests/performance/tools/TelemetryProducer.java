@@ -56,7 +56,8 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         AtomicLong warmupCompleted = new AtomicLong();
         AtomicLong measurementCompleted = new AtomicLong();
         HdrLatencyRecorder sendLatency = new HdrLatencyRecorder();
-        Semaphore outstanding = new Semaphore(scenario.maxOutstanding());
+        int maxOutstanding = Math.min(scenario.maxOutstanding(), scenario.deviceCount());
+        Semaphore outstanding = new Semaphore(maxOutstanding);
         Set<Integer> devicesInFlight = ConcurrentHashMap.newKeySet();
 
         PulsarClientSharedResources sharedResources = SharedClientResources.create(scenario);
@@ -90,6 +91,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 if (sendFailure != null) {
                     throw new IllegalStateException("Telemetry send failed", sendFailure);
                 }
+                outstanding.acquire();
                 int device;
                 do {
                     device = random.nextInt(scenario.deviceCount());
@@ -104,7 +106,6 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 }
 
                 boolean measurementMessage = sent >= warmupMessageCount;
-                outstanding.acquire();
                 if (measurementMessage && measurementStartedNanos < 0) {
                     measurementStartedNanos = System.nanoTime();
                     measurementStartEpochMs = System.currentTimeMillis();
@@ -145,12 +146,12 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 }
                 if (!measurementMessage && warmupMessagesPerRound > 0
                         && (sent + 1) % warmupMessagesPerRound == 0) {
-                    awaitOutstanding(outstanding, scenario.maxOutstanding());
+                    awaitOutstanding(outstanding, maxOutstanding);
                     if (failure.get() != null) {
                         throw new IllegalStateException("Telemetry warmup send failed", failure.get());
                     }
                     int round = Math.toIntExact((sent + 1) / warmupMessagesPerRound);
-                    WarmupBarrier.awaitApplications(coordinationDirectory, round, scenario.applicationCount(),
+                    WarmupBarrier.awaitApplications(coordinationDirectory(), runId, round, scenario.applicationCount(),
                             runDeadlineNanos);
                     System.out.println("WARMUP_ROUND_COMPLETE round=" + round + "/" + scenario.warmupRounds()
                             + " produced=" + warmupCompleted.get()
@@ -163,7 +164,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                     nextSend = System.nanoTime();
                 }
             }
-            awaitOutstanding(outstanding, scenario.maxOutstanding());
+            awaitOutstanding(outstanding, maxOutstanding);
             if (failure.get() != null) {
                 throw new IllegalStateException("Telemetry send failed", failure.get());
             }

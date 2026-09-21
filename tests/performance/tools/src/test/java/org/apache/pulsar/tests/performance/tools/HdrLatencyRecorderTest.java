@@ -27,6 +27,21 @@ import org.testng.annotations.Test;
 
 public class HdrLatencyRecorderTest {
     @Test
+    public void writesEmptyHistogramForRunWithoutMeasuredMessages() throws Exception {
+        Path output = Files.createTempFile("empty-latency", ".hdr");
+        try {
+            new HdrLatencyRecorder().write(output, 0, 0);
+            try (HistogramLogReader reader = new HistogramLogReader(output.toFile())) {
+                Histogram histogram = (Histogram) reader.nextIntervalHistogram();
+                assertThat(histogram.getTotalCount()).isZero();
+                assertThat(reader.nextIntervalHistogram()).isNull();
+            }
+        } finally {
+            Files.deleteIfExists(output);
+        }
+    }
+
+    @Test
     public void writesMicrosecondHistogramLog() throws Exception {
         Path output = Files.createTempFile("latency", ".hdr");
         try {

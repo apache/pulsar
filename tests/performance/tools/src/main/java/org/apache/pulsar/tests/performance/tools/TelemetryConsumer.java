@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.tests.performance.tools;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.time.Duration;
@@ -27,7 +26,6 @@ import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.Consumer;
@@ -55,20 +53,20 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         HdrLatencyRecorder receiveLatency = new HdrLatencyRecorder();
         AtomicLong firstMeasurementReceiptEpochMs = new AtomicLong();
         AtomicLong lastMeasurementReceiptEpochMs = new AtomicLong();
-        AtomicInteger nextWarmupRound = new AtomicInteger(1);
+        int nextWarmupRound = 1;
         Thread restarter = null;
 
         PulsarClientSharedResources sharedResources = SharedClientResources.create(scenario);
         try {
             for (int pod = 0; pod < scenario.clientsPerApplication(); pod++) {
                 pods.add(createPod(scenario, sharedResources, tracker, receiveLatency,
-                        firstMeasurementReceiptEpochMs, lastMeasurementReceiptEpochMs, nextWarmupRound, pod));
+                        firstMeasurementReceiptEpochMs, lastMeasurementReceiptEpochMs, pod));
             }
             System.out.println("READY application=" + applicationIndex + " clients=" + pods.size());
             if (scenario.clientRestartIntervalSeconds() > 0 && scenario.clientRestartFraction() > 0) {
                 restarter = new Thread(() -> restartClients(scenario, sharedResources, tracker, pods, stopping,
                                 restarterFailure, receiveLatency, firstMeasurementReceiptEpochMs,
-                                lastMeasurementReceiptEpochMs, nextWarmupRound),
+                                lastMeasurementReceiptEpochMs),
                         "iot-client-restarter");
                 restarter.start();
             }
@@ -77,6 +75,12 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             while (tracker.uniqueMessages() < scenario.messageCount() && System.nanoTime() < deadline) {
                 if (restarterFailure.get() != null) {
                     throw new IllegalStateException("Cannot restart IoT client", restarterFailure.get());
+                }
+                if (nextWarmupRound <= scenario.warmupRounds() && scenario.warmupMessageCountPerRound() > 0
+                        && tracker.uniqueMessages() >= scenario.warmupMessageCountPerRound() * nextWarmupRound) {
+                    WarmupBarrier.markApplicationComplete(coordinationDirectory(), runId,
+                            nextWarmupRound, applicationIndex);
+                    nextWarmupRound++;
                 }
                 Thread.sleep(100);
             }
@@ -118,7 +122,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
     private ClientAndConsumer createPod(IotScenario scenario, PulsarClientSharedResources sharedResources,
                                         DeviceSequenceTracker tracker, HdrLatencyRecorder receiveLatency,
                                         AtomicLong firstMeasurementReceiptEpochMs,
-                                        AtomicLong lastMeasurementReceiptEpochMs, AtomicInteger nextWarmupRound,
+                                        AtomicLong lastMeasurementReceiptEpochMs,
                                         int podIndex) throws Exception {
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(scenario.serviceUrl())
@@ -148,7 +152,6 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                             }
                             tracker.received(decoded.deviceId(), decoded.sequence(), message.getMessageId(),
                                     decoded.sentNanos(), message.getTopicName(), Thread.currentThread().getName());
-                            markCompletedWarmupRounds(scenario, tracker, nextWarmupRound);
                             currentConsumer.acknowledgeAsync(message);
                         } catch (RuntimeException error) {
                             tracker.invalidMessage();
@@ -167,7 +170,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                                 DeviceSequenceTracker tracker, List<ClientAndConsumer> pods,
                                 AtomicBoolean stopping, AtomicReference<Throwable> failure,
                                 HdrLatencyRecorder receiveLatency, AtomicLong firstMeasurementReceiptEpochMs,
-                                AtomicLong lastMeasurementReceiptEpochMs, AtomicInteger nextWarmupRound) {
+                                AtomicLong lastMeasurementReceiptEpochMs) {
         int restartCount = Math.max(1,
                 (int) Math.ceil(scenario.clientsPerApplication() * scenario.clientRestartFraction()));
         while (!stopping.get()) {
@@ -179,8 +182,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                         ClientAndConsumer previous = pods.get(index);
                         previous.close();
                         pods.set(index, createPod(scenario, sharedResources, tracker, receiveLatency,
-                                firstMeasurementReceiptEpochMs, lastMeasurementReceiptEpochMs, nextWarmupRound,
-                                index));
+                                firstMeasurementReceiptEpochMs, lastMeasurementReceiptEpochMs, index));
                     }
                 }
             } catch (InterruptedException interrupted) {
@@ -189,25 +191,6 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             } catch (Exception error) {
                 failure.compareAndSet(null, error);
                 return;
-            }
-        }
-    }
-
-    private void markCompletedWarmupRounds(IotScenario scenario, DeviceSequenceTracker tracker,
-                                           AtomicInteger nextWarmupRound) {
-        long messagesPerRound = scenario.warmupMessageCountPerRound();
-        if (messagesPerRound == 0) {
-            return;
-        }
-        int round;
-        while ((round = nextWarmupRound.get()) <= scenario.warmupRounds()
-                && tracker.uniqueMessages() >= Math.multiplyExact(messagesPerRound, round)) {
-            if (nextWarmupRound.compareAndSet(round, round + 1)) {
-                try {
-                    WarmupBarrier.markApplicationComplete(coordinationDirectory, round, applicationIndex);
-                } catch (IOException error) {
-                    throw new IllegalStateException("Cannot mark warmup round complete", error);
-                }
             }
         }
     }

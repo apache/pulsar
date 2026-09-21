@@ -122,12 +122,20 @@ Control can describe the source JVM. Set
 `profiling.retainOriginalRecording: false` to remove the complete
 recording after a successful cut, or `profiling.createMeasurementRecording: false` to keep only the complete
 recording. Both options default to `true` and apply to broker, producer and consumer recordings.
+Setting both to `false` intentionally discards all recordings produced by the current run. Retention options do
+not remove recordings from earlier runs. Use a fresh output directory for each experiment to keep profiles,
+summaries, and histograms together without mixing artifacts from different runs.
+
+These timestamps assume that producer, consumer, and broker clocks agree, as they do for containers on the same
+Docker host. Multi-host experiments need synchronized clocks; the launcher does not estimate clock skew or
+correct the cut window. The broker-publish-to-listener latency uses the same clock assumption.
 
 Every IoT run writes `producer/produce-latency.hdr` with successful measured-message send-completion latency and
 one `consumer-*/consume-latency.hdr` per backend application with measured-message broker-publish-to-listener
 latency. Both use microseconds internally and three significant digits. Warmup messages are tagged in the payload
-and excluded. Consumer latency is recorded on listener entry before sequence validation, acknowledgment, or backend
-processing, so configured processing delays do not inflate messaging latency.
+and excluded. Consumer latency uses a timestamp captured on listener entry; the sample is recorded after payload
+decoding and key validation, before sequence validation and acknowledgment. Decoding and validation time are
+excluded from the latency value.
 
 Render the producer distribution together with the count-weighted merge of all backend-application consumer
 histograms as PNG and SVG:
@@ -157,7 +165,8 @@ Java code can call `JfrCut.cut(Path input, Instant from, Instant to, Path output
 `JfrCut.cutFrom(Path input, Instant from, Path output)` directly without invoking the command-line entry point.
 `JfrCut.cutUsingTimeExpressions(...)` provides the relative and omitted-boundary syntax,
 and `JfrCut.recordingInfo(...)` returns the event range. Events overlapping the half-open interval `[from, to)`
-are retained.
+are retained: duration events ending exactly at `from` are excluded, instantaneous events at `from` are included,
+and events starting exactly at `to` are excluded.
 
 For one-off standalone overrides, prefix an existing scalar path with `PULSAR_PERFORMANCE_`, uppercase it and
 separate path elements with underscores. The loader preserves the scalar's YAML type. For example:

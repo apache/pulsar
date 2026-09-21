@@ -29,17 +29,17 @@ final class WarmupBarrier {
     private WarmupBarrier() {
     }
 
-    static void markApplicationComplete(Path directory, int round, int application) throws IOException {
+    static void markApplicationComplete(Path directory, String runId, int round, int application) throws IOException {
         Files.createDirectories(directory);
-        Files.writeString(marker(directory, round, application), "complete\n");
+        Files.writeString(marker(directory, runId, round, application), "complete\n");
     }
 
-    static void awaitApplications(Path directory, int round, int applications, long deadlineNanos)
+    static void awaitApplications(Path directory, String runId, int round, int applications, long deadlineNanos)
             throws Exception {
         while (deadlineNanos - System.nanoTime() > 0) {
             boolean complete = true;
             for (int application = 0; application < applications; application++) {
-                if (!Files.isRegularFile(marker(directory, round, application))) {
+                if (!Files.isRegularFile(marker(directory, runId, round, application))) {
                     complete = false;
                     break;
                 }
@@ -53,7 +53,7 @@ final class WarmupBarrier {
                 + " applications to receive warmup round " + round);
     }
 
-    private static Path marker(Path directory, int round, int application) {
-        return directory.resolve("warmup-round-" + round + "-application-" + application + ".complete");
+    private static Path marker(Path directory, String runId, int round, int application) {
+        return directory.resolve("warmup-" + runId + "-round-" + round + "-application-" + application + ".complete");
     }
 }

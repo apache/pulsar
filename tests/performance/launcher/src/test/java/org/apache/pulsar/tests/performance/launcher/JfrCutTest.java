@@ -63,6 +63,44 @@ public class JfrCutTest {
         }
     }
 
+    @Test
+    public void honorsExactEventBoundaries() throws Exception {
+        Path directory = Files.createTempDirectory("jfr-boundary-test");
+        try {
+            Path input = directory.resolve("input.jfr");
+            try (Recording recording = new Recording()) {
+                recording.enable(MarkerEvent.class);
+                recording.start();
+                MarkerEvent duration = new MarkerEvent();
+                duration.marker = "duration";
+                duration.begin();
+                Thread.sleep(10);
+                duration.end();
+                duration.commit();
+                marker("instant");
+                recording.stop();
+                recording.dump(input);
+            }
+            var events = RecordingFile.readAllEvents(input).stream()
+                    .filter(event -> event.getEventType().getName().equals(EVENT_NAME)).toList();
+            var duration = events.stream().filter(event -> event.getString("marker").equals("duration"))
+                    .findFirst().orElseThrow();
+            var instant = events.stream().filter(event -> event.getString("marker").equals("instant"))
+                    .findFirst().orElseThrow();
+            Path output = directory.resolve("output.jfr");
+            JfrCut.cut(input, duration.getEndTime(), instant.getStartTime().plusNanos(1), output);
+            assertEquals(markers(output), List.of("instant"));
+            JfrCut.cutFrom(input, duration.getEndTime(), output);
+            assertEquals(markers(output), List.of("instant"));
+            JfrCut.cut(input, instant.getStartTime(), instant.getStartTime().plusNanos(1), output);
+            assertEquals(markers(output), List.of("instant"));
+            JfrCut.cut(input, duration.getStartTime(), instant.getStartTime(), output);
+            assertEquals(markers(output), List.of("duration"));
+        } finally {
+            deleteDirectory(directory);
+        }
+    }
+
     @Test(dataProvider = "retentionModes")
     public void appliesIndependentRetentionOptions(boolean retainOriginal, boolean createMeasurement)
             throws Exception {

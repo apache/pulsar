@@ -47,9 +47,6 @@ final class HdrLatencyRecorder {
 
     void write(Path path, long startEpochMillis, long endEpochMillis) throws IOException {
         Histogram histogram = recorder.getIntervalHistogram();
-        if (histogram.getTotalCount() == 0) {
-            throw new IOException("Cannot write an empty latency histogram: " + path);
-        }
         histogram.setStartTimeStamp(startEpochMillis);
         histogram.setEndTimeStamp(Math.max(startEpochMillis, endEpochMillis));
         try (PrintStream output = new PrintStream(Files.newOutputStream(path))) {

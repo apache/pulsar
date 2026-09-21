@@ -177,12 +177,14 @@ public final class JfrCut implements Callable<Integer> {
             throw new IllegalArgumentException("JFR cut start must be before its end");
         }
         cut(input, output, event -> isJvmContextEvent(event)
-                || event.getStartTime().isBefore(to) && !event.getEndTime().isBefore(from));
+                || event.getStartTime().isBefore(to)
+                && (event.getEndTime().isAfter(from) || event.getStartTime().equals(from)));
     }
 
     /**
-     * Removes events that finished before {@code from} while retaining the remainder of the recording. One-time JVM,
-     * host, recording setting, and runtime configuration events are retained even when they precede the boundary.
+     * Removes duration events ending at or before {@code from}, retaining instantaneous events at the boundary.
+     * One-time JVM, host, recording setting, and runtime configuration events are retained even when they precede
+     * the boundary.
      * This is useful for removing benchmark startup and warmup without discarding asynchronous work that finishes
      * after the measured producer activity has ended.
      *
@@ -191,7 +193,8 @@ public final class JfrCut implements Callable<Integer> {
      * @param output destination JFR recording, which must differ from {@code input}
      */
     public static void cutFrom(Path input, Instant from, Path output) throws IOException {
-        cut(input, output, event -> isJvmContextEvent(event) || !event.getEndTime().isBefore(from));
+        cut(input, output, event -> isJvmContextEvent(event)
+                || event.getEndTime().isAfter(from) || event.getStartTime().equals(from));
     }
 
     private static void cut(Path input, Path output, Predicate<RecordedEvent> filter) throws IOException {
