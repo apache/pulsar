@@ -26,9 +26,12 @@ import java.io.DataInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -49,6 +52,7 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String CONFIG_ENV = "PULSAR_PERFORMANCE_CONFIG";
     private static final String TOOLS_MOUNT = "/opt/pulsar-performance-tools";
     private static final String CONFIG_MOUNT = "/performance-config/resolved-config.yaml";
+    private static final String COORDINATION_MOUNT = "/performance-coordination";
 
     @Option(names = "--config", required = true)
     Path config;
@@ -73,6 +77,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         String brokerProfileOptions = text(profiling, "brokerOptions");
         String producerProfileOptions = text(profiling, "producerOptions");
         String consumerProfileOptions = text(profiling, "consumerOptions");
+        boolean retainOriginalRecording = booleanValue(profiling, "retainOriginalRecording", true);
+        boolean createMeasurementRecording = booleanValue(profiling, "createMeasurementRecording", true);
         boolean profilingEnabled = brokerProfileOptions != null || producerProfileOptions != null
                 || consumerProfileOptions != null;
         if (profilingEnabled
@@ -81,6 +87,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                     + "./gradlew :tests:performance:launcher:profile");
         }
         int applications = workload.path("applicationCount").intValue();
+        String runId = UUID.randomUUID().toString();
         String clusterName = "iot-" + ProcessHandle.current().pid();
         workload.put("serviceUrl", "pulsar://" + clusterName + "-pulsar-broker-0:6650");
 
@@ -88,6 +95,10 @@ public class PerformanceLauncher implements Callable<Integer> {
                 : Path.of(loader.select(resolved, "output.directory").textValue());
         runOutput = runOutput.toAbsolutePath().normalize();
         Files.createDirectories(runOutput);
+        Path coordinationDirectory = runOutput.resolve("coordination");
+        Files.createDirectories(coordinationDirectory);
+        Files.writeString(runOutput.resolve("run-id.txt"), runId + "\n");
+        Set<Path> recordingsBeforeRun = JfrRecordingProcessor.findOriginalRecordings(runOutput);
         Path brokerProfileDirectory = runOutput.resolve("broker-profile");
         if (brokerProfileOptions != null) {
             Files.createDirectories(brokerProfileDirectory);
@@ -129,7 +140,8 @@ public class PerformanceLauncher implements Callable<Integer> {
             for (int application = 0; application < applications; application++) {
                 Path appOutput = runOutput.resolve("consumer-" + application);
                 Files.createDirectories(appOutput);
-                consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig, appOutput,
+                consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
+                        coordinationDirectory, runId, appOutput,
                         consumerProfileOptions, "iot-consume", "--application-index", Integer.toString(application))
                         .waitingFor(Wait.forLogMessage(".*READY application=.*", 1)
                                 .withStartupTimeout(Duration.ofMinutes(5))));
@@ -138,7 +150,8 @@ public class PerformanceLauncher implements Callable<Integer> {
 
             Path producerOutput = runOutput.resolve("producer");
             Files.createDirectories(producerOutput);
-            producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig, producerOutput,
+            producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
+                    coordinationDirectory, runId, producerOutput,
                     producerProfileOptions, "iot-produce");
             producer.start();
             int timeout = workload.path("consumerTimeoutSeconds").intValue() + 60;
@@ -156,7 +169,6 @@ public class PerformanceLauncher implements Callable<Integer> {
                 }
             }
             verifyStates(runOutput, applications);
-            return 0;
         } finally {
             if (producer != null) {
                 saveContainerLog(producer, runOutput.resolve("producer/container.log"));
@@ -169,9 +181,32 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
             cluster.stop();
         }
+        if (profilingEnabled) {
+            JsonNode summary = loader.mapper().readTree(runOutput.resolve("producer/producer-summary.json").toFile());
+            Instant measurementStart = Instant.ofEpochMilli(requiredLong(summary, "measurementStartEpochMs"));
+            long lastConsumerReceiptEpochMs = Long.MIN_VALUE;
+            for (int application = 0; application < applications; application++) {
+                JsonNode consumerSummary = loader.mapper().readTree(
+                        runOutput.resolve("consumer-" + application + "/consumer-summary.json").toFile());
+                lastConsumerReceiptEpochMs = Math.max(lastConsumerReceiptEpochMs,
+                        requiredLong(consumerSummary, "lastMeasurementMessageReceivedEpochMs"));
+            }
+            // Consumer timestamps have millisecond precision. Use the following millisecond as the exclusive bound
+            // so that events from the millisecond containing the final receipt are retained.
+            Instant measurementEnd = Instant.ofEpochMilli(lastConsumerReceiptEpochMs).plusMillis(1);
+            Set<Path> recordings = JfrRecordingProcessor.findOriginalRecordings(runOutput);
+            recordings.removeAll(recordingsBeforeRun);
+            if (recordings.isEmpty()) {
+                throw new IllegalStateException("Profiling completed without producing a JFR recording");
+            }
+            JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd,
+                    retainOriginalRecording, createMeasurementRecording);
+        }
+        return 0;
     }
 
     private GenericContainer<?> workloadContainer(PulsarCluster cluster, Path tools, Path configFile,
+                                                   Path coordinationDirectory, String runId,
                                                    Path outputDirectory, String profileOptions,
                                                    String command, String... extraArguments) {
         List<String> arguments = new ArrayList<>();
@@ -181,6 +216,10 @@ public class PerformanceLauncher implements Callable<Integer> {
         arguments.add(CONFIG_MOUNT);
         arguments.add("--output");
         arguments.add("/performance-output");
+        arguments.add("--coordination-directory");
+        arguments.add(COORDINATION_MOUNT);
+        arguments.add("--run-id");
+        arguments.add(runId);
         arguments.addAll(List.of(extraArguments));
         String javaOptions = "-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m";
         if (profileOptions != null) {
@@ -195,6 +234,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .withNetwork(cluster.getNetwork())
                 .withFileSystemBind(tools.toString(), TOOLS_MOUNT, BindMode.READ_ONLY)
                 .withFileSystemBind(configFile.toString(), CONFIG_MOUNT, BindMode.READ_ONLY)
+                .withFileSystemBind(coordinationDirectory.toString(), COORDINATION_MOUNT, BindMode.READ_WRITE)
                 .withFileSystemBind(outputDirectory.toString(), "/performance-output", BindMode.READ_WRITE)
                 .withEnv("JAVA_TOOL_OPTIONS", javaOptions)
                 .withCommand(arguments.toArray(String[]::new));
@@ -210,6 +250,25 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static String text(JsonNode parent, String field) {
         JsonNode value = parent.path(field);
         return value.isTextual() && !value.textValue().isBlank() ? value.textValue() : null;
+    }
+
+    private static boolean booleanValue(JsonNode parent, String field, boolean defaultValue) {
+        JsonNode value = parent.path(field);
+        if (value.isMissingNode() || value.isNull()) {
+            return defaultValue;
+        }
+        if (!value.isBoolean()) {
+            throw new IllegalArgumentException("profiling." + field + " must be a boolean");
+        }
+        return value.booleanValue();
+    }
+
+    private static long requiredLong(JsonNode parent, String field) {
+        JsonNode value = parent.path(field);
+        if (!value.canConvertToLong()) {
+            throw new IllegalArgumentException("Missing numeric performance summary field " + field);
+        }
+        return value.longValue();
     }
 
     private static int waitForExit(GenericContainer<?> container, int timeoutSeconds) throws Exception {

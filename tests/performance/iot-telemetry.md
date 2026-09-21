@@ -5,7 +5,7 @@ gateways and fanning out to independent applications:
 
 - 300,000 possible device IDs, 100 gateway clients and 30 persistent topics;
 - one stable binary device ID key and a monotonic per-device counter in each 64-byte message;
-- 1,000 messages/second for 120 seconds;
+- a 20-second warmup followed by 1,000 measured messages/second for 120 seconds;
 - 20 applications, each using its own Key_Shared subscription across 100 isolated client instances;
 - shared PIP-234 client resources within each producer or application process; and
 - broker-side producer deduplication with stable, unique producer names and explicit producer sequence IDs.
@@ -58,13 +58,44 @@ The Gradle task builds the server test image and the workload distribution befor
 resolves YAML inheritance and `PULSAR_PERFORMANCE_` environment overrides, writes `resolved-config.yaml`
 to the run directory, and mounts that resolved file and the application distribution into each container.
 The `iot-produce` and `iot-consume` commands accept `--config-path` when a different subtree is desired.
+Without warmup, direct tool invocations need only `--config` and `--output` (plus `--application-index` for a
+consumer). With warmup, pass the same fresh `--run-id` to the producer and every consumer. The launcher generates
+this correlation ID automatically and saves it in `run-id.txt`. Barrier markers include the ID so markers left
+by an earlier run cannot release a new run's barrier.
+
+`--coordination-directory` is optional and defaults to `<output>/coordination`. If producer and consumer outputs
+are in different directories, pass a common shared coordination directory explicitly. For example, generate
+`RUN_ID=$(uuidgen)` once and use `--run-id "$RUN_ID" --coordination-directory /tmp/iot-coordination` for every tool
+process in that run. Reusing the directory is fine; use a new run ID for each invocation of the workload.
+
 Set `batchingEnabled` in the workload section to compare batched and unbatched keyed messages without
 changing the tool implementation. Batched runs use `BatcherBuilder.KEY_BASED`, which keeps each batch to
 one key as required for Key_Shared delivery.
 
+Warmup messages exercise the same producer, client, connection, topic and consumer paths as measured messages. They
+remain in the monotonic device sequences and end-to-end delivery checks, but are excluded from throughput. For a
+rate-limited workload, set `warmupSeconds`; for an unrestricted workload, set `warmupMessages`. Do not set both.
+The value applies to each of `warmupRounds`. Every round drains its asynchronous sends and waits until every backend
+application has uniquely received the cumulative warmup count before `warmupRoundDelaySeconds` begins. The delay
+after the final round gives background JIT compilation and other startup work time to settle before the producer
+records the measurement boundary. This is a stabilization control, not a guarantee that the JVM has completed
+compilation.
+`producer-summary.json` records the warmup and measurement counts and epoch-millisecond producer boundaries. Each
+`consumer-summary.json` records the first and last measured-message receipt as metadata. The launcher uses the
+producer start and the latest last receipt across all backend applications as the JFR measurement interval.
+
+The base scenario also keeps incidental storage maintenance outside normal measurement windows. Its managed-ledger
+entry, size and time limits allow the topic and cursor ledgers to remain open throughout ordinary runs. BookKeeper
+ledger garbage collection waits for one day, entry-log compaction is disabled, and the journal size limit is raised.
+The test containers are ephemeral, so delayed reclamation cannot accumulate between runs. These settings isolate
+the broker messaging path; they are benchmark controls rather than production sizing recommendations. Use a
+separate scenario with normal or deliberately short limits when measuring rollover, recovery, deletion, compaction,
+or long-running storage behavior. BookKeeper entry-log flushing and disk-space checks remain enabled.
+
 Set `rate: 0` together with a positive `numberOfMessages` to remove producer pacing. Set
 `precreateProducers: true` to open every gateway/topic producer before throughput timing begins. The producer
-summary records elapsed time and whole-run messages/second.
+summary reports `messagesPerSecond` only for the post-warmup measurement phase and retains
+`wholeRunMessagesPerSecond` as startup and warmup context.
 
 ## Async-profiler
 
@@ -82,6 +113,31 @@ under `broker-profile/`; producer and consumer recordings are written in their c
 The launcher owns each `file=` option so recordings remain inside the run directory. Empty options leave that
 component unprofiled. The ordinary `run` task rejects profiling-enabled YAML rather than silently running with
 an image that lacks the native agent.
+
+After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the producer's
+measurement start through the latest measured-message receipt across all backend applications. The upper boundary
+includes the full millisecond containing that receipt. This removes startup, warmup, and shutdown while retaining
+the broker and consumer work needed to deliver every measured message. The complete recording is retained by
+default. The cut recording also retains the one-time JVM, host, recording setting and runtime
+configuration events needed to describe the source JVM in JDK Mission Control. Set
+`profiling.retainOriginalRecording: false` to keep only the measurement recording, or
+`profiling.createMeasurementRecording: false` to keep only the complete recording. If cutting fails, the complete
+recording is preserved even when its retention is disabled. Setting both flags to `false` intentionally discards
+all current-run recordings. Earlier runs' recordings are left alone; use a fresh output directory per experiment
+if you want an unambiguous set of artifacts.
+
+The JFR measurement window and broker-publish-to-listener latency assume synchronized producer, consumer, and
+broker clocks. Containers on one Docker host share its clock. When adapting the tools to multiple hosts,
+synchronize their clocks; no clock-skew correction is applied.
+
+The producer writes `produce-latency.hdr` containing send-to-completion latency for measured messages. Each backend
+application writes `consume-latency.hdr` containing broker-publish-to-listener latency for measured messages. Warmup
+messages are excluded from both histograms. The consumer captures its receipt timestamp on listener entry and
+records the sample after payload decoding and key validation, before sequence validation and acknowledgment.
+Decoding and validation time do not contribute to the latency value. Use the launcher's `renderHdrHistograms`
+Gradle task to merge the backend-application
+histograms by observation count and render the producer and consumer distributions as PNG and SVG; see the
+performance README for the command.
 
 ## Interpreting a run
 

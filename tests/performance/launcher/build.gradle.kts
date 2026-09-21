@@ -25,6 +25,7 @@ plugins {
 dependencies {
     implementation(project(":tests:performance:common"))
     implementation(project(path = ":tests:integration", configuration = "testJar"))
+    implementation(libs.hdrHistogram)
     implementation(libs.picocli)
 }
 
@@ -60,4 +61,18 @@ tasks.register<JavaExec>("profile") {
     dependsOn(":tests:java-test-image:dockerBuildWithAsyncProfiler", ":tests:integration:tuneKernelPerfEvents")
     outputs.upToDateWhen { false }
     outputs.cacheIf("profiling runs are never cached") { false }
+}
+
+tasks.register<JavaExec>("runJfrCut") {
+    group = "verification"
+    description = "Inspect or cut a JFR recording to an absolute or recording-relative time interval"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.apache.pulsar.tests.performance.launcher.JfrCut")
+}
+
+tasks.register<JavaExec>("renderHdrHistograms") {
+    group = "verification"
+    description = "Render IoT producer and consumer HDR latency histograms as PNG and SVG"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.apache.pulsar.tests.performance.launcher.HdrHistogramRenderer")
 }

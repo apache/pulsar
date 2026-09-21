@@ -22,8 +22,22 @@ cluster:
   bookies: 3
   brokerEnvs:
     brokerDeduplicationEnabled: "true"
+    # Keep storage-maintenance boundaries outside ordinary warmup and measurement windows.
+    # These are benchmark settings, not production sizing recommendations.
+    managedLedgerMaxEntriesPerLedger: "100000000"
+    managedLedgerMinLedgerRolloverTimeMinutes: "60"
+    managedLedgerMaxLedgerRolloverTimeMinutes: "1440"
+    managedLedgerMaxSizePerLedgerMbytes: "16384"
+    managedLedgerCursorMaxEntriesPerLedger: "100000000"
+    managedLedgerCursorRolloverTimeInSeconds: "86400"
     PULSAR_MEM: -Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g
   bookkeeperEnvs:
+    # The containers are ephemeral, so postpone reclamation and compaction until after the run.
+    journalMaxSizeMB: "8192"
+    gcWaitTime: "86400000"
+    gcOverreplicatedLedgerWaitTime: "86400000"
+    minorCompactionInterval: "-1"
+    majorCompactionInterval: "-1"
     PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=512m
 workloads:
   iotTelemetry:
@@ -31,6 +45,11 @@ workloads:
     topicPrefix: persistent://public/default/iot-telemetry-
     subscriptionPrefix: iot-application-
     durationSeconds: 120
+    # Warmup traffic is validated but excluded from throughput and the exported measurement window.
+    warmupSeconds: 20
+    warmupMessages: 0
+    warmupRounds: 1
+    warmupRoundDelaySeconds: 0
     rate: 1000
     numberOfMessages: 0
     payloadBytes: 64
