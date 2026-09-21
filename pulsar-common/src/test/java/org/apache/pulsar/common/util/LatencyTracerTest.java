@@ -100,7 +100,8 @@ public class LatencyTracerTest {
         tracer.startTrace("A");
 
         final var snapshot = tracer.getSnapshot();
-        assertTrue(Pattern.compile("state: still in progress, start timestamp: \\d+, end timestamp: \\d+, total: 30 ms, pending steps: A")
+        assertTrue(Pattern.compile("state: still in progress, start timestamp: \\d+, end timestamp: \\d+, "
+                        + "total: 30 ms, pending steps: A")
                 .matcher(snapshot.description()).matches());
         assertFalse(snapshot.completed());
         assertFalse(snapshot.success());
@@ -215,7 +216,8 @@ public class LatencyTracerTest {
         final var future = CompletableFuture.completedFuture(100);
         assertNotSame(tracer.trace("A", future), future);
         final var latency = tracer.getSnapshot().description();
-        assertTrue(Pattern.compile("state: succeed, start timestamp: \\d+, end timestamp: \\d+, total: \\d+ ms, A: \\d+ (ms|us)")
+        assertTrue(Pattern.compile("state: succeed, start timestamp: \\d+, end timestamp: \\d+, "
+                        + "total: \\d+ ms, A: \\d+ (ms|us)")
                 .matcher(latency).matches(), latency);
 
         final var future2 = new CompletableFuture<Integer>();
@@ -224,7 +226,8 @@ public class LatencyTracerTest {
         assertNotSame(tracedFuture, future2);
         assertEquals(tracedFuture.get(), 1);
         final var snapshot = tracer.getSnapshot();
-        Matcher m = Pattern.compile("state: succeed, start timestamp: \\d+, end timestamp: \\d+, total: \\d+ ms, A: \\d+ (ms|us), B: (\\d+) ms")
+        Matcher m = Pattern.compile("state: succeed, start timestamp: \\d+, end timestamp: \\d+, "
+                        + "total: \\d+ ms, A: \\d+ (ms|us), B: (\\d+) ms")
                 .matcher(snapshot.description());
         assertTrue(m.matches(), snapshot.description());
         assertEquals(Long.parseLong(m.group(2)), snapshot.elapsedInMillis(), snapshot.description());
