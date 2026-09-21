@@ -19,10 +19,7 @@
 package org.apache.pulsar.testclient;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
+import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.util.concurrent.RateLimiter;
@@ -44,6 +41,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.Recorder;
 import org.apache.bookkeeper.client.api.DigestType;
@@ -62,104 +60,91 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-public class ManagedLedgerWriter {
+@Command(name = "managed-ledger", description = "Write directly on managed-ledgers")
+@CustomLog
+public class ManagedLedgerWriter extends CmdBase{
 
-    private static final ExecutorService executor = Executors
-            .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-managed-ledger-exec"));
+    private final LongAdder messagesSent = new LongAdder();
+    private final LongAdder bytesSent = new LongAdder();
+    private final LongAdder totalMessagesSent = new LongAdder();
+    private final LongAdder totalBytesSent = new LongAdder();
 
-    private static final LongAdder messagesSent = new LongAdder();
-    private static final LongAdder bytesSent = new LongAdder();
-    private static final LongAdder totalMessagesSent = new LongAdder();
-    private static final LongAdder totalBytesSent = new LongAdder();
+    // Latencies are recorded in microseconds. A managed-ledger write slower than this means the
+    // benchmark is broken rather than slow, so values are clamped instead of widening the range.
+    private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
 
-    private static Recorder recorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.SECONDS.toMillis(120000), 5);
+    private final Recorder recorder = new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+    private final Recorder cumulativeRecorder =
+            new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
 
-    @Parameters(commandDescription = "Write directly on managed-ledgers")
-    static class Arguments {
 
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
+    @Option(names = { "-r", "--rate" }, description = "Write rate msg/s across managed ledgers")
+    public int msgRate = 100;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Write rate msg/s across managed ledgers")
-        public int msgRate = 100;
+    @Option(names = { "-s", "--size" }, description = "Message size")
+    public int msgSize = 1024;
 
-        @Parameter(names = { "-s", "--size" }, description = "Message size")
-        public int msgSize = 1024;
+    @Option(names = { "-t", "--num-topic" },
+            description = "Number of managed ledgers", converter = PositiveNumberParameterConvert.class)
+    public int numManagedLedgers = 1;
 
-        @Parameter(names = { "-t", "--num-topic" },
-                description = "Number of managed ledgers", validateWith = PositiveNumberParameterValidator.class)
-        public int numManagedLedgers = 1;
+    @Option(names = { "--threads" },
+            description = "Number of threads writing", converter = PositiveNumberParameterConvert.class)
+    public int numThreads = 1;
 
-        @Parameter(names = { "--threads" },
-                description = "Number of threads writing", validateWith = PositiveNumberParameterValidator.class)
-        public int numThreads = 1;
+    @Deprecated
+    @Option(names = {"-zk", "--zookeeperServers"},
+            description = "ZooKeeper connection string",
+            hidden = true)
+    public String zookeeperServers;
 
-        @Deprecated
-        @Parameter(names = {"-zk", "--zookeeperServers"},
-                description = "ZooKeeper connection string",
-                hidden = true)
-        public String zookeeperServers;
+    @Option(names = {"-md",
+            "--metadata-store"}, description = "Metadata store service URL. For example: zk:my-zk:2181")
+    private String metadataStoreUrl;
 
-        @Parameter(names = {"-md",
-                "--metadata-store"}, description = "Metadata store service URL. For example: zk:my-zk:2181")
-        private String metadataStoreUrl;
+    @Option(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding requests")
+    public int maxOutstanding = 1000;
 
-        @Parameter(names = { "-o", "--max-outstanding" }, description = "Max number of outstanding requests")
-        public int maxOutstanding = 1000;
+    @Option(names = { "-c",
+            "--max-connections" }, description = "Max number of TCP connections to a single bookie")
+    public int maxConnections = 1;
 
-        @Parameter(names = { "-c",
-                "--max-connections" }, description = "Max number of TCP connections to a single bookie")
-        public int maxConnections = 1;
+    @Option(names = { "-m",
+            "--num-messages" },
+            description = "Number of messages to publish in total. If <= 0, it will keep publishing")
+    public long numMessages = 0;
 
-        @Parameter(names = { "-m",
-                "--num-messages" },
-                description = "Number of messages to publish in total. If <= 0, it will keep publishing")
-        public long numMessages = 0;
+    @Option(names = { "-e", "--ensemble-size" }, description = "Ledger ensemble size")
+    public int ensembleSize = 1;
 
-        @Parameter(names = { "-e", "--ensemble-size" }, description = "Ledger ensemble size")
-        public int ensembleSize = 1;
+    @Option(names = { "-w", "--write-quorum" }, description = "Ledger write quorum")
+    public int writeQuorum = 1;
 
-        @Parameter(names = { "-w", "--write-quorum" }, description = "Ledger write quorum")
-        public int writeQuorum = 1;
+    @Option(names = { "-a", "--ack-quorum" }, description = "Ledger ack quorum")
+    public int ackQuorum = 1;
 
-        @Parameter(names = { "-a", "--ack-quorum" }, description = "Ledger ack quorum")
-        public int ackQuorum = 1;
+    @Option(names = { "-dt", "--digest-type" }, description = "BookKeeper digest type")
+    public DigestType digestType = DigestType.CRC32C;
 
-        @Parameter(names = { "-dt", "--digest-type" }, description = "BookKeeper digest type")
-        public DigestType digestType = DigestType.CRC32C;
+    @Option(names = { "-time",
+            "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
+    public long testTime = 0;
 
-        @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep publishing")
-        public long testTime = 0;
-
+    public ManagedLedgerWriter() {
+        super("managed-ledger");
     }
 
-    public static void main(String[] args) throws Exception {
+    @Override
+    public void run() throws Exception {
+        CommandLine commander = getCommander();
 
-        final Arguments arguments = new Arguments();
-        JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf managed-ledger");
-
-        try {
-            jc.parse(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (arguments.help) {
-            jc.usage();
-            PerfClientUtils.exit(1);
-        }
-
-        if (arguments.metadataStoreUrl == null && arguments.zookeeperServers == null) {
+        if (this.metadataStoreUrl == null && this.zookeeperServers == null) {
             System.err.println("Metadata store address argument is required (--metadata-store)");
-            jc.usage();
+            commander.usage(commander.getOut());
             PerfClientUtils.exit(1);
         }
 
@@ -167,17 +152,19 @@ public class ManagedLedgerWriter {
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info("Starting Pulsar managed-ledger perf writer with config: {}", w.writeValueAsString(arguments));
+        log.info()
+                .attr("config", w.writeValueAsString(this))
+                .log("Starting Pulsar managed-ledger perf writer with config");
 
-        byte[] payloadData = new byte[arguments.msgSize];
-        ByteBuf payloadBuffer = PulsarByteBufAllocator.DEFAULT.directBuffer(arguments.msgSize);
-        payloadBuffer.writerIndex(arguments.msgSize);
+        byte[] payloadData = new byte[this.msgSize];
+        ByteBuf payloadBuffer = PulsarByteBufAllocator.DEFAULT.directBuffer(this.msgSize);
+        payloadBuffer.writerIndex(this.msgSize);
 
         // Now processing command line arguments
         String managedLedgerPrefix = "test-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 5);
 
-        if (arguments.metadataStoreUrl == null) {
-            arguments.metadataStoreUrl = arguments.zookeeperServers;
+        if (this.metadataStoreUrl == null) {
+            this.metadataStoreUrl = this.zookeeperServers;
         }
 
         ClientConfiguration bkConf = new ClientConfiguration();
@@ -185,31 +172,28 @@ public class ManagedLedgerWriter {
         bkConf.setAddEntryTimeout(30);
         bkConf.setReadEntryTimeout(30);
         bkConf.setThrottleValue(0);
-        bkConf.setNumChannelsPerBookie(arguments.maxConnections);
-        bkConf.setMetadataServiceUri(arguments.metadataStoreUrl);
+        bkConf.setNumChannelsPerBookie(this.maxConnections);
+        bkConf.setMetadataServiceUri(this.metadataStoreUrl);
 
         ManagedLedgerFactoryConfig mlFactoryConf = new ManagedLedgerFactoryConfig();
         mlFactoryConf.setMaxCacheSize(0);
 
         @Cleanup
-        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(arguments.metadataStoreUrl,
+        MetadataStoreExtended metadataStore = MetadataStoreExtended.create(this.metadataStoreUrl,
                 MetadataStoreConfig.builder().metadataStoreName(MetadataStoreConfig.METADATA_STORE).build());
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkConf, mlFactoryConf);
 
         ManagedLedgerConfig mlConf = new ManagedLedgerConfig();
-        mlConf.setEnsembleSize(arguments.ensembleSize);
-        mlConf.setWriteQuorumSize(arguments.writeQuorum);
-        mlConf.setAckQuorumSize(arguments.ackQuorum);
+        mlConf.setEnsembleSize(this.ensembleSize);
+        mlConf.setWriteQuorumSize(this.writeQuorum);
+        mlConf.setAckQuorumSize(this.ackQuorum);
         mlConf.setMinimumRolloverTime(10, TimeUnit.MINUTES);
-        mlConf.setMetadataEnsembleSize(arguments.ensembleSize);
-        mlConf.setMetadataWriteQuorumSize(arguments.writeQuorum);
-        mlConf.setMetadataAckQuorumSize(arguments.ackQuorum);
-        mlConf.setDigestType(arguments.digestType);
+        mlConf.setDigestType(this.digestType);
         mlConf.setMaxSizePerLedgerMb(2048);
 
         List<CompletableFuture<ManagedLedger>> futures = new ArrayList<>();
 
-        for (int i = 0; i < arguments.numManagedLedgers; i++) {
+        for (int i = 0; i < this.numManagedLedgers; i++) {
             String name = String.format("%s-%03d", managedLedgerPrefix, i);
             CompletableFuture<ManagedLedger> future = new CompletableFuture<>();
             futures.add(future);
@@ -229,35 +213,38 @@ public class ManagedLedgerWriter {
 
         List<ManagedLedger> managedLedgers = futures.stream().map(CompletableFuture::join).collect(Collectors.toList());
 
-        log.info("Created {} managed ledgers", managedLedgers.size());
+        log.info().attr("created", managedLedgers.size()).log("Created managed ledgers");
 
         long start = System.nanoTime();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+        ExecutorService executor = Executors
+                .newCachedThreadPool(new DefaultThreadFactory("pulsar-perf-managed-ledger-exec"));
+        Thread shutdownHookThread = PerfClientUtils.addShutdownHook(() -> {
+            executor.shutdownNow();
             printAggregatedThroughput(start);
             printAggregatedStats();
-        }));
+        });
 
         Collections.shuffle(managedLedgers);
         AtomicBoolean isDone = new AtomicBoolean();
 
         Map<Integer, List<ManagedLedger>> managedLedgersPerThread = allocateToThreads(managedLedgers,
-                arguments.numThreads);
+                this.numThreads);
 
-        for (int i = 0; i < arguments.numThreads; i++) {
+        for (int i = 0; i < this.numThreads; i++) {
             List<ManagedLedger> managedLedgersForThisThread = managedLedgersPerThread.get(i);
             int nunManagedLedgersForThisThread = managedLedgersForThisThread.size();
-            long numMessagesForThisThread = arguments.numMessages / arguments.numThreads;
-            int maxOutstandingForThisThread = arguments.maxOutstanding;
+            long numMessagesForThisThread = this.numMessages / this.numThreads;
+            int maxOutstandingForThisThread = this.maxOutstanding;
 
             executor.submit(() -> {
                 try {
-                    final double msgRate = arguments.msgRate / (double) arguments.numThreads;
+                    final double msgRate = this.msgRate / (double) this.numThreads;
                     final RateLimiter rateLimiter = RateLimiter.create(msgRate);
 
                     // Acquire 1 sec worth of messages to have a slower ramp-up
                     rateLimiter.acquire((int) msgRate);
                     final long startTime = System.nanoTime();
-                    final long testEndTime = startTime + (long) (arguments.testTime * 1e9);
+                    final long testEndTime = startTime + (long) (this.testTime * 1e9);
 
                     final Semaphore semaphore = new Semaphore(maxOutstandingForThisThread);
 
@@ -270,7 +257,8 @@ public class ManagedLedgerWriter {
                             totalMessagesSent.increment();
                             totalBytesSent.add(payloadData.length);
 
-                            long latencyMicros = NANOSECONDS.toMicros(System.nanoTime() - sendTime);
+                            long latencyMicros = Math.min(
+                                    NANOSECONDS.toMicros(System.nanoTime() - sendTime), MAX_LATENCY_MICROS);
                             recorder.recordValue(latencyMicros);
                             cumulativeRecorder.recordValue(latencyMicros);
 
@@ -279,19 +267,22 @@ public class ManagedLedgerWriter {
 
                         @Override
                         public void addFailed(ManagedLedgerException exception, Object ctx) {
-                            log.warn("Write error on message", exception);
+                            log.warn().exception(exception).log("Write error on message");
                             PerfClientUtils.exit(1);
                         }
                     };
 
                     // Send messages on all topics/producers
                     long totalSent = 0;
-                    while (true) {
+                    while (!Thread.currentThread().isInterrupted()) {
                         for (int j = 0; j < nunManagedLedgersForThisThread; j++) {
-                            if (arguments.testTime > 0) {
+                            if (this.testTime > 0) {
                                 if (System.nanoTime() > testEndTime) {
-                                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of "
-                                            + "production) --------------", arguments.testTime);
+                                    log.info()
+                                            .attr("duration", this.testTime)
+                                            .log("------------- DONE (reached the maximum"
+                                                    + " duration: [ seconds] of production)"
+                                                    + " --------------");
                                     isDone.set(true);
                                     Thread.sleep(5000);
                                     PerfClientUtils.exit(0);
@@ -300,8 +291,11 @@ public class ManagedLedgerWriter {
 
                             if (numMessagesForThisThread > 0) {
                                 if (totalSent++ >= numMessagesForThisThread) {
-                                    log.info("------------- DONE (reached the maximum number: [{}] of production) "
-                                            + "--------------", numMessagesForThisThread);
+                                    log.info()
+                                            .attr("number", numMessagesForThisThread)
+                                            .log("------------- DONE (reached the maximum"
+                                                    + " number: [] of production)"
+                                                    + " --------------");
                                     isDone.set(true);
                                     Thread.sleep(5000);
                                     PerfClientUtils.exit(0);
@@ -316,7 +310,11 @@ public class ManagedLedgerWriter {
                         }
                     }
                 } catch (Throwable t) {
-                    log.error("Got error", t);
+                    if (PerfClientUtils.hasInterruptedException(t)) {
+                        Thread.currentThread().interrupt();
+                    } else {
+                        log.error().exception(t).log("Got error");
+                    }
                 }
             });
         }
@@ -326,10 +324,11 @@ public class ManagedLedgerWriter {
 
         Histogram reportHistogram = null;
 
-        while (true) {
+        while (!Thread.currentThread().isInterrupted()) {
             try {
                 Thread.sleep(10000);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 break;
             }
 
@@ -346,19 +345,21 @@ public class ManagedLedgerWriter {
 
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
-            log.info(
-                    "Throughput produced: {} msg --- {}  msg/s --- {} Mbit/s --- Latency: mean: {} ms - med: {} "
-                            + "- 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    INTFORMAT.format(total),
-                    THROUGHPUTFORMAT.format(rate),
-                    THROUGHPUTFORMAT.format(throughput),
-                    DEC.format(reportHistogram.getMean() / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
-                    DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
-                    DEC.format(reportHistogram.getMaxValue() / 1000.0));
+            log.info()
+                    .attr("produced", INTFORMAT.format(total))
+                    .attr("msg", THROUGHPUTFORMAT.format(rate))
+                    .attr("msg2", THROUGHPUTFORMAT.format(throughput))
+                    .attr("mean", DEC.format(reportHistogram.getMean() / 1000.0))
+                    .attr("med", DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0))
+                    .attr("pct", DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0))
+                    .attr("pct2", DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0))
+                    .attr("pct3", DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0))
+                    .attr("pct4", DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0))
+                    .attr("max", DEC.format(reportHistogram.getMaxValue() / 1000.0))
+                    .log("Throughput produced:  msg ---  msg/s ---  Mbit/s"
+                            + " --- Latency: mean:  ms - med: - 95pct:"
+                            + "  - 99pct:  - 99.9pct:  - 99.99pct:"
+                            + "  - Max:");
 
             reportHistogram.reset();
 
@@ -366,8 +367,9 @@ public class ManagedLedgerWriter {
         }
 
         factory.shutdown();
-    }
 
+        PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
+    }
 
     public static <T> Map<Integer, List<T>> allocateToThreads(List<T> managedLedgers, int numThreads) {
 
@@ -404,36 +406,37 @@ public class ManagedLedgerWriter {
         return map;
     }
 
-    private static void printAggregatedThroughput(long start) {
+    private void printAggregatedThroughput(long start) {
         double elapsed = (System.nanoTime() - start) / 1e9;
         double rate = totalMessagesSent.sum() / elapsed;
         double throughput = totalBytesSent.sum() / elapsed / 1024 / 1024 * 8;
-        log.info(
-                "Aggregated throughput stats --- {} records sent --- {} msg/s --- {} Mbit/s",
-                totalMessagesSent,
-                TOTALFORMAT.format(rate),
-                TOTALFORMAT.format(throughput));
+        log.info()
+                .attr("stats", totalMessagesSent)
+                .attr("sent", TOTALFORMAT.format(rate))
+                .attr("msg", TOTALFORMAT.format(throughput))
+                .log("Aggregated throughput stats --- records sent --- msg/s --- Mbit/s");
     }
 
-    private static void printAggregatedStats() {
+    private void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
-        log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} "
-                        + "- 99.99pct: {} - 99.999pct: {} - Max: {}",
-                DEC.format(reportHistogram.getMean() / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0),
-                DEC.format(reportHistogram.getValueAtPercentile(99.999) / 1000.0),
-                DEC.format(reportHistogram.getMaxValue() / 1000.0));
+        log.info()
+                .attr("mean", DEC.format(reportHistogram.getMean() / 1000.0))
+                .attr("med", DEC.format(reportHistogram.getValueAtPercentile(50) / 1000.0))
+                .attr("pct", DEC.format(reportHistogram.getValueAtPercentile(95) / 1000.0))
+                .attr("pct2", DEC.format(reportHistogram.getValueAtPercentile(99) / 1000.0))
+                .attr("pct3", DEC.format(reportHistogram.getValueAtPercentile(99.9) / 1000.0))
+                .attr("pct4", DEC.format(reportHistogram.getValueAtPercentile(99.99) / 1000.0))
+                .attr("pct5", DEC.format(reportHistogram.getValueAtPercentile(99.999) / 1000.0))
+                .attr("max", DEC.format(reportHistogram.getMaxValue() / 1000.0))
+                .log("Aggregated latency stats --- Latency: mean:"
+                        + "  ms - med:  - 95pct:  - 99pct:"
+                        + "  - 99.9pct: - 99.99pct:  - 99.999pct:"
+                        + "  - Max:");
     }
 
     static final DecimalFormat THROUGHPUTFORMAT = new PaddingDecimalFormat("0.0", 8);
     static final DecimalFormat DEC = new PaddingDecimalFormat("0.000", 7);
     static final DecimalFormat TOTALFORMAT = new DecimalFormat("0.000");
     static final DecimalFormat INTFORMAT = new PaddingDecimalFormat("0", 7);
-    private static final Logger log = LoggerFactory.getLogger(ManagedLedgerWriter.class);
 }

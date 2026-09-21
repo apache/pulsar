@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import lombok.SneakyThrows;
+
 /**
  * Definition of the retention policy.
  *
@@ -27,15 +29,15 @@ package org.apache.pulsar.common.policies.data;
  * messages when either size or time limit is set to `0`.
  * Infinite retention can be achieved by setting both time and size limits to `-1`.
  */
-public class RetentionPolicies {
+public class RetentionPolicies implements Cloneable {
     private int retentionTimeInMinutes;
-    private int retentionSizeInMB;
+    private long retentionSizeInMB;
 
     public RetentionPolicies() {
         this(0, 0);
     }
 
-    public RetentionPolicies(int retentionTimeInMinutes, int retentionSizeInMB) {
+    public RetentionPolicies(int retentionTimeInMinutes, long retentionSizeInMB) {
         this.retentionSizeInMB = retentionSizeInMB;
         this.retentionTimeInMinutes = retentionTimeInMinutes;
     }
@@ -44,8 +46,14 @@ public class RetentionPolicies {
         return retentionTimeInMinutes;
     }
 
-    public int getRetentionSizeInMB() {
+    public long getRetentionSizeInMB() {
         return retentionSizeInMB;
+    }
+
+    @SneakyThrows
+    @Override
+    protected RetentionPolicies clone() {
+        return RetentionPolicies.class.cast(super.clone());
     }
 
     @Override

@@ -27,18 +27,18 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.protocol.schema.ProtobufNativeSchemaData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Protobuf-Native schema util used for serialize/deserialize
  * between {@link com.google.protobuf.Descriptors.Descriptor} and
  * {@link org.apache.pulsar.common.protocol.schema.ProtobufNativeSchemaData}.
  */
+@CustomLog
 public class ProtobufNativeSchemaUtils {
 
     public static byte[] serialize(Descriptors.Descriptor descriptor) {
@@ -60,9 +60,10 @@ public class ProtobufNativeSchemaUtils {
                     .fileDescriptorSet(fileDescriptorSet)
                     .rootFileDescriptorName(rootFileDescriptorName).rootMessageTypeName(rootMessageTypeName).build();
             schemaDataBytes = ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsBytes(schemaData);
-            logger.debug("descriptor '{}' serialized to '{}'.", descriptor.getFullName(), schemaDataBytes);
+            log.debug().attr("descriptor", descriptor.getFullName())
+                    .attr("bytes", schemaDataBytes).log("descriptor serialized");
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error().exception(e).log("Failed to serialize protobuf schema");
             throw new SchemaSerializationException(e);
         }
         return schemaDataBytes;
@@ -90,6 +91,7 @@ public class ProtobufNativeSchemaUtils {
     private static final ObjectReader PROTOBUF_NATIVE_SCHEMADATA_READER = ObjectMapperFactory.getMapper().reader()
             .forType(ProtobufNativeSchemaData.class);
 
+    @SuppressWarnings("deprecation")
     public static Descriptors.Descriptor deserialize(byte[] schemaDataBytes) {
         Descriptors.Descriptor descriptor;
         try {
@@ -116,9 +118,10 @@ public class ProtobufNativeSchemaUtils {
             for (int i = 1; i < paths.length; i++) {
                 descriptor = descriptor.findNestedTypeByName(paths[i]);
             }
-            logger.debug("deserialize '{}' to descriptor: '{}'.", schemaDataBytes, descriptor.getFullName());
+            log.debug().attr("bytes", schemaDataBytes)
+                    .attr("descriptor", descriptor.getFullName()).log("deserialized to descriptor");
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error().exception(e).log("Failed to deserialize protobuf schema");
             throw new SchemaSerializationException(e);
         }
 

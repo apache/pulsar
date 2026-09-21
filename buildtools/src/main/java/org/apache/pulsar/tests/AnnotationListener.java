@@ -32,10 +32,15 @@ public class AnnotationListener implements IAnnotationTransformer {
     private static final long DEFAULT_TEST_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(5);
     private static final String OTHER_GROUP = "other";
 
+    private static final String FLAKY_GROUP = "flaky";
+
+    private static final String QUARANTINE_GROUP = "quarantine";
+
     public AnnotationListener() {
         System.out.println("Created annotation listener");
     }
 
+    @SuppressWarnings("rawtypes") // overriding TestNG API that uses raw types
     @Override
     public void transform(ITestAnnotation annotation,
                           Class testClass,
@@ -51,7 +56,25 @@ public class AnnotationListener implements IAnnotationTransformer {
             annotation.setTimeOut(DEFAULT_TEST_TIMEOUT_MILLIS);
         }
 
+        replaceGroupsIfFlakyOrQuarantineGroupIsIncluded(annotation);
         addToOtherGroupIfNoGroupsSpecified(annotation);
+    }
+
+    // A test method will inherit the test groups from the class level and this solution ensures that a test method
+    // added to the flaky or quarantine group will not be executed as part of other groups.
+    private void replaceGroupsIfFlakyOrQuarantineGroupIsIncluded(ITestAnnotation annotation) {
+        if (annotation.getGroups() != null && annotation.getGroups().length > 1) {
+            for (String group : annotation.getGroups()) {
+                if (group.equals(QUARANTINE_GROUP)) {
+                    annotation.setGroups(new String[]{QUARANTINE_GROUP});
+                    return;
+                }
+                if (group.equals(FLAKY_GROUP)) {
+                    annotation.setGroups(new String[]{FLAKY_GROUP});
+                    return;
+                }
+            }
+        }
     }
 
     private void addToOtherGroupIfNoGroupsSpecified(ITestOrConfiguration annotation) {
@@ -62,6 +85,7 @@ public class AnnotationListener implements IAnnotationTransformer {
     }
 
     @Override
+    @SuppressWarnings("rawtypes") // overriding TestNG API that uses raw types
     public void transform(IConfigurationAnnotation annotation, Class testClass, Constructor testConstructor,
                           Method testMethod) {
         // configuration methods such as BeforeMethod / BeforeClass methods should also be added to the "other" group

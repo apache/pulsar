@@ -59,6 +59,7 @@ public class SourceConfig {
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private Resources resources;
 
+    private String sourceType;
     private String archive;
     // Any flags that you want to pass to the runtime.
     private String runtimeFlags;
@@ -71,4 +72,5 @@ public class SourceConfig {
     private BatchSourceConfig batchSourceConfig;
     // batchBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED
     private String batchBuilder;
+    private String logTopic;
 }

@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import io.github.merlimat.slog.Logger;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
@@ -29,33 +32,36 @@ import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadata;
 import org.apache.pulsar.broker.transaction.pendingack.proto.PendingAckMetadataEntry;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * MLPendingAckStore reply call back.
  */
 public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
 
+    private static final Logger LOG = Logger.get(MLPendingAckReplyCallBack.class);
+    private final Logger log;
+
     private final PendingAckHandleImpl pendingAckHandle;
 
     public MLPendingAckReplyCallBack(PendingAckHandleImpl pendingAckHandle) {
         this.pendingAckHandle = pendingAckHandle;
+        this.log = LOG.with()
+                .attr("topic", pendingAckHandle.getTopicName())
+                .attr("subscription", pendingAckHandle.getSubName())
+                .attr("state", () -> pendingAckHandle.state)
+                .build();
     }
 
     @Override
     public void replayComplete() {
         pendingAckHandle.getInternalPinnedExecutor().execute(() -> {
-            log.info("Topic name : [{}], SubName : [{}] pending ack state reply success!",
-                    pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+            log.info("Pending ack state reply success");
 
             if (pendingAckHandle.changeToReadyState()) {
                 pendingAckHandle.completeHandleFuture();
-                log.info("Topic name : [{}], SubName : [{}] pending ack handle cache request success!",
-                        pendingAckHandle.getTopicName(), pendingAckHandle.getSubName());
+                log.info("Pending ack handle cache request success");
             } else {
-                log.error("Topic name : [{}], SubName : [{}] pending ack state reply fail! current state: {}",
-                        pendingAckHandle.getTopicName(), pendingAckHandle.getSubName(), pendingAckHandle.state);
+                log.error("Pending ack state reply fail");
                 replayFailed(new BrokerServiceException.ServiceUnitNotReadyException("Failed"
                         + " to change PendingAckHandle state to Ready, current state is : " + pendingAckHandle.state));
             }
@@ -87,23 +93,26 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
                     PendingAckMetadata pendingAckMetadata =
                             pendingAckMetadataEntry.getPendingAckMetadatasList().get(0);
                     pendingAckHandle.handleCumulativeAckRecover(txnID,
-                            PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId()));
+                            PositionFactory.create(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId()));
                 } else {
-                    List<MutablePair<PositionImpl, Integer>> positions = new ArrayList<>();
+                    List<MutablePair<Position, Integer>> positions = new ArrayList<>();
                     pendingAckMetadataEntry.getPendingAckMetadatasList().forEach(pendingAckMetadata -> {
                         if (pendingAckMetadata.getAckSetsCount() == 0) {
-                            positions.add(new MutablePair<>(PositionImpl.get(pendingAckMetadata.getLedgerId(),
+                            positions.add(new MutablePair<>(PositionFactory.create(pendingAckMetadata.getLedgerId(),
                                     pendingAckMetadata.getEntryId()), pendingAckMetadata.getBatchSize()));
                         } else {
-                            PositionImpl position =
-                                    PositionImpl.get(pendingAckMetadata.getLedgerId(), pendingAckMetadata.getEntryId());
+                            long[] ackSets = null;
                             if (pendingAckMetadata.getAckSetsCount() > 0) {
-                                long[] ackSets = new long[pendingAckMetadata.getAckSetsCount()];
+                                ackSets = new long[pendingAckMetadata.getAckSetsCount()];
                                 for (int i = 0; i < pendingAckMetadata.getAckSetsCount(); i++) {
                                     ackSets[i] = pendingAckMetadata.getAckSetAt(i);
                                 }
-                                position.setAckSet(ackSets);
+                            } else {
+                                ackSets = new long[0];
                             }
+                            Position position =
+                                    AckSetStateUtil.createPositionWithAckSet(pendingAckMetadata.getLedgerId(),
+                                            pendingAckMetadata.getEntryId(), ackSets);
                             positions.add(new MutablePair<>(position, pendingAckMetadata.getBatchSize()));
                         }
                     });
@@ -116,6 +125,4 @@ public class MLPendingAckReplyCallBack implements PendingAckReplyCallBack {
 
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(MLPendingAckReplyCallBack.class);
 }

@@ -20,9 +20,9 @@ package org.apache.bookkeeper.mledger;
 
 import java.util.concurrent.TimeUnit;
 
-class LedgerOffloaderStatsDisable implements LedgerOffloaderStats {
+public class LedgerOffloaderStatsDisable implements LedgerOffloaderStats {
 
-    static final LedgerOffloaderStats INSTANCE = new LedgerOffloaderStatsDisable();
+    public static final LedgerOffloaderStats INSTANCE = new LedgerOffloaderStatsDisable();
 
     private LedgerOffloaderStatsDisable() {
 

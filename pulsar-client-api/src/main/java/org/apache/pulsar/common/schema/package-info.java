@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /**
  * This package contains data structures for schema definitions used in the Pulsar Client API.
  */

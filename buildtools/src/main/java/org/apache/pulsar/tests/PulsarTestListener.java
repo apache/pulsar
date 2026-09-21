@@ -19,16 +19,21 @@
 package org.apache.pulsar.tests;
 
 import java.util.Arrays;
+import org.testng.IExecutionListener;
+import org.testng.ISuite;
+import org.testng.ISuiteListener;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 import org.testng.SkipException;
 import org.testng.internal.thread.ThreadTimeoutException;
 
-public class PulsarTestListener implements ITestListener {
+public class PulsarTestListener implements ITestListener, IExecutionListener, ISuiteListener {
 
     @Override
     public void onTestStart(ITestResult result) {
+        ExtendedNettyLeakDetector.setInitialHint(String.format("Test: %s.%s", result.getTestClass().getName(),
+                result.getMethod().getMethodName()));
         System.out.format("------- Starting test %s.%s(%s)-------\n", result.getTestClass(),
                 result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
     }
@@ -37,6 +42,7 @@ public class PulsarTestListener implements ITestListener {
     public void onTestSuccess(ITestResult result) {
         System.out.format("------- SUCCESS -- %s.%s(%s)-------\n", result.getTestClass(),
                 result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
+        ExtendedNettyLeakDetector.triggerLeakDetection();
     }
 
     @Override
@@ -44,33 +50,64 @@ public class PulsarTestListener implements ITestListener {
         if (!(result.getThrowable() instanceof SkipException)) {
             System.out.format("!!!!!!!!! FAILURE-- %s.%s(%s)-------\n", result.getTestClass(),
                     result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
+            if (result.getThrowable() != null) {
+                result.getThrowable().printStackTrace();
+                if (result.getThrowable() instanceof ThreadTimeoutException) {
+                    System.out.println("====== THREAD DUMPS ======");
+                    System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
+                }
+            }
         }
-        if (result.getThrowable() != null) {
-            result.getThrowable().printStackTrace();
-            if (result.getThrowable() instanceof ThreadTimeoutException) {
-                System.out.println("====== THREAD DUMPS ======");
-                System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
+        ExtendedNettyLeakDetector.triggerLeakDetection();
+    }
+
+    @Override
+    public void onTestSkipped(ITestResult result) {
+        if (!(result.getThrowable() instanceof SkipException)) {
+            System.out.format("~~~~~~~~~ SKIPPED -- %s.%s(%s)-------\n", result.getTestClass(),
+                    result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
+            if (result.getThrowable() != null) {
+                result.getThrowable().printStackTrace();
+                if (result.getThrowable() instanceof ThreadTimeoutException) {
+                    System.out.println("====== THREAD DUMPS ======");
+                    System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
+                }
             }
         }
     }
 
     @Override
-    public void onTestSkipped(ITestResult result) {
-        System.out.format("~~~~~~~~~ SKIPPED -- %s.%s(%s)-------\n", result.getTestClass(),
-                result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
-    }
-
-    @Override
     public void onTestFailedButWithinSuccessPercentage(ITestResult result) {
-
+        ExtendedNettyLeakDetector.triggerLeakDetection();
     }
 
     @Override
     public void onStart(ITestContext context) {
-
+        ExtendedNettyLeakDetector.setInitialHint("Starting test: " + context.getName());
     }
 
     @Override
     public void onFinish(ITestContext context) {
+        ExtendedNettyLeakDetector.triggerLeakDetection();
+        ExtendedNettyLeakDetector.setInitialHint("Finished test: " + context.getName());
+    }
+
+    @Override
+    public void onFinish(ISuite suite) {
+        ExtendedNettyLeakDetector.setInitialHint("Finished suite: " + suite.getName());
+    }
+
+    @Override
+    public void onExecutionFinish() {
+        if (!ExtendedNettyLeakDetector.isEnabled()) {
+            return;
+        }
+        ExtendedNettyLeakDetector.triggerLeakDetection();
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        ExtendedNettyLeakDetector.triggerLeakDetection();
     }
 }

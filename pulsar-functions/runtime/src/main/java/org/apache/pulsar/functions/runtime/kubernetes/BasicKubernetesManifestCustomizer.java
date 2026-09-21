@@ -34,13 +34,13 @@ import java.util.List;
 import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 /**
  * An implementation of the {@link KubernetesManifestCustomizer} that allows
@@ -51,7 +51,7 @@ import org.apache.pulsar.functions.proto.Function;
  * modify (for example, a service account must have permissions in the specified jobNamespace)
  *
  */
-@Slf4j
+@CustomLog
 public class BasicKubernetesManifestCustomizer implements KubernetesManifestCustomizer {
 
     private static final String RESOURCE_CPU = "cpu";
@@ -105,7 +105,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     }
 
     @Override
-    public String customizeNamespace(Function.FunctionDetails funcDetails, String currentNamespace) {
+    public String customizeNamespace(FunctionDetails funcDetails, String currentNamespace) {
         RuntimeOpts opts = getOptsFromDetails(funcDetails);
         opts = mergeRuntimeOpts(runtimeOpts, opts);
         if (!StringUtils.isEmpty(opts.getJobNamespace())) {
@@ -116,7 +116,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     }
 
     @Override
-    public String customizeName(Function.FunctionDetails funcDetails, String currentName) {
+    public String customizeName(FunctionDetails funcDetails, String currentName) {
         RuntimeOpts opts = getOptsFromDetails(funcDetails);
         opts = mergeRuntimeOpts(runtimeOpts, opts);
         if (!StringUtils.isEmpty(opts.getJobName())) {
@@ -127,7 +127,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     }
 
     @Override
-    public V1Service customizeService(Function.FunctionDetails funcDetails, V1Service service) {
+    public V1Service customizeService(FunctionDetails funcDetails, V1Service service) {
         RuntimeOpts opts = getOptsFromDetails(funcDetails);
         opts = mergeRuntimeOpts(runtimeOpts, opts);
         service.setMetadata(updateMeta(opts, service.getMetadata()));
@@ -135,7 +135,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
     }
 
     @Override
-    public V1StatefulSet customizeStatefulSet(Function.FunctionDetails funcDetails, V1StatefulSet statefulSet) {
+    public V1StatefulSet customizeStatefulSet(FunctionDetails funcDetails, V1StatefulSet statefulSet) {
         RuntimeOpts opts = mergeRuntimeOpts(runtimeOpts, getOptsFromDetails(funcDetails));
         statefulSet.setMetadata(updateMeta(opts, statefulSet.getMetadata()));
         V1PodTemplateSpec pt = statefulSet.getSpec().getTemplate();
@@ -170,7 +170,7 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         }
     }
 
-    private RuntimeOpts getOptsFromDetails(Function.FunctionDetails funcDetails) {
+    private RuntimeOpts getOptsFromDetails(FunctionDetails funcDetails) {
         String customRuntimeOptions = funcDetails.getCustomRuntimeOptions();
         RuntimeOpts opts = new Gson().fromJson(customRuntimeOptions, RuntimeOpts.class);
         // ensure that we always have at least the default
@@ -217,7 +217,8 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         if (newOpts.getExtraLabels() != null && !newOpts.getExtraLabels().isEmpty()) {
             newOpts.getExtraLabels().forEach((key, labelsItem) -> {
                 if (!mergedOpts.getExtraLabels().containsKey(key)) {
-                    log.debug("extra label {} has been changed to {}", key, labelsItem);
+                    log.debug().attr("key", key).attr("value", labelsItem)
+                            .log("Extra label has been changed");
                 }
                 mergedOpts.getExtraLabels().put(key, labelsItem);
             });
@@ -225,7 +226,8 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         if (newOpts.getExtraAnnotations() != null && !newOpts.getExtraAnnotations().isEmpty()) {
             newOpts.getExtraAnnotations().forEach((key, annotationsItem) -> {
                 if (!mergedOpts.getExtraAnnotations().containsKey(key)) {
-                    log.debug("extra annotation {} has been changed to {}", key, annotationsItem);
+                    log.debug().attr("key", key).attr("value", annotationsItem)
+                            .log("Extra annotation has been changed");
                 }
                 mergedOpts.getExtraAnnotations().put(key, annotationsItem);
             });
@@ -233,7 +235,8 @@ public class BasicKubernetesManifestCustomizer implements KubernetesManifestCust
         if (newOpts.getNodeSelectorLabels() != null && !newOpts.getNodeSelectorLabels().isEmpty()) {
             newOpts.getNodeSelectorLabels().forEach((key, nodeSelectorItem) -> {
                 if (!mergedOpts.getNodeSelectorLabels().containsKey(key)) {
-                    log.debug("node selector label {} has been changed to {}", key, nodeSelectorItem);
+                    log.debug().attr("key", key).attr("value", nodeSelectorItem)
+                            .log("Node selector label has been changed");
                 }
                 mergedOpts.getNodeSelectorLabels().put(key, nodeSelectorItem);
             });

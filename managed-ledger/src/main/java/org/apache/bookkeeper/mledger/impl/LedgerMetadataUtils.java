@@ -29,26 +29,28 @@ import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
  */
 public final class LedgerMetadataUtils {
 
-    private static final String METADATA_PROPERTY_APPLICATION = "application";
-    private static final byte[] METADATA_PROPERTY_APPLICATION_PULSAR = "pulsar".getBytes(StandardCharsets.UTF_8);
+    public static final String METADATA_PROPERTY_APPLICATION = "application";
+    public static final byte[] METADATA_PROPERTY_APPLICATION_PULSAR = "pulsar".getBytes(StandardCharsets.UTF_8);
 
-    private static final String METADATA_PROPERTY_COMPONENT = "component";
-    private static final byte[] METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER =
+    public static final String METADATA_PROPERTY_COMPONENT = "component";
+    public static final byte[] METADATA_PROPERTY_COMPONENT_MANAGED_LEDGER =
             "managed-ledger".getBytes(StandardCharsets.UTF_8);
-    private static final byte[] METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER =
+    public static final byte[] METADATA_PROPERTY_COMPONENT_COMPACTED_LEDGER =
             "compacted-ledger".getBytes(StandardCharsets.UTF_8);
-    private static final byte[] METADATA_PROPERTY_COMPONENT_SCHEMA = "schema".getBytes(StandardCharsets.UTF_8);
+    public static final byte[] METADATA_PROPERTY_COMPONENT_SCHEMA = "schema".getBytes(StandardCharsets.UTF_8);
 
-    private static final byte[] METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET =
+    public static final byte[] METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET =
             "delayed-index-bucket".getBytes(StandardCharsets.UTF_8);
 
-    private static final String METADATA_PROPERTY_MANAGED_LEDGER_NAME = "pulsar/managed-ledger";
-    private static final String METADATA_PROPERTY_CURSOR_NAME = "pulsar/cursor";
-    private static final String METADATA_PROPERTY_COMPACTEDTOPIC = "pulsar/compactedTopic";
-    private static final String METADATA_PROPERTY_COMPACTEDTO = "pulsar/compactedTo";
-    private static final String METADATA_PROPERTY_SCHEMAID = "pulsar/schemaId";
+    public static final String METADATA_PROPERTY_MANAGED_LEDGER_NAME = "pulsar/managed-ledger";
+    public static final String METADATA_PROPERTY_CURSOR_NAME = "pulsar/cursor";
+    public static final String METADATA_PROPERTY_COMPACTEDTOPIC = "pulsar/compactedTopic";
+    public static final String METADATA_PROPERTY_COMPACTEDTO = "pulsar/compactedTo";
+    public static final String METADATA_PROPERTY_SCHEMAID = "pulsar/schemaId";
 
-    private static final String METADATA_PROPERTY_DELAYED_INDEX_BUCKETID = "pulsar/delayedIndexBucketId";
+    public static final String METADATA_PROPERTY_DELAYED_INDEX_BUCKET_KEY = "pulsar/delayedIndexBucketKey";
+    public static final String METADATA_PROPERTY_DELAYED_INDEX_TOPIC = "pulsar/delayedIndexTopic";
+    public static final String METADATA_PROPERTY_DELAYED_INDEX_CURSOR = "pulsar/delayedIndexCursor";
 
     /**
      * Build base metadata for every ManagedLedger.
@@ -78,7 +80,7 @@ public final class LedgerMetadataUtils {
      * Build additional metadata for a CompactedLedger.
      *
      * @param compactedTopic reference to the compacted topic.
-     * @param compactedToMessageId last mesasgeId.
+     * @param compactedToMessageId last messageId.
      * @return an immutable map which describes the compacted ledger
      */
     public static Map<String, byte[]> buildMetadataForCompactedLedger(String compactedTopic,
@@ -108,14 +110,19 @@ public final class LedgerMetadataUtils {
     /**
      * Build additional metadata for a delayed message index bucket.
      *
-     * @param bucketKey key of the delayed message bucket
+     * @param bucketKey  key of the delayed message bucket
+     * @param topicName  name of the topic
+     * @param cursorName name of the cursor
      * @return an immutable map which describes the schema
      */
-    public static Map<String, byte[]> buildMetadataForDelayedIndexBucket(String bucketKey) {
+    public static Map<String, byte[]> buildMetadataForDelayedIndexBucket(String bucketKey,
+                                                                         String topicName, String cursorName) {
         return Map.of(
                 METADATA_PROPERTY_APPLICATION, METADATA_PROPERTY_APPLICATION_PULSAR,
                 METADATA_PROPERTY_COMPONENT, METADATA_PROPERTY_COMPONENT_DELAYED_INDEX_BUCKET,
-                METADATA_PROPERTY_DELAYED_INDEX_BUCKETID, bucketKey.getBytes(StandardCharsets.UTF_8)
+                METADATA_PROPERTY_DELAYED_INDEX_BUCKET_KEY, bucketKey.getBytes(StandardCharsets.UTF_8),
+                METADATA_PROPERTY_DELAYED_INDEX_TOPIC, topicName.getBytes(StandardCharsets.UTF_8),
+                METADATA_PROPERTY_DELAYED_INDEX_CURSOR, cursorName.getBytes(StandardCharsets.UTF_8)
         );
     }
 

@@ -36,10 +36,10 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.AccessLevel;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.mockito.stubbing.Answer;
 
@@ -47,7 +47,7 @@ import org.mockito.stubbing.Answer;
  * A mocked scheduled executor that records scheduled tasks and executes them when the clock is
  * advanced past their execution time.
  */
-@Slf4j
+@CustomLog
 @NoArgsConstructor(access = AccessLevel.PUBLIC)
 public class MockExecutorController {
 

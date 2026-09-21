@@ -55,6 +55,13 @@ abstract class HandlerState {
 
     protected void setRedirectedClusterURI(String serviceUrl, String serviceUrlTls) throws URISyntaxException {
         String url = client.conf.isUseTls() && StringUtils.isNotBlank(serviceUrlTls) ? serviceUrlTls : serviceUrl;
+        if (StringUtils.isBlank(url)) {
+            // e.g. a non-TLS client given a TLS-only endpoint (or vice versa). Surface a clear,
+            // catchable error rather than letting new URI(null) throw an NPE.
+            throw new URISyntaxException(String.valueOf(url),
+                    "No usable service URL (useTls=" + client.conf.isUseTls()
+                            + ", serviceUrl=" + serviceUrl + ", serviceUrlTls=" + serviceUrlTls + ")");
+        }
         this.redirectedClusterURI = new URI(url);
     }
 
@@ -66,6 +73,10 @@ abstract class HandlerState {
         return (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Ready)
                 || STATE_UPDATER.compareAndSet(this, State.Connecting, State.Ready)
                 || STATE_UPDATER.compareAndSet(this, State.RegisteringSchema, State.Ready));
+    }
+
+    protected boolean compareAndSetState(State expect, State update) {
+        return STATE_UPDATER.compareAndSet(this, expect, update);
     }
 
     protected boolean changeToRegisteringSchemaState() {

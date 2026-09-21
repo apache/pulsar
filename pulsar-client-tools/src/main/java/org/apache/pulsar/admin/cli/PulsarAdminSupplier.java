@@ -19,6 +19,7 @@
 package org.apache.pulsar.admin.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Data;
@@ -53,7 +54,7 @@ public class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
         }
     }
 
-    private final PulsarAdminBuilder adminBuilder;
+    protected PulsarAdminBuilder adminBuilder;
     private RootParamsKey currentParamsKey;
     private PulsarAdmin admin;
 
@@ -103,6 +104,13 @@ public class PulsarAdminSupplier implements Supplier<PulsarAdmin> {
         if (isNotBlank(rootParams.tlsProvider)) {
             adminBuilder.sslProvider(rootParams.tlsProvider);
         }
+        if (isNotBlank(rootParams.tlsTrustCertsFilePath)) {
+            adminBuilder.tlsTrustCertsFilePath(rootParams.tlsTrustCertsFilePath);
+        }
     }
 
+    @VisibleForTesting
+    public void setAdminBuilder(PulsarAdminBuilder builder) {
+        this.adminBuilder = builder;
+    }
 }

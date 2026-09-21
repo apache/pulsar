@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -25,17 +28,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.ClusterData.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
+import org.apache.pulsar.common.policies.data.ClusterPoliciesImpl;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
@@ -45,8 +47,8 @@ public class ClustersImpl extends BaseResource implements Clusters {
 
     private final WebTarget adminClusters;
 
-    public ClustersImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public ClustersImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminClusters = web.path("/admin/v2/clusters");
     }
 
@@ -105,6 +107,18 @@ public class ClustersImpl extends BaseResource implements Clusters {
     public CompletableFuture<Void> updatePeerClusterNamesAsync(String cluster, LinkedHashSet<String> peerClusterNames) {
         WebTarget path = adminClusters.path(cluster).path("peers");
         return asyncPostRequest(path, Entity.entity(peerClusterNames, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public ClusterPolicies getClusterMigration(String cluster) throws PulsarAdminException {
+        return sync(() -> getClusterMigrationAsync(cluster));
+    }
+
+    @Override
+    public CompletableFuture<ClusterPolicies> getClusterMigrationAsync(String cluster) {
+        WebTarget path = adminClusters.path(cluster).path("migrate");
+        return asyncGetRequest(path, new FutureCallback<ClusterPoliciesImpl>() {
+        }).thenApply(policies -> policies);
     }
 
     @Override

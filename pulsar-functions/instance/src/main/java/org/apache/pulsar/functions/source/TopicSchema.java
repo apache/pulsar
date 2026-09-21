@@ -19,11 +19,13 @@
 package org.apache.pulsar.functions.source;
 
 import io.netty.buffer.ByteBuf;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -41,16 +43,17 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 
-@Slf4j
+@CustomLog
 public class TopicSchema {
 
-    public static final String JSR_310_CONVERSION_ENABLED = "jsr310ConversionEnabled";
-    public static final String ALWAYS_ALLOW_NULL = "alwaysAllowNull";
     private final Map<String, Schema<?>> cachedSchemas = new HashMap<>();
     private final PulsarClient client;
 
-    public TopicSchema(PulsarClient client) {
+    private final ClassLoader functionsClassloader;
+
+    public TopicSchema(PulsarClient client, ClassLoader functionsClassloader) {
         this.client = client;
+        this.functionsClassloader = new URLClassLoader(new URL[0], functionsClassloader);
     }
 
     /**
@@ -146,6 +149,7 @@ public class TopicSchema {
         return newSchemaInstance(clazz, type, new ConsumerConfig());
     }
 
+    @SuppressWarnings("unchecked") // schema type casts are safe for the given schema type
     private static <T> Schema<T> newSchemaInstance(Class<T> clazz, SchemaType type, ConsumerConfig conf) {
         switch (type) {
         case NONE:
@@ -189,7 +193,7 @@ public class TopicSchema {
 
     private static boolean isProtobufClass(Class<?> pojoClazz) {
         try {
-            Class<?> protobufBaseClass = Class.forName("com.google.protobuf.GeneratedMessageV3");
+            Class<?> protobufBaseClass = Class.forName("com.google.protobuf.Message");
             return protobufBaseClass.isAssignableFrom(pojoClazz);
         } catch (ClassNotFoundException | NoClassDefFoundError e) {
             // If function does not have protobuf in classpath then it cannot be protobuf
@@ -244,11 +248,11 @@ public class TopicSchema {
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, String schemaTypeOrClassName, boolean input) {
         return newSchemaInstance(topic, clazz, new ConsumerConfig(schemaTypeOrClassName), input,
-                Thread.currentThread().getContextClassLoader());
+                functionsClassloader);
     }
 
     @SuppressWarnings("unchecked")
     private <T> Schema<T> newSchemaInstance(String topic, Class<T> clazz, ConsumerConfig conf, boolean input) {
-        return newSchemaInstance(topic, clazz, conf, input, Thread.currentThread().getContextClassLoader());
+        return newSchemaInstance(topic, clazz, conf, input, functionsClassloader);
     }
 }

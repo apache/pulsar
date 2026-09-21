@@ -19,12 +19,18 @@
 package org.apache.pulsar.tests.integration.functions.java;
 
 import static org.testng.Assert.assertEquals;
-
 import java.util.Collections;
-
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.commons.collections4.map.HashedMap;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.functions.BatchingConfig;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.MessagePayloadProcessorConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
 import org.apache.pulsar.common.policies.data.FunctionStatusUtil;
+import org.apache.pulsar.functions.api.examples.TestPayloadProcessor;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
@@ -70,10 +76,13 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
             admin.topics().createNonPartitionedTopic(outputTopicName);
         }
 
+        Map<String, String> inputTopicsSerde = new HashedMap<>();
+        inputTopicsSerde.put(inputTopicName, SERDE_CLASS);
+
         String functionName = "test-serde-fn-" + randomName(8);
         submitFunction(
-                Runtime.JAVA, inputTopicName, outputTopicName, functionName, null, SERDE_JAVA_CLASS,
-                SERDE_OUTPUT_CLASS, Collections.singletonMap("serde-topic", outputTopicName)
+                Runtime.JAVA, inputTopicName, outputTopicName, functionName, null, SERDE_JAVA_CLASS, inputTopicsSerde,
+                SERDE_CLASS, Collections.singletonMap("serde-topic", outputTopicName)
         );
 
         // get function info
@@ -98,12 +107,72 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     @Test(groups = {"java_function", "function"})
     public void testJavaExclamationFunction() throws Exception {
-        testExclamationFunction(Runtime.JAVA, false, false, false);
+        testExclamationFunction(Runtime.JAVA, false, false, false, false);
     }
 
     @Test(groups = {"java_function", "function"})
     public void testJavaExclamationTopicPatternFunction() throws Exception {
-        testExclamationFunction(Runtime.JAVA, true, false, false);
+        testExclamationFunction(Runtime.JAVA, true, false, false, false);
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testJavaExclamationCustomBatchingFunction() throws Exception {
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setBatchingConfig(BatchingConfig.builder()
+                .enabled(true)
+                .batchingMaxPublishDelayMs(5)
+                .batchingMaxMessages(100)
+                .batchingMaxBytes(64 * 1024)
+                .roundRobinRouterBatchingPartitionSwitchFrequency(5)
+                .batchBuilder("KEY_BASED")
+                .build());
+        testExclamationFunction(Runtime.JAVA, false, false, false, false, null,
+                producerConfig, commandGenerator -> {
+                    commandGenerator.setProducerConfig(producerConfig);
+                });
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testJavaExclamationDiableBatchingFunction() throws Exception {
+        ProducerConfig producerConfig = new ProducerConfig();
+        producerConfig.setBatchingConfig(BatchingConfig.builder()
+                .enabled(false)
+                .build());
+        testExclamationFunction(Runtime.JAVA, false, false, false, false, null,
+                producerConfig, commandGenerator -> {
+                    commandGenerator.setProducerConfig(producerConfig);
+                });
+    }
+
+    @Test(groups = {"java_function", "function"})
+    public void testJavaExclamationMessagePayloadProcessor() throws Exception {
+        ConsumerConfig consumerConfig = new ConsumerConfig();
+        consumerConfig.setMessagePayloadProcessorConfig(
+                new MessagePayloadProcessorConfig(
+                        TestPayloadProcessor.class.getName(),
+                        null
+                )
+        );
+        testExclamationFunction(Runtime.JAVA, false, false, false, false,
+                consumerConfig, null, commandGenerator -> {
+                    commandGenerator.setConsumerConfig(consumerConfig);
+                });
+    }
+
+
+    @Test(groups = {"java_function", "function"})
+    public void testJavaExclamationMessagePayloadProcessorWithConfigs() throws Exception {
+        ConsumerConfig consumerConfig = new ConsumerConfig();
+        consumerConfig.setMessagePayloadProcessorConfig(
+                new MessagePayloadProcessorConfig(
+                        TestPayloadProcessor.class.getName(),
+                        new HashMap<>(Map.of("key1", "value1", "key2", "value2"))
+                )
+        );
+        testExclamationFunction(Runtime.JAVA, false, false, false, false,
+                consumerConfig, null, commandGenerator -> {
+                    commandGenerator.setConsumerConfig(consumerConfig);
+                });
     }
 
     @Test(groups = {"java_function", "function"})
@@ -119,7 +188,7 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     @Test(groups = {"java_function", "function"})
     public void testTumblingCountWindowTest() throws Exception {
-        String[] EXPECTED_RESULTS = {
+        String[] expectedResults = {
                 "0,1,2,3,4,5,6,7,8,9",
                 "10,11,12,13,14,15,16,17,18,19",
                 "20,21,22,23,24,25,26,27,28,29",
@@ -132,12 +201,12 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
                 "90,91,92,93,94,95,96,97,98,99",
         };
 
-        testWindowFunction("tumbling", EXPECTED_RESULTS);
+        testWindowFunction("tumbling", expectedResults);
     }
 
     @Test(groups = {"java_function", "function"})
     public void testSlidingCountWindowTest() throws Exception {
-        String[] EXPECTED_RESULTS = {
+        String[] expectedResults = {
                 "0,1,2,3,4",
                 "0,1,2,3,4,5,6,7,8,9",
                 "5,6,7,8,9,10,11,12,13,14",
@@ -160,7 +229,7 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
                 "90,91,92,93,94,95,96,97,98,99",
         };
 
-        testWindowFunction("sliding", EXPECTED_RESULTS);
+        testWindowFunction("sliding", expectedResults);
     }
 
     @Test(groups = {"java_function", "function"})
@@ -210,7 +279,7 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
 
     @Test(groups = {"java_function", "function"})
     public void testAvroSchemaFunctionTest() throws Exception {
-        testAvroSchemaFunction();
+        testAvroSchemaFunction(Runtime.JAVA);
     }
 
 }

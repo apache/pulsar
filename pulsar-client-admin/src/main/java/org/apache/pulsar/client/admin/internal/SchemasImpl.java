@@ -19,18 +19,19 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -44,11 +45,9 @@ import org.apache.pulsar.common.schema.SchemaType;
 public class SchemasImpl extends BaseResource implements Schemas {
 
     private final WebTarget adminV2;
-    private final WebTarget adminV1;
 
-    public SchemasImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
-        this.adminV1 = web.path("/admin/schemas");
+    public SchemasImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         this.adminV2 = web.path("/admin/v2/schemas");
     }
 
@@ -276,6 +275,19 @@ public class SchemasImpl extends BaseResource implements Schemas {
                         .collect(Collectors.toList()));
     }
 
+    @Override
+    public SchemaMetadata getSchemaMetadata(String topic) throws PulsarAdminException {
+        return sync(() -> getSchemaMetadataAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<SchemaMetadata> getSchemaMetadataAsync(String topic) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = metadata(tn);
+        return asyncGetRequest(path, new FutureCallback<SchemaMetadata>(){});
+    }
+
+
     private WebTarget schemaPath(TopicName topicName) {
         return topicPath(topicName, "schema");
     }
@@ -292,9 +304,12 @@ public class SchemasImpl extends BaseResource implements Schemas {
         return topicPath(topicName, "compatibility");
     }
 
+    private WebTarget metadata(TopicName topicName) {
+        return topicPath(topicName, "metadata");
+    }
+
     private WebTarget topicPath(TopicName topic, String... parts) {
-        final WebTarget base = topic.isV2() ? adminV2 : adminV1;
-        WebTarget topicPath = base.path(topic.getRestPath(false));
+        WebTarget topicPath = adminV2.path(topic.getRestPath(false));
         topicPath = WebTargets.addParts(topicPath, parts);
         return topicPath;
     }

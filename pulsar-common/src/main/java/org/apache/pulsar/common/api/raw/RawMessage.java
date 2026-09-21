@@ -21,6 +21,7 @@ package org.apache.pulsar.common.api.raw;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 
 /**
  * View of a message that exposes the internal direct-memory buffer for more efficient processing.
@@ -72,7 +73,7 @@ public interface RawMessage {
 
     /**
      * Get the event time associated with this message. It is typically set by the applications via
-     * {@link MessageBuilder#setEventTime(long)}.
+     * {@link TypedMessageBuilder#eventTime(long)}.
      *
      * <p>If there isn't any event time associated with this event, it will return 0.
      */
@@ -80,10 +81,10 @@ public interface RawMessage {
 
     /**
      * Get the sequence id associated with this message. It is typically set by the applications via
-     * {@link MessageBuilder#setSequenceId(long)}.
+     * {@link TypedMessageBuilder#sequenceId(long)}.
      *
      * @return sequence id associated with this message.
-     * @see MessageBuilder#setEventTime(long)
+     * @see TypedMessageBuilder#sequenceId(long)
      */
     long getSequenceId();
 
@@ -102,7 +103,7 @@ public interface RawMessage {
     Optional<String> getKey();
 
     /**
-     * Get the schema verison of the message.
+     * Get the schema version of the message.
      *
      * @return the schema version of the message
      */

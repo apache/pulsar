@@ -44,8 +44,8 @@ func TestUtils(t *testing.T) {
 	expectedFQFN := getDefaultSubscriptionName(tenant, namespace, name)
 	assert.Equal(t, expectedFQFN, fqfn)
 
-	actualtMap := getProperties(fqfn, 100)
-	assert.Equal(t, propertiesMap, actualtMap)
+	actualMap := getProperties(fqfn, 100)
+	assert.Equal(t, propertiesMap, actualMap)
 
 	expectedRes := getFullyQualifiedInstanceID(tenant, namespace, name, instanceID)
 	assert.Equal(t, expectedRes, "pulsar/function/go:100")

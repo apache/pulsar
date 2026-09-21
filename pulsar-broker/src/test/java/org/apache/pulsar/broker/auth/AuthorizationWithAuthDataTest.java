@@ -60,6 +60,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@SuppressWarnings("deprecation")
 @Test(groups = "broker")
 public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
 
@@ -265,11 +266,12 @@ public class AuthorizationWithAuthDataTest extends MockedPulsarServiceBaseTest {
                 TenantInfo.builder().allowedClusters(Set.of(configClusterName)).build());
         admin.namespaces().createNamespace("test-tenant-1/test-namespace-1");
         String partitionedTopic = UUID.randomUUID().toString();
-        admin.topics().createPartitionedTopic(partitionedTopic,3);
+        admin.topics().createPartitionedTopic(partitionedTopic, 3);
         String nonPartitionedTopic = UUID.randomUUID().toString();
         admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
         admin.lookups().lookupPartitionedTopic(partitionedTopic);
         admin.lookups().lookupTopic(nonPartitionedTopic);
+        admin.topics().delete(nonPartitionedTopic);
     }
 
     @Test

@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.broker.web;
 
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ErrorData;
 
 /**
  * Exception used to provide better error messages to clients of the REST API.
  */
-@SuppressWarnings("serial")
 public class RestException extends WebApplicationException {
     private Throwable cause = null;
     static String getExceptionData(Throwable t) {
@@ -75,8 +74,7 @@ public class RestException extends WebApplicationException {
     }
 
     private static Response getResponse(Throwable t) {
-        if (t instanceof WebApplicationException) {
-            WebApplicationException e = (WebApplicationException) t;
+        if (t instanceof WebApplicationException e) {
             return e.getResponse();
         } else {
             return Response

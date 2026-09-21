@@ -33,11 +33,12 @@ public class StrategicCompactorTest extends CompactorTest {
     @Override
     public void setup() throws Exception {
         super.setup();
-        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler, 1);
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         strategy = new TopicCompactionStrategyTest.DummyTopicCompactionStrategy();
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     protected long compact(String topic) throws ExecutionException, InterruptedException {
         return (long) compactor.compact(topic, strategy).get();
     }

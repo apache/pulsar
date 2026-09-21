@@ -42,4 +42,7 @@ public class ClientCredentialsExchangeRequest {
 
     @JsonProperty("scope")
     private String scope;
+
+    @JsonProperty("token_endpoint_auth_method")
+    private TokenEndpointAuthMethod authMethod;
 }

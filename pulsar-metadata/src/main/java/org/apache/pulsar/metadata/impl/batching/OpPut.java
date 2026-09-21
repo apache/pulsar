@@ -18,13 +18,14 @@
  */
 package org.apache.pulsar.metadata.impl.batching;
 
-import java.util.EnumSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 
 @Data
 @AllArgsConstructor
@@ -32,13 +33,13 @@ public class OpPut implements MetadataOp {
     private final String path;
     private final byte[] data;
     private final Optional<Long> optExpectedVersion;
-    private final EnumSet<CreateOption> options;
+    private final Set<Option> options;
 
     public final long created = System.currentTimeMillis();
     private final CompletableFuture<Stat> future = new CompletableFuture<>();
 
     public boolean isEphemeral() {
-        return options.contains(CreateOption.Ephemeral);
+        return OptionsHelper.isEphemeral(options);
     }
 
     @Override

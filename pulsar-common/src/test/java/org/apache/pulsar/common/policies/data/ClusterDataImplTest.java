@@ -20,11 +20,9 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
-
+import java.util.LinkedHashSet;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.testng.annotations.Test;
-
-import java.util.LinkedHashSet;
 
 public class ClusterDataImplTest {
 
@@ -53,8 +51,6 @@ public class ClusterDataImplTest {
                 .brokerClientKeyFilePath("/my/key/file")
                 .brokerClientCertificateFilePath("/my/cert/file")
                 .listenerName("a-listener")
-                .migrated(true)
-                .migratedClusterUrl(new ClusterData.ClusterUrl("pulsar://remote", "pulsar+ssl://remote"))
                 .build();
 
         ClusterDataImpl clone = originalData.clone().build();

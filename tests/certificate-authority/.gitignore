@@ -1,0 +1,3 @@
+# Files generated when running openssl
+*.old
+*.attr

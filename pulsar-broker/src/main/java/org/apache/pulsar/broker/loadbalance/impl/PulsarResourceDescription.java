@@ -110,7 +110,7 @@ public class PulsarResourceDescription extends ResourceDescription {
                 percentageUsage = (entry.getValue().usage / entry.getValue().limit) * 100;
             }
             // give equal weight to each resource
-            double resourceWeight = weight * percentageUsage;
+            int resourceWeight = (int) (weight * percentageUsage);
             // any resource usage over 75% doubles the whole weight per resource
             if (percentageUsage > throttle) {
                 final int i = resourcesWithHighUsage++;

@@ -30,6 +30,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class TransactionCoordinatorClientException extends IOException {
+    private static final long serialVersionUID = 1L;
 
     public TransactionCoordinatorClientException(Throwable t) {
         super(t);
@@ -43,6 +44,7 @@ public class TransactionCoordinatorClientException extends IOException {
      * Thrown when transaction coordinator with unexpected state.
      */
     public static class CoordinatorClientStateException extends TransactionCoordinatorClientException {
+        private static final long serialVersionUID = 1L;
 
         public CoordinatorClientStateException() {
             super("Unexpected state for transaction metadata client.");
@@ -57,6 +59,8 @@ public class TransactionCoordinatorClientException extends IOException {
      * Thrown when transaction coordinator not found in broker side.
      */
     public static class CoordinatorNotFoundException extends TransactionCoordinatorClientException {
+        private static final long serialVersionUID = 1L;
+
         public CoordinatorNotFoundException(String message) {
             super(message);
         }
@@ -66,6 +70,8 @@ public class TransactionCoordinatorClientException extends IOException {
      * Thrown when transaction switch to a invalid status.
      */
     public static class InvalidTxnStatusException extends TransactionCoordinatorClientException {
+        private static final long serialVersionUID = 1L;
+
         public InvalidTxnStatusException(String message) {
             super(message);
         }
@@ -80,6 +86,8 @@ public class TransactionCoordinatorClientException extends IOException {
      * Thrown when transaction not found in transaction coordinator.
      */
     public static class TransactionNotFoundException extends TransactionCoordinatorClientException {
+        private static final long serialVersionUID = 1L;
+
         public TransactionNotFoundException(String message) {
             super(message);
         }
@@ -89,6 +97,7 @@ public class TransactionCoordinatorClientException extends IOException {
      * Thrown when transaction meta store handler not exists.
      */
     public static class MetaStoreHandlerNotExistsException extends TransactionCoordinatorClientException {
+        private static final long serialVersionUID = 1L;
 
         public MetaStoreHandlerNotExistsException(long tcId) {
             super("Transaction meta store handler for transaction meta store {} not exists.");
@@ -103,6 +112,8 @@ public class TransactionCoordinatorClientException extends IOException {
      * Thrown when send request to transaction meta store but the transaction meta store handler not ready.
      */
     public static class MetaStoreHandlerNotReadyException extends TransactionCoordinatorClientException {
+        private static final long serialVersionUID = 1L;
+
         public MetaStoreHandlerNotReadyException(long tcId) {
             super("Transaction meta store handler for transaction meta store {} not ready now.");
         }

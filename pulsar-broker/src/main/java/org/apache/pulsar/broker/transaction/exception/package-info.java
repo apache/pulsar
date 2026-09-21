@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /**
  * Exceptions thrown when encountering errors in transaction buffer.
  */

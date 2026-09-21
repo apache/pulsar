@@ -25,68 +25,63 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.auth.MockOIDCIdentityProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.TokenOauth2AuthenticatedProducerConsumerTest;
+import org.apache.pulsar.client.api.v5.Message;
+import org.apache.pulsar.client.api.v5.Producer;
+import org.apache.pulsar.client.api.v5.PulsarClient;
+import org.apache.pulsar.client.api.v5.QueueConsumer;
+import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
+import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
     private final String testTenant = "pulsar";
     private final String testNamespace = "perf";
     private final String myNamespace = testTenant + "/" + testNamespace;
-    private final String testTopic = "persistent://" + myNamespace + "/test-";
-    private static final Logger log = LoggerFactory.getLogger(TokenOauth2AuthenticatedProducerConsumerTest.class);
-
-    // public key in oauth2 server to verify the client passed in token. get from https://jwt.io/
-    private final String TOKEN_TEST_PUBLIC_KEY = "data:;base64,MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2tZd/"
-            + "4gJda3U2Pc3tpgRAN7JPGWx/Gn17v/0IiZlNNRbP/Mmf0Vc6G1qsnaRaWNWOR+t6/a6ekFHJMikQ1N2X6yfz4UjMc8/G2FDPRm"
-            + "WjA+GURzARjVhxc/BBEYGoD0Kwvbq/u9CZm2QjlKrYaLfg3AeB09j0btNrDJ8rBsNzU6AuzChRvXj9IdcE/A/4N/UQ+S9cJ4UXP6"
-            + "NJbToLwajQ5km+CnxdGE6nfB7LWHvOFHjn9C2Rb9e37CFlmeKmIVFkagFM0gbmGOb6bnGI8Bp/VNGV0APef4YaBvBTqwoZ1Z4aDH"
-            + "y5eRxXfAMdtBkBupmBXqL6bpd15XRYUbu/7ck9QIDAQAB";
-
-    private final String ADMIN_ROLE = "Xd23RHsUnvUlP7wchjNYOaIfazgeHd9x@clients";
+    // v5 transactions are scalable-topic-only; scalable topics use the topic:// domain.
+    private final String testTopic = "topic://" + myNamespace + "/test-";
 
     // Credentials File, which contains "client_id" and "client_secret"
-    private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
+    private static final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
 
     private final String authenticationPlugin = "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2";
 
+    // v5 SDK client for the verification produce/consume (v4 SDK can't use scalable topics).
+    private PulsarClient v5Client;
+
+    private MockOIDCIdentityProvider server;
     private String authenticationParameters;
 
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        server = new MockOIDCIdentityProvider("a-client-secret", "my-test-audience", 30000);
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
         HashMap<String, Object> params = new HashMap<>();
-        params.put("issuerUrl", new URL("https://dev-kt-aa9ne.us.auth0.com"));
+        params.put("issuerUrl", server.getIssuer());
         params.put("privateKey", path.toUri().toURL());
-        params.put("audience", "https://dev-kt-aa9ne.us.auth0.com/api/v2/");
+        params.put("audience", "my-test-audience");
         ObjectMapper jsonMapper = ObjectMapperFactory.create();
         authenticationParameters = jsonMapper.writeValueAsString(params);
 
@@ -96,7 +91,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         conf.setAuthenticationRefreshCheckSeconds(5);
 
         Set<String> superUserRoles = new HashSet<>();
-        superUserRoles.add(ADMIN_ROLE);
+        superUserRoles.add("superuser");
         conf.setSuperUserRoles(superUserRoles);
 
         Set<String> providers = new HashSet<>();
@@ -107,7 +102,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
 
         // Set provider domain name
         Properties properties = new Properties();
-        properties.setProperty("tokenPublicKey", TOKEN_TEST_PUBLIC_KEY);
+        properties.setProperty("tokenPublicKey", server.getBase64EncodedPublicKey());
 
         conf.setProperties(properties);
 
@@ -115,7 +110,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         conf.setBrokerClientAuthenticationParameters(authenticationParameters);
         super.init();
         PerfClientUtils.setExitProcedure(code -> {
-            log.error("JVM exit code is {}", code);
+            log.error().attr("code", code).log("JVM exit code is");
             if (code != 0) {
                 throw new RuntimeException("JVM should exit with code " + code);
             }
@@ -126,14 +121,20 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
+        if (v5Client != null) {
+            v5Client.close();
+            v5Client = null;
+        }
         super.internalCleanup();
+        server.stop();
     }
 
     // setup both admin and pulsar client
+    @SuppressWarnings("deprecation")
     protected final void clientSetup() throws Exception {
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
-        log.info("Credentials File path: {}", path);
-
+        log.info().attr("path", path).log("Credentials File path");
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(authenticationPlugin, authenticationParameters)
                 .build());
@@ -152,15 +153,19 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
                 .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
                         new PartitionedTopicMetadata(1));
 
-        replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
-                .statsInterval(0, TimeUnit.SECONDS)
-                .enableTransaction(true)
-                .authentication(authenticationPlugin, authenticationParameters));
+        // v5 SDK verification client: v5 transactions are scalable-topic-only, and the v4 SDK
+        // can't produce/consume on scalable (topic://) topics. transactionPolicy(...) opts the
+        // client into transactions and routes it to the scalable-topics (v5) coordinator.
+        v5Client = PulsarClient.builder()
+                .serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
+                .authentication(authenticationPlugin, authenticationParameters)
+                .transactionPolicy(TransactionPolicy.builder().timeout(Duration.ofMinutes(5)).build())
+                .build();
     }
 
     @Test
     public void testTransactionPerf() throws Exception {
-        String argString = "--topics-c %s --topics-p %s -threads 1 -ntxn 50 -u %s -ss %s -np 1 -au %s"
+        String argString = "--topics-c %s --topics-p %s -threads 1 -ntxn 50 -u %s -ss %s --scalable -au %s"
                 + " --auth-plugin %s --auth-params %s";
         String testConsumeTopic = testTopic + UUID.randomUUID();
         String testProduceTopic = testTopic + UUID.randomUUID();
@@ -169,57 +174,50 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
                 pulsar.getBrokerServiceUrl(), testSub, new URL(pulsar.getWebServiceAddress()),
                 authenticationPlugin, authenticationParameters);
 
-        Producer<byte[]> produceToConsumeTopic = pulsarClient.newProducer(Schema.BYTES)
-                .producerName("perf-transaction-producer")
-                .sendTimeout(0, TimeUnit.SECONDS)
+        // v5 transactions are scalable-topic-only; scalable topics must be pre-created (they don't
+        // auto-create on produce). Create the consume topic so the warm-up producer below can write.
+        admin.scalableTopics().createScalableTopic(testConsumeTopic, 1);
+        admin.scalableTopics().createScalableTopic(testProduceTopic, 1);
+
+        Producer<byte[]> produceToConsumeTopic = v5Client.newProducer(Schema.bytes())
                 .topic(testConsumeTopic)
                 .create();
-        pulsarClient.newConsumer(Schema.BYTES)
-                .consumerName("perf-transaction-consumeVerify")
+        v5Client.newQueueConsumer(Schema.bytes())
                 .topic(testConsumeTopic)
-                .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName(testSub + "pre")
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
                 .subscribe();
-        CountDownLatch countDownLatch = new CountDownLatch(50);
-        for (int i = 0; i < 50
-                ; i++) {
-            produceToConsumeTopic.newMessage().value(("testConsume " + i).getBytes()).sendAsync().thenRun(
-                    countDownLatch::countDown);
+        for (int i = 0; i < 50; i++) {
+            produceToConsumeTopic.newMessage().value(("testConsume " + i).getBytes()).send();
         }
-
-        countDownLatch.await();
 
         Thread thread = new Thread(() -> {
             try {
-                PerformanceTransaction.main(args.split(" "));
+                new PerformanceTransaction().run(args.split(" "));
             } catch (Exception e) {
                 e.printStackTrace();
             }
         });
         thread.start();
         thread.join();
-        Consumer<byte[]> consumeFromConsumeTopic = pulsarClient.newConsumer(Schema.BYTES)
-                .consumerName("perf-transaction-consumeVerify")
+        QueueConsumer<byte[]> consumeFromConsumeTopic = v5Client.newQueueConsumer(Schema.bytes())
                 .topic(testConsumeTopic)
-                .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName(testSub)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
                 .subscribe();
-        Consumer<byte[]> consumeFromProduceTopic = pulsarClient.newConsumer(Schema.BYTES)
-                .consumerName("perf-transaction-produceVerify")
+        QueueConsumer<byte[]> consumeFromProduceTopic = v5Client.newQueueConsumer(Schema.bytes())
                 .topic(testProduceTopic)
                 .subscriptionName(testSub)
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
                 .subscribe();
         for (int i = 0; i < 50; i++) {
-            Message<byte[]> message = consumeFromProduceTopic.receive(2, TimeUnit.SECONDS);
+            Message<byte[]> message = consumeFromProduceTopic.receive(Duration.ofSeconds(5));
             Assert.assertNotNull(message);
-            consumeFromProduceTopic.acknowledge(message);
+            consumeFromProduceTopic.acknowledge(message.id());
         }
-        Message<byte[]> message = consumeFromConsumeTopic.receive(2, TimeUnit.SECONDS);
+        Message<byte[]> message = consumeFromConsumeTopic.receive(Duration.ofSeconds(2));
         Assert.assertNull(message);
-        message = consumeFromProduceTopic.receive(2, TimeUnit.SECONDS);
+        message = consumeFromProduceTopic.receive(Duration.ofSeconds(2));
         Assert.assertNull(message);
 
     }

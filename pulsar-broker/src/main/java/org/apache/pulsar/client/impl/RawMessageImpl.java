@@ -20,16 +20,14 @@ package org.apache.pulsar.client.impl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MessageIdData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class RawMessageImpl implements RawMessage {
-    private static final Logger log = LoggerFactory.getLogger(RawMessageImpl.class);
-
     private final MessageIdData id = new MessageIdData();
     private ByteBuf headersAndPayload;
 

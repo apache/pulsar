@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.testcontext;
 import io.netty.channel.EventLoopGroup;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.stats.StatsLogger;
@@ -39,21 +40,21 @@ class MockBookKeeperClientFactory implements BookKeeperClientFactory {
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties) {
+    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
+                                    EventLoopGroup eventLoopGroup,
+                                    Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
+                                    Map<String, Object> properties) {
         // Always return the same instance (so that we don't loose the mock BK content on broker restart
-        return mockBookKeeper;
+        return CompletableFuture.completedFuture(mockBookKeeper);
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
+    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
                              EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
                              Map<String, Object> properties, StatsLogger statsLogger) {
         // Always return the same instance (so that we don't loose the mock BK content on broker restart
-        return mockBookKeeper;
+        return CompletableFuture.completedFuture(mockBookKeeper);
     }
 
     @Override

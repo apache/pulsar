@@ -72,6 +72,7 @@ public class FunctionConfig {
      * A generalized way of specifying inputs.
      */
     private Map<String, ConsumerConfig> inputSpecs;
+    private String inputTypeClassName;
 
     private String output;
 
@@ -83,6 +84,7 @@ public class FunctionConfig {
      * implementation.
      */
     private String outputSchemaType;
+    private String outputTypeClassName;
 
     private String outputSerdeClassName;
     private String logTopic;
@@ -129,6 +131,8 @@ public class FunctionConfig {
     private Integer maxPendingAsyncRequests;
     // Whether the pulsar admin client exposed to function context, default is disabled.
     private Boolean exposePulsarAdminClientEnabled;
+    // Whether the consumer should skip to latest position in case of failure recovery
+    private Boolean skipToLatest;
 
     @Builder.Default
     private SubscriptionInitialPosition subscriptionPosition = SubscriptionInitialPosition.Latest;

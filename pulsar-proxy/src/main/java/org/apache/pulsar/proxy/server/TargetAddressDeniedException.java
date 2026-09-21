@@ -19,6 +19,8 @@
 package org.apache.pulsar.proxy.server;
 
 class TargetAddressDeniedException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
     public TargetAddressDeniedException(String message) {
         super(message);
     }

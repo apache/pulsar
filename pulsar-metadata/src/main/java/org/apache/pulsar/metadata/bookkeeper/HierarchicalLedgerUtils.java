@@ -21,12 +21,12 @@ package org.apache.pulsar.metadata.bookkeeper;
 import java.util.List;
 import java.util.NavigableSet;
 import java.util.TreeSet;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.meta.AbstractZkLedgerManager;
 
 @UtilityClass
-@Slf4j
+@CustomLog
 class HierarchicalLedgerUtils {
     /**
      * Get all ledger ids in the given zk path.
@@ -42,7 +42,8 @@ class HierarchicalLedgerUtils {
         NavigableSet<Long> zkActiveLedgers = new TreeSet<>();
 
         if (!path.startsWith(ledgerRootPath)) {
-            log.warn("Ledger path [{}] is not a valid path name, it should start wth {}", path, ledgerRootPath);
+            log.warn().attr("path", path).attr("expectedPrefix", ledgerRootPath)
+                    .log("Ledger path is not a valid path name");
             return zkActiveLedgers;
         }
 

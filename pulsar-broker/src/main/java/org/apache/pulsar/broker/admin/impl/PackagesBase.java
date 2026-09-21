@@ -18,16 +18,15 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.StreamingOutput;
 import java.io.InputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.StreamingOutput;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
@@ -37,10 +36,7 @@ import org.apache.pulsar.packages.management.core.common.PackageName;
 import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
 
-@Slf4j
 public class PackagesBase extends AdminResource {
-
-    private AuthorizationService authorizationService;
 
     private PackagesManagement getPackagesManagement() {
         return pulsar().getPackagesManagement();
@@ -67,8 +63,10 @@ public class PackagesBase extends AdminResource {
             asyncResponse.resume(throwable);
         } else if (throwable instanceof UnsupportedOperationException) {
             asyncResponse.resume(new RestException(Response.Status.SERVICE_UNAVAILABLE, throwable.getMessage()));
+        } else if (throwable instanceof FileAlreadyExistsException) {
+            asyncResponse.resume(new RestException(Response.Status.CONFLICT, throwable.getMessage()));
         } else {
-            log.error("Encountered unexpected error", throwable);
+            log.error().exception(throwable).log("Encountered unexpected error");
             asyncResponse.resume(new RestException(Response.Status.INTERNAL_SERVER_ERROR, throwable.getMessage()));
         }
         return null;
@@ -196,13 +194,5 @@ public class PackagesBase extends AdminResource {
             future.complete(null);
         }
         return future;
-    }
-
-    private AuthorizationService getAuthorizationService() {
-        if (authorizationService == null) {
-            authorizationService = pulsar().getBrokerService().getAuthorizationService();
-            return authorizationService;
-        }
-        return authorizationService;
     }
 }

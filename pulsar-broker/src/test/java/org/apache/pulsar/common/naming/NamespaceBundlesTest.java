@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.naming;
 
+import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -32,24 +33,28 @@ import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.LocalPoliciesResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-naming")
+@CustomLog
 public class NamespaceBundlesTest {
 
     private NamespaceBundleFactory factory;
@@ -65,7 +70,8 @@ public class NamespaceBundlesTest {
 
         long[] partitions = new long[]{0L, 0x10000000L, 0x40000000L, 0xffffffffL};
 
-        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/use/ns2"), factory, Optional.empty(), partitions);
+        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/ns2"), factory,
+                Optional.empty(), partitions);
         Field partitionField = NamespaceBundles.class.getDeclaredField("partitions");
         Field nsField = NamespaceBundles.class.getDeclaredField("nsname");
         Field bundlesField = NamespaceBundles.class.getDeclaredField("bundles");
@@ -76,7 +82,7 @@ public class NamespaceBundlesTest {
         // the same instance
         assertEquals(partitions.length, partFld.length);
         NamespaceName nsFld = (NamespaceName) nsField.get(bundles);
-        assertEquals(nsFld.toString(), "pulsar/use/ns2");
+        assertEquals(nsFld.toString(), "pulsar/ns2");
         ArrayList<NamespaceBundle> bundleList = (ArrayList<NamespaceBundle>) bundlesField.get(bundles);
         assertEquals(bundleList.size(), 3);
         assertEquals(bundleList.get(0),
@@ -91,6 +97,7 @@ public class NamespaceBundlesTest {
     private NamespaceBundleFactory getNamespaceBundleFactory() {
         PulsarService pulsar = mock(PulsarService.class);
         MetadataStoreExtended store = mock(MetadataStoreExtended.class);
+        when(pulsar.getConfiguration()).thenReturn(new ServiceConfiguration());
         when(pulsar.getLocalMetadataStore()).thenReturn(store);
         when(pulsar.getConfigurationMetadataStore()).thenReturn(store);
 
@@ -103,7 +110,30 @@ public class NamespaceBundlesTest {
         when(resources.getNamespaceResources()).thenReturn(mock(NamespaceResources.class));
         when(resources.getNamespaceResources().getPoliciesAsync(any())).thenReturn(
                 CompletableFuture.completedFuture(Optional.empty()));
-        return NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
+        NamespaceBundleFactory factory1 = NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
+        NamespaceService namespaceService =  mock(NamespaceService.class);
+        when(namespaceService.getNamespaceBundleFactory()).thenReturn(factory1);
+        when(pulsar.getNamespaceService()).thenReturn(namespaceService);
+        return factory1;
+    }
+
+    /**
+     * A transaction coordinator is owned by the broker that owns the bundle of its
+     * {@code transaction_coordinator_assign} partition, so the number of system namespace bundles bounds how far the
+     * coordinators can spread. The default number of bundles is chosen so that each of the default 16 coordinators
+     * hashes into a bundle of its own; this pins that choice.
+     */
+    @Test
+    public void testDefaultSystemNamespaceBundlesSpreadTheDefaultTransactionCoordinators() {
+        int defaultNumTransactionCoordinators = 16;
+        NamespaceBundles bundles = factory.getBundles(NamespaceName.SYSTEM_NAMESPACE,
+                getBundles(ServiceConfiguration.DEFAULT_NUMBER_OF_SYSTEM_NAMESPACE_BUNDLES));
+        Set<NamespaceBundle> coordinatorBundles = new HashSet<>();
+        for (int i = 0; i < defaultNumTransactionCoordinators; i++) {
+            coordinatorBundles.add(
+                    bundles.findBundle(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(i)));
+        }
+        assertEquals(coordinatorBundles.size(), defaultNumTransactionCoordinators);
     }
 
     @Test
@@ -115,13 +145,13 @@ public class NamespaceBundlesTest {
         partitions.add(0xb0000000L);
         partitions.add(0xc0000000L);
         partitions.add(0xffffffffL);
-        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/global/ns1"),
+        NamespaceBundles bundles = new NamespaceBundles(NamespaceName.get("pulsar/ns1"),
                 factory, Optional.empty(), partitions);
-        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
+        TopicName topicName = TopicName.get("persistent://pulsar/ns1/topic-1");
         NamespaceBundle bundle = bundles.findBundle(topicName);
         assertTrue(bundle.includes(topicName));
 
-        topicName = TopicName.get("persistent://pulsar/use/ns2/topic-2");
+        topicName = TopicName.get("persistent://pulsar/ns2/topic-2");
         try {
             bundles.findBundle(topicName);
             fail("Should have failed due to mismatched namespace name");
@@ -142,15 +172,15 @@ public class NamespaceBundlesTest {
             bundles = new NamespaceBundles(topicName.getNamespaceObject(), factory, Optional.empty(), newPar);
             bundles.findBundle(topicName);
             fail("Should have failed due to out-of-range");
-        } catch (IndexOutOfBoundsException iae) {
+        } catch (IllegalArgumentException iae) {
             // OK, expected
         }
     }
 
     @Test
     public void testSplitBundles() throws Exception {
-        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
-        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
+        NamespaceName nsname = NamespaceName.get("pulsar/ns1");
+        TopicName topicName = TopicName.get("persistent://pulsar/ns1/topic-1");
         NamespaceBundles bundles = factory.getBundles(nsname);
         NamespaceBundle bundle = bundles.findBundle(topicName);
         final int numberSplitBundles = 4;
@@ -203,13 +233,13 @@ public class NamespaceBundlesTest {
 
     @Test
     public void testSplitBundleInTwo() throws Exception {
-        final int NO_BUNDLES = 2;
-        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
-        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
+        final int noBundles = 2;
+        NamespaceName nsname = NamespaceName.get("pulsar/ns1");
+        TopicName topicName = TopicName.get("persistent://pulsar/ns1/topic-1");
         NamespaceBundles bundles = factory.getBundles(nsname);
         NamespaceBundle bundle = bundles.findBundle(topicName);
         // (1) split : [0x00000000,0xffffffff] => [0x00000000_0x7fffffff,0x7fffffff_0xffffffff]
-        Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundle, NO_BUNDLES,
+        Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundle, noBundles,
                 null).join();
         assertNotNull(splitBundles);
         assertBundleDivideInTwo(bundle, splitBundles.getRight());
@@ -217,25 +247,25 @@ public class NamespaceBundlesTest {
         // (2) split: [0x00000000,0x7fffffff] => [0x00000000_0x3fffffff,0x3fffffff_0x7fffffff],
         // [0x7fffffff,0xffffffff] => [0x7fffffff_0xbfffffff,0xbfffffff_0xffffffff]
         NamespaceBundleFactory utilityFactory = getNamespaceBundleFactory();
-        assertBundles(utilityFactory, nsname, bundle, splitBundles, NO_BUNDLES);
+        assertBundles(utilityFactory, nsname, bundle, splitBundles, noBundles);
 
         // (3) split: [0x00000000,0x3fffffff] => [0x00000000_0x1fffffff,0x1fffffff_0x3fffffff],
         // [0x3fffffff,0x7fffffff] => [0x3fffffff_0x5fffffff,0x5fffffff_0x7fffffff]
         Pair<NamespaceBundles, List<NamespaceBundle>> splitChildBundles = splitBundlesUtilFactory(utilityFactory,
-                nsname, splitBundles.getLeft(), splitBundles.getRight().get(0), NO_BUNDLES);
-        assertBundles(utilityFactory, nsname, splitBundles.getRight().get(0), splitChildBundles, NO_BUNDLES);
+                nsname, splitBundles.getLeft(), splitBundles.getRight().get(0), noBundles);
+        assertBundles(utilityFactory, nsname, splitBundles.getRight().get(0), splitChildBundles, noBundles);
 
         // (4) split: [0x7fffffff,0xbfffffff] => [0x7fffffff_0x9fffffff,0x9fffffff_0xbfffffff],
         // [0xbfffffff,0xffffffff] => [0xbfffffff_0xdfffffff,0xdfffffff_0xffffffff]
         splitChildBundles = splitBundlesUtilFactory(utilityFactory, nsname, splitBundles.getLeft(),
-                splitBundles.getRight().get(1), NO_BUNDLES);
-        assertBundles(utilityFactory, nsname, splitBundles.getRight().get(1), splitChildBundles, NO_BUNDLES);
+                splitBundles.getRight().get(1), noBundles);
+        assertBundles(utilityFactory, nsname, splitBundles.getRight().get(1), splitChildBundles, noBundles);
 
     }
 
     @Test
     public void testSplitBundleByFixBoundary() throws Exception {
-        NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
+        NamespaceName nsname = NamespaceName.get("pulsar/ns1");
         NamespaceBundles bundles = factory.getBundles(nsname);
         NamespaceBundle bundleToSplit = bundles.getBundles().get(0);
 
@@ -255,7 +285,8 @@ public class NamespaceBundlesTest {
         Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles = factory.splitBundles(bundleToSplit,
                 0, Collections.singletonList(fixBoundary)).join();
         assertEquals(splitBundles.getRight().get(0).getLowerEndpoint(), bundleToSplit.getLowerEndpoint());
-        assertEquals(splitBundles.getRight().get(1).getLowerEndpoint().longValue(), bundleToSplit.getLowerEndpoint() + fixBoundary);
+        assertEquals(splitBundles.getRight().get(1).getLowerEndpoint().longValue(),
+                bundleToSplit.getLowerEndpoint() + fixBoundary);
     }
 
     private void validateSplitBundlesRange(NamespaceBundle fullBundle, List<NamespaceBundle> splitBundles) {
@@ -312,8 +343,11 @@ public class NamespaceBundlesTest {
         String uRange = String.format("0x%08x_0x%08x", middle, upper);
         assertEquals(lRange, bundles.get(0).getBundleRange());
         assertEquals(uRange, bundles.get(1).getBundleRange());
-        log.info("[{},{}] => [{},{}]", range[0], range[1], lRange, uRange);
+        log.info()
+                .attr("range", range[0])
+                .attr("range2", range[1])
+                .attr("lRange", lRange)
+                .attr("uRange", uRange)
+                .log(">");
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NamespaceBundlesTest.class);
 }

@@ -66,7 +66,9 @@ import java.util.TimeZone;
  * {@link com.fasterxml.jackson.databind.ObjectReader} instances instead of the {@link ObjectMapper} since
  * those classes are immutable.
  */
+@SuppressWarnings("deprecation") // Overrides deprecated ObjectMapper methods to block mutation
 final class ProtectedObjectMapper extends ObjectMapper {
+    private static final long serialVersionUID = 1L;
 
     private final ObjectMapper src;
 

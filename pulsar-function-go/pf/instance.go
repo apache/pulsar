@@ -21,17 +21,17 @@ package pf
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-
 	"github.com/apache/pulsar-client-go/pulsar"
-
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 	prometheus_client "github.com/prometheus/client_model/go"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type goInstance struct {
@@ -73,6 +73,15 @@ func newGoInstance() *goInstance {
 			log.Fatal(err)
 		}
 		return producer
+	}
+
+	goInstance.context.outputMessageWithError = func(topic string) (pulsar.Producer, error) {
+		producer, err := goInstance.getProducer(topic)
+		if err != nil {
+			log.Errorf("getting producer failed, error is:%v", err)
+			return nil, err
+		}
+		return producer, nil
 	}
 
 	goInstance.lastHealthCheckTS = now.UnixNano()
@@ -149,13 +158,11 @@ func (gi *goInstance) startFunction(function function) error {
 	defer metricsServicer.close()
 CLOSE:
 	for {
-		idleTimer.Reset(idleDuration)
 		select {
 		case cm := <-channel:
 			msgInput := cm.Message
 			atMostOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATMOST_ONCE
-			atLeastOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
-			autoAck := gi.context.instanceConf.funcDetails.AutoAck
+			autoAck := gi.context.instanceConf.funcDetails.AutoAck //nolint:staticcheck
 			if autoAck && atMostOnce {
 				gi.ackInputMessage(msgInput)
 			}
@@ -167,12 +174,8 @@ CLOSE:
 
 			output, err := gi.handlerMsg(msgInput)
 			if err != nil {
-				log.Errorf("handler message error:%v", err)
-				if autoAck && atLeastOnce {
-					gi.nackInputMessage(msgInput)
-				}
-				gi.stats.incrTotalUserExceptions(err)
-				return err
+				gi.handleUserError(msgInput, err)
+				continue
 			}
 
 			gi.stats.processTimeEnd()
@@ -181,6 +184,11 @@ CLOSE:
 			close(channel)
 			break CLOSE
 		}
+		// reset the idle timer and drain if appropriate before the next loop
+		if !idleTimer.Stop() {
+			<-idleTimer.C
+		}
+		idleTimer.Reset(idleDuration)
 	}
 
 	gi.closeLogTopic()
@@ -188,11 +196,40 @@ CLOSE:
 	return nil
 }
 
-func (gi *goInstance) setupClient() error {
-	client, err := pulsar.NewClient(pulsar.ClientOptions{
+const (
+	authPluginToken = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
+	authPluginNone  = ""
+)
 
-		URL: gi.context.instanceConf.pulsarServiceURL,
-	})
+func (gi *goInstance) setupClient() error {
+	ic := gi.context.instanceConf
+
+	clientOpts := pulsar.ClientOptions{
+		URL:                        ic.pulsarServiceURL,
+		TLSTrustCertsFilePath:      ic.tlsTrustCertsPath,
+		TLSAllowInsecureConnection: ic.tlsAllowInsecure,
+		TLSValidateHostname:        ic.tlsHostnameVerification,
+	}
+
+	switch ic.authPlugin {
+	case authPluginToken:
+		switch {
+		case strings.HasPrefix(ic.authParams, "file://"):
+			clientOpts.Authentication = pulsar.NewAuthenticationTokenFromFile(ic.authParams[7:])
+		case strings.HasPrefix(ic.authParams, "token:"):
+			clientOpts.Authentication = pulsar.NewAuthenticationToken(ic.authParams[6:])
+		case ic.authParams == "":
+			return fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginToken)
+		default:
+			return fmt.Errorf(`unknown token format - expecting "file://" or "token:" prefix`)
+		}
+	case authPluginNone:
+		clientOpts.Authentication, _ = pulsar.NewAuthentication("", "") // ret: auth.NewAuthDisabled()
+	default:
+		return fmt.Errorf("unknown auth provider: %s", ic.authPlugin)
+	}
+
+	client, err := pulsar.NewClient(clientOpts)
 	if err != nil {
 		log.Errorf("create client error:%v", err)
 		gi.stats.incrTotalSysExceptions(err)
@@ -207,13 +244,12 @@ func (gi *goInstance) setupProducer() error {
 		log.Debugf("Setting up producer for topic %s", gi.context.instanceConf.funcDetails.Sink.Topic)
 		producer, err := gi.getProducer(gi.context.instanceConf.funcDetails.Sink.Topic)
 		if err != nil {
-			log.Fatal(err)
+			log.Errorf("Failed to create producer: %v", err)
+			return fmt.Errorf("failed to create producer: %w", err)
 		}
 
 		gi.producer = producer
-		return nil
 	}
-
 	return nil
 }
 
@@ -223,27 +259,16 @@ func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
 		gi.context.instanceConf.funcDetails.Namespace,
 		gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
 
-	batchBuilderType := pulsar.DefaultBatchBuilder
+	// Compression and batching come from the function's producerSpec; everything else is fixed by
+	// the runtime.
+	options := producerOptionsFromSpec(gi.context.instanceConf.funcDetails.Sink.ProducerSpec)
+	options.Topic = topicName
+	options.Properties = properties
+	// Set send timeout to be infinity to prevent potential deadlock with consumer
+	// that might happen when consumer is blocked due to unacked messages
+	options.SendTimeout = 0
 
-	if gi.context.instanceConf.funcDetails.Sink.ProducerSpec != nil {
-		batchBuilder := gi.context.instanceConf.funcDetails.Sink.ProducerSpec.BatchBuilder
-		if batchBuilder != "" {
-			if batchBuilder == "KEY_BASED" {
-				batchBuilderType = pulsar.KeyBasedBatchBuilder
-			}
-		}
-	}
-
-	producer, err := gi.client.CreateProducer(pulsar.ProducerOptions{
-		Topic:                   topicName,
-		Properties:              properties,
-		CompressionType:         pulsar.LZ4,
-		BatchingMaxPublishDelay: time.Millisecond * 10,
-		BatcherBuilderType:      batchBuilderType,
-		SendTimeout:             0,
-		// Set send timeout to be infinity to prevent potential deadlock with consumer
-		// that might happen when consumer is blocked due to unacked messages
-	})
+	producer, err := gi.client.CreateProducer(options)
 	if err != nil {
 		gi.stats.incrTotalSysExceptions(err)
 		log.Errorf("create producer error:%s", err.Error())
@@ -253,11 +278,50 @@ func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
 	return producer, err
 }
 
-func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
+// resolveSubscriptionType picks the consumer subscription type for the function.
+//
+// The ordering flags are applied after the explicit SubscriptionType, matching the Java and Python
+// runtimes: retainOrdering requires a single consumer per partition, so it selects Failover, and
+// retainKeyOrdering selects KeyShared. Ordering wins when both are set, which is the precedence
+// python_instance.py applies.
+//
+// EFFECTIVELY_ONCE needs no arm here: instanceConf.go refuses it before an instance is built.
+func resolveSubscriptionType(configured pb.SubscriptionType, retainOrdering,
+	retainKeyOrdering bool) pulsar.SubscriptionType {
 	subscriptionType := pulsar.Shared
-	if int32(gi.context.instanceConf.funcDetails.Source.SubscriptionType) == pb.SubscriptionType_value["FAILOVER"] {
+	if int32(configured) == pb.SubscriptionType_value["FAILOVER"] {
 		subscriptionType = pulsar.Failover
 	}
+
+	if retainOrdering {
+		subscriptionType = pulsar.Failover
+	} else if retainKeyOrdering {
+		subscriptionType = pulsar.KeyShared
+	}
+
+	return subscriptionType
+}
+
+// resolveNackRedeliveryDelay returns the negative-ack redelivery delay to apply, or zero to leave
+// the client default in place.
+//
+// SourceSpec.NegativeAckRedeliveryDelayMs is a proto3 scalar with no presence, so an unset field
+// reads as 0. Only a positive value is applied, matching the guard the Java runtime uses in
+// JavaInstanceRunnable; a zero left in ConsumerOptions is treated by the client as unset, so the
+// default applies either way.
+func resolveNackRedeliveryDelay(delayMs uint64) time.Duration {
+	if delayMs == 0 {
+		return 0
+	}
+
+	return time.Duration(delayMs) * time.Millisecond
+}
+
+func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
+	subscriptionType := resolveSubscriptionType(
+		gi.context.instanceConf.funcDetails.Source.SubscriptionType,
+		gi.context.instanceConf.funcDetails.RetainOrdering,
+		gi.context.instanceConf.funcDetails.RetainKeyOrdering)
 
 	funcDetails := gi.context.instanceConf.funcDetails
 	subscriptionName := funcDetails.Tenant + "/" + funcDetails.Namespace + "/" + funcDetails.Name
@@ -269,6 +333,8 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		funcDetails.Tenant,
 		funcDetails.Namespace,
 		funcDetails.Name), gi.context.instanceConf.instanceID)
+
+	nackRedeliveryDelay := resolveNackRedeliveryDelay(funcDetails.Source.NegativeAckRedeliveryDelayMs)
 
 	channel := make(chan pulsar.ConsumerMessage)
 
@@ -288,39 +354,43 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		if consumerConf.ReceiverQueueSize != nil {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:     topicName.Name,
-					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
-					SubscriptionName:  subscriptionName,
-					Properties:        properties,
-					Type:              subscriptionType,
-					MessageChannel:    channel,
+					TopicsPattern:       topicName.Name,
+					ReceiverQueueSize:   int(consumerConf.ReceiverQueueSize.Value),
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:             topicName.Name,
-					SubscriptionName:  subscriptionName,
-					Properties:        properties,
-					Type:              subscriptionType,
-					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
-					MessageChannel:    channel,
+					Topic:               topicName.Name,
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					ReceiverQueueSize:   int(consumerConf.ReceiverQueueSize.Value),
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 			}
 		} else {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:    topicName.Name,
-					SubscriptionName: subscriptionName,
-					Properties:       properties,
-					Type:             subscriptionType,
-					MessageChannel:   channel,
+					TopicsPattern:       topicName.Name,
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:            topicName.Name,
-					SubscriptionName: subscriptionName,
-					Properties:       properties,
-					Type:             subscriptionType,
-					MessageChannel:   channel,
+					Topic:               topicName.Name,
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 
 			}
@@ -336,6 +406,29 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 	return channel, nil
 }
 
+func (gi *goInstance) shouldNackInputOnFailure() bool {
+	guarantee := gi.context.instanceConf.funcDetails.ProcessingGuarantees
+	return guarantee == pb.ProcessingGuarantees_ATLEAST_ONCE ||
+		guarantee == pb.ProcessingGuarantees_MANUAL
+}
+
+func (gi *goInstance) handleUserError(msgInput pulsar.Message, err error) {
+	log.Errorf("handler message error:%v", err)
+	if gi.shouldNackInputOnFailure() {
+		gi.nackInputMessage(msgInput)
+	}
+	gi.stats.incrTotalUserExceptions(err)
+	gi.stats.processTimeEnd()
+}
+
+func (gi *goInstance) handlePublishError(msgInput pulsar.Message, err error) {
+	if gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE {
+		gi.nackInputMessage(msgInput)
+	}
+	gi.stats.incrTotalSysExceptions(err)
+	log.Errorf("failed to publish output message: %v", err)
+}
+
 func (gi *goInstance) handlerMsg(input pulsar.Message) (output []byte, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -349,7 +442,7 @@ func (gi *goInstance) handlerMsg(input pulsar.Message) (output []byte, err error
 
 func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 	atLeastOnce := gi.context.instanceConf.funcDetails.ProcessingGuarantees == pb.ProcessingGuarantees_ATLEAST_ONCE
-	autoAck := gi.context.instanceConf.funcDetails.AutoAck
+	autoAck := gi.context.instanceConf.funcDetails.AutoAck //nolint:staticcheck
 
 	// If the function had an output and the user has specified an output topic, the output needs to be sent to the
 	// assigned output topic.
@@ -365,11 +458,8 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 				// semantics, ensure we nack so someone else can get it, in case we are the only handler. Then mark
 				// exception and fail out.
 				if err != nil {
-					if autoAck && atLeastOnce {
-						gi.nackInputMessage(msgInput)
-					}
-					gi.stats.incrTotalSysExceptions(err)
-					log.Fatal(err)
+					gi.handlePublishError(msgInput, err)
+					return
 				}
 				// Otherwise the message succeeded. If the SDK is entrusted with responding and we are using
 				// atLeastOnce delivery semantics, ack the message.
@@ -382,7 +472,7 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 		return
 	}
 
-	// No output from the function or no output topic. Ack if we need to and mark the success before rturning.
+	// No output from the function or no output topic. Ack if we need to and mark the success before returning.
 	if autoAck && atLeastOnce {
 		gi.ackInputMessage(msgInput)
 	}
@@ -392,11 +482,25 @@ func (gi *goInstance) processResult(msgInput pulsar.Message, output []byte) {
 // ackInputMessage doesn't produce any result, or the user doesn't want the result.
 func (gi *goInstance) ackInputMessage(inputMessage pulsar.Message) {
 	log.Debugf("ack input message topic name is: %s", inputMessage.Topic())
-	gi.consumers[inputMessage.Topic()].Ack(inputMessage)
+	gi.respondMessage(inputMessage, true)
 }
 
 func (gi *goInstance) nackInputMessage(inputMessage pulsar.Message) {
-	gi.consumers[inputMessage.Topic()].Nack(inputMessage)
+	gi.respondMessage(inputMessage, false)
+}
+
+func (gi *goInstance) respondMessage(inputMessage pulsar.Message, ack bool) {
+	topicName, err := ParseTopicName(inputMessage.Topic())
+	if err != nil {
+		log.Errorf("unable respond to message ID %s - invalid topic: %v", messageIDStr(inputMessage), err)
+		return
+	}
+	// consumers are indexed by topic name only (no partition)
+	if ack {
+		gi.consumers[topicName.NameWithoutPartition()].Ack(inputMessage)
+		return
+	}
+	gi.consumers[topicName.NameWithoutPartition()].Nack(inputMessage)
 }
 
 func getIdleTimeout(timeoutMilliSecond time.Duration) time.Duration {
@@ -427,7 +531,6 @@ func (gi *goInstance) addLogTopicHandler() {
 	}()
 
 	if gi.context.logAppender == nil {
-		log.Error("the logAppender is nil, if you want to use it, please specify `--log-topic` at startup.")
 		return
 	}
 
@@ -543,9 +646,9 @@ func (gi *goInstance) getAndResetMetrics() *pb.MetricsData {
 	return metricsData
 }
 
-func (gi *goInstance) resetMetrics() *empty.Empty {
+func (gi *goInstance) resetMetrics() *emptypb.Empty {
 	gi.stats.reset()
-	return &empty.Empty{}
+	return &emptypb.Empty{}
 }
 
 // This method is used to get the required metrics for Prometheus.
@@ -559,6 +662,9 @@ func (gi *goInstance) getMatchingMetricFunc() func(lbl *prometheus_client.LabelP
 
 func (gi *goInstance) getMatchingMetricFromRegistry(metricName string) prometheus_client.Metric {
 	filteredMetricFamilies := gi.getFilteredMetricFamilies(metricName)
+	if len(filteredMetricFamilies) == 0 {
+		return prometheus_client.Metric{}
+	}
 	metricFunc := gi.getMatchingMetricFunc()
 	matchingMetric := getFirstMatch(filteredMetricFamilies[0].Metric, metricFunc)
 	return *matchingMetric
@@ -575,7 +681,7 @@ func (gi *goInstance) getFilteredMetricFamilies(metricName string) []*prometheus
 	filteredMetricFamilies := filter(metricFamilies, matchFamilyFunc)
 	if len(filteredMetricFamilies) > 1 {
 		// handle this.
-		log.Errorf("Too many metric families for metricName: %s " + metricName)
+		log.Errorf("Too many metric families for metricName: %s ", metricName)
 	}
 	return filteredMetricFamilies
 }
@@ -657,6 +763,9 @@ func (gi *goInstance) getTotalReceived1min() float32 {
 func (gi *goInstance) getUserMetricsMap() map[string]float64 {
 	userMetricMap := map[string]float64{}
 	filteredMetricFamilies := gi.getFilteredMetricFamilies(PulsarFunctionMetricsPrefix + UserMetric)
+	if len(filteredMetricFamilies) == 0 {
+		return userMetricMap
+	}
 	for _, m := range filteredMetricFamilies[0].GetMetric() {
 		var isFuncMetric bool
 		var userLabelName string

@@ -22,13 +22,11 @@ import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Transaction coordinator client.
  */
-@InterfaceAudience.Private
 @InterfaceStability.Evolving
 public interface TransactionCoordinatorClient extends Closeable {
 

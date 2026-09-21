@@ -20,12 +20,12 @@ package org.apache.pulsar.client.api;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnect;
 import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchema;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.CommandProducer;
@@ -76,5 +76,9 @@ public interface MockBrokerServiceHooks {
 
     interface CommandCloseConsumerHook {
         void apply(ChannelHandlerContext ctx, CommandCloseConsumer closeConsumer);
+    }
+
+    interface CommandGetOrCreateSchemaHook {
+        void apply(ChannelHandlerContext ctx, CommandGetOrCreateSchema closeConsumer);
     }
 }

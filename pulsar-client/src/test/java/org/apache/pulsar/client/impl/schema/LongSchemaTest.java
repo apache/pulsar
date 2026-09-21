@@ -28,7 +28,7 @@ public class LongSchemaTest {
     @Test
     public void testSchemaEncode() {
         LongSchema longSchema = LongSchema.of();
-        Long data = 1234578l;
+        Long data = 1234578L;
         byte[] expected = new byte[] {
                 (byte) (data >>> 56),
                 (byte) (data >>> 48),
@@ -71,7 +71,7 @@ public class LongSchemaTest {
                24,
                42
         };
-        Long expected = 10*65536l + 24*256 + 42;
+        Long expected = 10 * 65536L + 24 * 256 + 42;
         LongSchema longSchema = LongSchema.of();
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(8);
         byteBuf.writeBytes(byteData);

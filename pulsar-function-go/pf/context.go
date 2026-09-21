@@ -34,12 +34,13 @@ import (
 // message, what are our operating constraints, etc can be accessed by the
 // executing function
 type FunctionContext struct {
-	instanceConf  *instanceConf
-	userConfigs   map[string]interface{}
-	logAppender   *LogAppender
-	outputMessage func(topic string) pulsar.Producer
-	userMetrics   sync.Map
-	record        pulsar.Message
+	instanceConf           *instanceConf
+	userConfigs            map[string]interface{}
+	logAppender            *LogAppender
+	outputMessage          func(topic string) pulsar.Producer
+	outputMessageWithError func(topic string) (pulsar.Producer, error)
+	userMetrics            sync.Map
+	record                 pulsar.Message
 }
 
 // NewFuncContext returns a new Function context
@@ -54,14 +55,14 @@ func NewFuncContext() *FunctionContext {
 	return fc
 }
 
-//GetInstanceID returns the id of the instance that invokes the running pulsar
-//function.
+// GetInstanceID returns the id of the instance that invokes the running pulsar
+// function.
 func (c *FunctionContext) GetInstanceID() int {
 	return c.instanceConf.instanceID
 }
 
-//GetInputTopics returns a list of all input topics the pulsar function has been
-//invoked on
+// GetInputTopics returns a list of all input topics the pulsar function has been
+// invoked on
 func (c *FunctionContext) GetInputTopics() []string {
 	inputMap := c.instanceConf.funcDetails.GetSource().InputSpecs
 	inputTopics := make([]string, len(inputMap))
@@ -73,84 +74,84 @@ func (c *FunctionContext) GetInputTopics() []string {
 	return inputTopics
 }
 
-//GetOutputTopic returns the output topic the pulsar function was invoked on
+// GetOutputTopic returns the output topic the pulsar function was invoked on
 func (c *FunctionContext) GetOutputTopic() string {
 	return c.instanceConf.funcDetails.GetSink().Topic
 }
 
-//GetTenantAndNamespace returns the tenant and namespace the pulsar function
-//belongs to in the format of `<tenant>/<namespace>`
+// GetTenantAndNamespace returns the tenant and namespace the pulsar function
+// belongs to in the format of `<tenant>/<namespace>`
 func (c *FunctionContext) GetTenantAndNamespace() string {
 	return c.GetFuncTenant() + "/" + c.GetFuncNamespace()
 }
 
-//GetTenantAndNamespaceAndName returns the full name of the pulsar function in
-//the format of `<tenant>/<namespace>/<function name>`
+// GetTenantAndNamespaceAndName returns the full name of the pulsar function in
+// the format of `<tenant>/<namespace>/<function name>`
 func (c *FunctionContext) GetTenantAndNamespaceAndName() string {
 	return c.GetFuncTenant() + "/" + c.GetFuncNamespace() + "/" + c.GetFuncName()
 }
 
-//GetFuncTenant returns the tenant the pulsar function belongs to
+// GetFuncTenant returns the tenant the pulsar function belongs to
 func (c *FunctionContext) GetFuncTenant() string {
 	return c.instanceConf.funcDetails.Tenant
 }
 
-//GetFuncName returns the name given to the pulsar function
+// GetFuncName returns the name given to the pulsar function
 func (c *FunctionContext) GetFuncName() string {
 	return c.instanceConf.funcDetails.Name
 }
 
-//GetFuncNamespace returns the namespace the pulsar function belongs to
+// GetFuncNamespace returns the namespace the pulsar function belongs to
 func (c *FunctionContext) GetFuncNamespace() string {
 	return c.instanceConf.funcDetails.Namespace
 }
 
-//GetFuncID returns the id of the pulsar function
+// GetFuncID returns the id of the pulsar function
 func (c *FunctionContext) GetFuncID() string {
 	return c.instanceConf.funcID
 }
 
-//GetPort returns the port the pulsar function communicates on
+// GetPort returns the port the pulsar function communicates on
 func (c *FunctionContext) GetPort() int {
 	return c.instanceConf.port
 }
 
-//GetClusterName returns the name of the cluster the pulsar function is running
-//in
+// GetClusterName returns the name of the cluster the pulsar function is running
+// in
 func (c *FunctionContext) GetClusterName() string {
 	return c.instanceConf.clusterName
 }
 
-//GetExpectedHealthCheckInterval returns the expected time between health checks
-//in seconds
+// GetExpectedHealthCheckInterval returns the expected time between health checks
+// in seconds
 func (c *FunctionContext) GetExpectedHealthCheckInterval() int32 {
 	return c.instanceConf.expectedHealthCheckInterval
 }
 
-//GetExpectedHealthCheckIntervalAsDuration returns the expected time between
-//health checks in seconds as a time.Duration
+// GetExpectedHealthCheckIntervalAsDuration returns the expected time between
+// health checks in seconds as a time.Duration
 func (c *FunctionContext) GetExpectedHealthCheckIntervalAsDuration() time.Duration {
 	return time.Duration(c.instanceConf.expectedHealthCheckInterval)
 }
 
-//GetMaxIdleTime returns the amount of time the pulsar function has to respond
-//to the most recent health check before it is considered to be failing.
+// GetMaxIdleTime returns the amount of time the pulsar function has to respond
+// to the most recent health check before it is considered to be failing.
 func (c *FunctionContext) GetMaxIdleTime() int64 {
 	return int64(c.GetExpectedHealthCheckIntervalAsDuration() * 3 * time.Second)
 }
 
-//GetFuncVersion returns the version of the pulsar function
+// GetFuncVersion returns the version of the pulsar function
 func (c *FunctionContext) GetFuncVersion() string {
 	return c.instanceConf.funcVersion
 }
 
-//GetUserConfValue returns the value of a key from the pulsar function's user
-//configuration map
+// GetUserConfValue returns the value of a key from the pulsar function's user
+// configuration map
 func (c *FunctionContext) GetUserConfValue(key string) interface{} {
 	return c.userConfigs[key]
 }
 
-//GetUserConfMap returns the pulsar function's user configuration map
+// GetUserConfMap returns the pulsar function's user configuration map
 func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 	return c.userConfigs
 }
@@ -159,6 +160,13 @@ func (c *FunctionContext) GetUserConfMap() map[string]interface{} {
 // topic for output message
 func (c *FunctionContext) NewOutputMessage(topicName string) pulsar.Producer {
 	return c.outputMessage(topicName)
+}
+
+// NewOutputMessageWithError send message to the topic and returns a potential error
+// @param topicName: The name of the topic for output message
+// @return A Pulsar producer for the given topic and an error, if any.
+func (c *FunctionContext) NewOutputMessageWithError(topicName string) (pulsar.Producer, error) {
+	return c.outputMessageWithError(topicName)
 }
 
 // SetCurrentRecord sets the current message into the function context called
@@ -172,12 +180,12 @@ func (c *FunctionContext) GetCurrentRecord() pulsar.Message {
 	return c.record
 }
 
-//GetMetricsPort returns the port the pulsar function metrics listen on
+// GetMetricsPort returns the port the pulsar function metrics listen on
 func (c *FunctionContext) GetMetricsPort() int {
 	return c.instanceConf.metricsPort
 }
 
-//RecordMetric records an observation to the user_metric summary with the provided value
+// RecordMetric records an observation to the user_metric summary with the provided value
 func (c *FunctionContext) RecordMetric(metricName string, metricValue float64) {
 	v, ok := c.userMetrics.Load(metricName)
 	if !ok {

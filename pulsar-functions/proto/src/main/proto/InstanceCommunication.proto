@@ -19,10 +19,11 @@
 syntax = "proto3";
 package proto;
 
-import "google/protobuf/empty.proto";
-
 option java_package = "org.apache.pulsar.functions.proto";
 option java_outer_classname = "InstanceCommunication";
+
+message Empty {
+}
 
 message FunctionStatus {
     message ExceptionInformation {
@@ -117,11 +118,11 @@ message HealthCheckResult {
 }
 
 service InstanceControl {
-    rpc GetFunctionStatus(google.protobuf.Empty) returns (FunctionStatus) {}
-    rpc GetAndResetMetrics(google.protobuf.Empty) returns (MetricsData) {}
-    rpc ResetMetrics(google.protobuf.Empty) returns (google.protobuf.Empty) {}
-    rpc GetMetrics(google.protobuf.Empty) returns (MetricsData) {}
-    rpc HealthCheck(google.protobuf.Empty) returns (HealthCheckResult) {}
+    rpc GetFunctionStatus(Empty) returns (FunctionStatus) {}
+    rpc GetAndResetMetrics(Empty) returns (MetricsData) {}
+    rpc ResetMetrics(Empty) returns (Empty) {}
+    rpc GetMetrics(Empty) returns (MetricsData) {}
+    rpc HealthCheck(Empty) returns (HealthCheckResult) {}
 }
 
 message Metrics {

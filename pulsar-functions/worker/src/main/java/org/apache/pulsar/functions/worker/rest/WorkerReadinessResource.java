@@ -18,17 +18,19 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
 import java.util.function.Supplier;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response;
 import org.apache.pulsar.functions.worker.WorkerService;
 
 @Path("/")
@@ -51,13 +53,15 @@ public class WorkerReadinessResource implements Supplier<WorkerService> {
   }
 
   @GET
-  @ApiOperation(
-    value = "Determines whether the worker service is initialized and ready for use",
-    response = Boolean.class
+  @Operation(
+    summary = "Determines whether the worker service is initialized and ready for use"
   )
   @ApiResponses(value = {
-    @ApiResponse(code = 400, message = "Invalid request"),
-    @ApiResponse(code = 408, message = "Request timeout")
+    @ApiResponse(responseCode = "200",
+      description = "Determines whether the worker service is initialized and ready for use",
+      content = @Content(schema = @Schema(implementation = Boolean.class))),
+    @ApiResponse(responseCode = "400", description = "Invalid request"),
+    @ApiResponse(responseCode = "408", description = "Request timeout")
   })
   @Path("/initialized")
   public boolean isInitialized() {

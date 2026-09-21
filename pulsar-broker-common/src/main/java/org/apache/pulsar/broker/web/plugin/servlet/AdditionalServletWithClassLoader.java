@@ -19,18 +19,16 @@
 package org.apache.pulsar.broker.web.plugin.servlet;
 
 import java.io.IOException;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.ClassLoaderSwitcher;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.eclipse.jetty.servlet.ServletHolder;
 
 /**
  * An additional servlet with it's classloader.
  */
-@Slf4j
+@CustomLog
 @Data
 @RequiredArgsConstructor
 public class AdditionalServletWithClassLoader implements AdditionalServlet {
@@ -40,34 +38,61 @@ public class AdditionalServletWithClassLoader implements AdditionalServlet {
 
     @Override
     public void loadConfig(PulsarConfiguration pulsarConfiguration) {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             servlet.loadConfig(pulsarConfiguration);
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
     public String getBasePath() {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             return servlet.getBasePath();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
-    public ServletHolder getServletHolder() {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
-            return servlet.getServletHolder();
+    public AdditionalServletType getServletType() {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
+            return servlet.getServletType();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
+        }
+    }
+
+    @Override
+    public Object getServletInstance() {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
+            return servlet.getServletInstance();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
     }
 
     @Override
     public void close() {
-        try (ClassLoaderSwitcher ignored = new ClassLoaderSwitcher(classLoader)) {
+        ClassLoader prevClassLoader = Thread.currentThread().getContextClassLoader();
+        try {
+            Thread.currentThread().setContextClassLoader(classLoader);
             servlet.close();
+        } finally {
+            Thread.currentThread().setContextClassLoader(prevClassLoader);
         }
         try {
             classLoader.close();
         } catch (IOException e) {
-            log.warn("Failed to close the broker additional servlet class loader", e);
+            log.warn().exception(e).log("Failed to close the broker additional servlet class loader");
         }
     }
 }

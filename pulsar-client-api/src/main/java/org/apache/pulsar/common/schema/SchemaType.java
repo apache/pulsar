@@ -144,6 +144,16 @@ public enum SchemaType {
      */
     PROTOBUF_NATIVE(20),
 
+    /**
+     * External Schema Type.
+     * <p>
+     * This is used to indicate that the schema is managed externally, such as in a schema registry.
+     *
+     * External schema type is not compatible with any other schema type.
+     * </p>
+     */
+    EXTERNAL(21),
+
     //
     // Schemas that don't have schema info. the value should be negative.
     //
@@ -202,6 +212,7 @@ public enum SchemaType {
           case 18: return LOCAL_TIME;
           case 19: return LOCAL_DATE_TIME;
           case 20: return PROTOBUF_NATIVE;
+          case 21: return EXTERNAL;
           case -1: return BYTES;
           case -2: return AUTO;
           case -3: return AUTO_CONSUME;
@@ -242,7 +253,6 @@ public enum SchemaType {
             default:
                 return false;
         }
-
     }
 
     public static boolean isStructType(SchemaType type) {

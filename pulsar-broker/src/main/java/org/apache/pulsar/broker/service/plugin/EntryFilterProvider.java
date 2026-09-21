@@ -34,7 +34,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -42,7 +42,7 @@ import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-@Slf4j
+@CustomLog
 public class EntryFilterProvider implements AutoCloseable {
 
     @VisibleForTesting
@@ -111,7 +111,7 @@ public class EntryFilterProvider implements AutoCloseable {
             }
             final EntryFilter entryFilter = load(metaData);
             builder.put(filterName, entryFilter);
-            log.info("Successfully loaded entry filter `{}`", filterName);
+            log.info().attr("filterName", filterName).log("Successfully loaded entry filter");
         }
         return builder.build().values().asList();
     }
@@ -122,8 +122,8 @@ public class EntryFilterProvider implements AutoCloseable {
 
     private void initialize() throws IOException {
         final String entryFiltersDirectory = serviceConfiguration.getEntryFiltersDirectory();
-        Path path = Paths.get(entryFiltersDirectory).toAbsolutePath();
-        log.info("Searching for entry filters in {}", path);
+        Path path = Paths.get(entryFiltersDirectory).toAbsolutePath().normalize();
+        log.info().attr("path", path).log("Searching for entry filters");
 
 
         if (!path.toFile().exists()) {
@@ -140,7 +140,10 @@ public class EntryFilterProvider implements AutoCloseable {
                 try {
                     final NarClassLoader narClassLoader = loadNarClassLoader(archive);
                     EntryFilterDefinition def = getEntryFilterDefinition(narClassLoader);
-                    log.info("Found entry filter from {} : {}", archive, def);
+                    log.info()
+                            .attr("archive", archive)
+                            .attr("filterDefinition", def)
+                            .log("Found entry filter");
 
                     checkArgument(StringUtils.isNotBlank(def.getName()));
                     checkArgument(StringUtils.isNotBlank(def.getEntryFilterClass()));
@@ -151,10 +154,13 @@ public class EntryFilterProvider implements AutoCloseable {
 
                     entryFilterDefinitions.put(def.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load entry filters from {}."
-                            + " It is OK however if you want to use this entry filters,"
-                            + " please make sure you put the correct entry filter NAR"
-                            + " package in the entry filter directory.", archive, t);
+                    log.warn()
+                            .attr("archive", archive)
+                            .exception(t)
+                            .log("Failed to load entry filters from."
+                                    + "It is OK however if you want to use this entry filters,"
+                                    + "please make sure you put the correct entry filter NAR"
+                                            + "package in the entry filter directory.");
                 }
             }
         }
@@ -177,6 +183,7 @@ public class EntryFilterProvider implements AutoCloseable {
         );
     }
 
+    @SuppressWarnings("unchecked")
     protected EntryFilter load(EntryFilterMetaData metadata)
             throws IOException {
         final EntryFilterDefinition def = metadata.getDefinition();
@@ -197,12 +204,16 @@ public class EntryFilterProvider implements AutoCloseable {
                         + " does not implement entry filter interface");
             }
             EntryFilter pi = (EntryFilter) filter;
-            return new EntryFilterWithClassLoader(pi, ncl);
+            // the classloader is shared with the broker, the instance doesn't own it
+            return new EntryFilterWithClassLoader(pi, ncl, false);
         } catch (Throwable e) {
             if (e instanceof IOException) {
                 throw (IOException) e;
             }
-            log.error("Failed to load class {}", metadata.getDefinition().getEntryFilterClass(), e);
+            log.error()
+                    .attr("entryFilterClass", metadata.getDefinition().getEntryFilterClass())
+                    .exception(e)
+                    .log("Failed to load class");
             throw new IOException(e);
         }
     }
@@ -216,7 +227,7 @@ public class EntryFilterProvider implements AutoCloseable {
         return cachedClassLoaders
                 .computeIfAbsent(absolutePath, narFilePath -> {
                     try {
-                        final File narFile = archivePath.toAbsolutePath().toFile();
+                        final File narFile = archivePath.toAbsolutePath().normalize().toFile();
                         return NarClassLoaderBuilder.builder()
                                 .narFile(narFile)
                                 .parentClassLoader(EntryFilter.class.getClassLoader())
@@ -238,14 +249,14 @@ public class EntryFilterProvider implements AutoCloseable {
             try {
                 filter.close();
             } catch (Throwable e) {
-                log.warn("Error shutting down entry filter {}", filter, e);
+                log.warn().attr("filter", filter).exception(e).log("Error shutting down entry filter");
             }
         });
         cachedClassLoaders.forEach((name, ncl) -> {
             try {
                 ncl.close();
             } catch (Throwable e) {
-                log.warn("Error closing entry filter class loader {}", name, e);
+                log.warn().attr("name", name).exception(e).log("Error closing entry filter class loader");
             }
         });
     }

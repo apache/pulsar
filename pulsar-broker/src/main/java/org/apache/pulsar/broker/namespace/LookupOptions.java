@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.namespace;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
@@ -40,13 +41,13 @@ public class LookupOptions {
      */
     private final boolean loadTopicsInBundle;
 
-    /**
-     * The lookup request was made through HTTPs.
-     */
-    private final boolean requestHttps;
-
+    private final String webServiceAdvertisedListenerName;
     private final String advertisedListenerName;
+    private final Map<String, String> properties;
 
+    public boolean hasWebServiceAdvertisedListenerName() {
+        return StringUtils.isNotBlank(webServiceAdvertisedListenerName);
+    }
     public boolean hasAdvertisedListenerName() {
         return StringUtils.isNotBlank(advertisedListenerName);
     }

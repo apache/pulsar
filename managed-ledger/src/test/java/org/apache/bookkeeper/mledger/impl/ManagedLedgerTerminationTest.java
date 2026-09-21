@@ -18,11 +18,11 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.Collections;
 import java.util.List;
 import org.apache.bookkeeper.mledger.Entry;
@@ -31,6 +31,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.annotations.Test;
 
@@ -38,7 +39,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void terminateSimple() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
 
@@ -55,7 +56,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void terminateReopen() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
 
@@ -65,7 +66,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
         ledger.close();
 
-        ledger = factory.open("my_test_ledger");
+        ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         try {
             ledger.addEntry("entry-1".getBytes());
@@ -77,7 +78,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void terminateWithCursor() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor c1 = ledger.openCursor("c1");
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
@@ -100,7 +101,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void terminateWithCursorReadOrWait() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor c1 = ledger.openCursor("c1");
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
@@ -131,7 +132,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     public void terminateWithNonDurableCursor() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger");
+        ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
 
         Position p0 = ledger.addEntry("entry-0".getBytes());
         Position p1 = ledger.addEntry("entry-1".getBytes());
@@ -141,7 +142,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         assertTrue(ledger.isTerminated());
         assertEquals(lastPosition, p1);
 
-        ManagedCursor c1 = ledger.newNonDurableCursor(PositionImpl.EARLIEST);
+        ManagedCursor c1 = ledger.newNonDurableCursor(PositionFactory.EARLIEST);
 
         List<Entry> entries = c1.readEntries(10);
         assertEquals(entries.size(), 2);

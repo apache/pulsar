@@ -21,8 +21,7 @@ package org.apache.pulsar.functions.worker.service.api;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.List;
-import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
 import org.apache.pulsar.common.io.ConfigFieldDefinition;
 import org.apache.pulsar.common.io.ConnectorDefinition;
@@ -46,8 +45,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
      * @param fileDetail A form-data content disposition header
      * @param sourcePkgUrl URL path of the Pulsar Source package
      * @param sourceConfig Configuration of Pulsar Source
-     * @param clientRole Client role for running the Pulsar Source
-     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param authParams the authentication parameters associated with the request
      */
     void registerSource(String tenant,
                         String namespace,
@@ -56,35 +54,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                         FormDataContentDisposition fileDetail,
                         String sourcePkgUrl,
                         SourceConfig sourceConfig,
-                        String clientRole,
-                        AuthenticationDataSource clientAuthenticationDataHttps);
-
-    /**
-     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
-     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
-     * the signature of the AuthenticationDataSource.
-     */
-    @Deprecated
-    default void registerSource(String tenant,
-                        String namespace,
-                        String sourceName,
-                        InputStream uploadedInputStream,
-                        FormDataContentDisposition fileDetail,
-                        String sourcePkgUrl,
-                        SourceConfig sourceConfig,
-                        String clientRole,
-                        AuthenticationDataHttps clientAuthenticationDataHttps) {
-        registerSource(
-                tenant,
-                namespace,
-                sourceName,
-                uploadedInputStream,
-                fileDetail,
-                sourcePkgUrl,
-                sourceConfig,
-                clientRole,
-                (AuthenticationDataSource) clientAuthenticationDataHttps);
-    }
+                        AuthenticationParameters authParams);
 
     /**
      * Update a function.
@@ -95,8 +65,7 @@ public interface Sources<W extends WorkerService> extends Component<W> {
      * @param fileDetail A form-data content disposition header
      * @param sourcePkgUrl URL path of the Pulsar Source package
      * @param sourceConfig Configuration of Pulsar Source
-     * @param clientRole Client role for running the Pulsar Source
-     * @param clientAuthenticationDataHttps Authentication status of the http client
+     * @param authParams the authentication parameters associated with the request
      * @param updateOptions Options while updating the source
      */
     void updateSource(String tenant,
@@ -106,59 +75,26 @@ public interface Sources<W extends WorkerService> extends Component<W> {
                       FormDataContentDisposition fileDetail,
                       String sourcePkgUrl,
                       SourceConfig sourceConfig,
-                      String clientRole,
-                      AuthenticationDataSource clientAuthenticationDataHttps,
+                      AuthenticationParameters authParams,
                       UpdateOptionsImpl updateOptions);
-
-    /**
-     * This method uses an incorrect signature 'AuthenticationDataHttps' that prevents the extension of auth status,
-     * so it is marked as deprecated and kept here only for backward compatibility. Please use the method that accepts
-     * the signature of the AuthenticationDataSource.
-     */
-    @Deprecated
-    default void updateSource(String tenant,
-                      String namespace,
-                      String sourceName,
-                      InputStream uploadedInputStream,
-                      FormDataContentDisposition fileDetail,
-                      String sourcePkgUrl,
-                      SourceConfig sourceConfig,
-                      String clientRole,
-                      AuthenticationDataHttps clientAuthenticationDataHttps,
-                      UpdateOptionsImpl updateOptions) {
-        updateSource(
-                tenant,
-                namespace,
-                sourceName,
-                uploadedInputStream,
-                fileDetail,
-                sourcePkgUrl,
-                sourceConfig,
-                clientRole,
-                (AuthenticationDataSource) clientAuthenticationDataHttps,
-                updateOptions);
-    }
-
 
     SourceStatus getSourceStatus(String tenant,
                                  String namespace,
                                  String componentName,
                                  URI uri,
-                                 String clientRole,
-                                 AuthenticationDataSource clientAuthenticationDataHttps);
-
+                                 AuthenticationParameters authParams);
 
     SourceInstanceStatusData getSourceInstanceStatus(String tenant,
                                                      String namespace,
                                                      String sourceName,
                                                      String instanceId,
                                                      URI uri,
-                                                     String clientRole,
-                                                     AuthenticationDataSource clientAuthenticationDataHttps);
+                                                     AuthenticationParameters authParams);
 
     SourceConfig getSourceInfo(String tenant,
                                String namespace,
-                               String componentName);
+                               String componentName,
+                               AuthenticationParameters authParams);
 
     List<ConnectorDefinition> getSourceList();
 

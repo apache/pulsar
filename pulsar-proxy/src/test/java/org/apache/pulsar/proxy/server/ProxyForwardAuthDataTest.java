@@ -19,17 +19,16 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
-
 import com.google.common.collect.Sets;
-
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
-
 import lombok.Cleanup;
-
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -37,15 +36,14 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.proxy.server.ProxyRolesEnforcementTest.BasicAuthentication;
 import org.apache.pulsar.proxy.server.ProxyRolesEnforcementTest.BasicAuthenticationProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyForwardAuthDataTest.class);
+    private static final String CLUSTER_NAME = "test";
 
     @BeforeMethod
     @Override
@@ -53,7 +51,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         conf.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
-        conf.setBrokerClientAuthenticationParameters("authParam:broker");
+        conf.setBrokerClientAuthenticationParameters("authParam:admin");
         conf.setAuthenticateOriginalAuthData(true);
 
         Set<String> superUserRoles = new HashSet<String>();
@@ -64,7 +62,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         providers.add(BasicAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("test");
+        conf.setClusterName(CLUSTER_NAME);
         Set<String> proxyRoles = new HashSet<String>();
         proxyRoles.add("proxy");
         conf.setProxyRoles(proxyRoles);
@@ -83,7 +81,9 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
 
     @Test
     public void testForwardAuthData() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info()
+                .attr("methodName", methodName)
+                .log("-- Starting test --");
 
         // Step 1: Create Admin Client
 
@@ -101,6 +101,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
 
         // Step 2: Run Pulsar Proxy without forwarding authData - expect Exception
         ProxyConfiguration proxyConfig = new ProxyConfiguration();
+        proxyConfig.setForwardAuthorizationCredentials(false);
         proxyConfig.setAuthenticationEnabled(true);
 
         proxyConfig.setServicePort(Optional.of(0));
@@ -109,6 +110,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         proxyConfig.setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         proxyConfig.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(proxyAuthParams);
+        proxyConfig.setClusterName(CLUSTER_NAME);
 
         Set<String> providers = new HashSet<>();
         providers.add(BasicAuthenticationProvider.class.getName());
@@ -116,7 +118,13 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
 
         AuthenticationService authenticationService = new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
-        try (ProxyService proxyService = new ProxyService(proxyConfig, authenticationService)) {
+        @Cleanup
+        final Authentication proxyClientAuthentication =
+                AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
+        try (ProxyService proxyService =
+                     new ProxyService(proxyConfig, authenticationService, proxyClientAuthentication)) {
             proxyService.start();
             try (PulsarClient proxyClient = createPulsarClient(proxyService.getServiceUrl(), clientAuthParams)) {
                 proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
@@ -132,7 +140,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
                 PulsarConfigurationLoader.convertFrom(proxyConfig));
 
         @Cleanup
-        ProxyService proxyService = new ProxyService(proxyConfig, authenticationService);
+        ProxyService proxyService = new ProxyService(proxyConfig, authenticationService, proxyClientAuthentication);
         proxyService.start();
 
         @Cleanup
@@ -142,6 +150,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
 
     private void createAdminClient() throws PulsarClientException {
         String adminAuthParams = "authParam:admin";
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
                 .authentication(BasicAuthentication.class.getName(), adminAuthParams).build());
     }

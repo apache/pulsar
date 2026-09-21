@@ -18,30 +18,32 @@
  */
 package org.apache.pulsar.broker.tools;
 
-import org.apache.bookkeeper.tools.framework.Cli;
-import org.apache.bookkeeper.tools.framework.CliFlags;
-import org.apache.bookkeeper.tools.framework.CliSpec;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
 /**
  * <b>broker-tool</b> is used for operations on a specific broker.
  */
+@Command(name = "broker-tool", description = "broker-tool is used for operations on a specific broker",
+        showDefaultValues = true, scope = ScopeType.INHERIT)
 public class BrokerTool {
 
-    public static final String NAME = "broker-tool";
+    @Option(
+            names = {"-h", "--help"},
+            description = "Display help information",
+            usageHelp = true
+    )
+    public boolean help = false;
 
     public static int run(String[] args) {
-        CliSpec.Builder<CliFlags> specBuilder = CliSpec.newBuilder()
-            .withName(NAME)
-            .withUsage(NAME + " [flags] [commands]")
-            .withDescription(NAME + " is used for operations on a specific broker")
-            .withFlags(new CliFlags())
-            .withConsole(System.out)
-            .addCommand(new LoadReportCommand())
-            .addCommand(new GenerateDocsCommand());
-
-        CliSpec<CliFlags> spec = specBuilder.build();
-
-        return Cli.runCli(spec, args);
+        BrokerTool brokerTool = new BrokerTool();
+        CommandLine commander = new CommandLine(brokerTool);
+        GenerateDocsCommand generateDocsCommand = new GenerateDocsCommand(commander);
+        commander.addSubcommand(LoadReportCommand.class)
+                .addSubcommand(generateDocsCommand);
+        return commander.execute(args);
     }
 
     public static void main(String[] args) {

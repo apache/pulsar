@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -47,8 +48,6 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Resource Usage Transport Manager
@@ -59,6 +58,7 @@ import org.slf4j.LoggerFactory;
  * @see <a href="https://github.com/apache/pulsar/wiki/PIP-82%3A-Tenant-and-namespace-level-rate-limiting">Global-quotas</a>
  *
  */
+@CustomLog
 public class ResourceUsageTopicTransportManager implements ResourceUsageTransportManager {
 
     private class ResourceUsageWriterTask implements Runnable, AutoCloseable {
@@ -103,7 +103,10 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
 
                 producer.sendAsync(buf.nioBuffer()).whenComplete((id, ex) -> {
                     if (null != ex) {
-                        LOG.error("Resource usage publisher: error sending message ID {}", id, ex);
+                        log.error()
+                                .attr("messageId", id)
+                                .exception(ex)
+                                .log("Resource usage publisher: error sending message");
                     }
                     buf.release();
                 });
@@ -144,8 +147,11 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
             recdUsageInfo.parseFrom(Unpooled.wrappedBuffer(msg.getData()), msg.getData().length);
             if (timeDelta > TimeUnit.SECONDS.toMillis(
             2 * pulsarService.getConfig().getResourceUsageTransportPublishIntervalInSecs())) {
-                LOG.error("Stale resource usage msg from broker {} publish time {} current time{}",
-                recdUsageInfo.getBroker(), publishTime, currentTime);
+                log.error()
+                        .attr("broker", recdUsageInfo.getBroker())
+                        .attr("publishTime", publishTime)
+                        .attr("currentTime", currentTime)
+                        .log("Stale resource usage msg from broker");
                 return;
             }
             try {
@@ -157,15 +163,13 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
                 });
 
             } catch (IllegalStateException exception) {
-                LOG.error("Resource usage reader: Error parsing incoming message", exception);
+                log.error().exception(exception).log("Resource usage reader: Error parsing incoming message");
             } catch (Exception exception) {
-                LOG.error("Resource usage reader: Unknown exception while parsing message", exception);
+                log.error().exception(exception).log("Resource usage reader: Unknown exception while parsing message");
             }
         }
 
     }
-
-    private static final Logger LOG = LoggerFactory.getLogger(ResourceUsageTopicTransportManager.class);
     private final PulsarService pulsarService;
     private final PulsarClient pulsarClient;
     private final ResourceUsageWriterTask pTask;
@@ -193,7 +197,10 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
                   new TenantInfoImpl(Sets.newHashSet(config.getSuperUserRoles()), Sets.newHashSet(cluster)));
             } catch (PulsarAdminException ex1) {
                 if (!(ex1 instanceof PulsarAdminException.ConflictException)) {
-                    LOG.error("Unexpected exception {} when creating tenant {}", ex1, tenant);
+                    log.error()
+                            .exceptionMessage(ex1)
+                            .attr("tenant", tenant)
+                            .log("Unexpected exception when creating tenant");
                     throw ex1;
                 }
             }
@@ -204,7 +211,10 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
                 admin.namespaces().createNamespace(namespace);
             } catch (PulsarAdminException ex1) {
                 if (!(ex1 instanceof PulsarAdminException.ConflictException)) {
-                    LOG.error("Unexpected exception {} when creating namespace {}", ex1, namespace);
+                    log.error()
+                            .exceptionMessage(ex1)
+                            .attr("namespace", namespace)
+                            .log("Unexpected exception when creating namespace");
                     throw ex1;
                 }
             }
@@ -221,7 +231,7 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
             consumer = new ResourceUsageReader();
             pTask = new ResourceUsageWriterTask();
         } catch (Exception ex) {
-            LOG.error("Error initializing resource usage transport manager", ex);
+            log.error().exception(ex).log("Error initializing resource usage transport manager");
             throw ex;
         }
     }
@@ -268,7 +278,7 @@ public class ResourceUsageTopicTransportManager implements ResourceUsageTranspor
             pTask.close();
             consumer.close();
         } catch (Exception ex1) {
-            LOG.error("Error closing producer/consumer for resource-usage topic", ex1);
+            log.error().exception(ex1).log("Error closing producer/consumer for resource-usage topic");
         }
     }
 }

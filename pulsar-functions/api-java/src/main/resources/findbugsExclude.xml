@@ -30,6 +30,11 @@
     <Bug pattern="EI_EXPOSE_REP"/>
   </Match>
   <Match>
+    <Class name="org.apache.pulsar.functions.api.state.StateValue"/>
+    <Method name="getValue"/>
+    <Bug pattern="EI_EXPOSE_REP"/>
+  </Match>
+  <Match>
     <Class name="org.apache.pulsar.functions.api.utils.FunctionRecord$FunctionRecordBuilder"/>
     <Method name="properties"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
@@ -37,6 +42,10 @@
   <Match>
     <Class name="org.apache.pulsar.functions.api.utils.FunctionRecord$FunctionRecordBuilder"/>
     <Method name="schema"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+  <Match>
+    <Class name="org.apache.pulsar.functions.api.state.StateValue"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
 </FindBugsFilter>

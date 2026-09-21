@@ -19,8 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
-
+import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
 public class TopicMessageIdImplTest {
@@ -28,9 +30,9 @@ public class TopicMessageIdImplTest {
     public void hashCodeTest() {
         MessageIdImpl msgId1 = new MessageIdImpl(0, 0, 0);
         MessageIdImpl msgId2 = new BatchMessageIdImpl(1, 1, 1, 1);
-        TopicMessageIdImpl topicMsgId1 = new TopicMessageIdImpl("topic-partition-1", "topic", msgId1);
-        TopicMessageIdImpl topic2MsgId1 = new TopicMessageIdImpl("topic2-partition-1", "topic2", msgId1);
-        TopicMessageIdImpl topicMsgId2 = new TopicMessageIdImpl("topic-partition-2", "topic", msgId2);
+        TopicMessageIdImpl topicMsgId1 = new TopicMessageIdImpl("topic-partition-1", msgId1);
+        TopicMessageIdImpl topic2MsgId1 = new TopicMessageIdImpl("topic2-partition-1", msgId1);
+        TopicMessageIdImpl topicMsgId2 = new TopicMessageIdImpl("topic-partition-2", msgId2);
 
         assertEquals(topicMsgId1.hashCode(), topicMsgId1.hashCode());
         assertEquals(topic2MsgId1.hashCode(), topic2MsgId1.hashCode());
@@ -43,9 +45,9 @@ public class TopicMessageIdImplTest {
     public void equalsTest() {
         MessageIdImpl msgId1 = new MessageIdImpl(0, 0, 0);
         MessageIdImpl msgId2 = new BatchMessageIdImpl(1, 1, 1, 1);
-        TopicMessageIdImpl topicMsgId1 = new TopicMessageIdImpl("topic-partition-1", "topic", msgId1);
-        TopicMessageIdImpl topic2MsgId1 = new TopicMessageIdImpl("topic2-partition-1", "topic2", msgId1);
-        TopicMessageIdImpl topicMsgId2 = new TopicMessageIdImpl("topic-partition-2", "topic", msgId2);
+        TopicMessageIdImpl topicMsgId1 = new TopicMessageIdImpl("topic-partition-1", msgId1);
+        TopicMessageIdImpl topic2MsgId1 = new TopicMessageIdImpl("topic2-partition-1", msgId1);
+        TopicMessageIdImpl topicMsgId2 = new TopicMessageIdImpl("topic-partition-2", msgId2);
 
         assertEquals(topicMsgId1, topicMsgId1);
         assertEquals(topicMsgId1, topic2MsgId1);
@@ -54,4 +56,28 @@ public class TopicMessageIdImplTest {
         assertNotEquals(topicMsgId1, topicMsgId2);
     }
 
+    @Test
+    public void testHasSameBasePartitionedTopic() {
+        MessageIdImpl msgId = new MessageIdImpl(0, 0, 0);
+        TopicMessageIdImpl partitionMsgId = new TopicMessageIdImpl(
+                "persistent://public/default/my-topic-partition-0", msgId);
+        assertTrue(partitionMsgId.hasSameBasePartitionedTopic(
+                "persistent://public/default/my-topic-partition-1"));
+        assertTrue(partitionMsgId.hasSameBasePartitionedTopic(
+                "persistent://public/default/my-topic"));
+        assertFalse(partitionMsgId.hasSameBasePartitionedTopic(
+                "persistent://public/default/my-topic-v2"));
+        assertFalse(partitionMsgId.hasSameBasePartitionedTopic(
+                "persistent://public/default/my-topic-v2-partition-0"));
+    }
+
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testDeprecatedMethods() {
+        BatchMessageIdImpl msgId = new BatchMessageIdImpl(1, 2, 3, 4);
+        TopicMessageIdImpl topicMsgId = new TopicMessageIdImpl("topic-partition-0", "topic", msgId);
+        assertSame(topicMsgId.getInnerMessageId(), msgId);
+        assertEquals(topicMsgId.getTopicPartitionName(), topicMsgId.getOwnerTopic());
+        assertEquals(topicMsgId.getTopicName(), "topic");
+    }
 }

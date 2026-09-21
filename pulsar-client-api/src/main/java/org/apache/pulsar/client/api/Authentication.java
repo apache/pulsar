@@ -48,6 +48,7 @@ public interface Authentication extends Closeable, Serializable {
      * @throws PulsarClientException
      *             any other error
      */
+    @Deprecated
     default AuthenticationDataProvider getAuthData() throws PulsarClientException {
         throw new UnsupportedAuthenticationException("Method not implemented!");
     }

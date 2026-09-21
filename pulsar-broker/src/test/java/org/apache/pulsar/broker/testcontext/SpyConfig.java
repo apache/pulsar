@@ -98,13 +98,21 @@ public class SpyConfig {
      */
     private final SpyType bookKeeperClient;
     /**
-     * Spy configuration for {@link PulsarService#getCompactor()}.
+     * Spy configuration for {@link PulsarService#getCompactionServiceFactory#getCompactor()}.
      */
     private final SpyType compactor;
+
+    /**
+     * Spy configuration for {@link PulsarService#getCompactionServiceFactory()}.
+     */
+
+    private final SpyType compactedServiceFactory;
     /**
      * Spy configuration for {@link PulsarService#getNamespaceService()}.
      */
     private final SpyType namespaceService;
+
+    private final SpyType managedLedgerStorage;
 
     /**
      * Create a builder for SpyConfig with no spies by default.
@@ -123,12 +131,18 @@ public class SpyConfig {
      */
     public static Builder builder(SpyType defaultSpyType) {
         Builder spyConfigBuilder = new Builder();
+        configureDefaults(spyConfigBuilder, defaultSpyType);
+        return spyConfigBuilder;
+    }
+
+    public static void configureDefaults(Builder spyConfigBuilder, SpyType defaultSpyType) {
         spyConfigBuilder.pulsarService(defaultSpyType);
         spyConfigBuilder.pulsarResources(defaultSpyType);
         spyConfigBuilder.brokerService(defaultSpyType);
         spyConfigBuilder.bookKeeperClient(defaultSpyType);
         spyConfigBuilder.compactor(defaultSpyType);
+        spyConfigBuilder.compactedServiceFactory(defaultSpyType);
         spyConfigBuilder.namespaceService(defaultSpyType);
-        return spyConfigBuilder;
+        spyConfigBuilder.managedLedgerStorage(defaultSpyType);
     }
 }

@@ -26,7 +26,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.windowing.DefaultEvictionContext;
@@ -40,7 +40,7 @@ import org.apache.pulsar.functions.windowing.WindowUtils;
  * Invokes {@link TriggerHandler#onTrigger()} after the duration.
  */
 
-@Slf4j
+@CustomLog
 public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
 
     private long duration;
@@ -115,7 +115,7 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
                     evictionPolicy.setContext(new DefaultEvictionContext(now, null, null, duration));
                     handler.onTrigger();
                 } catch (Throwable th) {
-                    log.error("handler.onTrigger failed ", th);
+                    log.error().exception(th).log("handler.onTrigger failed");
                     /*
                      * propagate it so that task gets canceled and the exception
                      * can be retrieved from executorFuture.get()
@@ -131,7 +131,7 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
             try {
                 executorFuture.get();
             } catch (InterruptedException | ExecutionException e) {
-                log.error("Got exception in timer trigger policy ", e);
+                log.error().exception(e).log("Got exception in timer trigger policy");
                 throw new RuntimeException(e);
             }
         }

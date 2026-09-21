@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.resources;
 
 import java.util.Optional;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import lombok.Getter;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -48,19 +50,30 @@ public class PulsarResources {
     @Getter
     private final TopicResources topicResources;
     @Getter
-    private final Optional<MetadataStore> localMetadataStore;
+    private final LoadBalanceResources loadBalanceResources;
+    @Getter
+    private final ScalableTopicResources scalableTopicResources;
+    @Getter
+    private final Optional<MetadataStoreExtended> localMetadataStore;
     @Getter
     private final Optional<MetadataStore> configurationMetadataStore;
 
-    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore) {
+    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore) {
         this(localMetadataStore, configurationMetadataStore, DEFAULT_OPERATION_TIMEOUT_SEC);
     }
-    public PulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
-            int operationTimeoutSec) {
+
+    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
+                           int operationTimeoutSec) {
+        this(localMetadataStore, configurationMetadataStore, operationTimeoutSec, ForkJoinPool.commonPool());
+    }
+
+    public PulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
+            int operationTimeoutSec, Executor executor) {
         if (configurationMetadataStore != null) {
             tenantResources = new TenantResources(configurationMetadataStore, operationTimeoutSec);
-            clusterResources = new ClusterResources(configurationMetadataStore, operationTimeoutSec);
-            namespaceResources = new NamespaceResources(configurationMetadataStore, operationTimeoutSec);
+            clusterResources = new ClusterResources(localMetadataStore, configurationMetadataStore,
+                    operationTimeoutSec);
+            namespaceResources = new NamespaceResources(configurationMetadataStore, operationTimeoutSec, executor);
             resourcegroupResources = new ResourceGroupResources(configurationMetadataStore, operationTimeoutSec);
         } else {
             tenantResources = null;
@@ -75,12 +88,16 @@ public class PulsarResources {
             loadReportResources = new LoadManagerReportResources(localMetadataStore, operationTimeoutSec);
             bookieResources = new BookieResources(localMetadataStore, operationTimeoutSec);
             topicResources = new TopicResources(localMetadataStore);
+            loadBalanceResources = new LoadBalanceResources(localMetadataStore, operationTimeoutSec);
+            scalableTopicResources = new ScalableTopicResources(localMetadataStore, operationTimeoutSec);
         } else {
             dynamicConfigResources = null;
             localPolicies = null;
             loadReportResources = null;
             bookieResources = null;
             topicResources = null;
+            loadBalanceResources = null;
+            scalableTopicResources = null;
         }
 
         this.localMetadataStore = Optional.ofNullable(localMetadataStore);

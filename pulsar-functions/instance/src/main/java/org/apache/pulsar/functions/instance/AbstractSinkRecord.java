@@ -60,8 +60,7 @@ public abstract class AbstractSinkRecord<T> implements Record<T> {
      * Some sink sometimes wants to control the ack type.
      */
     public void cumulativeAck() {
-        if (sourceRecord instanceof PulsarRecord) {
-            PulsarRecord pulsarRecord = (PulsarRecord) sourceRecord;
+        if (sourceRecord instanceof PulsarRecord<?> pulsarRecord) {
             pulsarRecord.cumulativeAck();
         } else {
             throw new RuntimeException("SourceRecord class type must be PulsarRecord");
@@ -72,8 +71,7 @@ public abstract class AbstractSinkRecord<T> implements Record<T> {
      * Some sink sometimes wants to control the ack type.
      */
     public void individualAck() {
-        if (sourceRecord instanceof PulsarRecord) {
-            PulsarRecord pulsarRecord = (PulsarRecord) sourceRecord;
+        if (sourceRecord instanceof PulsarRecord<?> pulsarRecord) {
             pulsarRecord.individualAck();
         } else {
             throw new RuntimeException("SourceRecord class type must be PulsarRecord");
@@ -101,18 +99,23 @@ public abstract class AbstractSinkRecord<T> implements Record<T> {
                 // see PIP-85
                 if (record.getMessage().isPresent()
                         && record.getMessage().get().getReaderSchema().isPresent()) {
-                    schema = (Schema<T>) record.getMessage().get().getReaderSchema().get();
+                    @SuppressWarnings("unchecked")
+                    Schema<T> readerSchema = (Schema<T>) record.getMessage().get().getReaderSchema().get();
+                    schema = readerSchema;
                 } else {
-                    schema = (Schema<T>) ((AutoConsumeSchema) schema).getInternalSchema();
+                    @SuppressWarnings("unchecked")
+                    Schema<T> internalSchema = (Schema<T>) ((AutoConsumeSchema) schema).getInternalSchema();
+                    schema = internalSchema;
                 }
             }
             return schema;
         }
 
-        if (record instanceof KVRecord) {
-            KVRecord kvRecord = (KVRecord) record;
-            return KeyValueSchemaImpl.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
+        if (record instanceof KVRecord<?, ?> kvRecord) {
+            @SuppressWarnings("unchecked")
+            Schema<T> kvSchema = (Schema<T>) KeyValueSchemaImpl.of(kvRecord.getKeySchema(), kvRecord.getValueSchema(),
                     kvRecord.getKeyValueEncodingType());
+            return kvSchema;
         }
 
         return null;

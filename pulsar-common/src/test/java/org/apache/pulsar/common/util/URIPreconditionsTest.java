@@ -18,10 +18,11 @@
  */
 package org.apache.pulsar.common.util;
 
-import static org.apache.pulsar.common.util.URIPreconditions.*;
+import static org.apache.pulsar.common.util.URIPreconditions.checkURI;
+import static org.apache.pulsar.common.util.URIPreconditions.checkURIIfPresent;
+import java.util.Objects;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import java.util.Objects;
 
 public class URIPreconditionsTest {
 
@@ -30,6 +31,7 @@ public class URIPreconditionsTest {
         // normal
         checkURI("http://pulsar.apache.org", uri -> true);
         checkURI("http://pulsar.apache.org", uri -> Objects.equals(uri.getScheme(), "http"));
+        checkURI("", uri -> true);
         // illegal
         try {
             checkURI("pulsar.apache.org", uri -> Objects.equals(uri.getScheme(), "http"));
@@ -48,6 +50,7 @@ public class URIPreconditionsTest {
     @Test
     public void testCheckURIIfPresent() {
         checkURIIfPresent(null, uri -> false);
+        checkURIIfPresent("", uri -> false);
         checkURIIfPresent("http://pulsar.apache.org", uri -> true);
         try {
             checkURIIfPresent("http/pulsar.apache.org", uri -> uri.getScheme() != null, "Error");

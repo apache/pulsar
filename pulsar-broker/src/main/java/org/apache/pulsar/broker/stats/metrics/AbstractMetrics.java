@@ -24,9 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryMXBean;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.policies.data.TopicStats;
@@ -132,7 +131,7 @@ abstract class AbstractMetrics {
      * @return
      */
     protected ManagedLedgerFactoryMXBean getManagedLedgerCacheStats() {
-        return ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getCacheStats();
+        return pulsar.getDefaultManagedLedgerFactory().getCacheStats();
     }
 
     /**
@@ -140,8 +139,8 @@ abstract class AbstractMetrics {
      *
      * @return
      */
-    protected Map<String, ManagedLedgerImpl> getManagedLedgers() {
-        return ((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getManagedLedgers();
+    protected Map<String, ManagedLedger> getManagedLedgers() {
+        return pulsar.getDefaultManagedLedgerFactory().getManagedLedgers();
     }
 
     protected String getLocalClusterName() {
@@ -235,8 +234,8 @@ abstract class AbstractMetrics {
      * @param metrics
      * @param ledger
      */
-    protected void populateDimensionMap(Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap, Metrics metrics,
-            ManagedLedgerImpl ledger) {
+    protected void populateDimensionMap(Map<Metrics, List<ManagedLedger>> ledgersByDimensionMap, Metrics metrics,
+            ManagedLedger ledger) {
         ledgersByDimensionMap.computeIfAbsent(metrics, __ -> new ArrayList<>()).add(ledger);
     }
 

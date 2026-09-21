@@ -22,7 +22,7 @@ import java.util.Optional;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 /**
  * This is a generic interface that functions can use to cache and distribute appropriate authentication
@@ -45,10 +45,10 @@ public interface FunctionAuthProvider {
      * @return
      * @throws Exception
      */
-    Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
+    Optional<FunctionAuthData> cacheAuthData(FunctionDetails funcDetails,
                                              AuthenticationDataSource authenticationDataSource) throws Exception;
 
-    Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
+    Optional<FunctionAuthData> updateAuthData(FunctionDetails funcDetails,
                                               Optional<FunctionAuthData> existingFunctionAuthData,
                                               AuthenticationDataSource authenticationDataSource) throws Exception;
 
@@ -58,7 +58,7 @@ public interface FunctionAuthProvider {
      * @param functionAuthData function auth data
      * @throws Exception
      */
-    void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
+    void cleanUpAuthData(FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
             throws Exception;
 
     static FunctionAuthProvider getAuthProvider(String className) {

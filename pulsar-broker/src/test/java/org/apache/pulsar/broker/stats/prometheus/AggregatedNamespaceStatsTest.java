@@ -20,10 +20,12 @@ package org.apache.pulsar.broker.stats.prometheus;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-
+import java.util.HashMap;
+import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.testng.annotations.Test;
 
-@Test(groups = "broker")
+@Test(groups = {"broker"})
 public class AggregatedNamespaceStatsTest {
 
     @Test
@@ -99,6 +101,7 @@ public class AggregatedNamespaceStatsTest {
         replStats2.msgThroughputOut = 1536.0;
         replStats2.replicationBacklog = 99;
         replStats2.connectedCount = 1;
+        replStats2.disconnectedCount = 2;
         replStats2.msgRateExpired = 3.0;
         replStats2.replicationDelayInSeconds = 20;
         topicStats2.replicationStats.put(namespace, replStats2);
@@ -146,6 +149,7 @@ public class AggregatedNamespaceStatsTest {
         assertEquals(nsReplStats.msgThroughputOut, 1792.0);
         assertEquals(nsReplStats.replicationBacklog, 100);
         assertEquals(nsReplStats.connectedCount, 1);
+        assertEquals(nsReplStats.disconnectedCount, 2);
         assertEquals(nsReplStats.msgRateExpired, 6.0);
         assertEquals(nsReplStats.replicationDelayInSeconds, 40);
 
@@ -155,6 +159,103 @@ public class AggregatedNamespaceStatsTest {
         assertEquals(nsSubStats.msgBacklogNoDelayed, 50);
         assertEquals(nsSubStats.msgRateRedeliver, 2.2);
         assertEquals(nsSubStats.unackedMessages, 2);
+    }
+
+
+    @Test
+    public void testReset() {
+        AggregatedNamespaceStats stats = new AggregatedNamespaceStats();
+        stats.topicsCount = 8;
+        stats.subscriptionsCount = 3;
+        stats.producersCount = 1;
+        stats.consumersCount = 8;
+        stats.rateIn = 1.3;
+        stats.rateOut = 3.5;
+        stats.throughputIn = 3.2;
+        stats.throughputOut = 5.8;
+        stats.messageAckRate = 12;
+        stats.bytesInCounter = 1234;
+        stats.msgInCounter = 3889;
+        stats.bytesOutCounter = 89775;
+        stats.msgOutCounter = 28983;
+        stats.msgBacklog = 39;
+        stats.msgDelayed = 31;
+
+        stats.ongoingTxnCount = 87;
+        stats.abortedTxnCount = 74;
+        stats.committedTxnCount = 34;
+
+        stats.backlogQuotaLimit = 387;
+        stats.backlogQuotaLimitTime = 8771;
+
+        stats.replicationStats = new HashMap<>();
+        stats.replicationStats.put("r", new AggregatedReplicationStats());
+
+        stats.subscriptionStats = new HashMap<>();
+        stats.subscriptionStats.put("r", new AggregatedSubscriptionStats());
+
+        stats.compactionRemovedEventCount = 124;
+        stats.compactionSucceedCount = 487;
+        stats.compactionFailedCount = 84857;
+        stats.compactionDurationTimeInMills = 2384;
+        stats.compactionReadThroughput = 355423;
+        stats.compactionWriteThroughput = 23299;
+        stats.compactionCompactedEntriesCount = 37522;
+        stats.compactionCompactedEntriesSize = 8475;
+
+        stats.compactionLatencyBuckets = new StatsBuckets(5);
+        stats.compactionLatencyBuckets.addValue(3);
+
+        stats.delayedMessageIndexSizeInBytes = 45223;
+
+        stats.bucketDelayedIndexStats = new HashMap<>();
+        stats.bucketDelayedIndexStats.put("t", new TopicMetricBean());
+
+        stats.reset();
+
+        assertEquals(stats.bytesOutCounter, 0);
+        assertEquals(stats.topicsCount, 0);
+        assertEquals(stats.subscriptionsCount, 0);
+        assertEquals(stats.producersCount, 0);
+        assertEquals(stats.consumersCount, 0);
+        assertEquals(stats.rateIn, 0);
+        assertEquals(stats.rateOut, 0);
+        assertEquals(stats.throughputIn, 0);
+        assertEquals(stats.throughputOut, 0);
+        assertEquals(stats.messageAckRate, 0);
+        assertEquals(stats.bytesInCounter, 0);
+        assertEquals(stats.msgInCounter, 0);
+        assertEquals(stats.bytesOutCounter, 0);
+        assertEquals(stats.msgOutCounter, 0);
+
+        assertEquals(stats.managedLedgerStats.storageSize, 0);
+
+        assertEquals(stats.msgBacklog, 0);
+        assertEquals(stats.msgDelayed, 0);
+
+        assertEquals(stats.ongoingTxnCount, 0);
+        assertEquals(stats.abortedTxnCount, 0);
+        assertEquals(stats.committedTxnCount, 0);
+
+        assertEquals(stats.backlogQuotaLimit, 0);
+        assertEquals(stats.backlogQuotaLimitTime, -1);
+
+        assertEquals(stats.replicationStats.size(), 0);
+        assertEquals(stats.subscriptionStats.size(), 0);
+
+        assertEquals(stats.compactionRemovedEventCount, 0);
+        assertEquals(stats.compactionSucceedCount, 0);
+        assertEquals(stats.compactionFailedCount, 0);
+        assertEquals(stats.compactionDurationTimeInMills, 0);
+        assertEquals(stats.compactionReadThroughput, 0);
+        assertEquals(stats.compactionWriteThroughput, 0);
+        assertEquals(stats.compactionCompactedEntriesCount, 0);
+        assertEquals(stats.compactionCompactedEntriesSize, 0);
+
+        assertEquals(stats.compactionLatencyBuckets.getSum(), 0);
+
+        assertEquals(stats.delayedMessageIndexSizeInBytes, 0);
+        assertEquals(stats.bucketDelayedIndexStats.size(), 0);
     }
 
 }

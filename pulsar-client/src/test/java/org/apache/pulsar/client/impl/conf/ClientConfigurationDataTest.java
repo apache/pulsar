@@ -22,7 +22,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import io.opentelemetry.api.OpenTelemetry;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import lombok.Cleanup;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 /**
@@ -36,10 +43,35 @@ public class ClientConfigurationDataTest {
         clientConfigurationData.setTlsTrustStorePassword("xxxx");
         clientConfigurationData.setSocks5ProxyPassword("yyyy");
         clientConfigurationData.setAuthentication(new AuthenticationToken("zzzz"));
+        clientConfigurationData.setOpenTelemetry(OpenTelemetry.noop());
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         String serializedConf = objectMapper.writeValueAsString(clientConfigurationData);
         assertThat(serializedConf).doesNotContain("xxxx", "yyyy", "zzzz");
     }
 
+    @Test
+    public void testSerializable() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setConnectionsPerBroker(3);
+        conf.setTlsTrustStorePassword("xxxx");
+        conf.setOpenTelemetry(OpenTelemetry.noop());
+
+        @Cleanup
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        @Cleanup
+        ObjectOutputStream oos = new ObjectOutputStream(bos);
+        oos.writeObject(conf);
+        byte[] serialized = bos.toByteArray();
+
+        // Deserialize
+        @Cleanup
+        ByteArrayInputStream bis = new ByteArrayInputStream(serialized);
+        @Cleanup
+        ObjectInputStream ois = new ObjectInputStream(bis);
+        Object object = ois.readObject();
+
+        Assert.assertEquals(object.getClass(), ClientConfigurationData.class);
+        Assert.assertEquals(object, conf);
+    }
 }

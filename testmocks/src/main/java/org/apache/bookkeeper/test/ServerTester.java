@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
+
+/*
  * This file is derived from BookKeeperClusterTestCase from Apache BookKeeper
  * http://bookkeeper.apache.org
  */
@@ -26,6 +27,7 @@ package org.apache.bookkeeper.test;
 import static org.apache.bookkeeper.bookie.BookKeeperServerStats.BOOKIE_SCOPE;
 import static org.apache.bookkeeper.bookie.BookKeeperServerStats.LD_INDEX_SCOPE;
 import static org.apache.bookkeeper.bookie.BookKeeperServerStats.LD_LEDGER_SCOPE;
+import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.bookie.BookieResources;
@@ -35,7 +37,7 @@ import org.apache.bookkeeper.bookie.LegacyCookieValidation;
 import org.apache.bookkeeper.bookie.ReadOnlyBookie;
 import org.apache.bookkeeper.bookie.UncleanShutdownDetection;
 import org.apache.bookkeeper.bookie.UncleanShutdownDetectionImpl;
-import org.apache.bookkeeper.client.TestStatsProvider;
+import org.apache.bookkeeper.client.PulsarBookKeeperTestStatsProvider;
 import org.apache.bookkeeper.common.allocator.ByteBufAllocatorWithOomHandler;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.conf.ServerConfiguration;
@@ -52,15 +54,12 @@ import org.apache.bookkeeper.replication.ReplicationWorker;
 import org.apache.bookkeeper.server.Main;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.util.DiskChecker;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Class to encapsulate all the test objects.
  */
+@CustomLog
 public class ServerTester {
-    static final Logger LOG = LoggerFactory.getLogger(ServerTester.class);
-
     /**
      * Mock implementation of UncleanShutdownDetection.
      */
@@ -94,7 +93,7 @@ public class ServerTester {
     }
 
     private final ServerConfiguration conf;
-    private final TestStatsProvider provider;
+    private final PulsarBookKeeperTestStatsProvider provider;
     private final Bookie bookie;
     private final BookieServer server;
     private final BookieSocketAddress address;
@@ -110,7 +109,7 @@ public class ServerTester {
 
     public ServerTester(ServerConfiguration conf) throws Exception {
         this.conf = conf;
-        provider = new TestStatsProvider();
+        provider = new PulsarBookKeeperTestStatsProvider();
 
         StatsLogger rootStatsLogger = provider.getStatsLogger("");
         StatsLogger bookieStats = rootStatsLogger.scope(BOOKIE_SCOPE);
@@ -154,7 +153,7 @@ public class ServerTester {
 
     public ServerTester(ServerConfiguration conf, Bookie b) throws Exception {
         this.conf = conf;
-        provider = new TestStatsProvider();
+        provider = new PulsarBookKeeperTestStatsProvider();
 
         metadataDriver = null;
         registrationManager = null;
@@ -171,14 +170,14 @@ public class ServerTester {
     }
 
     public void startAutoRecovery() throws Exception {
-        LOG.debug("Starting Auditor Recovery for the bookie: {}", address);
+        log.debug().attr("address", address).log("Starting Auditor Recovery for the bookie");
         autoRecovery = new AutoRecoveryMain(conf);
         autoRecovery.start();
     }
 
     public void stopAutoRecovery() {
         if (autoRecovery != null) {
-            LOG.debug("Shutdown Auditor Recovery for the bookie: {}", address);
+            log.debug().attr("address", address).log("Shutdown Auditor Recovery for the bookie");
             autoRecovery.shutdown();
         }
     }
@@ -207,7 +206,7 @@ public class ServerTester {
         return server;
     }
 
-    public TestStatsProvider getStatsProvider() {
+    public PulsarBookKeeperTestStatsProvider getStatsProvider() {
         return provider;
     }
 
@@ -232,7 +231,7 @@ public class ServerTester {
         }
 
         if (autoRecovery != null) {
-            LOG.debug("Shutdown auto recovery for bookieserver: {}", address);
+            log.debug().attr("address", address).log("Shutdown auto recovery for bookieserver");
             autoRecovery.shutdown();
         }
     }

@@ -21,18 +21,20 @@ package org.apache.pulsar.client.impl.transaction;
 import com.google.common.collect.Lists;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.InvalidTxnStatusException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.TransactionNotFoundException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -48,7 +50,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  * failures. This decouples the transactional operations from non-transactional operations as
  * much as possible.
  */
-@Slf4j
+@CustomLog
 @Getter
 public class TransactionImpl implements Transaction , TimerTask {
 
@@ -61,7 +63,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     private final Map<String, CompletableFuture<Void>> registerPartitionMap;
     private final Map<Pair<String, String>, CompletableFuture<Void>> registerSubscriptionMap;
-    private final TransactionCoordinatorClientImpl tcClient;
+    private final TransactionCoordinatorClient tcClient;
 
     private CompletableFuture<Void> opFuture;
 
@@ -95,7 +97,7 @@ public class TransactionImpl implements Transaction , TimerTask {
 
         this.registerPartitionMap = new ConcurrentHashMap<>();
         this.registerSubscriptionMap = new ConcurrentHashMap<>();
-        this.tcClient = client.getTcClient();
+        this.tcClient = client.getTransactionCoordinatorClient();
         this.opFuture = CompletableFuture.completedFuture(null);
         this.timeout = client.getTimer().newTimeout(this, transactionTimeoutMs, TimeUnit.MILLISECONDS);
 
@@ -105,18 +107,16 @@ public class TransactionImpl implements Transaction , TimerTask {
     public CompletableFuture<Void> registerProducedTopic(String topic) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (checkIfOpen(completableFuture)) {
-            synchronized (TransactionImpl.this) {
-                // we need to issue the request to TC to register the produced topic
-                return registerPartitionMap.compute(topic, (key, future) -> {
-                    if (future != null) {
-                        return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    } else {
-                        return tcClient.addPublishPartitionToTxnAsync(
-                                txnId, Lists.newArrayList(topic))
-                                .thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    }
-                });
-            }
+            // we need to issue the request to TC to register the produced topic
+            return registerPartitionMap.compute(topic, (key, future) -> {
+                if (future != null) {
+                    return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                } else {
+                    return tcClient.addPublishPartitionToTxnAsync(
+                                    txnId, Lists.newArrayList(topic))
+                            .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                }
+            });
         }
         return completableFuture;
     }
@@ -129,8 +129,10 @@ public class TransactionImpl implements Transaction , TimerTask {
         // and then the opFuture will never be replaced.
         newSendFuture.whenComplete((messageId, e) -> {
             if (e != null) {
-                log.error("The transaction [{}:{}] get an exception when send messages.",
-                        txnIdMostBits, txnIdLeastBits, e);
+                log.error().attr("txnIdMostBits", txnIdMostBits)
+                        .attr("txnIdLeastBits", txnIdLeastBits)
+                        .exception(e)
+                        .log("The transaction got an exception when sending messages");
                 if (!hasOpsFailed) {
                     hasOpsFailed = true;
                 }
@@ -146,18 +148,16 @@ public class TransactionImpl implements Transaction , TimerTask {
     public CompletableFuture<Void> registerAckedTopic(String topic, String subscription) {
         CompletableFuture<Void> completableFuture = new CompletableFuture<>();
         if (checkIfOpen(completableFuture)) {
-            synchronized (TransactionImpl.this) {
-                // we need to issue the request to TC to register the acked topic
-                return registerSubscriptionMap.compute(Pair.of(topic, subscription), (key, future) -> {
-                    if (future != null) {
-                        return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    } else {
-                        return tcClient.addSubscriptionToTxnAsync(
-                                txnId, topic, subscription)
-                                .thenCompose(ignored -> CompletableFuture.completedFuture(null));
-                    }
-                });
-            }
+            // we need to issue the request to TC to register the acked topic
+            return registerSubscriptionMap.compute(Pair.of(topic, subscription), (key, future) -> {
+                if (future != null) {
+                    return future.thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                } else {
+                    return tcClient.addSubscriptionToTxnAsync(
+                                    txnId, topic, subscription)
+                            .thenCompose(ignored -> CompletableFuture.completedFuture(null));
+                }
+            });
         }
         return completableFuture;
     }
@@ -170,8 +170,10 @@ public class TransactionImpl implements Transaction , TimerTask {
         // and then the opFuture will never be replaced.
         newAckFuture.whenComplete((ignore, e) -> {
             if (e != null) {
-                log.error("The transaction [{}:{}] get an exception when ack messages.",
-                        txnIdMostBits, txnIdLeastBits, e);
+                log.error().attr("txnIdMostBits", txnIdMostBits)
+                        .attr("txnIdLeastBits", txnIdLeastBits)
+                        .exception(e)
+                        .log("The transaction got an exception when acking messages");
                 if (!hasOpsFailed) {
                     hasOpsFailed = true;
                 }
@@ -186,13 +188,14 @@ public class TransactionImpl implements Transaction , TimerTask {
     @Override
     public CompletableFuture<Void> commit() {
         timeout.cancel();
-        return checkIfOpenOrCommitting().thenCompose((value) -> {
+        return checkState(State.OPEN, State.COMMITTING).thenCompose((value) -> {
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
             this.state = State.COMMITTING;
             opFuture.whenComplete((v, e) -> {
                 if (hasOpsFailed) {
-                    abort().whenComplete((vx, ex) -> commitFuture.completeExceptionally(new PulsarClientException
-                            .TransactionHasOperationFailedException()));
+                    checkState(State.COMMITTING).thenCompose(__ -> internalAbort()).whenComplete((vx, ex) ->
+                            commitFuture.completeExceptionally(
+                                    new PulsarClientException.TransactionHasOperationFailedException()));
                 } else {
                     tcClient.commitAsync(txnId)
                             .whenComplete((vx, ex) -> {
@@ -216,28 +219,30 @@ public class TransactionImpl implements Transaction , TimerTask {
     @Override
     public CompletableFuture<Void> abort() {
         timeout.cancel();
-        return checkIfOpenOrAborting().thenCompose(value -> {
-            CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-            this.state = State.ABORTING;
-            opFuture.whenComplete((v, e) -> {
-                tcClient.abortAsync(txnId).whenComplete((vx, ex) -> {
+        return checkState(State.OPEN, State.ABORTING).thenCompose(__ -> internalAbort());
+    }
 
-                    if (ex != null) {
-                        if (ex instanceof TransactionNotFoundException
-                                || ex instanceof InvalidTxnStatusException) {
-                            this.state = State.ERROR;
-                        }
-                        abortFuture.completeExceptionally(ex);
-                    } else {
-                        this.state = State.ABORTED;
-                        abortFuture.complete(null);
+    private CompletableFuture<Void> internalAbort() {
+        CompletableFuture<Void> abortFuture = new CompletableFuture<>();
+        this.state = State.ABORTING;
+        opFuture.whenComplete((v, e) -> {
+            tcClient.abortAsync(txnId).whenComplete((vx, ex) -> {
+
+                if (ex != null) {
+                    if (ex instanceof TransactionNotFoundException
+                            || ex instanceof InvalidTxnStatusException) {
+                        this.state = State.ERROR;
                     }
+                    abortFuture.completeExceptionally(ex);
+                } else {
+                    this.state = State.ABORTED;
+                    abortFuture.complete(null);
+                }
 
-                });
             });
-
-            return abortFuture;
         });
+
+        return abortFuture;
     }
 
     @Override
@@ -261,25 +266,15 @@ public class TransactionImpl implements Transaction , TimerTask {
         }
     }
 
-    private CompletableFuture<Void> checkIfOpenOrCommitting() {
-        if (state == State.OPEN || state == State.COMMITTING) {
-            return CompletableFuture.completedFuture(null);
-        } else {
-            return invalidTxnStatusFuture();
+    private CompletableFuture<Void> checkState(State... expectedStates) {
+        final State actualState = STATE_UPDATE.get(this);
+        for (State expectedState : expectedStates) {
+            if (actualState == expectedState) {
+                return CompletableFuture.completedFuture(null);
+            }
         }
-    }
-
-    private CompletableFuture<Void> checkIfOpenOrAborting() {
-        if (state == State.OPEN || state == State.ABORTING) {
-            return CompletableFuture.completedFuture(null);
-        } else {
-            return invalidTxnStatusFuture();
-        }
-    }
-
-    private CompletableFuture<Void> invalidTxnStatusFuture() {
         return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
-                + txnIdLeastBits + "] with unexpected state : "
-                + state.name() + ", expect " + State.OPEN + " state!"));
+                + txnIdLeastBits + "] with unexpected state: " + actualState.name() + ", expect: "
+                + Arrays.toString(expectedStates)));
     }
 }

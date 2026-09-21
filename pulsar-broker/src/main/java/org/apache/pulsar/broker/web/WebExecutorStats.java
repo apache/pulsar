@@ -21,14 +21,21 @@ package org.apache.pulsar.broker.web;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.pulsar.opentelemetry.annotations.PulsarDeprecatedMetric;
 
+@Deprecated
 class WebExecutorStats implements AutoCloseable {
     private static final AtomicBoolean CLOSED = new AtomicBoolean(false);
 
+    @PulsarDeprecatedMetric(newMetricName = WebExecutorThreadPoolStats.LIMIT_COUNTER)
     private final Gauge maxThreads;
+    @PulsarDeprecatedMetric(newMetricName = WebExecutorThreadPoolStats.LIMIT_COUNTER)
     private final Gauge minThreads;
+    @PulsarDeprecatedMetric(newMetricName = WebExecutorThreadPoolStats.USAGE_COUNTER)
     private final Gauge idleThreads;
+    @PulsarDeprecatedMetric(newMetricName = WebExecutorThreadPoolStats.USAGE_COUNTER)
     private final Gauge activeThreads;
+    @PulsarDeprecatedMetric(newMetricName = WebExecutorThreadPoolStats.USAGE_COUNTER)
     private final Gauge currentThreads;
     private final WebExecutorThreadPool executor;
 

@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.worker;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpServer;
 import java.io.File;
@@ -30,13 +29,13 @@ import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.nio.file.Files;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.awaitility.Awaitility;
 
 /**
- * Simple http server for serving files in Pulsar Function test cases
+ * Simple http server for serving files in Pulsar Function test cases.
  */
-@Slf4j
+@CustomLog
 public class FileServer implements AutoCloseable {
     private static final String HEALTH_PATH = "/health";
     private final HttpServer httpServer;
@@ -62,7 +61,7 @@ public class FileServer implements AutoCloseable {
                     Files.copy(file.toPath(), outputStream);
                 }
             } catch (Exception e) {
-                log.error("Error serving file {} for path {}", file, path, e);
+                log.error().attr("file", file).attr("path", path).exception(e).log("Error serving file for path");
             }
         });
     }

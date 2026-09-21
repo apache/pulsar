@@ -35,6 +35,7 @@ import org.testng.annotations.Test;
 public class AdditionalServletWithPulsarServiceTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadAdditionalServlet() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setAdditionalServletClass(MockAdditionalServletWithClassLoader.class.getName());
@@ -49,6 +50,7 @@ public class AdditionalServletWithPulsarServiceTest {
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
                 .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
+        @SuppressWarnings("rawtypes")
         Class additionalServletClass = MockAdditionalServletWithClassLoader.class;
         when(mockLoader.loadClass(eq(MockAdditionalServletWithClassLoader.class.getName())))
                 .thenReturn(additionalServletClass);

@@ -18,38 +18,101 @@
  */
 package org.apache.pulsar.packages.management.core.common;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
+import java.io.ByteArrayOutputStream;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 import java.util.HashMap;
-import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
-import org.testng.Assert;
+import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException.MetadataFormatException;
 import org.testng.annotations.Test;
 
 public class PackageMetadataSerdeTest {
-    @Test
-    public void testPackageMetadataSerDe() {
+
+    private static PackageMetadata sampleMetadata() {
         HashMap<String, String> properties = new HashMap<>();
         properties.put("testKey", "testValue");
-        PackageMetadata metadata = PackageMetadata.builder()
-            .description("test package metadata serialize and deserialize flow")
-            .createTime(System.currentTimeMillis())
-            .contact("test@apache.org")
-            .modificationTime(System.currentTimeMillis() + 1000)
-            .properties(properties).build();
+        return PackageMetadata.builder()
+                .description("test package metadata serialize and deserialize flow")
+                .createTime(1_000L)
+                .contact("test@apache.org")
+                .modificationTime(2_000L)
+                .properties(properties).build();
+    }
 
-        byte[] metadataSerialized = PackageMetadataUtil.toBytes(metadata);
+    @Test
+    public void testJsonRoundTrip() throws MetadataFormatException {
+        PackageMetadata metadata = sampleMetadata();
+        byte[] bytes = PackageMetadataUtil.toBytes(metadata, true);
+        assertEquals(bytes[0], (byte) '{', "JSON-encoded metadata must start with '{'");
+        PackageMetadata roundTripped = PackageMetadataUtil.fromBytes(bytes, true);
+        assertEquals(roundTripped, metadata);
+    }
 
+    @Test
+    public void testLegacyRoundTrip() throws MetadataFormatException {
+        PackageMetadata metadata = sampleMetadata();
+        byte[] bytes = PackageMetadataUtil.toBytes(metadata, false);
+        assertEquals(bytes[0], (byte) 0xAC, "Java-serialized stream must start with STREAM_MAGIC byte 0xAC");
+        assertEquals(bytes[1], (byte) 0xED, "Java-serialized stream must start with STREAM_MAGIC byte 0xED");
+        PackageMetadata roundTripped = PackageMetadataUtil.fromBytes(bytes, true);
+        assertEquals(roundTripped, metadata);
+    }
+
+    @Test
+    public void testJsonReadableWhenLegacyDisabled() throws MetadataFormatException {
+        PackageMetadata metadata = sampleMetadata();
+        byte[] jsonBytes = PackageMetadataUtil.toBytes(metadata, true);
+        // JSON is safe regardless of the legacy flag.
+        PackageMetadata roundTripped = PackageMetadataUtil.fromBytes(jsonBytes, false);
+        assertEquals(roundTripped, metadata);
+    }
+
+    @Test
+    public void testLegacyRejectedWhenLegacyDisabled() {
+        byte[] legacyBytes = PackageMetadataUtil.toBytes(sampleMetadata(), false);
         try {
-            PackageMetadata deSerializedMetadata = PackageMetadataUtil.fromBytes(metadataSerialized);
-            Assert.assertEquals(metadata, deSerializedMetadata);
-        } catch (PackagesManagementException.MetadataFormatException e) {
-            Assert.fail("should not throw any exception");
+            PackageMetadataUtil.fromBytes(legacyBytes, false);
+            throw new AssertionError("Expected MetadataFormatException");
+        } catch (MetadataFormatException ex) {
+            assertTrue(ex.getMessage().contains("packagesManagementAllowLegacyJavaSerialization"),
+                    "Rejection message should name the config flag to flip: " + ex.getMessage());
         }
+    }
 
-        try {
-            byte[] failedMetadataSerialized = "wrong package metadata".getBytes();
-            PackageMetadata deSerializedMetadata = PackageMetadataUtil.fromBytes(failedMetadataSerialized);
-            Assert.fail("should throw the metadata format exception");
-        } catch (PackagesManagementException.MetadataFormatException e) {
-            // expected error
+    @Test
+    public void testFilterRejectsUnsafeClass() throws Exception {
+        // Build a valid Java serialization stream whose top-level object is NOT a PackageMetadata
+        // and whose class is outside the filter's allowlist. The JEP 290 filter must reject the
+        // class descriptor BEFORE ObjectInputStream instantiates it.
+        ArrayList<String> disallowed = new ArrayList<>();
+        disallowed.add("gadget-chain-entry");
+        byte[] bytes;
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
+            oos.writeObject(disallowed);
+            oos.flush();
+            bytes = baos.toByteArray();
         }
+        // Starts with the Java magic — fromBytes will dispatch to the legacy reader.
+        assertEquals(bytes[0], (byte) 0xAC);
+        assertEquals(bytes[1], (byte) 0xED);
+        assertThrows(MetadataFormatException.class,
+                () -> PackageMetadataUtil.fromBytes(bytes, true));
+    }
+
+    @Test
+    public void testUnknownFormatRejected() {
+        assertThrows(MetadataFormatException.class,
+                () -> PackageMetadataUtil.fromBytes("plain text".getBytes(), true));
+    }
+
+    @Test
+    public void testEmptyRejected() {
+        assertThrows(MetadataFormatException.class,
+                () -> PackageMetadataUtil.fromBytes(new byte[0], true));
+        assertThrows(MetadataFormatException.class,
+                () -> PackageMetadataUtil.fromBytes(null, true));
     }
 }

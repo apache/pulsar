@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service.nonpersistent;
 
 import java.util.List;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.common.stats.Rate;
@@ -40,7 +40,7 @@ public interface NonPersistentDispatcher extends Dispatcher {
     }
 
     @Override
-    default void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions) {
+    default void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {
         // No-op
     }
 

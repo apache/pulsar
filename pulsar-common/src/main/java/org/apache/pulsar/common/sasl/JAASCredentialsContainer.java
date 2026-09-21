@@ -28,14 +28,14 @@ import javax.security.auth.login.AppConfigurationEntry;
 import javax.security.auth.login.Configuration;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * JAAS Credentials Container.
  * This is added for support Kerberos authentication.
  */
-@Slf4j
+@CustomLog
 @Getter
 public class JAASCredentialsContainer implements Closeable {
     private Subject subject;
@@ -63,7 +63,7 @@ public class JAASCredentialsContainer implements Closeable {
                 + "Please check your java.security.login.auth.config (="
                 + System.getProperty("java.security.login.auth.config")
                 + ") for section header: " + this.loginContextName;
-            log.error("No JAAS Configuration section header found for Client: {}", errorMessage);
+            log.error().attr("details", errorMessage).log("No JAAS Configuration section header found for Client");
             throw new LoginException(errorMessage);
         }
         LoginContext loginContext = new LoginContext(loginContextName, callbackHandler);
@@ -96,9 +96,7 @@ public class JAASCredentialsContainer implements Closeable {
                 ticketRefreshThread.join(10000);
             } catch (InterruptedException exit) {
                 Thread.currentThread().interrupt();
-                if (log.isDebugEnabled()) {
-                    log.debug("interrupted while waiting for TGT refresh thread to stop", exit);
-                }
+                log.debug().exception(exit).log("interrupted while waiting for TGT refresh thread to stop");
             }
         }
     }

@@ -20,9 +20,9 @@ package org.apache.pulsar.compaction;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-import org.testng.annotations.Test;
-
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker-compaction")
 public class CompactorMXBeanImplTest {
@@ -59,11 +59,19 @@ public class CompactorMXBeanImplTest {
         assertTrue(compaction.getCompactionWriteThroughput() > 0L);
         mxBean.addCompactionLatencyOp(topic, 10, TimeUnit.NANOSECONDS);
         assertTrue(compaction.getCompactionLatencyBuckets()[0] > 0L);
-        mxBean.reset();
-        assertEquals(compaction.getCompactionRemovedEventCount(), 0, 0);
-        assertEquals(compaction.getCompactionSucceedCount(), 0, 0);
-        assertEquals(compaction.getCompactionFailedCount(), 0, 0);
-        assertEquals(compaction.getCompactionDurationTimeInMills(), 0, 0);
+    }
+
+    @Test
+    public void testCompactionLatencyStatsAddAll() {
+        CompactorMXBeanImpl mxBean = new CompactorMXBeanImpl();
+        String topic = "topic2";
+        mxBean.addCompactionStartOp(topic);
+        CompactionRecord compaction = mxBean.getCompactionRecordForTopic(topic).get();
+        StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
+        mxBean.addCompactionLatencyOp(topic, 10, TimeUnit.NANOSECONDS);
+        compactionLatencyBuckets.addAll(compaction.getCompactionLatencyStats());
+        compactionLatencyBuckets.refresh();
+        assertTrue(compactionLatencyBuckets.getBuckets()[0] > 0L);
     }
 
 }
