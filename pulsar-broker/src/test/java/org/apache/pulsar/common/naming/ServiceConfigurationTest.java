@@ -76,6 +76,7 @@ public class ServiceConfigurationTest {
         assertEquals(config.getManagedLedgerDataReadPriority(), "bookkeeper-first");
         assertEquals(config.getBacklogQuotaDefaultLimitGB(), 0.05);
         assertEquals(config.getHttpMaxRequestHeaderSize(), 1234);
+        assertEquals(config.getHttpMaxResponseHeaderSize(), 16384);
         assertEquals(config.isDispatcherPauseOnAckStatePersistentEnabled(), true);
         assertEquals(config.getMaxSecondsToClearTopicNameCache(), 1);
         assertEquals(config.getTopicNameCacheMaxCapacity(), 200);

@@ -59,6 +59,7 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.metadata.api.DummyMetadataNodeSizeStats;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -130,8 +131,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 : nodeSizeStats;
         final var namePrefix = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName
                 : getClass().getSimpleName();
-        this.eventExecutor = Executors.newSingleThreadExecutor(
-                new DefaultThreadFactory(namePrefix + "-event"));
+        this.eventExecutor = PulsarExecutors.newSingleThreadExecutor(
+                new DefaultThreadFactory(namePrefix + "-event"), false);
         this.schedulerExecutor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory(namePrefix + "-scheduler"));
         this.serDesExecutor = OrderedExecutor.newBuilder()

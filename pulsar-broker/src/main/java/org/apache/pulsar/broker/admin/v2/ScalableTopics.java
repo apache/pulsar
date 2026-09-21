@@ -58,6 +58,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
+import org.apache.pulsar.broker.service.scalable.SegmentTopicStatsBuilder;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -66,11 +67,14 @@ import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -178,7 +182,9 @@ public class ScalableTopics extends AdminResource {
             @RequestBody(description = "Key value pair properties for the topic metadata")
             Map<String, String> properties) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        String decodedTopic = Codec.decode(encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodedTopic);
+        validateCreateTopic(tn);
 
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CREATE_TOPIC)
                 .thenCompose(__ -> {
@@ -190,6 +196,7 @@ public class ScalableTopics extends AdminResource {
                     ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
                             numInitialSegments,
                             pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                            pulsar().getConfiguration().getScalableTopicEntryBucketMaxPerSegment(),
                             props);
                     return resources().createScalableTopicAsync(tn, metadata)
                             .thenCompose(ignored -> createInitialSegmentTopicsAsync(tn, metadata));
@@ -334,7 +341,8 @@ public class ScalableTopics extends AdminResource {
         }).thenCompose(partitions -> {
             ScalableTopicMetadata metadata =
                     ScalableTopicController.createMigratedMetadata(persistentBase, partitions,
-                            pulsar().getConfiguration().getScalableTopicEntryBucketBudget());
+                            pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                            pulsar().getConfiguration().getScalableTopicEntryBucketMaxPerSegment());
             return createMigratedChildTopicsAsync(scalableName, metadata)
                     .thenCompose(__ -> resources().createScalableTopicAsync(scalableName, metadata))
                     .thenCompose(__ -> terminateLegacyTopicsAsync(persistentBase, partitions));
@@ -684,11 +692,13 @@ public class ScalableTopics extends AdminResource {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/stats")
-    @Operation(summary = "Get aggregated stats for a scalable topic.")
+    @Operation(summary = "Get the stats of a scalable topic as a whole: the segment DAG with per-segment"
+            + " load, the subscriptions with their backlog across segments, and the producers.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Get aggregated stats for a scalable topic.",
-                    content = @Content(schema = @Schema(
-                            implementation = org.apache.pulsar.common.policies.data.ScalableTopicStats.class))),
+            @ApiResponse(responseCode = "200", description = "The stats of the scalable topic.",
+                    content = @Content(schema = @Schema(implementation = ScalableTopicStats.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker is not the controller leader for this topic"),
             @ApiResponse(responseCode = "401",
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
@@ -705,12 +715,82 @@ public class ScalableTopics extends AdminResource {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
 
+        // Served by the controller leader: the STREAM consumer sessions (connected state,
+        // segment assignment) only exist in the leader's memory.
         validateTopicOperationAsync(tn, TopicOperation.GET_STATS)
-                .thenCompose(__ -> withScalableTopicService(svc -> svc.getStats(tn)))
+                .thenCompose(__ -> onControllerLeader(tn, svc -> svc.getStats(tn)))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
-                            .exception(ex).log("Failed to get stats for scalable topic");
+                    if (!isRedirectException(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                                .exception(ex).log("Failed to get stats for scalable topic");
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/segments/{segmentId}/stats")
+    @Operation(summary = "Get the stats of a single segment of a scalable topic: the stats of the topic"
+            + " backing the segment, trimmed to what matters for a segment, served by its owning broker.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The stats of the segment's backing topic.",
+                    content = @Content(schema = @Schema(implementation = SegmentTopicStats.class))),
+            @ApiResponse(responseCode = "307", description = "Current broker doesn't serve the segment"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404",
+                    description = "Scalable topic, segment, or the segment's backing topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void getSegmentStats(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Segment ID", required = true)
+            @PathParam("segmentId") long segmentId,
+            @Parameter(description = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateTopicOperationAsync(tn, TopicOperation.GET_STATS)
+                .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
+                .thenCompose(optMd -> {
+                    if (optMd.isEmpty()) {
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Scalable topic not found: " + tn);
+                    }
+                    SegmentInfo segment = optMd.get().getSegments().get(segmentId);
+                    if (segment == null) {
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Segment " + segmentId + " not found in scalable topic " + tn);
+                    }
+                    TopicName backingTopic = TopicName.get(SegmentTopicName.backingTopicName(tn, segment));
+                    return validateTopicOwnershipAsync(backingTopic, authoritative)
+                            .thenCompose(__ -> pulsar().getBrokerService()
+                                    .getTopicIfExists(backingTopic.toString()))
+                            .thenCompose(optTopic -> {
+                                if (optTopic.isEmpty()) {
+                                    throw new RestException(Response.Status.NOT_FOUND,
+                                            "Segment topic not found: " + backingTopic);
+                                }
+                                return optTopic.get().asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS)
+                                        .thenApply(SegmentTopicStatsBuilder::fromTopicStats);
+                            });
+                })
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (isNot307And404Exception(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                                .attr("segmentId", segmentId)
+                                .exception(ex).log("Failed to get segment stats for scalable topic");
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -933,6 +1013,61 @@ public class ScalableTopics extends AdminResource {
     }
 
     @POST
+    @Path("/{tenant}/{namespace}/{topic}/rebucket/{segmentId}")
+    @Operation(summary = "Rebucket a segment: roll it over to a same-range successor with a new "
+            + "entry-bucket count.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Segment rebucketed successfully"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "412", description = "Segment is unknown, not active, "
+                    + "or the bucket count is invalid or unchanged"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void rebucketSegment(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Segment ID to rebucket", required = true)
+            @PathParam("segmentId") long segmentId,
+            @Parameter(description = "Entry-bucket count for the successor segment", required = true)
+            @QueryParam("bucketCount") int bucketCount) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateSuperUserAccessAsync()
+                .thenCompose(__ -> onControllerLeader(tn,
+                        svc -> svc.rebucketSegment(tn, segmentId, bucketCount)))
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId())
+                            .attr("segmentId", segmentId).attr("bucketCount", bucketCount)
+                            .attr("topic", tn)
+                            .log("Rebucketed segment of scalable topic");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof IllegalArgumentException) {
+                        // Segment-level validation (unknown, sealed, bad or unchanged bucket
+                        // count): a client error, not a server one.
+                        log.info().attr("clientAppId", clientAppId())
+                                .attr("segmentId", segmentId).attr("topic", tn)
+                                .attr("reason", cause.getMessage()).log("Rebucket rejected");
+                        asyncResponse.resume(new RestException(
+                                Response.Status.PRECONDITION_FAILED, cause.getMessage()));
+                        return null;
+                    }
+                    log.error().attr("clientAppId", clientAppId())
+                            .attr("segmentId", segmentId).attr("topic", tn)
+                            .exception(ex).log("Failed to rebucket segment");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
     @Path("/{tenant}/{namespace}/{topic}/merge/{segmentId1}/{segmentId2}")
     @Operation(summary = "Merge two adjacent segments into one.")
     @ApiResponses(value = {
@@ -1004,8 +1139,10 @@ public class ScalableTopics extends AdminResource {
 
     /**
      * If this broker is not the elected controller leader for {@code tn}, redirect the
-     * request to the leader via HTTP 307. Read-only endpoints (like {@code getStats}) do
-     * not need this guard and should not call it.
+     * request to the leader via HTTP 307. Needed by every endpoint that mutates the layout
+     * or the subscriptions, and by {@code getStats}, which reports the leader's in-memory
+     * consumer sessions; purely metadata-backed reads (like {@code getScalableTopicMetadata})
+     * don't need it.
      *
      * <p>The leader brokerId is read from the controller lock znode and resolved to an HTTP
      * service URL via {@link org.apache.pulsar.broker.namespace.NamespaceService#createLookupResult}.

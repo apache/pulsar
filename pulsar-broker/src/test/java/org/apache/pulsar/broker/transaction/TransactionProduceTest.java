@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.assertEquals;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -51,6 +51,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -90,6 +91,61 @@ public class TransactionProduceTest extends TransactionTestBase {
     @AfterClass(alwaysRun = true)
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    /**
+     * A batch carries one transaction id in its metadata, so every message in it inherits that transaction.
+     * A plain message batched together with transactional ones is therefore discarded when that transaction
+     * aborts, even though the application never sent it inside a transaction.
+     */
+    @Test
+    public void testAbortedTransactionDoesNotDiscardPlainMessageBatchedWithIt() throws Exception {
+        final String topic = NAMESPACE1 + "/txn-batch-isolation";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("txn-batch-isolation-sub")
+                .subscribe();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(60, TimeUnit.SECONDS)
+                .build().get();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(true)
+                .batchingMaxMessages(100)
+                // Long enough that the two sends under test cannot be split into separate batches by the
+                // timer, short enough that a batch still closes on its own when a flush cannot reach it.
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
+                .create();
+
+        // The first transactional send on a topic waits for the topic to be registered with the transaction
+        // coordinator before the message reaches the batch. Get that round trip out of the way, so the two
+        // sends under test are added to the container synchronously and therefore land in one batch.
+        // A flush issued here would run before the message reaches the batch, so let the batch timer close it.
+        producer.newMessage(txn).value("warm-up").sendAsync().get(30, TimeUnit.SECONDS);
+
+        producer.newMessage(txn).value("in-txn").sendAsync();
+        CompletableFuture<MessageId> plainSend = producer.newMessage().value("plain").sendAsync();
+        producer.flush();
+        plainSend.get(30, TimeUnit.SECONDS);
+
+        // The topic's max read position does not advance past an ongoing transaction, so nothing on this topic
+        // is readable until the transaction ends. Abort it: that discards the transactional messages, and the
+        // plain one must survive because it was never part of the transaction.
+        txn.abort().get(60, TimeUnit.SECONDS);
+
+        Message<String> received = consumer.receive(30, TimeUnit.SECONDS);
+        Assert.assertNotNull(received, "the plain message was discarded by the aborted transaction");
+        Assert.assertEquals(received.getValue(), "plain");
+
+        // Both transactional messages were aborted, so nothing else may arrive.
+        Assert.assertNull(consumer.receive(3, TimeUnit.SECONDS));
     }
 
     @Test
@@ -186,8 +242,8 @@ public class TransactionProduceTest extends TransactionTestBase {
     }
 
     @Test
-    public void testUpdateLastMaxReadPositionMovedForwardTimestampForTransactionalPublish() throws Exception {
-        final String topic = NAMESPACE1 + "/testUpdateLastMaxReadPositionMovedForwardTimestampForTransactionalPublish";
+    public void testSkipMaxReadPositionTimestampWithoutReplicatedSubscriptions() throws Exception {
+        final String topic = NAMESPACE1 + "/testSkipMaxReadPositionTimestampWithoutReplicatedSubscriptions";
         PulsarClient pulsarClient = this.pulsarClient;
         Transaction txn = pulsarClient.newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
@@ -201,15 +257,15 @@ public class TransactionProduceTest extends TransactionTestBase {
         PersistentTopic persistentTopic = getTopic(topic);
         long lastMaxReadPositionMovedForwardTimestamp = persistentTopic.getLastMaxReadPositionMovedForwardTimestamp();
 
-        // transactional publish will not update lastMaxReadPositionMovedForwardTimestamp
+        // A transactional publish does not move the max read position until the transaction is resolved.
         producer.newMessage(txn).value("hello world".getBytes()).send();
-        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp()
-                == lastMaxReadPositionMovedForwardTimestamp);
+        assertEquals(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp(),
+                lastMaxReadPositionMovedForwardTimestamp);
 
-        // commit transaction will update lastMaxReadPositionMovedForwardTimestamp
+        // Committing moves the max read position, but an ordinary topic does not need the snapshot timestamp.
         txn.commit().get();
-        assertTrue(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp()
-                > lastMaxReadPositionMovedForwardTimestamp);
+        assertEquals(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp(),
+                lastMaxReadPositionMovedForwardTimestamp);
     }
 
     private PersistentTopic getTopic(String topic) throws ExecutionException, InterruptedException {

@@ -220,6 +220,7 @@ public class NonPersistentTopics extends PersistentTopics {
             validateNamespaceName(tenant, namespace);
             validateGlobalNamespaceOwnership();
             validateTopicName(tenant, namespace, encodedTopic);
+            validateCreateTopic(topicName);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly, properties);
         } catch (Exception e) {
             log.error()

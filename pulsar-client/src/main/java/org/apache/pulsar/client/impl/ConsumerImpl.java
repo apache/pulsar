@@ -407,6 +407,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         } else {
             this.acknowledgmentsGroupingTracker =
                     NonPersistentAcknowledgmentGroupingTracker.of();
+            if (conf.getAckTimeoutMillis() > 0) {
+                log.warn().attr("topic", topic).attr("ackTimeoutMillis", conf.getAckTimeoutMillis())
+                        .log("Ignoring the configured ack timeout: a non-persistent topic keeps nothing to"
+                                + " replay, so unacknowledged messages can never be redelivered");
+            }
         }
 
         if (conf.getDeadLetterPolicy() != null) {
@@ -1984,8 +1989,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             trackMessage(messageId, 0);
     }
 
+    /**
+     * Never track on a non-persistent topic. The broker stores nothing to replay there, so an ack timeout can
+     * never produce a redelivery, and an ack does not clear the tracker either: the consumer installs
+     * {@link NonPersistentAcknowledgmentGroupingTracker}, whose {@code addAcknowledgment} is a no-op, while the
+     * tracker is only cleared from the persistent one. Tracking would therefore fill up even for an application
+     * that acks everything, and the resulting timeout clears the receive queue, destroying messages for good.
+     */
+    @Override
+    protected boolean isAckTimeoutTrackingEnabled() {
+        return super.isAckTimeoutTrackingEnabled() && topicName.isPersistent();
+    }
+
     protected void trackMessage(MessageId messageId, int redeliveryCount) {
-        if (conf.getAckTimeoutMillis() > 0 && messageId instanceof MessageIdImpl) {
+        if (isAckTimeoutTrackingEnabled() && messageId instanceof MessageIdImpl) {
             MessageId id = MessageIdAdvUtils.discardBatch(messageId);
             if (hasParentConsumer) {
                 //TODO: check parent consumer here
@@ -2169,7 +2186,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         .log("Message delivery failed since unable to decrypt incoming message");
             }
             MessageId m = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), partitionIndex);
-            unAckedMessageTracker.add(m, redeliveryCount);
+            if (isAckTimeoutTrackingEnabled()) {
+                unAckedMessageTracker.add(m, redeliveryCount);
+            }
             return DecryptResult.discard();
         default:
             log.warn("Invalid crypto failure state found, continue message consumption.");
@@ -2418,9 +2437,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @SuppressWarnings("unchecked")
     private CompletableFuture<Boolean> processPossibleToDLQ(MessageIdAdv messageId) {
+        // The map is always keyed by the entry-level message id, while messageId may still carry a batch index
+        final MessageIdAdv deadLetterMessagesKey = MessageIdAdvUtils.discardBatch(messageId);
         List<MessageImpl<T>> deadLetterMessages = null;
         if (possibleSendToDeadLetterTopicMessages != null) {
-            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(MessageIdAdvUtils.discardBatch(messageId));
+            deadLetterMessages = possibleSendToDeadLetterTopicMessages.get(deadLetterMessagesKey);
         }
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         if (deadLetterMessages != null) {
@@ -2441,7 +2462,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         copyMessageEventTime(message, typedMessageBuilderNew);
                         typedMessageBuilderNew.sendAsync()
                                 .thenAccept(messageIdInDLQ -> {
-                                    possibleSendToDeadLetterTopicMessages.remove(messageId);
+                                    possibleSendToDeadLetterTopicMessages.remove(deadLetterMessagesKey);
                                     acknowledgeAsync(messageId).whenComplete((v, ex) -> {
                                         if (ex != null) {
                                             log.warn().attr("messageId", messageId)
@@ -2808,6 +2829,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // we haven't read yet. use startMessageId for comparison
         if (lastDequeuedMessageId == MessageId.earliest) {
+            if (startMessageId == null) {
+                internalGetLastMessageIdAsync().thenAccept(response -> {
+                    lastMessageIdInBroker = response.lastMessageId;
+                    completehasMessageAvailableWithValue(booleanFuture,
+                            hasMoreMessagesThanMarkDeletePosition(response, false, false));
+                }).exceptionally(e -> {
+                    log.error().exception(e)
+                            .log("Failed getLastMessageId command");
+                    booleanFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
+                    return null;
+                });
+                return booleanFuture;
+            }
+
             // If the last seek is called with timestamp, startMessageId cannot represent the position to start, so we
             // have to get the mark-delete position from the GetLastMessageId response to compare as well.
             // if we are starting from latest, we should seek to the actual last message first.
@@ -2823,34 +2858,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 future.thenAccept(response -> {
-                    MessageIdAdv lastMessageId = (MessageIdAdv) response.lastMessageId;
-                    MessageIdAdv markDeletePosition = (MessageIdAdv) response.markDeletePosition;
-
-                    if (markDeletePosition != null && !(markDeletePosition.getEntryId() < 0
-                            && markDeletePosition.getLedgerId() > lastMessageId.getLedgerId())) {
-                        // we only care about comparing ledger ids and entry ids as mark delete position doesn't have
-                        // other ids such as batch index
-                        int result = ComparisonChain.start()
-                                .compare(markDeletePosition.getLedgerId(), lastMessageId.getLedgerId())
-                                .compare(markDeletePosition.getEntryId(), lastMessageId.getEntryId())
-                                .result();
-                        if (lastMessageId.getEntryId() < 0) {
-                            completehasMessageAvailableWithValue(booleanFuture, false);
-                        } else if (hasSoughtByTimestamp) {
-                            completehasMessageAvailableWithValue(booleanFuture, result < 0);
-                        } else {
-                            completehasMessageAvailableWithValue(booleanFuture,
-                                    resetIncludeHead ? result <= 0 : result < 0);
-                        }
-                    } else if (lastMessageId == null || lastMessageId.getEntryId() < 0) {
-                        completehasMessageAvailableWithValue(booleanFuture, false);
-                    } else {
-                        completehasMessageAvailableWithValue(booleanFuture, resetIncludeHead);
-                    }
+                    completehasMessageAvailableWithValue(booleanFuture,
+                            hasMoreMessagesThanMarkDeletePosition(response,
+                                    !hasSoughtByTimestamp && resetIncludeHead, resetIncludeHead));
                 }).exceptionally(ex -> {
                     log.error().exception(ex)
                             .log("Failed getLastMessageId command");
-                    booleanFuture.completeExceptionally(ex.getCause());
+                    booleanFuture.completeExceptionally(FutureUtil.unwrapCompletionException(ex));
                     return null;
                 });
 
@@ -2867,8 +2881,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 completehasMessageAvailableWithValue(booleanFuture,
                         hasMoreMessages(lastMessageIdInBroker, startMessageId, resetIncludeHead));
             }).exceptionally(e -> {
-                log.error("Failed getLastMessageId command");
-                booleanFuture.completeExceptionally(e.getCause());
+                log.error().exception(e)
+                        .log("Failed getLastMessageId command");
+                booleanFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
                 return null;
             });
 
@@ -2884,8 +2899,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 completehasMessageAvailableWithValue(booleanFuture,
                         hasMoreMessages(lastMessageIdInBroker, lastDequeuedMessageId, false));
             }).exceptionally(e -> {
-                log.error("Failed getLastMessageId command");
-                booleanFuture.completeExceptionally(e.getCause());
+                log.error().exception(e)
+                        .log("Failed getLastMessageId command");
+                booleanFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
                 return null;
             });
         }
@@ -2907,6 +2923,28 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         return !inclusive && lastMessageIdInBroker.compareTo(messageId) > 0
                 && ((MessageIdImpl) lastMessageIdInBroker).getEntryId() != -1;
+    }
+
+    private boolean hasMoreMessagesThanMarkDeletePosition(GetLastMessageIdResponse response, boolean inclusive,
+                                                          boolean includeHeadWhenMarkDeleteIsAfterLastMessage) {
+        MessageIdAdv lastMessageId = (MessageIdAdv) response.lastMessageId;
+        if (lastMessageId == null || lastMessageId.getEntryId() < 0) {
+            return false;
+        }
+
+        MessageIdAdv markDeletePosition = (MessageIdAdv) response.markDeletePosition;
+        if (markDeletePosition == null || (markDeletePosition.getEntryId() < 0
+                && markDeletePosition.getLedgerId() > lastMessageId.getLedgerId())) {
+            return includeHeadWhenMarkDeleteIsAfterLastMessage;
+        }
+
+        // We only care about comparing ledger ids and entry ids as mark delete position doesn't have
+        // other ids such as batch index.
+        int result = ComparisonChain.start()
+                .compare(markDeletePosition.getLedgerId(), lastMessageId.getLedgerId())
+                .compare(markDeletePosition.getEntryId(), lastMessageId.getEntryId())
+                .result();
+        return inclusive ? result <= 0 : result < 0;
     }
 
     private static final class GetLastMessageIdResponse {

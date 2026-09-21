@@ -62,6 +62,7 @@ public final class DefaultAuthenticationRoleLoggingAnonymizer {
    }
 
    public String anonymize(String role) {
-      return anonymizerType.anonymize(role);
+      // originalPrincipal is null for clients that do not connect through a proxy
+      return role == null ? null : anonymizerType.anonymize(role);
    }
 }

@@ -91,14 +91,14 @@ dependencies {
 
 // NAR/JAR files needed by tests (mirrors Maven's maven-dependency-plugin config).
 // Resolve through dependency configurations instead of cross-project task references.
-val testNars by configurations.creating {
+val testNars = configurations.create("testNars") {
     isCanBeResolved = true
     isCanBeConsumed = false
     attributes {
         attribute(ArtifactTypeDefinition.ARTIFACT_TYPE_ATTRIBUTE, "nar")
     }
 }
-val testExamplesJar by configurations.creating {
+val testExamplesJar = configurations.create("testExamplesJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }

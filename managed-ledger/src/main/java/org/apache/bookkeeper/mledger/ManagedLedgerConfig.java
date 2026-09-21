@@ -57,14 +57,12 @@ public class ManagedLedgerConfig {
     private int ensembleSize = 3;
     private int writeQuorumSize = 2;
     private int ackQuorumSize = 2;
-    private int metadataEnsembleSize = 3;
-    private int metadataWriteQuorumSize = 2;
-    private int metadataAckQuorumSize = 2;
     private int metadataMaxEntriesPerLedger = 50000;
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
     private Semaphore ledgerDeletionSemaphore;
     private ExecutorService ledgerDeleteExecutor;
+    private boolean readEntriesCallbackInline = false;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
@@ -91,6 +89,38 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private boolean cacheEvictionByExpectedReadCount = true;
+
+    /**
+     * Enable the BookKeeper batch read API when reading entries from bookkeeper: a single RPC fetches multiple
+     * entries, reducing network overhead. It is only used when the BookKeeper client supports it (v2 wire protocol
+     * with batch reads enabled), which the managed ledger checks when it is opened; the client uses regular reads for
+     * striped ledgers (ensembleSize differs from writeQuorumSize) and for bookies without batch read support. Each
+     * batch read request is bounded by the size limit of the read that triggered it and by the client's max frame
+     * size, a read needing more data being split into sequential requests. Entries read this way are copied when
+     * inserted in the entry cache, since their buffers are slices of a shared response frame.
+     */
+    @Getter
+    @Setter
+    private boolean batchReadEnabled = true;
+
+    /**
+     * Whether the entries of this managed ledger are Pulsar messages, so that an entry's payload begins with the
+     * headers that parse into a {@code MessageMetadata}.
+     *
+     * <p>This holds for the managed ledger backing a topic. It doesn't hold for managed ledgers that store some
+     * other binary format, such as the transaction log and the transaction pending ack store, whose entries can
+     * never parse into valid message metadata.
+     *
+     * <p>When this is false the entry cache doesn't parse the message metadata of the entries it caches or reads.
+     * Nothing else changes: code that needs the metadata of an individual entry can still parse it on demand.
+     *
+     * <p>Set this before the managed ledger is opened for the first time, and keep it when replacing the config
+     * of an open managed ledger: {@link ManagedLedgerFactory} caches managed ledgers by name and hands back an
+     * already open one without applying the config of the later caller.
+     */
+    @Getter
+    @Setter
+    private boolean pulsarMessageEntries = true;
     @Getter
     private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
     private int minimumBacklogCursorsForCaching = 0;
@@ -302,54 +332,6 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * @return the metadataEnsemblesize
-     */
-    public int getMetadataEnsemblesize() {
-        return metadataEnsembleSize;
-    }
-
-    /**
-     * @param metadataEnsembleSize
-     *            the metadataEnsembleSize to set
-     */
-    public ManagedLedgerConfig setMetadataEnsembleSize(int metadataEnsembleSize) {
-        this.metadataEnsembleSize = metadataEnsembleSize;
-        return this;
-    }
-
-    /**
-     * @return the metadataAckQuorumSize
-     */
-    public int getMetadataAckQuorumSize() {
-        return metadataAckQuorumSize;
-    }
-
-    /**
-     * @return the metadataWriteQuorumSize
-     */
-    public int getMetadataWriteQuorumSize() {
-        return metadataWriteQuorumSize;
-    }
-
-    /**
-     * @param metadataAckQuorumSize
-     *            the metadataAckQuorumSize to set
-     */
-    public ManagedLedgerConfig setMetadataAckQuorumSize(int metadataAckQuorumSize) {
-        this.metadataAckQuorumSize = metadataAckQuorumSize;
-        return this;
-    }
-
-    /**
-     * @param metadataWriteQuorumSize
-     *            the metadataWriteQuorumSize to set
-     */
-    public ManagedLedgerConfig setMetadataWriteQuorumSize(int metadataWriteQuorumSize) {
-        this.metadataWriteQuorumSize = metadataWriteQuorumSize;
-        return this;
-    }
-
-    /**
      * @return the metadataMaxEntriesPerLedger
      */
     public int getMetadataMaxEntriesPerLedger() {
@@ -422,6 +404,45 @@ public class ManagedLedgerConfig {
 
     public ManagedLedgerConfig setLedgerDeleteExecutor(ExecutorService executor) {
         this.ledgerDeleteExecutor = executor;
+        return this;
+    }
+
+    /**
+     * Whether successful ordinary multi-entry cursor reads may complete on the current thread.
+     * Defaults to false, which retains ledger-executor affinity.
+     * Completion can still run inline when already on the ledger executor.
+     *
+     * @see #setReadEntriesCallbackInline(boolean)
+     */
+    public boolean isReadEntriesCallbackInline() {
+        return readEntriesCallbackInline;
+    }
+
+    /**
+     * Select completion on the current thread for successful {@code asyncReadEntries} and
+     * {@code asyncReadEntriesOrWait} operations. A fully cached read may invoke its callback before the read method
+     * returns. When disabled, completion is restricted to the ledger executor, as before: it runs inline when
+     * already on that executor and is queued otherwise. This also restores the Exclusive/Failover cache-hit
+     * handoff used before the per-callback inline optimization in PR #26619.
+     *
+     * <p>For callbacks that issue another read before returning, nested completion is bounded by a queued
+     * handoff to the JVM common ForkJoinPool when enabled and to the ledger executor when disabled.
+     * If common-pool parallelism is at most 1, enabled mode also uses the ledger executor. The JVM-wide system
+     * property {@code pulsar.managedLedger.maxReadCompletionDepth} controls this limit (default 10, values below
+     * 1 use 1). Values accept decimal, hexadecimal ({@code 0x10} or {@code #10}), and octal ({@code 010})
+     * notation, following {@link Integer#decode(String)}.
+     * A limit of 1 queues every subsequent read completion in a nested cached-read chain. Set the property at
+     * JVM startup; later changes have no effect.
+     *
+     * <p>This setting does not change failure callbacks, single-entry reads, or replay callbacks. The policy is
+     * captured when the ledger is opened; subsequent changes, including
+     * {@link ManagedLedger#setConfig(ManagedLedgerConfig)}, do not change the policy of an already open ledger.
+     *
+     * @param inline true to allow completion on any current thread; false to retain ledger-executor affinity
+     * @return this configuration
+     */
+    public ManagedLedgerConfig setReadEntriesCallbackInline(boolean inline) {
+        this.readEntriesCallbackInline = inline;
         return this;
     }
 

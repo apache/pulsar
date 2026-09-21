@@ -40,8 +40,8 @@ import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.config.ProcessingTimeoutPolicy;
 import org.apache.pulsar.client.api.v5.config.ProducerEncryptionPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.v5.config.TlsPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.tls.TlsPolicy;
 
 /**
  * Usage examples for the Pulsar v5 client API.

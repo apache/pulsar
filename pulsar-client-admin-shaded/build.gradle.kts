@@ -50,6 +50,11 @@ dependencies {
     // consumers using Schema.PROTOBUF / PROTOBUF_NATIVE must add protobuf-java themselves.
     "shadowApi"(project(":pulsar-client-api"))
     "shadowApi"(project(":pulsar-client-admin-api"))
+    // PIP-478: see the note in pulsar-client-shaded — the bundled classes surface these three API
+    // modules on their exported ABI, and a plugin author compiles against the same coordinates.
+    "shadowApi"(project(":pulsar-client-api-v5"))
+    "shadowApi"(project(":pulsar-tls-factory-api"))
+    "shadowApi"(project(":pulsar-http-client-api"))
     "shadowApi"(libs.opentelemetry.api)
     "shadow"(libs.jackson.annotations)
     "shadow"(libs.bcprov.jdk18on)

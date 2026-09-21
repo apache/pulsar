@@ -1,0 +1,70 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# Full representative topology. Start with iot-telemetry-local.yaml on one development host.
+cluster:
+  brokers: 1
+  bookies: 3
+  brokerEnvs:
+    brokerDeduplicationEnabled: "true"
+    # Keep storage-maintenance boundaries outside ordinary warmup and measurement windows.
+    # These are benchmark settings, not production sizing recommendations.
+    managedLedgerMaxEntriesPerLedger: "100000000"
+    managedLedgerMinLedgerRolloverTimeMinutes: "60"
+    managedLedgerMaxLedgerRolloverTimeMinutes: "1440"
+    managedLedgerMaxSizePerLedgerMbytes: "16384"
+    managedLedgerCursorMaxEntriesPerLedger: "100000000"
+    managedLedgerCursorRolloverTimeInSeconds: "86400"
+    PULSAR_MEM: -Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g
+  bookkeeperEnvs:
+    # The containers are ephemeral, so postpone reclamation and compaction until after the run.
+    journalMaxSizeMB: "8192"
+    gcWaitTime: "86400000"
+    gcOverreplicatedLedgerWaitTime: "86400000"
+    minorCompactionInterval: "-1"
+    majorCompactionInterval: "-1"
+    PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=512m
+workloads:
+  iotTelemetry:
+    serviceUrl: pulsar://iot-pulsar-broker-0:6650
+    topicPrefix: persistent://public/default/iot-telemetry-
+    subscriptionPrefix: iot-application-
+    durationSeconds: 120
+    # Warmup traffic is validated but excluded from throughput and the exported measurement window.
+    warmupSeconds: 20
+    warmupMessages: 0
+    warmupRounds: 1
+    warmupRoundDelaySeconds: 0
+    rate: 1000
+    numberOfMessages: 0
+    payloadBytes: 64
+    deviceCount: 300000
+    gatewayCount: 100
+    topicCount: 30
+    applicationCount: 20
+    clientsPerApplication: 100
+    ioThreads: 8
+    listenerThreads: 16
+    maxOutstanding: 20000
+    batchingEnabled: true
+    precreateProducers: false
+    consumerTimeoutSeconds: 240
+    clientRestartIntervalSeconds: 0
+    clientRestartFraction: 0.0
+output:
+  directory: build/performance/iot-telemetry

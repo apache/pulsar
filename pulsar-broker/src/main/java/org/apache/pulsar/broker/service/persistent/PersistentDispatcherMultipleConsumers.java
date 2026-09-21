@@ -24,6 +24,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
+import io.netty.channel.EventLoopGroup;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -36,6 +37,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -222,7 +224,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     .log("Attempting to add a consumer that already registered");
         }
 
-        consumerList.add(consumer);
+        addConsumerToList(consumer);
         if (consumerList.size() > 1
                 && consumer.getPriorityLevel() < consumerList.get(consumerList.size() - 2).getPriorityLevel()) {
             consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
@@ -239,10 +241,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
-        // decrement unack-message count for removed consumer
-        addUnAckedMessages(-consumer.getUnackedMessages());
         if (consumerSet.removeAll(consumer) == 1) {
-            consumerList.remove(consumer);
+            // decrement unack-message count for removed consumer. Only the removal that actually
+            // unregisters the consumer may debit it, otherwise removing an already-removed consumer
+            // debits the same messages again and drives the subscription counter negative.
+            addUnAckedMessages(-consumer.getUnackedMessages());
+            removeConsumerFromList(consumer);
             log.info()
                     .attr("consumer", consumer)
                     .attr("pendingAcks", consumer.getPendingAcks().size())
@@ -258,9 +262,12 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         notifyAddedToReplay.setTrue();
                     }
                 });
-                totalAvailablePermits -= consumer.getAvailablePermits();
+                // Restore the invariant that the dispatcher total equals the sum of the removal balances of the
+                // remaining consumers. Exclude Flow permits that have not updated the dispatcher total yet.
+                int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
+                totalAvailablePermits -= availablePermits;
                 log.debug()
-                        .attr("diffAvailablePermits", consumer.getAvailablePermits())
+                        .attr("availablePermits", availablePermits)
                         .attr("totalAvailablePermits", totalAvailablePermits)
                         .log("Decreased totalAvailablePermits");
                 if (notifyAddedToReplay.booleanValue()) {
@@ -274,7 +281,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
              * are not mismatch with {@link #consumerSet}. See more detail: https://github.com/apache/pulsar/pull/22270.
              */
             log.error().attr("consumer", consumer).log("Trying to remove a non-connected consumer");
-            consumerList.removeIf(c -> consumer.equals(c));
+            // The debit belongs to the removal that unregisters the consumer; do not repeat it here.
+            // The add-consumer failure path can also unregister via internalRemoveConsumer, but that
+            // consumer has not received any messages and therefore has nothing to debit.
+            removeConsumersFromList(c -> consumer.equals(c));
             if (consumerList.isEmpty()) {
                 clearComponentsAfterRemovedAllConsumers();
             }
@@ -283,7 +293,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     protected synchronized void internalRemoveConsumer(Consumer consumer) {
         consumerSet.removeAll(consumer);
-        consumerList.remove(consumer);
+        removeConsumerFromList(consumer);
     }
 
     protected synchronized void clearComponentsAfterRemovedAllConsumers() {
@@ -300,13 +310,23 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        topic.getBrokerService().executor().execute(() -> {
-            internalConsumerFlow(consumer, additionalNumberOfMessages);
-        });
+        EventLoopGroup flowExecutor = topic.getBrokerService().executor();
+        try {
+            flowExecutor.execute(() -> internalConsumerFlow(consumer, additionalNumberOfMessages));
+        } catch (RejectedExecutionException e) {
+            // Leave the permits pending so removal excludes this unapplied Flow during broker shutdown.
+            log.debug()
+                    .attr("consumer", consumer)
+                    .attr("executorShutdown", flowExecutor.isShuttingDown())
+                    .exception(e)
+                    .log("Unable to schedule flow control update");
+        }
     }
 
     private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        if (!consumerSet.contains(consumer)) {
+        // The queued Flow task is no longer pending, even if the consumer was removed while the task was waiting.
+        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
+        if (!containsConsumerInstance(consumer)) {
             log.debug()
                     .attr("consumer", consumer)
                     .log("Ignoring flow control from disconnected consumer");
@@ -320,6 +340,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 .attr("totalAvailablePermits", totalAvailablePermits)
                 .attr("additionalNumberOfMessages", additionalNumberOfMessages)
                 .log("Trigger new read after receiving flow control message");
+        readMoreEntriesAsync();
+    }
+
+    @Override
+    public void notifyChannelWritable(Consumer consumer) {
+        // Do not acquire the dispatcher monitor or write from Netty's writability notification stack.
+        // A fresh pass rechecks the current consumers and limits, without waiting for a pending retry timer.
         readMoreEntriesAsync();
     }
 
@@ -338,7 +365,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
     }
 
-    public synchronized void readMoreEntries() {
+    @Override
+    protected synchronized void internalReadMoreEntries() {
         if (cursor.isClosed()) {
             log.debug("Cursor is already closed, skipping read more entries");
             return;
@@ -358,7 +386,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return;
         }
 
-        // increment the counter for readMoreEntries calls, to track the number of times readMoreEntries is called
+        // Count executed passes, not conflated requests, for pending-read rescheduling.
         readMoreEntriesCallCount++;
 
         // totalAvailablePermits may be updated by other threads
@@ -533,14 +561,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             messagesToRead = Math.min(
                     (int) Math.ceil(currentTotalAvailablePermits * 1.0 / avgMessagesPerEntry),
                     readBatchSize);
-        }
-
-        if (!isConsumerWritable()) {
-            // If the connection is not currently writable, we issue the read request anyway, but for a single
-            // message. The intent here is to keep use the request as a notification mechanism while avoiding to
-            // read and dispatch a big batch of messages which will need to wait before getting written to the
-            // socket.
-            messagesToRead = 1;
         }
 
         // throttle only if: (1) cursor is not active (or flag for throttle-nonBacklogConsumer is enabled) bcz
@@ -737,6 +757,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             canReadMoreImmediately = true;
         }
         if (triggerReadingMore) {
+            if (entriesProcessed == 0 && !isConsumerWritable()) {
+                // An in-flight read can finish after the channel becomes unwritable. Wait for the
+                // writable notification instead of polling the same backpressured consumers.
+                return;
+            }
             if (canReadMoreImmediately) {
                 // Call readMoreEntries in the same thread to trigger the next read
                 readMoreEntries();
@@ -827,23 +852,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         while (entriesToDispatch > 0 && isAtleastOneConsumerAvailable()) {
             Consumer c = getNextConsumer();
             if (c == null) {
-                // Do nothing, cursor will be rewind at reconnection
-                log.info()
-                        .attr("consumerCount", consumerList.size())
-                        .log("Rewind because no available consumer found");
-                entries.subList(start, entries.size()).forEach(Entry::release);
-                cursor.rewind();
-                lastNumberOfEntriesProcessed = (int) totalEntriesProcessed;
-                return false;
+                // Writability can change after the availability check. Preserve the remaining positions
+                // for replay instead of rewinding entries already sent to other consumers.
+                break;
             }
             // round-robin dispatch batch size for this consumer
-            int availablePermits = c.isWritable() ? c.getAvailablePermits() : 1;
-            if (!c.isWritable()) {
-                log.debug()
-                        .attr("consumer", c)
-                        .attr("availablePermits", c.getAvailablePermits())
-                        .log("Consumer is not writable, dispatching only 1 message");
-            }
+            // Once selected, queue this bounded batch even if a write changes channel writability.
+            int availablePermits = c.getAvailablePermits();
 
             int maxEntriesInThisBatch = getMaxEntriesInThisBatch(
                     remainingMessages, c.getMaxUnackedMessages(), c.getUnackedMessages(), avgBatchSizePerMsg,
@@ -1106,7 +1121,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return 0;
         }
         for (Consumer consumer : consumerList) {
-            if (consumer != null && !consumer.isBlocked() && consumer.cnx().isActive()) {
+            if (consumer != null && !consumer.isBlocked() && consumer.cnx().isActive() && consumer.isWritable()) {
                 int availablePermits = consumer.getAvailablePermits();
                 if (availablePermits > 0) {
                     return availablePermits;
@@ -1122,14 +1137,13 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 return true;
             }
         }
-        log.debug("Consumer is not writable");
         return false;
     }
 
     @Override
     public boolean isConsumerAvailable(Consumer consumer) {
         return consumer != null && !consumer.isBlocked() && consumer.cnx().isActive()
-                && consumer.getAvailablePermits() > 0;
+                && consumer.isWritable() && consumer.getAvailablePermits() > 0;
     }
 
     @Override

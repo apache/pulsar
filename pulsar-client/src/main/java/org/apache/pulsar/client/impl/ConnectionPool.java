@@ -62,6 +62,7 @@ import org.apache.pulsar.client.impl.metrics.Unit;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.tls.PulsarTlsFactory;
 
 @CustomLog
 public class ConnectionPool implements AutoCloseable {
@@ -186,6 +187,23 @@ public class ConnectionPool implements AutoCloseable {
         connectionsHandshakeFailureCounter = instrumentProvider.newCounter("pulsar.client.connection.failed",
                 Unit.Connections, "The number of failed connection attempts", null,
                 Attributes.builder().put("pulsar.failure.type", "handshake").build());
+    }
+
+    /**
+     * Swap the client TLS factory that NEW connections build their {@code SslContext} from (PIP-478).
+     * AutoClusterFailover rebuilds the factory from the updated {@link ClientConfigurationData} so per-target
+     * trust roots / TLS identity reach connections established after the switch; existing connections keep
+     * their factory.
+     *
+     * @param factory the rebuilt factory
+     */
+    void updateClientTlsFactory(PulsarTlsFactory factory) {
+        channelInitializerHandler.setClientTlsFactory(factory);
+    }
+
+    @VisibleForTesting
+    PulsarChannelInitializer getChannelInitializerHandler() {
+        return channelInitializerHandler;
     }
 
     private Supplier<AddressResolver<InetSocketAddress>> createAddressResolver(ClientConfigurationData conf,

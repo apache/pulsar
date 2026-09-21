@@ -1,0 +1,314 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.tests.performance.launcher;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.dockerjava.api.model.Capability;
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.tests.integration.containers.PulsarContainer;
+import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
+import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
+import org.testcontainers.containers.BindMode;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
+import org.testcontainers.lifecycle.Startables;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+
+@Command(name = "pulsar-performance-launcher", mixinStandardHelpOptions = true)
+public class PerformanceLauncher implements Callable<Integer> {
+    private static final String ENV_PREFIX = "PULSAR_PERFORMANCE_";
+    private static final String CONFIG_ENV = "PULSAR_PERFORMANCE_CONFIG";
+    private static final String TOOLS_MOUNT = "/opt/pulsar-performance-tools";
+    private static final String CONFIG_MOUNT = "/performance-config/resolved-config.yaml";
+    private static final String COORDINATION_MOUNT = "/performance-coordination";
+
+    @Option(names = "--config", required = true)
+    Path config;
+
+    @Option(names = "--output")
+    Path output;
+
+    @Option(names = "--tools-directory", description = "Installed pulsar-performance-tools distribution")
+    Path toolsDirectory;
+
+    public static void main(String[] args) {
+        System.exit(new CommandLine(new PerformanceLauncher()).execute(args));
+    }
+
+    @Override
+    public Integer call() throws Exception {
+        YamlScenarioLoader loader = new YamlScenarioLoader();
+        ObjectNode resolved = loader.resolve(config, null, System.getenv(), ENV_PREFIX, CONFIG_ENV);
+        ObjectNode workload = (ObjectNode) loader.select(resolved, "workloads.iotTelemetry");
+        ObjectNode clusterConfig = (ObjectNode) loader.select(resolved, "cluster");
+        JsonNode profiling = resolved.path("profiling");
+        String brokerProfileOptions = text(profiling, "brokerOptions");
+        String producerProfileOptions = text(profiling, "producerOptions");
+        String consumerProfileOptions = text(profiling, "consumerOptions");
+        boolean retainOriginalRecording = booleanValue(profiling, "retainOriginalRecording", true);
+        boolean createMeasurementRecording = booleanValue(profiling, "createMeasurementRecording", true);
+        boolean profilingEnabled = brokerProfileOptions != null || producerProfileOptions != null
+                || consumerProfileOptions != null;
+        if (profilingEnabled
+                && !Boolean.parseBoolean(System.getenv("PERFORMANCE_ASYNC_PROFILER_AVAILABLE"))) {
+            throw new IllegalArgumentException("This scenario enables async-profiler; run it with "
+                    + "./gradlew :tests:performance:launcher:profile");
+        }
+        int applications = workload.path("applicationCount").intValue();
+        String runId = UUID.randomUUID().toString();
+        String clusterName = "iot-" + ProcessHandle.current().pid();
+        workload.put("serviceUrl", "pulsar://" + clusterName + "-pulsar-broker-0:6650");
+
+        Path runOutput = output != null ? output
+                : Path.of(loader.select(resolved, "output.directory").textValue());
+        runOutput = runOutput.toAbsolutePath().normalize();
+        Files.createDirectories(runOutput);
+        Path coordinationDirectory = runOutput.resolve("coordination");
+        Files.createDirectories(coordinationDirectory);
+        Files.writeString(runOutput.resolve("run-id.txt"), runId + "\n");
+        Set<Path> recordingsBeforeRun = JfrRecordingProcessor.findOriginalRecordings(runOutput);
+        Path brokerProfileDirectory = runOutput.resolve("broker-profile");
+        if (brokerProfileOptions != null) {
+            Files.createDirectories(brokerProfileDirectory);
+            System.setProperty("inttest.asyncprofiler.opts", brokerProfileOptions);
+            System.setProperty("inttest.asyncprofiler.outputformat", "jfr");
+        }
+        Path resolvedConfig = runOutput.resolve("resolved-config.yaml");
+        loader.write(resolvedConfig, resolved);
+
+        Path resolvedToolsDirectory = (toolsDirectory != null ? toolsDirectory : Path.of(System.getProperty(
+                "performance.tools.dir", "tests/performance/tools/build/install/pulsar-performance-tools")))
+                .toAbsolutePath().normalize();
+        if (!Files.isExecutable(resolvedToolsDirectory.resolve("bin/pulsar-performance-tools"))) {
+            throw new IllegalArgumentException(
+                    "Build the performance tools distribution first: " + resolvedToolsDirectory);
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, String> brokerEnvs = loader.mapper().convertValue(clusterConfig.path("brokerEnvs"), Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, String> bookkeeperEnvs =
+                loader.mapper().convertValue(clusterConfig.path("bookkeeperEnvs"), Map.class);
+        PulsarClusterSpec spec = PulsarClusterSpec.builder()
+                .clusterName(clusterName)
+                .numBrokers(clusterConfig.path("brokers").intValue())
+                .numBookies(clusterConfig.path("bookies").intValue())
+                .numProxies(0)
+                .profileBroker(brokerProfileOptions != null)
+                .profileDirectory(brokerProfileDirectory.toString())
+                .brokerEnvs(brokerEnvs)
+                .bookkeeperEnvs(bookkeeperEnvs)
+                .build();
+
+        PulsarCluster cluster = PulsarCluster.forSpec(spec);
+        List<GenericContainer<?>> consumers = new ArrayList<>(applications);
+        GenericContainer<?> producer = null;
+        try {
+            cluster.start();
+            for (int application = 0; application < applications; application++) {
+                Path appOutput = runOutput.resolve("consumer-" + application);
+                Files.createDirectories(appOutput);
+                consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
+                        coordinationDirectory, runId, appOutput,
+                        consumerProfileOptions, "iot-consume", "--application-index", Integer.toString(application))
+                        .waitingFor(Wait.forLogMessage(".*READY application=.*", 1)
+                                .withStartupTimeout(Duration.ofMinutes(5))));
+            }
+            Startables.deepStart(consumers.stream()).join();
+
+            Path producerOutput = runOutput.resolve("producer");
+            Files.createDirectories(producerOutput);
+            producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
+                    coordinationDirectory, runId, producerOutput,
+                    producerProfileOptions, "iot-produce");
+            producer.start();
+            int timeout = workload.path("consumerTimeoutSeconds").intValue() + 60;
+            int producerExit = waitForExit(producer, timeout);
+            saveContainerLog(producer, producerOutput.resolve("container.log"));
+            if (producerExit != 0) {
+                throw new IllegalStateException("IoT producer exited with status " + producerExit);
+            }
+            for (int application = 0; application < consumers.size(); application++) {
+                GenericContainer<?> consumer = consumers.get(application);
+                int consumerExit = waitForExit(consumer, timeout);
+                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/container.log"));
+                if (consumerExit != 0) {
+                    throw new IllegalStateException("IoT consumer exited with status " + consumerExit);
+                }
+            }
+            verifyStates(runOutput, applications);
+        } finally {
+            if (producer != null) {
+                saveContainerLog(producer, runOutput.resolve("producer/container.log"));
+                producer.stop();
+            }
+            for (int application = 0; application < consumers.size(); application++) {
+                GenericContainer<?> consumer = consumers.get(application);
+                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/container.log"));
+                consumer.stop();
+            }
+            cluster.stop();
+        }
+        if (profilingEnabled) {
+            JsonNode summary = loader.mapper().readTree(runOutput.resolve("producer/producer-summary.json").toFile());
+            Instant measurementStart = Instant.ofEpochMilli(requiredLong(summary, "measurementStartEpochMs"));
+            long lastConsumerReceiptEpochMs = Long.MIN_VALUE;
+            for (int application = 0; application < applications; application++) {
+                JsonNode consumerSummary = loader.mapper().readTree(
+                        runOutput.resolve("consumer-" + application + "/consumer-summary.json").toFile());
+                lastConsumerReceiptEpochMs = Math.max(lastConsumerReceiptEpochMs,
+                        requiredLong(consumerSummary, "lastMeasurementMessageReceivedEpochMs"));
+            }
+            // Consumer timestamps have millisecond precision. Use the following millisecond as the exclusive bound
+            // so that events from the millisecond containing the final receipt are retained.
+            Instant measurementEnd = Instant.ofEpochMilli(lastConsumerReceiptEpochMs).plusMillis(1);
+            Set<Path> recordings = JfrRecordingProcessor.findOriginalRecordings(runOutput);
+            recordings.removeAll(recordingsBeforeRun);
+            if (recordings.isEmpty()) {
+                throw new IllegalStateException("Profiling completed without producing a JFR recording");
+            }
+            JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd,
+                    retainOriginalRecording, createMeasurementRecording);
+        }
+        return 0;
+    }
+
+    private GenericContainer<?> workloadContainer(PulsarCluster cluster, Path tools, Path configFile,
+                                                   Path coordinationDirectory, String runId,
+                                                   Path outputDirectory, String profileOptions,
+                                                   String command, String... extraArguments) {
+        List<String> arguments = new ArrayList<>();
+        arguments.add(TOOLS_MOUNT + "/bin/pulsar-performance-tools");
+        arguments.add(command);
+        arguments.add("--config");
+        arguments.add(CONFIG_MOUNT);
+        arguments.add("--output");
+        arguments.add("/performance-output");
+        arguments.add("--coordination-directory");
+        arguments.add(COORDINATION_MOUNT);
+        arguments.add("--run-id");
+        arguments.add(runId);
+        arguments.addAll(List.of(extraArguments));
+        String javaOptions = "-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m";
+        if (profileOptions != null) {
+            if (profileOptions.contains("file=")) {
+                throw new IllegalArgumentException("Profiler options must not set file; the launcher owns output");
+            }
+            javaOptions += " -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"
+                    + " -agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start," + profileOptions
+                    + ",file=/performance-output/profile-" + command + "-%t-%p.jfr";
+        }
+        GenericContainer<?> container = new GenericContainer<>(PulsarContainer.DEFAULT_IMAGE_NAME)
+                .withNetwork(cluster.getNetwork())
+                .withFileSystemBind(tools.toString(), TOOLS_MOUNT, BindMode.READ_ONLY)
+                .withFileSystemBind(configFile.toString(), CONFIG_MOUNT, BindMode.READ_ONLY)
+                .withFileSystemBind(coordinationDirectory.toString(), COORDINATION_MOUNT, BindMode.READ_WRITE)
+                .withFileSystemBind(outputDirectory.toString(), "/performance-output", BindMode.READ_WRITE)
+                .withEnv("JAVA_TOOL_OPTIONS", javaOptions)
+                .withCommand(arguments.toArray(String[]::new));
+        if (profileOptions != null) {
+            container.withCreateContainerCmdModifier(cmd -> cmd.getHostConfig()
+                    .withCapAdd(Capability.PERFMON)
+                    .withCapAdd(Capability.SYS_PTRACE)
+                    .withSecurityOpts(List.of("seccomp=unconfined")));
+        }
+        return container;
+    }
+
+    private static String text(JsonNode parent, String field) {
+        JsonNode value = parent.path(field);
+        return value.isTextual() && !value.textValue().isBlank() ? value.textValue() : null;
+    }
+
+    private static boolean booleanValue(JsonNode parent, String field, boolean defaultValue) {
+        JsonNode value = parent.path(field);
+        if (value.isMissingNode() || value.isNull()) {
+            return defaultValue;
+        }
+        if (!value.isBoolean()) {
+            throw new IllegalArgumentException("profiling." + field + " must be a boolean");
+        }
+        return value.booleanValue();
+    }
+
+    private static long requiredLong(JsonNode parent, String field) {
+        JsonNode value = parent.path(field);
+        if (!value.canConvertToLong()) {
+            throw new IllegalArgumentException("Missing numeric performance summary field " + field);
+        }
+        return value.longValue();
+    }
+
+    private static int waitForExit(GenericContainer<?> container, int timeoutSeconds) throws Exception {
+        return container.getDockerClient().waitContainerCmd(container.getContainerId()).start()
+                .awaitStatusCode(timeoutSeconds, TimeUnit.SECONDS);
+    }
+
+    private static void saveContainerLog(GenericContainer<?> container, Path path) {
+        if (container.getContainerId() == null) {
+            return;
+        }
+        try {
+            Files.writeString(path, container.getLogs());
+        } catch (Exception ignored) {
+            // Preserve the workload result when optional diagnostic log collection fails.
+        }
+    }
+
+    private static void verifyStates(Path output, int applications) throws Exception {
+        long[] produced = readState(output.resolve("producer/produced-state.bin"));
+        for (int application = 0; application < applications; application++) {
+            long[] consumed = readState(output.resolve("consumer-" + application + "/consumed-state.bin"));
+            if (!java.util.Arrays.equals(produced, consumed)) {
+                throw new IllegalStateException("Application " + application
+                        + " did not receive every device sequence");
+            }
+        }
+    }
+
+    private static long[] readState(Path path) throws Exception {
+        try (var input = new DataInputStream(new BufferedInputStream(Files.newInputStream(path)))) {
+            int version = input.readInt();
+            if (version != 1) {
+                throw new IllegalArgumentException("Unsupported sequence state version " + version + " in " + path);
+            }
+            long[] result = new long[input.readInt()];
+            for (int i = 0; i < result.length; i++) {
+                result[i] = input.readLong();
+            }
+            return result;
+        }
+    }
+}
