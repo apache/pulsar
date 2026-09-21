@@ -423,8 +423,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .create();
 
-        // Larger than maxMessageSize plus the broker's frame padding, so that no local check can let it through
-        // as a single frame.
+        // Well above maxMessageSize plus the broker's frame padding: the payload cannot be sent as a single
+        // frame, so a local rejection is the only correct outcome.
         byte[] payload = RandomUtils.nextBytes(maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING + 1024);
         try {
             producer.send(payload);
