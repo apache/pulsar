@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.awaitility.Awaitility;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.Position;
@@ -35,6 +34,7 @@ import org.apache.bookkeeper.mledger.proto.BatchedEntryDeletionIndexInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.Stat;
+import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -54,7 +54,7 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
 
     @Test
     public void testIsCursorDataFullyPersistableReflectsBatchDeletedIndexLimit() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedgerConfig config = defaultConfig();
         config.setDeletionAtBatchIndexLevelEnabled(true);
         config.setMaxBatchDeletedIndexToPersist(2);
         config.setThrottleMarkDelete(0);
@@ -74,9 +74,16 @@ public class ManagedCursorBatchAckRecoveryTest extends MockedBookKeeperTestCase 
             Position position = positions.get(i);
             cursor.delete(AckSetStateUtil.createPositionWithAckSet(
                     position.getLedgerId(), position.getEntryId(), ackSets[i - 1]));
+            if (i < 3) {
+                assertThat(cursor.isCursorDataFullyPersistable())
+                        .as("batch deleted index count %s is within limit 2", i)
+                        .isTrue();
+            } else {
+                assertThat(cursor.isCursorDataFullyPersistable())
+                        .as("third batch deleted index record exceeds limit 2")
+                        .isFalse();
+            }
         }
-
-        assertThat(cursor.isCursorDataFullyPersistable()).isFalse();
     }
 
     @Test(dataProvider = "batchRecovery")

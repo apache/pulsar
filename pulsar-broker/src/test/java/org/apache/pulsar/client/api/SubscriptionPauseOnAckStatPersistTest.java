@@ -21,11 +21,14 @@ package org.apache.pulsar.client.api;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
 import org.apache.bookkeeper.mledger.impl.ActiveManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
@@ -36,6 +39,7 @@ import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -56,6 +60,7 @@ import org.testng.annotations.Test;
 public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase {
 
     private static final int MAX_UNACKED_RANGES_TO_PERSIST = 50;
+    private static final int MAX_BATCH_DELETED_INDEX_TO_PERSIST = 2;
 
     @BeforeClass(alwaysRun = true)
     @Override
@@ -72,6 +77,8 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
 
     protected void doInitConf() throws Exception {
         conf.setManagedLedgerMaxUnackedRangesToPersist(MAX_UNACKED_RANGES_TO_PERSIST);
+        conf.setManagedLedgerMaxBatchDeletedIndexToPersist(MAX_BATCH_DELETED_INDEX_TO_PERSIST);
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
     }
 
     private void enablePolicyDispatcherPauseOnAckStatePersistent(String tpName) {
@@ -274,6 +281,69 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
             Assert.assertTrue(MAX_UNACKED_RANGES_TO_PERSIST < admin.topics()
                     .getInternalStats(tpName).cursors.get(subscription).totalNonContiguousDeletedMessagesRange);
         });
+    }
+
+    @Test
+    public void testPauseOnBatchDeletedIndexLimitExceeded() throws Exception {
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subscription = "s1";
+
+        enablePolicyDispatcherPauseOnAckStatePersistent(tpName);
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.topics().createSubscription(tpName, subscription, MessageId.earliest);
+
+        List<MessageIdImpl> messageIds = new ArrayList<>();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(tpName)
+                .enableBatching(false).create();
+        for (int i = 0; i < 4; i++) {
+            messageIds.add((MessageIdImpl) producer.send("m-" + i));
+        }
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+        PersistentSubscription persistentSubscription =
+                (PersistentSubscription) persistentTopic.getSubscription(subscription);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) persistentSubscription.getCursor();
+        cursor.delete(PositionFactory.create(messageIds.get(0).getLedgerId(), messageIds.get(0).getEntryId()));
+        long[][] ackSets = {{2L}, {Long.MIN_VALUE, 1L}, {5L, 0L, 3L}};
+        for (int i = 0; i < ackSets.length; i++) {
+            MessageIdImpl messageId = messageIds.get(i + 1);
+            cursor.delete(AckSetStateUtil.createPositionWithAckSet(
+                    messageId.getLedgerId(), messageId.getEntryId(), ackSets[i]));
+        }
+        Assert.assertFalse(cursor.isCursorDataFullyPersistable());
+
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(tpName)
+                .subscriptionName(subscription).subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(1).enableBatchIndexAcknowledgment(true).isAckReceiptEnabled(true)
+                .subscribe();
+        persistentSubscription.getDispatcher().afterAckMessages(null, null);
+
+        cancelPendingRead(tpName, subscription);
+        triggerNewReadMoreEntries(tpName, subscription);
+
+        final String specifiedMessage = "9876543210";
+        producer.send(specifiedMessage);
+        Message<String> pausedReceive = consumer.receive(2, TimeUnit.SECONDS);
+        Assert.assertNull(pausedReceive);
+
+        for (int i = 0; i < ackSets.length; i++) {
+            MessageIdImpl messageId = messageIds.get(i + 1);
+            cursor.delete(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()));
+        }
+        Assert.assertTrue(cursor.isCursorDataFullyPersistable());
+        persistentSubscription.getDispatcher().afterAckMessages(null, null);
+
+        cancelPendingRead(tpName, subscription);
+        triggerNewReadMoreEntries(tpName, subscription);
+
+        Message<String> resumedReceive = consumer.receive(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(resumedReceive);
+        Assert.assertEquals(resumedReceive.getValue(), specifiedMessage);
+
+        producer.close();
+        consumer.close();
+        admin.topics().delete(tpName, false);
     }
 
     @Test(dataProvider = "multiConsumerSubscriptionTypes")
