@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.topics.TopicCompactionStrategy.TABLE_VIEW_TAG;
 import io.github.merlimat.slog.Logger;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -29,6 +30,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
@@ -46,6 +49,7 @@ import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
+import org.apache.pulsar.common.util.Backoff;
 
 /**
  * Base class for {@link TableView} implementations. It reads messages of the schema type {@code T}
@@ -59,6 +63,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
 
     private static final Logger LOG = Logger.get(AbstractTableViewImpl.class);
     protected final Logger log;
+    private final PulsarClientImpl client;
     private final TableViewConfigurationData conf;
 
     private final ConcurrentMap<String, V> data;
@@ -93,12 +98,20 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
     private final ConcurrentHashMap<String, MessageId> lastReadPositions;
 
     /**
+     * Backoff for retrying a failed tail read. A retry is scheduled on the client's scheduled executor
+     * instead of sleeping on the thread that completed the failed read, which is a shared client
+     * internal thread (or the caller's own thread when the read fails immediately).
+     */
+    private final Backoff tailReadBackoff;
+
+    /**
      * @param poolMessages whether the reader should use pooled messages. When enabled, the handled messages
      *                     are released after they have been processed, so subclasses must not let the
      *                     message instance escape from {@link #getValue(Message)}.
      */
     AbstractTableViewImpl(PulsarClientImpl client, Schema<T> schema, TableViewConfigurationData conf,
                           boolean poolMessages) {
+        this.client = client;
         this.conf = conf;
         this.log = LOG.with().attr("topic", conf.getTopicName()).build();
         this.poolMessages = poolMessages;
@@ -111,6 +124,10 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                 TopicCompactionStrategy.load(TABLE_VIEW_TAG, conf.getTopicCompactionStrategyClassName());
         this.pendingRefreshRequests = new ConcurrentHashMap<>();
         this.lastReadPositions = new ConcurrentHashMap<>();
+        this.tailReadBackoff = Backoff.builder()
+                .initialDelay(Duration.ofNanos(client.getConfiguration().getInitialBackoffIntervalNanos()))
+                .maxBackoff(Duration.ofNanos(client.getConfiguration().getMaxBackoffIntervalNanos()))
+                .build();
         ReaderBuilder<T> readerBuilder = client.newReader(schema)
                 .topic(conf.getTopicName())
                 .startMessageId(MessageId.earliest)
@@ -476,6 +493,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
     private void readTailMessages(Reader<T> reader) {
         reader.readNextAsync()
                 .thenAccept(msg -> {
+                    tailReadBackoff.reset();
                     handleMessage(msg);
                     readTailMessages(reader);
                 }).exceptionally(ex -> {
@@ -488,18 +506,26 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                             future.completeExceptionally(ex);
                         });
                     } else {
-                        // Retrying on the other exceptions such as NotConnectedException
-                        try {
-                            Thread.sleep(50);
-                        } catch (InterruptedException e) {
-                            Thread.currentThread().interrupt();
-                        }
-                        log.warn().attr("reader", reader.getTopic())
-                                .exception(ex)
-                                .log("Reader was interrupted while reading tail messages. " + "Retrying..");
-                        readTailMessages(reader);
+                        // Retry the other exceptions such as NotConnectedException after a backoff delay.
+                        scheduleTailReadRetry(reader, ex);
                     }
                     return null;
                 });
+    }
+
+    private void scheduleTailReadRetry(Reader<T> reader, Throwable ex) {
+        long delayMillis = tailReadBackoff.next().toMillis();
+        log.warn().attr("reader", reader.getTopic())
+                .attr("retryDelayMs", delayMillis)
+                .exception(ex)
+                .log("Reader was interrupted while reading tail messages. Retrying..");
+        try {
+            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor())
+                    .schedule(() -> readTailMessages(reader), delayMillis, TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException e) {
+            // The client is shutting down; the reader will be closed with it.
+            log.info().attr("reader", reader.getTopic())
+                    .log("Client is closed, giving up retrying tail messages.");
+        }
     }
 }

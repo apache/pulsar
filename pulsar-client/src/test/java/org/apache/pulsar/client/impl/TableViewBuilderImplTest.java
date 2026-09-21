@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.testng.annotations.AfterClass;
@@ -63,6 +64,7 @@ public class TableViewBuilderImplTest {
         client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.getCnxPool()).thenReturn(connectionPool);
+        when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
         when(client.newReader(any(Schema.class)))
             .thenReturn(new ReaderBuilderImpl(client, Schema.BYTES));
         when(client.createReaderAsync(any(ReaderConfigurationData.class), any(Schema.class)))
