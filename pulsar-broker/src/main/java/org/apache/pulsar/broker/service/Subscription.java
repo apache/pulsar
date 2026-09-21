@@ -48,6 +48,10 @@ public interface Subscription extends MessageExpirer {
 
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
+    /** Called on the connection's event loop; implementations must not block while resuming dispatch. */
+    default void notifyChannelWritable(Consumer consumer) {
+    }
+
     /**
      * @deprecated Use {@link #acknowledgeMessageAsync(List, AckType, Map)} instead.
      */

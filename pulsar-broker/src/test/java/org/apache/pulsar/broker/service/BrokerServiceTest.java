@@ -2249,6 +2249,25 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testManagedLedgerReadEntriesCallbackInlineConfiguration() throws Exception {
+        var serviceConfiguration = pulsar.getConfiguration();
+        boolean originalInline = serviceConfiguration.isManagedLedgerReadEntriesCallbackInline();
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/read-callback-" + UUID.randomUUID());
+        try {
+            for (boolean inline : new boolean[]{true, false}) {
+                serviceConfiguration.setManagedLedgerReadEntriesCallbackInline(inline);
+                ManagedLedgerConfig ledgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName)
+                        .get(10, TimeUnit.SECONDS);
+                assertThat(ledgerConfig.isReadEntriesCallbackInline())
+                        .as("broker read callback policy must reach the configuration used to open the ledger")
+                        .isEqualTo(inline);
+            }
+        } finally {
+            serviceConfiguration.setManagedLedgerReadEntriesCallbackInline(originalInline);
+        }
+    }
+
+    @Test
     public void testTlsWithAuthParams() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
         final String subName = "newSub";
@@ -2257,37 +2276,36 @@ public class BrokerServiceTest extends BrokerTestBase {
         Set<String> providers = new HashSet<>();
         providers.add("org.apache.pulsar.broker.authentication.AuthenticationProviderTls");
 
-        conf.setAuthenticationEnabled(true);
-        conf.setAuthenticationProviders(providers);
-        conf.setBrokerServicePortTls(Optional.of(0));
-        conf.setWebServicePortTls(Optional.of(0));
-        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
-        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
-        conf.setTlsAllowInsecureConnection(false);
-        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
-        conf.setNumExecutorThreadPoolSize(5);
-        restartBroker();
-
-        String authParam = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
-                getTlsFileForClient("admin.key-pk8"));
-        String authClassName = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
-        ClientConfigurationData conf = new ClientConfigurationData();
-        conf.setServiceUrl(brokerUrlTls.toString());
-        conf.setAuthParams(authParam);
-        conf.setAuthPluginClassName(authClassName);
-        conf.setTlsAllowInsecureConnection(true);
-
-        PulsarClient pulsarClient = null;
         try {
-            pulsarClient = (new ClientBuilderImpl(conf)).build();
+            conf.setAuthenticationEnabled(true);
+            conf.setAuthenticationProviders(providers);
+            conf.setBrokerServicePortTls(Optional.of(0));
+            conf.setWebServicePortTls(Optional.of(0));
+            conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+            conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
+            conf.setTlsAllowInsecureConnection(false);
+            conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+            conf.setNumExecutorThreadPoolSize(5);
+            restartBroker();
 
-            @Cleanup
-            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                    .subscribe();
-        } catch (Exception e) {
-            fail("should not fail");
+            String authParam = String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
+                    getTlsFileForClient("admin.key-pk8"));
+            String authClassName = "org.apache.pulsar.client.impl.auth.AuthenticationTls";
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl(brokerUrlTls.toString());
+            conf.setAuthParams(authParam);
+            conf.setAuthPluginClassName(authClassName);
+            conf.setTlsAllowInsecureConnection(true);
+
+            try (PulsarClient pulsarClient = new ClientBuilderImpl(conf).build()) {
+                @Cleanup
+                Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                        .subscribe();
+            } catch (Exception e) {
+                fail("should not fail", e);
+            }
         } finally {
-            pulsarClient.close();
+            resetState();
         }
     }
 

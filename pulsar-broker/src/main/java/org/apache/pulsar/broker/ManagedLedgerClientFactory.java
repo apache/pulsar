@@ -79,6 +79,10 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
         managedLedgerFactoryConfig.setCacheEvictionIntervalMs(conf.getManagedLedgerCacheEvictionIntervalMs());
         managedLedgerFactoryConfig.setCacheEvictionTimeThresholdMillis(
                 conf.getManagedLedgerCacheEvictionTimeThresholdMillis());
+        managedLedgerFactoryConfig.setCacheEvictionExtendTTLOfRecentlyAccessed(
+                conf.isManagedLedgerCacheEvictionExtendTTLOfRecentlyAccessed());
+        managedLedgerFactoryConfig.setCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(
+                conf.getManagedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes());
         Long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis =
                 conf.getManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis();
         if (continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis != null) {

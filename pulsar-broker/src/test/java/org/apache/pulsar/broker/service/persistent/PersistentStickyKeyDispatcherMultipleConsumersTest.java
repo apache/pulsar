@@ -30,6 +30,7 @@ import static org.mockito.Mockito.anySet;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,12 +45,16 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.ImmediateEventExecutor;
+import io.netty.util.concurrent.Promise;
 import io.netty.util.concurrent.SucceededFuture;
 import java.lang.reflect.Field;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -620,6 +625,73 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         }
     }
 
+    @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)
+    public void testReplaySkipsUnwritableConsumerWithPermits(boolean allowOutOfOrderDelivery) {
+        persistentDispatcher.close();
+        persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                topicMock, cursorMock, subscriptionMock, configMock,
+                new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT)
+                        .setAllowOutOfOrderDelivery(allowOutOfOrderDelivery));
+        persistentDispatcher.addConsumer(consumerMock).join();
+        Consumer slowConsumer = createMockConsumer();
+        doReturn("consumer2").when(slowConsumer).consumerName();
+        doReturn(1000).when(slowConsumer).getAvailablePermits();
+        doReturn(false).when(slowConsumer).isWritable();
+        persistentDispatcher.addConsumer(slowConsumer).join();
+        String fastKey = generateKeyForConsumer(persistentDispatcher.getSelector(), consumerMock);
+        String slowKey = generateKeyForConsumer(persistentDispatcher.getSelector(), slowConsumer);
+        persistentDispatcher.addEntryToReplay(createEntry(1, 1, "slow", 1, slowKey));
+        persistentDispatcher.addEntryToReplay(createEntry(1, 2, "fast", 2, fastKey));
+
+        assertThat(persistentDispatcher.getMessagesToReplayNow(1, Long.MAX_VALUE))
+                .containsExactly(PositionFactory.create(1, 2));
+        doReturn(true).when(slowConsumer).isWritable();
+        assertThat(persistentDispatcher.getMessagesToReplayNow(1, Long.MAX_VALUE))
+                .containsExactly(PositionFactory.create(1, 1));
+    }
+
+    @Test(timeOut = 10000)
+    public void testSlowWriteDoesNotBlockOtherConsumers() throws Exception {
+        succeededFuture = ImmediateEventExecutor.INSTANCE.newSucceededFuture(null);
+        EventLoopGroup brokerExecutor = brokerMock.executor();
+        ArrayDeque<Runnable> readyTasks = new ArrayDeque<>();
+        doAnswer(inv -> {
+            readyTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).execute(any(Runnable.class));
+        Consumer slowConsumer = createMockConsumer();
+        doReturn("slow-consumer").when(slowConsumer).consumerName();
+        doReturn(1000).when(slowConsumer).getAvailablePermits();
+        doReturn(true).when(slowConsumer).isWritable();
+        Promise<Void> slowWrite = ImmediateEventExecutor.INSTANCE.newPromise();
+        doAnswer(inv -> {
+            List<Entry> entries = inv.getArgument(0);
+            entries.stream().filter(Objects::nonNull).forEach(Entry::release);
+            // The selected batch fills this socket, but its write promise remains incomplete.
+            doReturn(false).when(slowConsumer).isWritable();
+            return slowWrite;
+        }).when(slowConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+        persistentDispatcher.addConsumer(consumerMock).join();
+        persistentDispatcher.addConsumer(slowConsumer).join();
+        persistentDispatcher.totalAvailablePermits = 2000;
+        String fastKey = generateKeyForConsumer(persistentDispatcher.getSelector(), consumerMock);
+        String slowKey = generateKeyForConsumer(persistentDispatcher.getSelector(), slowConsumer);
+        try {
+            persistentDispatcher.readEntriesComplete(new ArrayList<>(List.of(
+                    createEntry(1, 1, "fast", 1, fastKey), createEntry(1, 2, "slow", 2, slowKey))),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            verify(consumerMock).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            verify(slowConsumer).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            assertThat(slowWrite.isDone()).isFalse();
+            // Another bounded read can serve the writable consumer without waiting for the slow socket.
+            assertThat(readyTasks).hasSize(1);
+            readyTasks.remove().run();
+            verify(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            slowWrite.trySuccess(null);
+        }
+    }
+
     @Test(timeOut = 10000)
     public void testOutOfOrderReplayFilterIncludesPositionWithoutStickyKeyHash() {
         persistentDispatcher.close();
@@ -755,6 +827,154 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             }
         }
         return null;
+    }
+
+    @DataProvider(name = "writableSubscriptionTypes")
+    public Object[][] writableSubscriptionTypes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    private PersistentDispatcherMultipleConsumers createWritableTestDispatcher(boolean keyShared) {
+        if (keyShared) {
+            return new PersistentStickyKeyDispatcherMultipleConsumers(
+                    topicMock, cursorMock, subscriptionMock, configMock,
+                    new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
+        }
+        return new PersistentDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock);
+    }
+
+    @DataProvider(name = "writableRetryTypes")
+    public Object[][] writableRetryTypes() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "writableRetryTypes", timeOut = 30000)
+    public void testWritableResumesBeforeScheduledRetry(boolean keyShared, boolean exponential) throws Exception {
+        persistentDispatcher.close();
+        doReturn(10).when(configMock).getDispatcherRetryBackoffInitialTimeInMs();
+        doReturn(50).when(configMock).getDispatcherRetryBackoffMaxTimeInMs();
+        EventLoopGroup brokerExecutor = brokerMock.executor();
+        ArrayDeque<Runnable> readyTasks = new ArrayDeque<>();
+        List<Long> retryDelays = new ArrayList<>();
+        List<Runnable> delayedTasks = new ArrayList<>();
+        doAnswer(inv -> {
+            readyTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).execute(any(Runnable.class));
+        doAnswer(inv -> {
+            retryDelays.add(inv.getArgument(1, Long.class));
+            delayedTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        PersistentDispatcherMultipleConsumers dispatcher = createWritableTestDispatcher(keyShared);
+        try {
+            dispatcher.addConsumer(consumerMock).join();
+            dispatcher.totalAvailablePermits = 1000;
+            doReturn(false).when(consumerMock).isWritable();
+            dispatcher.readMoreEntries();
+            verify(cursorMock, never()).asyncReadEntriesWithSkipOrWait(
+                    anyInt(), anyLong(), any(), any(), any(), any());
+
+            // Leave the existing retry pending. Writability must not wait for either retry timer.
+            if (exponential) {
+                dispatcher.reScheduleReadWithBackoff();
+                assertThat(retryDelays).hasSize(1);
+                assertThat(retryDelays.get(0)).isPositive();
+            } else {
+                dispatcher.reScheduleRead();
+                assertThat(retryDelays).containsExactly((long) PersistentTopic.MESSAGE_RATE_BACKOFF_MS);
+            }
+            doReturn(true).when(consumerMock).isWritable();
+            dispatcher.notifyChannelWritable(consumerMock);
+            dispatcher.notifyChannelWritable(consumerMock);
+            assertThat(readyTasks).hasSize(1);
+            verify(cursorMock, never()).asyncReadEntriesWithSkipOrWait(
+                    anyInt(), anyLong(), any(), any(), any(), any());
+            readyTasks.remove().run();
+            verify(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+            // The old timer can still fire, but must not start a second read while one is pending.
+            assertThat(delayedTasks).hasSize(1);
+            delayedTasks.get(0).run();
+            verify(cursorMock, times(1)).asyncReadEntriesWithSkipOrWait(
+                    anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            dispatcher.close();
+        }
+    }
+
+    @Test(dataProvider = "writableSubscriptionTypes", timeOut = 10000)
+    public void testWritableNotificationRespectsDispatchRateLimit(boolean keyShared) throws Exception {
+        persistentDispatcher.close();
+        EventLoopGroup brokerExecutor = brokerMock.executor();
+        ArrayDeque<Runnable> readyTasks = new ArrayDeque<>();
+        doAnswer(inv -> {
+            readyTasks.add(inv.getArgument(0, Runnable.class));
+            return null;
+        }).when(brokerExecutor).execute(any(Runnable.class));
+        doReturn(5 * 1024 * 1024).when(configMock).getDispatcherMaxReadSizeBytes();
+        DispatchRateLimiter limiter = mock(DispatchRateLimiter.class);
+        doReturn(0L).when(limiter).getAvailableDispatchRateLimitOnMsg();
+        doReturn(-1L).when(limiter).getAvailableDispatchRateLimitOnByte();
+        doReturn(Optional.of(limiter)).when(topicMock).getDispatchRateLimiter();
+        PersistentDispatcherMultipleConsumers dispatcher = createWritableTestDispatcher(keyShared);
+        try {
+            dispatcher.addConsumer(consumerMock).join();
+            dispatcher.totalAvailablePermits = 1000;
+            dispatcher.notifyChannelWritable(consumerMock);
+            assertThat(readyTasks).hasSize(1);
+            readyTasks.remove().run();
+            verify(cursorMock, never()).asyncReadEntriesWithSkipOrWait(
+                    anyInt(), anyLong(), any(), any(), any(), any());
+            verify(limiter).getAvailableDispatchRateLimitOnMsg();
+
+            // A later event can resume after quota replenishes, without running the pending timer.
+            doReturn(100L).when(limiter).getAvailableDispatchRateLimitOnMsg();
+            dispatcher.notifyChannelWritable(consumerMock);
+            assertThat(readyTasks).hasSize(1);
+            readyTasks.remove().run();
+            verify(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            dispatcher.close();
+        }
+    }
+
+    @Test(timeOut = 10000)
+    public void testWritabilityLostDuringSharedSelectionDoesNotRewind() throws Exception {
+        persistentDispatcher.close();
+        PersistentDispatcherMultipleConsumers dispatcher = createWritableTestDispatcher(false);
+        try {
+            dispatcher.addConsumer(consumerMock).join();
+            dispatcher.totalAvailablePermits = 1000;
+            // The availability probe succeeds, but selecting the next consumer sees the changed channel.
+            doReturn(true, false).when(consumerMock).isWritable();
+            dispatcher.readEntriesComplete(new ArrayList<>(List.of(createEntry(1, 1, "message1", 1))),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            assertThat(dispatcher.redeliveryMessages.size()).isEqualTo(1);
+            verify(cursorMock, times(1)).rewind(); // only the initial addConsumer rewind
+            verify(consumerMock, never()).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+        } finally {
+            dispatcher.close();
+        }
+    }
+
+    @Test(dataProvider = "writableSubscriptionTypes", timeOut = 30000)
+    public void testUnwritableReadCompletionWaitsForNotification(boolean keyShared) throws Exception {
+        persistentDispatcher.close();
+        PersistentDispatcherMultipleConsumers dispatcher = createWritableTestDispatcher(keyShared);
+        try {
+            dispatcher.addConsumer(consumerMock).join();
+            dispatcher.totalAvailablePermits = 1000;
+            doReturn(false).when(consumerMock).isWritable();
+            dispatcher.readEntriesComplete(new ArrayList<>(List.of(createEntry(1, 1, "message1", 1))),
+                    PersistentDispatcherMultipleConsumers.ReadType.Normal);
+            verify(consumerMock, never()).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
+            assertThat(dispatcher.redeliveryMessages.size()).isEqualTo(1);
+            verify(brokerMock.executor(), never()).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            verify(cursorMock, never()).asyncReadEntriesWithSkipOrWait(
+                    anyInt(), anyLong(), any(), any(), any(), any());
+        } finally {
+            dispatcher.close();
+        }
     }
 
     @DataProvider(name = "testBackoffDelayWhenNoMessagesDispatched")

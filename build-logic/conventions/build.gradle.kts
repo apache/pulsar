@@ -22,6 +22,7 @@ plugins {
 }
 
 dependencies {
+    testImplementation(libs.testng)
     // The Shadow plugin brings its own log4j-core onto the build classpath; align it with the
     // log4j version the rest of the build uses (`log4j2` in the version catalog).
     implementation(platform(libs.log4j.bom))
@@ -34,4 +35,8 @@ dependencies {
     implementation(libs.plugins.nar.get().let {
         "${it.pluginId}:${it.pluginId}.gradle.plugin:${it.version}"
     })
+}
+
+tasks.test {
+    useTestNG()
 }

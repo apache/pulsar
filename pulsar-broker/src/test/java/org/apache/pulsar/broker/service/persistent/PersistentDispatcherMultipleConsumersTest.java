@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.carrotsearch.hppc.ObjectSet;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -33,29 +34,46 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
 @Test(groups = "broker-api")
 public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseTest {
+    // Concurrent mock calls only run on executors that the test shuts down and joins.
+    private final List<Object> ownedMocks = new ArrayList<>();
+
+    private <T> T ownMock(Class<T> type) {
+        T mock = Mockito.mock(type);
+        ownedMocks.add(mock);
+        return mock;
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void releaseOwnedMocks() {
+        try {
+            Mockito.reset(ownedMocks.toArray());
+        } finally {
+            ownedMocks.forEach(mock -> Mockito.framework().clearInlineMock(mock));
+            ownedMocks.clear();
+        }
+    }
 
     @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
     public void testReadMoreEntriesConflatesConcurrentRequests(boolean classic) throws Exception {
-        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        ManagedCursor cursor = ownMock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
         CountDownLatch[] passStarted = {new CountDownLatch(1), new CountDownLatch(1)};
         CountDownLatch[] releasePass = {new CountDownLatch(1), new CountDownLatch(1)};
@@ -99,7 +117,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
 
     @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
     public void testReadMoreEntriesConflatesReentrantRequests(boolean classic) throws Exception {
-        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        ManagedCursor cursor = ownMock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
         AtomicInteger passes = new AtomicInteger();
         AtomicInteger depth = new AtomicInteger();
@@ -122,7 +140,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
 
     @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
     public void testReadMoreEntriesRecoversAfterFailure(boolean classic) throws Exception {
-        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        ManagedCursor cursor = ownMock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
         IllegalStateException failure = new IllegalStateException("read failed");
         Mockito.doThrow(failure).when(cursor).isClosed();
@@ -136,7 +154,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
 
     @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
     public void testReadMoreEntriesRunsReentrantRequestsAfterFailure(boolean classic) throws Exception {
-        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        ManagedCursor cursor = ownMock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
         IllegalStateException failure = new IllegalStateException("read failed");
         IllegalStateException followUpFailure = new IllegalStateException("follow-up read failed");
@@ -160,7 +178,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
 
     @Test(timeOut = 30_000, dataProvider = "readConflationDispatcherTypes")
     public void testReadMoreEntriesRunsConcurrentRequestAfterFailure(boolean classic) throws Exception {
-        ManagedCursor cursor = Mockito.mock(ManagedCursor.class);
+        ManagedCursor cursor = ownMock(ManagedCursor.class);
         AbstractPersistentDispatcherMultipleConsumers dispatcher = createReadConflationDispatcher(cursor, classic);
         IllegalStateException failure = new IllegalStateException("read failed");
         CountDownLatch passStarted = new CountDownLatch(1);
@@ -205,7 +223,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         admin.topics().createSubscription(topicName, "s1", MessageId.earliest);
         PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
         Mockito.doReturn("s1").when(cursor).getName();
-        Subscription subscription = Mockito.mock(PersistentSubscription.class);
+        Subscription subscription = ownMock(PersistentSubscription.class);
         Mockito.doReturn(topic).when(subscription).getTopic();
         return classic ? new PersistentDispatcherMultipleConsumersClassic(topic, cursor, subscription)
                 : new PersistentDispatcherMultipleConsumers(topic, cursor, subscription);
@@ -218,6 +236,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
 
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName).subscriptionName(subscription)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -245,6 +264,7 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
 
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName).subscriptionName(subscription)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -262,62 +282,26 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
 
     @Test
     public void testSkipReadEntriesFromCloseCursor() throws Exception {
-        final String topicName = newTopicName();
-        final String subscription = "s1";
+        String topicName = newTopicName();
+        String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topicName);
-
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
-        for (int i = 0; i < 10; i++) {
-            producer.send("message-" + i);
-        }
-        producer.close();
-
-        // Get the dispatcher of the topic.
-        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
-
-        ManagedCursor cursor = Mockito.mock(ManagedCursorImpl.class);
-        Mockito.doReturn(subscription).when(cursor).getName();
-        Subscription sub = Mockito.mock(PersistentSubscription.class);
-        Mockito.doReturn(topic).when(sub).getTopic();
-        // Mock the dispatcher.
+        admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+        PersistentSubscription sub = topic.getSubscription(subscription);
+        AtomicInteger scheduledReads = new AtomicInteger();
         PersistentDispatcherMultipleConsumers dispatcher =
-                Mockito.spy(new PersistentDispatcherMultipleConsumers(topic, cursor, sub));
-        // Return 10 permits to make the dispatcher can read more entries.
-        Mockito.doReturn(10).when(dispatcher).getFirstAvailableConsumerPermits();
+                new PersistentDispatcherMultipleConsumers(topic, sub.getCursor(), sub) {
+                    @Override
+                    void scheduleReadEntriesWithDelay(Exception exception, ReadType readType, long delay) {
+                        scheduledReads.incrementAndGet();
+                        super.scheduleReadEntriesWithDelay(exception, readType, delay);
+                    }
+                };
 
-        // Make the count + 1 when call the scheduleReadEntriesWithDelay(...).
-        AtomicInteger callScheduleReadEntriesWithDelayCnt = new AtomicInteger(0);
-        Mockito.doAnswer(inv -> {
-            callScheduleReadEntriesWithDelayCnt.getAndIncrement();
-            return inv.callRealMethod();
-        }).when(dispatcher).scheduleReadEntriesWithDelay(Mockito.any(), Mockito.any(), Mockito.anyLong());
+        dispatcher.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("cursor closed"),
+                null);
 
-        // Make the count + 1 when call the readEntriesFailed(...).
-        AtomicInteger callReadEntriesFailed = new AtomicInteger(0);
-        Mockito.doAnswer(inv -> {
-            callReadEntriesFailed.getAndIncrement();
-            return inv.callRealMethod();
-        }).when(dispatcher).readEntriesFailed(Mockito.any(), Mockito.any());
-
-        Mockito.doReturn(false).when(cursor).isClosed();
-
-        // Mock the readEntriesOrWait(...) to simulate the cursor is closed.
-        Mockito.doAnswer(inv -> {
-            AbstractPersistentDispatcherMultipleConsumers dispatcher1 = inv.getArgument(2);
-            dispatcher1.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("cursor closed"),
-                    null);
-            return null;
-        }).when(cursor).asyncReadEntriesWithSkipOrWait(Mockito.anyInt(), Mockito.anyLong(), Mockito.eq(dispatcher),
-                Mockito.any(), Mockito.any(), Mockito.any());
-
-        dispatcher.readMoreEntries();
-
-        // Verify: the readEntriesFailed should be called once and
-        // the scheduleReadEntriesWithDelay should not be called.
-        Assert.assertTrue(callReadEntriesFailed.get() == 1 && callScheduleReadEntriesWithDelayCnt.get() == 0);
-
-        // Verify: the topic can be deleted successfully.
+        Assert.assertEquals(scheduledReads.get(), 0, "Closed cursor failures must not schedule another read");
         admin.topics().delete(topicName, false);
     }
 
@@ -334,17 +318,15 @@ public class PersistentDispatcherMultipleConsumersTest extends SharedPulsarBaseT
         final String subscription = "s1";
 
         // Needed to create the topic
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName).subscriptionName(subscription)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
         PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
 
-        ManagedCursor cursor = Mockito.mock(ManagedCursorImpl.class);
-        Mockito.doReturn(subscription).when(cursor).getName();
-
-        Subscription sub = Mockito.mock(PersistentSubscription.class);
-        Mockito.doReturn(topic).when(sub).getTopic();
+        PersistentSubscription sub = topic.getSubscription(subscription);
+        ManagedCursor cursor = sub.getCursor();
 
         PersistentDispatcherMultipleConsumers dispatcher =
             new PersistentDispatcherMultipleConsumers(topic, cursor, sub);

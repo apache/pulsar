@@ -205,6 +205,9 @@ val javaToolchains = extensions.getByType<JavaToolchainService>()
 // Effective Java major version used to run tests: the -PtestJavaVersion override when set,
 // otherwise the JVM running Gradle.
 val testJavaMajorVersion = testJavaVersion.orNull ?: JavaVersion.current().majorVersion.toInt()
+val asyncProfilerEnabled = providers.gradleProperty("testAsyncProfiler")
+    .map { it.isBlank() || it.toBoolean() }
+    .getOrElse(false)
 
 tasks.withType<Test>().configureEach {
     testJavaVersion.orNull?.let { version ->
@@ -213,12 +216,13 @@ tasks.withType<Test>().configureEach {
         })
     }
     useTestNG {
+        // Group classes and factory instances so their fixtures are released promptly.
+        isPreserveOrder = true
+        isGroupByInstances = true
         listeners.addAll(listOf(
             "org.apache.pulsar.tests.PulsarTestListener",
             "org.apache.pulsar.tests.AnnotationListener",
             "org.apache.pulsar.tests.FailFastNotifier",
-            "org.apache.pulsar.tests.MockitoCleanupListener",
-            "org.apache.pulsar.tests.FastThreadLocalCleanupListener",
             "org.apache.pulsar.tests.ThreadLeakDetectorListener",
             "org.apache.pulsar.tests.SingletonCleanerListener",
         ))
@@ -245,6 +249,27 @@ tasks.withType<Test>().configureEach {
     val defaultTestRetryCount = if (ideaActive) "0" else "1"
     systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse(defaultTestRetryCount))
     systemProperty("testFailFast", failFastValue.toString())
+    // Restore the test leak detector defaults from the Maven build. CI's report_netty_leaks
+    // step handles report vs. fail_on_leak after collecting the dumps from all test JVMs.
+    val nettyLeakDetectionEnabled =
+        providers.environmentVariable("NETTY_LEAK_DETECTION").getOrElse("report") != "off" && !asyncProfilerEnabled
+    if (nettyLeakDetectionEnabled) {
+        systemProperty("io.netty.customResourceLeakDetector", "org.apache.pulsar.tests.ExtendedNettyLeakDetector")
+        systemProperty("org.apache.pulsar.tests.ExtendedNettyLeakDetector.exitJvmOnLeak",
+            providers.gradleProperty("testExitJvmOnLeak").getOrElse("false"))
+        systemProperty("org.apache.pulsar.tests.ExtendedNettyLeakDetector.exitJvmDelayMillis",
+            providers.gradleProperty("testExitJvmOnLeakDelayMillis").getOrElse("1000"))
+        systemProperty("io.netty.leakDetection.level",
+            providers.gradleProperty("testLeakDetectionLevel").getOrElse("paranoid"))
+        // Track every allocation with less overhead by recording only acquire/release operations.
+        systemProperty("io.netty.leakDetection.targetRecords", "16")
+        systemProperty("io.netty.leakDetection.acquireAndReleaseOnly", "true")
+        systemProperty("io.netty.leakDetection.samplingInterval", "32")
+        // Process weak references promptly when the test listener triggers leak detection.
+        jvmArgs("-XX:+UnlockExperimentalVMOptions", "-XX:ReferencesPerThread=0", "-XX:+ParallelRefProcEnabled")
+    } else {
+        systemProperty("io.netty.leakDetection.level", "disabled")
+    }
     jvmArgs(
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=${providers.gradleProperty("testHeapDumpPath").getOrElse("/tmp")}",
@@ -261,7 +286,7 @@ tasks.withType<Test>().configureEach {
         "-XX:+EnableDynamicAgentLoading",
         "-Xshare:off",
         "-Dio.netty.tryReflectionSetAccessible=true",
-        "-Dpulsar.allocator.pooled=true",
+        "-Dpulsar.allocator.type=pooled",
         "-Dpulsar.allocator.exit_on_oom=false",
         "-Dpulsar.allocator.out_of_memory_policy=FallbackToHeap",
         "-Dpulsar.test.preventExit=true",
@@ -294,9 +319,6 @@ tasks.withType<Test>().configureEach {
 // the names of the `testAsyncProfiler` Maven profile that the 4.x branches use. This is a second
 // `configureEach` block so that it overrides the settings above, and so that the environment
 // variable and JDK lookups it does stay out of the configuration cache inputs when profiling is off.
-val asyncProfilerEnabled = providers.gradleProperty("testAsyncProfiler")
-    .map { it.isBlank() || it.toBoolean() }
-    .getOrElse(false)
 if (asyncProfilerEnabled) {
     // Locate the agent library: an explicit -Ptest.asyncprofiler.libpath wins, then the
     // LIBASYNCPROFILER_PATH environment variable (the variable microbench/README.md already uses for
