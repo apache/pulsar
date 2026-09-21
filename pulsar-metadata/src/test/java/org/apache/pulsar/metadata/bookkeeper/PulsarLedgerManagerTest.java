@@ -20,11 +20,22 @@ package org.apache.pulsar.metadata.bookkeeper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.LedgerMetadataBuilder;
@@ -32,11 +43,62 @@ import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class PulsarLedgerManagerTest extends BaseMetadataStoreTest {
+
+    @DataProvider(name = "createConflicts")
+    public Object[][] createConflicts() {
+        List<Object[]> cases = new ArrayList<>();
+        for (Throwable cause : List.of(new MetadataStoreException.BadVersionException("Ledger exists"),
+                new MetadataStoreException.AlreadyExistsException("Ledger exists"))) {
+            cases.add(new Object[]{cause, cause});
+            cases.add(new Object[]{new CompletionException(cause), cause});
+            cases.add(new Object[]{new ExecutionException(cause), cause});
+            cases.add(new Object[]{new CompletionException(new ExecutionException(cause)), cause});
+        }
+        return cases.toArray(Object[][]::new);
+    }
+
+    @Test(dataProvider = "createConflicts", timeOut = 30000)
+    public void testCreationConflictPreservesCause(Throwable failure, Throwable cause) throws Exception {
+        MetadataStore store = mock(MetadataStore.class);
+        doReturn(CompletableFuture.failedFuture(failure)).when(store)
+                .put(anyString(), any(byte[].class), eq(Optional.of(-1L)));
+        try (var manager = new PulsarLedgerManager(store, "/ledgers")) {
+            assertThatThrownBy(() -> manager.createLedgerMetadata(123L, metadata(123L, "value"))
+                    .get(10, TimeUnit.SECONDS))
+                    .cause().isInstanceOf(BKException.BKLedgerExistException.class)
+                    .satisfies(error -> assertThat(error.getCause()).isSameAs(cause));
+        }
+    }
+
+    @DataProvider(name = "nonConflictFailures")
+    public Object[][] nonConflictFailures() {
+        List<Object[]> cases = new ArrayList<>();
+        for (Throwable cause : List.of(new MetadataStoreException("Store unavailable"),
+                new TimeoutException("Store request timed out"))) {
+            cases.add(new Object[]{cause, cause});
+            cases.add(new Object[]{new CompletionException(new ExecutionException(cause)), cause});
+        }
+        return cases.toArray(Object[][]::new);
+    }
+
+    @Test(dataProvider = "nonConflictFailures", timeOut = 30000)
+    public void testOtherCreationFailuresArePreserved(Throwable failure, Throwable cause) throws Exception {
+        MetadataStore store = mock(MetadataStore.class);
+        doReturn(CompletableFuture.failedFuture(failure)).when(store)
+                .put(anyString(), any(byte[].class), eq(Optional.of(-1L)));
+        try (var manager = new PulsarLedgerManager(store, "/ledgers")) {
+            assertThatThrownBy(() -> manager.createLedgerMetadata(123L, metadata(123L, "value"))
+                    .get(10, TimeUnit.SECONDS)).cause().isSameAs(cause);
+        }
+    }
 
     @Test(dataProvider = "impl", timeOut = 30000)
     public void testDuplicateCreationPreservesExistingMetadata(String provider, Supplier<String> urlSupplier)

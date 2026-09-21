@@ -69,6 +69,8 @@ public class EndToEndTest extends BaseMetadataStoreTest {
             }).when(collidingManager).createLedgerMetadata(anyLong(), any(LedgerMetadata.class));
             doReturn(collidingManager).when(client).getLedgerManager();
 
+            byte[] entry = "entry".getBytes(StandardCharsets.UTF_8);
+            long ledgerId;
             try (var handle = client.newCreateLedgerOp()
                     .withEnsembleSize(1)
                     .withWriteQuorumSize(1)
@@ -76,11 +78,19 @@ public class EndToEndTest extends BaseMetadataStoreTest {
                     .withDigestType(DigestType.CRC32C)
                     .withPassword(new byte[0])
                     .execute().get(10, TimeUnit.SECONDS)) {
+                ledgerId = handle.getId();
                 assertThat(handle.getId()).isNotEqualTo(collidingLedgerId.get());
-                assertThat(handle.append("entry".getBytes(StandardCharsets.UTF_8))).isZero();
+                assertThat(handle.append(entry)).isZero();
                 verify(collidingManager, times(2)).createLedgerMetadata(anyLong(), any(LedgerMetadata.class));
                 assertThat(ledgerManager.readLedgerMetadata(collidingLedgerId.get()).get(10, TimeUnit.SECONDS)
                         .getValue().getLedgerId()).isEqualTo(collidingLedgerId.get());
+            }
+            try (var readHandle = client.newOpenLedgerOp()
+                    .withLedgerId(ledgerId)
+                    .withPassword(new byte[0])
+                    .execute().get(10, TimeUnit.SECONDS);
+                 var entries = readHandle.read(0, 0)) {
+                assertThat(entries.getEntry(0).getEntryBytes()).isEqualTo(entry);
             }
         }
     }
