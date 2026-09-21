@@ -1753,6 +1753,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         mbean.endDataLedgerCreateOp();
+        if (STATE_UPDATER.get(this) == State.Terminated) {
+            // Terminated while the ledger was being created, whether the creation succeeded, failed or timed out
+            abortRolloverAfterTerminate(lh);
+            return;
+        }
+
         if (rc != BKException.Code.OK) {
             log.error().attr("rc", rc).attr("message", BKException.getMessage(rc)).log("Error creating ledger");
             ManagedLedgerException status = createManagedLedgerException(rc);
@@ -1789,6 +1795,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                     }
                                     return null;
                                 });
+                            } else if (state == State.Terminated) {
+                                // Terminated while the ledgers list was being updated. The new ledger was not added
+                                // to the in-memory list, so the metadata update of the terminate drops it again
+                                abortRolloverAfterTerminate(lh);
                             } else {
                                 LedgerHandle originalCurrentLedger = currentLedger;
                                 ledgers.put(lh.getId(), newLedger);
@@ -1838,13 +1848,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     synchronized (ManagedLedgerImpl.this) {
                         lastLedgerCreationFailureTimestamp = clock.millis();
-                        STATE_UPDATER.set(ManagedLedgerImpl.this, State.ClosedLedger);
-                        clearPendingAddEntries(e);
+                        if (STATE_UPDATER.get(ManagedLedgerImpl.this) == State.Terminated) {
+                            // Terminated while the ledgers list was being updated. The new ledger is deleted above
+                            abortRolloverAfterTerminate(null);
+                        } else {
+                            STATE_UPDATER.set(ManagedLedgerImpl.this, State.ClosedLedger);
+                            clearPendingAddEntries(e);
+                        }
                     }
                 }
             };
 
-            updateLedgersListAfterRollover(cb, newLedger);
+            updateLedgersListAfterRollover(cb, lh, newLedger);
         }
     }
 
@@ -1853,10 +1868,35 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             setFenced();
         }
     }
-    private void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback, LedgerInfo newLedger) {
+
+    /**
+     * Aborts a ledger rollover that was overtaken by the termination of the managed ledger. Nothing can be written
+     * past the terminated position: the state is left untouched, the adds that were waiting for the new ledger are
+     * failed, and the new ledger is discarded.
+     *
+     * @param lh the ledger that was just created, or null if there is no ledger to discard
+     */
+    private synchronized void abortRolloverAfterTerminate(@Nullable LedgerHandle lh) {
+        log.info().attr("ledgerId", lh != null ? lh.getId() : -1)
+                .log("Managed ledger was terminated during the ledger rollover, failing the pending adds");
+        clearPendingAddEntries(new ManagedLedgerTerminatedException("Managed ledger was terminated"));
+        if (lh != null) {
+            // Close the write handle before deleting the ledger, so that the handle is not leaked
+            lh.closeAsync().whenComplete((ignore, ex) -> asyncDeleteLedger(lh.getId(), DEFAULT_LEDGER_DELETE_RETRIES));
+        }
+    }
+
+    private synchronized void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback, LedgerHandle lh,
+                                                             LedgerInfo newLedger) {
+        if (STATE_UPDATER.get(this) == State.Terminated) {
+            // Terminated while this update was deferred: the new ledger must not make it to the ledgers list
+            abortRolloverAfterTerminate(lh);
+            return;
+        }
+
         if (!metadataMutex.tryLock()) {
             // Defer update for later
-            scheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback, newLedger),
+            scheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback, lh, newLedger),
                     100, TimeUnit.MILLISECONDS);
             return;
         }
