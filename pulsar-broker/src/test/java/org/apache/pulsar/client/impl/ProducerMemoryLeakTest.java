@@ -25,6 +25,9 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultSelectStrategyFactory;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.DefaultEventExecutorChooserFactory;
@@ -68,6 +71,80 @@ import org.testng.annotations.Test;
 @CustomLog
 @Test(groups = "broker-api")
 public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
+
+    @DataProvider
+    public Object[][] pendingMessageAfterSchemaFailure() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "pendingMessageAfterSchemaFailure")
+    public void testSchemaFailureCallbackStopsRecovery(boolean enqueueFollowingMessage) throws Exception {
+        admin.namespaces().setSchemaCompatibilityStrategy(getNamespace(),
+                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        try (PulsarClientImpl client = (PulsarClientImpl) newPulsarClient();
+             ProducerImpl<String> producer = (ProducerImpl<String>) client.newProducer(Schema.STRING)
+                     .topic(newTopicName()).enableBatching(false).maxPendingMessages(10).create()) {
+            producer.send("initial");
+            ClientCnx cnx = producer.getClientCnx();
+            AtomicInteger writesAfterClose = new AtomicInteger();
+            AtomicBoolean closeStarted = new AtomicBoolean();
+            AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
+            cnx.channel().eventLoop().submit(() -> cnx.channel().pipeline().addBefore(cnx.ctx().name(),
+                    "count-sends-after-close", new ChannelOutboundHandlerAdapter() {
+                        @Override
+                        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise)
+                                throws Exception {
+                            if (closeStarted.get() && msg instanceof ByteBufPair) {
+                                writesAfterClose.incrementAndGet();
+                            }
+                            super.write(ctx, msg, promise);
+                        }
+                    })).get(10, TimeUnit.SECONDS);
+            cnx.channel().config().setAutoRead(false);
+            MsgPayloadTouchableMessageBuilder<Boolean> incompatible =
+                    new MsgPayloadTouchableMessageBuilder<>(producer, Schema.BOOL);
+            MsgPayloadTouchableMessageBuilder<String> following = newMessage(producer);
+            try {
+                CompletableFuture<MessageId> failedSend = incompatible.value(true).sendAsync();
+                CompletableFuture<MessageId> completion = failedSend.whenComplete((id, error) -> {
+                    closeStarted.set(true);
+                    closeFuture.set(producer.closeAsync());
+                });
+                CompletableFuture<MessageId> followingSend = enqueueFollowingMessage
+                        ? following.value("must not be sent after close").sendAsync() : null;
+                assertEquals(producer.getPendingQueueSize(), enqueueFollowingMessage ? 2 : 1);
+                cnx.channel().config().setAutoRead(true);
+                try {
+                    completion.get(10, TimeUnit.SECONDS);
+                    fail("Expected the broker to reject the incompatible schema");
+                } catch (ExecutionException error) {
+                    assertTrue(error.getCause() instanceof PulsarClientException.IncompatibleSchemaException);
+                }
+                closeFuture.get().get(10, TimeUnit.SECONDS);
+                cnx.channel().eventLoop().submit(() -> { }).get(10, TimeUnit.SECONDS);
+                assertEquals(writesAfterClose.get(), 0, "Recovery must stop after the callback closes the producer");
+                if (followingSend != null) {
+                    assertTrue(followingSend.isCompletedExceptionally());
+                }
+                Awaitility.await().untilAsserted(() -> {
+                    assertFalse(cnx.channel().isActive());
+                    assertEquals(producer.getPendingQueueSize(), 0);
+                    assertEquals(producer.availableSendPermitsForTesting(), 10);
+                    assertEquals(client.getMemoryLimitController().currentUsage(), 0L);
+                    assertEquals(incompatible.payload.refCnt(), 1);
+                    if (enqueueFollowingMessage) {
+                        assertEquals(following.payload.refCnt(), 1);
+                    }
+                });
+            } finally {
+                cnx.channel().config().setAutoRead(true);
+                incompatible.release();
+                if (following.payload != null) {
+                    following.release();
+                }
+            }
+        }
+    }
 
     @Test
     public void testDeferredOversizedMessageClosesProducerInCallback() throws Exception {

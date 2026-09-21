@@ -747,7 +747,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         }
                         throw t;
                     }
-                    if (chunkId < totalChunks - 1 && chunkedMessageCtx.sendFailed) {
+                    if (chunkedMessageCtx != null && chunkId < totalChunks - 1 && chunkedMessageCtx.sendFailed) {
                         // processOpSendMsg has failed and disposed of this op. The unbuilt chunks still
                         // own the base payload, the memory reservation and their context/permit claims.
                         if (TopicName.get(topic).isPersistent()) {
@@ -1729,8 +1729,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     static class ChunkedMessageCtx extends AbstractReferenceCounted {
         protected MessageIdImpl firstChunkMessageId;
         protected MessageIdImpl lastChunkMessageId;
-        // Accessed under the producer lock. Unbuilt chunks keep the context alive even if a failed
-        // op is recycled before processOpSendMsg returns to the chunk-building loop.
+        // Reset in get() before publication; subsequent reads and writes hold the producer lock.
+        // The builder reads this flag only while it still owns shares for unbuilt chunks (refCnt > 0).
+        // Those shares prevent recycling/reuse for another message even if the failed op is recycled
+        // before processOpSendMsg returns. Release them only after the builder has checked this flag.
         private boolean sendFailed;
 
         public ChunkMessageIdImpl getChunkMessageId() {
@@ -2836,7 +2838,17 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    // The caller must detach the op from pendingMessages before invoking application callbacks.
+    /**
+     * Fails an operation that was never queued or has already been detached from pendingMessages.
+     * Unlike normal acknowledgments and failPendingMessages, this must complete the callback even for
+     * a non-last chunk: its failure stops the builder, so no last-chunk operation will be created to
+     * settle the message future, interceptor payload retain and pending-message metrics.
+     *
+     * <p>Keep this separate from failPendingMessages: that method settles already-queued operations,
+     * invokes chunked-message callbacks only for the last chunk, and returns permits together after
+     * draining its snapshot of the queue. Here the failed op returns its own accounting, while the
+     * builder releases the claims for chunks that will never be created.
+     */
     private void failSendOp(OpSendMsg op, PulsarClientException exception) {
         if (op.chunkedMessageCtx != null) {
             op.chunkedMessageCtx.sendFailed = true;
@@ -2895,7 +2907,23 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         MessageImpl<?> loopStartAt = latestMsgAttemptedRegisteredSchema;
         OpSendMsg loopEndDueToSchemaRegisterNeeded = null;
         boolean pausedSendingToPreservePublishOrderOnSchemaRegFailure = false;
-        while (msgIterator.hasNext()) {
+        while (true) {
+            // Re-check after every iteration that can invoke application callbacks, including the
+            // last one: closing the producer may also drain the queue and invalidate this iterator.
+            if (cnx() != cnx || expectedEpoch != connectionHandler.getEpoch()) {
+                return;
+            }
+            State state = getState();
+            if (state == State.Closing || state == State.Closed
+                    || state == State.Terminated || state == State.ProducerFenced) {
+                // Preserve the reconnect cleanup below: closeAsync may have only closed the local
+                // producer while it was Connecting, leaving its registration on the broker intact.
+                cnx.channel().close();
+                return;
+            }
+            if (!msgIterator.hasNext()) {
+                break;
+            }
             OpSendMsg op = msgIterator.next();
             if (loopStartAt != null) {
                 if (op.msg == loopStartAt) {
@@ -2990,9 +3018,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // Detach before the callback can close the producer and fail the pending queue again.
                     msgIterator.remove();
                     failSendOp(op, sizeError);
-                    if (cnx() != cnx || getState() == State.Closing || getState() == State.Closed) {
-                        return;
-                    }
                     continue;
                 }
             }
