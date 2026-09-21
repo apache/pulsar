@@ -1995,6 +1995,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else if (state.isFenced()) {
             clearPendingAddEntries(new ManagedLedgerFencedException("Managed ledger is fenced"));
             return;
+        } else if (state == State.Terminated) {
+            // The managed ledger was terminated during the write operation: the ledger got closed under the in-flight
+            // adds, and no new ledger will be created to retry them
+            clearPendingAddEntries(new ManagedLedgerTerminatedException("Managed ledger was terminated"));
+            return;
         } else {
             // In case we get multiple write errors for different outstanding write request, we should close the ledger
             // just once
