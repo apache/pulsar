@@ -144,10 +144,6 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
             description = "Enable autoScaledReceiverQueueSize")
     public boolean autoScaledReceiverQueueSize = false;
 
-    @Option(names = {"-rs", "--replicated" },
-            description = "Whether the subscription status should be replicated")
-    public boolean replicatedSubscription = false;
-
     @Option(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
     public int acknowledgmentsGroupingDelayMillis = 100;
 

@@ -65,6 +65,10 @@ public class PerformanceConsumerV4
     @Option(names = { "-sp", "--subscription-position" }, description = "Subscription position")
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
+    @Option(names = {"-rs", "--replicated" },
+            description = "Whether the subscription status should be replicated")
+    public boolean replicatedSubscription = false;
+
     @Option(names = "--isolated-clients", description = "Create consumers on this many isolated v4 clients; "
             + "cannot be combined with --num-listener-threads",
             converter = PositiveNumberParameterConvert.class)
