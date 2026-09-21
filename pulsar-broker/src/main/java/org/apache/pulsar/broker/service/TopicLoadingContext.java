@@ -101,6 +101,18 @@ public class TopicLoadingContext extends LatencyTracer {
     }
 
     public TopicLoadFailureReason getTopicLoadTimeoutReason() {
+        // If closed, we can use the reverse convenience set to obtain the last pending action, as the subsequent ones
+        // are often sub-actions of the previous one.
+        if (isClosed()) {
+            for (int i = tracePoints.size() - 1; i >= 0; i--) {
+                if (tracePoints.get(i).isPending()) {
+                    TopicLoadFailureReason reason = getTimeoutReason(tracePoints.get(i).name());
+                    if (reason != null) {
+                        return reason;
+                    }
+                }
+            }
+        }
         for (TracePoint pendingTracePoint : getPendingTracePoints()) {
             TopicLoadFailureReason reason = getTimeoutReason(pendingTracePoint.name());
             if (reason != null) {
