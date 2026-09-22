@@ -113,6 +113,11 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
             initBatchStrategy();
         } catch (Throwable t) {
+            try {
+                super.close();
+            } catch (Exception e) {
+                t.addSuppressed(e);
+            }
             throw new MetadataStoreException(t);
         }
     }
