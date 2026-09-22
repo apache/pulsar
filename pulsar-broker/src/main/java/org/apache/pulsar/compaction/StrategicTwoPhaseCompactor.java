@@ -368,6 +368,9 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
                                 }
                             });
                 })
+                // Close before publishing the ledger: a close failure must not delete a ledger
+                // already referenced by the compaction subscription.
+                .thenCompose(v -> closeLedger(ledger))
                 .thenCompose(v -> {
                     log.info().attr("lastId", phaseOneResult.lastId).log("Acking ledger");
                     return ((CompactionReaderImpl<T>) reader)
@@ -375,7 +378,6 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
                                     phaseOneResult.lastId, Map.of(COMPACTED_TOPIC_LEDGER_PROPERTY,
                                             ledger.getId()));
                 })
-                .thenCompose((v) -> closeLedger(ledger))
                 .whenComplete((v, exception) -> {
                     if (exception != null) {
                         deleteLedger(bk, ledger).whenComplete((res2, exception2) -> {
