@@ -29,17 +29,17 @@ import picocli.CommandLine.TypeConversionException;
  *
  * <p>picocli instantiates converters through a no-argument constructor, so subclass this once per enum.
  */
-public abstract class EnumNameConverter<E extends Enum<E>> implements ITypeConverter<E> {
-    private final Class<E> type;
+public abstract class EnumNameConverter<EnumT extends Enum<EnumT>> implements ITypeConverter<EnumT> {
+    private final Class<EnumT> type;
 
-    protected EnumNameConverter(Class<E> type) {
+    protected EnumNameConverter(Class<EnumT> type) {
         this.type = type;
     }
 
     @Override
-    public E convert(String value) {
+    public EnumT convert(String value) {
         String wanted = normalize(value);
-        for (E constant : type.getEnumConstants()) {
+        for (EnumT constant : type.getEnumConstants()) {
             if (normalize(constant.name()).equals(wanted)) {
                 return constant;
             }

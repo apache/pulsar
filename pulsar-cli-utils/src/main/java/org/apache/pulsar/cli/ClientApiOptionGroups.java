@@ -41,7 +41,7 @@ public final class ClientApiOptionGroups {
 
     /** Heading of the section holding the v4-client options. */
     public static final String V4_HEADING =
-            "%nv4 client options (default for persistent://, non-persistent:// and unprefixed topics):%n";
+            "%nv4 client options (default for persistent:// and non-persistent:// topics):%n";
 
     /** Heading of the section holding the V5-client options. */
     public static final String V5_HEADING = "%nV5 client options (default for topic:// scalable topics):%n";
