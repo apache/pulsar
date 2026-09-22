@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import com.carrotsearch.hppc.ObjectSet;
 import java.util.List;
 import java.util.Optional;
@@ -34,16 +35,21 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -66,6 +72,80 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerCo
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test(timeOut = 30 * 1000)
+    public void testKeySharedReplayQueueResumesAfterConsumerFlow() throws Exception {
+        boolean useClassicDispatcher = getConfig().isSubscriptionKeySharedUseClassicPersistentImplementation();
+        int perConsumerLimit = getConfig().getKeySharedLookAheadMsgInReplayThresholdPerConsumer();
+        int perSubscriptionLimit = getConfig().getKeySharedLookAheadMsgInReplayThresholdPerSubscription();
+        getConfig().setSubscriptionKeySharedUseClassicPersistentImplementation(true);
+        getConfig().setKeySharedLookAheadMsgInReplayThresholdPerConsumer(2);
+        getConfig().setKeySharedLookAheadMsgInReplayThresholdPerSubscription(2);
+        try {
+            String topicName = newTopicName();
+            String subscriptionName = "key-shared";
+            KeySharedPolicy keySharedPolicy = KeySharedPolicy.autoSplitHashRange();
+            @Cleanup
+            Consumer<String> fastConsumer = pulsarClient.newConsumer(Schema.STRING)
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .consumerName("fast")
+                    .subscriptionType(SubscriptionType.Key_Shared)
+                    .keySharedPolicy(keySharedPolicy)
+                    .subscribe();
+            @Cleanup
+            Consumer<String> slowConsumer = pulsarClient.newConsumer(Schema.STRING)
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .consumerName("slow")
+                    .subscriptionType(SubscriptionType.Key_Shared)
+                    .keySharedPolicy(keySharedPolicy)
+                    .receiverQueueSize(1)
+                    .subscribe();
+            @Cleanup
+            Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+
+            PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+            PersistentStickyKeyDispatcherMultipleConsumersClassic dispatcher =
+                    (PersistentStickyKeyDispatcherMultipleConsumersClassic) topic.getSubscription(subscriptionName)
+                            .getDispatcher();
+            org.apache.pulsar.broker.service.Consumer slowServiceConsumer = dispatcher.getConsumers().stream()
+                    .filter(consumer -> consumer.consumerName().equals("slow"))
+                    .findFirst()
+                    .orElseThrow();
+            org.apache.pulsar.broker.service.Consumer fastServiceConsumer = dispatcher.getConsumers().stream()
+                    .filter(consumer -> consumer.consumerName().equals("fast"))
+                    .findFirst()
+                    .orElseThrow();
+            StickyKeyConsumerSelector selector = dispatcher.getSelector();
+            String slowKey = keyForConsumer(selector, slowServiceConsumer);
+            String fastKey = keyForConsumer(selector, fastServiceConsumer);
+
+            producer.newMessage().key(slowKey).value("slow-1").send();
+            producer.newMessage().key(slowKey).value("slow-2").send();
+            producer.newMessage().key(slowKey).value("slow-3").send();
+
+            Awaitility.await().untilAsserted(() ->
+                    Assert.assertEquals(dispatcher.getNumberOfMessagesInReplay(), 2L));
+
+            producer.newMessage().key(fastKey).value("fast").send();
+            Assert.assertNull(fastConsumer.receive(5, TimeUnit.SECONDS));
+
+            Message<String> firstSlowMessage = slowConsumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(firstSlowMessage);
+            slowConsumer.acknowledge(firstSlowMessage);
+
+            Message<String> fastMessage = fastConsumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(fastMessage);
+            Assert.assertEquals(fastMessage.getValue(), "fast");
+            Awaitility.await().untilAsserted(() ->
+                    Assert.assertTrue(dispatcher.getNumberOfMessagesInReplay() < 2));
+        } finally {
+            getConfig().setSubscriptionKeySharedUseClassicPersistentImplementation(useClassicDispatcher);
+            getConfig().setKeySharedLookAheadMsgInReplayThresholdPerConsumer(perConsumerLimit);
+            getConfig().setKeySharedLookAheadMsgInReplayThresholdPerSubscription(perSubscriptionLimit);
+        }
     }
 
     @Test(timeOut = 30 * 1000)
@@ -280,5 +360,20 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends ProducerCo
      */
     protected CompletableFuture<Optional<Topic>> getTopic(String topic, boolean createIfMissing) {
         return pulsar.getBrokerService().getTopic(topic, createIfMissing);
+    }
+
+    private String keyForConsumer(StickyKeyConsumerSelector selector,
+                                  org.apache.pulsar.broker.service.Consumer consumer) {
+        for (int i = 0; i < 100_000; i++) {
+            String key = "key-" + i;
+            if (selector.select(key.getBytes(UTF_8)) == consumer) {
+                return key;
+            }
+        }
+        throw new IllegalStateException("No key found for consumer " + consumer.consumerName());
+    }
+
+    private ServiceConfiguration getConfig() {
+        return pulsar.getConfig();
     }
 }
