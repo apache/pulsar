@@ -312,11 +312,7 @@ public class PersistentSubscription extends AbstractSubscription {
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
                     previousDispatcher = dispatcher;
-                    if (config.isSubscriptionSharedUseClassicPersistentImplementation()) {
-                        dispatcher = new PersistentDispatcherMultipleConsumersClassic(topic, cursor, this);
-                    } else {
-                        dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
-                    }
+                    dispatcher = new PersistentDispatcherMultipleConsumers(topic, cursor, this);
                 }
                 break;
             case Failover:
@@ -345,10 +341,6 @@ public class PersistentSubscription extends AbstractSubscription {
                         // modern implementation; the classic dispatcher has no bucket support.
                         dispatcher = new PersistentEntryBucketDispatcherMultipleConsumers(topic, cursor,
                                 this, config, ksm);
-                    } else if (config.isSubscriptionKeySharedUseClassicPersistentImplementation()) {
-                        dispatcher =
-                                new PersistentStickyKeyDispatcherMultipleConsumersClassic(topic, cursor,
-                                        this, config, ksm);
                     } else {
                         dispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(topic, cursor, this,
                                 config, ksm);
