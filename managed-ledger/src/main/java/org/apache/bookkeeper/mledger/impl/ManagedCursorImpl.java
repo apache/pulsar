@@ -312,8 +312,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     @SuppressWarnings("unused")
     private volatile int pendingMarkDeletedSubmittedCount = 0;
     private volatile long lastLedgerSwitchTimestamp;
-    private volatile long maximumLedgerRolloverTimeMs;
-    private volatile long maximumLedgerRolloverEntries;
+    // Stable per-cursor jitter in [1.0, 1.05) so rollover does not re-roll on each check
+    // or miss a config update by caching the derived threshold.
+    private final double rolloverTimeJitter;
+    private final double rolloverEntriesJitter;
     private final Clock clock;
 
     // The last active time (Unix time, milliseconds) of the cursor
@@ -389,7 +391,8 @@ public class ManagedCursorImpl implements ManagedCursor {
         this.clock = getConfig().getClock();
         this.lastActive = this.clock.millis();
         this.lastLedgerSwitchTimestamp = this.clock.millis();
-        updateRolloverThresholds(getConfig());
+        this.rolloverTimeJitter = 1 + ThreadLocalRandom.current().nextDouble() * 0.05;
+        this.rolloverEntriesJitter = 1 + ThreadLocalRandom.current().nextDouble() * 0.05;
 
         if (getConfig().getThrottleMarkDelete() > 0.0) {
             markDeleteLimiter = RateLimiter.create(getConfig().getThrottleMarkDelete());
@@ -3616,6 +3619,10 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     boolean shouldCloseLedger(LedgerHandle lh) {
         long now = clock.millis();
+        long maximumLedgerRolloverEntries = (long)
+                (getConfig().getMetadataMaxEntriesPerLedger() * rolloverEntriesJitter);
+        long maximumLedgerRolloverTimeMs = (long)
+                (getConfig().getLedgerRolloverTimeout() * 1000L * rolloverTimeJitter);
         if (ledger.getFactory().isMetadataServiceAvailable()
                 && (lh.getLastAddConfirmed() >= maximumLedgerRolloverEntries
                 || lastLedgerSwitchTimestamp < (now - maximumLedgerRolloverTimeMs))
@@ -4024,25 +4031,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             // Disable mark-delete rate limiter
             markDeleteLimiter = null;
         }
-    }
-
-    /**
-     * Recalculate cached cursor-ledger rollover thresholds from {@code config}.
-     * Adds up to 5% jitter so multiple cursors do not rollover at the same time.
-     */
-    void updateRolloverThresholds(ManagedLedgerConfig config) {
-        this.maximumLedgerRolloverTimeMs = getMaximumRolloverTimeMs(config);
-        this.maximumLedgerRolloverEntries = getMaximumRolloverEntries(config);
-    }
-
-    private static long getMaximumRolloverTimeMs(ManagedLedgerConfig config) {
-        return (long) (config.getLedgerRolloverTimeout() * 1000L
-                * (1 + ThreadLocalRandom.current().nextDouble() * 0.05));
-    }
-
-    private static long getMaximumRolloverEntries(ManagedLedgerConfig config) {
-        return (long) (config.getMetadataMaxEntriesPerLedger()
-                * (1 + ThreadLocalRandom.current().nextDouble() * 0.05));
     }
 
     @Override
