@@ -53,6 +53,10 @@ public class PerformanceTransactionV4 extends PerformanceTransactionBase<PulsarC
     @Option(names = {"-sp", "--subscription-position"}, description = "Subscription position")
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Earliest;
 
+    @Option(names = {"-rs", "--replicated" },
+            description = "Whether the subscription status should be replicated")
+    private boolean replicatedSubscription = false;
+
     public PerformanceTransactionV4() {
         super("transaction-v4");
     }
