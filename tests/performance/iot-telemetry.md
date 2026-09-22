@@ -38,7 +38,7 @@ application-visible order across Key_Shared hash-range reassignment.
   and sends five million messages through 500 preconnected producers to one topic. Five applications each
   consume with ten isolated clients on one Key_Shared subscription.
 - [`iot-telemetry-high-rate-profile.yaml`](scenarios/iot-telemetry-high-rate-profile.yaml) enables broker and
-  producer async-profiler recordings for the same saturation workload.
+  producer jonoffcpu (async-profiler plus off-CPU) recordings for the same saturation workload.
 
 Build the mountable workload distribution without running a cluster:
 
@@ -97,7 +97,7 @@ Set `rate: 0` together with a positive `numberOfMessages` to remove producer pac
 summary reports `messagesPerSecond` only for the post-warmup measurement phase and retains
 `wholeRunMessagesPerSecond` as startup and warmup context.
 
-## Async-profiler
+## Profiling with jonoffcpu
 
 Use the `profile` task for a scenario that has non-empty `profiling.brokerOptions`, `producerOptions` or
 `consumerOptions`:
@@ -107,12 +107,35 @@ Use the `profile` task for a scenario that has non-empty `profiling.brokerOption
   --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
 ```
 
-The task builds the test image containing async-profiler, tunes Linux perf-event settings using the existing
-integration-test task, and grants profiled containers the required capabilities. Broker recordings are written
-under `broker-profile/`; producer and consumer recordings are written in their corresponding output directories.
-The launcher owns each `file=` option so recordings remain inside the run directory. Empty options leave that
-component unprofiled. The ordinary `run` task rejects profiling-enabled YAML rather than silently running with
-an image that lacks the native agent.
+The options are async-profiler options, recorded through the [jonoffcpu](https://github.com/lhotari/jonoffcpu)
+agent. The agent JAR is resolved from Maven Central by Gradle and mounted into each profiled container; it embeds
+its own async-profiler build for both musl and glibc, so nothing needs installing in the image and the ordinary
+Alpine `java-test-image` profiles as it is. Pass `-Pinttest.testImageVariant=wolfi` to use the glibc-based
+`java-test-image:<tag>-wolfi` instead, on a host where the musl bundle misbehaves.
+
+Alongside the ordinary CPU and allocation events the agent records off-CPU intervals measured by the kernel
+scheduler through eBPF. Loading those programs needs `CAP_BPF` and `CAP_PERFMON`, and Docker puts a container's
+capabilities in the effective set of root alone, so profiled containers run privileged with the JVM as root.
+Docker also mounts a tracefs read-only at `/sys/kernel/tracing` as a `local` volume. A Linux host attaches the
+agent's BTF raw tracepoints without it, but jonoffcpu advises it for Docker Desktop, where that is unverified.
+It comes from the Docker engine's kernel, so nothing is bind-mounted from the host; that kernel must offer BTF and
+the BPF features the agent checks for at startup. The task also relaxes the Linux perf-event and BPF settings
+through the existing integration-test task.
+
+Broker recordings are written under `broker-profile/`; producer and consumer recordings are written in their
+corresponding output directories. The launcher owns each recording path so recordings remain inside the run
+directory, and rejects options that set `file=`. Empty options leave that component unprofiled. The ordinary
+`run` task rejects profiling-enabled YAML rather than silently running without the agent.
+
+`profiling.offCpu` is the jonoffcpu agent's
+[`sampling` block](https://github.com/lhotari/jonoffcpu#choosing-what-to-sample), shared by every profiled JVM
+and required. The profile scenario records only intervals where a thread blocked (`reasons: [blocked]`), not
+those where it was runnable but waiting for a CPU. It ignores waits under 100 µs (`minOffCpuMicros: 100`) and
+records every wait of 10 ms or longer, sampling shorter ones in proportion to their length
+(`admission: {policy: proportional, recordAllAboveMicros: 10000}`), which bounds the recording rate by off-CPU
+time rather than by context-switch count. After the run, each recording's `<recording>-offcpu/` directory holds
+the correlated off-CPU stacks for the measurement window as collapsed stacks, a synthetic JFR, a stack profile,
+the accounting report and `offcpu.html`, whose widths are microseconds of off-CPU time.
 
 After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the producer's
 measurement start through the latest measured-message receipt across all backend applications. The upper boundary

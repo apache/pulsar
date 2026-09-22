@@ -54,7 +54,7 @@ host-sized scenario with:
   --args='--config tests/performance/scenarios/iot-telemetry-local.yaml'
 ```
 
-Use the `profile` task when the selected scenario contains async-profiler options:
+Use the `profile` task when the selected scenario contains profiler options:
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
@@ -72,7 +72,8 @@ standalone launcher uses these top-level sections:
 
 - `cluster`: the Pulsar topology and broker or BookKeeper environment settings;
 - `workloads`: named workload configurations, currently including `iotTelemetry`;
-- `profiling`: optional async-profiler settings for the broker, producer and consumer processes; and
+- `profiling`: optional async-profiler options for the broker, producer and consumer processes, recorded through
+  the [jonoffcpu](https://github.com/lhotari/jonoffcpu) agent, plus the shared `offCpu` sampling policy; and
 - `output`: the run-artifact directory.
 
 Workload-specific fields live below their workload name so another launcher or application can reuse the same
@@ -102,6 +103,12 @@ workloads:
 profiling:
   brokerOptions: event=cpu,interval=10ms,jfrsync=profile
   producerOptions: ~
+  offCpu:
+    reasons: [blocked]
+    minOffCpuMicros: 100
+    admission:
+      policy: proportional
+      recordAllAboveMicros: 10000
   retainOriginalRecording: true
   createMeasurementRecording: true
 output:
@@ -112,6 +119,27 @@ Each inherited path is resolved relative to the file that declares it; absolute 
 inherit other files recursively. Parents are applied in list order and the current file is applied last. Mappings
 merge recursively, while scalar values and lists replace earlier values. An explicit YAML `null` or `~` removes
 an inherited entry. Cycles, missing files, non-mapping roots and invalid `extends` entries are rejected.
+
+Profiled standalone runs attach the [jonoffcpu](https://github.com/lhotari/jonoffcpu) agent, which embeds
+async-profiler and adds kernel-measured off-CPU samples. Every profiled JVM writes a `.jfr` recording, a
+`.jonoffcpu-capture.pb` stream with its `.manifest.json`, and the `.jonoffcpu.yaml` the agent was started with.
+After the run, the launcher correlates each pair over the measurement window into a sibling
+`<recording>-offcpu/` directory holding `jonoffcpu-offcpu-stacks.collapsed` (Java stacks weighted in
+microseconds of off-CPU time), `jonoffcpu-offcpu-synthetic.jfr` for JFR viewers, `jonoffcpu-report.json` with
+loss, delivery-delay and switch-out-reason accounting, `jonoffcpu-offcpu-profile.pb`, `jonoffcpu-complete.json`
+written last once everything validates, and `offcpu.html`. The stack profile lets the correlator's `stacks`
+subcommand render other slices, such as kernel stacks or stacks filtered by a regular expression, without
+correlating again. The correlator runs with `--audit none`: its row-level audit files are about 2 KB per row,
+so a broker capture would add hundreds of megabytes of them beside a few megabytes of stacks, and every aggregate
+is already in `jonoffcpu-report.json`. Running the correlator again over the retained capture and recording with
+`--audit full` reproduces them. The flame graph is rendered in-process by the
+converter from async-profiler's jonoffcpu fork,
+which comes as a dependency and labels the widths in microseconds, so nothing needs an async-profiler
+installation. `profiling.offCpu` is the agent's
+[`sampling` block](https://github.com/lhotari/jonoffcpu#choosing-what-to-sample) shared by every profiled JVM:
+the switch-out `reasons` to record (`[blocked]` by default), `minOffCpuMicros` and an `admission` policy, which
+is required. The policy `none` records plain async-profiler
+through the same agent and skips the correlation step.
 
 Profiled standalone runs retain the complete JFR and also create a sibling whose name ends in
 `.measurement.jfr`. The measurement recording contains events from the producer's recorded measurement start through
@@ -248,7 +276,7 @@ the isolated clients; when the counts differ, producers are assigned round-robin
 
 - [IoT telemetry fanout and ordering](iot-telemetry.md): keyed telemetry through interchangeable gateways
   to Key_Shared applications, including isolated shared-resource clients, restart validation, a 500-connection
-  saturation workload, and standalone async-profiler integration.
+  saturation workload, and standalone jonoffcpu profiler integration.
 - [Read-completion queue isolation](read-completion-isolation.md): 500 producers on separate
   connections to one persistent topic, with one Exclusive consumer. Includes the
   [scenario YAML](scenarios/read-completion-isolation.yaml), an inherited

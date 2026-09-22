@@ -79,14 +79,16 @@ val prepareBuildContext = tasks.register<Sync>("prepareBuildContext") {
     into("${projectDir}/target")
 }
 
-fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler: String) =
+fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler: String,
+                        pulsarImageTag: String = dockerTag,
+                        pulsarImageTask: String = ":docker:pulsar-docker-image:dockerBuild") =
     tasks.register<Exec>(taskName) {
         group = "docker"
 
-        dependsOn(":docker:pulsar-docker-image:dockerBuild", prepareBuildContext)
+        dependsOn(pulsarImageTask, prepareBuildContext)
 
         val imageName = "${dockerOrganization}/java-test-image:${imageTag}"
-        val pulsarImage = "${dockerOrganization}/pulsar:${dockerTag}"
+        val pulsarImage = "${dockerOrganization}/pulsar:${pulsarImageTag}"
         val asyncProfilerVersion = libs.versions.async.profiler.get()
 
         workingDir = projectDir
@@ -120,4 +122,12 @@ val dockerBuildWithAsyncProfiler =
     registerDockerBuild("dockerBuildWithAsyncProfiler", "${dockerTag}-asyncprofiler", "true")
 dockerBuildWithAsyncProfiler.configure {
     description = "Build the java-test-image Docker image with async-profiler installed"
+}
+
+// The glibc-based variant on top of the Wolfi Pulsar image, for the jonoffcpu profiler agent whose native
+// libraries do not load on musl. :tests:performance:launcher:profile builds and uses this one.
+val dockerBuildWolfi = registerDockerBuild("dockerBuildWolfi", "${dockerTag}-wolfi", "false",
+    "${dockerTag}-wolfi", ":docker:pulsar-docker-image:dockerBuildWolfi")
+dockerBuildWolfi.configure {
+    description = "Build the java-test-image Docker image from the Wolfi Pulsar image under the <tag>-wolfi tag"
 }

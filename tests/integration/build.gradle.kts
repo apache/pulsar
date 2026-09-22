@@ -209,7 +209,7 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 // with an engine that does not need perf_events.
 val skipPerfEventTuning = providers.gradleProperty("inttest.asyncprofiler.skipPerfEventTuning").isPresent
 val tuneKernelPerfEvents = tasks.register<Exec>("tuneKernelPerfEvents") {
-    description = "Relax the kernel perf_event limits that async-profiler's cpu engine needs"
+    description = "Relax the kernel perf_event and BPF limits that the profilers need"
     // Copied into a local: a task action that captured the script-level val would capture the
     // script object with it, which the configuration cache cannot serialize.
     val skip = skipPerfEventTuning
@@ -219,7 +219,12 @@ val tuneKernelPerfEvents = tasks.register<Exec>("tuneKernelPerfEvents") {
         "docker", "run", "--rm", "--privileged",
         "--cap-add", "SYS_ADMIN", "--security-opt", "seccomp=unconfined",
         "alpine:3.24", "sh", "-c",
-        "echo 1 > /proc/sys/kernel/perf_event_paranoid "
+        // The BPF syscall gate that jonoffcpu's collector needs, written first and separated by ';' rather
+        // than chained: on a kernel where the value already reads 1 the write fails with EPERM, and 1 is a
+        // one-way latch until the next boot, so chaining would fail everything below over a setting that is
+        // out of reach anyway.
+        "echo 0 > /proc/sys/kernel/unprivileged_bpf_disabled; "
+            + "echo 1 > /proc/sys/kernel/perf_event_paranoid "
             + "&& echo 0 > /proc/sys/kernel/kptr_restrict "
             + "&& echo 1024 > /proc/sys/kernel/perf_event_max_stack "
             + "&& echo 2048 > /proc/sys/kernel/perf_event_mlock_kb "

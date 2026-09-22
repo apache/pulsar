@@ -18,16 +18,19 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.dockerjava.api.model.Capability;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -35,6 +38,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
+import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
@@ -53,6 +57,7 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String TOOLS_MOUNT = "/opt/pulsar-performance-tools";
     private static final String CONFIG_MOUNT = "/performance-config/resolved-config.yaml";
     private static final String COORDINATION_MOUNT = "/performance-coordination";
+    private static final String OUTPUT_MOUNT = "/performance-output";
 
     @Option(names = "--config", required = true)
     Path config;
@@ -79,12 +84,18 @@ public class PerformanceLauncher implements Callable<Integer> {
         String consumerProfileOptions = text(profiling, "consumerOptions");
         boolean retainOriginalRecording = booleanValue(profiling, "retainOriginalRecording", true);
         boolean createMeasurementRecording = booleanValue(profiling, "createMeasurementRecording", true);
+        Map<String, Object> offCpuOptions = offCpuOptions(loader.mapper(), profiling);
         boolean profilingEnabled = brokerProfileOptions != null || producerProfileOptions != null
                 || consumerProfileOptions != null;
-        if (profilingEnabled
-                && !Boolean.parseBoolean(System.getenv("PERFORMANCE_ASYNC_PROFILER_AVAILABLE"))) {
-            throw new IllegalArgumentException("This scenario enables async-profiler; run it with "
-                    + "./gradlew :tests:performance:launcher:profile");
+        Path agentJar = null;
+        if (profilingEnabled) {
+            String configuredAgentJar = System.getProperty("performance.jonoffcpu.agent");
+            if (!Boolean.parseBoolean(System.getenv("PERFORMANCE_PROFILER_AVAILABLE"))
+                    || configuredAgentJar == null) {
+                throw new IllegalArgumentException("This scenario enables profiling; run it with "
+                        + "./gradlew :tests:performance:launcher:profile");
+            }
+            agentJar = Path.of(configuredAgentJar).toAbsolutePath().normalize();
         }
         int applications = workload.path("applicationCount").intValue();
         String runId = UUID.randomUUID().toString();
@@ -128,6 +139,8 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .numProxies(0)
                 .profileBroker(brokerProfileOptions != null)
                 .profileDirectory(brokerProfileDirectory.toString())
+                .jonoffcpuAgentJar(agentJar != null ? agentJar.toString() : null)
+                .jonoffcpuOptions(offCpuOptions)
                 .brokerEnvs(brokerEnvs)
                 .bookkeeperEnvs(bookkeeperEnvs)
                 .build();
@@ -141,7 +154,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 Path appOutput = runOutput.resolve("consumer-" + application);
                 Files.createDirectories(appOutput);
                 consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
-                        coordinationDirectory, runId, appOutput,
+                        coordinationDirectory, runId, appOutput, agentJar, offCpuOptions,
                         consumerProfileOptions, "iot-consume", "--application-index", Integer.toString(application))
                         .waitingFor(Wait.forLogMessage(".*READY application=.*", 1)
                                 .withStartupTimeout(Duration.ofMinutes(5))));
@@ -151,7 +164,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             Path producerOutput = runOutput.resolve("producer");
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
-                    coordinationDirectory, runId, producerOutput,
+                    coordinationDirectory, runId, producerOutput, agentJar, offCpuOptions,
                     producerProfileOptions, "iot-produce");
             producer.start();
             int timeout = workload.path("consumerTimeoutSeconds").intValue() + 60;
@@ -199,23 +212,58 @@ public class PerformanceLauncher implements Callable<Integer> {
             if (recordings.isEmpty()) {
                 throw new IllegalStateException("Profiling completed without producing a JFR recording");
             }
+            // Correlate against the untouched recording first: the stream binds its size and digest, and
+            // retention may delete it afterwards.
+            if (offCpuCaptureEnabled(offCpuOptions)) {
+                for (Path recording : recordings) {
+                    Path outputDirectory = OffCpuFlamegraphs.process(recording, measurementStart, measurementEnd,
+                            "Off-CPU time " + recording.getFileName());
+                    System.out.println("Off-CPU profile: " + outputDirectory);
+                }
+            }
             JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd,
                     retainOriginalRecording, createMeasurementRecording);
         }
         return 0;
     }
 
+    /**
+     * The {@code profiling.offCpu} section as the jonoffcpu agent's {@code sampling} block. Types are kept as
+     * the scenario wrote them, so that a quoted probability such as {@code "0.010"} stays a string and is
+     * recorded in the capture metadata as spelled.
+     */
+    private static Map<String, Object> offCpuOptions(ObjectMapper mapper, JsonNode profiling) {
+        JsonNode section = profiling.path("offCpu");
+        if (section.isMissingNode() || section.isNull()) {
+            return Map.of();
+        }
+        if (!section.isObject()) {
+            throw new IllegalArgumentException("profiling.offCpu must be the jonoffcpu agent's sampling block");
+        }
+        return mapper.convertValue(section, new TypeReference<LinkedHashMap<String, Object>>() { });
+    }
+
+    /**
+     * Whether the agent records off-CPU samples at all: the admission policy {@code none} runs plain
+     * async-profiler through the same agent, leaving nothing to correlate.
+     */
+    private static boolean offCpuCaptureEnabled(Map<String, Object> offCpuOptions) {
+        Object admission = offCpuOptions.get("admission");
+        return !(admission instanceof Map<?, ?> policy && "none".equals(policy.get("policy")));
+    }
+
     private GenericContainer<?> workloadContainer(PulsarCluster cluster, Path tools, Path configFile,
                                                    Path coordinationDirectory, String runId,
-                                                   Path outputDirectory, String profileOptions,
-                                                   String command, String... extraArguments) {
+                                                   Path outputDirectory, Path agentJar,
+                                                   Map<String, Object> offCpuOptions, String profileOptions,
+                                                   String command, String... extraArguments) throws IOException {
         List<String> arguments = new ArrayList<>();
         arguments.add(TOOLS_MOUNT + "/bin/pulsar-performance-tools");
         arguments.add(command);
         arguments.add("--config");
         arguments.add(CONFIG_MOUNT);
         arguments.add("--output");
-        arguments.add("/performance-output");
+        arguments.add(OUTPUT_MOUNT);
         arguments.add("--coordination-directory");
         arguments.add(COORDINATION_MOUNT);
         arguments.add("--run-id");
@@ -223,26 +271,21 @@ public class PerformanceLauncher implements Callable<Integer> {
         arguments.addAll(List.of(extraArguments));
         String javaOptions = "-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m";
         if (profileOptions != null) {
-            if (profileOptions.contains("file=")) {
-                throw new IllegalArgumentException("Profiler options must not set file; the launcher owns output");
-            }
-            javaOptions += " -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"
-                    + " -agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start," + profileOptions
-                    + ",file=/performance-output/profile-" + command + "-%t-%p.jfr";
+            // The launcher owns the recording name so that it lands inside the run directory
+            javaOptions += " -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints "
+                    + JonoffcpuAgent.writeConfig(outputDirectory, OUTPUT_MOUNT,
+                    "profile-" + command + "-" + System.currentTimeMillis(), profileOptions, offCpuOptions);
         }
         GenericContainer<?> container = new GenericContainer<>(PulsarContainer.DEFAULT_IMAGE_NAME)
                 .withNetwork(cluster.getNetwork())
                 .withFileSystemBind(tools.toString(), TOOLS_MOUNT, BindMode.READ_ONLY)
                 .withFileSystemBind(configFile.toString(), CONFIG_MOUNT, BindMode.READ_ONLY)
                 .withFileSystemBind(coordinationDirectory.toString(), COORDINATION_MOUNT, BindMode.READ_WRITE)
-                .withFileSystemBind(outputDirectory.toString(), "/performance-output", BindMode.READ_WRITE)
+                .withFileSystemBind(outputDirectory.toString(), OUTPUT_MOUNT, BindMode.READ_WRITE)
                 .withEnv("JAVA_TOOL_OPTIONS", javaOptions)
                 .withCommand(arguments.toArray(String[]::new));
         if (profileOptions != null) {
-            container.withCreateContainerCmdModifier(cmd -> cmd.getHostConfig()
-                    .withCapAdd(Capability.PERFMON)
-                    .withCapAdd(Capability.SYS_PTRACE)
-                    .withSecurityOpts(List.of("seccomp=unconfined")));
+            JonoffcpuAgent.attach(container, agentJar);
         }
         return container;
     }
