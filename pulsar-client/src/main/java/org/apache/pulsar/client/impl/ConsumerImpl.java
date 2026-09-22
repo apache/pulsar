@@ -218,6 +218,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     protected Map<String, ChunkedMessageCtx> chunkedMessagesMap = new ConcurrentHashMap<>();
     private int pendingChunkedMessageCount = 0;
+
+    @VisibleForTesting
+    int getPendingChunkedMessageCountForTest() {
+        return pendingChunkedMessageCount;
+    }
+
     protected long expireTimeOfIncompleteChunkedMessageMillis = 0;
     private final AtomicBoolean expireChunkMessageTaskScheduled = new AtomicBoolean(false);
     private final int maxPendingChunkedMessage;
@@ -1626,6 +1632,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
                 chunkedMsgCtx.recycle();
                 chunkedMessagesMap.remove(msgMetadata.getUuid());
+                // The replaced (old) context was counted when its first chunk arrived. It is being
+                // discarded here without completing, so decrement the count before the unconditional
+                // increment below re-counts the new replacement context. Otherwise each duplicate/
+                // resent first chunk inflates pendingChunkedMessageCount by 1 while chunkedMessagesMap
+                // stays the same size -- drift that eventually triggers spurious eviction.
+                pendingChunkedMessageCount--;
             }
             pendingChunkedMessageCount++;
             if (maxPendingChunkedMessage > 0 && pendingChunkedMessageCount > maxPendingChunkedMessage) {
@@ -1682,6 +1694,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     ReferenceCountUtil.safeRelease(chunkedMsgCtx.chunkedMsgBuffer);
                 }
                 chunkedMsgCtx.recycle();
+                // A non-null context here means an out-of-order chunk is discarding a previously
+                // tracked (counted) assembly. It was counted when its first chunk arrived, so
+                // decrement the count to keep pendingChunkedMessageCount in sync with
+                // chunkedMessagesMap. (When chunkedMsgCtx is null nothing was counted for this uuid.)
+                pendingChunkedMessageCount--;
             }
             chunkedMessagesMap.remove(msgMetadata.getUuid());
             compressedPayload.release();
