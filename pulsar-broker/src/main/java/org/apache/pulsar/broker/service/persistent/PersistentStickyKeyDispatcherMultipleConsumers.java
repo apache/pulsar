@@ -226,6 +226,13 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
 
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
+        // A STICKY addition can finish its liveness check after dispatcher removal. Its selector removes by
+        // identity, so repeat its cleanup even for an unregistered consumer without affecting replacements.
+        if (keySharedMode != KeySharedMode.STICKY && !containsConsumerInstance(consumer)) {
+            // Let the superclass repair stale list membership without touching a replacement's selector state.
+            super.removeConsumer(consumer);
+            return;
+        }
         // The consumer must be removed from the selector before calling the superclass removeConsumer method.
         Optional<ImpactedConsumersResult> impactedConsumers = selector.removeConsumer(consumer);
         super.removeConsumer(consumer);
