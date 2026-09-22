@@ -54,6 +54,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
@@ -61,6 +62,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -814,5 +816,50 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         // cleanup
         ledger1.close();
         factory.shutdown();
+    }
+
+    /**
+     * Terminating a managed ledger closes the current BookKeeper ledger, and that close errors out the adds which are
+     * still in flight. These adds can never succeed, so they must be failed rather than left pending forever: a caller
+     * that tracks its in-flight writes (like the broker's PersistentTopic) would otherwise never see them complete.
+     */
+    @Test
+    public void testTerminateFailsInFlightAdds() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setEnsembleSize(1).setWriteQuorumSize(1)
+                .setAckQuorumSize(1);
+        // A terminated ledger cannot be written to again: use a name that a retry of this test would not reuse
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+        Position lastPersisted = ledger.addEntry("entry-0".getBytes());
+
+        // Suspend the bookie that stores the current ledger, so that the next add stays in flight
+        BookieId bookie = ledger.currentLedger.getLedgerMetadata().getAllEnsembles().firstEntry().getValue().get(0);
+        CountDownLatch resumeBookie = new CountDownLatch(1);
+        sleepBookie(bookie, resumeBookie);
+        try {
+            CompletableFuture<ManagedLedgerException> inFlightAddFailure = new CompletableFuture<>();
+            ledger.asyncAddEntry("entry-1".getBytes(), new AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    inFlightAddFailure.completeExceptionally(
+                            new AssertionError("The in-flight add should not succeed: " + position));
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    inFlightAddFailure.complete(exception);
+                }
+            }, null);
+            Awaitility.await().until(() -> !ledger.pendingAddEntries.isEmpty());
+
+            assertEquals(ledger.terminate(), lastPersisted);
+
+            assertTrue(inFlightAddFailure.get(10, TimeUnit.SECONDS) instanceof ManagedLedgerTerminatedException);
+            assertTrue(ledger.pendingAddEntries.isEmpty());
+        } finally {
+            resumeBookie.countDown();
+        }
     }
 }
