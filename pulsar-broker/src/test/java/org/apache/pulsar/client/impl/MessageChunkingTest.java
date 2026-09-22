@@ -486,7 +486,13 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         int mapSize = consumerImpl.chunkedMessagesMap.size();
         int count = consumerImpl.getPendingChunkedMessageCountForTest();
+        int queueSize = consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest();
 
+        // All three structures track the same single in-flight uuid; they must stay consistent
+        // regardless of how many duplicate first chunks arrive for it.
+        assertEquals(queueSize, mapSize,
+                "pendingChunkedMessageUuidQueue.size (" + queueSize + ") drifted from chunkedMessagesMap.size ("
+                        + mapSize + ") after " + duplicates + " duplicate first chunks");
         assertEquals(count, mapSize,
                 "pendingChunkedMessageCount (" + count + ") drifted from chunkedMessagesMap.size ("
                         + mapSize + ") after " + duplicates + " duplicate first chunks");
