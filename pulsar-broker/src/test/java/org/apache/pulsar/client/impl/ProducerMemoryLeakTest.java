@@ -29,9 +29,14 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultSelectStrategyFactory;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.resolver.AddressResolver;
+import io.netty.resolver.dns.DnsAddressResolverGroup;
+import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.DefaultEventExecutorChooserFactory;
 import io.netty.util.concurrent.RejectedExecutionHandlers;
+import java.net.InetSocketAddress;
 import java.nio.channels.spi.SelectorProvider;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,6 +67,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.mockito.MockedStatic;
@@ -233,7 +239,30 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
                 });
         ClientConfigurationData configuration = new ClientConfigurationData();
         configuration.setServiceUrl(getBrokerServiceUrl());
-        try (PulsarClientImpl client = new PulsarClientImpl(configuration, eventLoops)) {
+        // The default DNS resolver picks its channel type from the platform (epoll on Linux), which does not
+        // match the NIO event loop above and breaks the client's shutdown. Use a resolver whose channels match.
+        DnsResolverGroupImpl dnsResolverGroup = new DnsResolverGroupImpl(configuration) {
+            private final DnsAddressResolverGroup nioResolverGroup = new DnsAddressResolverGroup(
+                    new DnsNameResolverBuilder()
+                            .traceEnabled(true)
+                            .channelType(EventLoopUtil.getDatagramChannelClass(eventLoops))
+                            .socketChannelType(EventLoopUtil.getClientSocketChannelClass(eventLoops), true));
+
+            @Override
+            public AddressResolver<InetSocketAddress> createAddressResolver(EventLoopGroup eventLoopGroup) {
+                return nioResolverGroup.getResolver(eventLoopGroup.next());
+            }
+
+            @Override
+            public void close() {
+                nioResolverGroup.close();
+            }
+        };
+        try (PulsarClientImpl client = PulsarClientImpl.builder()
+                .conf(configuration)
+                .eventLoopGroup(eventLoops)
+                .dnsResolverGroup(dnsResolverGroup)
+                .build()) {
             String topic = newTopicName();
             ProducerBuilderImpl<byte[]> builder = (ProducerBuilderImpl<byte[]>) client.newProducer()
                     .topic(topic).enableBatching(false).enableChunking(true).chunkMaxMessageSize(100)
@@ -294,6 +323,7 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
                 }
             }
         } finally {
+            dnsResolverGroup.close();
             eventLoops.shutdownGracefully(0, 0, TimeUnit.SECONDS).sync();
         }
     }
