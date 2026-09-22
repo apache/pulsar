@@ -73,19 +73,23 @@ public class PulsarPerfTestToolTest {
         assertThat(optionNames(commander, "produce")).doesNotContain("--isolated-clients");
         assertThat(optionNames(commander, "read-v4"))
                 .isEqualTo(optionNames(commander, "read"));
-        // consume and transaction have V5-only flags that the v4 commands must not advertise.
+        // consume and transaction have V5-only flags that the v4 commands must not advertise, and
+        // only the v4 commands offer --replicated, which the V5 consumers cannot honour.
         Set<String> consumeV4Options = optionNames(commander, "consume-v4");
-        consumeV4Options.remove("--isolated-clients");
+        consumeV4Options.removeAll(Set.of("--isolated-clients", "-rs", "--replicated"));
         assertThat(optionNames(commander, "consume"))
                 .containsAll(consumeV4Options)
                 .contains("--scalable-consumer-type");
         assertThat(optionNames(commander, "consume-v4")).doesNotContain("--scalable-consumer-type");
-        assertThat(optionNames(commander, "consume-v4")).contains("--isolated-clients");
-        assertThat(optionNames(commander, "consume")).doesNotContain("--isolated-clients");
+        assertThat(optionNames(commander, "consume-v4")).contains("--isolated-clients", "--replicated");
+        assertThat(optionNames(commander, "consume")).doesNotContain("--isolated-clients", "--replicated");
+        Set<String> transactionV4Options = optionNames(commander, "transaction-v4");
+        transactionV4Options.removeAll(Set.of("-rs", "--replicated"));
         assertThat(optionNames(commander, "transaction"))
-                .containsAll(optionNames(commander, "transaction-v4"))
+                .containsAll(transactionV4Options)
                 .contains("--scalable");
-        assertThat(optionNames(commander, "transaction-v4")).doesNotContain("--scalable");
+        assertThat(optionNames(commander, "transaction-v4")).doesNotContain("--scalable").contains("--replicated");
+        assertThat(optionNames(commander, "transaction")).doesNotContain("--replicated");
     }
 
     /** The v4 commands must resolve conf-file defaults and case-insensitive enums like the others. */
