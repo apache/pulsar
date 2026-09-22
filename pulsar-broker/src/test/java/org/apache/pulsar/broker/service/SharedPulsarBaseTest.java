@@ -83,6 +83,13 @@ public abstract class SharedPulsarBaseTest {
     }
 
     /**
+     * The shared {@link PulsarService}, for tests that need broker-internal accessors.
+     */
+    protected PulsarService getPulsar() {
+        return pulsar;
+    }
+
+    /**
      * Returns the shared broker's {@link ServiceConfiguration} for runtime config inspection or changes.
      */
     protected ServiceConfiguration getConfig() {
