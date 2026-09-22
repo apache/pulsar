@@ -25,7 +25,6 @@ import com.google.common.base.MoreObjects;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -1452,17 +1451,9 @@ public class PersistentSubscription extends AbstractSubscription {
                 subStats.lastAckedTimestamp = Math.max(subStats.lastAckedTimestamp, consumerStats.lastAckedTimestamp);
                 List<Range> keyRanges = consumerKeyHashRanges != null ? consumerKeyHashRanges.get(consumer) : null;
                 if (keyRanges != null) {
-                    if (((StickyKeyDispatcher) dispatcher).isClassic()) {
-                        // Use string representation for classic mode
-                        consumerStats.keyHashRanges = keyRanges.stream()
-                                .map(Range::toString)
-                                .collect(Collectors.toList());
-                    } else {
-                        // Use array representation for PIP-379 stats
-                        consumerStats.keyHashRangeArrays = keyRanges.stream()
-                                .map(range -> new int[]{range.getStart(), range.getEnd()})
-                                .collect(Collectors.toList());
-                    }
+                    consumerStats.keyHashRangeArrays = keyRanges.stream()
+                            .map(range -> new int[]{range.getStart(), range.getEnd()})
+                            .collect(Collectors.toList());
                 }
                 subStats.drainingHashesCount += consumerStats.drainingHashesCount;
                 subStats.drainingHashesClearedTotal += consumerStats.drainingHashesClearedTotal;
@@ -1534,14 +1525,6 @@ public class PersistentSubscription extends AbstractSubscription {
             StickyKeyDispatcher keySharedDispatcher = (StickyKeyDispatcher) dispatcher;
             subStats.allowOutOfOrderDelivery = keySharedDispatcher.isAllowOutOfOrderDelivery();
             subStats.keySharedMode = keySharedDispatcher.getKeySharedMode().toString();
-
-            LinkedHashMap<Consumer, Position> recentlyJoinedConsumers = keySharedDispatcher
-                    .getRecentlyJoinedConsumers();
-            if (recentlyJoinedConsumers != null && recentlyJoinedConsumers.size() > 0) {
-                recentlyJoinedConsumers.forEach((k, v) -> {
-                    subStats.consumersAfterMarkDeletePosition.put(k.consumerName(), v.toString());
-                });
-            }
         }
         subStats.nonContiguousDeletedMessagesRanges = cursor.getTotalNonContiguousDeletedMessagesRange();
         subStats.nonContiguousDeletedMessagesRangesSerializedSize =

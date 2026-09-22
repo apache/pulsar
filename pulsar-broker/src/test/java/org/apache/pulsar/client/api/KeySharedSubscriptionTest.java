@@ -2001,11 +2001,11 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
      * This test is in order to guarantee the feature added by https://github.com/apache/pulsar/pull/7105.
      * 1. Start 3 consumers:
      *   - consumer1 will be closed and trigger a messages redeliver.
-     *   - consumer2 will not ack any messages to make the new consumer joined late will be stuck due
-     *     to the mechanism "recentlyJoinedConsumers".
+     *   - consumer2 will not ack any messages, so a consumer that joins later will be stuck behind the
+     *     hashes draining towards it.
      *   - consumer3 will always receive and ack messages.
-     * 2. Add consumer4 after consumer1 was close, and consumer4 will be stuck due to the mechanism
-     *    "recentlyJoinedConsumers".
+     * 2. Add consumer4 after consumer1 was close, and consumer4 will be stuck behind the draining
+     *    hashes handed over to it.
      * 3. Verify:
      *   - (Main purpose) consumer3 can still receive messages util the cursor.readerPosition is larger than LAC.
      *   - no repeated Read-and-discard.
@@ -2037,8 +2037,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 .setAllowOutOfOrderDelivery(allowKeySharedOutOfOrder);
         // 1. Start 3 consumers and make ack holes.
         //   - one consumer will be closed and trigger a messages redeliver.
-        //   - one consumer will not ack any messages to make the new consumer joined late will be stuck due to the
-        //     mechanism "recentlyJoinedConsumers".
+        //   - one consumer will not ack any messages, so a consumer that joins later will be stuck behind the
+        //     hashes draining towards it.
         //   - one consumer will always receive and ack messages.
         Consumer<Integer> consumer1 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
@@ -2112,8 +2112,8 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             };
         }
 
-        // 2. Add consumer4 after "consumerWillBeClose" was close, and consumer4 will be stuck due to the mechanism
-        //    "recentlyJoinedConsumers".
+        // 2. Add consumer4 after "consumerWillBeClose" was close, and consumer4 will be stuck behind the
+        //    draining hashes handed over to it.
         Consumer<Integer> consumer4 = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName(subName)
