@@ -30,12 +30,14 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -296,11 +298,16 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         CompletableFuture<Position> add1 = addEntryAsync(ledger, "entry-1");
         Awaitility.await().untilAsserted(() -> assertEquals(ledger.getPendingAddEntriesCount(), 1));
 
-        assertEquals(ledger.terminate(), p0);
+        // The terminate closes the current ledger, then its own metadata update is deferred as well
+        CompletableFuture<Position> terminated = terminateAsync(ledger);
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(ledger.getStats().getPendingBookieOpsStats().dataLedgerCloseOp, 0));
+        assertFalse(terminated.isDone());
 
-        // The deferred update of the ledgers list gets its turn after the managed ledger was terminated
+        // The deferred updates get their turn after the managed ledger was terminated
         ledger.metadataMutex.unlock();
 
+        assertEquals(terminated.get(), p0);
         assertFailedWithTerminated(add1);
         assertTerminatedAt(factory, ledger, p0);
     }
@@ -350,18 +357,7 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
 
         // Terminate, holding its ledger close, which is the next step of the mock BookKeeper client
         CompletableFuture<Void> closeLedgerGate = bkc.promiseAfter(0);
-        CompletableFuture<Position> terminated = new CompletableFuture<>();
-        ledger.asyncTerminate(new TerminateCallback() {
-            @Override
-            public void terminateComplete(Position lastCommittedPosition, Object ctx) {
-                terminated.complete(lastCommittedPosition);
-            }
-
-            @Override
-            public void terminateFailed(ManagedLedgerException exception, Object ctx) {
-                terminated.completeExceptionally(exception);
-            }
-        }, null);
+        CompletableFuture<Position> terminated = terminateAsync(ledger);
         assertTrue(ledger.isTerminated());
 
         // The response of the ledgers list update arrives after the managed ledger was terminated
@@ -371,6 +367,92 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         closeLedgerGate.complete(null);
         assertEquals(terminated.get(), p0);
         assertTerminatedAt(spyStoreFactory, ledger, p0);
+    }
+
+    @DataProvider(name = "ledgersListUpdateAppliedFirst")
+    public Object[][] ledgersListUpdateAppliedFirst() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    /**
+     * The terminate gets to its own metadata update while the update of the ledgers list is still in flight, with the
+     * same expected version: it has to wait for that update to complete, in whichever order the two would otherwise
+     * be applied.
+     */
+    @Test(timeOut = 20000, dataProvider = "ledgersListUpdateAppliedFirst")
+    @SuppressWarnings("unchecked")
+    public void terminateWhileLedgersListUpdateIsInFlight(boolean ledgersListUpdateAppliedFirst) throws Exception {
+        String mlPath = "/managed-ledgers/my_test_ledger";
+
+        // Holds the update of the ledgers list: either it is applied right away and its response is held, or it is not
+        // applied until released. The spy does not block, since the update is triggered while holding the managed
+        // ledger monitor
+        CompletableFuture<Void> updateGate = new CompletableFuture<>();
+        AtomicBoolean interceptNextPut = new AtomicBoolean(false);
+        CountDownLatch putIntercepted = new CountDownLatch(1);
+        AtomicInteger putCount = new AtomicInteger();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(inv -> {
+            putCount.incrementAndGet();
+            if (!interceptNextPut.compareAndSet(true, false)) {
+                return inv.callRealMethod();
+            }
+            putIntercepted.countDown();
+            if (ledgersListUpdateAppliedFirst) {
+                CompletableFuture<Stat> response = (CompletableFuture<Stat>) inv.callRealMethod();
+                return updateGate.thenCompose(ignore -> response);
+            }
+            String path = inv.getArgument(0);
+            byte[] value = inv.getArgument(1);
+            Optional<Long> expectedVersion = inv.getArgument(2);
+            return updateGate.thenCompose(ignore -> metadataStore.put(path, value, expectedVersion));
+        }).when(spyStore).put(eq(mlPath), any(byte[].class), any());
+
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl spyStoreFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) spyStoreFactory.open("my_test_ledger", config);
+
+        // The first entry fills the ledger and triggers a rollover: the new ledger is created and the update of the
+        // ledgers list is in flight
+        interceptNextPut.set(true);
+        Position p0 = ledger.addEntry("entry-0".getBytes());
+        assertTrue(putIntercepted.await(10, TimeUnit.SECONDS));
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.CreatingLedger);
+        int putsBeforeTerminate = putCount.get();
+
+        CompletableFuture<Position> add1 = addEntryAsync(ledger, "entry-1");
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.getPendingAddEntriesCount(), 1));
+
+        // The terminate closes the current ledger and gets to its own metadata update, which has to wait for the update
+        // of the ledgers list to complete
+        CompletableFuture<Position> terminated = terminateAsync(ledger);
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(ledger.getStats().getPendingBookieOpsStats().dataLedgerCloseOp, 0));
+        assertFalse(terminated.isDone());
+        assertEquals(putCount.get(), putsBeforeTerminate);
+
+        updateGate.complete(null);
+        assertEquals(terminated.get(), p0);
+        assertFailedWithTerminated(add1);
+        assertTerminatedAt(spyStoreFactory, ledger, p0);
+    }
+
+    private static CompletableFuture<Position> terminateAsync(ManagedLedger ledger) {
+        CompletableFuture<Position> future = new CompletableFuture<>();
+        ledger.asyncTerminate(new TerminateCallback() {
+            @Override
+            public void terminateComplete(Position lastCommittedPosition, Object ctx) {
+                future.complete(lastCommittedPosition);
+            }
+
+            @Override
+            public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        }, null);
+        return future;
     }
 
     private static CompletableFuture<Position> addEntryAsync(ManagedLedger ledger, String data) {

@@ -1565,24 +1565,48 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback.terminateFailed(createManagedLedgerException(rc), ctx);
             } else {
                 lastConfirmedEntry = PositionFactory.create(lh.getId(), lh.getLastAddConfirmed());
-                // Store the new state in metadata
-                store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
-                    @Override
-                    public void operationComplete(Void result, Stat stat) {
-                        ledgersStat = stat;
-                        log.info().attr("lastConfirmedEntry", lastConfirmedEntry).log("Terminated managed ledger");
-                        callback.terminateComplete(lastConfirmedEntry, ctx);
-                    }
-
-                    @Override
-                    public void operationFailed(MetaStoreException e) {
-                        log.error().exceptionMessage(e).log("Failed to terminate managed ledger");
-                        handleBadVersion(e);
-                        callback.terminateFailed(new ManagedLedgerException(e), ctx);
-                    }
-                });
+                storeTerminatedPosition(callback, ctx);
             }
         }, null);
+    }
+
+    /**
+     * Stores the terminated position in the metadata, once no other update of the ledgers list is in flight. The
+     * terminate does not wait for a ledger rollover in progress, so its update has to be serialized with the one of
+     * the rollover through the metadata mutex, or one of the two fails on the expected version and fences the managed
+     * ledger.
+     */
+    private synchronized void storeTerminatedPosition(TerminateCallback callback, Object ctx) {
+        if (state != State.Terminated) {
+            // Closed or fenced while waiting for the metadata mutex
+            log.debug().attr("state", state).log("Not storing the terminated position");
+            callback.terminateFailed(state.isFenced() ? new ManagedLedgerFencedException()
+                    : new ManagedLedgerAlreadyClosedException("Managed ledger was closed while terminating"), ctx);
+            return;
+        }
+        if (!metadataMutex.tryLock()) {
+            // Wait for the other update to complete: its callback brings the ledgers list and its version up to date
+            scheduledExecutor.schedule(() -> storeTerminatedPosition(callback, ctx), 100, TimeUnit.MILLISECONDS);
+            return;
+        }
+
+        store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, new MetaStoreCallback<Void>() {
+            @Override
+            public void operationComplete(Void result, Stat stat) {
+                ledgersStat = stat;
+                metadataMutex.unlock();
+                log.info().attr("lastConfirmedEntry", lastConfirmedEntry).log("Terminated managed ledger");
+                callback.terminateComplete(lastConfirmedEntry, ctx);
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                metadataMutex.unlock();
+                log.error().exceptionMessage(e).log("Failed to terminate managed ledger");
+                handleBadVersion(e);
+                callback.terminateFailed(new ManagedLedgerException(e), ctx);
+            }
+        });
     }
 
     @Override
@@ -1797,7 +1821,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 });
                             } else if (state == State.Terminated) {
                                 // Terminated while the ledgers list was being updated. The new ledger was not added
-                                // to the in-memory list, so the metadata update of the terminate drops it again
+                                // to the in-memory list, so the metadata update of the terminate, which waits for
+                                // this one to complete, drops it again
                                 abortRolloverAfterTerminate(lh);
                             } else {
                                 LedgerHandle originalCurrentLedger = currentLedger;
