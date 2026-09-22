@@ -330,6 +330,9 @@ public class BrokerService implements Closeable {
     public final int maxUnackedMsgsPerDispatcher;
     private final AtomicBoolean blockedDispatcherOnHighUnackedMsgs = new AtomicBoolean(false);
     private final Set<AbstractPersistentDispatcherMultipleConsumers> blockedDispatchers = ConcurrentHashMap.newKeySet();
+    // Consumer settlement can enter this lock while holding subscription, dispatcher and accounting locks.
+    // Never acquire those locks, traverse subscriptions, or schedule dispatching while holding this lock.
+    // The dispatcher block/unblock methods below only update volatile flags.
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     @VisibleForTesting
     private final DelayedDeliveryTrackerFactory delayedDeliveryTrackerFactory;
@@ -4200,17 +4203,7 @@ public class BrokerService implements Closeable {
             // is blocked
             if (blockedDispatcherOnHighUnackedMsgs.get() && !dispatcher.isBlockedDispatcherOnUnackedMsgs()
                     && dispatcher.getTotalUnackedMessages() > maxUnackedMsgsPerDispatcher) {
-                lock.readLock().lock();
-                try {
-                    log.info()
-                            .attr("name", dispatcher.getName())
-                            .attr("totalUnackedMessages", dispatcher.getTotalUnackedMessages())
-                            .log("dispatcher reached to max unack msg limit on blocked-broker");
-                    dispatcher.blockDispatcherOnUnackedMsgs();
-                    blockedDispatchers.add(dispatcher);
-                } finally {
-                    lock.readLock().unlock();
-                }
+                blockDispatcherOnUnackedMessagesIfNeeded(dispatcher);
             }
         }
     }
@@ -4229,20 +4222,42 @@ public class BrokerService implements Closeable {
             return;
         }
         long unAckedMessages = totalUnackedMessages.sum();
-        if (unAckedMessages >= maxUnackedMessages && blockedDispatcherOnHighUnackedMsgs.compareAndSet(false, true)) {
-            // block dispatcher with higher unack-msg when it reaches broker-unack msg limit
+        boolean brokerBlocked = blockedDispatcherOnHighUnackedMsgs.get();
+        if ((!brokerBlocked && unAckedMessages < maxUnackedMessages)
+                || (brokerBlocked && unAckedMessages >= maxUnackedMessages / 2)) {
+            return;
+        }
+        boolean startBlocking = false;
+        List<AbstractPersistentDispatcherMultipleConsumers> unblockedDispatchers = List.of();
+        lock.writeLock().lock();
+        try {
+            // Serialize both transitions with scans registering dispatchers under the read lock. In particular,
+            // take the unblock snapshot here, not before waiting for an in-flight registration to finish.
+            unAckedMessages = totalUnackedMessages.sum();
+            if (unAckedMessages >= maxUnackedMessages
+                    && blockedDispatcherOnHighUnackedMsgs.compareAndSet(false, true)) {
+                startBlocking = true;
+            } else if (unAckedMessages < maxUnackedMessages / 2
+                    && blockedDispatcherOnHighUnackedMsgs.compareAndSet(true, false)) {
+                unblockedDispatchers = new ArrayList<>(blockedDispatchers);
+                unblockDispatchersUnderLock(unblockedDispatchers);
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+        if (startBlocking) {
             log.info()
                     .attr("maxUnackedMessages", maxUnackedMessages)
                     .attr("maxUnackedMsgsPerDispatcher", maxUnackedMsgsPerDispatcher)
                     .log("Starting blocking dispatchers with unacked msgs due to reached max broker limit");
-            executor().execute(() -> blockDispatchersWithLargeUnAckMessages());
-        } else if (blockedDispatcherOnHighUnackedMsgs.get() && unAckedMessages < maxUnackedMessages / 2) {
-            // unblock broker-dispatching if received enough acked messages back
-            if (blockedDispatcherOnHighUnackedMsgs.compareAndSet(true, false)) {
-                unblockDispatchersOnUnAckMessages(blockedDispatchers.stream().toList());
-            }
+            executor().execute(this::blockDispatchersWithLargeUnAckMessages);
         }
+        resumeUnblockedDispatchers(unblockedDispatchers);
+    }
 
+    @VisibleForTesting
+    ReadWriteLock getUnackedMessagesLock() {
+        return lock;
     }
 
     public boolean isBrokerDispatchingBlocked() {
@@ -4250,28 +4265,58 @@ public class BrokerService implements Closeable {
     }
 
     private void blockDispatchersWithLargeUnAckMessages() {
+        // getDispatcher() acquires the subscription monitor. Resolve it before taking the broker lock,
+        // since consumer removal holds that monitor while settling its unacked balance with the broker.
+        forEachTopic(topic -> topic.getSubscriptions().forEach((subName, subscription) -> {
+            if (subscription.getDispatcher() instanceof AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+                blockDispatcherOnUnackedMessagesIfNeeded(dispatcher);
+            }
+        }));
+    }
+
+    private void blockDispatcherOnUnackedMessagesIfNeeded(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        boolean blocked = false;
         lock.readLock().lock();
         try {
-            forEachTopic(topic -> {
-                topic.getSubscriptions().forEach((subName, persistentSubscription) -> {
-                    if (persistentSubscription.getDispatcher()
-                            instanceof AbstractPersistentDispatcherMultipleConsumers) {
-                        AbstractPersistentDispatcherMultipleConsumers dispatcher =
-                                (AbstractPersistentDispatcherMultipleConsumers) persistentSubscription.getDispatcher();
-                        int dispatcherUnAckMsgs = dispatcher.getTotalUnackedMessages();
-                        if (dispatcherUnAckMsgs > maxUnackedMsgsPerDispatcher) {
-                            log.info()
-                                    .attr("name", dispatcher.getName())
-                                    .attr("totalUnackedMessages", dispatcher.getTotalUnackedMessages())
-                                    .log("Blocking dispatcher due to reached max broker limit");
-                            dispatcher.blockDispatcherOnUnackedMsgs();
-                            blockedDispatchers.add(dispatcher);
-                        }
-                    }
-                });
-            });
+            // The scan may have waited for a subscription while ACKs or removal already cleared its balance.
+            if (blockedDispatcherOnHighUnackedMsgs.get()
+                    && dispatcher.getTotalUnackedMessages() > maxUnackedMsgsPerDispatcher) {
+                dispatcher.blockDispatcherOnUnackedMsgs();
+                blockedDispatchers.add(dispatcher);
+                blocked = true;
+            }
         } finally {
             lock.readLock().unlock();
+        }
+        if (blocked) {
+            log.debug()
+                    .attr("name", dispatcher.getName())
+                    .attr("totalUnackedMessages", dispatcher.getTotalUnackedMessages())
+                    .log("Blocking dispatcher due to reached max broker limit");
+            // ACKs update the count without this lock and may have seen the dispatcher as not yet blocked.
+            // Either the ACK observes our flag or this post-registration check observes its reduced count.
+            if (dispatcher.getTotalUnackedMessages() < maxUnackedMsgsPerDispatcher / 2) {
+                unblockDispatcherIfBelowLowWatermark(dispatcher);
+            }
+        }
+    }
+
+    private void unblockDispatcherIfBelowLowWatermark(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        boolean unblocked = false;
+        // The registration read lock has been released: never upgrade it or schedule reads under this lock.
+        lock.writeLock().lock();
+        try {
+            if (blockedDispatchers.contains(dispatcher)
+                    && dispatcher.getTotalUnackedMessages() < maxUnackedMsgsPerDispatcher / 2) {
+                dispatcher.unBlockDispatcherOnUnackedMsgs();
+                blockedDispatchers.remove(dispatcher);
+                unblocked = true;
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+        if (unblocked) {
+            resumeUnblockedDispatchers(List.of(dispatcher));
         }
     }
 
@@ -4283,15 +4328,25 @@ public class BrokerService implements Closeable {
     public void unblockDispatchersOnUnAckMessages(List<AbstractPersistentDispatcherMultipleConsumers> dispatcherList) {
         lock.writeLock().lock();
         try {
-            dispatcherList.forEach(dispatcher -> {
-                dispatcher.unBlockDispatcherOnUnackedMsgs();
-                dispatcher.readMoreEntriesAsync();
-                log.info().attr("name", dispatcher.getName()).log("Dispatcher is unblocked");
-                blockedDispatchers.remove(dispatcher);
-            });
+            unblockDispatchersUnderLock(dispatcherList);
         } finally {
             lock.writeLock().unlock();
         }
+        resumeUnblockedDispatchers(dispatcherList);
+    }
+
+    private void unblockDispatchersUnderLock(List<AbstractPersistentDispatcherMultipleConsumers> dispatcherList) {
+        dispatcherList.forEach(dispatcher -> {
+            dispatcher.unBlockDispatcherOnUnackedMsgs();
+            blockedDispatchers.remove(dispatcher);
+        });
+    }
+
+    private void resumeUnblockedDispatchers(List<AbstractPersistentDispatcherMultipleConsumers> dispatcherList) {
+        dispatcherList.forEach(dispatcher -> {
+            dispatcher.readMoreEntriesAsync();
+            log.info().attr("name", dispatcher.getName()).log("Dispatcher is unblocked");
+        });
     }
 
     /**

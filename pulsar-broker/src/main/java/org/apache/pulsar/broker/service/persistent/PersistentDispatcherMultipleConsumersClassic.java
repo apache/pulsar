@@ -232,10 +232,8 @@ public class PersistentDispatcherMultipleConsumersClassic extends AbstractPersis
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         if (consumerSet.removeAll(consumer) == 1) {
-            // decrement unack-message count for removed consumer. Only the removal that actually
-            // unregisters the consumer may debit it, otherwise removing an already-removed consumer
-            // debits the same messages again and drives the subscription counter negative.
-            addUnAckedMessages(-consumer.getUnackedMessages());
+            // Settle the remaining balance atomically with ACK completion and ignore late updates.
+            consumer.closeUnackedMessagesAccounting();
             removeConsumerFromList(consumer);
             log.info()
                     .attr("consumer", consumer)
