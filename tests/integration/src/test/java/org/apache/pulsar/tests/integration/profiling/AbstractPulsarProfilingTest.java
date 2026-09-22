@@ -362,8 +362,6 @@ public abstract class AbstractPulsarProfilingTest extends PulsarTestSuite {
         Map<String, String> brokerEnvs = new HashMap<>(cluster.brokerEnvs());
         brokerEnvs.put("PULSAR_MEM", cluster.brokerMemory());
         //brokerEnvs.put("maxPendingPublishRequestsPerConnection", "1000");
-        //brokerEnvs.put("PULSAR_PREFIX_subscriptionKeySharedUseClassicPersistentImplementation", "true");
-        //brokerEnvs.put("PULSAR_PREFIX_subscriptionSharedUseClassicPersistentImplementation", "true");
         //brokerEnvs.put("dispatcherMaxReadSizeBytes", "10000000");
         //brokerEnvs.put("dispatcherDispatchMessagesInSubscriptionThread", "false");
         //brokerEnvs.put("dispatcherMaxRoundRobinBatchSize", "1000");

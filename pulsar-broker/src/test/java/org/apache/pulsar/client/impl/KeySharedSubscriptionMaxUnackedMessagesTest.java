@@ -47,39 +47,18 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.tests.KeySharedImplementationType;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
-import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 public class KeySharedSubscriptionMaxUnackedMessagesTest extends ProducerConsumerBase {
-    private final KeySharedImplementationType implementationType;
-
-    // Comment out the next line (Factory annotation) to run tests manually in IntelliJ, one-by-one
-    @Factory
-    public static Object[] createTestInstances() {
-        return KeySharedImplementationType.generateTestInstances(KeySharedSubscriptionMaxUnackedMessagesTest::new);
-    }
-
-    public KeySharedSubscriptionMaxUnackedMessagesTest() {
-        // set the default implementation type for manual running in IntelliJ
-        this(KeySharedImplementationType.DEFAULT);
-    }
-
-    public KeySharedSubscriptionMaxUnackedMessagesTest(KeySharedImplementationType implementationType) {
-        this.implementationType = implementationType;
-    }
-
     @Override
     @BeforeMethod
     protected void setup() throws Exception {
-        conf.setSubscriptionKeySharedUseClassicPersistentImplementation(implementationType.classic);
-        conf.setSubscriptionSharedUseClassicPersistentImplementation(implementationType.classic);
         conf.setMaxUnackedMessagesPerConsumer(10);
         super.internalSetup();
         super.producerBaseSetup();
@@ -102,17 +81,16 @@ public class KeySharedSubscriptionMaxUnackedMessagesTest extends ProducerConsume
 
     @DataProvider
     public Object[][] subType() {
-        return implementationType.prependImplementationTypeToData(new Object[][]{
+        return new Object[][]{
                 {SubscriptionType.Shared, null},
                 {SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_ConsistentHashing},
                 {SubscriptionType.Key_Shared, KeySharedSelectorType.AutoSplit_Classic},
                 {SubscriptionType.Key_Shared, KeySharedSelectorType.Sticky}
-        });
+        };
     }
 
     @Test(dataProvider = "subType", timeOut = 30000)
-    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(KeySharedImplementationType impl,
-                                                                               SubscriptionType subscriptionType,
+    public void testCanRecoverConsumptionWhenLiftMaxUnAckedMessagesRestriction(SubscriptionType subscriptionType,
                                                                                KeySharedSelectorType selectorType)
             throws PulsarClientException {
         if (selectorType == KeySharedSelectorType.AutoSplit_Classic) {
