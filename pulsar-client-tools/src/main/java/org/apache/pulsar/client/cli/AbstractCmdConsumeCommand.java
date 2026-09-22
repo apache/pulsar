@@ -121,9 +121,6 @@ public abstract class AbstractCmdConsumeCommand extends AbstractCmdConsume {
     @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
     protected boolean poolMessages = true;
 
-    @Option(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
-    protected boolean replicateSubscriptionState = false;
-
     @Option(names = { "-mp", "--print-metadata" }, description = "Message metadata")
     protected boolean printMetadata = false;
 

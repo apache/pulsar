@@ -103,8 +103,7 @@ public class CmdConsume extends AbstractCmdConsumeCommand {
             RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
             QueueConsumerBuilder<?> builder = client.newQueueConsumer(schema)
                     .subscriptionName(this.subscriptionName)
-                    .subscriptionInitialPosition(subscriptionInitialPosition)
-                    .replicateSubscriptionState(replicateSubscriptionState);
+                    .subscriptionInitialPosition(subscriptionInitialPosition);
             if (this.receiverQueueSize > 0) {
                 builder.receiverQueueSize(this.receiverQueueSize);
             }

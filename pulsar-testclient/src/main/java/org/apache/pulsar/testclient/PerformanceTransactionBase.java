@@ -142,10 +142,6 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
     @Option(names = {"-st", "--subscription-type"}, description = "Subscription type")
     public SubscriptionType subscriptionType = SubscriptionType.Shared;
 
-    @Option(names = {"-rs", "--replicated" },
-            description = "Whether the subscription status should be replicated")
-    protected boolean replicatedSubscription = false;
-
     @Option(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
     public int receiverQueueSize = 1000;
 

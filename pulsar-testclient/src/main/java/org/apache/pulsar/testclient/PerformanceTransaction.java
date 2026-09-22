@@ -137,7 +137,6 @@ public class PerformanceTransaction extends PerformanceTransactionBase<PulsarCli
         QueueConsumerBuilder<byte[]> b = client.newQueueConsumer(Schema.bytes())
                 .receiverQueueSize(this.receiverQueueSize)
                 .subscriptionInitialPosition(this.subscriptionInitialPosition)
-                .replicateSubscriptionState(this.replicatedSubscription)
                 .topic(topic)
                 .subscriptionName(subscription);
         return b.subscribeAsync();

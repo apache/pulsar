@@ -148,7 +148,6 @@ public class PerformanceConsumer
             StreamConsumerBuilder<byte[]> b = client.newStreamConsumer(Schema.bytes())
                     .acknowledgmentGroupTime(Duration.ofMillis(this.acknowledgmentsGroupingDelayMillis))
                     .subscriptionInitialPosition(this.subscriptionInitialPosition)
-                    .replicateSubscriptionState(this.replicatedSubscription)
                     .topic(topic)
                     .subscriptionName(subscription);
             if (encryptionPolicy != null) {
@@ -160,7 +159,6 @@ public class PerformanceConsumer
                 .receiverQueueSize(this.receiverQueueSize)
                 .acknowledgmentGroupTime(Duration.ofMillis(this.acknowledgmentsGroupingDelayMillis))
                 .subscriptionInitialPosition(this.subscriptionInitialPosition)
-                .replicateSubscriptionState(this.replicatedSubscription)
                 .topic(topic)
                 .subscriptionName(subscription);
         if (encryptionPolicy != null) {

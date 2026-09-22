@@ -58,6 +58,9 @@ public class CmdConsumeV4 extends AbstractCmdConsumeCommand {
     @Option(names = { "-stp", "--start-timestamp" }, description = "Start timestamp for consuming messages")
     private long startTimestamp = 0L;
 
+    @Option(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
+    private boolean replicateSubscriptionState = false;
+
     private Supplier<ClientBuilder> clientBuilder;
 
     public CmdConsumeV4() {

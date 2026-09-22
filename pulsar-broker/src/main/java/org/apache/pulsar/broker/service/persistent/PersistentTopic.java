@@ -5050,6 +5050,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private synchronized void checkReplicatedSubscriptionControllerState(boolean shouldBeEnabled) {
+        if (shouldBeEnabled && TopicName.get(topic).isSegment()) {
+            // The segment DAG of a scalable topic is independent per cluster, so no remote cluster can answer a
+            // snapshot request for a segment. Replicated subscriptions of scalable topics need a mechanism of their
+            // own; until it exists, a segment must not enable the controller, which would keep writing snapshot
+            // request markers into it. The replication clusters below come from the namespace, so they cannot tell.
+            log.debug("Skip enabling replicated subscriptions controller on a scalable topic segment");
+            return;
+        }
         boolean isCurrentlyEnabled = replicatedSubscriptionsController.isPresent();
         boolean isEnableReplicatedSubscriptions =
                 brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();
