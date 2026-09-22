@@ -18,9 +18,9 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.WebTarget;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import javax.ws.rs.client.WebTarget;
 import lombok.CustomLog;
 
 @CustomLog

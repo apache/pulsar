@@ -368,4 +368,37 @@ public class SchemaDataValidatorTest {
         StructSchemaDataValidator.of().validate(SchemaData.fromSchemaInfo(protobufSchema.getSchemaInfo()));
     }
 
+    // Avro 1.12.2 rejects named type references written as {"type": "name"} (AVRO-4176); such schemas were
+    // accepted before and must still be accepted
+
+    @DataProvider(name = "legacyNamedTypeReferenceSchemas")
+    public Object[][] legacyNamedTypeReferenceSchemas() {
+        String colorEnum = "{\"type\":\"enum\",\"name\":\"Color\",\"namespace\":\"org.example.shapes\","
+                + "\"symbols\":[\"RED\",\"BLUE\"]}";
+        String drawing = "{\"type\":\"record\",\"name\":\"Drawing\",\"namespace\":\"org.example.shapes\","
+                + "\"fields\":[{\"name\":\"background\",\"type\":" + colorEnum + "},"
+                + "{\"name\":\"outline\",\"type\":{\"type\":\"org.example.shapes.Color\"}},"
+                + "{\"name\":\"palette\",\"type\":{\"type\":\"array\","
+                + "\"items\":{\"type\":\"org.example.shapes.Color\"}}}]}";
+        return new Object[][] {
+            { SchemaType.AVRO, drawing },
+            { SchemaType.JSON, drawing },
+        };
+    }
+
+    @Test(dataProvider = "legacyNamedTypeReferenceSchemas")
+    public void testLegacyNamedTypeReferenceIsAccepted(SchemaType type, String schemaDefinition)
+            throws InvalidSchemaDataException {
+        SchemaData data = SchemaData.builder()
+            .type(type)
+            .data(schemaDefinition.getBytes(UTF_8))
+            .build();
+        SchemaDataValidator.validateSchemaData(data, false);
+
+        org.apache.avro.Schema parsed = StructSchemaDataValidator.parseAvroSchema(schemaDefinition, false);
+        Assert.assertEquals(parsed.getField("outline").schema().getFullName(), "org.example.shapes.Color");
+        Assert.assertEquals(parsed.getField("palette").schema().getElementType().getFullName(),
+                "org.example.shapes.Color");
+    }
+
 }

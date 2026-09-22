@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import com.carrotsearch.hppc.ObjectSet;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -30,18 +31,19 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
-import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
-import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -50,12 +52,87 @@ import org.testng.annotations.Test;
 public class PersistentDispatcherMultipleConsumersClassicTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 30 * 1000)
+    public void testKeySharedReplayQueueResumesAfterConsumerFlow() throws Exception {
+        boolean useClassicDispatcher = getConfig().isSubscriptionKeySharedUseClassicPersistentImplementation();
+        int perConsumerLimit = getConfig().getKeySharedLookAheadMsgInReplayThresholdPerConsumer();
+        int perSubscriptionLimit = getConfig().getKeySharedLookAheadMsgInReplayThresholdPerSubscription();
+        getConfig().setSubscriptionKeySharedUseClassicPersistentImplementation(true);
+        getConfig().setKeySharedLookAheadMsgInReplayThresholdPerConsumer(2);
+        getConfig().setKeySharedLookAheadMsgInReplayThresholdPerSubscription(2);
+        try {
+            String topicName = newTopicName();
+            String subscriptionName = "key-shared";
+            KeySharedPolicy keySharedPolicy = KeySharedPolicy.autoSplitHashRange();
+            @Cleanup
+            Consumer<String> fastConsumer = pulsarClient.newConsumer(Schema.STRING)
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .consumerName("fast")
+                    .subscriptionType(SubscriptionType.Key_Shared)
+                    .keySharedPolicy(keySharedPolicy)
+                    .subscribe();
+            @Cleanup
+            Consumer<String> slowConsumer = pulsarClient.newConsumer(Schema.STRING)
+                    .topic(topicName)
+                    .subscriptionName(subscriptionName)
+                    .consumerName("slow")
+                    .subscriptionType(SubscriptionType.Key_Shared)
+                    .keySharedPolicy(keySharedPolicy)
+                    .receiverQueueSize(1)
+                    .subscribe();
+            @Cleanup
+            Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+
+            PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+            PersistentStickyKeyDispatcherMultipleConsumersClassic dispatcher =
+                    (PersistentStickyKeyDispatcherMultipleConsumersClassic) topic.getSubscription(subscriptionName)
+                            .getDispatcher();
+            org.apache.pulsar.broker.service.Consumer slowServiceConsumer = dispatcher.getConsumers().stream()
+                    .filter(consumer -> consumer.consumerName().equals("slow"))
+                    .findFirst()
+                    .orElseThrow();
+            org.apache.pulsar.broker.service.Consumer fastServiceConsumer = dispatcher.getConsumers().stream()
+                    .filter(consumer -> consumer.consumerName().equals("fast"))
+                    .findFirst()
+                    .orElseThrow();
+            StickyKeyConsumerSelector selector = dispatcher.getSelector();
+            String slowKey = keyForConsumer(selector, slowServiceConsumer);
+            String fastKey = keyForConsumer(selector, fastServiceConsumer);
+
+            producer.newMessage().key(slowKey).value("slow-1").send();
+            producer.newMessage().key(slowKey).value("slow-2").send();
+            producer.newMessage().key(slowKey).value("slow-3").send();
+
+            Awaitility.await().untilAsserted(() ->
+                    Assert.assertEquals(dispatcher.getNumberOfMessagesInReplay(), 2L));
+
+            producer.newMessage().key(fastKey).value("fast").send();
+            Assert.assertNull(fastConsumer.receive(5, TimeUnit.SECONDS));
+
+            Message<String> firstSlowMessage = slowConsumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(firstSlowMessage);
+            slowConsumer.acknowledge(firstSlowMessage);
+
+            Message<String> fastMessage = fastConsumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(fastMessage);
+            Assert.assertEquals(fastMessage.getValue(), "fast");
+            Awaitility.await().untilAsserted(() ->
+                    Assert.assertTrue(dispatcher.getNumberOfMessagesInReplay() < 2));
+        } finally {
+            getConfig().setSubscriptionKeySharedUseClassicPersistentImplementation(useClassicDispatcher);
+            getConfig().setKeySharedLookAheadMsgInReplayThresholdPerConsumer(perConsumerLimit);
+            getConfig().setKeySharedLookAheadMsgInReplayThresholdPerSubscription(perSubscriptionLimit);
+        }
+    }
+
+    @Test(timeOut = 30 * 1000)
     public void testTopicDeleteIfConsumerSetMismatchConsumerList() throws Exception {
         final String topicName = newTopicName();
         final String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
 
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName).subscriptionName(subscription)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -83,6 +160,7 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends SharedPuls
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
 
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName).subscriptionName(subscription)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -100,62 +178,26 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends SharedPuls
 
     @Test
     public void testSkipReadEntriesFromCloseCursor() throws Exception {
-        final String topicName = newTopicName();
-        final String subscription = "s1";
+        String topicName = newTopicName();
+        String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topicName);
-
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
-        for (int i = 0; i < 10; i++) {
-            producer.send("message-" + i);
-        }
-        producer.close();
-
-        // Get the dispatcher of the topic.
-        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
-
-        ManagedCursor cursor = Mockito.mock(ManagedCursorImpl.class);
-        Mockito.doReturn(subscription).when(cursor).getName();
-        Subscription sub = Mockito.mock(PersistentSubscription.class);
-        Mockito.doReturn(topic).when(sub).getTopic();
-        // Mock the dispatcher.
+        admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+        PersistentSubscription sub = topic.getSubscription(subscription);
+        AtomicInteger scheduledReads = new AtomicInteger();
         PersistentDispatcherMultipleConsumersClassic dispatcher =
-                Mockito.spy(new PersistentDispatcherMultipleConsumersClassic(topic, cursor, sub));
-        // Return 10 permits to make the dispatcher can read more entries.
-        Mockito.doReturn(10).when(dispatcher).getFirstAvailableConsumerPermits();
+                new PersistentDispatcherMultipleConsumersClassic(topic, sub.getCursor(), sub) {
+                    @Override
+                    void scheduleReadEntriesWithDelay(Exception exception, ReadType readType, long delay) {
+                        scheduledReads.incrementAndGet();
+                        super.scheduleReadEntriesWithDelay(exception, readType, delay);
+                    }
+                };
 
-        // Make the count + 1 when call the scheduleReadEntriesWithDelay(...).
-        AtomicInteger callScheduleReadEntriesWithDelayCnt = new AtomicInteger(0);
-        Mockito.doAnswer(inv -> {
-            callScheduleReadEntriesWithDelayCnt.getAndIncrement();
-            return inv.callRealMethod();
-        }).when(dispatcher).scheduleReadEntriesWithDelay(Mockito.any(), Mockito.any(), Mockito.anyLong());
+        dispatcher.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("cursor closed"),
+                null);
 
-        // Make the count + 1 when call the readEntriesFailed(...).
-        AtomicInteger callReadEntriesFailed = new AtomicInteger(0);
-        Mockito.doAnswer(inv -> {
-            callReadEntriesFailed.getAndIncrement();
-            return inv.callRealMethod();
-        }).when(dispatcher).readEntriesFailed(Mockito.any(), Mockito.any());
-
-        Mockito.doReturn(false).when(cursor).isClosed();
-
-        // Mock the readEntriesOrWait(...) to simulate the cursor is closed.
-        Mockito.doAnswer(inv -> {
-            PersistentDispatcherMultipleConsumersClassic dispatcher1 = inv.getArgument(2);
-            dispatcher1.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("cursor closed"),
-                    null);
-            return null;
-        }).when(cursor).asyncReadEntriesOrWait(Mockito.anyInt(), Mockito.anyLong(), Mockito.eq(dispatcher),
-                Mockito.any(), Mockito.any());
-
-        dispatcher.readMoreEntries();
-
-        // Verify: the readEntriesFailed should be called once and
-        // the scheduleReadEntriesWithDelay should not be called.
-        Assert.assertTrue(callReadEntriesFailed.get() == 1 && callScheduleReadEntriesWithDelayCnt.get() == 0);
-
-        // Verify: the topic can be deleted successfully.
+        Assert.assertEquals(scheduledReads.get(), 0, "Closed cursor failures must not schedule another read");
         admin.topics().delete(topicName, false);
     }
 
@@ -172,17 +214,15 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends SharedPuls
         final String subscription = "s1";
 
         // Needed to create the topic
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName).subscriptionName(subscription)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
 
         PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
 
-        ManagedCursor cursor = Mockito.mock(ManagedCursorImpl.class);
-        Mockito.doReturn(subscription).when(cursor).getName();
-
-        Subscription sub = Mockito.mock(PersistentSubscription.class);
-        Mockito.doReturn(topic).when(sub).getTopic();
+        PersistentSubscription sub = topic.getSubscription(subscription);
+        ManagedCursor cursor = sub.getCursor();
 
         PersistentDispatcherMultipleConsumersClassic dispatcher =
             new PersistentDispatcherMultipleConsumersClassic(topic, cursor, sub);
@@ -250,5 +290,16 @@ public class PersistentDispatcherMultipleConsumersClassicTest extends SharedPuls
             }
         }
         Assert.assertEquals(errors.get(), 0, "No exceptions should occur during concurrent operations");
+    }
+
+    private String keyForConsumer(StickyKeyConsumerSelector selector,
+                                  org.apache.pulsar.broker.service.Consumer consumer) {
+        for (int i = 0; i < 100_000; i++) {
+            String key = "key-" + i;
+            if (selector.select(key.getBytes(UTF_8)) == consumer) {
+                return key;
+            }
+        }
+        throw new IllegalStateException("No key found for consumer " + consumer.consumerName());
     }
 }

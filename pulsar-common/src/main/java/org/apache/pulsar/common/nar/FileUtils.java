@@ -25,8 +25,11 @@
 package org.apache.pulsar.common.nar;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.zip.ZipEntry;
@@ -42,6 +45,36 @@ import lombok.CustomLog;
 public class FileUtils {
 
     public static final long MILLIS_BETWEEN_ATTEMPTS = 50L;
+
+    /**
+     * Calculates a SHA-256 checksum of the specified file. The checksum is used for
+     * change detection, not as a security control; SHA-256 is chosen over MD5/SHA-1 so
+     * that the call also works on JVMs whose security provider rejects weak digests
+     * (e.g. in FIPS deployments).
+     *
+     * @param file
+     *            to calculate the checksum of
+     * @return the checksum bytes
+     * @throws IOException
+     *             if cannot read file
+     */
+    public static byte[] calculateSha256sum(final File file) throws IOException {
+        try (final FileInputStream inputStream = new FileInputStream(file)) {
+            final MessageDigest digest = MessageDigest.getInstance("SHA-256");
+
+            final byte[] buffer = new byte[8192];
+            int read = inputStream.read(buffer);
+
+            while (read > -1) {
+                digest.update(buffer, 0, read);
+                read = inputStream.read(buffer);
+            }
+
+            return digest.digest();
+        } catch (NoSuchAlgorithmException nsae) {
+            throw new IllegalArgumentException(nsae);
+        }
+    }
 
     public static void ensureDirectoryExistAndCanReadAndWrite(final File dir) throws IOException {
         if (dir.exists() && !dir.isDirectory()) {

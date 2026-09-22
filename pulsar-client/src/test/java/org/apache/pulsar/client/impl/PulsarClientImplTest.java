@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +40,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.resolver.AddressResolver;
 import io.netty.resolver.dns.DefaultDnsServerAddressStreamProvider;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -53,7 +55,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
@@ -182,6 +186,38 @@ public class PulsarClientImplTest {
     }
 
     @Test
+    public void testShutdownContinuesWhenAddressResolverCloseFails() throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        PulsarClientImpl client = new PulsarClientImpl(conf);
+
+        // Simulate the Netty DNS resolver shutdown race where AddressResolver.close()
+        // throws "channel not registered to an event loop".
+        @SuppressWarnings("unchecked")
+        AddressResolver<InetSocketAddress> failingResolver = mock(AddressResolver.class);
+        doThrow(new IllegalStateException("channel not registered to an event loop"))
+                .when(failingResolver).close();
+        Field addressResolverField = PulsarClientImpl.class.getDeclaredField("addressResolver");
+        addressResolverField.setAccessible(true);
+        addressResolverField.set(client, failingResolver);
+
+        // Replace the timer with a mock so we can assert that shutdown still reaches the
+        // cleanup steps that run after the address resolver is closed.
+        HashedWheelTimer timer = mock(HashedWheelTimer.class);
+        Field timerField = PulsarClientImpl.class.getDeclaredField("timer");
+        timerField.setAccessible(true);
+        timerField.set(client, timer);
+
+        // shutdown() still surfaces the original failure, but it must not abort early:
+        // the remaining resources have to be released regardless. The key assertion is
+        // that timer.stop() (a step that runs after the resolver is closed) is reached.
+        assertThrows(IllegalStateException.class, client::shutdown);
+
+        verify(failingResolver).close();
+        verify(timer).stop();
+    }
+
+    @Test
     public void testInitializeWithTimer() throws PulsarClientException {
         ClientConfigurationData conf = new ClientConfigurationData();
         @Cleanup("shutdownGracefully")
@@ -217,6 +253,31 @@ public class PulsarClientImplTest {
             // Externally passed eventLoopGroup should not be shutdown.
             assertFalse(eventLoopGroup.isShutdown());
         }
+    }
+
+    @Test
+    public void testFailedServiceUrlProviderInitializationDoesNotCloseProvider() throws Exception {
+        CloseCountingServiceUrlProvider provider = new CloseCountingServiceUrlProvider();
+
+        ClientConfigurationData firstConf = new ClientConfigurationData();
+        firstConf.setServiceUrl(provider.getServiceUrl());
+        firstConf.setServiceUrlProvider(provider);
+        initializeEventLoopGroup(firstConf);
+
+        PulsarClientImpl client = new PulsarClientImpl(firstConf, eventLoopGroup);
+        assertEquals(provider.getCloseCount(), 0);
+
+        ClientConfigurationData secondConf = new ClientConfigurationData();
+        secondConf.setServiceUrl(provider.getServiceUrl());
+        secondConf.setServiceUrlProvider(provider);
+
+        Throwable error = org.testng.Assert.expectThrows(IllegalStateException.class,
+                () -> new PulsarClientImpl(secondConf, eventLoopGroup));
+        assertEquals(error.getMessage(), "ServiceUrlProvider has already been initialized");
+        assertEquals(provider.getCloseCount(), 0);
+
+        client.close();
+        assertEquals(provider.getCloseCount(), 1);
     }
 
     @Test
@@ -341,5 +402,32 @@ public class PulsarClientImplTest {
         ex = segFuture.handle((v, t) -> t).join();
         assertTrue(ex instanceof PulsarClientException.InvalidTopicNameException);
         assertTrue(ex.getMessage().contains("V5 client SDK"));
+    }
+
+    private static class CloseCountingServiceUrlProvider implements ServiceUrlProvider {
+        private PulsarClient client;
+        private int closeCount;
+
+        @Override
+        public synchronized void initialize(PulsarClient client) {
+            if (this.client != null) {
+                throw new IllegalStateException("ServiceUrlProvider has already been initialized");
+            }
+            this.client = client;
+        }
+
+        @Override
+        public String getServiceUrl() {
+            return "pulsar://localhost:6650";
+        }
+
+        @Override
+        public synchronized void close() {
+            closeCount++;
+        }
+
+        synchronized int getCloseCount() {
+            return closeCount;
+        }
     }
 }

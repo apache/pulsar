@@ -18,26 +18,33 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+import lombok.Cleanup;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.CompressionType;
@@ -108,6 +115,68 @@ public class WorkerUtilsTest {
         } catch (WorkerUtils.NotLeaderAnymore notLeaderAnymore) {
 
         }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testCreateExclusiveProducerWithRetryClosesProducerOnInterrupt() throws Exception {
+        Producer<byte[]> producer = mock(Producer.class);
+        when(producer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+
+        // producer creation stays pending until the test completes it explicitly
+        CompletableFuture<Producer<byte[]>> producerFuture = new CompletableFuture<>();
+        CountDownLatch createAsyncCalled = new CountDownLatch(1);
+
+        ProducerBuilder<byte[]> builder = mock(ProducerBuilder.class);
+        when(builder.topic(anyString())).thenReturn(builder);
+        when(builder.producerName(anyString())).thenReturn(builder);
+        when(builder.enableBatching(anyBoolean())).thenReturn(builder);
+        when(builder.blockIfQueueFull(anyBoolean())).thenReturn(builder);
+        when(builder.compressionType(any(CompressionType.class))).thenReturn(builder);
+        when(builder.accessMode(any())).thenReturn(builder);
+        when(builder.createAsync()).thenAnswer(invocation -> {
+            createAsyncCalled.countDown();
+            return producerFuture;
+        });
+
+        PulsarClient pulsarClient = mock(PulsarClient.class);
+        when(pulsarClient.newProducer()).thenReturn(builder);
+
+        AtomicReference<Throwable> thrown = new AtomicReference<>();
+        AtomicBoolean interruptStatusPreserved = new AtomicBoolean();
+        @Cleanup("interrupt")
+        Thread caller = new Thread(() -> {
+            try {
+                WorkerUtils.createExclusiveProducerWithRetry(pulsarClient, "test-topic", "test-producer",
+                        () -> true, 0);
+            } catch (Throwable t) {
+                thrown.set(t);
+                interruptStatusPreserved.set(Thread.currentThread().isInterrupted());
+            }
+        });
+        caller.setDaemon(true);
+        caller.start();
+        assertTrue(createAsyncCalled.await(10, TimeUnit.SECONDS));
+
+        // interrupt the caller while it is waiting for the producer to be created
+        caller.interrupt();
+        caller.join(TimeUnit.SECONDS.toMillis(10));
+        assertThat(caller.isAlive())
+                .as("Interrupt should abort the retry loop instead of retrying")
+                .isFalse();
+
+        assertThat(thrown.get())
+                .isInstanceOf(RuntimeException.class)
+                .hasCauseInstanceOf(InterruptedException.class);
+        assertThat(interruptStatusPreserved)
+                .as("Interrupt status should be restored")
+                .isTrue();
+
+        // when the pending creation completes after the interrupt, the producer must be closed so that
+        // the exclusive producer doesn't leak
+        verify(producer, never()).closeAsync();
+        producerFuture.complete(producer);
+        verify(producer, times(1)).closeAsync();
     }
 
     @Test

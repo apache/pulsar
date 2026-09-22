@@ -87,7 +87,7 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
                     client, v5Schema, conf, namespaceName, propertyFilters);
         }
 
-        TopicName topic = V5Utils.asScalableTopicName(topicName);
+        TopicName topic = V5Utils.parseScalableTopicInput(topicName);
         ScalableConsumerClient session = new ScalableConsumerClient(
                 client.v4Client(),
                 topic,
@@ -97,7 +97,17 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
 
         return session.start()
                 .thenCompose(initialAssignment -> ScalableStreamConsumer.createAsync(
-                        client, v5Schema, conf, session, topic.toString(), initialAssignment));
+                        client, v5Schema, conf, session, topic.toString(), initialAssignment))
+                .whenComplete((consumer, ex) -> {
+                    if (ex != null) {
+                        // An abandoned subscribe must not leave a controller registration
+                        // behind: close() sends the clean unsubscribe once the in-flight
+                        // attempt settles — covering a registration the broker completed
+                        // after the client's subscribe timed out. Idempotent if the consumer
+                        // path already closed the session.
+                        session.close();
+                    }
+                });
     }
 
     @Override

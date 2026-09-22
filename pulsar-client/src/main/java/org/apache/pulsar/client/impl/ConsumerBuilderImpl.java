@@ -233,7 +233,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
                     effectiveInterceptors = new java.util.ArrayList<>(effectiveInterceptors);
                 }
                 effectiveInterceptors.add(
-                        new org.apache.pulsar.client.impl.tracing.OpenTelemetryConsumerInterceptor<>());
+                        new org.apache.pulsar.client.impl.tracing.OpenTelemetryConsumerInterceptor<>(
+                                client.instrumentProvider()));
             }
 
             if (effectiveInterceptors == null || effectiveInterceptors.size() == 0) {

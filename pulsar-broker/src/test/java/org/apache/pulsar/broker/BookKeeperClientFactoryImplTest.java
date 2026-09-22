@@ -278,6 +278,13 @@ public class BookKeeperClientFactoryImplTest {
                         .getMetadataServiceUri(), expectedUri);
 
             }
+            {
+                String uri = "metadata-store:oxia://oxia-server:6648/bookkeeper"
+                        + "?batchingMaxDelayMillis=10&batchingMaxSizeKb=256&numSerDesThreads=4";
+                conf.setBookkeeperMetadataServiceUri(uri);
+                assertEquals(factory.createBkClientConfiguration(mock(MetadataStoreExtended.class), conf)
+                        .getMetadataServiceUri(), uri);
+            }
         } catch (ConfigurationException e) {
             e.printStackTrace();
             fail("Get metadata service uri should be successful", e);

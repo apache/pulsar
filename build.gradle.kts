@@ -17,6 +17,7 @@
  * under the License.
  */
 import com.github.vlsi.gradle.git.dsl.gitignore
+import org.gradle.api.artifacts.ProjectDependency
 import org.jetbrains.gradle.ext.copyright
 import org.jetbrains.gradle.ext.settings
 
@@ -27,8 +28,9 @@ plugins {
     alias(libs.plugins.crlf) apply false
     alias(libs.plugins.idea.ext)
     alias(libs.plugins.spotless) apply false // workaround for https://github.com/diffplug/spotless/issues/2877
-    `maven-publish`
-    signing
+    // Publish repositories (local + ASF Nexus), signing, upload lock and snapshot/release validation
+    // for the org.apache.pulsar:pulsar parent POM published below — shared with every module.
+    id("pulsar.publish-repositories-conventions")
 }
 
 versionCatalogUpdate {
@@ -47,8 +49,6 @@ tasks.named<com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask>("
         nonStable && !(isOpenTelemetry && candidate.version.contains("alpha"))
     }
 }
-
-val pulsarVersion = version.toString()
 
 // ── Apache RAT (Release Audit Tool) ─────────────────────────────────────────
 tasks.named<org.nosphere.apache.rat.RatTask>("rat").configure {
@@ -109,7 +109,109 @@ tasks.register("docker") {
     dependsOn(":docker:pulsar-docker-image:dockerBuild")
 }
 
+// ── Aggregate verification tasks (quickCheck / sanityCheck) ───────────────────
+// quickCheck   — fast, source-only conformance across every module: checkstyle + spotless + Apache
+//                RAT. Compiles nothing, so it never builds shadow jars.
+// sanityCheck  — pre-PR gate: quickCheck plus compiling main + test sources of every module that
+//                does NOT pull a shaded artifact onto its compile classpath. Compiling such a module
+//                would build a (slow) shadow jar, so those modules are skipped for compilation; their
+//                sources are still covered by the checkstyle/spotless part of quickCheck.
+//
+// Compiling a module builds a shadow jar only when it declares a shaded module (one applying the
+// shadow plugin) on its compile or test-compile classpath — compilation then needs that dependency's
+// relocated jar. The shade convention plugins (pulsar.shadow-conventions, pulsar.client-shade-conventions)
+// all apply `com.gradleup.shadow`, so the plugin id is the reliable marker for a shaded module.
+// A shaded module's OWN compileJava/compileTestJava does NOT build its shadow jar, so the shaded and
+// *-minimized modules are themselves compiled here; only their shadow-consuming dependents are skipped.
+val shadowPluginId = "com.gradleup.shadow"
+val compileScopeConfigurations = setOf(
+    "api", "implementation", "compileOnly", "testImplementation", "testCompileOnly",
+)
+fun Project.dependsOnShadowJar(): Boolean =
+    configurations
+        .filter { it.name in compileScopeConfigurations }
+        .any { configuration ->
+            configuration.dependencies.withType(ProjectDependency::class.java).any { dependency ->
+                rootProject.project(dependency.path).plugins.hasPlugin(shadowPluginId)
+            }
+        }
+
+// The cross-project wiring is deferred to `provider {}` so it only runs when these aggregates are
+// actually in the task graph, keeping configuration-on-demand intact for every other build.
+tasks.register("quickCheck") {
+    group = "verification"
+    description = "Fast source-code conformance check across all modules (checkstyle + spotless + " +
+        "Apache RAT). Compiles nothing and never builds shadow jars."
+    dependsOn("rat")
+    dependsOn(provider {
+        subprojects.flatMap { sub ->
+            listOf("checkstyleMain", "checkstyleTest", "spotlessCheck").mapNotNull { sub.tasks.findByName(it) }
+        }
+    })
+}
+
+tasks.register("sanityCheck") {
+    group = "verification"
+    description = "Pre-PR check: quickCheck plus compiling main + test sources of every module. " +
+        "Modules that depend on shaded artifacts are skipped for compilation so no shadow jar is built."
+    dependsOn("quickCheck")
+    dependsOn(provider {
+        subprojects
+            .filter { it.plugins.hasPlugin("java") && !it.dependsOnShadowJar() }
+            .flatMap { sub ->
+                listOf("compileJava", "compileTestJava").mapNotNull { sub.tasks.findByName(it) }
+            }
+    })
+}
+
 // ── Parent POM publication ──────────────────────────────────────────────────
+// ── Flame graphs from JFR recordings ────────────────────────────────────────
+// Converts the recordings produced by -PtestAsyncProfiler or by
+// :tests:integration:profilingIntegrationTest into flame graphs. See CONTRIBUTING.md.
+//   ./gradlew jfrFlamegraphs                       # every recording in build/test-profiles
+//   ./gradlew jfrFlamegraphs -Pjfr=<file-or-dir>   # a specific recording, or another directory
+tasks.register<JfrFlamegraphsTask>("jfrFlamegraphs") {
+    group = "verification"
+    description = "Convert JFR recordings into flame graphs next to them, in a <name>-flamegraphs " +
+        "directory. Pass -Pjfr=<file-or-directory> to pick what to convert."
+
+    val jfrInput = providers.gradleProperty("jfr")
+        .map { rootProject.file(it) }
+        .getOrElse(layout.buildDirectory.dir("test-profiles").get().asFile)
+    // A directory is wired in as a file tree rather than listed here: the listing has to happen when
+    // the task runs, or a reused configuration cache entry would convert the recordings of the
+    // previous profiling run and miss the one just made. The tree is searched recursively because
+    // JMH's async-profiler integration writes its recording into a directory per benchmark.
+    jfrFiles.from(if (jfrInput.isFile) jfrInput else fileTree(jfrInput) { include("**/*.jfr") })
+
+    // async-profiler's converter, looked up the same way as the profiler library itself:
+    // -Pjfrconv wins, then the bin/ directory of the async-profiler install that
+    // LIBASYNCPROFILER_PATH points into, then the copy that Amazon Corretto ships in the JDK that
+    // runs Gradle.
+    jfrconvExecutable.set(
+        providers.gradleProperty("jfrconv")
+            .orElse(providers.environmentVariable("LIBASYNCPROFILER_PATH")
+                .map { File(File(it).parentFile.parentFile, "bin/jfrconv").absolutePath })
+            .orElse(providers.systemProperty("java.home").map { File(it, "bin/jfrconv").absolutePath })
+            .map {
+                if (!File(it).canExecute()) {
+                    throw GradleException("async-profiler's jfrconv was not found at '$it'. Set " +
+                        "-Pjfrconv=<path>, or LIBASYNCPROFILER_PATH to the profiler library of an " +
+                        "async-profiler install. Amazon Corretto ships jfrconv in the JDK's bin " +
+                        "directory.")
+                }
+                it
+            })
+
+    // A recording collects several events; render every one that is present in it.
+    profileTypes.set(providers.gradleProperty("jfr.types")
+        .map { it.split(",").map(String::trim).filter(String::isNotEmpty) }
+        .getOrElse(listOf("cpu", "wall", "alloc", "lock")))
+
+    // Converting is cheap, and the recordings change on every profiling run.
+    outputs.upToDateWhen { false }
+}
+
 // Publishes org.apache.pulsar:pulsar as a POM-only parent artifact.
 // Child modules reference this via <parent> in their POMs, inheriting
 // shared ASF metadata (license, SCM, organization, etc.).
@@ -170,25 +272,4 @@ publishing {
             }
         }
     }
-
-    repositories {
-        maven {
-            name = "localDeploy"
-            url = uri(layout.buildDirectory.dir("local-deploy-repo"))
-        }
-    }
-}
-
-signing {
-    isRequired = !pulsarVersion.endsWith("-SNAPSHOT")
-    val useGpgCmd = providers.gradleProperty("useGpgCmd").orNull?.toBoolean() ?: false
-    if (useGpgCmd) {
-        useGpgCmd()
-    }
-    sign(publishing.publications)
-}
-
-tasks.withType<Sign>().configureEach {
-    enabled = providers.gradleProperty("signing.keyId").isPresent ||
-        providers.gradleProperty("signing.gnupg.keyName").isPresent
 }

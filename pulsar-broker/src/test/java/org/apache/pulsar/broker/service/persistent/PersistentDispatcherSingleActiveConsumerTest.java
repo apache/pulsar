@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -27,24 +29,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.CustomLog;
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.MockBrokerInterceptor;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.SharedPulsarCluster;
-import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.TopicName;
-import org.awaitility.Awaitility;
-import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -55,74 +52,27 @@ public class PersistentDispatcherSingleActiveConsumerTest extends SharedPulsarBa
 
     @Test
     public void testSkipReadEntriesFromCloseCursor() throws Exception {
-        final String topicName = newTopicName();
-        final String subscription = "s1";
+        String topicName = newTopicName();
+        String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topicName);
-
-        @Cleanup
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
-        for (int i = 0; i < 10; i++) {
-            producer.send("message-" + i);
-        }
-        producer.close();
-
-        // Get the dispatcher of the topic.
-        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().get();
-
-        ManagedCursor cursor = Mockito.mock(ManagedCursorImpl.class);
-        Mockito.doReturn(subscription).when(cursor).getName();
-        Subscription sub = Mockito.mock(PersistentSubscription.class);
-        Mockito.doReturn(topic).when(sub).getTopic();
-        // Mock the dispatcher.
+        admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+        PersistentSubscription sub = topic.getSubscription(subscription);
+        AtomicInteger scheduledReads = new AtomicInteger();
         PersistentDispatcherSingleActiveConsumer dispatcher =
-                Mockito.spy(new PersistentDispatcherSingleActiveConsumer(cursor,
-                        CommandSubscribe.SubType.Exclusive, 0, topic, sub));
+                new PersistentDispatcherSingleActiveConsumer(sub.getCursor(),
+                        CommandSubscribe.SubType.Exclusive, 0, topic, sub) {
+                    @Override
+                    void scheduleReadEntriesWithDelay(Consumer consumer, long delay) {
+                        scheduledReads.incrementAndGet();
+                        super.scheduleReadEntriesWithDelay(consumer, delay);
+                    }
+                };
 
-        // Mock a consumer
-        Consumer consumer = Mockito.mock(Consumer.class);
-        consumer.getAvailablePermits();
-        Mockito.doReturn(10).when(consumer).getAvailablePermits();
-        Mockito.doReturn(10).when(consumer).getAvgMessagesPerEntry();
-        Mockito.doReturn("test").when(consumer).consumerName();
-        Mockito.doReturn(true).when(consumer).isWritable();
-        Mockito.doReturn(false).when(consumer).readCompacted();
+        dispatcher.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("cursor closed"),
+                null, 0);
 
-        // Make the consumer as the active consumer.
-        Mockito.doReturn(consumer).when(dispatcher).getActiveConsumer();
-
-        // Make the count + 1 when call the scheduleReadEntriesWithDelay(...).
-        AtomicInteger callScheduleReadEntriesWithDelayCnt = new AtomicInteger(0);
-        Mockito.doAnswer(inv -> {
-            callScheduleReadEntriesWithDelayCnt.getAndIncrement();
-            return inv.callRealMethod();
-        }).when(dispatcher).scheduleReadEntriesWithDelay(Mockito.eq(consumer), Mockito.anyLong());
-
-        // Make the count + 1 when call the readEntriesFailed(...).
-        AtomicInteger callReadEntriesFailed = new AtomicInteger(0);
-        Mockito.doAnswer(inv -> {
-            callReadEntriesFailed.getAndIncrement();
-            return inv.callRealMethod();
-        }).when(dispatcher).readEntriesFailed(Mockito.any(), Mockito.any());
-
-        Mockito.doReturn(false).when(cursor).isClosed();
-
-        // Mock the readEntriesOrWait(...) to simulate the cursor is closed.
-        Mockito.doAnswer(inv -> {
-            final var callback = (AsyncCallbacks.ReadEntriesCallback) inv.getArgument(2);
-            callback.readEntriesFailed(new ManagedLedgerException.CursorAlreadyClosedException("cursor closed"),
-                    null);
-            return null;
-        }).when(cursor).asyncReadEntriesWithSkipOrWait(Mockito.anyInt(), Mockito.anyLong(), Mockito.any(),
-                Mockito.any(), Mockito.any(), Mockito.any());
-
-        dispatcher.readMoreEntries(consumer);
-
-        // Verify: the readEntriesFailed should be called once and
-        // the scheduleReadEntriesWithDelay should not be called.
-        Awaitility.await().untilAsserted(() -> Assert.assertTrue(callReadEntriesFailed.get() == 1
-                && callScheduleReadEntriesWithDelayCnt.get() == 0));
-
-        // Verify: the topic can be deleted successfully.
+        Assert.assertEquals(scheduledReads.get(), 0, "Closed cursor failures must not schedule another read");
         admin.topics().delete(topicName, false);
     }
 
@@ -133,46 +83,64 @@ public class PersistentDispatcherSingleActiveConsumerTest extends SharedPulsarBa
 
     @Test(dataProvider = "closeDelayMs")
     public void testOverrideInactiveConsumer(long closeDelayMs) throws Exception {
+        BrokerService broker = SharedPulsarCluster.get().getPulsarService().getBrokerService();
+        BrokerInterceptor previousInterceptor = broker.getInterceptor();
         final var interceptor = new Interceptor();
-        SharedPulsarCluster.get().getPulsarService().getBrokerService().setInterceptor(interceptor);
-        final var topic = newTopicName();
-        @Cleanup final var client = PulsarClient.builder()
-                .serviceUrl(getBrokerServiceUrl()).build();
-        @Cleanup final var consumer = client.newConsumer().topic(topic).subscriptionName("sub").subscribe();
-        final var dispatcher = ((PersistentTopic) SharedPulsarCluster.get().getPulsarService().getBrokerService()
-                .getTopicIfExists(TopicName.get(topic).toString()).get().orElseThrow())
-                .getSubscription("sub").dispatcher;
-        Assert.assertEquals(dispatcher.getConsumers().size(), 1);
-
-        // Generally `isActive` could only be false after `channelInactive` is called, setting it with false directly
-        // to avoid race condition.
-        final var latch = new CountDownLatch(1);
-        interceptor.latch.set(latch);
-        interceptor.injectCloseLatency.set(true);
-        interceptor.delayMs = closeDelayMs;
-        // Simulate the real case because `channelInactive` is always called in the event loop thread
-        final var cnx = (ServerCnx) dispatcher.getConsumers().get(0).cnx();
-        cnx.ctx().executor().execute(() -> {
-            try {
-                cnx.channelInactive(cnx.ctx());
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
-
-        @Cleanup final var mockConsumer = Mockito.mock(Consumer.class);
-        Assert.assertTrue(latch.await(1, TimeUnit.SECONDS));
-        if (closeDelayMs < 1000) {
-            dispatcher.addConsumer(mockConsumer).get();
+        broker.setInterceptor(interceptor);
+        try {
+            final var topic = newTopicName();
+            @Cleanup final var client = PulsarClient.builder()
+                    .serviceUrl(getBrokerServiceUrl()).build();
+            @Cleanup final var consumer = client.newConsumer().topic(topic).subscriptionName("sub").subscribe();
+            final var dispatcher = ((PersistentTopic) SharedPulsarCluster.get().getPulsarService().getBrokerService()
+                    .getTopicIfExists(TopicName.get(topic).toString()).get().orElseThrow())
+                    .getSubscription("sub").dispatcher;
             Assert.assertEquals(dispatcher.getConsumers().size(), 1);
-            Assert.assertSame(mockConsumer, dispatcher.getConsumers().get(0));
-        } else {
+
+            // Generally `isActive` could only be false after `channelInactive` is called; set it with false directly
+            // to avoid race condition.
+            final var latch = new CountDownLatch(1);
+            interceptor.latch.set(latch);
+            interceptor.injectCloseLatency.set(true);
+            interceptor.delayMs = closeDelayMs;
+            // Simulate the real case because `channelInactive` is always called in the event loop thread
+            Consumer original = dispatcher.getConsumers().get(0);
+            final var cnx = (ServerCnx) original.cnx();
+            CompletableFuture<Void> connectionClosed = new CompletableFuture<>();
+            cnx.ctx().executor().execute(() -> {
+                try {
+                    cnx.channelInactive(cnx.ctx());
+                    connectionClosed.complete(null);
+                } catch (Exception e) {
+                    connectionClosed.completeExceptionally(e);
+                }
+            });
+
+            Consumer replacement = new Consumer(original.getSubscription(), original.subType(), topic,
+                    original.consumerId() + 1, 0, "replacement", true, cnx, "role", Collections.emptyMap(), false,
+                    null, MessageId.latest, 0);
             try {
-                dispatcher.addConsumer(mockConsumer).get();
-                Assert.fail();
-            } catch (ExecutionException e) {
-                Assert.assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
+                Assert.assertTrue(latch.await(1, TimeUnit.SECONDS));
+                if (closeDelayMs < 1000) {
+                    dispatcher.addConsumer(replacement).get();
+                    Assert.assertEquals(dispatcher.getConsumers().size(), 1);
+                    Assert.assertSame(replacement, dispatcher.getConsumers().get(0));
+                } else {
+                    try {
+                        dispatcher.addConsumer(replacement).get();
+                        Assert.fail();
+                    } catch (ExecutionException e) {
+                        Assert.assertTrue(e.getCause() instanceof BrokerServiceException.ConsumerBusyException);
+                    }
+                }
+            } finally {
+                connectionClosed.get(10, TimeUnit.SECONDS);
+                if (dispatcher.getConsumers().contains(replacement)) {
+                    dispatcher.removeConsumer(replacement);
+                }
             }
+        } finally {
+            broker.setInterceptor(previousInterceptor);
         }
     }
 

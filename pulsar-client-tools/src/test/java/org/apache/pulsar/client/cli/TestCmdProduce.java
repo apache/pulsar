@@ -20,20 +20,24 @@ package org.apache.pulsar.client.cli;
 
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.expectThrows;
 import java.util.Collections;
 import java.util.List;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.io.DecoderFactory;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.KeyValueSchema;
-import org.apache.pulsar.common.schema.KeyValueEncodingType;
-import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.client.api.v5.schema.SchemaType;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 
 public class TestCmdProduce {
+
+    private static final String AVRO_DEF = "{\"type\": \"record\",\"namespace\": \"com.example\","
+            + "\"name\": \"FullName\", \"fields\": [{ \"name\": \"a\", \"type\": \"string\" },"
+            + "{ \"name\": \"b\", \"type\": \"int\" }]}";
 
     CmdProduce cmdProduce;
 
@@ -51,56 +55,42 @@ public class TestCmdProduce {
     }
 
     @Test
-    public void testBuildSchema() {
-        // default
-        assertEquals(SchemaType.BYTES, CmdProduce.buildSchema("string", "bytes",
-                CmdProduce.KEY_VALUE_ENCODING_TYPE_NOT_SET).getSchemaInfo().getType());
+    public void testBuildValueSchema() {
+        // bytes -> raw BYTES, no native Avro schema.
+        CmdProduce.ValueSchema bytes = CmdProduce.buildValueSchema("bytes");
+        assertEquals(bytes.schema().schemaInfo().type(), SchemaType.BYTES);
+        assertNull(bytes.avroNative());
 
-        // simple key value
-        assertEquals(SchemaType.KEY_VALUE, CmdProduce.buildSchema("string", "string",
-                "separated").getSchemaInfo().getType());
-        assertEquals(SchemaType.KEY_VALUE, CmdProduce.buildSchema("string", "string",
-                "inline").getSchemaInfo().getType());
+        // string -> AUTO_PRODUCE_BYTES wrapping string; no native Avro schema.
+        CmdProduce.ValueSchema string = CmdProduce.buildValueSchema("string");
+        assertNotNull(string.schema());
+        assertNull(string.avroNative());
 
-        KeyValueSchema<?, ?> composite1 = (KeyValueSchema<?, ?>) CmdProduce.buildSchema("string",
-                "json:{\"type\": \"record\",\"namespace\": \"com.example\",\"name\": \"FullName\", \"fields\":"
-                        + " [{ \"name\": \"a\", \"type\": \"string\" }]}",
-                "inline");
-        assertEquals(KeyValueEncodingType.INLINE, composite1.getKeyValueEncodingType());
-        assertEquals(SchemaType.STRING, composite1.getKeySchema().getSchemaInfo().getType());
-        assertEquals(SchemaType.JSON, composite1.getValueSchema().getSchemaInfo().getType());
+        // avro:<def> -> AUTO_PRODUCE_BYTES wrapping a generic Avro schema; native Avro present.
+        CmdProduce.ValueSchema avro = CmdProduce.buildValueSchema("avro:" + AVRO_DEF);
+        assertNotNull(avro.schema());
+        assertNotNull(avro.avroNative());
 
-        KeyValueSchema<?, ?> composite2 = (KeyValueSchema<?, ?>) CmdProduce.buildSchema(
-                "json:{\"type\": \"record\",\"namespace\": \"com.example\",\"name\": \"FullName\", \"fields"
-                        + "\": [{ \"name\": \"a\", \"type\": \"string\" }]}",
-                "avro:{\"type\": \"record\",\"namespace\": \"com.example\",\"name\": \"FullName\", \"fields\":"
-                        + " [{ \"name\": \"a\", \"type\": \"string\" }]}",
-                "inline");
-        assertEquals(KeyValueEncodingType.INLINE, composite2.getKeyValueEncodingType());
-        assertEquals(SchemaType.JSON, composite2.getKeySchema().getSchemaInfo().getType());
-        assertEquals(SchemaType.AVRO, composite2.getValueSchema().getSchemaInfo().getType());
+        // json:<def> -> AUTO_PRODUCE_BYTES wrapping a generic JSON schema; no native Avro schema.
+        CmdProduce.ValueSchema json = CmdProduce.buildValueSchema("json:" + AVRO_DEF);
+        assertNotNull(json.schema());
+        assertNull(json.avroNative());
+
+        // unknown -> rejected.
+        expectThrows(IllegalArgumentException.class, () -> CmdProduce.buildValueSchema("nope"));
     }
 
     @Test
     public void generateAvroMessageBodies() throws Exception {
-
-        Schema<?> schema = CmdProduce.buildSchema(
-                null,
-                "avro:{\"type\": \"record\",\"namespace\": \"com.example\",\"name\": \"FullName\", \"fields\":"
-                        + " [{ \"name\": \"a\", \"type\": \"string\" },"
-                        + "{ \"name\": \"b\", \"type\": \"int\" }"
-                        + "]}",
-                "");
+        CmdProduce.ValueSchema vs = CmdProduce.buildValueSchema("avro:" + AVRO_DEF);
 
         List<byte[]> bytes = CmdProduce.generateMessageBodies(List.of("{\"a\":\"stringValue\",\"b\":123}"),
-                Collections.emptyList(), schema);
+                Collections.emptyList(), vs.avroNative());
         assertEquals(bytes.size(), 1);
 
-        org.apache.avro.Schema avro = (org.apache.avro.Schema) schema.getNativeSchema().get();
-        GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(avro);
+        GenericDatumReader<GenericRecord> reader = new GenericDatumReader<>(vs.avroNative());
         GenericRecord record = reader.read(null, DecoderFactory.get().binaryDecoder(bytes.get(0), null));
         assertEquals("stringValue", record.get("a").toString());
         assertEquals(123, record.get("b"));
-
     }
 }

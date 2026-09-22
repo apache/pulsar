@@ -95,7 +95,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PoliciesUtil;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.tls.JdkSslContexts;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.zookeeper.KeeperException;
@@ -620,7 +620,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         final String lookupResourceUrl = "/lookup/v2/topic/persistent/my-property/my-ns/my-topic1";
 
         // set client cert_key file
-        SSLContext sslCtx = SecurityUtility.createSslContext(false, CA_CERT_FILE_PATH,
+        SSLContext sslCtx = JdkSslContexts.createSslContext(false, CA_CERT_FILE_PATH,
                 getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8"), "");
         HttpsURLConnection.setDefaultSSLSocketFactory(sslCtx.getSocketFactory());
 

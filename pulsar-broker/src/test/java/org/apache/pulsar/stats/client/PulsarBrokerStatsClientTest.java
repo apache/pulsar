@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.stats.client;
 
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import jakarta.ws.rs.ClientErrorException;
+import jakarta.ws.rs.ServerErrorException;
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.ServerErrorException;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -68,7 +67,7 @@ public class PulsarBrokerStatsClientTest extends SharedPulsarBaseTest {
         URL url = new URL("http://localhost:15000");
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
-        BrokerStatsImpl client = (BrokerStatsImpl) spy(admin.brokerStats());
+        BrokerStatsImpl client = (BrokerStatsImpl) admin.brokerStats();
         try {
             client.getLoadReport();
         } catch (PulsarAdminException e) {

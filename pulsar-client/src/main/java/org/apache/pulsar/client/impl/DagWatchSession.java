@@ -29,8 +29,13 @@ public interface DagWatchSession {
 
     /**
      * Called when the broker sends a DAG update for this session.
+     *
+     * @param dag the new DAG layout.
+     * @param resolvedTopicName the canonical {@code topic://t/n/x} identity of the topic
+     *                          this session is watching, as resolved by the broker.
+     *                          Set on every successful response regardless of input form.
      */
-    void onUpdate(ScalableTopicDAG dag);
+    void onUpdate(ScalableTopicDAG dag, String resolvedTopicName);
 
     /**
      * Called when the broker sends an error for this session.

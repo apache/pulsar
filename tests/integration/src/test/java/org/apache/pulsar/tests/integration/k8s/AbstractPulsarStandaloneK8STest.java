@@ -53,10 +53,12 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.UUID;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 import org.apache.pulsar.functions.secretsproviderconfigurator.KubernetesSecretsProviderConfigurator;
+import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.tools.tar.TarEntry;
 import org.apache.tools.tar.TarInputStream;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -73,6 +75,17 @@ import org.testng.annotations.BeforeClass;
  * with the deployed Pulsar instance and Kubernetes cluster.
  * The main reason to use this base class is to test features in Pulsar which are integrated into Kubernetes
  * APIs.
+ *
+ * For debugging purposes, it is useful to have the ability to leave containers running.
+ * This mode can be activated by setting environment variables
+ * PULSAR_CONTAINERS_LEAVE_RUNNING=true and TESTCONTAINERS_REUSE_ENABLE=true
+ * For example:
+ * PULSAR_CONTAINERS_LEAVE_RUNNING=true TESTCONTAINERS_REUSE_ENABLE=true ./gradlew \
+ *  :tests:integration:integrationTest --rerun --tests PulsarFunctionsK8STest --no-daemon
+ * Check the logs for KUBECONFIG file location to connect to the k3d cluster for debugging. For example:
+ * KUBECONFIG=/tmp/kubeconfig10863493890794345578.yaml k9s
+ * After debugging, one can use this command to kill all containers that were left running:
+ * docker kill $(docker ps -q --filter "label=pulsarcontainer=true")
  */
 @CustomLog
 public abstract class AbstractPulsarStandaloneK8STest {
@@ -80,7 +93,7 @@ public abstract class AbstractPulsarStandaloneK8STest {
             "apachepulsar/java-test-image:latest");
     private static final int PULSAR_NODE_PORT = 30101;
     private static final int PULSAR_HTTP_NODE_PORT = 30102;
-    private static final String K3S_IMAGE_NAME = "rancher/k3s:v1.33.5-k3s1";
+    private static final String K3S_IMAGE_NAME = "rancher/k3s:v1.34.8-k3s1";
     private static final String PULSAR_STANDALONE_POD = "pulsar-standalone-pod";
     K3sContainer k3sContainer;
     KubeConfig kubeConfig;
@@ -100,6 +113,14 @@ public abstract class AbstractPulsarStandaloneK8STest {
         k3sContainer = new K3sContainer(DockerImageName.parse(K3S_IMAGE_NAME));
         k3sContainer.addExposedPort(PULSAR_NODE_PORT);
         k3sContainer.addExposedPort(PULSAR_HTTP_NODE_PORT);
+        if (PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING) {
+            // use Testcontainers reuse containers feature to leave the container running
+            k3sContainer.withReuse(true);
+            // add label that can be used to find containers that are left running.
+            k3sContainer.withLabel("pulsarcontainer", "true");
+            // add a random label to prevent reuse of containers
+            k3sContainer.withLabel("pulsarcontainer.random", UUID.randomUUID().toString());
+        }
         k3sContainer.start();
         dockerHostName = k3sContainer.getHost();
         pulsarBrokerUrl = "pulsar://" + dockerHostName + ":" + k3sContainer.getMappedPort(PULSAR_NODE_PORT);
@@ -110,8 +131,8 @@ public abstract class AbstractPulsarStandaloneK8STest {
         apiClient = Config.fromConfig(kubeConfig);
         kubeConfigFile = File.createTempFile("kubeconfig", ".yaml");
         Files.writeString(kubeConfigFile.toPath(), kubeConfigYaml);
-        log.info().attr("uRL", pulsarBrokerUrl).attr("uRL", pulsarWebServiceUrl).log("Pulsar broker URL: http URL");
-        log.info().attr("kUBECONFIG", kubeConfigFile.getAbsolutePath()).log("For debugging k8s, use KUBECONFIG");
+        log.info().attr("URL", pulsarBrokerUrl).attr("URL", pulsarWebServiceUrl).log("Pulsar broker URL: http URL");
+        log.info().attr("KUBECONFIG", kubeConfigFile.getAbsolutePath()).log("For debugging k8s, use KUBECONFIG");
         importPulsarImage();
         deployPulsarStandalonePod();
         log.info("Waiting for Pulsar cluster to be ready");
@@ -129,6 +150,10 @@ public abstract class AbstractPulsarStandaloneK8STest {
     public final void cleanupCluster() throws InterruptedException {
         if (k3sContainer != null) {
             copyLogsToTargetDirectory();
+            if (PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING) {
+                log.warn("Ignoring stop due to PULSAR_CONTAINERS_LEAVE_RUNNING=true.");
+                return;
+            }
             k3sContainer.stop();
             kubeConfigFile.delete();
         }

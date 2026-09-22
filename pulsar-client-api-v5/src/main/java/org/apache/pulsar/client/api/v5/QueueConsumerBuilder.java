@@ -177,6 +177,17 @@ public interface QueueConsumerBuilder<T> {
      */
     QueueConsumerBuilder<T> negativeAckRedeliveryBackoff(BackoffPolicy backoff);
 
+    /**
+     * Whether the subscription cursor should be replicated to other clusters in a geo-replication
+     * setup. When {@code true}, the subscription state (acknowledgments) is replicated alongside
+     * the topic messages, so a consumer on a different cluster can resume from where this one
+     * left off after a failover. Defaults to {@code false}.
+     *
+     * @param replicate whether subscription state should be geo-replicated
+     * @return this builder instance for chaining
+     */
+    QueueConsumerBuilder<T> replicateSubscriptionState(boolean replicate);
+
     // --- Dead letter queue ---
 
     /**

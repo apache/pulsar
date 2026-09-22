@@ -23,8 +23,8 @@ plugins {
 }
 dependencies {
     implementation(libs.slog)
-    implementation(project(":pulsar-io:pulsar-io-core"))
+    api(project(":pulsar-io:pulsar-io-core"))
     implementation(project(":pulsar-config-validation"))
-    implementation(libs.jfairy)
+    api(libs.jfairy)
     implementation(libs.avro)
 }

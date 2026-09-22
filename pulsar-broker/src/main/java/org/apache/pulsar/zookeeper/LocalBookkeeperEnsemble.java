@@ -355,10 +355,10 @@ public class LocalBookkeeperEnsemble {
             } catch (NamespaceNotFoundException nnfe) {
                 log.info("Creating default namespace");
                 try {
+                    NamespaceConfiguration nsConf = new NamespaceConfiguration();
+                    nsConf.setDefaultStreamConf().copyFrom(DEFAULT_STREAM_CONF);
                     NamespaceProperties ns =
-                        FutureUtils.result(admin.createNamespace("default", NamespaceConfiguration.newBuilder()
-                            .setDefaultStreamConf(DEFAULT_STREAM_CONF)
-                            .build()));
+                        FutureUtils.result(admin.createNamespace("default", nsConf));
                     log.info().attr("n", ns).log("Successfully created 'default' namespace :\n");
                 } catch (NamespaceExistsException nee) {
                     // namespace already exists
@@ -411,6 +411,10 @@ public class LocalBookkeeperEnsemble {
     public void startStandalone(ServerConfiguration conf, boolean enableStreamStorage) throws Exception {
         log.debug("Local ZK/BK starting ...");
         conf.setAdvertisedAddress(advertisedAddress);
+        // This is an embedded, localhost-only ensemble (advertised address is a loopback address), so
+        // loopback binding must be permitted. BookKeeper forbids binding to a loopback address unless
+        // allowLoopback is set. Mirror the start(boolean) path, which sets this for the same reason.
+        conf.setAllowLoopback(true);
 
         runZookeeper(1000);
         initializeZookeper();

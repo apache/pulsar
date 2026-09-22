@@ -310,6 +310,47 @@ public class PatternMultiTopicsConsumerImplTest {
         assertThat(invocationCount.get()).isEqualTo(5);
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testOnTopicsRemovedCleansUnackedMessagesForRemovedPartitionedTopic() {
+        String partitionedTopic = "persistent://tenant/namespace/deleted-topic";
+        String partition0 = partitionedTopic + "-partition-0";
+        String partition1 = partitionedTopic + "-partition-1";
+        String otherTopicPartition = "persistent://tenant/namespace/other-topic-partition-0";
+        TopicsPattern topicsPattern =
+                TopicsPatternFactory.create("persistent://tenant/namespace/.*", TopicsPattern.RegexImplementation.JDK);
+        ConsumerConfigurationData<byte[]> consumerConfData = createConsumerConfigurationData();
+        consumerConfData.setAckTimeoutMillis(1000);
+
+        PatternMultiTopicsConsumerImpl<byte[]> consumer =
+                createPatternMultiTopicsConsumer(consumerConfData, topicsPattern);
+
+        consumer.partitionedTopics.put(partitionedTopic, 2);
+
+        ConsumerImpl<byte[]> partitionConsumer0 = (ConsumerImpl<byte[]>) mock(ConsumerImpl.class);
+        ConsumerImpl<byte[]> partitionConsumer1 = (ConsumerImpl<byte[]>) mock(ConsumerImpl.class);
+        when(partitionConsumer0.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        when(partitionConsumer1.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        consumer.consumers.put(partition0, partitionConsumer0);
+        consumer.consumers.put(partition1, partitionConsumer1);
+
+        TopicMessageIdImpl removedTopicMessageId = new TopicMessageIdImpl(partition0, new MessageIdImpl(1, 1, 0));
+        TopicMessageIdImpl otherTopicMessageId =
+                new TopicMessageIdImpl(otherTopicPartition, new MessageIdImpl(2, 2, 0));
+        consumer.getUnAckedMessageTracker().add(removedTopicMessageId);
+        consumer.getUnAckedMessageTracker().add(otherTopicMessageId);
+        assertThat(consumer.getUnAckedMessageTracker().size()).isEqualTo(2);
+
+        consumer.topicsChangeListener.onTopicsRemoved(Arrays.asList(partition0, partition1)).join();
+
+        assertThat(consumer.partitionedTopics.containsKey(partitionedTopic)).isFalse();
+        assertThat(consumer.consumers).doesNotContainKeys(partition0, partition1);
+        assertThat(consumer.getUnAckedMessageTracker().size()).isEqualTo(1);
+        assertThat(consumer.getUnAckedMessageTracker().remove(otherTopicMessageId)).isTrue();
+        verify(partitionConsumer0).closeAsync();
+        verify(partitionConsumer1).closeAsync();
+    }
+
     private static void runTimerTasks(Deque<TimerTask> tasks) throws Exception {
         // first drain the queue to a list to avoid an infinite loop
         List<TimerTask> taskList = new ArrayList<>();

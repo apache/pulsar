@@ -90,7 +90,6 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
         this.conf.setManagedLedgerMaxEntriesPerLedger(5);
         this.conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-        this.conf.setManagedLedgerUnackedRangesOpenCacheSetEnabled(useOpenRangeSet);
         @Cleanup("shutdownNow")
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
                 new DefaultThreadFactory("pulsar"));
