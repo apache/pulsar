@@ -54,7 +54,8 @@ import org.apache.pulsar.io.core.SourceContext;
  * (Failover, Key_Shared, or EFFECTIVELY_ONCE processing) uses a {@link StreamConsumer}, which delivers in order and
  * splits the topic's key ranges across the component's instances. A stream only acknowledges cumulatively, so
  * completions go through a {@link StreamAckTracker}; it has no negative acknowledgment, so a failed record fails the
- * instance and the messages are delivered again from the last acknowledged position when it restarts.
+ * instance through its fatal handler, and the messages are delivered again from the last acknowledged position when
+ * it restarts.
  *
  * <p>The records are {@link PulsarRecord}s over the v4 message that the V5 message wraps, so connectors that read the
  * schema version, the encryption context or the message itself keep working. The record's topic is the input
@@ -72,6 +73,7 @@ public class V5PulsarSource<T> extends PushPulsarSource<T> {
     private final String consumerName;
     private final List<Input> inputs = new ArrayList<>();
     private volatile boolean closed;
+    private SourceContext sourceContext;
 
     /** One input topic with its consumer and receive thread. */
     private abstract class Input {
@@ -122,7 +124,6 @@ public class V5PulsarSource<T> extends PushPulsarSource<T> {
                     () -> new IllegalStateException("Unexpected V5 message implementation " + message.getClass()));
             return PulsarRecord.<T>builder()
                     .message(v4Message)
-                    .messageV5(message)
                     .schema(recordSchema(v4Message))
                     .topicName(topic);
         }
@@ -179,11 +180,21 @@ public class V5PulsarSource<T> extends PushPulsarSource<T> {
             StreamAckTracker.Entry<MessageId> entry = ackTracker.track(message.id());
             return recordBuilder(message)
                     .ackFunction(() -> ackTracker.complete(entry))
-                    .customAckFunction(cumulative -> ackTracker.complete(entry))
+                    .customAckFunction(cumulative -> {
+                        if (cumulative) {
+                            ackTracker.completeThrough(entry);
+                        } else {
+                            ackTracker.complete(entry);
+                        }
+                    })
                     .failFunction(() -> {
-                        throw new RuntimeException("Failed to process message " + message.id() + " from " + topic
-                                + ": a stream subscription cannot negatively acknowledge, so the instance restarts"
-                                + " from the last acknowledged position");
+                        RuntimeException failure = new RuntimeException("Failed to process message " + message.id()
+                                + " from " + topic + ": a stream subscription cannot negatively acknowledge, so the"
+                                + " instance restarts from the last acknowledged position");
+                        // fail() may be called from any thread, such as a producer callback or a connector's own
+                        // thread, where a thrown exception would be lost and the acknowledgments would stall
+                        sourceContext.fatal(failure);
+                        throw failure;
                     })
                     .build();
         }
@@ -215,6 +226,7 @@ public class V5PulsarSource<T> extends PushPulsarSource<T> {
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
         log.info().attr("config", pulsarSourceConfig).log("Opening pulsar source with the V5 client");
+        this.sourceContext = sourceContext;
         if (Boolean.TRUE.equals(pulsarSourceConfig.getSkipToLatest())) {
             throw new UnsupportedOperationException("skipToLatest is not supported with the V5 client");
         }

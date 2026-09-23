@@ -25,6 +25,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.FunctionDetails.ClientApi;
 import org.apache.pulsar.functions.proto.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.proto.SubscriptionType;
 
 /**
@@ -35,7 +36,9 @@ import org.apache.pulsar.functions.proto.SubscriptionType;
  * an explicit {@link ClientApi#V5} lets the V5 client drive {@code persistent://} topics. The topics
  * considered are the inputs, the output, the log topic and the dead letter topic.
  *
- * <p>On top of the CLI rule, it rejects the component settings that the V5 runtime cannot honor.
+ * <p>On top of the CLI rule, it rejects the component settings that the V5 runtime cannot honor. Instances resolve
+ * again when they start, so a later version may relax these rules but must not tighten them: a tightened rule would
+ * stop stored components from starting.
  */
 public final class ClientApiResolver {
 
@@ -147,11 +150,51 @@ public final class ClientApiResolver {
             throw new IllegalArgumentException("The V5 client does not support EFFECTIVELY_ONCE processing "
                     + "guarantees when publishing to an output topic.");
         }
-        if (persistentInputs && (details.getProcessingGuarantees() == ProcessingGuarantees.EFFECTIVELY_ONCE
-                || details.getSource().getSubscriptionType() != SubscriptionType.SHARED)) {
+        if (details.hasSink() && details.getSink().hasProducerSpec()
+                && details.getSink().getProducerSpec().hasCryptoSpec()) {
+            throw new IllegalArgumentException("The V5 client does not support producer encryption yet.");
+        }
+        if (!details.hasSource()) {
+            return;
+        }
+        SourceSpec source = details.getSource();
+        if (source.isSkipToLatest()) {
+            throw new IllegalArgumentException("The V5 client does not support skipToLatest.");
+        }
+        source.forEachInputSpecs((topic, spec) -> {
+            if (spec.hasCryptoSpec()) {
+                throw new IllegalArgumentException("The V5 client does not support consumer encryption yet: '"
+                        + topic + "'.");
+            }
+            if (spec.hasMessagePayloadProcessorSpec()) {
+                throw new IllegalArgumentException("The V5 client does not support message payload processors: '"
+                        + topic + "'.");
+            }
+            if (spec.getConsumerPropertiesCount() > 0) {
+                throw new IllegalArgumentException("The V5 client does not support consumer properties: '"
+                        + topic + "'.");
+            }
+        });
+        boolean hasInputs = source.getInputSpecsCount() > 0 || source.getTopicsToSerDeClassNameCount() > 0;
+        boolean ordered = details.getProcessingGuarantees() == ProcessingGuarantees.EFFECTIVELY_ONCE
+                || source.getSubscriptionType() != SubscriptionType.SHARED;
+        if (!hasInputs || !ordered) {
+            return;
+        }
+        if (persistentInputs) {
             throw new IllegalArgumentException("The V5 client consumes persistent:// topics only with a shared "
                     + "subscription; ordered consumption (retainOrdering, retainKeyOrdering or EFFECTIVELY_ONCE) "
                     + "with the V5 client needs topic:// (scalable) input topics.");
+        }
+        // an ordered subscription is a V5 stream, which redelivers only by restarting from the last acknowledged
+        // position, so settings that redeliver or dead-letter individual messages cannot be honored
+        if (details.hasRetryDetails()) {
+            throw new IllegalArgumentException("maxMessageRetries and deadLetterTopic are not supported with ordered "
+                    + "consumption (retainOrdering, retainKeyOrdering or EFFECTIVELY_ONCE) with the V5 client.");
+        }
+        if (source.getTimeoutMs() > 0) {
+            throw new IllegalArgumentException("timeoutMs is not supported with ordered consumption (retainOrdering, "
+                    + "retainKeyOrdering or EFFECTIVELY_ONCE) with the V5 client.");
         }
     }
 }

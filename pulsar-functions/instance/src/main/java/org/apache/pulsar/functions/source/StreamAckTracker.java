@@ -68,6 +68,28 @@ class StreamAckTracker<K> {
             return;
         }
         entry.completed = true;
+        acknowledgeCompletedPrefix();
+    }
+
+    /**
+     * Marks a record and every record received before it as completed, as a cumulative acknowledgment of the
+     * record does, and acknowledges the completed prefix.
+     */
+    synchronized void completeThrough(Entry<K> entry) {
+        if (!inFlight.contains(entry)) {
+            // already acknowledged as part of an earlier prefix
+            return;
+        }
+        for (Entry<K> inFlightEntry : inFlight) {
+            inFlightEntry.completed = true;
+            if (inFlightEntry == entry) {
+                break;
+            }
+        }
+        acknowledgeCompletedPrefix();
+    }
+
+    private void acknowledgeCompletedPrefix() {
         K ackUpTo = null;
         while (!inFlight.isEmpty() && inFlight.peekFirst().completed) {
             ackUpTo = inFlight.pollFirst().messageId;

@@ -695,6 +695,8 @@ public class SinkConfigUtilsTest {
 
         sinkConfig.setClientApi(FunctionConfig.ClientApi.V5);
         sinkConfig.setRetainKeyOrdering(true);
+        // a stream subscription cannot honor a processing timeout
+        sinkConfig.setTimeoutMs(null);
         functionDetails = SinkConfigUtils.convert(sinkConfig,
                 new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
         assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.V5);

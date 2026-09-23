@@ -41,8 +41,6 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     private final int partition;
 
     private final Message<T> message;
-    // the V5 message that wraps message, when the record was received with the V5 client
-    private final org.apache.pulsar.client.api.v5.Message<T> messageV5;
     private final Schema<T> schema;
 
     private final Runnable failFunction;
@@ -138,11 +136,6 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
     @Override
     public Optional<Message<T>> getMessage() {
         return Optional.of(message);
-    }
-
-    @Override
-    public Optional<org.apache.pulsar.client.api.v5.Message<T>> getMessageV5() {
-        return Optional.ofNullable(messageV5);
     }
 
 }

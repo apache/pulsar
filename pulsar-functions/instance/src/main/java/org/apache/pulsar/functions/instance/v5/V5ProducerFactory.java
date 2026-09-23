@@ -87,8 +87,9 @@ public class V5ProducerFactory {
         if (producerConfig != null && (producerConfig.getMaxPendingMessages() != null
                 || producerConfig.getMaxPendingMessagesAcrossPartitions() != null
                 || producerConfig.getBatchBuilder() != null)) {
-            log.debug().attr("topic", topic).attr("producerConfig", producerConfig)
-                    .log("Ignoring producer settings the V5 client does not have");
+            log.warn().attr("topic", topic).attr("producerConfig", producerConfig)
+                    .log("Ignoring the pending-message limits and the batcher type, which the V5 producer does not"
+                            + " have; the V5 client's memory limit bounds the pending messages");
         }
         try {
             return new V5ProducerAdapter<>(builder.create(), schema);

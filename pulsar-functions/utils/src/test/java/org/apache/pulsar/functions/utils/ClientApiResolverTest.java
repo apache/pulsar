@@ -183,4 +183,56 @@ public class ClientApiResolverTest {
         source.getSource().setSubscriptionType(SubscriptionType.FAILOVER);
         assertThat(ClientApiResolver.resolve(source)).isEqualTo(ClientApi.V5);
     }
+
+    @Test
+    public void testRejectsSettingsTheV5ClientCannotHonor() {
+        FunctionDetails consumerCrypto = function(ClientApi.AUTO, SCALABLE_IN, SCALABLE_OUT);
+        consumerCrypto.getSource().getInputSpecs(SCALABLE_IN).setCryptoSpec().setCryptoKeyReaderClassName("Reader");
+        assertThatThrownBy(() -> ClientApiResolver.resolve(consumerCrypto))
+                .hasMessageContaining("consumer encryption");
+
+        FunctionDetails payloadProcessor = function(ClientApi.AUTO, SCALABLE_IN, SCALABLE_OUT);
+        payloadProcessor.getSource().getInputSpecs(SCALABLE_IN).setMessagePayloadProcessorSpec()
+                .setClassName("Processor");
+        assertThatThrownBy(() -> ClientApiResolver.resolve(payloadProcessor))
+                .hasMessageContaining("message payload processors");
+
+        FunctionDetails consumerProperties = function(ClientApi.AUTO, SCALABLE_IN, SCALABLE_OUT);
+        consumerProperties.getSource().getInputSpecs(SCALABLE_IN).putConsumerProperties("ackTimeoutMillis", "1");
+        assertThatThrownBy(() -> ClientApiResolver.resolve(consumerProperties))
+                .hasMessageContaining("consumer properties");
+
+        FunctionDetails skipToLatest = function(ClientApi.AUTO, SCALABLE_IN, SCALABLE_OUT);
+        skipToLatest.getSource().setSkipToLatest(true);
+        assertThatThrownBy(() -> ClientApiResolver.resolve(skipToLatest)).hasMessageContaining("skipToLatest");
+
+        FunctionDetails producerCrypto = function(ClientApi.AUTO, SCALABLE_IN, SCALABLE_OUT);
+        producerCrypto.getSink().setProducerSpec().setCryptoSpec().setCryptoKeyReaderClassName("Reader");
+        assertThatThrownBy(() -> ClientApiResolver.resolve(producerCrypto))
+                .hasMessageContaining("producer encryption");
+
+        // v4 components keep these settings
+        FunctionDetails v4 = function(ClientApi.AUTO, PERSISTENT_IN, PERSISTENT_OUT);
+        v4.getSource().setSkipToLatest(true);
+        v4.getSource().getInputSpecs(PERSISTENT_IN).setCryptoSpec().setCryptoKeyReaderClassName("Reader");
+        assertThat(ClientApiResolver.resolve(v4)).isEqualTo(ClientApi.V4);
+    }
+
+    @Test
+    public void testOrderedSubscriptionsRejectRedeliverySettings() {
+        FunctionDetails retries = function(ClientApi.AUTO, SCALABLE_IN, SCALABLE_OUT);
+        retries.getSource().setSubscriptionType(SubscriptionType.FAILOVER);
+        retries.setRetryDetails().setMaxMessageRetries(3);
+        assertThatThrownBy(() -> ClientApiResolver.resolve(retries)).hasMessageContaining("maxMessageRetries");
+
+        FunctionDetails timeout = function(ClientApi.AUTO, SCALABLE_IN, SCALABLE_OUT);
+        timeout.getSource().setSubscriptionType(SubscriptionType.KEY_SHARED).setTimeoutMs(1000);
+        assertThatThrownBy(() -> ClientApiResolver.resolve(timeout)).hasMessageContaining("timeoutMs");
+
+        // a shared subscription is a V5 queue, which honors them
+        FunctionDetails shared = function(ClientApi.AUTO, SCALABLE_IN, SCALABLE_OUT);
+        shared.setRetryDetails().setMaxMessageRetries(3);
+        shared.getSource().setTimeoutMs(1000);
+        assertThat(ClientApiResolver.resolve(shared)).isEqualTo(ClientApi.V5);
+    }
 }
