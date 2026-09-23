@@ -723,6 +723,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(receiverQueueSize);
         RawReader reader = RawReader.create(pulsarClient, consumerConfiguration, true, true).get();
+        waitForInitialPermits(topic, subscription, receiverQueueSize);
 
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
@@ -786,6 +787,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(receiverQueueSize);
         RawReader reader = RawReader.create(pulsarClient, consumerConfiguration, true, true).get();
+        waitForInitialPermits(topicName, subName, receiverQueueSize);
 
         reader.pause();
 
@@ -826,5 +828,15 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
         reader.closeAsync();
         producer.close();
+    }
+
+    /**
+     * The subscribe future completes before the client sends the initial flow permits, so pausing right after
+     * {@link RawReader#create} can suppress that flow and the paused reader would never receive its first
+     * {@code receiverQueueSize} messages. Wait until the broker has registered the initial permits.
+     */
+    private void waitForInitialPermits(String topic, String subscription, int permits) {
+        Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getStats(topic).getSubscriptions()
+                .get(subscription).getConsumers().get(0).getAvailablePermits(), permits));
     }
 }
