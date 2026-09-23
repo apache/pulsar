@@ -41,6 +41,7 @@ import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
+import org.apache.pulsar.cli.ClientApi;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -61,6 +62,10 @@ import picocli.CommandLine.Option;
 @Command(description = "Interface for managing Pulsar Functions "
         + "(lightweight, Lambda-style compute processes that work with Pulsar)")
 public class CmdFunctions extends CmdBase {
+    static final String CLIENT_API_DESCRIPTION = "Pulsar client API that the Java runtime uses for the "
+            + "component's topics: ${COMPLETION-CANDIDATES}. Defaults to V5 when the topics are topic:// (scalable) "
+            + "topics and to V4 otherwise. Use V5 to drive persistent:// topics with the V5 client #Java";
+
     private final LocalRunner localRunner;
     private final CreateFunction creater;
     private final DeleteFunction deleter;
@@ -318,6 +323,8 @@ public class CmdFunctions extends CmdBase {
         @Option(names = "--skip-to-latest", description = "Whether or not the consumer skip to latest message "
             + "upon function instance restart", arity = "1")
         protected Boolean skipToLatest;
+        @Option(names = ClientApi.OPTION_NAME, description = CmdFunctions.CLIENT_API_DESCRIPTION)
+        protected FunctionConfig.ClientApi clientApi;
         @Option(names = "--parallelism", description = "The parallelism factor of a Pulsar Function "
                 + "(i.e. the number of function instances to run) #Java")
         protected Integer parallelism;
@@ -558,6 +565,10 @@ public class CmdFunctions extends CmdBase {
 
             if (null != skipToLatest) {
                 functionConfig.setSkipToLatest(skipToLatest);
+            }
+
+            if (null != clientApi) {
+                functionConfig.setClientApi(clientApi);
             }
 
             if (null != userConfigString) {
