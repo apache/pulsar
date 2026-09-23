@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
@@ -329,12 +330,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     /**
      * The V5 consumer name of this instance. A stream subscription identifies the members of its consumer group
-     * by name, so the name is stable across restarts of the instance and unique among its instances.
+     * by name, and a second consumer with the same name would join the first one's session, so every start of an
+     * instance uses a new name. The component and instance id make it readable; the random suffix makes it unique.
      */
     private String v5ConsumerName() {
         FunctionDetails details = instanceConfig.getFunctionDetails();
-        return String.format("%s-%s-%s-%d", details.getTenant(), details.getNamespace(), details.getName(),
-                instanceConfig.getInstanceId());
+        return String.format("%s-%s-%s-%d-%s", details.getTenant(), details.getNamespace(), details.getName(),
+                instanceConfig.getInstanceId(), UUID.randomUUID().toString().substring(0, 8));
     }
 
     private boolean usesClientV5() {

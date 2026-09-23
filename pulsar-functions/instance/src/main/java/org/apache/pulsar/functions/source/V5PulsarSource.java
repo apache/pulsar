@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.v5.config.DeadLetterPolicy;
 import org.apache.pulsar.client.api.v5.config.ProcessingTimeoutPolicy;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.v5.V5Interop;
+import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
@@ -209,7 +210,7 @@ public class V5PulsarSource<T> extends PushPulsarSource<T> {
      * @param pulsarClient the v4 client, used to look up the input topics' schemas
      * @param clientV5 the V5 client that reads the input topics
      * @param consumerName the consumer name; it identifies the instance in a stream consumer group, so it must be
-     *                     stable across restarts and unique among the component's instances
+     *                     unique
      */
     public V5PulsarSource(PulsarClient pulsarClient,
                           Supplier<org.apache.pulsar.client.api.v5.PulsarClient> clientV5,
@@ -300,12 +301,16 @@ public class V5PulsarSource<T> extends PushPulsarSource<T> {
             builder.negativeAckRedeliveryBackoff(BackoffPolicy.fixed(delay, delay));
         }
         if (pulsarSourceConfig.getMaxMessageRetries() != null && pulsarSourceConfig.getMaxMessageRetries() >= 0) {
-            DeadLetterPolicy.Builder deadLetterPolicy = DeadLetterPolicy.builder()
-                    .maxRedeliverCount(pulsarSourceConfig.getMaxMessageRetries());
-            if (pulsarSourceConfig.getDeadLetterTopic() != null && !pulsarSourceConfig.getDeadLetterTopic().isEmpty()) {
-                deadLetterPolicy.deadLetterTopic(pulsarSourceConfig.getDeadLetterTopic());
+            String deadLetterTopic = pulsarSourceConfig.getDeadLetterTopic();
+            if (deadLetterTopic == null || deadLetterTopic.isEmpty()) {
+                // the v4 client's default, in the input topic's domain, rather than the V5 client's default, so
+                // that switching a component to the V5 client keeps its dead letter topic
+                deadLetterTopic = RetryMessageUtil.getDLQTopic(topic, pulsarSourceConfig.getSubscriptionName());
             }
-            builder.deadLetterPolicy(deadLetterPolicy.build());
+            builder.deadLetterPolicy(DeadLetterPolicy.builder()
+                    .maxRedeliverCount(pulsarSourceConfig.getMaxMessageRetries())
+                    .deadLetterTopic(deadLetterTopic)
+                    .build());
         }
         log.info().attr("topic", topic).attr("subscription", pulsarSourceConfig.getSubscriptionName())
                 .log("Subscribing with a V5 queue consumer");
