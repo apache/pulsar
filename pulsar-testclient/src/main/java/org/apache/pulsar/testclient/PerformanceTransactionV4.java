@@ -80,7 +80,7 @@ public class PerformanceTransactionV4 extends PerformanceTransactionBase<PulsarC
                         org.apache.pulsar.client.api.SubscriptionType.valueOf(arguments.subscriptionType.name()))
                 .receiverQueueSize(arguments.receiverQueueSize)
                 .subscriptionInitialPosition(arguments.subscriptionInitialPosition)
-                .replicateSubscriptionState(arguments.replicatedSubscription)
+                .replicateSubscriptionState(arguments.v4.replicatedSubscription)
                 .topic(topic)
                 .subscriptionName(subscription);
         return consumerBuilder.subscribeAsync();

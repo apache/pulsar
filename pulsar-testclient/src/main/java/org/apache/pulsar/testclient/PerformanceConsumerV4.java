@@ -155,7 +155,7 @@ public class PerformanceConsumerV4
                 .autoAckOldestChunkedMessageOnQueueFull(arguments.v4.autoAckOldestChunkedMessageOnQueueFull)
                 .enableBatchIndexAcknowledgment(arguments.v4.batchIndexAck)
                 .poolMessages(arguments.v4.poolMessages)
-                .replicateSubscriptionState(arguments.replicatedSubscription)
+                .replicateSubscriptionState(arguments.v4.replicatedSubscription)
                 .autoScaledReceiverQueueSizeEnabled(arguments.v4.autoScaledReceiverQueueSize)
                 .topic(topic)
                 .subscriptionName(subscription);

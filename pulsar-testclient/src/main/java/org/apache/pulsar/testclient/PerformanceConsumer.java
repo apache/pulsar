@@ -112,10 +112,6 @@ public class PerformanceConsumer extends PerformanceTopicListArguments {
     @Option(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
     public int receiverQueueSize = 1000;
 
-    @Option(names = {"-rs", "--replicated" },
-            description = "Whether the subscription status should be replicated")
-    public boolean replicatedSubscription = false;
-
     @Option(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
     public int acknowledgmentsGroupingDelayMillis = 100;
 
@@ -174,6 +170,11 @@ public class PerformanceConsumer extends PerformanceTopicListArguments {
         @Option(names = {"-aq", "--auto-scaled-receiver-queue-size"},
                 description = "Enable autoScaledReceiverQueueSize")
         public boolean autoScaledReceiverQueueSize = false;
+
+        // The V5 consumers do not offer replicated subscriptions (#26679).
+        @Option(names = {"-rs", "--replicated" },
+                description = "Whether the subscription status should be replicated")
+        public boolean replicatedSubscription = false;
 
         @Option(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
         public boolean batchIndexAck = false;

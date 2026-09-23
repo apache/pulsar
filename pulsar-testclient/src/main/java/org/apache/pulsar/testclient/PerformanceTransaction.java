@@ -98,10 +98,6 @@ public class PerformanceTransaction extends PerformanceBaseArguments {
     @Option(names = {"-sp", "--subscription-position"}, description = "Subscription position")
     public SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Earliest;
 
-    @Option(names = {"-rs", "--replicated" },
-            description = "Whether the subscription status should be replicated")
-    protected boolean replicatedSubscription = false;
-
     @Option(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
     public int receiverQueueSize = 1000;
 
@@ -135,11 +131,22 @@ public class PerformanceTransaction extends PerformanceBaseArguments {
     @Option(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
     public int openTxnRate = 0;
 
-    @ArgGroup(exclusive = false, validate = false, order = 1, heading = ClientApiOptionGroups.V5_HEADING)
+    @ArgGroup(exclusive = false, validate = false, order = 1, heading = ClientApiOptionGroups.V4_HEADING)
+    public V4Options v4 = new V4Options();
+
+    @ArgGroup(exclusive = false, validate = false, order = 2, heading = ClientApiOptionGroups.V5_HEADING)
     public V5Options v5 = new V5Options();
 
     /** The client picked for this invocation; set by {@link #validate()}. */
     ClientApi resolvedClientApi;
+
+    /** Options that only the v4 client supports. */
+    public static class V4Options implements ClientApiOptionGroups.V4ClientOptions {
+        // The V5 consumers do not offer replicated subscriptions (#26679).
+        @Option(names = {"-rs", "--replicated" },
+                description = "Whether the subscription status should be replicated")
+        public boolean replicatedSubscription = false;
+    }
 
     /** Options that only the V5 client supports. */
     public static class V5Options implements ClientApiOptionGroups.V5ClientOptions {

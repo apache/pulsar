@@ -112,7 +112,7 @@ public class CmdClientApiRoutingTest {
             {"consume", List.of("--client-api", "--subscription-type", "--subscription-position",
                     "--crypto-failure-action", "--end-timestamp"),
                     List.of("--start-timestamp", "--max_chunked_msg", "--auto_ack_chunk_q_full",
-                            "--pool-messages")},
+                            "--pool-messages", "--replicated")},
             {"read", List.of("--client-api", "--start-message-id", "--crypto-failure-action"),
                     List.of("--start-message-id-inclusive", "--queue-size", "--max_chunked_msg",
                             "--auto_ack_chunk_q_full", "--pool-messages")},
@@ -149,6 +149,8 @@ public class CmdClientApiRoutingTest {
                     "--start-timestamp applies only to the v4 client"},
             {new String[]{"read", "-q", "5", "topic://public/default/t"},
                     "--queue-size applies only to the v4 client"},
+            {new String[]{"consume", "-s", "sub", "-rs", "topic://public/default/t"},
+                    "--replicated applies only to the v4 client"},
             // The groups follow the resolved client, not the topic domain.
             {new String[]{"consume", "--client-api", "V5", "-s", "sub", "-pm", "false",
                     "persistent://public/default/t"}, "--pool-messages applies only to the v4 client"},

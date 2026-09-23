@@ -117,12 +117,12 @@ public class PulsarPerfTestToolTest {
                 List.of("--max-outstanding-across-partitions", "--isolated-clients"), List.of());
         assertSections(usage(commander, "consume"), List.of("--subscription-type", "--receiver-queue-size="),
                 List.of("--auto-scaled-receiver-queue-size", "--batch-index-ack", "--isolated-clients",
-                        "--pool-messages"),
+                        "--pool-messages", "--replicated"),
                 List.of("--scalable-consumer-type"));
         assertSections(usage(commander, "read"), List.of("--start-message-id"),
                 List.of("--receiver-queue-size", "--use-tls"), List.of());
         assertSections(usage(commander, "transaction"), List.of("--topics-c", "--subscription-type"),
-                List.of(), List.of("--scalable ", "--scalable-segments"));
+                List.of("--replicated"), List.of("--scalable ", "--scalable-segments"));
 
         assertThat(usage(commander, "produce"))
                 .contains("topic:// (scalable) domain are produced to with the V5 client");
@@ -187,6 +187,13 @@ public class PulsarPerfTestToolTest {
         assertThatThrownBy(() -> parse("", "consume", "-sct", "Stream", "persistent://public/default/t"))
                 .isInstanceOf(CommandLine.ParameterException.class)
                 .hasMessageContaining("--scalable-consumer-type applies only to the V5 client");
+        assertThatThrownBy(() -> parse("", "consume", "-rs", "topic://public/default/t"))
+                .isInstanceOf(CommandLine.ParameterException.class)
+                .hasMessageContaining("--replicated applies only to the v4 client");
+        assertThatThrownBy(() -> parse("", "transaction", "--client-api", "v5", "-rs", "--topics-c", "c",
+                "--topics-p", "p"))
+                .isInstanceOf(CommandLine.ParameterException.class)
+                .hasMessageContaining("--replicated applies only to the v4 client");
         assertThatThrownBy(() -> parse("", "read", "--use-tls", "topic://public/default/t"))
                 .isInstanceOf(CommandLine.ParameterException.class)
                 .hasMessageContaining("--use-tls applies only to the v4 client");

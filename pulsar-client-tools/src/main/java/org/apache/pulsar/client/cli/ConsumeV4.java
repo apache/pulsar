@@ -75,7 +75,7 @@ final class ConsumeV4 {
                     .subscriptionMode(SubscriptionMode.valueOf(cmd.subscriptionMode.name()))
                     .subscriptionInitialPosition(cmd.subscriptionInitialPosition)
                     .poolMessages(v4.poolMessages)
-                    .replicateSubscriptionState(cmd.replicateSubscriptionState);
+                    .replicateSubscriptionState(v4.replicateSubscriptionState);
 
             if (cmd.isRegex) {
                 builder.topicsPattern(Pattern.compile(topic));

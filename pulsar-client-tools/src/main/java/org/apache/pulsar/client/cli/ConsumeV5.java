@@ -84,8 +84,7 @@ final class ConsumeV5 {
             QueueConsumerBuilder<?> builder = client.newQueueConsumer(schema)
                     .subscriptionName(cmd.subscriptionName)
                     .subscriptionInitialPosition(EnumNameConverter.mapByName(cmd.subscriptionInitialPosition,
-                            SubscriptionInitialPosition.class))
-                    .replicateSubscriptionState(cmd.replicateSubscriptionState);
+                            SubscriptionInitialPosition.class));
             if (cmd.receiverQueueSize > 0) {
                 builder.receiverQueueSize(cmd.receiverQueueSize);
             }

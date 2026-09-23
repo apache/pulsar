@@ -134,9 +134,6 @@ public class CmdConsume extends AbstractCmdConsume {
             description = "Set a schema type on the consumer, it can be 'bytes' or 'auto_consume'")
     protected String schemaType = "bytes";
 
-    @Option(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
-    protected boolean replicateSubscriptionState = false;
-
     @Option(names = { "-mp", "--print-metadata" }, description = "Message metadata")
     protected boolean printMetadata = false;
 
@@ -160,6 +157,10 @@ public class CmdConsume extends AbstractCmdConsume {
 
         @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
         protected boolean poolMessages = true;
+
+        // The V5 consumers do not offer replicated subscriptions (#26679).
+        @Option(names = {"-rs", "--replicated" }, description = "Whether the subscription status should be replicated")
+        protected boolean replicateSubscriptionState = false;
     }
 
     private PulsarClientBuilder clientBuilder;
