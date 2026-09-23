@@ -191,9 +191,7 @@ public class ProtobufNativeSchemaAdvancedCompatibilityCheck implements SchemaCom
     }
 
     private static boolean hasUnknownFeatures(FeatureSet features) {
-        return !features.getUnknownFields().asMap().isEmpty()
-                || (features.hasExtension(JavaFeaturesProto.java_)
-                && !features.getExtension(JavaFeaturesProto.java_).getUnknownFields().asMap().isEmpty());
+        return ProtobufNativeSchemaCompatibility.findUnsupportedFeature(features) != null;
     }
 
     private static String fingerprint(byte[] bytes) {

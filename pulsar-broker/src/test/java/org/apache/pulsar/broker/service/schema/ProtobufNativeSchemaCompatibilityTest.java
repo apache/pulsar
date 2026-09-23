@@ -29,6 +29,8 @@ import static com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type.TYP
 import static com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type.TYPE_INT64;
 import static com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type.TYPE_MESSAGE;
 import static com.google.protobuf.DescriptorProtos.FieldDescriptorProto.Type.TYPE_STRING;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -50,6 +52,8 @@ import com.google.protobuf.DescriptorProtos.FileOptions;
 import com.google.protobuf.DescriptorProtos.MessageOptions;
 import com.google.protobuf.DescriptorProtos.OneofDescriptorProto;
 import com.google.protobuf.Descriptors.Descriptor;
+import com.google.protobuf.Descriptors.EnumValueDescriptor;
+import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.JavaFeaturesProto;
@@ -61,12 +65,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.ProtobufNativeSchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -252,6 +258,48 @@ public class ProtobufNativeSchemaCompatibilityTest {
         fails(noAlias, enumAliasSchema(false, 2), "ENUM_VALUE_NOT_READABLE");
     }
 
+    @DataProvider
+    public Object[][] enumFieldLabels() {
+        return new Object[][]{{LABEL_OPTIONAL}, {LABEL_REPEATED}};
+    }
+
+    @Test(dataProvider = "enumFieldLabels")
+    public void testClosedEnumMaximumValueRemoval(Label label) throws Exception {
+        EnumDescriptorProto.Builder enumeration = EnumDescriptorProto.newBuilder().setName("State")
+                .addValue(EnumValueDescriptorProto.newBuilder().setName("ZERO").setNumber(0))
+                .addValue(EnumValueDescriptorProto.newBuilder().setName("MAX").setNumber(Integer.MAX_VALUE));
+        DescriptorProto message = message("Order", field("state", 1, TYPE_ENUM, label).toBuilder()
+                .setTypeName(".example.State").build());
+        Descriptor writer = root(message, enumeration.build());
+        Descriptor reader = root(message, enumeration.clone().removeValue(1).build());
+        FieldDescriptor writerField = writer.findFieldByNumber(1);
+        FieldDescriptor readerField = reader.findFieldByNumber(1);
+        EnumValueDescriptor value = writerField.getEnumType().findValueByNumber(Integer.MAX_VALUE);
+        DynamicMessage.Builder written = DynamicMessage.newBuilder(writer);
+        if (label == LABEL_REPEATED) {
+            written.addRepeatedField(writerField, value);
+        } else {
+            written.setField(writerField, value);
+        }
+        DynamicMessage read = DynamicMessage.parseFrom(reader, written.build().toByteArray());
+        if (label == LABEL_REPEATED) {
+            assertThat(read.getRepeatedFieldCount(readerField)).isZero();
+        } else {
+            assertThat(read.hasField(readerField)).isFalse();
+            assertThat(((EnumValueDescriptor) read.getField(readerField)).getNumber()).isZero();
+        }
+        assertThat(read.getUnknownFields().getField(1).getVarintList()).containsExactly((long) Integer.MAX_VALUE);
+
+        assertThatThrownBy(() -> checker.checkCompatible(schema(writer), schema(reader),
+                SchemaCompatibilityStrategy.BACKWARD))
+                .isInstanceOf(IncompatibleSchemaException.class)
+                .hasMessageContaining("ENUM_VALUE_NOT_READABLE").hasMessageContaining("writer=2147483647");
+        checker.checkCompatible(schema(writer), schema(reader), SchemaCompatibilityStrategy.FORWARD);
+        Descriptor renamed = root(message, enumeration.setValue(1,
+                enumeration.getValue(1).toBuilder().setName("MAX_ALIAS")).build());
+        checker.checkCompatible(schema(writer), schema(renamed), SchemaCompatibilityStrategy.FULL);
+    }
+
     @Test
     public void testUtf8ValidationDirection() throws Exception {
         Descriptor unchecked = utf8Root(false);
@@ -318,6 +366,61 @@ public class ProtobufNativeSchemaCompatibilityTest {
             fail("Unknown wire feature must not resolve to a default");
         } catch (IncompatibleSchemaException e) {
             assertTrue(e.getMessage().contains("UNSUPPORTED_FEATURE"), e.getMessage());
+        }
+    }
+
+    @DataProvider
+    public Object[][] explicitUnknownWireFeatures() {
+        DescriptorProtos.getDescriptor();
+        return new Object[][]{
+                {FeatureSet.newBuilder().setFieldPresence(FeatureSet.FieldPresence.FIELD_PRESENCE_UNKNOWN).build()},
+                {FeatureSet.newBuilder().setEnumType(FeatureSet.EnumType.ENUM_TYPE_UNKNOWN).build()},
+                {FeatureSet.newBuilder().setRepeatedFieldEncoding(
+                        FeatureSet.RepeatedFieldEncoding.REPEATED_FIELD_ENCODING_UNKNOWN).build()},
+                {FeatureSet.newBuilder().setUtf8Validation(FeatureSet.Utf8Validation.UTF8_VALIDATION_UNKNOWN).build()},
+                {FeatureSet.newBuilder().setMessageEncoding(
+                        FeatureSet.MessageEncoding.MESSAGE_ENCODING_UNKNOWN).build()},
+                {FeatureSet.newBuilder().setExtension(JavaFeaturesProto.java_, JavaFeatures.newBuilder()
+                        .setUtf8Validation(JavaFeatures.Utf8Validation.UTF8_VALIDATION_UNKNOWN).build()).build()}
+        };
+    }
+
+    @Test(dataProvider = "explicitUnknownWireFeatures")
+    public void testExplicitUnknownWireFeatureIsUnsupported(FeatureSet features) throws Exception {
+        Descriptor descriptor = FileDescriptor.buildFrom(editionFeatureFile(features), new FileDescriptor[0])
+                .findMessageTypeByName("Order");
+        FeatureSet restored = roundTrip(descriptor).getFile().toProto().getOptions().getFeatures();
+        assertThat(restored).isEqualTo(features);
+        assertThat(restored.getUnknownFields().asMap()).isEmpty();
+        assertThatThrownBy(() -> checker.checkCompatible(schema(descriptor), schema(descriptor),
+                SchemaCompatibilityStrategy.BACKWARD))
+                .isInstanceOf(IncompatibleSchemaException.class).hasMessageContaining("UNSUPPORTED_FEATURE");
+    }
+
+    @Test(dataProvider = "explicitUnknownWireFeatures")
+    public void testExplicitUnknownWireFeatureOnReconstructionFailure(FeatureSet features) throws Exception {
+        SchemaData schema = rawSchema(editionFeatureFile(features).toBuilder()
+                .addDependency("missing.proto").build());
+        assertThatThrownBy(() -> ProtobufNativeSchemaUtils.deserialize(schema.getData()))
+                .isInstanceOf(SchemaSerializationException.class);
+        assertThatThrownBy(() -> checker.checkCompatible(schema, schema, SchemaCompatibilityStrategy.BACKWARD))
+                .isInstanceOf(IncompatibleSchemaException.class).hasMessageContaining("UNSUPPORTED_FEATURE");
+    }
+
+    @Test
+    public void testUnsetWireFeaturesInheritDefaults() throws Exception {
+        DescriptorProtos.getDescriptor();
+        for (FeatureSet features : List.of(FeatureSet.getDefaultInstance(), FeatureSet.newBuilder()
+                .setExtension(JavaFeaturesProto.java_, JavaFeatures.getDefaultInstance()).build())) {
+            for (Edition edition : List.of(Edition.EDITION_2023, Edition.EDITION_2024)) {
+                Descriptor descriptor = FileDescriptor.buildFrom(editionFeatureFile(features).toBuilder()
+                        .setEdition(edition).build(), new FileDescriptor[0]).findMessageTypeByName("Order");
+                Descriptor restored = roundTrip(descriptor);
+                assertThat(restored.findFieldByName("name").needsUtf8Check()).isTrue();
+                assertThat(restored.findFieldByName("name").hasPresence()).isTrue();
+                assertThat(restored.findFieldByName("name").isRequired()).isFalse();
+                checker.checkCompatible(schema(descriptor), schema(restored), SchemaCompatibilityStrategy.FULL);
+            }
         }
     }
 
@@ -497,6 +600,13 @@ public class ProtobufNativeSchemaCompatibilityTest {
         } catch (IncompatibleSchemaException expected) {
             assertTrue(expected.getMessage().contains("ALWAYS_INCOMPATIBLE"));
         }
+    }
+
+    private static FileDescriptorProto editionFeatureFile(FeatureSet features) {
+        return FileDescriptorProto.newBuilder().setName("edition-features.proto")
+                .setPackage("example").setSyntax("editions").setEdition(Edition.EDITION_2023)
+                .setOptions(FileOptions.newBuilder().setFeatures(features))
+                .addMessageType(message("Order", field("name", 1, TYPE_STRING, LABEL_OPTIONAL))).build();
     }
 
     private static Descriptor enumRoot(boolean reversed, boolean explicitDefault) throws Exception {

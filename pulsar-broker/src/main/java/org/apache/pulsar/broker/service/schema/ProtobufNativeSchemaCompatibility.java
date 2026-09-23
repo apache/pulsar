@@ -29,6 +29,7 @@ import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.Descriptors.OneofDescriptor;
 import com.google.protobuf.JavaFeaturesProto;
+import com.google.protobuf.JavaFeaturesProto.JavaFeatures;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -137,18 +138,51 @@ final class ProtobufNativeSchemaCompatibility {
     }
 
     private static void checkFeatures(FeatureSet features, String path) throws IncompatibleSchemaException {
+        String unsupported = findUnsupportedFeature(features);
+        if (unsupported != null) {
+            throw incompatible("UNSUPPORTED_FEATURE", path, 0, "feature", unsupported);
+        }
+    }
+
+    static String findUnsupportedFeature(FeatureSet features) {
         // Unknown feature values and extensions cannot be interpreted as resolved wire behavior.
         if (!features.getUnknownFields().asMap().isEmpty()) {
             int number = Collections.min(features.getUnknownFields().asMap().keySet());
-            throw incompatible("UNSUPPORTED_FEATURE", path, 0, "feature", Integer.toString(number));
+            return Integer.toString(number);
+        }
+        // Only inspect explicitly set wire features; absent options inherit their enclosing or edition defaults.
+        if (features.hasFieldPresence()
+                && features.getFieldPresence() == FeatureSet.FieldPresence.FIELD_PRESENCE_UNKNOWN) {
+            return "field_presence=FIELD_PRESENCE_UNKNOWN";
+        }
+        if (features.hasEnumType() && features.getEnumType() == FeatureSet.EnumType.ENUM_TYPE_UNKNOWN) {
+            return "enum_type=ENUM_TYPE_UNKNOWN";
+        }
+        if (features.hasRepeatedFieldEncoding() && features.getRepeatedFieldEncoding()
+                == FeatureSet.RepeatedFieldEncoding.REPEATED_FIELD_ENCODING_UNKNOWN) {
+            return "repeated_field_encoding=REPEATED_FIELD_ENCODING_UNKNOWN";
+        }
+        if (features.hasUtf8Validation()
+                && features.getUtf8Validation() == FeatureSet.Utf8Validation.UTF8_VALIDATION_UNKNOWN) {
+            return "utf8_validation=UTF8_VALIDATION_UNKNOWN";
+        }
+        if (features.hasMessageEncoding()
+                && features.getMessageEncoding() == FeatureSet.MessageEncoding.MESSAGE_ENCODING_UNKNOWN) {
+            return "message_encoding=MESSAGE_ENCODING_UNKNOWN";
         }
         if (features.hasExtension(JavaFeaturesProto.java_)) {
-            var unknownJavaFeatures = features.getExtension(JavaFeaturesProto.java_).getUnknownFields().asMap();
+            JavaFeatures javaFeatures = features.getExtension(JavaFeaturesProto.java_);
+            var unknownJavaFeatures = javaFeatures.getUnknownFields().asMap();
             if (!unknownJavaFeatures.isEmpty()) {
                 int number = Collections.min(unknownJavaFeatures.keySet());
-                throw incompatible("UNSUPPORTED_FEATURE", path, 0, "Java feature", Integer.toString(number));
+                return "Java feature " + number;
+            }
+            if (javaFeatures.hasUtf8Validation()
+                    && javaFeatures.getUtf8Validation() == JavaFeatures.Utf8Validation.UTF8_VALIDATION_UNKNOWN) {
+                return "java.utf8_validation=UTF8_VALIDATION_UNKNOWN";
             }
         }
+        return null;
     }
 
     private static void compareMessagePair(MessagePair pair, ArrayDeque<MessagePair> queue,
@@ -260,13 +294,13 @@ final class ProtobufNativeSchemaCompatibility {
             for (EnumValueDescriptor value : reader.getValues()) {
                 readable.add(value.getNumber());
             }
-            int missing = Integer.MAX_VALUE;
+            Integer missing = null;
             for (EnumValueDescriptor value : writer.getValues()) {
-                if (!readable.contains(value.getNumber())) {
-                    missing = Math.min(missing, value.getNumber());
+                if (!readable.contains(value.getNumber()) && (missing == null || value.getNumber() < missing)) {
+                    missing = value.getNumber();
                 }
             }
-            if (missing != Integer.MAX_VALUE) {
+            if (missing != null) {
                 throw incompatible("ENUM_VALUE_NOT_READABLE", path, number,
                         Integer.toString(missing), "absent");
             }
