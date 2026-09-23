@@ -1679,12 +1679,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (isDuplicatedChunk) {
                     doAcknowledge(msgId, AckType.Individual, Collections.emptyMap(), null);
                 }
-                // A last chunk does not get its permit returned at the top of this method (only
-                // chunkId != last is credited there). Since this duplicated chunk is discarded here,
-                // return its permit to avoid leaking the broker's flow-control credit.
-                if (msgMetadata.getChunkId() == (msgMetadata.getNumChunksFromMsg() - 1)) {
-                    increaseAvailablePermits(cnx);
-                }
                 return null;
             }
             // means we lost the first chunk: should never happen
