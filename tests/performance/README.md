@@ -127,15 +127,20 @@ After the run, the launcher correlates each pair over the measurement window int
 `<recording>-offcpu/` directory holding `jonoffcpu-offcpu-stacks.collapsed` (Java stacks weighted in
 microseconds of off-CPU time), `jonoffcpu-offcpu-synthetic.jfr` for JFR viewers, `jonoffcpu-report.json` with
 loss, delivery-delay and switch-out-reason accounting, `jonoffcpu-offcpu-profile.pb`, `jonoffcpu-complete.json`
-written last once everything validates, and `offcpu.html`. The stack profile lets the correlator's `stacks`
-subcommand render other slices, such as kernel stacks or stacks filtered by a regular expression, without
-correlating again. The correlator runs with `--audit none`: its row-level audit files are about 2 KB per row,
+written last once everything validates. From the stack profile the launcher then renders two slices with the
+correlator's `stacks` subcommand and `--package-names abbreviate`, which shortens
+`io.netty.channel.epoll.Native.epollWait0` to `i.n.c.e.Native.epollWait0`: `offcpu.collapsed` with every
+interval, and `offcpu-no-idle.collapsed` without intervals in which a thread was waiting for work, such as
+Netty's `epollWait`, `ThreadPoolExecutor.getTask` or HotSpot's idle GC workers
+(`OffCpuFlamegraphs.IDLE_WAIT_FRAMES`). Each comes with a `.json` summary, which for the second accounts for the
+time it removed, and an `.html` flame graph. The profile renders any other slice, such as kernel stacks, in
+under a second without correlating again. The correlator runs with `--audit none`: its row-level audit files are about 2 KB per row,
 so a broker capture would add hundreds of megabytes of them beside a few megabytes of stacks, and every aggregate
 is already in `jonoffcpu-report.json`. Running the correlator again over the retained capture and recording with
-`--audit full` reproduces them. The flame graph is rendered in-process by the
-converter from async-profiler's jonoffcpu fork,
-which comes as a dependency and labels the widths in microseconds, so nothing needs an async-profiler
-installation. `profiling.offCpu` is the agent's
+`--audit full` reproduces them. The flame graphs are rendered in-process by the converter from async-profiler's
+jonoffcpu fork, which comes as a dependency and labels the widths in microseconds, so nothing needs an
+async-profiler installation. Profiled runs use the glibc-based Wolfi test image, on which native frames are
+symbolized; `-Pinttest.testImageVariant=alpine` selects the Alpine image. `profiling.offCpu` is the agent's
 [`sampling` block](https://github.com/lhotari/jonoffcpu#choosing-what-to-sample) shared by every profiled JVM:
 the switch-out `reasons` to record (`[blocked]` by default), `minOffCpuMicros` and an `admission` policy, which
 is required. The policy `none` records plain async-profiler

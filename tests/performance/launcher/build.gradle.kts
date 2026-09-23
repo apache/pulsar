@@ -53,16 +53,16 @@ application {
     mainClass.set("org.apache.pulsar.tests.performance.launcher.PerformanceLauncher")
 }
 
-// The jonoffcpu agent embeds its native libraries for both musl and glibc, so a profiled run uses the same
-// Alpine image as every other run. -Pinttest.testImageVariant=wolfi switches profiled containers to the
-// glibc-based Wolfi image instead, for a host where the musl bundle misbehaves.
+// Profiled containers use the glibc-based Wolfi image: on musl every native frame reads as the unsymbolized
+// /lib/ld-musl-x86_64.so.1, which hides what the JVM's own threads were waiting in. -Pinttest.testImageVariant=alpine
+// profiles on the same Alpine image as every other run instead.
 val wolfiTestImage = providers.gradleProperty("inttest.testImageVariant").map {
     when (it) {
         "wolfi" -> true
         "alpine" -> false
         else -> throw GradleException("inttest.testImageVariant must be alpine or wolfi, not '$it'")
     }
-}.getOrElse(false)
+}.getOrElse(true)
 
 fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     workingDir(rootProject.projectDir)

@@ -216,8 +216,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             // retention may delete it afterwards.
             if (offCpuCaptureEnabled(offCpuOptions)) {
                 for (Path recording : recordings) {
-                    Path outputDirectory = OffCpuFlamegraphs.process(recording, measurementStart, measurementEnd,
-                            "Off-CPU time " + recording.getFileName());
+                    Path outputDirectory = OffCpuFlamegraphs.process(recording, measurementStart, measurementEnd);
                     System.out.println("Off-CPU profile: " + outputDirectory);
                 }
             }

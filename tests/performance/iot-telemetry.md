@@ -109,9 +109,11 @@ Use the `profile` task for a scenario that has non-empty `profiling.brokerOption
 
 The options are async-profiler options, recorded through the [jonoffcpu](https://github.com/lhotari/jonoffcpu)
 agent. The agent JAR is resolved from Maven Central by Gradle and mounted into each profiled container; it embeds
-its own async-profiler build for both musl and glibc, so nothing needs installing in the image and the ordinary
-Alpine `java-test-image` profiles as it is. Pass `-Pinttest.testImageVariant=wolfi` to use the glibc-based
-`java-test-image:<tag>-wolfi` instead, on a host where the musl bundle misbehaves.
+its own async-profiler build for both musl and glibc, so nothing needs installing in the image. Profiled runs use
+the glibc-based `java-test-image:<tag>-wolfi`: on the Alpine image every native frame reads as
+`/lib/ld-musl-x86_64.so.1`, so the JVM's own threads (GC, JIT compiler, VM thread) cannot be told apart, while
+glibc resolves them to functions such as `libjvm.so.WorkerThread::run`. Kernel frames are resolved on either
+image. Pass `-Pinttest.testImageVariant=alpine` to profile on the ordinary Alpine `java-test-image` instead.
 
 Alongside the ordinary CPU and allocation events the agent records off-CPU intervals measured by the kernel
 scheduler through eBPF. Loading those programs needs `CAP_BPF` and `CAP_PERFMON`, and Docker puts a container's
@@ -135,7 +137,12 @@ records every wait of 10 ms or longer, sampling shorter ones in proportion to th
 (`admission: {policy: proportional, recordAllAboveMicros: 10000}`), which bounds the recording rate by off-CPU
 time rather than by context-switch count. After the run, each recording's `<recording>-offcpu/` directory holds
 the correlated off-CPU stacks for the measurement window as collapsed stacks, a synthetic JFR, a stack profile,
-the accounting report and `offcpu.html`, whose widths are microseconds of off-CPU time.
+the accounting report and two flame graphs whose widths are microseconds of off-CPU time: `offcpu.html` with
+every interval, and `offcpu-no-idle.html` without the time threads spent waiting for work — Netty event loops in
+`epollWait`, executor workers waiting for a task, JDK and HotSpot service threads. In a broker run those idle
+waits are over 99 % of the off-CPU time, so the second graph is the one that shows lock and monitor contention,
+safepoints, GC phases and I/O. Its `offcpu-no-idle.json` accounts for the time it left out, and the frames it
+matches are listed in `OffCpuFlamegraphs.IDLE_WAIT_FRAMES`.
 
 After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the producer's
 measurement start through the latest measured-message receipt across all backend applications. The upper boundary
