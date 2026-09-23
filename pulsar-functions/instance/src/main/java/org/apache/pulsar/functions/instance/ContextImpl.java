@@ -36,7 +36,6 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.CustomLog;
 import lombok.ToString;
@@ -53,7 +52,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder;
 import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.v5.V5Interop;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.io.SinkConfig;
 import org.apache.pulsar.common.io.SourceConfig;
@@ -70,6 +71,8 @@ import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
+import org.apache.pulsar.functions.instance.v5.LazyPulsarClientV5;
+import org.apache.pulsar.functions.instance.v5.V5ProducerAdapter;
 import org.apache.pulsar.functions.instance.v5.V5ProducerFactory;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.ProducerSpec;
@@ -96,6 +99,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final ProducerBuilderFactory producerBuilderFactory;
     // creates the output producers of a component whose own topics use the V5 client; null otherwise
     private final V5ProducerFactory v5ProducerFactory;
+    // creates the producers of newOutputMessageV5; created on first use
+    private V5ProducerFactory outputMessageV5ProducerFactory;
+    private final LazyPulsarClientV5 clientV5;
+    private final ProducerConfig producerConfig;
     private final Map<String, String> producerProperties;
     private InstanceConfig config;
     private Logger logger;
@@ -154,15 +161,17 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                        FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
                        StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder,
                        java.util.function.Consumer<Throwable> fatalHandler, ProducerCache producerCache) {
-        this(config, logger, client, null, secretsProvider, collectorRegistry, metricsLabels, componentType,
+        this(config, logger, client, null, false, secretsProvider, collectorRegistry, metricsLabels, componentType,
                 statsManager, stateManager, pulsarAdmin, clientBuilder, fatalHandler, producerCache);
     }
 
     /**
-     * @param clientV5 the V5 client, for a component whose own topics use the V5 client, or {@code null}
+     * @param clientV5 the runtime's V5 client, created on first use, or {@code null} if the runtime has none
+     * @param publishWithClientV5 whether the component's own topics use the V5 client, so that its output
+     *                            messages are published with it
      */
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       Supplier<org.apache.pulsar.client.api.v5.PulsarClient> clientV5,
+                       LazyPulsarClientV5 clientV5, boolean publishWithClientV5,
                        SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry,
                        String[] metricsLabels,
                        FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
@@ -189,10 +198,15 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 // the default and made it configurable for the producers created in PulsarSink, but not in ContextImpl.
                 // This is to keep the default unchanged for the producers created in ContextImpl.
                 producerBuilder -> producerBuilder.compressionType(CompressionType.LZ4));
-        v5ProducerFactory = clientV5 != null
-                ? new V5ProducerFactory(clientV5, producerConfig,
-                        org.apache.pulsar.client.api.v5.config.CompressionType.LZ4)
-                : null;
+        this.clientV5 = clientV5;
+        this.producerConfig = producerConfig;
+        if (publishWithClientV5) {
+            checkState(clientV5 != null, "The component uses the V5 client, but the runtime has none");
+            v5ProducerFactory = new V5ProducerFactory(clientV5, producerConfig,
+                    org.apache.pulsar.client.api.v5.config.CompressionType.LZ4);
+        } else {
+            v5ProducerFactory = null;
+        }
         producerProperties = Collections.unmodifiableMap(InstanceUtils.getProperties(componentType,
                 FunctionCommon.getFullyQualifiedName(
                         this.config.getFunctionDetails().getTenant(),
@@ -561,6 +575,52 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     }
 
     @Override
+    public org.apache.pulsar.client.api.v5.PulsarClient getPulsarClientV5() {
+        return requireClientV5().get();
+    }
+
+    @Override
+    public org.apache.pulsar.client.api.v5.PulsarClientBuilder getPulsarClientBuilderV5()
+            throws org.apache.pulsar.client.api.v5.PulsarClientException {
+        return requireClientV5().newBuilder();
+    }
+
+    private LazyPulsarClientV5 requireClientV5() {
+        if (clientV5 == null) {
+            throw new UnsupportedOperationException("The function runtime has no V5 client");
+        }
+        return clientV5;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <X> AsyncMessageBuilder<X> newOutputMessageV5(String topicName,
+                                                         org.apache.pulsar.client.api.v5.schema.Schema<X> schema)
+            throws org.apache.pulsar.client.api.v5.PulsarClientException {
+        Schema<X> v4Schema = V5Interop.toV4Schema(schema);
+        Long additionalCacheKey = useThreadLocalProducers ? Thread.currentThread().getId() : null;
+        V5ProducerAdapter<X> producer = (V5ProducerAdapter<X>) producerCache.getOrCreateProducer(
+                ProducerCache.CacheArea.CONTEXT_V5_CACHE, topicName, additionalCacheKey, () -> {
+                    log.info()
+                            .attr("topic", topicName)
+                            .attr("schema", schema)
+                            .log("Initializing V5 producer");
+                    return outputMessageV5ProducerFactory()
+                            .createProducer(topicName, v4Schema, null, producerProperties);
+                });
+        return producer.newMessageV5(v4Schema);
+    }
+
+    private synchronized V5ProducerFactory outputMessageV5ProducerFactory() {
+        if (outputMessageV5ProducerFactory == null) {
+            outputMessageV5ProducerFactory = v5ProducerFactory != null ? v5ProducerFactory
+                    : new V5ProducerFactory(requireClientV5(), producerConfig,
+                            org.apache.pulsar.client.api.v5.config.CompressionType.LZ4);
+        }
+        return outputMessageV5ProducerFactory;
+    }
+
+    @Override
     public void fatal(Throwable t) {
         fatalHandler.accept(t);
     }
@@ -568,7 +628,8 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private <T> Producer<T> getProducer(String topicName, Schema<T> schema) throws PulsarClientException {
         if (v5ProducerFactory == null && ClientApiResolver.isScalableTopic(topicName)) {
             throw new PulsarClientException("Topic " + topicName + " is a topic:// (scalable) topic, which only "
-                    + "the V5 client can publish to; set clientApi to V5 for this component");
+                    + "the V5 client can publish to; use newOutputMessageV5, or set clientApi to V5 for this "
+                    + "component");
         }
         Long additionalCacheKey = useThreadLocalProducers ? Thread.currentThread().getId() : null;
         return producerCache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE,

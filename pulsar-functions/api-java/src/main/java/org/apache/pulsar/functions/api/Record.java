@@ -127,4 +127,16 @@ public interface Record<T> {
     default Optional<Message<T>> getMessage() {
         return Optional.empty();
     }
+
+    /**
+     * The message this record was read from, when it was read with the Pulsar V5 client.
+     *
+     * <p>{@link #getMessage()} still returns the v4 view of the same message, whose topic is the internal segment
+     * the message was stored in.
+     *
+     * @return the V5 message, or empty if the record was not read with the V5 client
+     */
+    default Optional<org.apache.pulsar.client.api.v5.Message<T>> getMessageV5() {
+        return Optional.empty();
+    }
 }
