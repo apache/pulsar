@@ -26,7 +26,6 @@ import io.github.merlimat.slog.Logger;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -38,14 +37,14 @@ import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
 import org.apache.pulsar.common.naming.TopicName;
-import picocli.CommandLine.Option;
 
 /**
  * Client-agnostic implementation of the {@code pulsar-perf} consumer benchmark.
  *
- * <p>The CLI options, the throughput and latency accounting, the subscription fan-out, the
- * transaction lifecycle and the periodic and aggregated reports live here. Concrete subclasses
- * bind the client types and implement the seams below: {@link PerformanceConsumer} drives the V5
+ * <p>The throughput and latency accounting, the subscription fan-out, the transaction lifecycle and
+ * the periodic and aggregated reports live here; the options come from the {@link PerformanceConsumer}
+ * command. Concrete subclasses bind the client types and implement the seams below:
+ * {@link PerformanceConsumerV5} drives the V5
  * Queue/Stream consumers from dedicated poll threads, and {@link PerformanceConsumerV4} drives a
  * v4 {@code Consumer} through a {@code MessageListener}.
  *
@@ -54,29 +53,14 @@ import picocli.CommandLine.Option;
  * @param <MessageT> the received message type
  * @param <TxnT> the transaction type used when {@code --txn-enable} is set
  */
-public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT>
-        extends PerformanceTopicListArguments {
+public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT> {
 
     /**
-     * Logger named after the <em>concrete</em> command class rather than this base, so that the
-     * report lines keep identifying the subcommand that produced them (the integration tests in
-     * {@code PerfToolTest} match on {@code PerformanceConsumer - Aggregated ...}).
+     * Logger named after the {@code consume} command rather than the runner, so that the report lines
+     * read the same whichever client runs the benchmark (the integration tests in {@code PerfToolTest}
+     * match on {@code PerformanceConsumer - Aggregated ...}).
      */
-    protected final Logger log = Logger.get(getClass());
-
-    /**
-     * Subscription type flag values, shared by both commands so the CLI surface does not depend on
-     * which client is driving. The names are the v4 ones: {@link PerformanceConsumerV4} maps them
-     * straight onto {@code org.apache.pulsar.client.api.SubscriptionType}, while V5 has no single
-     * user-facing subscription-type enum (StreamConsumer / QueueConsumer / CheckpointConsumer are
-     * separate APIs) and maps them all to a QueueConsumer.
-     */
-    public enum SubscriptionType {
-        Exclusive,
-        Shared,
-        Failover,
-        Key_Shared
-    }
+    protected final Logger log = Logger.get(PerformanceConsumer.class);
 
     private final LongAdder messagesReceived = new LongAdder();
     private final LongAdder bytesReceived = new LongAdder();
@@ -109,101 +93,11 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
     private long testEndTime;
     private Thread mainThread;
 
-    @Option(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
-            + "one consumer is allowed when subscriptionType is Exclusive",
-            converter = PositiveNumberParameterConvert.class
-    )
-    public int numConsumers = 1;
+    /** The parsed {@code consume} command line. */
+    protected final PerformanceConsumer arguments;
 
-    @Option(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)",
-            converter = PositiveNumberParameterConvert.class
-    )
-    public int numSubscriptions = 1;
-
-    @Option(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
-    public String subscriberName;
-
-    @Option(names = { "-ss", "--subscriptions" },
-            description = "A list of subscriptions to consume (for example, sub1,sub2)")
-    public List<String> subscriptions = Collections.singletonList("sub");
-
-    @Option(names = { "-st", "--subscription-type" }, description = "Subscription type")
-    public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
-
-    @Option(names = { "-r", "--rate" }, description = "Simulate a slow message consumer (rate in msg/s)")
-    public double rate = 0;
-
-    @Option(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
-    public int receiverQueueSize = 1000;
-
-    @Option(names = { "-p", "--receiver-queue-size-across-partitions" },
-            description = "Max total size of the receiver queue across partitions")
-    public int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
-
-    @Option(names = {"-aq", "--auto-scaled-receiver-queue-size"},
-            description = "Enable autoScaledReceiverQueueSize")
-    public boolean autoScaledReceiverQueueSize = false;
-
-    @Option(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
-    public int acknowledgmentsGroupingDelayMillis = 100;
-
-    @Option(names = {"-m",
-            "--num-messages"},
-            description = "Number of messages to consume in total. If <= 0, it will keep consuming")
-    public long numMessages = 0;
-
-    @Option(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
-    protected int maxPendingChunkedMessage = 0;
-
-    @Option(names = { "-ac",
-            "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
-    protected boolean autoAckOldestChunkedMessageOnQueueFull = false;
-
-    @Option(names = { "-e",
-            "--expire_time_incomplete_chunked_messages" },
-            description = "Expire time in ms for incomplete chunk messages")
-    protected long expireTimeOfIncompleteChunkedMessageMs = 0;
-
-    @Option(names = { "-v",
-            "--encryption-key-value-file" },
-            description = "The file which contains the private key to decrypt payload")
-    public String encKeyFile = null;
-
-    @Option(names = { "-time",
-            "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
-    public long testTime = 0;
-
-    @Option(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
-    public boolean batchIndexAck = false;
-
-    @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
-    protected boolean poolMessages = true;
-
-    @Option(names = {"-tto", "--txn-timeout"},  description = "Set the time value of transaction timeout,"
-            + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
-    public long transactionTimeout = 10;
-
-    @Option(names = {"-nmt", "--numMessage-perTransaction"},
-            description = "The number of messages acknowledged by a transaction. "
-                    + "(After --txn-enable setting to true, -numMessage-perTransaction takes effect")
-    public int numMessagesPerTransaction = 50;
-
-    @Option(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
-    public boolean isEnableTransaction = false;
-
-    @Option(names = {"-ntxn"}, description = "The number of opened transactions, 0 means keeping open."
-            + "(After --txn-enable setting to true, -ntxn takes effect.)")
-    public long totalNumTxn = 0;
-
-    @Option(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
-            + "setting to true, -abort takes effect)")
-    public boolean isAbortTransaction = false;
-
-    @Option(names = { "--histogram-file" }, description = "HdrHistogram output file")
-    public String histogramFile = null;
-
-    protected PerformanceConsumerBase(String cmdName) {
-        super(cmdName);
+    protected PerformanceConsumerBase(PerformanceConsumer arguments) {
+        this.arguments = arguments;
     }
 
     // ------------------------------------------------------------------------------------------
@@ -230,7 +124,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
      * by {@code --subscription-type}; V5 picks a consumer API instead and overrides this.
      */
     protected Object consumerTypeForLog() {
-        return this.subscriptionType;
+        return arguments.subscriptionType;
     }
 
     /**
@@ -303,44 +197,20 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
 
     // ------------------------------------------------------------------------------------------
 
-    @Override
-    public void validate() throws Exception {
-        super.validate();
-        if (subscriptionType == SubscriptionType.Exclusive && numConsumers > 1) {
-            throw new Exception("Only one consumer is allowed when subscriptionType is Exclusive");
-        }
-
-        if (subscriptions != null && subscriptions.size() != numSubscriptions) {
-            // keep compatibility with the previous version
-            if (subscriptions.size() == 1) {
-                if (subscriberName == null) {
-                    subscriberName = subscriptions.get(0);
-                }
-                List<String> defaultSubscriptions = new ArrayList<>();
-                for (int i = 0; i < numSubscriptions; i++) {
-                    defaultSubscriptions.add(String.format("%s-%d", subscriberName, i));
-                }
-                subscriptions = defaultSubscriptions;
-            } else {
-                throw new Exception("The size of subscriptions list should be equal to --num-subscriptions");
-            }
-        }
-    }
-
-    @Override
     public void run() throws Exception {
 
         // Dump config variables
         PerfClientUtils.printJVMInformation(log);
         ObjectMapper m = new ObjectMapper();
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info().attr("config", w.writeValueAsString(this)).log("Starting Pulsar performance consumer with config");
+        log.info().attr("config", w.writeValueAsString(arguments))
+                .log("Starting Pulsar performance consumer with config");
 
         prepareRun();
 
-        this.limiter = this.rate > 0 ? RateLimiter.create(this.rate) : null;
+        this.limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
         long startTime = System.nanoTime();
-        this.testEndTime = startTime + (long) (this.testTime * 1e9);
+        this.testEndTime = startTime + (long) (arguments.testTime * 1e9);
         this.mainThread = Thread.currentThread();
 
         int isolatedClientCount = isolatedClientCount();
@@ -354,29 +224,29 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
         }
         this.client = clients.get(0);
 
-        if (this.isEnableTransaction) {
+        if (arguments.isEnableTransaction) {
             this.transactionRef = new AtomicReference<>(openFirstTransaction(client));
         } else {
             this.transactionRef = new AtomicReference<>(null);
         }
 
         this.messageAckedCount = new AtomicLong();
-        this.messageReceiveLimiter = new Semaphore(this.numMessagesPerTransaction);
+        this.messageReceiveLimiter = new Semaphore(arguments.numMessagesPerTransaction);
 
         List<CompletableFuture<ConsumerT>> futures = new ArrayList<>();
         int consumerIndex = 0;
-        for (int i = 0; i < this.numTopics; i++) {
-            final TopicName topicName = TopicName.get(this.topics.get(i));
+        for (int i = 0; i < arguments.numTopics; i++) {
+            final TopicName topicName = TopicName.get(arguments.topics.get(i));
 
             log.info()
-                    .attr("adding", this.numConsumers)
+                    .attr("adding", arguments.numConsumers)
                     .attr("topic", topicName)
                     .attr("consumerType", consumerTypeForLog())
                     .log("Adding consumers per subscription on topic");
 
-            for (int j = 0; j < this.numSubscriptions; j++) {
-                String subscription = this.subscriptions.get(j);
-                for (int k = 0; k < this.numConsumers; k++) {
+            for (int j = 0; j < arguments.numSubscriptions; j++) {
+                String subscription = arguments.subscriptions.get(j);
+                for (int k = 0; k < arguments.numConsumers; k++) {
                     ClientT consumerClient = clients.get(consumerIndex++ % clients.size());
                     futures.add(subscribeAsync(consumerClient, topicName.toString(), subscription));
                 }
@@ -390,8 +260,8 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
         startConsuming(consumers);
 
         log.info()
-                .attr("receiving", this.numConsumers)
-                .attr("subscription", this.numTopics)
+                .attr("receiving", arguments.numConsumers)
+                .attr("subscription", arguments.numTopics)
                 .log("Start receiving from consumers per subscription on topics");
 
         long start = System.nanoTime();
@@ -406,8 +276,8 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
         Histogram reportHistogram = null;
         HistogramLogWriter histogramLogWriter = null;
 
-        if (this.histogramFile != null) {
-            String statsFileName = this.histogramFile;
+        if (arguments.histogramFile != null) {
+            String statsFileName = arguments.histogramFile;
             log.info().attr("stats", statsFileName).log("Dumping latency stats to");
 
             PrintStream histogramLog = new PrintStream(new FileOutputStream(statsFileName), false);
@@ -437,7 +307,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
             double rateOpenTxn = 0;
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
-            if (this.isEnableTransaction) {
+            if (arguments.isEnableTransaction) {
                 totalTxnOpSuccessNum = totalEndTxnOpSuccessNum.sum();
                 totalTxnOpFailNum = totalEndTxnOpFailNum.sum();
                 rateOpenTxn = numTxnOpSuccess.sumThenReset() / elapsed;
@@ -468,7 +338,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
             reportHistogram.reset();
             oldTime = now;
 
-            if (this.testTime > 0) {
+            if (arguments.testTime > 0) {
                 if (now > testEndTime) {
                     log.info("------------------- DONE -----------------------");
                     PerfClientUtils.exit(0);
@@ -492,12 +362,12 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
      * @return whether the run is done and the caller should stop consuming
      */
     protected final boolean checkDone() {
-        if (this.testTime > 0 && System.nanoTime() > testEndTime) {
+        if (arguments.testTime > 0 && System.nanoTime() > testEndTime) {
             reportDone();
             return true;
         }
-        if (this.totalNumTxn > 0
-                && totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= this.totalNumTxn) {
+        if (arguments.totalNumTxn > 0
+                && totalEndTxnOpFailNum.sum() + totalEndTxnOpSuccessNum.sum() >= arguments.totalNumTxn) {
             reportDone();
             return true;
         }
@@ -525,7 +395,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
         totalMessagesReceived.increment();
         totalBytesReceived.add(size);
 
-        if (this.numMessages > 0 && totalMessagesReceived.sum() >= this.numMessages) {
+        if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
             reportDone();
             // The run is over, so the message that tripped the limit is not acknowledged, but its
             // buffer is still returned in case messages are pooled.
@@ -546,7 +416,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
             cumulativeRecorder.recordValue(latencyMillis);
         }
 
-        if (this.isEnableTransaction) {
+        if (arguments.isEnableTransaction) {
             try {
                 messageReceiveLimiter.acquire();
             } catch (InterruptedException e) {
@@ -560,8 +430,8 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
 
         releaseMessage(msg);
 
-        if (this.isEnableTransaction
-                && messageAckedCount.incrementAndGet() == this.numMessagesPerTransaction) {
+        if (arguments.isEnableTransaction
+                && messageAckedCount.incrementAndGet() == arguments.numMessagesPerTransaction) {
             endAndReopenTransaction();
         }
         return false;
@@ -586,7 +456,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
     /** End the in-flight transaction according to {@code -abort} and open its replacement. */
     private void endAndReopenTransaction() {
         final TxnT transaction = transactionRef.get();
-        final boolean abort = this.isAbortTransaction;
+        final boolean abort = arguments.isAbortTransaction;
         CompletableFuture<Void> endFuture = abort ? abortTransaction(transaction) : commitTransaction(transaction);
         endFuture.thenRun(() -> {
             log.debug().log(abort ? "Abort transaction" : "Commit transaction");
@@ -610,7 +480,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
                 transactionRef.compareAndSet(transaction, newTransaction);
                 totalNumTxnOpenSuccess.increment();
                 messageAckedCount.set(0);
-                messageReceiveLimiter.release(this.numMessagesPerTransaction);
+                messageReceiveLimiter.release(arguments.numMessagesPerTransaction);
                 break;
             } catch (Exception e) {
                 if (PerfClientUtils.hasInterruptedException(e)) {
@@ -634,7 +504,7 @@ public abstract class PerformanceConsumerBase<ClientT, ConsumerT, MessageT, TxnT
         long totalnumMessageAckFailed = 0;
         double rateAck = totalMessageAck.sum() / elapsed;
         double rateOpenTxn = 0;
-        if (this.isEnableTransaction) {
+        if (arguments.isEnableTransaction) {
             totalEndTxnSuccess = totalEndTxnOpSuccessNum.sum();
             totalEndTxnFail = totalEndTxnOpFailNum.sum();
             rateOpenTxn = (totalEndTxnSuccess + totalEndTxnFail) / elapsed;
