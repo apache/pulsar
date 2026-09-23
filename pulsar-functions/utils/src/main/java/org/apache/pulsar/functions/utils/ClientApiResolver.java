@@ -71,6 +71,8 @@ public final class ClientApiResolver {
                     inputTopics.add(topic);
                 }
             });
+            // inputs of components submitted before inputSpecs existed
+            details.getSource().forEachTopicsToSerDeClassName((topic, serde) -> inputTopics.add(topic));
             if (isNotEmpty(details.getSource().getTopicsPattern())) {
                 patterns.add(details.getSource().getTopicsPattern());
             }

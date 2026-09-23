@@ -107,6 +107,7 @@ import org.apache.pulsar.functions.source.PulsarSource;
 import org.apache.pulsar.functions.source.PulsarSourceConfig;
 import org.apache.pulsar.functions.source.SingleConsumerPulsarSource;
 import org.apache.pulsar.functions.source.SingleConsumerPulsarSourceConfig;
+import org.apache.pulsar.functions.source.V5PulsarSource;
 import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
 import org.apache.pulsar.functions.utils.BatchingUtils;
 import org.apache.pulsar.functions.utils.ClientApiResolver;
@@ -278,16 +279,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // The worker validates this when the component is submitted; resolving it again also covers
         // function details that did not come through the worker, such as LocalRunner configurations.
         this.clientApi = ClientApiResolver.resolve(instanceConfig.getFunctionDetails());
-        if (usesClientV5()) {
-            if (clientV5 == null) {
-                throw new IllegalStateException("The component uses the V5 client, but the runtime has none");
-            }
-            SourceSpec sourceSpec = instanceConfig.getFunctionDetails().getSource();
-            if (sourceSpec.getInputSpecsCount() > 0
-                    || BatchSourceExecutor.class.getName().equals(sourceSpec.getClassName())) {
-                throw new UnsupportedOperationException(
-                        "Consuming with the V5 client is not supported by the Java instance yet");
-            }
+        if (usesClientV5() && clientV5 == null) {
+            throw new IllegalStateException("The component uses the V5 client, but the runtime has none");
         }
 
         Object object;
@@ -332,6 +325,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
         // to signal member variables are initialized
         isInitialized = true;
+    }
+
+    /**
+     * The V5 consumer name of this instance. A stream subscription identifies the members of its consumer group
+     * by name, so the name is stable across restarts of the instance and unique among its instances.
+     */
+    private String v5ConsumerName() {
+        FunctionDetails details = instanceConfig.getFunctionDetails();
+        return String.format("%s-%s-%s-%d", details.getTenant(), details.getNamespace(), details.getName(),
+                instanceConfig.getInstanceId());
     }
 
     private boolean usesClientV5() {
@@ -928,8 +931,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             }
 
             PulsarSourceConfig pulsarSourceConfig;
-            // we can use a single consumer to read
-            if (topicSchema.size() == 1) {
+            // we can use a single consumer to read; the V5 source always takes the multi-topic config
+            if (topicSchema.size() == 1 && !usesClientV5()) {
                 SingleConsumerPulsarSourceConfig singleConsumerPulsarSourceConfig =
                         new SingleConsumerPulsarSourceConfig();
                 Map.Entry<String, ConsumerConfig> entry = topicSchema.entrySet().iterator().next();
@@ -980,7 +983,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // Use SingleConsumerPulsarSource if possible because
             // it will have higher performance since it is not a push source
             // that require messages to be put into an immediate queue
-            if (pulsarSourceConfig instanceof SingleConsumerPulsarSourceConfig) {
+            if (usesClientV5()) {
+                object = new V5PulsarSource<>(this.client, clientV5,
+                        (MultiConsumerPulsarSourceConfig) pulsarSourceConfig, this.properties,
+                        this.functionClassLoader, v5ConsumerName());
+            } else if (pulsarSourceConfig instanceof SingleConsumerPulsarSourceConfig) {
                 object = new SingleConsumerPulsarSource(this.client,
                         (SingleConsumerPulsarSourceConfig) pulsarSourceConfig, this.properties,
                         this.functionClassLoader);

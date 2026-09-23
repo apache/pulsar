@@ -87,6 +87,20 @@ public class ClientApiResolverTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
+    public void testLegacySerDeInputs() {
+        FunctionDetails details = function(ClientApi.AUTO, null, null);
+        details.getSource().putTopicsToSerDeClassName(SCALABLE_IN, "serde");
+        assertThat(ClientApiResolver.resolve(details)).isEqualTo(ClientApi.V5);
+        details.getSource().setSubscriptionType(SubscriptionType.FAILOVER);
+        details.setClientApi(ClientApi.V5);
+        details.getSource().clearTopicsToSerDeClassName();
+        details.getSource().putTopicsToSerDeClassName(PERSISTENT_IN, "serde");
+        assertThatThrownBy(() -> ClientApiResolver.resolve(details))
+                .hasMessageContaining("needs topic:// (scalable) input topics");
+    }
+
+    @Test
     public void testRejectsSegmentTopic() {
         assertThatThrownBy(() -> ClientApiResolver.resolve(
                 function(ClientApi.AUTO, "segment://public/default/in/0000-7fff-1", null)))
