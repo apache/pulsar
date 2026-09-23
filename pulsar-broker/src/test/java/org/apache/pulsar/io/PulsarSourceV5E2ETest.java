@@ -23,7 +23,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.v5.Message;
@@ -35,8 +34,6 @@ import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -47,18 +44,6 @@ import org.testng.annotations.Test;
 public class PulsarSourceV5E2ETest extends AbstractPulsarE2ETest {
 
     private static final String NAMESPACE = "io-v5";
-
-    private PulsarClient newV5Client() throws Exception {
-        AuthenticationConfig authConfig = AuthenticationConfig.builder()
-                .clientAuthenticationPlugin(workerConfig.getBrokerClientAuthenticationPlugin())
-                .clientAuthenticationParameters(workerConfig.getBrokerClientAuthenticationParameters())
-                .useTls(workerConfig.isUseTls())
-                .tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
-                .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
-                .build();
-        return InstanceUtils.createPulsarClientV5Builder(workerConfig.getPulsarServiceUrl(), authConfig,
-                Optional.empty()).build();
-    }
 
     private void createNamespace() throws Exception {
         admin.namespaces().createNamespace(tenant + "/" + NAMESPACE, Set.of("use"));

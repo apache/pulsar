@@ -732,18 +732,28 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
 
     @Override
     public void seek(String topic, int partition, MessageId messageId) throws PulsarClientException {
+        checkInputConsumerControl("seek");
         Consumer<?> consumer = getConsumer(topic, partition);
         consumer.seek(messageId);
     }
 
     @Override
     public void pause(String topic, int partition) throws PulsarClientException {
+        checkInputConsumerControl("pause");
         getConsumer(topic, partition).pause();
     }
 
     @Override
     public void resume(String topic, int partition) throws PulsarClientException {
+        checkInputConsumerControl("resume");
         getConsumer(topic, partition).resume();
+    }
+
+    private void checkInputConsumerControl(String operation) {
+        if (v5ProducerFactory != null) {
+            throw new UnsupportedOperationException(
+                    "The V5 client does not support " + operation + " on the input consumers");
+        }
     }
 
     public void setInputConsumers(List<Consumer<?>> inputConsumers) {
