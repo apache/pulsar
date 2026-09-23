@@ -108,42 +108,23 @@ Use the `profile` task for a scenario that has non-empty `profiling.brokerOption
 ```
 
 The options are async-profiler options, recorded through the [jonoffcpu](https://github.com/lhotari/jonoffcpu)
-agent. The agent JAR is resolved from Maven Central by Gradle and mounted into each profiled container; it embeds
-its own async-profiler build for both musl and glibc, so nothing needs installing in the image. Profiled runs use
-the glibc-based `java-test-image:<tag>-wolfi`: on the Alpine image every native frame reads as
-`/lib/ld-musl-x86_64.so.1`, so the JVM's own threads (GC, JIT compiler, VM thread) cannot be told apart, while
-glibc resolves them to functions such as `libjvm.so.WorkerThread::run`. Kernel frames are resolved on either
-image. Pass `-Pinttest.testImageVariant=alpine` to profile on the ordinary Alpine `java-test-image` instead.
-
-Alongside the ordinary CPU and allocation events the agent records off-CPU intervals measured by the kernel
-scheduler through eBPF. Loading those programs needs `CAP_BPF` and `CAP_PERFMON`, and Docker puts a container's
-capabilities in the effective set of root alone, so profiled containers run privileged with the JVM as root.
-Docker also mounts a tracefs read-only at `/sys/kernel/tracing` as a `local` volume. A Linux host attaches the
-agent's BTF raw tracepoints without it, but jonoffcpu advises it for Docker Desktop, where that is unverified.
-It comes from the Docker engine's kernel, so nothing is bind-mounted from the host; that kernel must offer BTF and
-the BPF features the agent checks for at startup. The task also relaxes the Linux perf-event and BPF settings
-through the existing integration-test task.
+agent together with kernel-measured off-CPU samples. The requirements, the files each recording produces and how
+to analyze them are in the performance README's
+[Profiling with jonoffcpu](README.md#profiling-with-jonoffcpu) section.
 
 Broker recordings are written under `broker-profile/`; producer and consumer recordings are written in their
 corresponding output directories. The launcher owns each recording path so recordings remain inside the run
 directory, and rejects options that set `file=`. Empty options leave that component unprofiled. The ordinary
 `run` task rejects profiling-enabled YAML rather than silently running without the agent.
 
-`profiling.offCpu` is the jonoffcpu agent's
-[`sampling` block](https://github.com/lhotari/jonoffcpu#choosing-what-to-sample), shared by every profiled JVM
-and required. The profile scenario records only intervals where a thread blocked (`reasons: [blocked]`), not
-those where it was runnable but waiting for a CPU. It ignores waits under 100 µs (`minOffCpuMicros: 100`) and
-records every wait of 10 ms or longer, sampling shorter ones in proportion to their length
-(`admission: {policy: proportional, recordAllAboveMicros: 10000}`), which bounds the recording rate by off-CPU
-time rather than by context-switch count. After the run, each recording's `<recording>-offcpu/` directory holds
-the correlated off-CPU stacks for the measurement window as collapsed stacks, a synthetic JFR, a stack profile,
-the accounting report and two flame graphs whose widths are microseconds of off-CPU time: `offcpu.html` with
-every interval, and `offcpu-no-idle.html` without the time threads spent waiting for work — Netty event loops in
-`epollWait`, executor workers waiting for a task, JDK and HotSpot service threads. In a broker run those idle
-waits are over 99 % of the off-CPU time, so the second graph is the one that shows lock and monitor contention,
-safepoints, GC phases and I/O. Its `offcpu-no-idle.json` accounts for the time it left out, and the frames it
-matches are listed, with the reasoning for each group, in the launcher resource `offcpu-idle-waits.txt`, which
-every run copies into its `<recording>-offcpu/` directory.
+The profile scenario samples CPU every 10 ms and allocations every 2 MB in the broker and the producer, and records
+only intervals where a thread blocked (`reasons: [blocked]`), not those where it was runnable but waiting for a
+CPU. It ignores waits under 100 µs (`minOffCpuMicros: 100`) and records every wait of 10 ms or longer, sampling
+shorter ones in proportion to their length (`admission: {policy: proportional, recordAllAboveMicros: 10000}`),
+which bounds the recording rate by off-CPU time rather than by context-switch count: a broker run records about
+400,000 intervals. For this workload, start with the broker's `offcpu-no-idle.html` and `cpu-threads.html`: the
+five-million-message run sends everything through one topic, so the topic's managed-ledger thread
+(`BookKeeperClientWorker-OrderedExecutor-*`) is the serial stage to watch.
 
 After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the producer's
 measurement start through the latest measured-message receipt across all backend applications. The upper boundary

@@ -305,6 +305,22 @@ disallows privileged containers (the run continues either way, with less accurat
 `-Pdocker.wolfi` builds the base image from Wolfi, which is what makes the `GLIBC_TUNABLES` the test
 sets take effect.
 
+#### Profiling a performance scenario, including off-CPU time
+
+The standalone performance launcher profiles a whole scenario — a Testcontainers cluster plus its workload
+applications — with [jonoffcpu](https://github.com/lhotari/jonoffcpu), which runs async-profiler and adds
+kernel-measured **off-CPU** samples: where threads wait on locks, monitors, queues, I/O or GC, not only where they
+use CPU. Each profiled JVM gets its CPU and allocation flame graphs and an off-CPU flame graph without idle waits,
+cut to the measurement window. It needs a Linux Docker engine:
+
+```bash
+./gradlew :tests:performance:launcher:profile \
+  --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
+```
+
+See [Profiling with jonoffcpu](tests/performance/README.md#profiling-with-jonoffcpu) for the requirements, the
+files a run writes and how to find what to optimize.
+
 #### Performance recording analysis
 
 See [`tests/performance/README.md`](tests/performance/README.md) for JFR rendering, async-profiler

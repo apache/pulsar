@@ -120,32 +120,7 @@ inherit other files recursively. Parents are applied in list order and the curre
 merge recursively, while scalar values and lists replace earlier values. An explicit YAML `null` or `~` removes
 an inherited entry. Cycles, missing files, non-mapping roots and invalid `extends` entries are rejected.
 
-Profiled standalone runs attach the [jonoffcpu](https://github.com/lhotari/jonoffcpu) agent, which embeds
-async-profiler and adds kernel-measured off-CPU samples. Every profiled JVM writes a `.jfr` recording, a
-`.jonoffcpu-capture.pb` stream with its `.manifest.json`, and the `.jonoffcpu.yaml` the agent was started with.
-After the run, the launcher correlates each pair over the measurement window into a sibling
-`<recording>-offcpu/` directory holding `jonoffcpu-offcpu-stacks.collapsed` (Java stacks weighted in
-microseconds of off-CPU time), `jonoffcpu-offcpu-synthetic.jfr` for JFR viewers, `jonoffcpu-report.json` with
-loss, delivery-delay and switch-out-reason accounting, `jonoffcpu-offcpu-profile.pb`, `jonoffcpu-complete.json`
-written last once everything validates. From the stack profile the launcher then renders two slices with the
-correlator's `stacks` subcommand and `--package-names drop`, which shortens
-`io.netty.channel.epoll.Native.epollWait0` to `Native.epollWait0`: `offcpu.collapsed` with every interval, and
-`offcpu-no-idle.collapsed` without intervals in which a thread was waiting for work, such as Netty's `epollWait`,
-`ThreadPoolExecutor.getTask` or HotSpot's idle GC workers. Those frames are listed in the launcher resource
-`offcpu-idle-waits.txt`, which each run copies into the output directory and passes with `--exclude-from`. Each
-slice comes with a `.json` summary, which for the second accounts for the time it removed, and an `.html` flame
-graph. The profile renders any other slice, such as kernel stacks, in under a second without correlating again.
-The correlator runs with `--audit none`: its row-level audit files are about 2 KB per row, so a broker capture
-would add hundreds of megabytes of them beside a few megabytes of stacks, and every aggregate
-is already in `jonoffcpu-report.json`. Running the correlator again over the retained capture and recording with
-`--audit full` reproduces them. The flame graphs are rendered in-process by the converter from async-profiler's
-jonoffcpu fork, which comes as a dependency and labels the widths in microseconds, so nothing needs an
-async-profiler installation. Profiled runs use the glibc-based Wolfi test image, on which native frames are
-symbolized; `-Pinttest.testImageVariant=alpine` selects the Alpine image. `profiling.offCpu` is the agent's
-[`sampling` block](https://github.com/lhotari/jonoffcpu#choosing-what-to-sample) shared by every profiled JVM:
-the switch-out `reasons` to record (`[blocked]` by default), `minOffCpuMicros` and an `admission` policy, which
-is required. The policy `none` records plain async-profiler
-through the same agent and skips the correlation step.
+The `profiling` section is described in [Profiling with jonoffcpu](#profiling-with-jonoffcpu).
 
 Profiled standalone runs retain the complete JFR and also create a sibling whose name ends in
 `.measurement.jfr`. The measurement recording contains events from the producer's recorded measurement start through
@@ -215,6 +190,118 @@ Environment overrides are applied after inheritance. They only update paths pres
 keeps misspelled or workload-inapplicable settings from creating new configuration. Store maintained scenarios in
 [`scenarios`](scenarios); use environment overrides for temporary measurements rather than as the only record of
 a workload.
+
+## Profiling with jonoffcpu
+
+The `profile` task attaches the [jonoffcpu](https://github.com/lhotari/jonoffcpu) agent to every JVM that has
+profiler options. jonoffcpu bundles [async-profiler](https://github.com/async-profiler/async-profiler), so the
+recording holds the usual CPU and allocation samples, and adds **off-CPU** samples: each interval in which a thread
+blocked is measured by the kernel scheduler through eBPF and joined to the Java stack of the thread that waited. A
+CPU profile shows where threads burn CPU; the off-CPU profile shows where they wait — on locks, monitors, queues,
+I/O, safepoints or GC. The agent, the correlator that joins the two, and the flame graph converter are resolved by
+Gradle (see `jonoffcpu` in `gradle/libs.versions.toml`); nothing needs installing on the host or in the image.
+
+```yaml
+profiling:
+  brokerOptions: event=cpu,interval=10ms,alloc=2m,jfrsync=profile
+  producerOptions: event=cpu,interval=10ms,alloc=2m,jfrsync=profile
+  consumerOptions: ""
+  offCpu:
+    reasons: [blocked]
+    minOffCpuMicros: 100
+    admission:
+      policy: proportional
+      recordAllAboveMicros: 10000
+```
+
+The options are async-profiler options; an empty value leaves that component unprofiled. `profiling.offCpu` is
+the agent's [`sampling` block](https://github.com/lhotari/jonoffcpu#choosing-what-to-sample): which switch-out
+reasons to record (`blocked` — the thread could not run — rather than `runnable` preemption), a minimum duration,
+and an admission policy that records every long wait and samples short ones in proportion to their length. The
+policy `none` records plain async-profiler through the same agent and skips the off-CPU steps.
+
+Requirements:
+
+- A Linux Docker engine whose kernel has BTF (`/sys/kernel/btf/vmlinux`), which recent distribution kernels have.
+- The relaxed perf-event and BPF sysctls, which the `:tests:integration:tuneKernelPerfEvents` task that `profile`
+  depends on writes from a throwaway privileged container; `-Pinttest.asyncprofiler.skipPerfEventTuning` skips it
+  where they are already set.
+- Profiled containers run privileged with the JVM as root: loading the eBPF programs needs `CAP_BPF` and
+  `CAP_PERFMON`, which Docker grants to root in the container only. A tracefs is mounted read-only at
+  `/sys/kernel/tracing` as a Docker volume.
+- Profiled runs use the glibc-based `java-test-image:<tag>-wolfi` image, on which native frames (HotSpot,
+  libc, JNI libraries) are symbolized; on the Alpine image every native frame reads as
+  `/lib/ld-musl-x86_64.so.1`. `-Pinttest.testImageVariant=alpine` profiles on Alpine anyway.
+
+### What a profiled run writes
+
+For every recording `<recording>.jfr` (the broker's under `broker-profile/`, the producer's and consumers' in their
+output directories):
+
+| File | Contents |
+|---|---|
+| `<recording>.jfr` | The complete recording, unless `retainOriginalRecording: false` |
+| `<recording>.measurement.jfr` | The same cut to the measurement window (see above) |
+| `<recording>-flamegraphs/` | `cpu`, `wall`, `alloc` and `lock` views of the measurement recording, each only when its event is in the profiler options: `<view>.html`, `<view>-threads.html` (split by thread) and `<view>.collapsed` |
+| `<recording>.jonoffcpu-capture.pb`, `.manifest.json`, `<recording>.jonoffcpu.yaml` | The off-CPU capture stream, its manifest, and the agent configuration the JVM was started with |
+| `<recording>-offcpu/offcpu-no-idle.html` | **Start here.** Off-CPU flame graph of the measurement window without threads that were only waiting for work |
+| `<recording>-offcpu/offcpu.html` | Every blocked interval, idle waiting included |
+| `<recording>-offcpu/*.collapsed`, `*.json` | The same slices as collapsed stacks (full names, microseconds) and the summary of each, including the time the idle filter removed |
+| `<recording>-offcpu/offcpu-idle-waits.txt` | The idle-wait patterns the run used |
+| `<recording>-offcpu/jonoffcpu-offcpu-profile.pb` | The stack profile: every distinct stack with its counters, from which other slices are rendered without correlating again |
+| `<recording>-offcpu/jonoffcpu-report.json` | Accounting: intervals recorded and matched, loss, switch-out reasons, sleeping versus run-queue time |
+| `<recording>-offcpu/jonoffcpu-offcpu-synthetic.jfr` | The off-CPU samples as `jdk.ExecutionSample` events, one per 10 ms of off-CPU time, for JFR tools |
+
+In a broker, over 99% of off-CPU time is threads waiting for work: Netty event loops in `epollWait`, executor
+workers waiting for a task, JDK and HotSpot service threads. `offcpu-no-idle` leaves those out with the patterns in
+the launcher resource `offcpu-idle-waits.txt`; each pattern names the wait itself rather than the thread's run loop,
+so a lock taken while running a task stays in. What remains is lock and monitor contention, safepoints, GC phases
+and I/O. The correlator runs with `--audit none`, which skips its row-level audit files (about 2 KB per interval);
+run it again over the retained capture and recording with `--audit full` to reproduce them.
+
+### Finding what to optimize
+
+1. Open `offcpu-no-idle.html` and `cpu.html` for the broker. A single thread that is busy all the time — the
+   `-threads` views show it — is a serial bottleneck that no amount of other headroom helps.
+2. Rank the blocked time by the deepest Pulsar or BookKeeper frame of each stack. This needs no flame graph: stacks
+   without an application frame (idle Netty loops, JDK executors, HotSpot threads) collect in one bucket, and the
+   rows after the few application-owned idle loops are the waits to look at. With the correlator JAR from the
+   [jonoffcpu releases](https://github.com/lhotari/jonoffcpu/releases) and [DuckDB](https://duckdb.org/):
+
+   ```bash
+   OFFCPU=build/performance/iot-telemetry-high-rate-profile/broker-profile/<recording>-offcpu
+   java -jar jonoffcpu-correlator.jar export --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
+     --format jsonl --output /tmp/broker-offcpu.jsonl
+   duckdb -c "SELECT coalesce(list_filter(string_split(javaStack, ';'),
+                lambda f: regexp_matches(f, '^org\.apache\.'))[-1], '(no application frame)') AS boundary,
+              round(sum(CAST(observedNanos AS HUGEINT)) / 1e9, 1) AS seconds
+              FROM read_json('/tmp/broker-offcpu.jsonl') GROUP BY 1 ORDER BY 2 DESC LIMIT 20"
+   ```
+
+3. Render other slices from the stack profile in under a second. `--stack java+kernel` continues each stack into
+   the kernel so the wait mechanism is visible; `--time split` ends each stack in `[sleeping]` or `[runqueue]`, which
+   separates waiting for an event from waiting for a CPU after it arrived; `--include`/`--exclude` and their
+   `-from FILE` forms select intervals by frame. Render the result with the converter JAR from the same release:
+
+   ```bash
+   java -jar jonoffcpu-correlator.jar stacks --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
+     --exclude-from $OFFCPU/offcpu-idle-waits.txt --time split --package-names drop \
+     --output /tmp/busy-split.collapsed --summary /tmp/busy-split.json
+   java -jar jfr-converter.jar --title "Busy off-CPU time" --units µs /tmp/busy-split.collapsed /tmp/busy-split.html
+   ```
+
+4. Compare two runs with a differential flame graph of their synthetic recordings (baseline first), or join two
+   `export` files in DuckDB. Compare runs recorded with the same sampling policy; proportional admission
+   under-represents short waits in the observed weights, and `estimatedNanos` corrects for it when the report's
+   population estimate is available.
+
+   ```bash
+   java -jar jfr-converter.jar --cpu --diff baseline-offcpu/jonoffcpu-offcpu-synthetic.jfr \
+     candidate-offcpu/jonoffcpu-offcpu-synthetic.jfr /tmp/offcpu-diff.html
+   ```
+
+Correlation holds each capture's distinct stacks in memory; the `profile` task runs with a 4 GB heap
+(`-Pperformance.profile.maxHeapSize=...` changes it), several times what a few minutes of broker capture needs.
 
 ## Legacy TestNG profiling runner
 
@@ -294,15 +381,19 @@ the isolated clients; when the counts differ, producers are assigned round-robin
 
 ## Inspecting recordings
 
-Render the CPU, wall-clock, allocation and lock views with:
+The standalone `profile` task already renders the configured views of every recording into
+`<recording>-flamegraphs/` (see [What a profiled run writes](#what-a-profiled-run-writes)). For recordings from the
+legacy runner, or to render all four views of any recording, use:
 
 ```bash
 ./gradlew jfrFlamegraphs -Pjfr=tests/integration/build/pulsar-profiling
 ```
 
 The `.jfr` files can also be opened in [Eclipse Mission Control](https://adoptium.net/jmc) or IntelliJ
-IDEA. Do not use `jfr summary` as a measure of profile completeness: recordings made with
-`jfrsync=profile` contain profiler samples that the JDK summary does not show.
+IDEA. Do not use `jfr summary` as a measure of profile completeness: async-profiler writes its CPU samples as
+`jdk.ExecutionSample` and its allocation samples as `jdk.ObjectAllocationInNewTLAB` and
+`jdk.ObjectAllocationOutsideTLAB` in its own chunks, which the JDK summary counts as zero even when the flame graphs
+are full.
 
 On macOS, add the JDK Mission Control application launcher to a directory on `PATH`:
 
@@ -350,7 +441,11 @@ claude mcp add jafar -- jbang jfr-mcp@btraceio --stdio
 
 Use `jfr_diagnose` and `jfr_stackprofile` first, then query further with the other Jafar tools when
 needed. Save the result beside the recording as `<recording>.analysis.md`, in addition to showing the
-report in the console. A useful starting prompt is:
+report in the console. For a standalone profiled run, analyze `<recording>.measurement.jfr`: CPU samples are
+`jdk.ExecutionSample`, async-profiler's allocation samples are `jdk.ObjectAllocationInNewTLAB` (not
+`jdk.ObjectAllocationSample`), and `jfrsync=profile` adds JDK events such as `jdk.JavaMonitorEnter` and
+`jdk.ThreadPark`. For off-CPU time, analyze `<recording>-offcpu/jonoffcpu-offcpu-synthetic.jfr` with
+`jdk.ExecutionSample`: each sample stands for 10 ms of blocked time. A useful starting prompt is:
 
 > use Jafar MCP's jfr_diagnose and jfr_stackprofile to analyze @filename.jfr. Besides showing the
 > report on the console, write the analysis in a markdown file with the jfr file as prefix and the
