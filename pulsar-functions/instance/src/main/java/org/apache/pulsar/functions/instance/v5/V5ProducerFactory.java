@@ -84,18 +84,39 @@ public class V5ProducerFactory {
         if (properties != null) {
             builder.properties(properties);
         }
-        if (producerConfig != null && (producerConfig.getMaxPendingMessages() != null
-                || producerConfig.getMaxPendingMessagesAcrossPartitions() != null
-                || producerConfig.getBatchBuilder() != null)) {
+        if (hasIgnoredSettings()) {
             log.warn().attr("topic", topic).attr("producerConfig", producerConfig)
-                    .log("Ignoring the pending-message limits and the batcher type, which the V5 producer does not"
-                            + " have; the V5 client's memory limit bounds the pending messages");
+                    .log("Ignoring the pending-message limits, the batcher type and the round-robin partition switch"
+                            + " frequency, which the V5 producer does not have; the V5 client's memory limit bounds"
+                            + " the pending messages");
         }
         try {
             return new V5ProducerAdapter<>(builder.create(), schema);
         } catch (org.apache.pulsar.client.api.v5.PulsarClientException e) {
             throw new PulsarClientException(e);
         }
+    }
+
+    private boolean hasIgnoredSettings() {
+        if (producerConfig == null) {
+            return false;
+        }
+        BatchingConfig batchingConfig = producerConfig.getBatchingConfig();
+        // the runtime fills these in from the stored producer spec, where 0 means unset
+        return isSet(producerConfig.getMaxPendingMessages())
+                || isSet(producerConfig.getMaxPendingMessagesAcrossPartitions())
+                || isKeyBased(producerConfig.getBatchBuilder())
+                || (batchingConfig != null && (isKeyBased(batchingConfig.getBatchBuilder())
+                        || isSet(batchingConfig.getRoundRobinRouterBatchingPartitionSwitchFrequency())));
+    }
+
+    private static boolean isSet(Integer value) {
+        return value != null && value > 0;
+    }
+
+    // the default batcher behaves the same with the V5 producer
+    private static boolean isKeyBased(String batchBuilder) {
+        return "KEY_BASED".equals(batchBuilder);
     }
 
     private CompressionType compressionType() {

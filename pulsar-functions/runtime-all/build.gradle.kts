@@ -41,8 +41,9 @@ dependencies {
 }
 
 // The V5 client API (through pulsar-functions-api) brings the OpenTelemetry API with its TLS factory SPI.
-// Keep it out of java-instance.jar, which is the parent classloader of user code, as the v4 client API
-// does by depending on it compileOnly: only the optional openTelemetry(...) builder methods refer to it.
+// Keep it out of java-instance.jar, which is the parent classloader of user code, as with the v4 client
+// API: the API modules only name OpenTelemetry types in method signatures and never run OpenTelemetry
+// code; the client implementations that do are loaded by the instance classloader, which has it.
 configurations.named("runtimeClasspath") {
     exclude(group = "io.opentelemetry")
 }
