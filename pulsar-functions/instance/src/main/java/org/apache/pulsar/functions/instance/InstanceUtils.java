@@ -219,7 +219,7 @@ public class InstanceUtils {
             if (authConfig.isUseTls() || pulsarServiceUrl.startsWith("pulsar+ssl://")) {
                 TlsPolicy.Builder tlsPolicy = TlsPolicy.builder()
                         .allowInsecureConnection(authConfig.isTlsAllowInsecureConnection())
-                        // the TLS policy verifies hostnames by default, the v4 client does not
+                        // pass the worker's setting explicitly rather than rely on the TLS policy's default
                         .enableHostnameVerification(authConfig.isTlsHostnameVerificationEnable());
                 if (isNotBlank(authConfig.getTlsTrustCertsFilePath())) {
                     tlsPolicy.trustCertsFilePath(authConfig.getTlsTrustCertsFilePath());
