@@ -107,6 +107,7 @@ import org.apache.pulsar.functions.source.SingleConsumerPulsarSource;
 import org.apache.pulsar.functions.source.SingleConsumerPulsarSourceConfig;
 import org.apache.pulsar.functions.source.batch.BatchSourceExecutor;
 import org.apache.pulsar.functions.utils.BatchingUtils;
+import org.apache.pulsar.functions.utils.ClientApiResolver;
 import org.apache.pulsar.functions.utils.CryptoUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.MessagePayloadProcessorUtils;
@@ -143,6 +144,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // function stats
     private ComponentStatsManager stats;
+
+    // Pulsar client API for the component's own topics, resolved in setup()
+    private FunctionDetails.ClientApi clientApi;
 
     private Record<?> currentRecord;
 
@@ -247,6 +251,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 .attr("function", instanceConfig.getFunctionDetails().getName())
                 .attr("details", instanceConfig.getFunctionDetails())
                 .log("Starting Java Instance");
+
+        // The worker validates this when the component is submitted; resolving it again also covers
+        // function details that did not come through the worker, such as LocalRunner configurations.
+        this.clientApi = ClientApiResolver.resolve(instanceConfig.getFunctionDetails());
+        if (clientApi == FunctionDetails.ClientApi.V5) {
+            throw new UnsupportedOperationException("The V5 client is not supported by the Java instance yet");
+        }
 
         Object object;
         if (instanceConfig.getFunctionDetails().getClassName()

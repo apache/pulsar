@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.utils;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.ATMOST_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertThrows;
@@ -678,5 +680,40 @@ public class SinkConfigUtilsTest {
         sinkConfig.setTimeoutMs(0L);
         SinkConfigUtils.validateAndExtractDetails(sinkConfig, validatableFunction, null,
                 true);
+    }
+
+    @Test
+    public void testConvertClientApi() throws IOException {
+        SinkConfig sinkConfig = createSinkConfig();
+        sinkConfig.setInputSpecs(new HashMap<>());
+        sinkConfig.setInputs(Collections.singletonList("topic://public/default/in"));
+        sinkConfig.setLogTopic(null);
+        FunctionDetails functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.AUTO);
+        assertThat(SinkConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
+
+        sinkConfig.setClientApi(FunctionConfig.ClientApi.V5);
+        sinkConfig.setRetainKeyOrdering(true);
+        functionDetails = SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null));
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.V5);
+        assertThat(SinkConfigUtils.convertFromDetails(functionDetails).getClientApi())
+                .isEqualTo(FunctionConfig.ClientApi.V5);
+
+        // ordered consumption of persistent:// inputs is not available with the V5 client
+        sinkConfig.setInputs(Collections.singletonList("persistent://public/default/in"));
+        assertThatThrownBy(() -> SinkConfigUtils.convert(sinkConfig,
+                new SinkConfigUtils.ExtractedSinkDetails(null, null, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("needs topic:// (scalable) input topics");
+    }
+
+    @Test
+    public void testMergeClientApi() {
+        SinkConfig sinkConfig = createSinkConfig();
+        SinkConfig mergedConfig = SinkConfigUtils.validateUpdate(sinkConfig,
+                createUpdatedSinkConfig("clientApi", FunctionConfig.ClientApi.V5));
+        assertThat(mergedConfig.getClientApi()).isEqualTo(FunctionConfig.ClientApi.V5);
     }
 }
