@@ -28,6 +28,7 @@ import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.Descriptors.FileDescriptor;
 import com.google.protobuf.Descriptors.OneofDescriptor;
+import com.google.protobuf.JavaFeaturesProto;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -91,6 +92,10 @@ final class ProtobufNativeSchemaCompatibility {
                     EnumDescriptor enumType = field.getEnumType();
                     if (visitedEnums.add(enumType)) {
                         checkLanguage(enumType.getFile(), side, fieldPath);
+                        for (Descriptor parent = enumType.getContainingType(); parent != null;
+                                parent = parent.getContainingType()) {
+                            checkFeatures(parent.toProto().getOptions().getFeatures(), parent.getFullName());
+                        }
                         checkFeatures(enumType.toProto().getOptions().getFeatures(), fieldPath);
                         for (EnumValueDescriptor value : enumType.getValues()) {
                             checkFeatures(value.toProto().getOptions().getFeatures(), fieldPath);
@@ -136,6 +141,13 @@ final class ProtobufNativeSchemaCompatibility {
         if (!features.getUnknownFields().asMap().isEmpty()) {
             int number = Collections.min(features.getUnknownFields().asMap().keySet());
             throw incompatible("UNSUPPORTED_FEATURE", path, 0, "feature", Integer.toString(number));
+        }
+        if (features.hasExtension(JavaFeaturesProto.java_)) {
+            var unknownJavaFeatures = features.getExtension(JavaFeaturesProto.java_).getUnknownFields().asMap();
+            if (!unknownJavaFeatures.isEmpty()) {
+                int number = Collections.min(unknownJavaFeatures.keySet());
+                throw incompatible("UNSUPPORTED_FEATURE", path, 0, "Java feature", Integer.toString(number));
+            }
         }
     }
 

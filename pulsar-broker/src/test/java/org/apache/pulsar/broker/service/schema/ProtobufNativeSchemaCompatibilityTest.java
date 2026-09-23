@@ -322,6 +322,51 @@ public class ProtobufNativeSchemaCompatibilityTest {
     }
 
     @Test
+    public void testUnknownJavaUtf8FeatureIsUnsupported() throws Exception {
+        DescriptorProtos.getDescriptor();
+        FeatureSet features = FeatureSet.newBuilder()
+                .setUtf8Validation(FeatureSet.Utf8Validation.NONE)
+                .setExtension(JavaFeaturesProto.java_, JavaFeatures.newBuilder()
+                        .setUnknownFields(UnknownFieldSet.newBuilder()
+                                .addField(JavaFeatures.UTF8_VALIDATION_FIELD_NUMBER,
+                                        UnknownFieldSet.Field.newBuilder().addVarint(999).build()).build())
+                        .build()).build();
+        FileDescriptorProto file = FileDescriptorProto.newBuilder().setName("unknown-java-utf8.proto")
+                .setPackage("example").setSyntax("editions").setEdition(Edition.EDITION_2023)
+                .addDependency(JavaFeaturesProto.getDescriptor().getName())
+                .setOptions(FileOptions.newBuilder().setFeatures(features))
+                .addMessageType(message("Order", field("name", 1, TYPE_STRING, LABEL_OPTIONAL))).build();
+        Descriptor root = FileDescriptor.buildFrom(file, new FileDescriptor[]{JavaFeaturesProto.getDescriptor()})
+                .findMessageTypeByName("Order");
+        assertTrue(roundTrip(root).getFile().toProto().getOptions().getFeatures()
+                .getExtension(JavaFeaturesProto.java_).getUnknownFields().asMap()
+                .containsKey(JavaFeatures.UTF8_VALIDATION_FIELD_NUMBER));
+        fails(root, root, "UNSUPPORTED_FEATURE");
+    }
+
+    @Test
+    public void testUnknownReferencedEnumParentFeatureIsUnsupported() throws Exception {
+        FeatureSet features = FeatureSet.newBuilder().setUnknownFields(UnknownFieldSet.newBuilder()
+                .addField(FeatureSet.ENUM_TYPE_FIELD_NUMBER,
+                        UnknownFieldSet.Field.newBuilder().addVarint(99).build()).build()).build();
+        DescriptorProto outer = DescriptorProto.newBuilder().setName("Outer")
+                .setOptions(MessageOptions.newBuilder().setFeatures(features))
+                .addEnumType(EnumDescriptorProto.newBuilder().setName("State")
+                        .addValue(EnumValueDescriptorProto.newBuilder().setName("A").setNumber(0)))
+                .build();
+        FileDescriptorProto file = FileDescriptorProto.newBuilder().setName("unknown-enum-parent.proto")
+                .setPackage("example").setSyntax("editions").setEdition(Edition.EDITION_2023)
+                .addMessageType(message("Order", field("state", 1, TYPE_ENUM, LABEL_OPTIONAL).toBuilder()
+                        .setTypeName(".example.Outer.State").build()))
+                .addMessageType(outer).build();
+        Descriptor root = FileDescriptor.buildFrom(file, new FileDescriptor[0]).findMessageTypeByName("Order");
+        Descriptor parent = roundTrip(root).findFieldByName("state").getEnumType().getContainingType();
+        assertTrue(parent.toProto().getOptions().getFeatures().getUnknownFields().asMap()
+                .containsKey(FeatureSet.ENUM_TYPE_FIELD_NUMBER));
+        fails(root, root, "UNSUPPORTED_FEATURE");
+    }
+
+    @Test
     public void testDelimitedMessageEncodingAndContents() throws Exception {
         Descriptor group = groupRoot();
         Descriptor delimited = editionMessageRoot(FeatureSet.MessageEncoding.DELIMITED, TYPE_INT32);
