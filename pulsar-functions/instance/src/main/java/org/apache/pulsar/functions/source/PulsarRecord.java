@@ -140,4 +140,9 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
         return Optional.of(message);
     }
 
+    @Override
+    public Optional<org.apache.pulsar.client.api.v5.Message<T>> getMessageV5() {
+        return Optional.ofNullable(messageV5);
+    }
+
 }

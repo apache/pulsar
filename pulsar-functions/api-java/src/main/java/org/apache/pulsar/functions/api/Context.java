@@ -156,6 +156,24 @@ public interface Context extends BaseContext {
     <X> TypedMessageBuilder<X> newOutputMessage(String topicName, Schema<X> schema) throws PulsarClientException;
 
     /**
+     * New output message for a topic, published with the Pulsar V5 client.
+     *
+     * <p>Use it to publish to {@code topic://} (scalable) topics. The runtime caches the producer, as it does for
+     * {@link #newOutputMessage(String, Schema)}.
+     *
+     * @param topicName the name of the topic for the output message
+     * @param schema the V5 schema that serializes the message value
+     * @param <X> the type of message
+     * @return the message builder instance
+     * @throws org.apache.pulsar.client.api.v5.PulsarClientException if the producer cannot be created
+     */
+    default <X> org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder<X> newOutputMessageV5(
+            String topicName, org.apache.pulsar.client.api.v5.schema.Schema<X> schema)
+            throws org.apache.pulsar.client.api.v5.PulsarClientException {
+        throw new UnsupportedOperationException("not implemented");
+    }
+
+    /**
      * Create a ConsumerBuilder with the schema.
      *
      * @param schema provide a way to convert between serialized data and domain objects

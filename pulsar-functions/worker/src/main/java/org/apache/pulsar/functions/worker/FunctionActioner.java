@@ -70,6 +70,7 @@ import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.Actions;
+import org.apache.pulsar.functions.utils.ClientApiResolver;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.SourceConfigUtils;
 import org.apache.pulsar.functions.utils.ValidatableFunctionPackage;
@@ -446,6 +447,9 @@ public class FunctionActioner {
                 if (isRegex) {
                     pulsarAdmin.namespaces().unsubscribeNamespace(TopicName
                       .get(topic).getNamespace(), subscriptionName);
+                } else if (ClientApiResolver.isScalableTopic(topic)) {
+                    // a scalable topic's subscription spans its segments and its consumer group
+                    pulsarAdmin.scalableTopics().deleteSubscription(topic, subscriptionName);
                 } else {
                     pulsarAdmin.topics().deleteSubscription(topic,
                       subscriptionName);

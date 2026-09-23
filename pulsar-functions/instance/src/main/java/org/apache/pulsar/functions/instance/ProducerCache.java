@@ -54,6 +54,8 @@ public class ProducerCache implements Closeable {
     public enum CacheArea {
         // producers created by calling Context, SinkContext, SourceContext methods
         CONTEXT_CACHE,
+        // producers created by calling the Context and SourceContext newOutputMessageV5 method
+        CONTEXT_V5_CACHE,
         // producers created in Pulsar Sources, multiple topics are possible by returning destination topics
         // by SinkRecord.getDestinationTopic call
         SINK_RECORD_CACHE,

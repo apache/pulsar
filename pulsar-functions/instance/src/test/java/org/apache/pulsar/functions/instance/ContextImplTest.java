@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.instance;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -65,6 +66,7 @@ import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.instance.state.BKStateStoreImpl;
 import org.apache.pulsar.functions.instance.state.InstanceStateManager;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
+import org.apache.pulsar.functions.instance.v5.LazyPulsarClientV5;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.secretsprovider.EnvironmentBasedSecretsProvider;
 import org.apache.pulsar.functions.source.PulsarFunctionRecord;
@@ -239,6 +241,85 @@ public class ContextImplTest {
     @Test
     public void testPublishUsingDefaultSchema() throws Exception {
         context.newOutputMessage("sometopic", null).value("Somevalue").sendAsync();
+    }
+
+    @SuppressWarnings("unchecked")
+    private ContextImpl contextWithClientV5(org.apache.pulsar.client.api.v5.PulsarClient clientV5,
+                                            boolean publishWithClientV5) throws Exception {
+        org.apache.pulsar.client.api.v5.PulsarClientBuilder builder =
+                mock(org.apache.pulsar.client.api.v5.PulsarClientBuilder.class);
+        when(builder.build()).thenReturn(clientV5);
+        return new ContextImpl(config, logger, client, new LazyPulsarClientV5(() -> builder), publishWithClientV5,
+                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
+                new String[0], FunctionDetails.ComponentType.FUNCTION, null, new InstanceStateManager(),
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder<String> mockV5Producer(
+            org.apache.pulsar.client.api.v5.PulsarClient clientV5) throws Exception {
+        org.apache.pulsar.client.api.v5.ProducerBuilder<String> producerBuilder =
+                mock(org.apache.pulsar.client.api.v5.ProducerBuilder.class, org.mockito.Answers.RETURNS_SELF);
+        org.apache.pulsar.client.api.v5.Producer<String> v5Producer =
+                mock(org.apache.pulsar.client.api.v5.Producer.class);
+        org.apache.pulsar.client.api.v5.async.AsyncProducer<String> asyncProducer =
+                mock(org.apache.pulsar.client.api.v5.async.AsyncProducer.class);
+        org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder<String> messageBuilder =
+                mock(org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder.class);
+        when(clientV5.newProducer(any())).thenAnswer(invocation -> producerBuilder);
+        doReturn(v5Producer).when(producerBuilder).create();
+        when(v5Producer.async()).thenReturn(asyncProducer);
+        when(asyncProducer.newMessage()).thenReturn(messageBuilder);
+        when(asyncProducer.flush()).thenReturn(CompletableFuture.completedFuture(null));
+        when(asyncProducer.close()).thenReturn(CompletableFuture.completedFuture(null));
+        return messageBuilder;
+    }
+
+    @Test
+    public void testClientV5IsCreatedOnFirstUse() throws Exception {
+        org.apache.pulsar.client.api.v5.PulsarClient clientV5 =
+                mock(org.apache.pulsar.client.api.v5.PulsarClient.class);
+        ContextImpl contextV5 = contextWithClientV5(clientV5, false);
+        assertThat(contextV5.getPulsarClientV5()).isSameAs(clientV5);
+        assertThat(contextV5.getPulsarClientV5()).isSameAs(clientV5);
+        assertThat(contextV5.getPulsarClientBuilderV5()).isNotNull();
+        // the v4-only context has no V5 client
+        assertThatThrownBy(() -> context.getPulsarClientV5()).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    public void testNewOutputMessageV5FromV4Component() throws Exception {
+        org.apache.pulsar.client.api.v5.PulsarClient clientV5 =
+                mock(org.apache.pulsar.client.api.v5.PulsarClient.class);
+        org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder<String> messageBuilder = mockV5Producer(clientV5);
+        ContextImpl contextV5 = contextWithClientV5(clientV5, false);
+
+        assertThat(contextV5.newOutputMessageV5("topic://public/default/out",
+                org.apache.pulsar.client.api.v5.schema.Schema.string())).isSameAs(messageBuilder);
+        // the producer is cached
+        contextV5.newOutputMessageV5("topic://public/default/out",
+                org.apache.pulsar.client.api.v5.schema.Schema.string());
+        verify(clientV5, times(1)).newProducer(any());
+        assertTrue(producerCache.containsKey(ProducerCache.CacheArea.CONTEXT_V5_CACHE, "topic://public/default/out"));
+        // a v4 component still publishes with the v4 client through newOutputMessage
+        assertThatThrownBy(() -> contextV5.newOutputMessage("topic://public/default/out", Schema.STRING))
+                .isInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("use newOutputMessageV5");
+    }
+
+    @Test
+    public void testV5ComponentPublishesWithClientV5() throws Exception {
+        org.apache.pulsar.client.api.v5.PulsarClient clientV5 =
+                mock(org.apache.pulsar.client.api.v5.PulsarClient.class);
+        mockV5Producer(clientV5);
+        ContextImpl contextV5 = contextWithClientV5(clientV5, true);
+
+        TypedMessageBuilder<String> message = contextV5.newOutputMessage("topic://public/default/out", Schema.STRING);
+        assertThat(message).isNotNull();
+        verify(clientV5, times(1)).newProducer(any());
+        // the input consumers of a V5 component are V5 consumers, which cannot seek, pause or resume
+        assertThatThrownBy(() -> contextV5.pause("topic://public/default/in", 0))
+                .isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test

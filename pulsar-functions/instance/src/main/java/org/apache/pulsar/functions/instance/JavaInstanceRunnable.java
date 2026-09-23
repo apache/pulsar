@@ -352,7 +352,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         };
         try {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
-            return new ContextImpl(instanceConfig, instanceLog, client, usesClientV5() ? clientV5 : null,
+            return new ContextImpl(instanceConfig, instanceLog, client, clientV5, usesClientV5(),
                 secretsProvider,
                 collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
                 pulsarAdmin, clientBuilder, fatalHandler, producerCache);

@@ -115,9 +115,12 @@ public class PulsarFunctionV5E2ETest extends AbstractPulsarE2ETest {
             Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() ->
                     assertThat(admin.scalableTopics().getStats(input).getSubscriptions().get(SUBSCRIPTION)
                             .getMsgBacklog()).isZero());
-        } finally {
-            admin.functions().deleteFunction(tenant, NAMESPACE, "v5-shared");
         }
+
+        // cleanupSubscription removes the subscription from the scalable topic
+        admin.functions().deleteFunction(tenant, NAMESPACE, "v5-shared");
+        Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() ->
+                assertThat(admin.scalableTopics().getStats(input).getSubscriptions()).doesNotContainKey(SUBSCRIPTION));
     }
 
     @Test(timeOut = 120000)
