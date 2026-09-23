@@ -36,6 +36,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.CustomLog;
 import lombok.ToString;
@@ -69,6 +70,7 @@ import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
 import org.apache.pulsar.functions.instance.stats.FunctionStatsManager;
 import org.apache.pulsar.functions.instance.stats.SinkStatsManager;
 import org.apache.pulsar.functions.instance.stats.SourceStatsManager;
+import org.apache.pulsar.functions.instance.v5.V5ProducerFactory;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.ProducerSpec;
 import org.apache.pulsar.functions.proto.SinkSpec;
@@ -76,6 +78,7 @@ import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.source.PulsarFunctionRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
+import org.apache.pulsar.functions.utils.ClientApiResolver;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.SinkConfigUtils;
@@ -91,6 +94,8 @@ import org.slf4j.Logger;
 @ToString(exclude = {"pulsarAdmin"})
 class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable {
     private final ProducerBuilderFactory producerBuilderFactory;
+    // creates the output producers of a component whose own topics use the V5 client; null otherwise
+    private final V5ProducerFactory v5ProducerFactory;
     private final Map<String, String> producerProperties;
     private InstanceConfig config;
     private Logger logger;
@@ -149,6 +154,20 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                        FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
                        StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder,
                        java.util.function.Consumer<Throwable> fatalHandler, ProducerCache producerCache) {
+        this(config, logger, client, null, secretsProvider, collectorRegistry, metricsLabels, componentType,
+                statsManager, stateManager, pulsarAdmin, clientBuilder, fatalHandler, producerCache);
+    }
+
+    /**
+     * @param clientV5 the V5 client, for a component whose own topics use the V5 client, or {@code null}
+     */
+    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
+                       Supplier<org.apache.pulsar.client.api.v5.PulsarClient> clientV5,
+                       SecretsProvider secretsProvider, FunctionCollectorRegistry collectorRegistry,
+                       String[] metricsLabels,
+                       FunctionDetails.ComponentType componentType, ComponentStatsManager statsManager,
+                       StateManager stateManager, PulsarAdmin pulsarAdmin, ClientBuilder clientBuilder,
+                       java.util.function.Consumer<Throwable> fatalHandler, ProducerCache producerCache) {
         this.config = config;
         this.logger = logger;
         this.clientBuilder = clientBuilder;
@@ -170,6 +189,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                 // the default and made it configurable for the producers created in PulsarSink, but not in ContextImpl.
                 // This is to keep the default unchanged for the producers created in ContextImpl.
                 producerBuilder -> producerBuilder.compressionType(CompressionType.LZ4));
+        v5ProducerFactory = clientV5 != null
+                ? new V5ProducerFactory(clientV5, producerConfig,
+                        org.apache.pulsar.client.api.v5.config.CompressionType.LZ4)
+                : null;
         producerProperties = Collections.unmodifiableMap(InstanceUtils.getProperties(componentType,
                 FunctionCommon.getFullyQualifiedName(
                         this.config.getFunctionDetails().getTenant(),
@@ -543,6 +566,10 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     }
 
     private <T> Producer<T> getProducer(String topicName, Schema<T> schema) throws PulsarClientException {
+        if (v5ProducerFactory == null && ClientApiResolver.isScalableTopic(topicName)) {
+            throw new PulsarClientException("Topic " + topicName + " is a topic:// (scalable) topic, which only "
+                    + "the V5 client can publish to; set clientApi to V5 for this component");
+        }
         Long additionalCacheKey = useThreadLocalProducers ? Thread.currentThread().getId() : null;
         return producerCache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE,
                 topicName, additionalCacheKey, () -> {
@@ -550,6 +577,9 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
                             .attr("topic", topicName)
                             .attr("schema", schema)
                             .log("Initializing producer");
+                    if (v5ProducerFactory != null) {
+                        return v5ProducerFactory.createProducer(topicName, schema, null, producerProperties);
+                    }
                     return producerBuilderFactory
                             .createProducerBuilder(topicName, schema, null)
                             .properties(producerProperties)
