@@ -19,16 +19,14 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.client.cli.AbstractCmdConsume.LOG;
+import static org.apache.pulsar.client.cli.AbstractCmdConsume.MESSAGE_BOUNDARY;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
-import java.util.Base64;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -36,104 +34,69 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Option;
 
 /**
- * The {@code read} command driven by the v4 ({@code pulsar-client-original}) client.
- *
- * <p>This is the counterpart of {@link CmdRead}, which drives a V5 {@code CheckpointConsumer} — a
- * different broker-side entity — so without this command nothing in {@code pulsar-client} exercises
- * the v4 {@code Reader}. It also restores the v4-only reader capabilities: a
- * {@code <ledgerId>:<entryId>} start message id (also over WebSocket),
+ * Reads the messages of a {@link CmdRead} invocation with the v4 ({@code pulsar-client-original})
+ * {@code Reader}, including the v4-only capabilities: a {@code <ledgerId>:<entryId>} start message id,
  * {@code --start-message-id-inclusive}, {@code --queue-size}, pooled messages, the chunked-message
  * knobs, and the full message metadata rendering.
  */
-@Command(name = "read-v4", description = "Read messages from a specified topic using the v4 client")
-public class CmdReadV4 extends AbstractCmdReadCommand {
+final class ReadV4 {
 
     private static final Pattern MSG_ID_PATTERN = Pattern.compile("^(-?[1-9][0-9]*|0):(-?[1-9][0-9]*|0)$");
 
-    @Option(names = { "-m", "--start-message-id" },
-            description = "Initial reader position, it can be 'latest', 'earliest' or '<ledgerId>:<entryId>'")
-    private String startMessageId = "latest";
+    private final CmdRead cmd;
+    private final CmdRead.V4Options v4;
+    private final ClientBuilder clientBuilder;
 
-    @Option(names = { "-i", "--start-message-id-inclusive" },
-            description = "Whether to include the position specified by -m option.")
-    private boolean startMessageIdInclusive = false;
-
-    @Option(names = { "-ca", "--crypto-failure-action" }, description = "Crypto Failure Action")
-    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
-
-    private Supplier<ClientBuilder> clientBuilder;
-
-    public CmdReadV4() {
-        super();
+    ReadV4(CmdRead cmd, ClientBuilder clientBuilder) {
+        this.cmd = cmd;
+        this.v4 = cmd.v4;
+        this.clientBuilder = clientBuilder;
     }
 
     /**
-     * Set client configuration. The builder is supplied lazily so that constructing it — which
-     * validates the service URL and parses the whole {@code client.conf} — only happens when this
-     * command actually runs, not on every {@code pulsar-client} invocation.
+     * Read the messages.
+     *
+     * @return 0 for success, &lt; 0 otherwise
      */
-    public void updateConfig(Supplier<ClientBuilder> clientBuilder, Authentication authentication,
-                             String serviceURL) {
-        this.clientBuilder = clientBuilder;
-        updateSharedConfig(authentication, serviceURL);
-    }
-
-    @Override
-    protected void validateArguments() {
-        // Fail fast on a malformed id rather than at reader creation.
-        parseMessageId(startMessageId);
-    }
-
-    @Override
-    protected String webSocketStartMessageId() {
-        if (START_LATEST.equals(startMessageId) || START_EARLIEST.equals(startMessageId)) {
-            return startMessageId;
-        }
-        return Base64.getEncoder().encodeToString(parseMessageId(startMessageId).toByteArray());
-    }
-
-    @Override
     @SuppressWarnings("deprecation")
-    protected int read(String topic) {
+    int read(String topic) {
         int numMessagesRead = 0;
         int returnCode = 0;
 
-        try (PulsarClient client = clientBuilder.get().build()) {
-            Schema<?> schema = poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
-            if ("auto_consume".equals(schemaType)) {
+        try (PulsarClient client = clientBuilder.build()) {
+            Schema<?> schema = v4.poolMessages ? Schema.BYTEBUFFER : Schema.BYTES;
+            if ("auto_consume".equals(cmd.schemaType)) {
                 schema = Schema.AUTO_CONSUME();
-            } else if (!"bytes".equals(schemaType)) {
+            } else if (!"bytes".equals(cmd.schemaType)) {
                 throw new IllegalArgumentException("schema type must be 'bytes' or 'auto_consume'");
             }
             ReaderBuilder<?> builder = client.newReader(schema)
                     .topic(topic)
-                    .startMessageId(parseMessageId(startMessageId))
-                    .poolMessages(poolMessages);
+                    .startMessageId(parseMessageId(cmd.startMessageId))
+                    .poolMessages(v4.poolMessages);
 
-            if (this.startMessageIdInclusive) {
+            if (v4.startMessageIdInclusive) {
                 builder.startMessageIdInclusive();
             }
-            if (this.maxPendingChunkedMessage > 0) {
-                builder.maxPendingChunkedMessage(this.maxPendingChunkedMessage);
+            if (v4.maxPendingChunkedMessage > 0) {
+                builder.maxPendingChunkedMessage(v4.maxPendingChunkedMessage);
             }
-            if (this.receiverQueueSize > 0) {
-                builder.receiverQueueSize(this.receiverQueueSize);
+            if (v4.receiverQueueSize > 0) {
+                builder.receiverQueueSize(v4.receiverQueueSize);
             }
 
-            builder.autoAckOldestChunkedMessageOnQueueFull(this.autoAckOldestChunkedMessageOnQueueFull);
-            builder.cryptoFailureAction(cryptoFailureAction);
+            builder.autoAckOldestChunkedMessageOnQueueFull(v4.autoAckOldestChunkedMessageOnQueueFull);
+            builder.cryptoFailureAction(cmd.cryptoFailureAction);
 
-            if (isNotBlank(this.encKeyValue)) {
-                builder.defaultCryptoKeyReader(this.encKeyValue);
+            if (isNotBlank(cmd.encKeyValue)) {
+                builder.defaultCryptoKeyReader(cmd.encKeyValue);
             }
 
             try (Reader<?> reader = builder.create()) {
-                RateLimiter limiter = (this.readRate > 0) ? RateLimiter.create(this.readRate) : null;
-                while (this.numMessagesToRead == 0 || numMessagesRead < this.numMessagesToRead) {
+                RateLimiter limiter = (cmd.readRate > 0) ? RateLimiter.create(cmd.readRate) : null;
+                while (cmd.numMessagesToRead == 0 || numMessagesRead < cmd.numMessagesToRead) {
                     if (limiter != null) {
                         limiter.acquire();
                     }
@@ -144,10 +107,10 @@ public class CmdReadV4 extends AbstractCmdReadCommand {
                     } else {
                         try {
                             numMessagesRead += 1;
-                            if (!hideContent) {
+                            if (!cmd.hideContent) {
                                 System.out.println(MESSAGE_BOUNDARY);
                                 System.out.println(
-                                        V4MessageSupport.interpretMessage(msg, displayHex, printMetadata));
+                                        V4MessageSupport.interpretMessage(msg, cmd.displayHex, cmd.printMetadata));
                             } else if (numMessagesRead % 1000 == 0) {
                                 System.out.println("Received " + numMessagesRead + " messages");
                             }
@@ -171,9 +134,9 @@ public class CmdReadV4 extends AbstractCmdReadCommand {
     @VisibleForTesting
     static MessageId parseMessageId(String msgIdStr) {
         MessageId msgId;
-        if (START_LATEST.equals(msgIdStr)) {
+        if (CmdRead.START_LATEST.equals(msgIdStr)) {
             msgId = MessageId.latest;
-        } else if (START_EARLIEST.equals(msgIdStr)) {
+        } else if (CmdRead.START_EARLIEST.equals(msgIdStr)) {
             msgId = MessageId.earliest;
         } else {
             Matcher matcher = MSG_ID_PATTERN.matcher(msgIdStr);

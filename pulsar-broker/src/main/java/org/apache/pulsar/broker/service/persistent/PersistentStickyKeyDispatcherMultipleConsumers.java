@@ -79,7 +79,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     PersistentStickyKeyDispatcherMultipleConsumers(PersistentTopic topic, ManagedCursor cursor,
             Subscription subscription, ServiceConfiguration conf, KeySharedMeta ksm) {
         this(topic, cursor, subscription, conf, ksm, createSelector(ksm, conf),
-                // recent joined consumer tracking is required only for AUTO_SPLIT mode when
+                // per-hash draining tracking is required only for AUTO_SPLIT mode when
                 // out-of-order delivery is disabled
                 ksm.getKeySharedMode() == KeySharedMode.AUTO_SPLIT && !ksm.isAllowOutOfOrderDelivery());
     }

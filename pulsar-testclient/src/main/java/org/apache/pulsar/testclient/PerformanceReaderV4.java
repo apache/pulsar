@@ -28,36 +28,22 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import picocli.CommandLine.Command;
 
 /**
- * The {@code read} benchmark driven by the v4 ({@code pulsar-client-original}) client.
+ * Runs the {@code read} benchmark with the v4 ({@code pulsar-client-original}) client's {@code Reader}.
  *
- * <p>This is the counterpart of {@link PerformanceReader}, which measures the V5
- * {@code CheckpointConsumer} — a different broker-side entity — so without this command nothing in
- * {@code pulsar-perf} exercises the v4 {@code Reader} at all. It also keeps the v4-only reader
- * behaviour working: a {@code lid:eid} start message id, {@code --receiver-queue-size},
- * {@code --use-tls}, and {@code ReaderListener} dispatch on the client's listener threads.
+ * <p>Used for {@code persistent://}, {@code non-persistent://} and unprefixed topics, and for any topic
+ * with {@code --client-api V4}. It keeps the v4-only reader behaviour working: a {@code lid:eid} start
+ * message id, {@code --receiver-queue-size}, {@code --use-tls}, and {@code ReaderListener} dispatch on the
+ * client's listener threads.
  */
-@Command(name = "read-v4", description = "Test pulsar reader performance using the v4 client.")
 public class PerformanceReaderV4
         extends PerformanceReaderBase<PulsarClient, Reader<byte[]>, Message<byte[]>> {
 
     private ReaderListener<byte[]> listener;
 
-    public PerformanceReaderV4() {
-        super("read-v4");
-    }
-
-    @Override
-    public void validate() throws Exception {
-        super.validate();
-        if (!"earliest".equals(startMessageId) && !"latest".equals(startMessageId)
-                && (startMessageId.split(":")).length != 2) {
-            String errMsg = String.format("invalid start message ID '%s', must be either 'earliest', "
-                    + "'latest' or a specific message id by using 'lid:eid'", startMessageId);
-            throw new Exception(errMsg);
-        }
+    public PerformanceReaderV4(PerformanceReader arguments) {
+        super(arguments);
     }
 
     @Override
@@ -68,8 +54,8 @@ public class PerformanceReaderV4
     @Override
     @SuppressWarnings("deprecation")
     protected PulsarClient createClient() throws PulsarClientException {
-        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(this)
-                .enableTls(this.useTls);
+        ClientBuilder clientBuilder = PerfClientUtils.createClientBuilderFromArguments(arguments)
+                .enableTls(arguments.v4.useTls);
         return clientBuilder.build();
     }
 
@@ -82,20 +68,20 @@ public class PerformanceReaderV4
     protected CompletableFuture<Reader<byte[]>> createReaderAsync(PulsarClient client, String topic) {
         ReaderBuilder<byte[]> readerBuilder = client.newReader()
                 .readerListener(this.listener)
-                .receiverQueueSize(this.receiverQueueSize)
+                .receiverQueueSize(arguments.v4.receiverQueueSize)
                 .startMessageId(parseStartMessageId())
                 .topic(topic);
         return readerBuilder.createAsync();
     }
 
     private MessageId parseStartMessageId() {
-        if ("earliest".equals(this.startMessageId)) {
+        if ("earliest".equals(arguments.startMessageId)) {
             return MessageId.earliest;
         }
-        if ("latest".equals(this.startMessageId)) {
+        if ("latest".equals(arguments.startMessageId)) {
             return MessageId.latest;
         }
-        String[] parts = this.startMessageId.split(":");
+        String[] parts = arguments.startMessageId.split(":");
         return new MessageIdImpl(Long.parseLong(parts[0]), Long.parseLong(parts[1]), -1);
     }
 

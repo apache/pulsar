@@ -40,10 +40,6 @@ public class PulsarProfilingTest extends AbstractPulsarProfilingTest {
         return TopicDomain.topic;
     }
 
-    @Override
-    protected String getPerfCommandSuffix() {
-        return "";
-    }
 
     @Override
     protected List<TopicStatsEndpoint> getTopicStatsEndpoints(String topicName) {
