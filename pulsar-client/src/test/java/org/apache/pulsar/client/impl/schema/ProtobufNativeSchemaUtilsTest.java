@@ -18,17 +18,10 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.DescriptorProtos.DescriptorProto;
-import com.google.protobuf.DescriptorProtos.Edition;
-import com.google.protobuf.DescriptorProtos.FeatureSet;
-import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
 import com.google.protobuf.DescriptorProtos.FileDescriptorSet;
-import com.google.protobuf.DescriptorProtos.FileOptions;
 import com.google.protobuf.Descriptors;
-import com.google.protobuf.JavaFeaturesProto;
-import com.google.protobuf.JavaFeaturesProto.JavaFeatures;
 import java.util.List;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.protocol.schema.ProtobufNativeSchemaData;
@@ -54,40 +47,6 @@ public class ProtobufNativeSchemaUtilsTest {
                 org.apache.pulsar.client.schema.proto.Test.SubMessage.NestedMessage.getDescriptor());
         Descriptors.Descriptor descriptor =  ProtobufNativeSchemaUtils.deserialize(data);
         Assert.assertNotNull(descriptor);
-    }
-
-    @Test
-    public void testEditionAndJavaFeatureRoundTrip() throws Exception {
-        DescriptorProtos.getDescriptor();
-        for (Edition edition : new Edition[]{Edition.EDITION_2023, Edition.EDITION_2024}) {
-            FeatureSet features = FeatureSet.newBuilder()
-                    .setUtf8Validation(FeatureSet.Utf8Validation.NONE)
-                    .setExtension(JavaFeaturesProto.java_, JavaFeatures.newBuilder()
-                            .setUtf8Validation(JavaFeatures.Utf8Validation.VERIFY).build())
-                    .build();
-            FileDescriptorProto proto = FileDescriptorProto.newBuilder()
-                    .setName("edition-" + edition.getNumber() + ".proto")
-                    .setPackage("example")
-                    .setSyntax("editions")
-                    .setEdition(edition)
-                    .addDependency(JavaFeaturesProto.getDescriptor().getName())
-                    .setOptions(FileOptions.newBuilder().setFeatures(features))
-                    .addMessageType(DescriptorProto.newBuilder().setName("Order")
-                            .addField(FieldDescriptorProto.newBuilder().setName("name").setNumber(1)
-                                    .setType(FieldDescriptorProto.Type.TYPE_STRING)))
-                    .build();
-            Descriptors.FileDescriptor file = Descriptors.FileDescriptor.buildFrom(proto,
-                    new Descriptors.FileDescriptor[]{JavaFeaturesProto.getDescriptor()});
-            Descriptors.Descriptor restored = ProtobufNativeSchemaUtils.deserialize(
-                    ProtobufNativeSchemaUtils.serialize(file.findMessageTypeByName("Order")));
-            Assert.assertEquals(restored.getFullName(), "example.Order");
-            Assert.assertEquals(restored.getFile().toProto().getEdition(), edition);
-            Assert.assertEquals(restored.getFile().toProto().getOptions().getFeatures().getUtf8Validation(),
-                    FeatureSet.Utf8Validation.NONE);
-            Assert.assertTrue(restored.getFile().toProto().getOptions().getFeatures()
-                    .hasExtension(JavaFeaturesProto.java_));
-            Assert.assertTrue(restored.findFieldByName("name").needsUtf8Check());
-        }
     }
 
     @Test

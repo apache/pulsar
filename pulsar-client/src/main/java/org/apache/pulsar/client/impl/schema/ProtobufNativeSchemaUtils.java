@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.ObjectReader;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.ExtensionRegistry;
-import com.google.protobuf.JavaFeaturesProto;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -101,12 +100,8 @@ public class ProtobufNativeSchemaUtils {
 
             Map<String, FileDescriptorProto> fileDescriptorProtoCache = new HashMap<>();
             Map<String, Descriptors.FileDescriptor> fileDescriptorCache = new HashMap<>();
-            // Initialize descriptor.proto before registering its Java feature extension.
-            DescriptorProtos.getDescriptor();
-            ExtensionRegistry extensionRegistry = ExtensionRegistry.newInstance();
-            JavaFeaturesProto.registerAllExtensions(extensionRegistry);
             FileDescriptorSet fileDescriptorSet = FileDescriptorSet.parseFrom(
-                    schemaData.getFileDescriptorSet(), extensionRegistry);
+                    schemaData.getFileDescriptorSet(), nativeSchemaExtensions());
             fileDescriptorSet.getFileList().forEach(fileDescriptorProto ->
                     fileDescriptorProtoCache.put(fileDescriptorProto.getName(), fileDescriptorProto));
             FileDescriptorProto rootFileDescriptorProto =
@@ -147,6 +142,22 @@ public class ProtobufNativeSchemaUtils {
         }
 
         return descriptor;
+    }
+
+    private static ExtensionRegistry nativeSchemaExtensions() throws ReflectiveOperationException {
+        // Initialize descriptor.proto before registering its Java feature extension.
+        DescriptorProtos.getDescriptor();
+        ExtensionRegistry registry = ExtensionRegistry.newInstance();
+        try {
+            // Java features are available in Protobuf v4, while the client also supports v3.
+            // Derive the package and loader from Protobuf so shaded clients use the matching runtime.
+            Class<?> javaFeatures = Class.forName(DescriptorProtos.class.getPackageName() + ".JavaFeaturesProto",
+                    true, DescriptorProtos.class.getClassLoader());
+            javaFeatures.getMethod("registerAllExtensions", ExtensionRegistry.class).invoke(null, registry);
+        } catch (ClassNotFoundException ignored) {
+            // Protobuf v3 has no Java feature extension to register.
+        }
+        return registry;
     }
 
     private static void deserializeFileDescriptor(FileDescriptorProto fileDescriptorProto,
