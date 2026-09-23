@@ -553,8 +553,16 @@ final class ScalableStreamConsumer<T>
             Duration delay = reconcileBackoff.next();
             log.info().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
                     .log("Initial subscribe rejected during rebalance, retrying after backoff");
-            scheduler().schedule(() -> attemptInitialSubscribe(assigned, deadlineNanos, result),
-                    delay.toMillis(), TimeUnit.MILLISECONDS);
+            // Retry with the session's current assignment, not the one this attempt started with: the
+            // rebalance that rejected us usually also moved segments away from this consumer, and
+            // retrying the stale assignment would keep asking for a segment another member now owns.
+            // The assignment listener is only registered once the initial subscribe succeeds, so the
+            // session, not latestAssignment, holds the updates that arrived in the meantime.
+            scheduler().schedule(() -> {
+                List<ActiveSegment> current = session.currentAssignment();
+                latestAssignment = current;
+                attemptInitialSubscribe(current, deadlineNanos, result);
+            }, delay.toMillis(), TimeUnit.MILLISECONDS);
         });
     }
 
