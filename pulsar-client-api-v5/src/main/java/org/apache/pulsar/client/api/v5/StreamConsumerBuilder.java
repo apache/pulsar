@@ -129,14 +129,6 @@ public interface StreamConsumerBuilder<T> {
      */
     StreamConsumerBuilder<T> readCompacted(boolean readCompacted);
 
-    /**
-     * Enable replication of subscription state across geo-replicated clusters.
-     *
-     * @param replicate {@code true} to replicate subscription state
-     * @return this builder instance for chaining
-     */
-    StreamConsumerBuilder<T> replicateSubscriptionState(boolean replicate);
-
     // --- Encryption ---
 
     /**

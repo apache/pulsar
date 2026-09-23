@@ -676,7 +676,11 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             return;
         }
         boolean offload = send.dispatching || (failure != null && !isEventLoopThread());
-        if (!offload) {
+        if (!offload || client.v4Client().isClosed()) {
+            // In place: the result arrived on an IO thread, or the client is closing. Its executors
+            // are shut down with it, with shutdownNow(), which drops whatever is still queued: a
+            // completion handed to the executor now could be lost and the caller's future never
+            // complete. Once the executors are gone, the same happens below.
             complete(send, messageId, failure);
             return;
         }

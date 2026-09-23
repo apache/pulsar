@@ -774,7 +774,7 @@ final class ScalableStreamConsumer<T>
             ActiveSegment segment) {
         PulsarClientImpl v4Client = client.v4Client();
         // Clone so per-segment consumers inherit every builder knob the user set
-        // (ackTimeout, readCompacted, replicateSubscriptionState, encryption, ...).
+        // (ackTimeout, readCompacted, encryption, ...).
         var segConf = consumerConf.clone();
         segConf.getTopicNames().clear();
         segConf.setTopicsPattern(null);

@@ -88,10 +88,12 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
             Assert.assertFalse(future.isCompletedExceptionally());
         }
 
-        // The V5-based pulsar-client has no non-durable subscription mode: --subscription-mode
-        // NonDurable falls back to a durable subscription, so it persists after the consumer
-        // disconnects rather than being removed.
-        Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
+        // A persistent:// topic uses the v4 client, which really creates a non-durable subscription,
+        // so it is removed once the consumer disconnects.
+        Awaitility.await()
+                .ignoreExceptions().untilAsserted(() -> {
+            Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 0);
+        });
     }
 
     @Test(timeOut = 30000)
