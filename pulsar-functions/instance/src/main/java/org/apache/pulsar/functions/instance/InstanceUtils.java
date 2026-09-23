@@ -203,10 +203,12 @@ public class InstanceUtils {
         org.apache.pulsar.client.api.v5.PulsarClientBuilder clientBuilder =
                 org.apache.pulsar.client.api.v5.PulsarClient.builder()
                         .serviceUrl(pulsarServiceUrl)
-                        .memoryLimit(MemorySize.ofBytes(memoryLimit.orElse(0L)))
                         .connectionPolicy(ConnectionPolicy.builder()
                                 .ioThreads(Runtime.getRuntime().availableProcessors())
                                 .build());
+        // Without a configured limit the V5 client keeps its default memory limit: unlike the v4 producer, the V5
+        // producer has no pending-message limit, so the memory limit is what bounds the messages it holds
+        memoryLimit.ifPresent(bytes -> clientBuilder.memoryLimit(MemorySize.ofBytes(bytes)));
         if (authConfig != null) {
             if (isNotBlank(authConfig.getClientAuthenticationPlugin())
                     && isNotBlank(authConfig.getClientAuthenticationParameters())) {

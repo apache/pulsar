@@ -61,6 +61,30 @@ public class StreamAckTrackerTest {
     }
 
     @Test
+    public void testCompleteThroughAcknowledgesEarlierRecords() {
+        List<Integer> acks = new ArrayList<>();
+        StreamAckTracker<Integer> tracker = new StreamAckTracker<>(acks::add);
+        StreamAckTracker.Entry<Integer> e1 = tracker.track(1);
+        StreamAckTracker.Entry<Integer> e2 = tracker.track(2);
+        StreamAckTracker.Entry<Integer> e3 = tracker.track(3);
+        StreamAckTracker.Entry<Integer> e4 = tracker.track(4);
+
+        tracker.complete(e2);
+        // a cumulative acknowledgment of record 3 covers the records before it
+        tracker.completeThrough(e3);
+        assertThat(acks).containsExactly(3);
+        assertThat(tracker.inFlightCount()).isEqualTo(1);
+
+        // records already covered are ignored
+        tracker.completeThrough(e1);
+        tracker.complete(e1);
+        assertThat(acks).containsExactly(3);
+
+        tracker.completeThrough(e4);
+        assertThat(acks).containsExactly(3, 4);
+    }
+
+    @Test
     public void testCompletingTwiceIsIgnored() {
         List<Integer> acks = new ArrayList<>();
         StreamAckTracker<Integer> tracker = new StreamAckTracker<>(acks::add);

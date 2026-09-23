@@ -220,26 +220,14 @@ public interface BaseContext {
     /**
      * Get the pre-configured Pulsar V5 client.
      *
-     * <p>Use it to reach {@code topic://} (scalable) topics, which only the V5 client supports. The runtime creates
-     * the client on first use and shares it with the other instances it runs, so the function must not close it.
+     * <p>Use it to reach {@code topic://} (scalable) topics, which only the V5 client supports. To publish to a
+     * {@code topic://} topic, {@code newOutputMessage} is enough: it uses the V5 client for such topics. The runtime
+     * creates the client on first use and shares it with the other instances it runs, so the function must not close
+     * it.
      *
      * @return the instance of the Pulsar V5 client
      */
     default org.apache.pulsar.client.api.v5.PulsarClient getPulsarClientV5() {
-        throw new UnsupportedOperationException("not implemented");
-    }
-
-    /**
-     * Get a Pulsar V5 client builder that is pre-configured with the runtime's service URL, authentication and
-     * TLS settings.
-     *
-     * <p>A client built from it belongs to the function, which must close it.
-     *
-     * @return a new instance of the Pulsar V5 client builder
-     * @throws org.apache.pulsar.client.api.v5.PulsarClientException if the builder cannot be configured
-     */
-    default org.apache.pulsar.client.api.v5.PulsarClientBuilder getPulsarClientBuilderV5()
-            throws org.apache.pulsar.client.api.v5.PulsarClientException {
         throw new UnsupportedOperationException("not implemented");
     }
 

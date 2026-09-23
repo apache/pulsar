@@ -282,29 +282,27 @@ public class ContextImplTest {
         ContextImpl contextV5 = contextWithClientV5(clientV5, false);
         assertThat(contextV5.getPulsarClientV5()).isSameAs(clientV5);
         assertThat(contextV5.getPulsarClientV5()).isSameAs(clientV5);
-        assertThat(contextV5.getPulsarClientBuilderV5()).isNotNull();
         // the v4-only context has no V5 client
         assertThatThrownBy(() -> context.getPulsarClientV5()).isInstanceOf(UnsupportedOperationException.class);
     }
 
     @Test
-    public void testNewOutputMessageV5FromV4Component() throws Exception {
+    public void testV4ComponentPublishesToScalableTopicWithClientV5() throws Exception {
         org.apache.pulsar.client.api.v5.PulsarClient clientV5 =
                 mock(org.apache.pulsar.client.api.v5.PulsarClient.class);
-        org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder<String> messageBuilder = mockV5Producer(clientV5);
-        ContextImpl contextV5 = contextWithClientV5(clientV5, false);
+        mockV5Producer(clientV5);
+        ContextImpl contextV4 = contextWithClientV5(clientV5, false);
 
-        assertThat(contextV5.newOutputMessageV5("topic://public/default/out",
-                org.apache.pulsar.client.api.v5.schema.Schema.string())).isSameAs(messageBuilder);
-        // the producer is cached
-        contextV5.newOutputMessageV5("topic://public/default/out",
-                org.apache.pulsar.client.api.v5.schema.Schema.string());
+        // a topic:// topic is published with the V5 client, whichever client the component's own topics use
+        assertThat(contextV4.newOutputMessage("topic://public/default/out", Schema.STRING)).isNotNull();
+        contextV4.newOutputMessage("topic://public/default/out", Schema.STRING);
         verify(clientV5, times(1)).newProducer(any());
-        assertTrue(producerCache.containsKey(ProducerCache.CacheArea.CONTEXT_V5_CACHE, "topic://public/default/out"));
-        // a v4 component still publishes with the v4 client through newOutputMessage
-        assertThatThrownBy(() -> contextV5.newOutputMessage("topic://public/default/out", Schema.STRING))
-                .isInstanceOf(PulsarClientException.class)
-                .hasMessageContaining("use newOutputMessageV5");
+        assertTrue(producerCache.containsKey(ProducerCache.CacheArea.CONTEXT_CACHE, "topic://public/default/out"));
+
+        // other topics stay on the v4 client
+        contextV4.newOutputMessage("persistent://public/default/out", Schema.STRING);
+        verify(client, times(1)).newProducer(any());
+        verify(clientV5, times(1)).newProducer(any());
     }
 
     @Test
@@ -326,7 +324,7 @@ public class ContextImplTest {
     public void testPublishToScalableTopicNeedsClientV5() {
         assertThatThrownBy(() -> context.newOutputMessage("topic://public/default/out", Schema.STRING))
                 .isInstanceOf(PulsarClientException.class)
-                .hasMessageContaining("set clientApi to V5");
+                .hasMessageContaining("the function runtime has no V5 client");
     }
 
     @Test

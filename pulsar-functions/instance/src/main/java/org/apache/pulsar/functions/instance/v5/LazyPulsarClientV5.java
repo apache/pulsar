@@ -23,6 +23,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.client.api.v5.PulsarClient;
 import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.PulsarClientException;
+import org.apache.pulsar.client.api.v5.internal.PulsarClientProvider;
 
 /**
  * The V5 client of a runtime factory, created on first use.
@@ -47,6 +48,29 @@ public class LazyPulsarClientV5 implements Supplier<PulsarClient>, AutoCloseable
 
     public LazyPulsarClientV5(BuilderFactory builderFactory) {
         this.builderFactory = builderFactory;
+        // The V5 API finds its implementation with a ServiceLoader on the thread's context classloader, once per
+        // JVM. In the process and Kubernetes runtimes, user code runs with a context classloader that sees the V5
+        // API but not its implementation, so the first V5 call from user code would fail the lookup for good.
+        // Look it up now, with the classloader of the runtime.
+        withRuntimeClassLoader(() -> {
+            try {
+                PulsarClientProvider.get();
+            } catch (Throwable t) {
+                log.warn().exception(t).log("The V5 Pulsar client implementation is not available");
+            }
+            return null;
+        });
+    }
+
+    private static <R> R withRuntimeClassLoader(Supplier<R> action) {
+        Thread thread = Thread.currentThread();
+        ClassLoader contextClassLoader = thread.getContextClassLoader();
+        thread.setContextClassLoader(LazyPulsarClientV5.class.getClassLoader());
+        try {
+            return action.get();
+        } finally {
+            thread.setContextClassLoader(contextClassLoader);
+        }
     }
 
     /**
@@ -60,18 +84,16 @@ public class LazyPulsarClientV5 implements Supplier<PulsarClient>, AutoCloseable
             throw new IllegalStateException("The V5 Pulsar client is closed");
         }
         if (client == null) {
-            try {
-                client = builderFactory.newBuilder().build();
-            } catch (PulsarClientException e) {
-                throw new IllegalStateException("Failed to create the V5 Pulsar client", e);
-            }
+            // user code may be the first to ask for the client, with its own context classloader
+            client = withRuntimeClassLoader(() -> {
+                try {
+                    return builderFactory.newBuilder().build();
+                } catch (PulsarClientException e) {
+                    throw new IllegalStateException("Failed to create the V5 Pulsar client", e);
+                }
+            });
         }
         return client;
-    }
-
-    /** Returns a new client builder with the runtime's connection settings. */
-    public PulsarClientBuilder newBuilder() throws PulsarClientException {
-        return builderFactory.newBuilder();
     }
 
     @Override

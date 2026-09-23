@@ -27,7 +27,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 /**
@@ -97,14 +96,6 @@ public class V5ProducerAdapter<T> implements Producer<T> {
     public <V> TypedMessageBuilder<V> newMessage(Schema<V> messageSchema) {
         checkSchema(messageSchema);
         return (TypedMessageBuilder<V>) newMessage();
-    }
-
-    /**
-     * Returns a V5 message builder for a message with the given schema, which must be the producer's schema.
-     */
-    public AsyncMessageBuilder<T> newMessageV5(Schema<?> messageSchema) {
-        checkSchema(messageSchema);
-        return producer.async().newMessage();
     }
 
     private void checkSchema(Schema<?> messageSchema) {
