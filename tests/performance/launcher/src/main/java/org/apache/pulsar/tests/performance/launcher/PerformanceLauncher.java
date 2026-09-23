@@ -222,8 +222,29 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
             JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd,
                     retainOriginalRecording, createMeasurementRecording);
+            for (Path recording : recordings) {
+                Path source = createMeasurementRecording ? JfrRecordingProcessor.measurementPath(recording)
+                        : recording;
+                Set<JfrFlamegraphViews.View> views = JfrFlamegraphViews.configuredViews(
+                        asyncProfilerOptions(loader.mapper(), recording));
+                if (!views.isEmpty() && Files.isRegularFile(source)) {
+                    System.out.println("Flame graphs: " + JfrFlamegraphViews.render(recording, source, views));
+                }
+            }
         }
         return 0;
+    }
+
+    /**
+     * The async-profiler options a recording was made with, as the agent configuration beside it records them.
+     */
+    private static String asyncProfilerOptions(ObjectMapper mapper, Path recording) throws IOException {
+        Path config = JonoffcpuAgent.config(recording);
+        if (!Files.isRegularFile(config)) {
+            return null;
+        }
+        JsonNode options = mapper.readTree(config.toFile()).path("asyncProfilerOptions");
+        return options.isTextual() ? options.textValue() : null;
     }
 
     /**

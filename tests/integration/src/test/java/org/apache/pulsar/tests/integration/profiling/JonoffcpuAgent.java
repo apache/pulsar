@@ -166,8 +166,19 @@ public final class JonoffcpuAgent {
      * The capture stream that belongs to a recording, following the naming used by {@link #writeConfig}.
      */
     public static Path capture(Path recording) {
+        return sibling(recording, CAPTURE_SUFFIX);
+    }
+
+    /**
+     * The agent configuration that a recording was made with, following the naming used by {@link #writeConfig}.
+     */
+    public static Path config(Path recording) {
+        return sibling(recording, CONFIG_SUFFIX);
+    }
+
+    private static Path sibling(Path recording, String suffix) {
         String name = recording.getFileName().toString();
-        return recording.resolveSibling(name.substring(0, name.length() - ".jfr".length()) + CAPTURE_SUFFIX);
+        return recording.resolveSibling(name.substring(0, name.length() - ".jfr".length()) + suffix);
     }
 
     private static String quote(String value) {

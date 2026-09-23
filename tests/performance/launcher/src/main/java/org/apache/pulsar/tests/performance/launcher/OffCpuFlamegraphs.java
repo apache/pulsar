@@ -36,12 +36,12 @@ import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
  * writes {@code profile-offcpu/} holding {@code jonoffcpu-offcpu-stacks.collapsed} (Java stacks weighted in
  * microseconds of off-CPU time), a synthetic JFR for JFR viewers, the accounting report and
  * {@code jonoffcpu-offcpu-profile.pb}. Two slices of that profile are then rendered with the correlator's
- * {@code stacks} subcommand, with package names dropped so that a frame's box shows its class and method:
- * {@code offcpu.collapsed} with every interval, and {@code offcpu-no-idle.collapsed} without the intervals in
- * which a thread was only waiting for work (see {@link #IDLE_WAITS_FILE}). Each slice has a {@code .json}
- * summary, which for the second accounts for what was removed, and an {@code .html} flame graph rendered with
- * the converter from async-profiler's jonoffcpu fork, which comes as a dependency and takes {@code --units} so
- * that the widths read as microseconds rather than as sample counts.
+ * {@code stacks} subcommand: {@code offcpu.collapsed} with every interval, and {@code offcpu-no-idle.collapsed}
+ * without the intervals in which a thread was only waiting for work (see {@link #IDLE_WAITS_FILE}). Each slice has
+ * a {@code .json} summary, which for the second accounts for what was removed, and an {@code .html} flame graph
+ * with package names dropped so that a frame's box shows its class and method, rendered with the converter from
+ * async-profiler's jonoffcpu fork, which comes as a dependency and takes {@code --units} so that the widths read
+ * as microseconds rather than as sample counts.
  */
 final class OffCpuFlamegraphs {
     static final String OUTPUT_SUFFIX = "-offcpu";
@@ -111,22 +111,29 @@ final class OffCpuFlamegraphs {
 
     /**
      * Renders one slice of the stack profile to {@code <slice>.collapsed}, {@code <slice>.json} and
-     * {@code <slice>.html} beside it.
+     * {@code <slice>.html} beside it. The collapsed file keeps full names, which scripts, diff tools and
+     * package-based classification need; only the flame graph drops package names.
      */
     private static void renderSlice(Path profile, String slice, String title, List<String> options)
             throws IOException, InterruptedException {
         Path directory = profile.getParent();
         Path collapsed = directory.resolve(slice + ".collapsed");
-        List<String> arguments = new ArrayList<>(List.of("stacks",
-                "--profile", profile.toString(),
-                // io.netty.channel.epoll.Native.epollWait0 becomes Native.epollWait0. Only the display
-                // changes; --exclude still matches the full names.
-                "--package-names", "drop",
-                "--summary", directory.resolve(slice + ".json").toString(),
-                "--output", collapsed.toString()));
+        List<String> arguments = new ArrayList<>(List.of("stacks", "--profile", profile.toString(),
+                "--summary", directory.resolve(slice + ".json").toString(), "--output", collapsed.toString()));
         arguments.addAll(options);
         correlator("Rendering the " + slice + " slice of " + profile, directory, arguments);
-        render(collapsed, directory.resolve(slice + ".html"), title);
+        Path display = directory.resolve(slice + ".display.collapsed");
+        try {
+            // io.netty.channel.epoll.Native.epollWait0 becomes Native.epollWait0, so that a frame's box shows its
+            // class and method. The filters still match the full names.
+            List<String> displayArguments = new ArrayList<>(List.of("stacks", "--profile", profile.toString(),
+                    "--package-names", "drop", "--output", display.toString()));
+            displayArguments.addAll(options);
+            correlator("Rendering the " + slice + " flame graph of " + profile, directory, displayArguments);
+            render(display, directory.resolve(slice + ".html"), title);
+        } finally {
+            Files.deleteIfExists(display);
+        }
     }
 
     private static void correlator(String action, Path outputDirectory, List<String> arguments)
