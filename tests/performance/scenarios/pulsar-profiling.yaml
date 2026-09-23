@@ -39,7 +39,6 @@ load:
   batchingEnabled: false
   maxOutstanding: 20000
   statsIntervalSeconds: 10
-  # Used only by produce-v4/consume-v4. A value of 500 creates up to 500 clients.
   producerCount: 1
   consumerCount: 1
   producerIoThreads: 1
@@ -47,6 +46,7 @@ load:
   subscriptionType: Shared
   receiverQueueSize: 50000
   timeoutSeconds: 180
+  # Used only on the v4 client (persistent:// topics). A value of 500 creates up to 500 clients.
   isolatedProducers: 0
   isolatedConsumers: 0
 profiling:

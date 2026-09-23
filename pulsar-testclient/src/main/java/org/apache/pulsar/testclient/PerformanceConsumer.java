@@ -18,42 +18,51 @@
  */
 package org.apache.pulsar.testclient;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import io.netty.util.concurrent.DefaultThreadFactory;
-import java.nio.file.Path;
-import java.time.Duration;
+import io.github.merlimat.slog.Logger;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.client.api.v5.Message;
-import org.apache.pulsar.client.api.v5.MessageId;
-import org.apache.pulsar.client.api.v5.PulsarClient;
-import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
-import org.apache.pulsar.client.api.v5.PulsarClientException;
-import org.apache.pulsar.client.api.v5.QueueConsumer;
-import org.apache.pulsar.client.api.v5.QueueConsumerBuilder;
-import org.apache.pulsar.client.api.v5.StreamConsumer;
-import org.apache.pulsar.client.api.v5.StreamConsumerBuilder;
-import org.apache.pulsar.client.api.v5.Transaction;
-import org.apache.pulsar.client.api.v5.auth.PemFileKeyProvider;
-import org.apache.pulsar.client.api.v5.config.ConsumerEncryptionPolicy;
-import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
-import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.cli.ClientApi;
+import org.apache.pulsar.cli.ClientApiOptionGroups;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import picocli.CommandLine;
+import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.Spec;
 
 /**
- * A client program to test pulsar consumer performance with the V5 client API.
+ * The {@code pulsar-perf consume} command: parses and validates the options, then runs the benchmark
+ * with the client the topics call for.
  *
- * <p>Everything that is not V5-specific lives in {@link PerformanceConsumerBase}; the v4 client is
- * driven by {@link PerformanceConsumerV4} under the {@code consume-v4} name.
+ * <p>{@code topic://} (scalable) topics are driven by {@link PerformanceConsumerV5}, every other topic
+ * by {@link PerformanceConsumerV4}; {@code --client-api} overrides that choice. Options that only one
+ * client supports are in their own {@code @ArgGroup}, which gives them their own {@code --help} section
+ * and makes them a usage error with the other client.
  */
-@Command(name = "consume", description = "Test pulsar consumer performance.")
-public class PerformanceConsumer
-        extends PerformanceConsumerBase<PulsarClient, PerformanceConsumer.PerfConsumer, Message<byte[]>, Transaction> {
+@Command(name = "consume", sortOptions = false, optionListHeading = ClientApiOptionGroups.COMMON_HEADING,
+        description = {"Test pulsar consumer performance.",
+                "%nTopics with the topic:// (scalable) domain are consumed with the V5 client; "
+                        + "persistent://, non-persistent:// and unprefixed topics with the v4 client. "
+                        + "Use --client-api to override the client."})
+public class PerformanceConsumer extends PerformanceTopicListArguments {
+
+    private static final Logger log = Logger.get(PerformanceConsumer.class);
+
+    /**
+     * Subscription type flag values, shared by both clients so the CLI surface does not depend on
+     * which client is driving. The names are the v4 ones: {@link PerformanceConsumerV4} maps them
+     * straight onto {@code org.apache.pulsar.client.api.SubscriptionType}, while V5 has no single
+     * user-facing subscription-type enum (StreamConsumer / QueueConsumer / CheckpointConsumer are
+     * separate APIs) and maps them all to a QueueConsumer.
+     */
+    public enum SubscriptionType {
+        Exclusive,
+        Shared,
+        Failover,
+        Key_Shared
+    }
 
     /**
      * Which V5 scalable-topic consumer API to drive. {@code Queue} gives unordered,
@@ -67,273 +76,183 @@ public class PerformanceConsumer
         Stream
     }
 
-    @Option(names = { "-sct", "--scalable-consumer-type" },
-            description = "V5 scalable-topic consumer API to use: Queue (unordered, individual ack) "
-                    + "or Stream (ordered, cumulative ack, 1:1 segment assignment). Use Stream with "
-                    + "more consumers than segments to drive auto-split (PIP-483).")
-    public ScalableConsumerType scalableConsumerType = ScalableConsumerType.Queue;
+    @Spec
+    CommandSpec spec;
+
+    @Option(names = ClientApi.OPTION_NAME, description = ClientApi.OPTION_DESCRIPTION)
+    public ClientApi clientApi;
+
+    @Option(names = { "-n", "--num-consumers" }, description = "Number of consumers (per subscription), only "
+            + "one consumer is allowed when subscriptionType is Exclusive",
+            converter = PositiveNumberParameterConvert.class
+    )
+    public int numConsumers = 1;
+
+    @Option(names = { "-ns", "--num-subscriptions" }, description = "Number of subscriptions (per topic)",
+            converter = PositiveNumberParameterConvert.class
+    )
+    public int numSubscriptions = 1;
+
+    @Option(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix", hidden = true)
+    public String subscriberName;
+
+    @Option(names = { "-ss", "--subscriptions" },
+            description = "A list of subscriptions to consume (for example, sub1,sub2)")
+    public List<String> subscriptions = Collections.singletonList("sub");
+
+    @Option(names = { "-st", "--subscription-type" }, description = "Subscription type")
+    public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
     @Option(names = { "-sp", "--subscription-position" }, description = "Subscription position")
-    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.LATEST;
+    public SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
-    private ConsumerEncryptionPolicy encryptionPolicy;
-    private ExecutorService consumerExec;
+    @Option(names = { "-r", "--rate" }, description = "Simulate a slow message consumer (rate in msg/s)")
+    public double rate = 0;
+
+    @Option(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
+    public int receiverQueueSize = 1000;
+
+    @Option(names = { "--acks-delay-millis" }, description = "Acknowledgements grouping delay in millis")
+    public int acknowledgmentsGroupingDelayMillis = 100;
+
+    @Option(names = {"-m",
+            "--num-messages"},
+            description = "Number of messages to consume in total. If <= 0, it will keep consuming")
+    public long numMessages = 0;
+
+    @Option(names = { "-v",
+            "--encryption-key-value-file" },
+            description = "The file which contains the private key to decrypt payload")
+    public String encKeyFile = null;
+
+    @Option(names = { "-time",
+            "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
+    public long testTime = 0;
+
+    @Option(names = {"-tto", "--txn-timeout"},  description = "Set the time value of transaction timeout,"
+            + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
+    public long transactionTimeout = 10;
+
+    @Option(names = {"-nmt", "--numMessage-perTransaction"},
+            description = "The number of messages acknowledged by a transaction. "
+                    + "(After --txn-enable setting to true, -numMessage-perTransaction takes effect")
+    public int numMessagesPerTransaction = 50;
+
+    @Option(names = {"-txn", "--txn-enable"}, description = "Enable or disable the transaction")
+    public boolean isEnableTransaction = false;
+
+    @Option(names = {"-ntxn"}, description = "The number of opened transactions, 0 means keeping open."
+            + "(After --txn-enable setting to true, -ntxn takes effect.)")
+    public long totalNumTxn = 0;
+
+    @Option(names = {"-abort"}, description = "Abort the transaction. (After --txn-enable "
+            + "setting to true, -abort takes effect)")
+    public boolean isAbortTransaction = false;
+
+    @Option(names = { "--histogram-file" }, description = "HdrHistogram output file")
+    public String histogramFile = null;
+
+    @ArgGroup(exclusive = false, validate = false, order = 1, heading = ClientApiOptionGroups.V4_HEADING)
+    public V4Options v4 = new V4Options();
+
+    @ArgGroup(exclusive = false, validate = false, order = 2, heading = ClientApiOptionGroups.V5_HEADING)
+    public V5Options v5 = new V5Options();
+
+    /** The client picked for this invocation; set by {@link #validate()}. */
+    ClientApi resolvedClientApi;
+
+    /** Options that only the v4 client supports. */
+    public static class V4Options implements ClientApiOptionGroups.V4ClientOptions {
+        @Option(names = { "-p", "--receiver-queue-size-across-partitions" },
+                description = "Max total size of the receiver queue across partitions")
+        public int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
+
+        @Option(names = {"-aq", "--auto-scaled-receiver-queue-size"},
+                description = "Enable autoScaledReceiverQueueSize")
+        public boolean autoScaledReceiverQueueSize = false;
+
+        // The V5 consumers do not offer replicated subscriptions (#26679).
+        @Option(names = {"-rs", "--replicated" },
+                description = "Whether the subscription status should be replicated")
+        public boolean replicatedSubscription = false;
+
+        @Option(names = {"--batch-index-ack" }, description = "Enable or disable the batch index acknowledgment")
+        public boolean batchIndexAck = false;
+
+        @Option(names = { "-pm", "--pool-messages" }, description = "Use the pooled message", arity = "1")
+        public boolean poolMessages = true;
+
+        @Option(names = { "-mc", "--max_chunked_msg" }, description = "Max pending chunk messages")
+        public int maxPendingChunkedMessage = 0;
+
+        @Option(names = { "-ac",
+                "--auto_ack_chunk_q_full" }, description = "Auto ack for oldest message on queue is full")
+        public boolean autoAckOldestChunkedMessageOnQueueFull = false;
+
+        @Option(names = { "-e",
+                "--expire_time_incomplete_chunked_messages" },
+                description = "Expire time in ms for incomplete chunk messages")
+        public long expireTimeOfIncompleteChunkedMessageMs = 0;
+
+        @Option(names = "--isolated-clients", description = "Create consumers on this many isolated v4 clients; "
+                + "cannot be combined with --num-listener-threads or --txn-enable",
+                converter = PositiveNumberParameterConvert.class)
+        public int isolatedClients;
+    }
+
+    /** Options that only the V5 client supports. */
+    public static class V5Options implements ClientApiOptionGroups.V5ClientOptions {
+        @Option(names = { "-sct", "--scalable-consumer-type" },
+                description = "V5 scalable-topic consumer API to use: Queue (unordered, individual ack) "
+                        + "or Stream (ordered, cumulative ack, 1:1 segment assignment). Use Stream with "
+                        + "more consumers than segments to drive auto-split (PIP-483).")
+        public ScalableConsumerType scalableConsumerType = ScalableConsumerType.Queue;
+    }
 
     public PerformanceConsumer() {
         super("consume");
     }
 
     @Override
-    protected Object consumerTypeForLog() {
-        return this.scalableConsumerType;
-    }
-
-    @Override
-    protected void prepareRun() {
-        log.info().attr("consumerType", this.scalableConsumerType).log("Using V5 scalable-topic consumer API");
-        if (this.subscriptionType == SubscriptionType.Exclusive
-                || this.subscriptionType == SubscriptionType.Failover) {
-            log.warn().attr("type", this.subscriptionType)
-                    .log("V5 has no exclusive/failover subscription type. Falling back to QueueConsumer "
-                            + "(Shared-style work distribution). Latency/throughput numbers may not be "
-                            + "directly comparable with the v4 client. Use consume-v4 for the v4 client.");
+    public void validate() throws Exception {
+        super.validate();
+        resolvedClientApi = ClientApi.resolve(clientApi, topics, spec.commandLine());
+        ClientApiOptionGroups.validate(spec, resolvedClientApi);
+        if (v4.isolatedClients > 0 && listenerThreads != 1) {
+            throw new CommandLine.ParameterException(spec.commandLine(),
+                    "--isolated-clients cannot be combined with --num-listener-threads");
         }
-        if (this.autoScaledReceiverQueueSize) {
-            log.warn("--auto-scaled-receiver-queue-size has no V5 equivalent and will be ignored.");
+        if (v4.isolatedClients > 0 && isEnableTransaction) {
+            throw new CommandLine.ParameterException(spec.commandLine(),
+                    "--isolated-clients cannot be used with transactions");
         }
-        if (this.batchIndexAck) {
-            log.warn("--batch-index-ack has no V5 equivalent and will be ignored.");
+        if (subscriptionType == SubscriptionType.Exclusive && numConsumers > 1) {
+            throw new Exception("Only one consumer is allowed when subscriptionType is Exclusive");
         }
-        if (!this.poolMessages) {
-            log.info("--pool-messages has no effect on V5 (pooled messages are not exposed).");
-        }
-        if (this.maxPendingChunkedMessage > 0 || this.expireTimeOfIncompleteChunkedMessageMs > 0
-                || this.autoAckOldestChunkedMessageOnQueueFull) {
-            log.warn("Chunked-message specific knobs (--max_chunked_msg / "
-                    + "--expire_time_incomplete_chunked_messages / --auto_ack_chunk_q_full) "
-                    + "have no V5 equivalents and will be ignored.");
-        }
-        if (this.maxTotalReceiverQueueSizeAcrossPartitions != 50000) {
-            log.info("--receiver-queue-size-across-partitions has no V5 equivalent and will be ignored.");
-        }
-        this.encryptionPolicy = buildEncryptionPolicyOrNull();
-    }
 
-    @Override
-    protected PulsarClient createClient() throws PulsarClientException {
-        PulsarClientBuilder clientBuilder = PerfClientUtils.createV5ClientBuilderFromArguments(this);
-        if (this.isEnableTransaction) {
-            clientBuilder.transactionPolicy(TransactionPolicy.builder()
-                    .timeout(Duration.ofSeconds(this.transactionTimeout))
-                    .build());
-        }
-        return clientBuilder.build();
-    }
-
-    @Override
-    protected void closeClient(PulsarClient client) {
-        PerfClientUtils.closeClient(client);
-    }
-
-    @Override
-    protected CompletableFuture<PerfConsumer> subscribeAsync(PulsarClient client, String topic,
-                                                             String subscription) {
-        if (this.scalableConsumerType == ScalableConsumerType.Stream) {
-            // StreamConsumer has no receiverQueueSize knob; the rest carries over. Deliberately
-            // do NOT set a consumerName: the controller keys group membership by consumer name,
-            // so the V5 client's auto-generated unique name keeps every consumer — within one
-            // process and across separate `pulsar-perf consume` invocations — a distinct member.
-            // (Setting a deterministic name would make two processes collide and the second be
-            // treated as a reconnect of the first.)
-            StreamConsumerBuilder<byte[]> b = client.newStreamConsumer(Schema.bytes())
-                    .acknowledgmentGroupTime(Duration.ofMillis(this.acknowledgmentsGroupingDelayMillis))
-                    .subscriptionInitialPosition(this.subscriptionInitialPosition)
-                    .topic(topic)
-                    .subscriptionName(subscription);
-            if (encryptionPolicy != null) {
-                b.encryptionPolicy(encryptionPolicy);
-            }
-            return b.subscribeAsync().thenApply(PerformanceConsumer::wrap);
-        }
-        QueueConsumerBuilder<byte[]> b = client.newQueueConsumer(Schema.bytes())
-                .receiverQueueSize(this.receiverQueueSize)
-                .acknowledgmentGroupTime(Duration.ofMillis(this.acknowledgmentsGroupingDelayMillis))
-                .subscriptionInitialPosition(this.subscriptionInitialPosition)
-                .topic(topic)
-                .subscriptionName(subscription);
-        if (encryptionPolicy != null) {
-            b.encryptionPolicy(encryptionPolicy);
-        }
-        return b.subscribeAsync().thenApply(PerformanceConsumer::wrap);
-    }
-
-    @Override
-    protected Transaction newTransaction(PulsarClient client) throws PulsarClientException {
-        return client.newTransaction();
-    }
-
-    @Override
-    protected Transaction openFirstTransaction(PulsarClient client)
-            throws PulsarClientException, InterruptedException {
-        return PerfClientUtils.newTransactionWithRetry(client);
-    }
-
-    @Override
-    protected CompletableFuture<Void> commitTransaction(Transaction transaction) {
-        return transaction.async().commit();
-    }
-
-    @Override
-    protected CompletableFuture<Void> abortTransaction(Transaction transaction) {
-        return transaction.async().abort();
-    }
-
-    @Override
-    protected int messageSize(Message<byte[]> msg) {
-        return msg.size();
-    }
-
-    @Override
-    protected long publishTimeMillis(Message<byte[]> msg) {
-        return msg.publishTime().toEpochMilli();
-    }
-
-    @Override
-    protected void acknowledge(PerfConsumer consumer, Message<byte[]> msg, Transaction transaction) {
-        // V5 acknowledge is synchronous void. Catch any failure into the shared counter.
-        try {
-            if (transaction != null) {
-                consumer.ackTxn(msg.id(), transaction);
-            } else {
-                consumer.ack(msg.id());
-            }
-            ackSucceeded();
-        } catch (Exception e) {
-            ackFailed(e);
-        }
-    }
-
-    /**
-     * V5 has no MessageListener — drive each consumer from a dedicated poll thread that calls
-     * receive(timeout) and runs the same per-message handler the v4 listener does. One thread per
-     * consumer mirrors the v4 dispatch concurrency closely enough for the perf workload.
-     */
-    @Override
-    protected void startConsuming(List<PerfConsumer> consumers) {
-        consumerExec = Executors.newCachedThreadPool(
-                new DefaultThreadFactory("pulsar-perf-consumer-poll"));
-        for (PerfConsumer consumer : consumers) {
-            consumerExec.submit(() -> pollLoop(consumer));
-        }
-    }
-
-    @Override
-    protected void stopConsuming() {
-        if (consumerExec == null) {
-            return;
-        }
-        consumerExec.shutdownNow();
-        try {
-            if (!consumerExec.awaitTermination(10, TimeUnit.SECONDS)) {
-                log.warn("Consumer poll executor did not terminate within timeout");
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
-    /** Per-consumer poll loop replacing the v4 {@code MessageListener}. */
-    private void pollLoop(PerfConsumer consumer) {
-        while (!Thread.currentThread().isInterrupted()) {
-            if (checkDone()) {
-                return;
-            }
-
-            Message<byte[]> msg;
-            try {
-                msg = consumer.receive(Duration.ofSeconds(1));
-            } catch (Exception e) {
-                if (PerfClientUtils.hasInterruptedException(e)) {
-                    Thread.currentThread().interrupt();
-                    return;
+        if (subscriptions != null && subscriptions.size() != numSubscriptions) {
+            // keep compatibility with the previous version
+            if (subscriptions.size() == 1) {
+                if (subscriberName == null) {
+                    subscriberName = subscriptions.get(0);
                 }
-                log.warn().exception(e).log("receive failed; retrying");
-                continue;
-            }
-            if (msg == null) {
-                continue;
-            }
-
-            if (handleMessage(consumer, msg)) {
-                return;
+                List<String> defaultSubscriptions = new ArrayList<>();
+                for (int i = 0; i < numSubscriptions; i++) {
+                    defaultSubscriptions.add(String.format("%s-%d", subscriberName, i));
+                }
+                subscriptions = defaultSubscriptions;
+            } else {
+                throw new Exception("The size of subscriptions list should be equal to --num-subscriptions");
             }
         }
     }
 
-    /**
-     * Minimal common view over the V5 {@link QueueConsumer} / {@link StreamConsumer} APIs so the
-     * poll loop is independent of which scalable-topic consumer type was selected. The ack methods
-     * map to {@code acknowledge} for Queue and {@code acknowledgeCumulative} for Stream.
-     */
-    public interface PerfConsumer {
-        Message<byte[]> receive(Duration timeout) throws Exception;
-
-        void ack(MessageId messageId) throws Exception;
-
-        void ackTxn(MessageId messageId, Transaction txn) throws Exception;
-    }
-
-    private ConsumerEncryptionPolicy buildEncryptionPolicyOrNull() {
-        if (!isNotBlank(this.encKeyFile)) {
-            return null;
-        }
-        // We do not know the key name from --encryption-key-value-file alone; PemFileKeyProvider
-        // expects a name → path mapping. Register the file under the same name the producer side
-        // used (defaults to the file path's last component if unset upstream).
-        String keyName = Path.of(this.encKeyFile).getFileName().toString();
-        PemFileKeyProvider keys = PemFileKeyProvider.builder()
-                .privateKey(keyName, Path.of(this.encKeyFile))
-                .build();
-        return ConsumerEncryptionPolicy.builder()
-                .privateKeyProvider(keys)
-                .build();
-    }
-
-    private static PerfConsumer wrap(QueueConsumer<byte[]> consumer) {
-        return new PerfConsumer() {
-            @Override
-            public Message<byte[]> receive(Duration timeout) throws Exception {
-                return consumer.receive(timeout);
-            }
-
-            @Override
-            public void ack(MessageId messageId) throws Exception {
-                consumer.acknowledge(messageId);
-            }
-
-            @Override
-            public void ackTxn(MessageId messageId, Transaction txn) throws Exception {
-                consumer.acknowledge(messageId, txn);
-            }
-        };
-    }
-
-    private static PerfConsumer wrap(StreamConsumer<byte[]> consumer) {
-        return new PerfConsumer() {
-            @Override
-            public Message<byte[]> receive(Duration timeout) throws Exception {
-                return consumer.receive(timeout);
-            }
-
-            @Override
-            public void ack(MessageId messageId) throws Exception {
-                consumer.acknowledgeCumulative(messageId);
-            }
-
-            @Override
-            public void ackTxn(MessageId messageId, Transaction txn) throws Exception {
-                consumer.acknowledgeCumulative(messageId, txn);
-            }
-        };
+    @Override
+    public void run() throws Exception {
+        log.info().attr("topics", topics).log(resolvedClientApi == ClientApi.V5
+                ? "Using the V5 client" : "Using the v4 client");
+        PerformanceConsumerBase<?, ?, ?, ?> consumer = resolvedClientApi == ClientApi.V5
+                ? new PerformanceConsumerV5(this) : new PerformanceConsumerV4(this);
+        consumer.run();
     }
 }

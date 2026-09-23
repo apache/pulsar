@@ -27,7 +27,7 @@ candidate revision. See [README.md](README.md) for the profiling harness and ana
 
 ## Workload
 
-[read-completion-isolation.yaml](scenarios/read-completion-isolation.yaml) runs the v4 `pulsar-perf` commands
+[read-completion-isolation.yaml](scenarios/read-completion-isolation.yaml) runs `pulsar-perf` on the v4 client
 with 500 producers, 500 isolated clients sharing PIP-234 resources, one connection per client,
 and one Exclusive consumer on a non-partitioned `persistent://` topic. It sends 12 million
 unbatched 128-byte messages at unrestricted rate. Each producer permits 40 outstanding sends,
