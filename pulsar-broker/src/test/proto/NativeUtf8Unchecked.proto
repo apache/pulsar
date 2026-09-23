@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 syntax = "proto2";
-package proto.external;
+package native.utf8.unchecked;
+option java_package = "org.apache.pulsar.broker.service.schema.generated.unchecked";
+option java_outer_classname = "NativeUtf8Unchecked";
+option java_string_check_utf8 = false;
 
-option java_package = "org.apache.pulsar.client.schema.proto.external";
-option java_outer_classname = "ExternalReader";
-
-message ExternalReaderMessage {
-    required string externalStringField = 1;
-    optional double externalDoubleField = 2;
+message Order {
+  optional string name = 1;
 }

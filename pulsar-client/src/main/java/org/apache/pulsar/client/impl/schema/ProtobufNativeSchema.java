@@ -30,9 +30,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Consumer;
 import lombok.AllArgsConstructor;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.ToString;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.reader.ProtobufNativeReader;
 import org.apache.pulsar.client.impl.schema.writer.ProtobufNativeWriter;
@@ -49,18 +47,13 @@ public class ProtobufNativeSchema<T extends Message> extends AbstractStructSchem
 
     @Getter
     @AllArgsConstructor
-    @EqualsAndHashCode
-    @ToString
     public static class ProtoBufParsingInfo {
         private final int number;
         private final String name;
         private final String type;
-        @EqualsAndHashCode.Exclude
-        private final String typeName;
         private final String label;
         // For future nested fields
         private final Map<String, Object> definition;
-        private final boolean hasDefaultValue;
     }
 
     private static <T> Descriptors.Descriptor createProtobufNativeSchema(Class<T> pojo) {
@@ -91,8 +84,7 @@ public class ProtobufNativeSchema<T extends Message> extends AbstractStructSchem
             public void accept(Descriptors.FieldDescriptor fieldDescriptor) {
                 protoBufParsingInfos.add(new ProtoBufParsingInfo(fieldDescriptor.getNumber(),
                         fieldDescriptor.getName(), fieldDescriptor.getType().name(),
-                        fieldDescriptor.toProto().getTypeName(), fieldDescriptor.toProto().getLabel().name(), null,
-                        fieldDescriptor.hasDefaultValue()));
+                        fieldDescriptor.toProto().getLabel().name(), null));
             }
         });
 

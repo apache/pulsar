@@ -223,7 +223,7 @@ sourceSets["main"].proto {
 
 lightproto {
     // Test protos that need standard protobuf (GeneratedMessageV3), not lightproto
-    excludes.addAll("ProtobufSchemaTest.proto", "DataRecord.proto")
+    excludes.addAll("ProtobufSchemaTest.proto", "DataRecord.proto", "NativeEditionJavaUtf8.proto")
     // TransactionPendingAck.proto imports PulsarApi.proto from pulsar-common
     extraProtoPaths.from(rootProject.layout.projectDirectory)
 }
