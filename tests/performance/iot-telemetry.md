@@ -142,7 +142,8 @@ every interval, and `offcpu-no-idle.html` without the time threads spent waiting
 `epollWait`, executor workers waiting for a task, JDK and HotSpot service threads. In a broker run those idle
 waits are over 99 % of the off-CPU time, so the second graph is the one that shows lock and monitor contention,
 safepoints, GC phases and I/O. Its `offcpu-no-idle.json` accounts for the time it left out, and the frames it
-matches are listed in `OffCpuFlamegraphs.IDLE_WAIT_FRAMES`.
+matches are listed, with the reasoning for each group, in the launcher resource `offcpu-idle-waits.txt`, which
+every run copies into its `<recording>-offcpu/` directory.
 
 After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the producer's
 measurement start through the latest measured-message receipt across all backend applications. The upper boundary
