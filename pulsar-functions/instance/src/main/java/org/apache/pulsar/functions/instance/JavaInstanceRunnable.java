@@ -88,6 +88,8 @@ import org.apache.pulsar.functions.instance.state.StateStoreContextImpl;
 import org.apache.pulsar.functions.instance.state.StateStoreProvider;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
+import org.apache.pulsar.functions.instance.v5.LazyPulsarClientV5;
+import org.apache.pulsar.functions.instance.v5.V5ProducerFactory;
 import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.proto.FunctionStatus;
 import org.apache.pulsar.functions.proto.MetricsData;
@@ -128,6 +130,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     // input topic consumer & output topic producer
     private final ClientBuilder clientBuilder;
     private final PulsarClientImpl client;
+    private final LazyPulsarClientV5 clientV5;
     private final PulsarAdmin pulsarAdmin;
 
     private LogAppender logAppender;
@@ -193,9 +196,29 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 FunctionCollectorRegistry collectorRegistry,
                                 ClassLoader componentClassLoader,
                                 ClassLoader transformFunctionClassLoader) throws PulsarClientException {
+        this(instanceConfig, clientBuilder, pulsarClient, null, pulsarAdmin, stateStorageImplClass,
+                stateStorageServiceUrl, secretsProvider, collectorRegistry, componentClassLoader,
+                transformFunctionClassLoader);
+    }
+
+    /**
+     * @param clientV5 the runtime's V5 client, created on first use, or {@code null} if the runtime has none
+     */
+    public JavaInstanceRunnable(InstanceConfig instanceConfig,
+                                ClientBuilder clientBuilder,
+                                PulsarClient pulsarClient,
+                                LazyPulsarClientV5 clientV5,
+                                PulsarAdmin pulsarAdmin,
+                                String stateStorageImplClass,
+                                String stateStorageServiceUrl,
+                                SecretsProvider secretsProvider,
+                                FunctionCollectorRegistry collectorRegistry,
+                                ClassLoader componentClassLoader,
+                                ClassLoader transformFunctionClassLoader) throws PulsarClientException {
         this.instanceConfig = instanceConfig;
         this.clientBuilder = clientBuilder;
         this.client = (PulsarClientImpl) pulsarClient;
+        this.clientV5 = clientV5;
         this.pulsarAdmin = pulsarAdmin;
         this.stateStorageImplClass = stateStorageImplClass;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
@@ -255,8 +278,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // The worker validates this when the component is submitted; resolving it again also covers
         // function details that did not come through the worker, such as LocalRunner configurations.
         this.clientApi = ClientApiResolver.resolve(instanceConfig.getFunctionDetails());
-        if (clientApi == FunctionDetails.ClientApi.V5) {
-            throw new UnsupportedOperationException("The V5 client is not supported by the Java instance yet");
+        if (usesClientV5()) {
+            if (clientV5 == null) {
+                throw new IllegalStateException("The component uses the V5 client, but the runtime has none");
+            }
+            SourceSpec sourceSpec = instanceConfig.getFunctionDetails().getSource();
+            if (sourceSpec.getInputSpecsCount() > 0
+                    || BatchSourceExecutor.class.getName().equals(sourceSpec.getClassName())) {
+                throw new UnsupportedOperationException(
+                        "Consuming with the V5 client is not supported by the Java instance yet");
+            }
         }
 
         Object object;
@@ -303,6 +334,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         isInitialized = true;
     }
 
+    private boolean usesClientV5() {
+        return clientApi == FunctionDetails.ClientApi.V5;
+    }
+
     ContextImpl setupContext() throws PulsarClientException {
         Logger instanceLog = LoggerFactory.getILoggerFactory().getLogger(
                 "function-" + instanceConfig.getFunctionDetails().getName());
@@ -314,7 +349,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         };
         try {
             Thread.currentThread().setContextClassLoader(functionClassLoader);
-            return new ContextImpl(instanceConfig, instanceLog, client, secretsProvider,
+            return new ContextImpl(instanceConfig, instanceLog, client, usesClientV5() ? clientV5 : null,
+                secretsProvider,
                 collectorRegistry, metricsLabels, this.componentType, this.stats, stateManager,
                 pulsarAdmin, clientBuilder, fatalHandler, producerCache);
         } finally {
@@ -812,9 +848,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // make sure Crc32cIntChecksum class is loaded before logging starts
             // to prevent "SSE4.2 CRC32C provider initialized" appearing in log topic
             new Crc32cIntChecksum();
-            logAppender = new LogAppender(client, instanceConfig.getFunctionDetails().getLogTopic(),
-                    FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails()),
-                    instanceConfig.getInstanceName());
+            String logTopic = instanceConfig.getFunctionDetails().getLogTopic();
+            String fqn = FunctionCommon.getFullyQualifiedName(instanceConfig.getFunctionDetails());
+            logAppender = usesClientV5()
+                    ? new LogAppender(clientV5, logTopic, fqn, instanceConfig.getInstanceName())
+                    : new LogAppender(client, logTopic, fqn, instanceConfig.getInstanceName());
             logAppender.start();
             setupLogTopicAppender(LoggerContext.getContext());
             setupLogTopicAppender(LoggerContext.getContext(false));
@@ -1141,8 +1179,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 conf.getCompressionType()));
                 pulsarSinkConfig.setProducerConfig(builder.build());
 
-                object = new PulsarSink(this.client, pulsarSinkConfig, this.properties, this.stats,
-                        this.functionClassLoader, this.producerCache);
+                V5ProducerFactory v5ProducerFactory = usesClientV5()
+                        ? new V5ProducerFactory(clientV5, pulsarSinkConfig.getProducerConfig(),
+                                org.apache.pulsar.client.api.v5.config.CompressionType.LZ4)
+                        : null;
+                object = new PulsarSink(this.client, v5ProducerFactory, pulsarSinkConfig, this.properties,
+                        this.stats, this.functionClassLoader, this.producerCache);
             }
         } else {
             object = Reflections.createInstance(

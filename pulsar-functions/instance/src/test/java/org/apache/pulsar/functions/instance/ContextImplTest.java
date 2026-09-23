@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.instance;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -238,6 +239,13 @@ public class ContextImplTest {
     @Test
     public void testPublishUsingDefaultSchema() throws Exception {
         context.newOutputMessage("sometopic", null).value("Somevalue").sendAsync();
+    }
+
+    @Test
+    public void testPublishToScalableTopicNeedsClientV5() {
+        assertThatThrownBy(() -> context.newOutputMessage("topic://public/default/out", Schema.STRING))
+                .isInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("set clientApi to V5");
     }
 
     @Test
