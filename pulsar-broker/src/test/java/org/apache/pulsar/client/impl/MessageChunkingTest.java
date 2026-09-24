@@ -52,6 +52,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
@@ -363,6 +364,74 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         // Ensure that the chunked message of uuid 0 is discarded.
         assertNull(consumer.receive(5, TimeUnit.SECONDS));
+    }
+
+    /**
+     * A non-persistent topic cannot carry chunked messages: the slicing block in
+     * {@code ProducerImpl.serializeAndSendMessage} is skipped for them, but {@code totalChunks} was computed
+     * from the payload size alone, so the send loop still ran once per "chunk" — publishing the whole payload
+     * that many times, and releasing the payload buffer more often than it was retained.
+     */
+    @Test
+    public void testLargeMessageOnNonPersistentTopicIsSentOnceWithoutChunking() throws Exception {
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunking";
+        final String subName = "my-subscriber-name";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                // small enough that the payload below would otherwise be split into several chunks
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        String payload = "a".repeat(500);
+        producer.newMessage().value(payload).send();
+
+        Message<String> received = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(received, "the message was not delivered");
+        assertEquals(received.getValue(), payload);
+
+        // Without the fix the same payload is published once per computed chunk, so more messages follow.
+        assertNull(consumer.receive(3, TimeUnit.SECONDS),
+                "the payload was published more than once on a non-persistent topic");
+    }
+
+    /**
+     * The chunking flag is inert on a non-persistent topic, so the message-size checks must behave as if it were
+     * off: a payload above the broker limit is rejected locally with {@link InvalidMessageException} instead of
+     * being sent to the broker as one oversized frame.
+     */
+    @Test
+    public void testLargeMessageOnNonPersistentTopicAboveBrokerLimitIsRejectedLocally() throws Exception {
+        final int maxMessageSize = 1024;
+        this.conf.setMaxMessageSize(maxMessageSize);
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunkingAboveLimit";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+
+        // Well above maxMessageSize plus the broker's frame padding: the payload cannot be sent as a single
+        // frame, so a local rejection is the only correct outcome.
+        byte[] payload = RandomUtils.nextBytes(maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING + 1024);
+        try {
+            producer.send(payload);
+            fail("an oversized message on a non-persistent topic must be rejected by the client");
+        } catch (InvalidMessageException expected) {
+            assertTrue(expected.getMessage().contains("exceeds"), expected.getMessage());
+        }
     }
 
     @Test
