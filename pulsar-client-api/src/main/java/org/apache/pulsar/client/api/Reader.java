@@ -47,6 +47,15 @@ public interface Reader<T> extends Closeable {
      * @throws PulsarClientException
      */
     Message<T> readNext() throws PulsarClientException;
+    /**
+     * Read the next messages in the topic.
+     *
+     * <p>This method will block until a message is available.
+     *
+     * @return the next message
+     * @throws PulsarClientException
+     */
+    Messages<T> batchReadNext() throws PulsarClientException;
 
     /**
      * Read the next message in the topic waiting for a maximum time.

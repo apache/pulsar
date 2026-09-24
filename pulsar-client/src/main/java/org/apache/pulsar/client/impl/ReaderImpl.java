@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderDecryptFailListener;
@@ -202,6 +203,21 @@ public class ReaderImpl<T> implements Reader<T> {
             log.warn().attr("messageId", msg.getMessageId())
                     .exception(ex)
                     .log("acknowledge message cumulative fail");
+            return null;
+        });
+        return msg;
+    }
+
+    @Override
+    public Messages<T> batchReadNext() throws PulsarClientException {
+        Messages<T> msg = consumer.batchReceive();
+
+        // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
+        // it will specify the subscription position anyway
+        consumer.acknowledgeAsync(msg).exceptionally(ex -> {
+            log.warn().attr("messages", msg)
+               .exception(ex)
+               .log("acknowledge message cumulative fail");
             return null;
         });
         return msg;
