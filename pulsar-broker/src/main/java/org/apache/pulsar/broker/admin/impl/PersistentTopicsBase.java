@@ -1533,13 +1533,11 @@ public class PersistentTopicsBase extends AdminResource {
                                 return null;
                             });
                 }).exceptionally(ex -> {
-                        if (isNot307And404Exception(ex)) {
-                            log.error()
-                                    .attr("topic", topicName)
-                                    .exception(ex)
-                                    .log("Failed to get managed info");
-                        }
-                        resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    log.error()
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to get managed info");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
 
