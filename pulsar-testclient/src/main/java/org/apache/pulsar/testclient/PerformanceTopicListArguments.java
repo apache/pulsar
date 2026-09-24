@@ -30,7 +30,8 @@ import picocli.CommandLine.Parameters;
  */
 public abstract class PerformanceTopicListArguments extends PerformanceBaseArguments {
 
-    @Parameters(description = "persistent://prop/ns/my-topic", arity = "1")
+    @Parameters(description = "Topic names, e.g. persistent://tenant/ns/my-topic (v4 client) or "
+            + "topic://tenant/ns/my-topic (V5 client)", arity = "1")
     public List<String> topics;
 
     @Option(names = { "-t", "--num-topics", "--num-topic" }, description = "Number of topics.  Must match"

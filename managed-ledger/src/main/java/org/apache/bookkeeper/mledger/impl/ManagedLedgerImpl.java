@@ -337,6 +337,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Getter
     protected final ThreadBoundExecutor executor;
 
+    // Captured at ledger creation so configuration updates cannot change affinity with callbacks still queued.
+    private final boolean readEntriesCallbackInline;
+
     @Getter
     private final ManagedLedgerFactoryImpl factory;
 
@@ -401,6 +404,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // relies on the same cast for its ledger handles). The ledger callbacks are pinned to this thread through
         // withOrderingKey, so their processing can run inline with executeOrRun() instead of re-queueing.
         this.executor = (ThreadBoundExecutor) bookKeeper.getMainWorkerPool().chooseThread(name);
+        this.readEntriesCallbackInline = config.isReadEntriesCallbackInline();
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
@@ -1990,6 +1994,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         } else if (state.isFenced()) {
             clearPendingAddEntries(new ManagedLedgerFencedException("Managed ledger is fenced"));
+            return;
+        } else if (state == State.Terminated) {
+            // The managed ledger was terminated during the write operation: the ledger got closed under the in-flight
+            // adds, and no new ledger will be created to retry them
+            clearPendingAddEntries(new ManagedLedgerTerminatedException("Managed ledger was terminated"));
             return;
         } else {
             // In case we get multiple write errors for different outstanding write request, we should close the ledger
@@ -4574,6 +4583,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Override
     public ManagedLedgerConfig getConfig() {
         return config;
+    }
+
+    /** Returns the read-completion policy captured when this ledger was opened. */
+    boolean isReadEntriesCallbackInline() {
+        return readEntriesCallbackInline;
     }
 
     /**

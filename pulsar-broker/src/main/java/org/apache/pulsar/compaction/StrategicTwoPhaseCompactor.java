@@ -19,6 +19,7 @@
 package org.apache.pulsar.compaction;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.util.ReferenceCountUtil;
 import java.time.Duration;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -367,6 +368,9 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
                                 }
                             });
                 })
+                // Close before publishing the ledger: a close failure must not delete a ledger
+                // already referenced by the compaction subscription.
+                .thenCompose(v -> closeLedger(ledger))
                 .thenCompose(v -> {
                     log.info().attr("lastId", phaseOneResult.lastId).log("Acking ledger");
                     return ((CompactionReaderImpl<T>) reader)
@@ -374,7 +378,6 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
                                     phaseOneResult.lastId, Map.of(COMPACTED_TOPIC_LEDGER_PROPERTY,
                                             ledger.getId()));
                 })
-                .thenCompose((v) -> closeLedger(ledger))
                 .whenComplete((v, exception) -> {
                     if (exception != null) {
                         deleteLedger(bk, ledger).whenComplete((res2, exception2) -> {
@@ -452,23 +455,43 @@ public class StrategicTwoPhaseCompactor extends PublishingOrderCompactor {
             return CompletableFuture.completedFuture(false);
         }
         CompletableFuture<Boolean> bkf = new CompletableFuture<>();
+        ByteBuf serialized = null;
+        boolean acquired = false;
         try {
-            ByteBuf serialized = batchMessageContainer.toByteBuf();
+            serialized = batchMessageContainer.toByteBuf();
             outstanding.acquire();
+            acquired = true;
             mxBean.addCompactionWriteOp(topic, serialized.readableBytes());
             long start = System.nanoTime();
             lh.asyncAddEntry(serialized,
                     (rc, ledger, eid, ctx) -> {
                         outstanding.release();
-                        mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
+                        try {
+                            mxBean.addCompactionLatencyOp(topic, System.nanoTime() - start, TimeUnit.NANOSECONDS);
+                        } catch (Throwable t) {
+                            // This callback can run synchronously inside asyncAddEntry: an exception escaping
+                            // it would reach the caller's catch, which would release the permit and the
+                            // buffer a second time - both already belong to the completed write here.
+                            log.warn().exception(t).log("Failed to record the compaction write latency");
+                        }
                         if (rc != BKException.Code.OK) {
                             bkf.completeExceptionally(BKException.create(rc));
                         } else {
                             bkf.complete(true);
                         }
                     }, null);
+            // Ownership transferred to BookKeeper's write; it releases the buffer when done.
+            serialized = null;
 
         } catch (Throwable t) {
+            // toByteBuf() already cleared the container: nobody else holds the buffer if the hand-off
+            // never happened.
+            ReferenceCountUtil.safeRelease(serialized);
+            // Release the permit only when it was taken: a lost one stalls the next flush on acquire(),
+            // a surplus one raises the outstanding-writes limit.
+            if (acquired) {
+                outstanding.release();
+            }
             log.error().exception(t).log("Failed to add entry");
             // discard(Exception) cannot take an Error: wrap non-Exception Throwables so the batch container is
             // always cleared here and stays reusable after a failed flush.

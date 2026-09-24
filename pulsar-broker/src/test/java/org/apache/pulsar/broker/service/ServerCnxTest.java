@@ -73,6 +73,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -117,9 +118,11 @@ import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.ProducerAccessMode;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.AuthMethod;
@@ -135,6 +138,8 @@ import org.apache.pulsar.common.api.proto.CommandEndTxnOnPartitionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
@@ -4122,6 +4127,177 @@ public class ServerCnxTest {
         assertEquals(response.getTxnidMostBits(), 12L);
         assertEquals(response.getError().getValue(), 0);
         assertEquals(response.getMessage(), "server error");
+
+        channel.finish();
+    }
+
+    private AuthorizationService mockTopicAuthorization(boolean allowed) {
+        AuthorizationService authorizationService = mock(AuthorizationService.class);
+        doReturn(CompletableFuture.completedFuture(allowed)).when(authorizationService)
+                .allowTopicOperationAsync(Mockito.any(),
+                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
+        svcConfig.setAuthenticationEnabled(true);
+        svcConfig.setAuthorizationEnabled(true);
+        return authorizationService;
+    }
+
+    private AtomicInteger countSchemaReads() {
+        AtomicInteger schemaReads = new AtomicInteger();
+        SchemaRegistryService schemaRegistryService = pulsar.getSchemaRegistryService();
+        doAnswer(invocation -> {
+            schemaReads.incrementAndGet();
+            return CompletableFuture.completedFuture(null);
+        }).when(schemaRegistryService).getSchema(any(), any());
+        return schemaReads;
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetSchemaRequiresLookupPermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        AtomicInteger schemaReads = countSchemaReads();
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetSchema(1L, successTopicName, Optional.empty()));
+        CommandGetSchemaResponse response = (CommandGetSchemaResponse) getResponse();
+
+        assertEquals(response.getErrorCode(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get(successTopicName)),
+                eq(TopicOperation.LOOKUP), any(), any(), any(), any());
+        assertEquals(schemaReads.get(), 0);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetSchemaWithLookupPermission() throws Exception {
+        mockTopicAuthorization(true);
+        AtomicInteger schemaReads = countSchemaReads();
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetSchema(1L, successTopicName, Optional.empty()));
+        CommandGetSchemaResponse response = (CommandGetSchemaResponse) getResponse();
+
+        // The registry holds no schema, so an authorized request reaches it and gets TopicNotFound.
+        assertEquals(response.getErrorCode(), ServerError.TopicNotFound);
+        assertEquals(schemaReads.get(), 1);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetOrCreateSchemaRequiresProducePermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        AtomicBoolean topicLookedUp = new AtomicBoolean();
+        doAnswer(invocation -> {
+            topicLookedUp.set(true);
+            return CompletableFuture.completedFuture(Optional.empty());
+        }).when(brokerService).getTopicIfExists(any(String.class));
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetOrCreateSchema(1L, successTopicName, "prod",
+                Schema.STRING.getSchemaInfo()));
+        CommandGetOrCreateSchemaResponse response = (CommandGetOrCreateSchemaResponse) getResponse();
+
+        assertEquals(response.getErrorCode(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get(successTopicName)),
+                eq(TopicOperation.PRODUCE), any(), any(), any(), any());
+        assertFalse(topicLookedUp.get());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetOrCreateSchemaWithProducePermission() throws Exception {
+        mockTopicAuthorization(true);
+        AtomicBoolean topicLookedUp = new AtomicBoolean();
+        doAnswer(invocation -> {
+            topicLookedUp.set(true);
+            return CompletableFuture.completedFuture(Optional.empty());
+        }).when(brokerService).getTopicIfExists(any(String.class));
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newGetOrCreateSchema(1L, successTopicName, "prod",
+                Schema.STRING.getSchemaInfo()));
+        CommandGetOrCreateSchemaResponse response = (CommandGetOrCreateSchemaResponse) getResponse();
+
+        // No topic is loaded, so an authorized request reaches the topic lookup and gets TopicNotFound.
+        assertEquals(response.getErrorCode(), ServerError.TopicNotFound);
+        assertTrue(topicLookedUp.get());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testAddPartitionToTxnRefusedWhenOnePartitionIsDenied() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(true);
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationService)
+                .allowTopicOperationAsync(eq(TopicName.get("tenant/ns/denied")),
+                        Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newAddPartitionToTxn(89L, 1L, 12L,
+                List.of("tenant/ns/allowed", "tenant/ns/denied")));
+        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
+
+        assertEquals(response.getError(), ServerError.AuthorizationError);
+        verify(txnStore, never()).addProducedPartitionToTxn(any(TxnID.class), any());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testAddPartitionToTxnRequiresProducePermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newAddPartitionToTxn(89L, 1L, 12L, List.of("tenant/ns/topic1")));
+        CommandAddPartitionToTxnResponse response = (CommandAddPartitionToTxnResponse) getResponse();
+
+        assertEquals(response.getError(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get("tenant/ns/topic1")),
+                eq(TopicOperation.PRODUCE), any(), any(), any(), any());
+        verify(txnStore, never()).addProducedPartitionToTxn(any(TxnID.class), any());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testAddSubscriptionToTxnRequiresConsumePermission() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(false);
+        final TransactionMetadataStoreService txnStore = mock(TransactionMetadataStoreService.class);
+        when(txnStore.verifyTxnOwnership(any(), any())).thenReturn(CompletableFuture.completedFuture(true));
+        when(pulsar.getTransactionMetadataStoreService()).thenReturn(txnStore);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        resetChannel();
+        setChannelConnected();
+        final Subscription sub = new Subscription();
+        sub.setTopic("topic1");
+        sub.setSubscription("sub1");
+
+        channel.writeInbound(Commands.newAddSubscriptionToTxn(89L, 1L, 12L, List.of(sub)));
+        CommandAddSubscriptionToTxnResponse response = (CommandAddSubscriptionToTxnResponse) getResponse();
+
+        assertEquals(response.getError(), ServerError.AuthorizationError);
+        verify(authorizationService, times(1)).allowTopicOperationAsync(eq(TopicName.get("topic1")),
+                eq(TopicOperation.CONSUME), any(), any(), any(), argThat(arg ->
+                        arg instanceof AuthenticationDataSubscription
+                                && "sub1".equals(((AuthenticationDataSubscription) arg).getSubscription())));
+        verify(txnStore, never()).addAckedPartitionToTxn(any(TxnID.class), any());
 
         channel.finish();
     }

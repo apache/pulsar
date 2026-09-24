@@ -340,6 +340,10 @@ public class TopicName implements ServiceUnitId {
      * <p>Any {@code -partition-K} suffix is stripped, so a partition name like
      * {@code persistent://t/n/x-partition-3} resolves to the base topic's scalable
      * identity {@code topic://t/n/x}, not {@code topic://t/n/x-partition-3}.
+     *
+     * <p>The local name is spliced verbatim: topic name parsing never URL-decodes,
+     * so encoding it here would derive a different identity than the same topic
+     * spelled directly in the {@code topic://} domain.
      */
     public TopicName toScalableTopic() {
         if (domain == TopicDomain.topic) {
@@ -347,7 +351,7 @@ public class TopicName implements ServiceUnitId {
         }
         TopicName base = isPartitioned() ? get(getPartitionedTopicName()) : this;
         return get(TopicDomain.topic.value() + "://" + base.getNamespace()
-                + "/" + base.getEncodedLocalName());
+                + "/" + base.getLocalName());
     }
 
     /**

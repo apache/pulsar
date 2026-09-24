@@ -30,6 +30,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.util.Codec;
 
@@ -64,22 +65,21 @@ public class ShadowReplicator extends PersistentReplicator {
     protected boolean replicateEntries(List<Entry> entries, InFlightTask inFlightTask) {
         boolean atLeastOneMessageSentForReplication = false;
 
-        try {
-            // This flag is set to true when we skip at least one local message,
-            // in order to skip remaining local messages.
-            boolean skipRemainingMessages = false;
-            for (int i = 0; i < entries.size(); i++) {
-                Entry entry = entries.get(i);
+        // This flag is set to true when we skip at least one local message,
+        // in order to skip remaining local messages.
+        boolean skipRemainingMessages = false;
+        for (int i = 0; i < entries.size(); i++) {
+            Entry entry = entries.get(i);
+            MessageImpl msg = null;
+            boolean handedToProducer = false;
+            try {
                 // Skip the messages since the replicator need to fetch the schema info to replicate the schema to the
                 // remote cluster. Rewind the cursor first and continue the message read after fetched the schema.
                 if (skipRemainingMessages) {
-                    inFlightTask.incCompletedEntries();
-                    entry.release();
                     continue;
                 }
                 int length = entry.getLength();
                 ByteBuf headersAndPayload = entry.getDataBuffer();
-                MessageImpl msg;
                 try {
                     msg = MessageImpl.deserializeMetadataWithEmptyPayload(headersAndPayload);
                 } catch (Throwable t) {
@@ -89,8 +89,6 @@ public class ShadowReplicator extends PersistentReplicator {
                             .exception(t)
                             .log("Failed to deserialize message");
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
-                    inFlightTask.incCompletedEntries();
-                    entry.release();
                     continue;
                 }
 
@@ -101,22 +99,22 @@ public class ShadowReplicator extends PersistentReplicator {
                             .attr("replicateTo", msg.getReplicateTo())
                             .log("Discarding expired message");
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
-                    inFlightTask.incCompletedEntries();
-                    entry.release();
-                    msg.recycle();
                     continue;
                 }
 
-                if (STATE_UPDATER.get(this) != State.Started || inFlightTask.isSkipReadResultDueToCursorRewind()) {
+                ProducerImpl producer = this.producer;
+                if (STATE_UPDATER.get(this) != State.Started || producer == null
+                        || inFlightTask.isSkipReadResultDueToCursorRewind()) {
                     // The producer is not ready yet after having stopped/restarted. Drop the message because it will
                     // recovered when the producer is ready
                     log.debug()
                             .attr("position", entry.getPosition())
                             .log("Dropping read message because producer is not ready");
                     skipRemainingMessages = true;
-                    inFlightTask.incCompletedEntries();
-                    entry.release();
-                    msg.recycle();
+                    if (!inFlightTask.isSkipReadResultDueToCursorRewind()) {
+                        beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Disconnecting);
+                        doRewindCursor(true);
+                    }
                     continue;
                 }
 
@@ -134,13 +132,23 @@ public class ShadowReplicator extends PersistentReplicator {
                         .setValue(String.format("%s:%s", entry.getLedgerId(), entry.getEntryId()));
 
                 // Increment pending messages for messages produced locally
-                producer.sendAsync(msg, ProducerSendCallback.create(this, entry, msg, inFlightTask));
+                ProducerSendCallback callback = ProducerSendCallback.create(this, entry, msg, inFlightTask);
+                // sendAsync can complete its callback before returning.
+                handedToProducer = true;
+                producer.sendAsync(msg, callback);
                 atLeastOneMessageSentForReplication = true;
+            } catch (Throwable e) {
+                log.error().exception(e).log("Unexpected exception in replication task");
+                skipRemainingMessages = true;
+                delayReadRetry();
+                beforeTerminateOrCursorRewinding(ReasonOfWaitForCursorRewinding.Failed_Publishing);
+                doRewindCursor(false);
+            } finally {
+                if (!handedToProducer) {
+                    inFlightTask.incCompletedEntries();
+                    discardEntry(entry, msg);
+                }
             }
-        } catch (Exception e) {
-            log.error()
-                    .exception(e)
-                    .log("Unexpected exception in replication task for shadow topic");
         }
         return atLeastOneMessageSentForReplication;
     }

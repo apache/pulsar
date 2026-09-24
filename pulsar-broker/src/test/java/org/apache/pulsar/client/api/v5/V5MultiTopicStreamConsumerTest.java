@@ -237,8 +237,8 @@ public class V5MultiTopicStreamConsumerTest extends V5ClientBaseTest {
         long total = 0;
         for (String topic : scalableTopics) {
             var stats = admin.scalableTopics().getStats(topic);
-            for (var seg : stats.getSegments().values()) {
-                var ref = getTopicReference(seg.name());
+            for (var seg : stats.getLayout().getSegments().values()) {
+                var ref = getTopicReference(seg.getName());
                 if (ref.isEmpty()) {
                     continue;
                 }

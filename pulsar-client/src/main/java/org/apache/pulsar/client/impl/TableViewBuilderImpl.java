@@ -30,7 +30,9 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.api.TableViewBuilder;
+import org.apache.pulsar.client.api.TableViewMessageMapper;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
 
@@ -63,6 +65,30 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     @Override
     public CompletableFuture<TableView<T>> createAsync() {
        return new TableViewImpl<>(client, schema, conf).start();
+    }
+
+    @Override
+    public <V> TableView<V> createMapped(TableViewMessageMapper<T, V> mapper) throws PulsarClientException {
+        checkArgument(mapper != null, "mapper cannot be null");
+        checkArgument(conf.getTopicCompactionStrategyClassName() == null,
+                MappedTableViewImpl.COMPACTION_STRATEGY_UNSUPPORTED);
+        try {
+            return createMappedAsync(mapper).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public <V> CompletableFuture<TableView<V>> createMappedAsync(TableViewMessageMapper<T, V> mapper) {
+        if (mapper == null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("mapper cannot be null"));
+        }
+        if (conf.getTopicCompactionStrategyClassName() != null) {
+            return FutureUtil.failedFuture(
+                    new IllegalArgumentException(MappedTableViewImpl.COMPACTION_STRATEGY_UNSUPPORTED));
+        }
+        return new MappedTableViewImpl<>(client, schema, conf, mapper).start();
     }
 
     @Override

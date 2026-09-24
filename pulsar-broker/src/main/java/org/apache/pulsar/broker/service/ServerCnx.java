@@ -689,8 +689,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         result.thenAccept(isAuthorized -> {
             if (!isAuthorized) {
                 log.warn()
-                        .attr("authRole", authRole)
-                        .attr("originalPrincipal", originalPrincipal)
+                        .attr("authRole", authenticationRoleLoggingAnonymizer.anonymize(authRole))
+                        .attr("originalPrincipal", authenticationRoleLoggingAnonymizer.anonymize(originalPrincipal))
                         .attr("operation", operation)
                         .attr("topic", topicName)
                         .log("Role or OriginalRole is not authorized to perform operation on topic");
@@ -3540,26 +3540,40 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
 
         final String topic = commandGetSchema.getTopic();
-        String schemaName;
+        final TopicName topicName;
+        final String schemaName;
         try {
-            schemaName = TopicName.get(topic).getSchemaName();
+            topicName = TopicName.get(topic);
+            schemaName = topicName.getSchemaName();
         } catch (Throwable t) {
             commandSender.sendGetSchemaErrorResponse(requestId, ServerError.InvalidTopicName, t.getMessage());
             return;
         }
+        final SchemaVersion requestedVersion = schemaVersion;
 
-        schemaService.getSchema(schemaName, schemaVersion).thenAccept(schemaAndMetadata -> {
-            if (schemaAndMetadata == null) {
-                commandSender.sendGetSchemaErrorResponse(requestId, ServerError.TopicNotFound,
-                        String.format("Topic not found or no-schema %s", topic));
-            } else {
-                commandSender.sendGetSchemaResponse(requestId,
-                        SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema), schemaAndMetadata.version);
-            }
-        }).exceptionally(ex -> {
-            commandSender.sendGetSchemaErrorResponse(requestId, ServerError.UnknownError, ex.getMessage());
-            return null;
-        });
+        // Producers, consumers and readers fetch the schema of a topic they have looked up, so LOOKUP is a
+        // permission every legitimate caller already holds.
+        isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData)
+                .thenCompose(isAuthorized -> {
+                    if (!isAuthorized) {
+                        commandSender.sendGetSchemaErrorResponse(requestId, ServerError.AuthorizationError,
+                                "Client is not authorized to get the schema of " + topic);
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return schemaService.getSchema(schemaName, requestedVersion).thenAccept(schemaAndMetadata -> {
+                        if (schemaAndMetadata == null) {
+                            commandSender.sendGetSchemaErrorResponse(requestId, ServerError.TopicNotFound,
+                                    String.format("Topic not found or no-schema %s", topic));
+                        } else {
+                            commandSender.sendGetSchemaResponse(requestId,
+                                    SchemaInfoUtil.newSchemaInfo(schemaName, schemaAndMetadata.schema),
+                                    schemaAndMetadata.version);
+                        }
+                    });
+                }).exceptionally(ex -> {
+                    commandSender.sendGetSchemaErrorResponse(requestId, ServerError.UnknownError, ex.getMessage());
+                    return null;
+                });
     }
 
     @Override
@@ -3568,9 +3582,28 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         log.debug("Received CommandGetOrCreateSchema call");
         long requestId = commandGetOrCreateSchema.getRequestId();
         final String topicName = commandGetOrCreateSchema.getTopic();
+        final TopicName parsedTopicName;
+        try {
+            parsedTopicName = TopicName.get(topicName);
+        } catch (Throwable t) {
+            commandSender.sendGetOrCreateSchemaErrorResponse(requestId, ServerError.InvalidTopicName,
+                    t.getMessage());
+            return;
+        }
         SchemaData schemaData = getSchema(commandGetOrCreateSchema.getSchema());
         SchemaData schema = schemaData.getType() == SchemaType.NONE ? null : schemaData;
-        service.getTopicIfExists(topicName).thenAccept(topicOpt -> {
+        // Adding a schema version changes what the topic's producers may send, so it takes PRODUCE, as the
+        // REST schema upload does.
+        CompletableFuture<Optional<Topic>> topicFuture =
+                isTopicOperationAllowed(parsedTopicName, TopicOperation.PRODUCE, authenticationData, originalAuthData)
+                        .thenCompose(isAuthorized -> {
+                            if (!isAuthorized) {
+                                return CompletableFuture.failedFuture(new BrokerServiceException.NotAuthorizedException(
+                                        "Client is not authorized to add a schema to " + topicName));
+                            }
+                            return service.getTopicIfExists(topicName);
+                        });
+        topicFuture.thenAccept(topicOpt -> {
             if (topicOpt.isPresent()) {
                 Topic topic = topicOpt.get();
                 boolean isReplicatorProducer = false;
@@ -3821,9 +3854,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     if (!isOwner) {
                         return failedFutureTxnNotOwned(txnID);
                     }
-                    return transactionMetadataStoreService
-                            .addProducedPartitionToTxn(txnID, partitionsList);
+                    return checkTxnPartitionsAuthorized(partitionsList);
                 })
+                .thenCompose(__ -> transactionMetadataStoreService
+                        .addProducedPartitionToTxn(txnID, partitionsList))
                 .whenComplete((v, ex) -> {
                     if (ex == null) {
                         log.debug()
@@ -3844,10 +3878,57 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 });
     }
 
+    /**
+     * The transaction coordinator ends a transaction on its registered partitions with its own identity, so a
+     * client may only register partitions it could produce to.
+     */
+    private CompletableFuture<Void> checkTxnPartitionsAuthorized(List<String> partitions) {
+        List<CompletableFuture<Void>> checks = new ArrayList<>(partitions.size());
+        for (String partition : partitions) {
+            checks.add(checkTxnParticipantAuthorized(partition, null, TopicOperation.PRODUCE));
+        }
+        return FutureUtil.waitForAll(checks);
+    }
+
+    /**
+     * The transaction coordinator ends a transaction on its registered subscriptions with its own identity, so a
+     * client may only register subscriptions it could consume from.
+     */
+    private CompletableFuture<Void> checkTxnSubscriptionsAuthorized(
+            List<org.apache.pulsar.common.api.proto.Subscription> subscriptions) {
+        List<CompletableFuture<Void>> checks = new ArrayList<>(subscriptions.size());
+        for (org.apache.pulsar.common.api.proto.Subscription subscription : subscriptions) {
+            checks.add(checkTxnParticipantAuthorized(subscription.getTopic(), subscription.getSubscription(),
+                    TopicOperation.CONSUME));
+        }
+        return FutureUtil.waitForAll(checks);
+    }
+
+    private CompletableFuture<Void> checkTxnParticipantAuthorized(String topic, String subscription,
+                                                                  TopicOperation operation) {
+        if (!service.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        final TopicName topicName;
+        try {
+            topicName = TopicName.get(topic);
+        } catch (IllegalArgumentException e) {
+            return CompletableFuture.failedFuture(new BrokerServiceException.NotAllowedException(
+                    "Invalid topic name " + topic + ": " + e.getMessage()));
+        }
+        CompletableFuture<Boolean> isAuthorized = subscription == null
+                ? isTopicOperationAllowed(topicName, operation, authenticationData, originalAuthData)
+                : isTopicOperationAllowed(topicName, subscription, operation);
+        return isAuthorized.thenCompose(authorized -> authorized
+                ? CompletableFuture.<Void>completedFuture(null)
+                : CompletableFuture.failedFuture(new BrokerServiceException.NotAuthorizedException(
+                        "Client is not authorized to " + operation + " on " + topic)));
+    }
+
     private CompletableFuture<Void> failedFutureTxnNotOwned(TxnID txnID) {
         String msg = String.format(
                 "Client (%s) is neither the owner of the transaction %s nor a super user",
-                getPrincipal(), txnID
+                authenticationRoleLoggingAnonymizer.anonymize(getPrincipal()), txnID
         );
         log.warn().attr("msg", msg).log("");
         return CompletableFuture.failedFuture(new CoordinatorException.TransactionNotFoundException(msg));
@@ -4254,9 +4335,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     if (!isOwner) {
                         return failedFutureTxnNotOwned(txnID);
                     }
-                    return transactionMetadataStoreService.addAckedPartitionToTxn(txnID,
-                            MLTransactionMetadataStore.subscriptionToTxnSubscription(subscriptionsList));
+                    return checkTxnSubscriptionsAuthorized(subscriptionsList);
                 })
+                .thenCompose(__ -> transactionMetadataStoreService.addAckedPartitionToTxn(txnID,
+                        MLTransactionMetadataStore.subscriptionToTxnSubscription(subscriptionsList)))
                 .whenComplete((v, ex) -> {
                     if (ex == null) {
                         log.debug()
