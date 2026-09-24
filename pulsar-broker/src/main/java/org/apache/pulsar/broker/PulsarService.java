@@ -1814,7 +1814,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     public StrategicTwoPhaseCompactor newStrategicCompactor() throws PulsarServerException {
         return new StrategicTwoPhaseCompactor(this.getConfiguration(),
                 getClient(), getBookKeeperClient(),
-                getCompactorExecutor());
+                getCompactorExecutor(), this::getBookKeeperClientContext);
     }
 
     public synchronized StrategicTwoPhaseCompactor getStrategicCompactor() throws PulsarServerException {
