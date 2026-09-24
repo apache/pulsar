@@ -256,8 +256,15 @@ public class ReaderTest extends MockedPulsarServiceBaseTest {
                 .create();
 
         while (reader.hasMessageAvailable()) {
-            Message<byte[]> message = reader.readNext();
-            Assert.assertTrue(keys.remove(message.getKey()));
+            if (enableBatch) {
+                Messages<byte[]> messages = reader.batchReadNext();
+                for (Message<byte[]> message : messages) {
+                    Assert.assertTrue(keys.remove(message.getKey()));
+                }
+            } else {
+                Message<byte[]> message = reader.readNext();
+                Assert.assertTrue(keys.remove(message.getKey()));
+            }
         }
         Assert.assertTrue(keys.isEmpty());
 
