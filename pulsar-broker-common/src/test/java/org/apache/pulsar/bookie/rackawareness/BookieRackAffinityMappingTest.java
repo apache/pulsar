@@ -20,6 +20,9 @@ package org.apache.pulsar.bookie.rackawareness;
 
 import static org.apache.bookkeeper.feature.SettableFeatureProvider.DISABLE_ALL;
 import static org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -45,6 +48,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -188,6 +194,68 @@ public class BookieRackAffinityMappingTest {
             assertNull(r.get(2));
         });
 
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testInitialRackInfoLoadTimesOut() throws Exception {
+        store.close();
+        store = mock(MetadataStore.class);
+        MetadataCache<BookiesRackConfiguration> cache = mock(MetadataCache.class);
+        doReturn(cache).when(store).getMetadataCache(BookiesRackConfiguration.class);
+        when(cache.get(BOOKIE_INFO_ROOT_PATH)).thenReturn(new CompletableFuture<>());
+
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setZkTimeout(50);
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
+        mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+
+        assertThatThrownBy(() -> mapping.setConf(bkClientConf))
+                .isInstanceOf(RuntimeException.class)
+                .cause().isInstanceOf(TimeoutException.class);
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void testInitialRackInfoLoadRestoresInterruptStatus() throws Exception {
+        store.close();
+        store = mock(MetadataStore.class);
+        MetadataCache<BookiesRackConfiguration> cache = mock(MetadataCache.class);
+        doReturn(cache).when(store).getMetadataCache(BookiesRackConfiguration.class);
+        CompletableFuture<Optional<BookiesRackConfiguration>> loadFuture = new CompletableFuture<>();
+        CountDownLatch loadStarted = new CountDownLatch(1);
+        when(cache.get(BOOKIE_INFO_ROOT_PATH)).thenAnswer(invocation -> {
+            loadStarted.countDown();
+            return loadFuture;
+        });
+
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setZkTimeout((int) TimeUnit.SECONDS.toMillis(5));
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        BookieRackAffinityMapping mapping = new BookieRackAffinityMapping();
+        mapping.setBookieAddressResolver(BookieSocketAddress.LEGACY_BOOKIEID_RESOLVER);
+        AtomicReference<Throwable> initializeFailure = new AtomicReference<>();
+        AtomicBoolean interrupted = new AtomicBoolean();
+        Thread initializeThread = new Thread(() -> {
+            try {
+                mapping.setConf(bkClientConf);
+            } catch (Throwable error) {
+                initializeFailure.set(error);
+                interrupted.set(Thread.currentThread().isInterrupted());
+            }
+        });
+        initializeThread.start();
+
+        assertTrue(loadStarted.await(5, TimeUnit.SECONDS));
+        initializeThread.interrupt();
+        initializeThread.join(TimeUnit.SECONDS.toMillis(5));
+
+        assertThat(initializeThread.isAlive()).isFalse();
+        assertThat(initializeFailure.get())
+                .isInstanceOf(RuntimeException.class)
+                .cause().isInstanceOf(InterruptedException.class);
+        assertThat(interrupted.get()).isTrue();
     }
 
     @Test
