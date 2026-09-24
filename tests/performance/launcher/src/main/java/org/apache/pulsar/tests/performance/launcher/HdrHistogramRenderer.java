@@ -43,7 +43,7 @@ import picocli.CommandLine.Option;
 @Command(name = "render-hdr-histograms", mixinStandardHelpOptions = true,
         description = "Render IoT producer and consumer HDR latency distributions as PNG and SVG")
 public final class HdrHistogramRenderer implements Callable<Integer> {
-    private static final int WIDTH = 1400;
+    static final int WIDTH = 1400;
     private static final int HEIGHT = 700;
     private static final int PLOT_TOP = 125;
     private static final int PLOT_HEIGHT = 390;
@@ -51,11 +51,11 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     private static final int FIRST_PANEL_X = 100;
     private static final int SECOND_PANEL_X = 760;
     private static final int BIN_COUNT = 50;
-    private static final Color INK = new Color(20, 43, 64);
-    private static final Color MUTED = new Color(80, 98, 117);
-    private static final Color GRID = new Color(218, 225, 232);
-    private static final Color PRODUCER = new Color(0, 123, 155);
-    private static final Color CONSUMER = new Color(189, 91, 36);
+    static final Color INK = new Color(20, 43, 64);
+    static final Color MUTED = new Color(80, 98, 117);
+    static final Color GRID = new Color(218, 225, 232);
+    static final Color PRODUCER = new Color(0, 123, 155);
+    static final Color CONSUMER = new Color(189, 91, 36);
 
     @Option(names = "--run-directory", required = true,
             description = "IoT run directory containing producer/ and consumer-* outputs")
@@ -117,7 +117,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
                 svg(title, producerData, consumerData));
     }
 
-    private static Histogram readMerged(List<Path> paths) throws IOException {
+    static Histogram readMerged(List<Path> paths) throws IOException {
         Histogram merged = null;
         for (Path path : paths) {
             try (HistogramLogReader reader = new HistogramLogReader(path.toFile())) {
@@ -299,7 +299,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
                 : String.format(Locale.ROOT, "%.3f ms", millis);
     }
 
-    private static String xml(String value) {
+    static String xml(String value) {
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 .replace("\"", "&quot;").replace("'", "&apos;");
     }

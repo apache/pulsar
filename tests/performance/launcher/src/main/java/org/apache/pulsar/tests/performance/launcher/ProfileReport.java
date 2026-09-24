@@ -57,11 +57,16 @@ final class ProfileReport {
     /**
      * Writes the report for the recordings in {@code directory}.
      *
+     * <p>The report and each off-CPU digest also get an HTML page beside them, in which links to the other
+     * Markdown pages point to their HTML pages and absolute paths inside {@code root} are relative.
+     *
      * @param recordings the original recordings in the directory, which name their output directories; the files
      *                   themselves may have been removed by retention
+     * @param root the run directory
      * @return the report file
      */
-    static Path write(Path directory, List<Path> recordings, Run run, ObjectMapper mapper) throws IOException {
+    static Path write(Path directory, List<Path> recordings, Run run, ObjectMapper mapper, Path root)
+            throws IOException {
         StringBuilder report = new StringBuilder();
         report.append("# Profile report: ").append(directory.getFileName()).append("\n\n");
         Duration window = Duration.between(run.from(), run.to());
@@ -81,6 +86,14 @@ final class ProfileReport {
         }
         Path file = directory.resolve(FILE_NAME);
         Files.writeString(file, report);
+        MarkdownPages.renderHtml(file, root, "Profile report: " + directory.getFileName());
+        for (Path recording : recordings) {
+            Path digest = directory.resolve(base(recording) + OffCpuFlamegraphs.OUTPUT_SUFFIX)
+                    .resolve(OffCpuFlamegraphs.SUMMARY_FILE);
+            if (Files.isRegularFile(digest)) {
+                MarkdownPages.renderHtml(digest, root, "Off-CPU digest: " + base(recording));
+            }
+        }
         return file;
     }
 

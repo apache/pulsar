@@ -113,6 +113,7 @@ prometheus = "0.16.0"
 prometheus-jmx = "0.16.1"
 dropwizardmetrics = "4.2.39"
 hdrHistogram = "2.2.2"
+commonmark = "0.30.0"
 perfmark = "0.27.0"
 # Auth
 jsonwebtoken = "0.13.0"
@@ -410,6 +411,8 @@ hdrHistogram = { module = "org.hdrhistogram:HdrHistogram", version.ref = "hdrHis
 jonoffcpu-agent = { module = "io.github.jonoffcpu:jonoffcpu-agent", version.ref = "jonoffcpu" }
 jonoffcpu-correlator = { module = "io.github.jonoffcpu:jonoffcpu-correlator", version.ref = "jonoffcpu" }
 jonoffcpu-jfr-converter = { module = "io.github.jonoffcpu:jonoffcpu-jfr-converter", version.ref = "jonoffcpu" }
+commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark" }
+commonmark-ext-gfm-tables = { module = "org.commonmark:commonmark-ext-gfm-tables", version.ref = "commonmark" }
 dropwizardmetrics-core = { module = "io.dropwizard.metrics:metrics-core", version.ref = "dropwizardmetrics" }
 dropwizardmetrics-graphite = { module = "io.dropwizard.metrics:metrics-graphite", version.ref = "dropwizardmetrics" }
 dropwizardmetrics-jvm = { module = "io.dropwizard.metrics:metrics-jvm", version.ref = "dropwizardmetrics" }

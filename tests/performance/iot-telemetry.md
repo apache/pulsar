@@ -122,7 +122,7 @@ only intervals where a thread blocked (`reasons: [blocked]`), not those where it
 CPU. It ignores waits under 100 µs (`minOffCpuMicros: 100`) and records every wait of 10 ms or longer, sampling
 shorter ones in proportion to their length (`admission: {policy: proportional, recordAllAboveMicros: 10000}`),
 which bounds the recording rate by off-CPU time rather than by context-switch count: a broker run records about
-400,000 intervals. For this workload, start with `broker-profile/profile-report.md`, the off-CPU digest it links
+400,000 intervals. For this workload, start with `run-report.html`, the broker's profile report and the off-CPU digest it links
 to and `cpu-threads.html`: the
 five-million-message run sends everything through one topic, so the topic's managed-ledger thread
 (`BookKeeperClientWorker-OrderedExecutor-*`) is the serial stage to watch.

@@ -39,6 +39,7 @@ import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -150,6 +151,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         PulsarCluster cluster = PulsarCluster.forSpec(spec);
         List<GenericContainer<?>> consumers = new ArrayList<>(applications);
         GenericContainer<?> producer = null;
+        TopicStatsSampler topicStatsSampler = null;
         try {
             cluster.start();
             for (int application = 0; application < applications; application++) {
@@ -168,6 +170,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                     coordinationDirectory, runId, producerOutput, agentJar, offCpuOptions,
                     producerProfileOptions, "iot-produce");
+            topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput);
             producer.start();
             int timeout = workload.path("consumerTimeoutSeconds").intValue() + 60;
             int producerExit = waitForExit(producer, timeout);
@@ -185,6 +188,9 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
             verifyStates(runOutput, applications);
         } finally {
+            if (topicStatsSampler != null) {
+                topicStatsSampler.close();
+            }
             if (producer != null) {
                 saveContainerLog(producer, runOutput.resolve("producer/container.log"));
                 producer.stop();
@@ -239,10 +245,30 @@ public class PerformanceLauncher implements Callable<Integer> {
                     .collect(Collectors.groupingBy(Path::getParent, TreeMap::new, Collectors.toList()));
             for (Map.Entry<Path, List<Path>> entry : recordingsByDirectory.entrySet()) {
                 System.out.println("Profile report: "
-                        + ProfileReport.write(entry.getKey(), entry.getValue(), run, loader.mapper()));
+                        + ProfileReport.write(entry.getKey(), entry.getValue(), run, loader.mapper(), runOutput));
             }
         }
+        Path runReport = RunReport.write(runOutput, new RunReport.Run(config.getFileName().toString(), runId,
+                PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload), loader.mapper());
+        System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
         return 0;
+    }
+
+    /**
+     * Starts sampling the workload topics' stats for the run report. Sampling is an observation, so a failure to
+     * start it is reported and the run goes on without it.
+     */
+    private static TopicStatsSampler startTopicStatsSampler(PulsarCluster cluster, JsonNode workload,
+                                                            Path runOutput) {
+        String prefix = workload.path("topicPrefix").textValue();
+        List<String> topics = IntStream.range(0, workload.path("topicCount").intValue())
+                .mapToObj(topic -> prefix + topic).toList();
+        try {
+            return TopicStatsSampler.start(cluster.getAnyBroker().getHttpServiceUrl(), topics, runOutput);
+        } catch (Exception e) {
+            System.out.println("Topic stats sampling is off for this run: " + e);
+            return null;
+        }
     }
 
     /**

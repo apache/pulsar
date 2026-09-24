@@ -66,7 +66,7 @@ public class ProfileReportTest {
         Path file = ProfileReport.write(directory, List.of(directory.resolve("broker.jfr")),
                 new ProfileReport.Run("scenario.yaml", "run-1", Instant.parse("2026-09-25T00:00:00Z"),
                         Instant.parse("2026-09-25T00:00:40Z"), 102328.7),
-                new ObjectMapper());
+                new ObjectMapper(), directory);
         String report = Files.readString(file);
 
         assertTrue(report.contains("Scenario `scenario.yaml`, run `run-1`."), report);
@@ -84,6 +84,11 @@ public class ProfileReportTest {
                 + "[heatmap](broker-flamegraphs/cpu-heatmap.html) | "
                 + "[collapsed](broker-flamegraphs/cpu.collapsed) |"), report);
         assertTrue(report.contains("| alloc | [flame graph](broker-flamegraphs/alloc.html) |  |  |  |"), report);
+
+        // The HTML pages link the digest's page rather than its Markdown.
+        String page = Files.readString(directory.resolve("profile-report.html"));
+        assertTrue(page.contains("<a href=\"broker-offcpu/jonoffcpu-summary.html\">"), page);
+        assertTrue(Files.isRegularFile(offCpu.resolve("jonoffcpu-summary.html")));
     }
 
     @Test
@@ -91,7 +96,7 @@ public class ProfileReportTest {
         Path file = ProfileReport.write(directory, List.of(directory.resolve("producer.jfr")),
                 new ProfileReport.Run("scenario.yaml", "run-2", Instant.parse("2026-09-25T00:00:00Z"),
                         Instant.parse("2026-09-25T00:00:01Z"), 0),
-                new ObjectMapper());
+                new ObjectMapper(), directory);
         String report = Files.readString(file);
 
         assertTrue(report.contains("## producer\n"), report);

@@ -64,6 +64,22 @@ Use the `profile` task when the selected scenario contains profiler options:
 The Gradle tasks build the Pulsar test image and the workload distribution before launching the scenario. See
 [the IoT scenario reference](iot-telemetry.md) for topology, correctness checks and output details.
 
+Every run writes a report into its output directory; open `run-report.html` in a browser, where its links work:
+
+| File | Contents |
+|---|---|
+| `run-report.md`, `run-report.html` | The scenario settings, correctness per application, producer and delivered throughput, publish and end-to-end latency percentiles, the sampled backlog and per-second rates, and links to the profile reports of a profiled run |
+| `latency-histograms.svg`, `.png` | Publish and end-to-end latency distributions |
+| `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked |
+| `backlog.svg`, `.png` | Each subscription's backlog over the run |
+| `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
+
+The backlog and the per-second rates come from the topic stats endpoint, polled once per second while the
+producers run and the consumers drain; a sampled maximum is not the exact peak between samples. Every Markdown
+report the launcher writes, including the profile reports and the off-CPU digests, has an HTML page beside it,
+rendered with [commonmark-java](https://github.com/commonmark/commonmark-java), whose links lead to the other pages
+and the flame graphs.
+
 ## Scenario configuration format
 
 Scenario YAML is a reusable configuration tree rather than a format tied to a test class. The shared loader in
@@ -146,8 +162,9 @@ and excluded. Consumer latency uses a timestamp captured on listener entry; the 
 decoding and key validation, before sequence validation and acknowledgment. Decoding and validation time are
 excluded from the latency value.
 
-Render the producer distribution together with the count-weighted merge of all backend-application consumer
-histograms as PNG and SVG:
+The run report includes these distributions. To render them again for any run directory, for example with a
+different title, render the producer distribution together with the count-weighted merge of all
+backend-application consumer histograms as PNG and SVG:
 
 ```bash
 ./gradlew :tests:performance:launcher:renderHdrHistograms \
@@ -240,7 +257,7 @@ output directories):
 
 | File | Contents |
 |---|---|
-| `profile-report.md` | **Start here.** One per profiled directory (`broker-profile/`, `producer/`): the run, and for each recording links to the off-CPU digest, the flame graphs with their totals, and the heatmaps |
+| `profile-report.md`, `.html` | **Start here**, from `run-report.html`. One per profiled directory (`broker-profile/`, `producer/`): the run, and for each recording links to the off-CPU digest, the flame graphs with their totals, and the heatmaps |
 | `<recording>.jfr` | The complete recording, unless `retainOriginalRecording: false` |
 | `<recording>.measurement.jfr` | The same cut to the measurement window (see above) |
 | `<recording>-flamegraphs/` | `cpu`, `wall`, `alloc` and `lock` views of the measurement recording, each only when its event is in the profiler options: `<view>.html`, `<view>-threads.html` (split by thread), `<view>-heatmap.html` (samples over time, for bursts and pauses) and `<view>.collapsed`. Pulsar and BookKeeper frames are highlighted |
@@ -266,7 +283,7 @@ highlight the `o.a.` frames. The correlator runs with `--audit none`, which skip
 
 ### Finding what to optimize
 
-1. Open `broker-profile/profile-report.md`, then the digest it links to, `offcpu-no-idle-app-root.html` and
+1. Open `run-report.html`, then the broker's profile report and the digest it links to, `offcpu-no-idle-app-root.html` and
    `cpu.html`. A single thread that is busy all the time — the `-threads` views show it — is a serial bottleneck that
    no amount of other headroom helps. The heatmaps show whether CPU or allocation comes in bursts or stalls.
 2. Rank the blocked time by the deepest Pulsar or BookKeeper frame of each stack and the lock or wait below it. This

@@ -1,0 +1,112 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
+/* Style of the HTML pages rendered from the launcher's Markdown reports; inlined into each page. */
+:root {
+    --text: #142b40;
+    --muted: #506275;
+    --background: #ffffff;
+    --rule: #dae1e8;
+    --stripe: #f4f7f9;
+    --link: #0b6f8a;
+    --code-background: #f0f3f6;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --text: #dce4ec;
+        --muted: #9aabbb;
+        --background: #121a21;
+        --rule: #2c3a47;
+        --stripe: #18222b;
+        --link: #5cc3dd;
+        --code-background: #1d2832;
+    }
+}
+body {
+    margin: 0;
+    background: var(--background);
+    color: var(--text);
+    font: 15px/1.5 -apple-system, "Segoe UI", "DejaVu Sans", Arial, sans-serif;
+}
+main {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 16px 24px 48px;
+}
+h1, h2, h3 {
+    line-height: 1.25;
+}
+h2 {
+    margin-top: 2em;
+    padding-bottom: 4px;
+    border-bottom: 1px solid var(--rule);
+}
+a {
+    color: var(--link);
+    overflow-wrap: anywhere;
+}
+code, pre {
+    font-family: "DejaVu Sans Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    background: var(--code-background);
+    border-radius: 4px;
+}
+code {
+    padding: 1px 4px;
+    overflow-wrap: anywhere;
+}
+pre {
+    padding: 10px 12px;
+    overflow-x: auto;
+}
+pre code {
+    padding: 0;
+}
+table {
+    border-collapse: collapse;
+    margin: 12px 0;
+    display: block;
+    overflow-x: auto;
+}
+th, td {
+    padding: 4px 10px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+}
+th {
+    text-align: left;
+}
+tbody tr:nth-child(even) {
+    background: var(--stripe);
+}
+td[align="right"], th[align="right"] {
+    font-variant-numeric: tabular-nums;
+}
+img {
+    max-width: 100%;
+    height: auto;
+    background: #ffffff;
+    border: 1px solid var(--rule);
+}
+blockquote {
+    margin: 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--rule);
+    color: var(--muted);
+}
