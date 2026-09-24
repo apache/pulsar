@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderDecryptFailListener;
@@ -179,6 +180,13 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     public Message<T> readNext() throws PulsarClientException {
         Message<T> msg = multiTopicsConsumer.receive();
         multiTopicsConsumer.tryAcknowledgeMessage(msg);
+        return msg;
+    }
+
+    @Override
+    public Messages<T> batchReadNext() throws PulsarClientException {
+        Messages<T> msg = multiTopicsConsumer.batchReceive();
+        msg.forEach(multiTopicsConsumer::tryAcknowledgeMessage);
         return msg;
     }
 
