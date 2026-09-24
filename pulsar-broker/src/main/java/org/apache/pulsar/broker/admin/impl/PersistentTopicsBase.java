@@ -1533,11 +1533,13 @@ public class PersistentTopicsBase extends AdminResource {
                                 return null;
                             });
                 }).exceptionally(ex -> {
-                    log.error()
-                            .attr("topic", topicName)
-                            .exception(ex)
-                            .log("Failed to get managed info");
-                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                        if (isNot307And404Exception(ex)) {
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(ex)
+                                    .log("Failed to get managed info");
+                        }
+                        resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
 
@@ -5554,11 +5556,13 @@ public class PersistentTopicsBase extends AdminResource {
                 .whenComplete((res, e) -> {
                     if (e != null) {
                         Throwable cause = FutureUtil.unwrapCompletionException(e);
-                        log.error()
-                                .attr("topic", topicName)
-                                .attr("subscription", subName)
-                                .exception(cause)
-                                .log("Failed to get replicated subscription status on");
+                        if (isNot307And404Exception(cause)) {
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .attr("subscription", subName)
+                                    .exception(cause)
+                                    .log("Failed to get replicated subscription status on");
+                        }
                         resumeAsyncResponseExceptionally(asyncResponse, e);
                     } else {
                         asyncResponse.resume(res);
