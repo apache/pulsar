@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
-import io.github.lhotari.jonoffcpu.offline.OffCpuCorrelator;
+import io.github.jonoffcpu.correlator.OffCpuCorrelator;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;

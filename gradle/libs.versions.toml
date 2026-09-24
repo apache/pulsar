@@ -21,7 +21,7 @@
 docker-jdk = "25"
 pulsar-client-python = "3.13.0"
 async-profiler = "4.5"
-jonoffcpu = "0.5.0"
+jonoffcpu = "0.6.0"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
@@ -407,9 +407,9 @@ java-semver = { module = "com.github.zafarkhaja:java-semver", version.ref = "jav
 oshi-core = { module = "com.github.oshi:oshi-core-java11", version.ref = "oshi" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 hdrHistogram = { module = "org.hdrhistogram:HdrHistogram", version.ref = "hdrHistogram" }
-jonoffcpu-agent = { module = "io.github.lhotari:jonoffcpu-agent", version.ref = "jonoffcpu" }
-jonoffcpu-correlator = { module = "io.github.lhotari:jonoffcpu-correlator", version.ref = "jonoffcpu" }
-jonoffcpu-jfr-converter = { module = "io.github.lhotari:jonoffcpu-jfr-converter", version.ref = "jonoffcpu" }
+jonoffcpu-agent = { module = "io.github.jonoffcpu:jonoffcpu-agent", version.ref = "jonoffcpu" }
+jonoffcpu-correlator = { module = "io.github.jonoffcpu:jonoffcpu-correlator", version.ref = "jonoffcpu" }
+jonoffcpu-jfr-converter = { module = "io.github.jonoffcpu:jonoffcpu-jfr-converter", version.ref = "jonoffcpu" }
 dropwizardmetrics-core = { module = "io.dropwizard.metrics:metrics-core", version.ref = "dropwizardmetrics" }
 dropwizardmetrics-graphite = { module = "io.dropwizard.metrics:metrics-graphite", version.ref = "dropwizardmetrics" }
 dropwizardmetrics-jvm = { module = "io.dropwizard.metrics:metrics-jvm", version.ref = "dropwizardmetrics" }

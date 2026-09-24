@@ -308,7 +308,7 @@ sets take effect.
 #### Profiling a performance scenario, including off-CPU time
 
 The standalone performance launcher profiles a whole scenario — a Testcontainers cluster plus its workload
-applications — with [jonoffcpu](https://github.com/lhotari/jonoffcpu), which runs async-profiler and adds
+applications — with [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu), which runs async-profiler and adds
 kernel-measured **off-CPU** samples: where threads wait on locks, monitors, queues, I/O or GC, not only where they
 use CPU. Each profiled JVM gets its CPU and allocation flame graphs and an off-CPU flame graph without idle waits,
 cut to the measurement window. It needs a Linux Docker engine:

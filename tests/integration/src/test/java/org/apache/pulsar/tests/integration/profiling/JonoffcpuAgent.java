@@ -34,7 +34,7 @@ import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 
 /**
- * Attaches the <a href="https://github.com/lhotari/jonoffcpu">jonoffcpu</a> off-CPU profiler to a container.
+ * Attaches the <a href="https://github.com/jonoffcpu/jonoffcpu">jonoffcpu</a> off-CPU profiler to a container.
  *
  * <p>The agent JAR embeds its own async-profiler build for both musl and glibc, so the container image does
  * not need one installed. The agent reads a small YAML file naming the async-profiler options, the JFR

@@ -107,7 +107,7 @@ Use the `profile` task for a scenario that has non-empty `profiling.brokerOption
   --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
 ```
 
-The options are async-profiler options, recorded through the [jonoffcpu](https://github.com/lhotari/jonoffcpu)
+The options are async-profiler options, recorded through the [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu)
 agent together with kernel-measured off-CPU samples. The requirements, the files each recording produces and how
 to analyze them are in the performance README's
 [Profiling with jonoffcpu](README.md#profiling-with-jonoffcpu) section.

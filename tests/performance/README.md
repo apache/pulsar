@@ -73,7 +73,7 @@ standalone launcher uses these top-level sections:
 - `cluster`: the Pulsar topology and broker or BookKeeper environment settings;
 - `workloads`: named workload configurations, currently including `iotTelemetry`;
 - `profiling`: optional async-profiler options for the broker, producer and consumer processes, recorded through
-  the [jonoffcpu](https://github.com/lhotari/jonoffcpu) agent, plus the shared `offCpu` sampling policy; and
+  the [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent, plus the shared `offCpu` sampling policy; and
 - `output`: the run-artifact directory.
 
 Workload-specific fields live below their workload name so another launcher or application can reuse the same
@@ -193,7 +193,7 @@ a workload.
 
 ## Profiling with jonoffcpu
 
-The `profile` task attaches the [jonoffcpu](https://github.com/lhotari/jonoffcpu) agent to every JVM that has
+The `profile` task attaches the [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent to every JVM that has
 profiler options. jonoffcpu bundles [async-profiler](https://github.com/async-profiler/async-profiler), so the
 recording holds the usual CPU and allocation samples, and adds **off-CPU** samples: each interval in which a thread
 blocked is measured by the kernel scheduler through eBPF and joined to the Java stack of the thread that waited. A
@@ -215,7 +215,7 @@ profiling:
 ```
 
 The options are async-profiler options; an empty value leaves that component unprofiled. `profiling.offCpu` is
-the agent's [`sampling` block](https://github.com/lhotari/jonoffcpu#choosing-what-to-sample): which switch-out
+the agent's [`sampling` block](https://github.com/jonoffcpu/jonoffcpu#choosing-what-to-sample): which switch-out
 reasons to record (`blocked` — the thread could not run — rather than `runnable` preemption), a minimum duration,
 and an admission policy that records every long wait and samples short ones in proportion to their length. The
 policy `none` records plain async-profiler through the same agent and skips the off-CPU steps.
@@ -266,7 +266,7 @@ run it again over the retained capture and recording with `--audit full` to repr
 2. Rank the blocked time by the deepest Pulsar or BookKeeper frame of each stack. This needs no flame graph: stacks
    without an application frame (idle Netty loops, JDK executors, HotSpot threads) collect in one bucket, and the
    rows after the few application-owned idle loops are the waits to look at. With the correlator JAR from the
-   [jonoffcpu releases](https://github.com/lhotari/jonoffcpu/releases) and [DuckDB](https://duckdb.org/):
+   [jonoffcpu releases](https://github.com/jonoffcpu/jonoffcpu/releases) and [DuckDB](https://duckdb.org/):
 
    ```bash
    OFFCPU=build/performance/iot-telemetry-high-rate-profile/broker-profile/<recording>-offcpu
