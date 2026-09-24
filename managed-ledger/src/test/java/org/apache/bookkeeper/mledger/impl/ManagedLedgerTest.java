@@ -599,6 +599,60 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
+    @Test(timeOut = 30000)
+    public void testConcurrentAsyncAddEntriesKeepPerThreadOrder() throws Exception {
+        int threads = 8;
+        int entriesPerThread = 2000;
+        ManagedLedger ledger = factory.open("concurrent_adds", initManagedLedgerConfig(defaultConfig()));
+        List<List<Position>> positionsByThread = new ArrayList<>();
+        CountDownLatch completed = new CountDownLatch(threads * entriesPerThread);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        CyclicBarrier start = new CyclicBarrier(threads);
+        ExecutorService publishers = Executors.newFixedThreadPool(threads);
+        try {
+            for (int t = 0; t < threads; t++) {
+                List<Position> positions = Collections.synchronizedList(new ArrayList<>());
+                positionsByThread.add(positions);
+                publishers.execute(() -> {
+                    try {
+                        start.await();
+                    } catch (Exception e) {
+                        failure.set(e);
+                        return;
+                    }
+                    for (int i = 0; i < entriesPerThread; i++) {
+                        ledger.asyncAddEntry(("entry-" + i).getBytes(Encoding), new AddEntryCallback() {
+                            @Override
+                            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                                positions.add(position);
+                                completed.countDown();
+                            }
+
+                            @Override
+                            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                                failure.set(exception);
+                                completed.countDown();
+                            }
+                        }, null);
+                    }
+                });
+            }
+            assertTrue(completed.await(20, TimeUnit.SECONDS));
+        } finally {
+            publishers.shutdownNow();
+        }
+        assertNull(failure.get());
+        assertEquals(ledger.getNumberOfEntries(), threads * entriesPerThread);
+        // Adds from one thread are written in the order that thread made them.
+        for (List<Position> positions : positionsByThread) {
+            assertEquals(positions.size(), entriesPerThread);
+            List<Position> sorted = new ArrayList<>(positions);
+            Collections.sort(sorted);
+            assertEquals(positions, sorted);
+        }
+        ledger.close();
+    }
+
     @Test(timeOut = 20000)
     public void asyncAPI() throws Throwable {
         final CountDownLatch counter = new CountDownLatch(1);
