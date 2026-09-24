@@ -542,6 +542,43 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
     }
 
     @Test
+    public void testOfflineSecondaryBookieFallsBackToUngroupedBookie() throws Exception {
+        final String primaryGroup = "primaryGroup";
+        final String secondaryGroup = "secondaryGroup";
+        BookieId primaryBookie = new BookieSocketAddress(BOOKIE1).toBookieId();
+        BookieId ungroupedBookie = new BookieSocketAddress(BOOKIE2).toBookieId();
+        BookieId offlineSecondaryBookie = new BookieSocketAddress(BOOKIE3).toBookieId();
+
+        Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
+        Map<String, BookieInfo> primaryBookieGroup = new HashMap<>();
+        primaryBookieGroup.put(BOOKIE1, BookieInfo.builder().rack("rack0").build());
+        Map<String, BookieInfo> secondaryBookieGroup = new HashMap<>();
+        secondaryBookieGroup.put(BOOKIE3, BookieInfo.builder().rack("rack1").build());
+        bookieMapping.put(primaryGroup, primaryBookieGroup);
+        bookieMapping.put(secondaryGroup, secondaryBookieGroup);
+
+        store.put(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookieMapping),
+                Optional.empty()).join();
+
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, primaryGroup);
+        bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                secondaryGroup);
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = createIsolationPolicy(bkClientConf);
+        isolationPolicy.onClusterChanged(Sets.newHashSet(primaryBookie, ungroupedBookie), Collections.emptySet());
+
+        List<BookieId> ensemble = isolationPolicy
+                .newEnsemble(2, 2, 2, Collections.emptyMap(), new HashSet<>()).getResult();
+        assertEquals(new HashSet<>(ensemble), Sets.newHashSet(primaryBookie, ungroupedBookie));
+
+        BookieId replacement = isolationPolicy.replaceBookie(2, 2, 2, Collections.emptyMap(),
+                Arrays.asList(primaryBookie, offlineSecondaryBookie), offlineSecondaryBookie,
+                new HashSet<>()).getResult();
+        assertEquals(replacement, ungroupedBookie);
+    }
+
+    @Test
     public void testSecondaryIsolationGroupsBookiesNegative() throws Exception {
 
         Map<String, Map<String, BookieInfo>> bookieMapping = new HashMap<>();
