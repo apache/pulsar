@@ -34,12 +34,18 @@ import one.convert.Main;
  *
  * <p>The views are rendered from the measurement recording when there is one, into a sibling
  * {@code <recording>-flamegraphs/} directory holding {@code <view>.html}, {@code <view>-threads.html} (split by
- * thread) and {@code <view>.collapsed} for scripts and diff tools. A view is decided by the options rather than by
- * the events in the file: {@code jfrsync} copies JDK events such as monitor waits into the recording, and a lock
- * view built from those would answer a question the scenario did not ask.
+ * thread), {@code <view>-heatmap.html} (samples over time, to find bursts and pauses) and {@code <view>.collapsed}
+ * for scripts and diff tools. The flame graphs highlight the application's frames. A view is decided by the options
+ * rather than by the events in the file: {@code jfrsync} copies JDK events such as monitor waits into the recording,
+ * and a lock view built from those would answer a question the scenario did not ask.
  */
 final class JfrFlamegraphViews {
     static final String OUTPUT_SUFFIX = "-flamegraphs";
+    static final String THREADS_SUFFIX = "-threads";
+    static final String HEATMAP_SUFFIX = "-heatmap";
+
+    /** The application's frames, as the converter shows them: {@code org/apache/…} or, dotted, {@code org.apache.…}. */
+    private static final String APPLICATION_HIGHLIGHT = "^org[/.]apache[/.]";
 
     enum View {
         CPU(false),
@@ -127,9 +133,12 @@ final class JfrFlamegraphViews {
                 continue;
             }
             String title = view.label() + " " + name;
-            convert(view, source, directory.resolve(view.label() + ".html"), "--title", title);
-            convert(view, source, directory.resolve(view.label() + "-threads.html"), "--threads", "--title",
-                    title + " by thread");
+            convert(view, source, directory.resolve(view.label() + ".html"), "--title", title,
+                    "--highlight", APPLICATION_HIGHLIGHT);
+            convert(view, source, directory.resolve(view.label() + THREADS_SUFFIX + ".html"), "--threads",
+                    "--title", title + " by thread", "--highlight", APPLICATION_HIGHLIGHT);
+            convert(view, source, directory.resolve(view.label() + HEATMAP_SUFFIX + ".html"), "-o", "heatmap",
+                    "--title", title + " over time");
         }
         return directory;
     }

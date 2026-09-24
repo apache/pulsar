@@ -240,43 +240,47 @@ output directories):
 
 | File | Contents |
 |---|---|
+| `profile-report.md` | **Start here.** One per profiled directory (`broker-profile/`, `producer/`): the run, and for each recording links to the off-CPU digest, the flame graphs with their totals, and the heatmaps |
 | `<recording>.jfr` | The complete recording, unless `retainOriginalRecording: false` |
 | `<recording>.measurement.jfr` | The same cut to the measurement window (see above) |
-| `<recording>-flamegraphs/` | `cpu`, `wall`, `alloc` and `lock` views of the measurement recording, each only when its event is in the profiler options: `<view>.html`, `<view>-threads.html` (split by thread) and `<view>.collapsed` |
+| `<recording>-flamegraphs/` | `cpu`, `wall`, `alloc` and `lock` views of the measurement recording, each only when its event is in the profiler options: `<view>.html`, `<view>-threads.html` (split by thread), `<view>-heatmap.html` (samples over time, for bursts and pauses) and `<view>.collapsed`. Pulsar and BookKeeper frames are highlighted |
 | `<recording>.jonoffcpu-capture.pb`, `.manifest.json`, `<recording>.jonoffcpu.yaml` | The off-CPU capture stream, its manifest, and the agent configuration the JVM was started with |
-| `<recording>-offcpu/offcpu-no-idle.html` | **Start here.** Off-CPU flame graph of the measurement window without threads that were only waiting for work |
-| `<recording>-offcpu/offcpu.html` | Every blocked interval, idle waiting included |
+| `<recording>-offcpu/jonoffcpu-summary.md`, `.json` | The off-CPU digest: capture coverage, where the time went, and the busy time ranked by leaf and thread pool with the heaviest busy stacks, leaving out the idle waits of `offcpu-idle-waits.txt` |
+| `<recording>-offcpu/offcpu-no-idle.html` | Off-CPU flame graph of the measurement window without threads that were only waiting for work |
+| `<recording>-offcpu/offcpu-no-idle-app-root.html` | The same with each stack starting at its first Pulsar or BookKeeper frame, so the same code reached from different thread pools or event loops is one tree |
+| `<recording>-offcpu/offcpu.html`, `offcpu-app-root.html` | Every blocked interval, idle waiting included, as is and from the first application frame |
 | `<recording>-offcpu/*.collapsed`, `*.json` | The same slices as collapsed stacks (full names, microseconds) and the summary of each, including the time the idle filter removed |
-| `<recording>-offcpu/offcpu-idle-waits.txt` | The idle-wait patterns the run used |
+| `<recording>-offcpu/offcpu-idle-waits.txt`, `<recording>.offcpu-idle-waits.txt` | The idle-wait patterns the run used; the copy beside the recording is the one the digest's reproduce commands name |
 | `<recording>-offcpu/jonoffcpu-offcpu-profile.pb` | The stack profile: every distinct stack with its counters, from which other slices are rendered without correlating again |
 | `<recording>-offcpu/jonoffcpu-report.json` | Accounting: intervals recorded and matched, loss, switch-out reasons, sleeping versus run-queue time |
-| `<recording>-offcpu/jonoffcpu-offcpu-synthetic.jfr` | The off-CPU samples as `jdk.ExecutionSample` events, one per 10 ms of off-CPU time, for JFR tools |
 
 In a broker, over 99% of off-CPU time is threads waiting for work: Netty event loops in `epollWait`, executor
 workers waiting for a task, JDK and HotSpot service threads. `offcpu-no-idle` leaves those out with the patterns in
 the launcher resource `offcpu-idle-waits.txt`; each pattern names the wait itself rather than the thread's run loop,
 so a lock taken while running a task stays in. What remains is lock and monitor contention, safepoints, GC phases
-and I/O. The correlator runs with `--audit none`, which skips its row-level audit files (about 2 KB per interval);
-run it again over the retained capture and recording with `--audit full` to reproduce them.
+and I/O. The digest leaves out the same idle waits. The `-app-root` slices start each stack at its root-most frame
+matching `^org\.apache\.`; stacks without one are grouped as `[no application frame]`, and the totals do not change.
+The off-CPU flame graphs abbreviate package names (`o.a.p.b.s.p.PersistentDispatcherMultipleConsumers…`) and
+highlight the `o.a.` frames. The correlator runs with `--audit none`, which skips its row-level audit files (about
+2 KB per interval); run it again over the retained capture and recording with `--audit full` to reproduce them.
 
 ### Finding what to optimize
 
-1. Open `offcpu-no-idle.html` and `cpu.html` for the broker. A single thread that is busy all the time — the
-   `-threads` views show it — is a serial bottleneck that no amount of other headroom helps.
-2. Rank the blocked time by the deepest Pulsar or BookKeeper frame of each stack. This needs no flame graph: stacks
-   without an application frame (idle Netty loops, JDK executors, HotSpot threads) collect in one bucket, and the
-   rows after the few application-owned idle loops are the waits to look at. With the correlator JAR from the
-   [jonoffcpu releases](https://github.com/jonoffcpu/jonoffcpu/releases) and [DuckDB](https://duckdb.org/):
+1. Open `broker-profile/profile-report.md`, then the digest it links to, `offcpu-no-idle-app-root.html` and
+   `cpu.html`. A single thread that is busy all the time — the `-threads` views show it — is a serial bottleneck that
+   no amount of other headroom helps. The heatmaps show whether CPU or allocation comes in bursts or stalls.
+2. Rank the blocked time by the deepest Pulsar or BookKeeper frame of each stack and the lock or wait below it. This
+   needs no flame graph: stacks without an application frame collect by thread pool, and idle waits are listed
+   separately. With the correlator JAR from the
+   [jonoffcpu releases](https://github.com/jonoffcpu/jonoffcpu/releases):
 
    ```bash
    OFFCPU=build/performance/iot-telemetry-high-rate-profile/broker-profile/<recording>-offcpu
-   java -jar jonoffcpu-correlator.jar export --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
-     --format jsonl --output /tmp/broker-offcpu.jsonl
-   duckdb -c "SELECT coalesce(list_filter(string_split(javaStack, ';'),
-                lambda f: regexp_matches(f, '^org\.apache\.'))[-1], '(no application frame)') AS boundary,
-              round(sum(CAST(observedNanos AS HUGEINT)) / 1e9, 1) AS seconds
-              FROM read_json('/tmp/broker-offcpu.jsonl') GROUP BY 1 ORDER BY 2 DESC LIMIT 20"
+   java -jar jonoffcpu-correlator.jar top --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
+     --app '^org\.apache\.' --idle-from $OFFCPU/offcpu-idle-waits.txt --package-names abbreviate
    ```
+
+   `export --format jsonl` writes the profile one stack per row for SQL tools such as [DuckDB](https://duckdb.org/).
 
 3. Render other slices from the stack profile in under a second. `--stack java+kernel` continues each stack into
    the kernel so the wait mechanism is visible; `--time split` ends each stack in `[sleeping]` or `[runqueue]`, which
@@ -285,19 +289,23 @@ run it again over the retained capture and recording with `--audit full` to repr
 
    ```bash
    java -jar jonoffcpu-correlator.jar stacks --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
-     --exclude-from $OFFCPU/offcpu-idle-waits.txt --time split --package-names drop \
+     --exclude-from $OFFCPU/offcpu-idle-waits.txt --time split --package-names abbreviate \
      --output /tmp/busy-split.collapsed --summary /tmp/busy-split.json
-   java -jar jfr-converter.jar --title "Busy off-CPU time" --units µs /tmp/busy-split.collapsed /tmp/busy-split.html
+   java -jar jfr-converter.jar --title "Busy off-CPU time" --units µs --highlight '^o\.a\.' \
+     /tmp/busy-split.collapsed /tmp/busy-split.html
    ```
 
-4. Compare two runs with a differential flame graph of their synthetic recordings (baseline first), or join two
-   `export` files in DuckDB. Compare runs recorded with the same sampling policy; proportional admission
-   under-represents short waits in the observed weights, and `estimatedNanos` corrects for it when the report's
-   population estimate is available.
+   The transforms `--root-at`, `--trim-root`, `--hide` and `--collapse-leaf` change what each kept stack looks
+   like without changing which intervals are kept or their totals.
+
+4. Compare two runs per unit of work with `top --baseline` (baseline second), for example per million measured
+   messages. Compare runs recorded with the same sampling policy; proportional admission under-represents short
+   waits in the observed weights, so the comparison uses the estimated weights:
 
    ```bash
-   java -jar jfr-converter.jar --cpu --diff baseline-offcpu/jonoffcpu-offcpu-synthetic.jfr \
-     candidate-offcpu/jonoffcpu-offcpu-synthetic.jfr /tmp/offcpu-diff.html
+   java -jar jonoffcpu-correlator.jar top --profile candidate-offcpu/jonoffcpu-offcpu-profile.pb \
+     --baseline baseline-offcpu/jonoffcpu-offcpu-profile.pb --units 4 --baseline-units 4 --weights estimated \
+     --app '^org\.apache\.' --idle-from candidate-offcpu/offcpu-idle-waits.txt --package-names abbreviate
    ```
 
 Correlation holds each capture's distinct stacks in memory; the `profile` task runs with a 4 GB heap
@@ -444,8 +452,9 @@ needed. Save the result beside the recording as `<recording>.analysis.md`, in ad
 report in the console. For a standalone profiled run, analyze `<recording>.measurement.jfr`: CPU samples are
 `jdk.ExecutionSample`, async-profiler's allocation samples are `jdk.ObjectAllocationInNewTLAB` (not
 `jdk.ObjectAllocationSample`), and `jfrsync=profile` adds JDK events such as `jdk.JavaMonitorEnter` and
-`jdk.ThreadPark`. For off-CPU time, analyze `<recording>-offcpu/jonoffcpu-offcpu-synthetic.jfr` with
-`jdk.ExecutionSample`: each sample stands for 10 ms of blocked time. A useful starting prompt is:
+`jdk.ThreadPark`. Off-CPU time is not in a JFR file; use the digest `<recording>-offcpu/jonoffcpu-summary.md` and
+the correlator's `top` and `stacks` subcommands (see [Finding what to optimize](#finding-what-to-optimize)). A
+useful starting prompt is:
 
 > use Jafar MCP's jfr_diagnose and jfr_stackprofile to analyze @filename.jfr. Besides showing the
 > report on the console, write the analysis in a markdown file with the jfr file as prefix and the

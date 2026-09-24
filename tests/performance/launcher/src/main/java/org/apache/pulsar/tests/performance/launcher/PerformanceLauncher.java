@@ -34,9 +34,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -230,6 +232,14 @@ public class PerformanceLauncher implements Callable<Integer> {
                 if (!views.isEmpty() && Files.isRegularFile(source)) {
                     System.out.println("Flame graphs: " + JfrFlamegraphViews.render(recording, source, views));
                 }
+            }
+            ProfileReport.Run run = new ProfileReport.Run(config.getFileName().toString(), runId,
+                    measurementStart, measurementEnd, summary.path("messagesPerSecond").asDouble());
+            Map<Path, List<Path>> recordingsByDirectory = recordings.stream().sorted()
+                    .collect(Collectors.groupingBy(Path::getParent, TreeMap::new, Collectors.toList()));
+            for (Map.Entry<Path, List<Path>> entry : recordingsByDirectory.entrySet()) {
+                System.out.println("Profile report: "
+                        + ProfileReport.write(entry.getKey(), entry.getValue(), run, loader.mapper()));
             }
         }
         return 0;
