@@ -599,6 +599,21 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
+    @Test(timeOut = 20000)
+    public void testAddBatchQueueIsCreatedByTheFirstAdd() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_batch_queue_lazy",
+                initManagedLedgerConfig(defaultConfig()));
+        // An opened ledger that is never written to does not allocate the queue.
+        ledger.openCursor("c1");
+        assertFalse(ledger.hasAddBatchQueue());
+
+        Position position = ledger.addEntry("entry".getBytes(Encoding));
+
+        assertTrue(ledger.hasAddBatchQueue());
+        assertEquals(ledger.getLastConfirmedEntry(), position);
+        ledger.close();
+    }
+
     @Test(timeOut = 30000)
     public void testConcurrentAsyncAddEntriesKeepPerThreadOrder() throws Exception {
         int threads = 8;

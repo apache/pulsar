@@ -338,12 +338,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Getter
     protected final ThreadBoundExecutor executor;
 
-    // Adds handed off from the calling threads to the executor. A calling thread schedules a drain task only when
-    // none is scheduled, instead of one executor task per entry, so concurrent publishers contend on the executor's
-    // queue once per batch of adds rather than once per add.
-    private static final int MAX_ADDS_PER_DRAIN = 1024;
-    private final MpscUnboundedArrayQueue<Runnable> pendingAddHandoffs = new MpscUnboundedArrayQueue<>(256);
-    private final AtomicBoolean addHandoffDrainScheduled = new AtomicBoolean();
+    // Adds are batched across the thread boundary to the executor. Publishing threads append to the add batch queue;
+    // the thread that finds no batch task scheduled submits one, and that task runs every add queued by then. The
+    // executor's own queue then sees one task per batch rather than one per add, so concurrent publishers contend on
+    // it once per batch, and other executor work (add completions, cursor notifications) does not wait behind a task
+    // per published message.
+    private static final int MAX_ADDS_PER_BATCH = 1024;
+    // Chunk size of the add batch queue; the queue grows by linking chunks of this size when a batch backs up.
+    private static final int ADD_BATCH_QUEUE_CHUNK_SIZE = 512;
+    @SuppressWarnings("rawtypes")
+    private static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, MpscUnboundedArrayQueue>
+            ADD_BATCH_QUEUE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class,
+                    MpscUnboundedArrayQueue.class, "addBatchQueue");
+    // Created by the first add, so that ledgers that are never written to do not allocate it, and never replaced.
+    private volatile MpscUnboundedArrayQueue<Runnable> addBatchQueue;
+    private final AtomicBoolean addBatchScheduled = new AtomicBoolean();
 
     // Captured at ledger creation so configuration updates cannot change affinity with callbacks still queued.
     private final boolean readEntriesCallbackInline;
@@ -876,42 +885,65 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // retain buffer in this thread
         buffer.retain();
 
-        // Jump to specific thread to avoid contention from writers writing from different threads
-        pendingAddHandoffs.offer(() -> {
+        // Jump to specific thread to avoid contention from writers writing from different threads, batching the adds
+        // across the thread boundary.
+        addBatchQueue().offer(() -> {
             OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
                     currentLedgerTimeoutTriggered);
             internalAsyncAddEntry(addOperation);
         });
-        scheduleAddHandoffDrain();
+        scheduleAddBatch();
     }
 
-    private void scheduleAddHandoffDrain() {
-        if (addHandoffDrainScheduled.compareAndSet(false, true)) {
+    @SuppressWarnings("unchecked")
+    private MpscUnboundedArrayQueue<Runnable> addBatchQueue() {
+        MpscUnboundedArrayQueue<Runnable> queue = addBatchQueue;
+        if (queue == null) {
+            queue = new MpscUnboundedArrayQueue<>(ADD_BATCH_QUEUE_CHUNK_SIZE);
+            if (!ADD_BATCH_QUEUE_UPDATER.compareAndSet(this, null, queue)) {
+                // Another publishing thread created it first: every thread must use the same queue.
+                queue = addBatchQueue;
+            }
+        }
+        return queue;
+    }
+
+    @VisibleForTesting
+    boolean hasAddBatchQueue() {
+        return addBatchQueue != null;
+    }
+
+    private void scheduleAddBatch() {
+        if (addBatchScheduled.compareAndSet(false, true)) {
             try {
-                executor.execute(this::drainAddHandoffs);
+                executor.execute(this::runAddBatch);
             } catch (RuntimeException e) {
                 // Let a later add retry scheduling, and fail this caller like a rejected task did before.
-                addHandoffDrainScheduled.set(false);
+                addBatchScheduled.set(false);
                 throw e;
             }
         }
     }
 
-    private void drainAddHandoffs() {
-        // Clear the flag before polling: an add offered after this point schedules another drain if this one misses
+    private void runAddBatch() {
+        // Clear the flag before polling: an add queued after this point schedules another batch if this one misses
         // it, so no add is left behind.
-        addHandoffDrainScheduled.set(false);
+        addBatchScheduled.set(false);
+        MpscUnboundedArrayQueue<Runnable> queue = addBatchQueue;
+        if (queue == null) {
+            return;
+        }
         Runnable add;
-        for (int i = 0; i < MAX_ADDS_PER_DRAIN && (add = pendingAddHandoffs.poll()) != null; i++) {
+        for (int i = 0; i < MAX_ADDS_PER_BATCH && (add = queue.poll()) != null; i++) {
             try {
                 add.run();
             } catch (Throwable t) {
                 log.error().exception(t).log("Failed to process an add entry request");
             }
         }
-        if (!pendingAddHandoffs.isEmpty()) {
-            // Leave the rest to a new task so that other executor tasks, such as add completions, can run.
-            scheduleAddHandoffDrain();
+        if (!queue.isEmpty()) {
+            // Leave the rest to the next batch so that other executor tasks, such as add completions, can run.
+            scheduleAddBatch();
         }
     }
 
