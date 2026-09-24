@@ -168,12 +168,10 @@ public class BrokerServiceTest extends BrokerTestBase {
         assertTimeoutReason(context, "replication", TopicLoadFailureReason.TIMEOUT_INIT);
         assertTimeoutReason(context, "deduplication", TopicLoadFailureReason.TIMEOUT_DEDUP);
 
-        final var initTracePoint = context.startTrace("init");
-        assertTimeoutReason(context, "namespace-policies",
+        assertTimeoutReasonWithPendingInit("namespace-policies",
                 TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES);
-        assertTimeoutReason(context, "local-topic-policies",
+        assertTimeoutReasonWithPendingInit("local-topic-policies",
                 TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES);
-        context.finishTrace(initTracePoint, null);
     }
 
     @Test
@@ -274,6 +272,20 @@ public class BrokerServiceTest extends BrokerTestBase {
         context.trace(stage, future);
         assertEquals(context.getTopicLoadTimeoutReason(), expected);
         future.complete(null);
+    }
+
+    private void assertTimeoutReasonWithPendingInit(String stage, TopicLoadFailureReason expected) {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        final var initTracePoint = context.startTrace("init");
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        context.trace(stage, future);
+
+        context.close(true);
+        assertEquals(context.getTopicLoadTimeoutReason(), expected);
+
+        future.complete(null);
+        context.finishTrace(initTracePoint, null);
     }
 
     @BeforeClass
