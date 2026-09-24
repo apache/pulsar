@@ -258,6 +258,25 @@ public class ReaderImpl<T> implements Reader<T> {
     }
 
     @Override
+    public CompletableFuture<Messages<T>> batchReadNextAsync() {
+        CompletableFuture<Messages<T>> originalFuture = consumer.batchReceiveAsync();
+        CompletableFuture<Messages<T>> result = originalFuture.thenApply(msg -> {
+            consumer.acknowledgeAsync(msg)
+                    .exceptionally(ex -> {
+                        log.error()
+                                .exception(ex)
+                                .log("acknowledge message cumulative fail");
+                        return null;
+                    });
+            return msg;
+        });
+        CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
+        handler.attachToFuture(result);
+        handler.setCancelAction(() -> originalFuture.cancel(false));
+        return result;
+    }
+
+    @Override
     public void close() throws IOException {
         consumer.close();
     }

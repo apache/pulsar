@@ -217,6 +217,25 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     }
 
     @Override
+    public CompletableFuture<Messages<T>> batchReadNextAsync() {
+        CompletableFuture<Messages<T>> originalFuture = multiTopicsConsumer.batchReceiveAsync();
+        CompletableFuture<Messages<T>> result = originalFuture.thenApply(msg -> {
+            multiTopicsConsumer.acknowledgeAsync(msg)
+                               .exceptionally(ex -> {
+                                   log.warn()
+                                      .exception(ex)
+                                      .log("acknowledge message cumulative fail");
+                                   return null;
+                               });
+            return msg;
+        });
+        CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
+        handler.attachToFuture(result);
+        handler.setCancelAction(() -> originalFuture.cancel(false));
+        return result;
+    }
+
+    @Override
     public CompletableFuture<Void> closeAsync() {
         return multiTopicsConsumer.closeAsync();
     }

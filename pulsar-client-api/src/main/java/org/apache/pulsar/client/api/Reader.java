@@ -86,6 +86,23 @@ public interface Reader<T> extends Closeable {
     CompletableFuture<Message<T>> readNextAsync();
 
     /**
+     * Read asynchronously the next messages in the topic.
+     *
+     * <p>{@code batchReadNextAsync()} should be called subsequently once returned {@code CompletableFuture} gets complete
+     * with received messages. Else it creates <i> backlog of receive requests </i> in the application.
+     *
+     * <p>The returned future can be cancelled before completion by calling {@code .cancel(false)}
+     * ({@link CompletableFuture#cancel(boolean)}) to remove it from the the backlog of receive requests. Another
+     * choice for ensuring a proper clean up of the returned future is to use the CompletableFuture.orTimeout method
+     * which is available on JDK9+. That would remove it from the backlog of receive requests if receiving exceeds
+     * the timeout.
+     *
+     * @return a future that will yield a messages (when it's available) or {@link PulsarClientException} if the reader
+     *         is already closed.
+     */
+    CompletableFuture<Messages<T>> batchReadNextAsync();
+
+    /**
      * Asynchronously close the reader and stop the broker to push more messages.
      *
      * @return a future that can be used to track the completion of the operation
