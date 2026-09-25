@@ -32,5 +32,3 @@ workloads:
     batchingEnabled: false
     applicationCount: 1
     clientsPerApplication: 20
-output:
-  directory: build/performance/iot-key-shared-500x20
