@@ -47,9 +47,12 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     private static final int HEIGHT = 700;
     private static final int PLOT_TOP = 125;
     private static final int PLOT_HEIGHT = 390;
-    private static final int PANEL_WIDTH = 590;
+    // The panels are far enough apart that the second panel's axis labels read as its own
+    private static final int PANEL_WIDTH = 570;
     private static final int FIRST_PANEL_X = 100;
-    private static final int SECOND_PANEL_X = 760;
+    private static final int SECOND_PANEL_X = 780;
+    // The y axis labels end this far left of their panel
+    private static final int AXIS_LABEL_GAP = 8;
     private static final int BIN_COUNT = 50;
     static final Color INK = new Color(20, 43, 64);
     static final Color MUTED = new Color(80, 98, 117);
@@ -236,8 +239,8 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
             graphics.setColor(GRID);
             graphics.drawLine(x, y, x + PANEL_WIDTH, y);
             graphics.setColor(MUTED);
-            graphics.drawString(String.format(Locale.ROOT, "%.1f%%", data.peakPercent() * line / 4),
-                    x - 50, y + 4);
+            String label = String.format(Locale.ROOT, "%.1f%%", data.peakPercent() * line / 4);
+            graphics.drawString(label, x - AXIS_LABEL_GAP - graphics.getFontMetrics().stringWidth(label), y + 4);
         }
         double barWidth = (double) PANEL_WIDTH / BIN_COUNT;
         graphics.setColor(new Color(data.color().getRed(), data.color().getGreen(), data.color().getBlue(), 190));
@@ -281,8 +284,8 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
             int y = PLOT_TOP + PLOT_HEIGHT - line * PLOT_HEIGHT / 4;
             out.append("<line x1=\"").append(x).append("\" y1=\"").append(y).append("\" x2=\"")
                     .append(x + PANEL_WIDTH).append("\" y2=\"").append(y)
-                    .append("\" stroke=\"#dae1e8\"/>\n<text class=\"muted\" x=\"").append(x - 50)
-                    .append("\" y=\"").append(y + 4).append("\" font-size=\"12\">")
+                    .append("\" stroke=\"#dae1e8\"/>\n<text class=\"muted\" x=\"").append(x - AXIS_LABEL_GAP)
+                    .append("\" y=\"").append(y + 4).append("\" text-anchor=\"end\" font-size=\"12\">")
                     .append(String.format(Locale.ROOT, "%.1f%%", data.peakPercent() * line / 4))
                     .append("</text>\n");
         }
