@@ -1085,6 +1085,14 @@ public class Consumer {
         }
     }
 
+    public CompletableFuture<Boolean> checkTopicMigrationAsync() {
+        if (!subscription.isSubscriptionMigrated()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return AbstractTopic.getMigratedClusterUrlAsync(cnx.getBrokerService().getPulsar(), topicName)
+                .thenApply(Optional::isPresent);
+    }
+
     public CompletableFuture<Boolean> checkAndApplyTopicMigrationAsync() {
         if (!subscription.isSubscriptionMigrated()) {
             return CompletableFuture.completedFuture(false);
