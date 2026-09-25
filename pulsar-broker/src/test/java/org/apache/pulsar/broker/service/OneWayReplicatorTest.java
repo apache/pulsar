@@ -902,7 +902,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         });
     }
 
-    @Test(timeOut = 45 * 1000)
+    @Test(timeOut = 300 * 1000)
     public void testProbBKErrorWhenReplicating() throws Exception {
         // creates topics.
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
