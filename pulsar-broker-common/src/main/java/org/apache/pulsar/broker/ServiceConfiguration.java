@@ -2748,7 +2748,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "A smaller value favors those tasks over add throughput. Set to 0 to disable batching, so that "
                     + "each add is handed over to the executor as a task of its own. Updates apply to managed ledgers "
                     + "opened after the change; ledgers that are already open keep the value they opened with.")
-    private int managedLedgerMaxAddEntryHandoverBatchSize = 1024;
+    private int managedLedgerAddEntryHandoverMaxBatchSize = 1024;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"

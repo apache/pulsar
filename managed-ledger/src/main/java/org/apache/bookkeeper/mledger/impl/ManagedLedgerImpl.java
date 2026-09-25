@@ -342,7 +342,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // thread that finds no handover batch scheduled submits one, and that task runs every add queued by then. The
     // executor's own queue then sees one task per batch rather than one per add, so concurrent publishers contend on
     // it once per batch, and other executor work (add completions, cursor notifications) does not wait behind a task
-    // per published message. A handover batch runs at most maxAddEntryHandoverBatchSize adds, captured when the ledger
+    // per published message. A handover batch runs at most addEntryHandoverMaxBatchSize adds, captured when the ledger
     // is opened; 0 disables batching, and each add is then handed over to the executor as a task of its own.
     // Chunk size of the add entry handover queue; the queue grows by linking chunks of this size when a batch backs up.
     private static final int ADD_ENTRY_HANDOVER_QUEUE_CHUNK_SIZE = 512;
@@ -353,7 +353,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // Created by the first add, so that ledgers that are never written to do not allocate it, and never replaced.
     private volatile MpscUnboundedArrayQueue<Runnable> addEntryHandoverQueue;
     private final AtomicBoolean addEntryHandoverScheduled = new AtomicBoolean();
-    private final int maxAddEntryHandoverBatchSize;
+    private final int addEntryHandoverMaxBatchSize;
 
     // Captured at ledger creation so configuration updates cannot change affinity with callbacks still queued.
     private final boolean readEntriesCallbackInline;
@@ -423,7 +423,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // withOrderingKey, so their processing can run inline with executeOrRun() instead of re-queueing.
         this.executor = (ThreadBoundExecutor) bookKeeper.getMainWorkerPool().chooseThread(name);
         this.readEntriesCallbackInline = config.isReadEntriesCallbackInline();
-        this.maxAddEntryHandoverBatchSize = config.getMaxAddEntryHandoverBatchSize();
+        this.addEntryHandoverMaxBatchSize = config.getAddEntryHandoverMaxBatchSize();
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
@@ -894,7 +894,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     currentLedgerTimeoutTriggered);
             internalAsyncAddEntry(addOperation);
         };
-        if (maxAddEntryHandoverBatchSize == 0) {
+        if (addEntryHandoverMaxBatchSize == 0) {
             executor.execute(add);
             return;
         }
@@ -941,7 +941,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         Runnable add;
-        for (int i = 0; i < maxAddEntryHandoverBatchSize && (add = queue.poll()) != null; i++) {
+        for (int i = 0; i < addEntryHandoverMaxBatchSize && (add = queue.poll()) != null; i++) {
             try {
                 add.run();
             } catch (Throwable t) {
@@ -4735,8 +4735,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     /** Returns the maximum add entry handover batch size captured when this ledger was opened. */
     @VisibleForTesting
-    int getMaxAddEntryHandoverBatchSize() {
-        return maxAddEntryHandoverBatchSize;
+    int getAddEntryHandoverMaxBatchSize() {
+        return addEntryHandoverMaxBatchSize;
     }
 
     /**

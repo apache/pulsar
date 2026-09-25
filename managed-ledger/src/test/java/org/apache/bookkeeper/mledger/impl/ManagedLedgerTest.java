@@ -618,7 +618,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     @Test(timeOut = 20000)
     public void testAddEntryHandoverBatchingDisabled() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_entry_handover_batching_disabled",
-                initManagedLedgerConfig(defaultConfig().setMaxAddEntryHandoverBatchSize(0)));
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchSize(0)));
 
         Position position = ledger.addEntry("entry".getBytes(Encoding));
 
@@ -629,36 +629,36 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
-    public void testMaxAddEntryHandoverBatchSizeIsCapturedWhenOpened() throws Exception {
-        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig().setMaxAddEntryHandoverBatchSize(16));
+    public void testAddEntryHandoverMaxBatchSizeIsCapturedWhenOpened() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchSize(16));
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_entry_handover_batch_size_captured", config);
-        assertEquals(ledger.getMaxAddEntryHandoverBatchSize(), 16);
+        assertEquals(ledger.getAddEntryHandoverMaxBatchSize(), 16);
 
-        config.setMaxAddEntryHandoverBatchSize(0);
-        ledger.setConfig(initManagedLedgerConfig(defaultConfig().setMaxAddEntryHandoverBatchSize(0)));
+        config.setAddEntryHandoverMaxBatchSize(0);
+        ledger.setConfig(initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchSize(0)));
 
-        assertEquals(ledger.getMaxAddEntryHandoverBatchSize(), 16);
+        assertEquals(ledger.getAddEntryHandoverMaxBatchSize(), 16);
         ledger.close();
     }
 
     @Test
-    public void testMaxAddEntryHandoverBatchSizeRejectsNegativeValues() {
-        assertEquals(new ManagedLedgerConfig().getMaxAddEntryHandoverBatchSize(), 1024);
-        assertThatThrownBy(() -> new ManagedLedgerConfig().setMaxAddEntryHandoverBatchSize(-1))
+    public void testAddEntryHandoverMaxBatchSizeRejectsNegativeValues() {
+        assertEquals(new ManagedLedgerConfig().getAddEntryHandoverMaxBatchSize(), 1024);
+        assertThatThrownBy(() -> new ManagedLedgerConfig().setAddEntryHandoverMaxBatchSize(-1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @DataProvider
-    public Object[][] maxAddEntryHandoverBatchSizes() {
+    public Object[][] addEntryHandoverMaxBatchSizes() {
         return new Object[][] {{0}, {1}, {1024}};
     }
 
-    @Test(timeOut = 30000, dataProvider = "maxAddEntryHandoverBatchSizes")
-    public void testConcurrentAsyncAddEntriesKeepPerThreadOrder(int maxAddEntryHandoverBatchSize) throws Exception {
+    @Test(timeOut = 30000, dataProvider = "addEntryHandoverMaxBatchSizes")
+    public void testConcurrentAsyncAddEntriesKeepPerThreadOrder(int addEntryHandoverMaxBatchSize) throws Exception {
         int threads = 8;
         int entriesPerThread = 2000;
-        ManagedLedger ledger = factory.open("concurrent_adds_" + maxAddEntryHandoverBatchSize,
-                initManagedLedgerConfig(defaultConfig().setMaxAddEntryHandoverBatchSize(maxAddEntryHandoverBatchSize)));
+        ManagedLedger ledger = factory.open("concurrent_adds_" + addEntryHandoverMaxBatchSize,
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchSize(addEntryHandoverMaxBatchSize)));
         List<List<Position>> positionsByThread = new ArrayList<>();
         CountDownLatch completed = new CountDownLatch(threads * entriesPerThread);
         AtomicReference<Throwable> failure = new AtomicReference<>();
