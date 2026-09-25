@@ -295,18 +295,13 @@ public final class RunReport {
         report.append(latencyRow("Publish (send to acknowledgment)", published));
         // Each application consumes on its own, so its end-to-end latency is reported on its own: a distribution
         // merged across applications would describe none of them
-        List<String> delivery = new ArrayList<>();
         List<String> applications = new ArrayList<>();
         for (Path consumer : consumers) {
             String application = applicationOf(consumer);
             applications.add(application);
-            Histogram endToEnd = HdrHistogramRenderer.readMerged(List.of(consumer));
-            report.append(latencyRow(application + " (publish to consume)", endToEnd));
-            String millis = millis(endToEnd.getValueAtPercentile(50) - published.getValueAtPercentile(50));
-            delivery.add(consumers.size() == 1 ? "about " + millis + " ms" : application + " about " + millis + " ms");
+            report.append(latencyRow(application + " (publish to consume)",
+                    HdrHistogramRenderer.readMerged(List.of(consumer))));
         }
-        report.append("\nDelivery after the publish is acknowledged (end-to-end p50 − publish p50): ")
-                .append(String.join(", ", delivery)).append(".\n");
         List<Path> charts = HdrHistogramRenderer.render(publish, consumers, applications,
                 runDirectory.resolve(LATENCY_CHART), measurementStart, chartFooter(run.info(), run.finished()));
         report.append("\n![Latency by percentile](").append(charts.get(0).getFileName())

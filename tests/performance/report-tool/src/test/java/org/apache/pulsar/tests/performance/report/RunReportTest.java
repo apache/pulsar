@@ -163,8 +163,7 @@ public class RunReportTest {
         assertTrue(report.contains("| sub-0 (publish to consume) | 1,000 | 1,199.1 | 1,200.1 |"), report);
         assertTrue(report.contains("| sub-1 (publish to consume) | 1,000 | 1,199.1 | 1,200.1 |"), report);
         assertFalse(report.contains("End to end"), report);
-        assertTrue(report.contains("Delivery after the publish is acknowledged (end-to-end p50 − publish p50):"
-                + " sub-0 about 300.0 ms, sub-1 about 300.0 ms.\n"), report);
+        assertFalse(report.contains("Delivery after the publish"), report);
         assertTrue(report.contains("| Published msg/s | 100,000 | 100,000 |"), report);
         // Seconds 1–2 and 2–3 are the measurement without its first and last second. sub-1 dispatches nothing in
         // the first and catches up in the second, so the total's minimum drops to 100,000.
