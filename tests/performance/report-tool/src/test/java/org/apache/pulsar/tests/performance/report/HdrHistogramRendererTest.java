@@ -56,8 +56,8 @@ public class HdrHistogramRendererTest {
     @Test
     public void plotsPercentilesAndIntervalMaximaAsPng() throws Exception {
         Path producer = writeLog(directory.resolve("producer/produce-latency.hdr"), 1_000, 2_000);
-        Path consumerOne = writeLog(directory.resolve("consumer-0/consume-latency.hdr"), 2_000, 4_000);
-        Path consumerTwo = writeLog(directory.resolve("consumer-1/consume-latency.hdr"), 4_000, 8_000);
+        Path consumerOne = writeLog(directory.resolve("iot-application-0/consume-latency.hdr"), 2_000, 4_000);
+        Path consumerTwo = writeLog(directory.resolve("iot-application-1/consume-latency.hdr"), 4_000, 8_000);
 
         List<Path> charts = HdrHistogramRenderer.render(producer, List.of(consumerOne, consumerTwo),
                 List.of("iot-application-0", "iot-application-1"),

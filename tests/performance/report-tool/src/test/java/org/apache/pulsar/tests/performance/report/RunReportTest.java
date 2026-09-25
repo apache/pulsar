@@ -63,7 +63,7 @@ public class RunReportTest {
                 + " \"measurementStartEpochMs\": " + START + ", \"measurementEndEpochMs\": " + (START + 4000) + "}");
         writeHistogram(run.resolve("producer/produce-latency.hdr"), 900_000, 1_000);
         for (int application = 0; application < 2; application++) {
-            Path consumer = Files.createDirectories(run.resolve("consumer-" + application));
+            Path consumer = Files.createDirectories(run.resolve("sub-" + application));
             Files.writeString(consumer.resolve("consumer-summary.json"), "{\"applicationIndex\": " + application
                     + ", \"uniqueMessages\": 500000, \"duplicates\": " + application + ", \"orderingViolations\": 0,"
                     + " \"invalidMessages\": 0, \"lastMeasurementMessageReceivedEpochMs\": "
@@ -86,7 +86,7 @@ public class RunReportTest {
         }
         Files.writeString(run.resolve(RunReport.TOPIC_STATS_FILE), csv);
         Files.writeString(run.resolve("scenario.yaml"), "extends: base.yaml\n");
-        Files.writeString(run.resolve("consumer-0").resolve(RunReport.CONTAINER_LOG), "log\n");
+        Files.writeString(run.resolve("sub-0").resolve(RunReport.CONTAINER_LOG), "log\n");
         Files.writeString(run.resolve(RunReport.RESOLVED_CONFIG), "cluster: {}\n");
         // The broker was profiled with off-CPU capture, the producer with async-profiler only.
         Path offCpu = Files.createDirectories(run.resolve("broker-profile/broker" + OffCpuFlamegraphs.OUTPUT_SUFFIX));
@@ -115,17 +115,17 @@ public class RunReportTest {
         // The run's other files are linked, so that they can be found when the run is browsed over HTTP
         assertTrue(report.endsWith("\n<details><summary>Files</summary>\n\n"
                 + "- [producer/producer-summary.json](producer/producer-summary.json)\n"
-                + "- [consumer-0/consumer-summary.json](consumer-0/consumer-summary.json)\n"
-                + "- [consumer-0/container.log.txt](consumer-0/container.log.txt)\n"
-                + "- [consumer-1/consumer-summary.json](consumer-1/consumer-summary.json)\n\n</details>\n"), report);
+                + "- [sub-0/consumer-summary.json](sub-0/consumer-summary.json)\n"
+                + "- [sub-0/container.log.txt](sub-0/container.log.txt)\n"
+                + "- [sub-1/consumer-summary.json](sub-1/consumer-summary.json)\n\n</details>\n"), report);
         assertTrue(report.contains("<details><summary>HDR histogram logs and percentile distributions</summary>\n\n"
                 + "- [producer/produce-latency.hdr](producer/produce-latency.hdr) ·"
                 + " [producer/produce-latency.hgrm](producer/produce-latency.hgrm)\n"
-                + "- [consumer-0/consume-latency.hdr](consumer-0/consume-latency.hdr) ·"
-                + " [consumer-0/consume-latency.hgrm](consumer-0/consume-latency.hgrm)\n"
-                + "- [consumer-1/consume-latency.hdr](consumer-1/consume-latency.hdr) ·"
-                + " [consumer-1/consume-latency.hgrm](consumer-1/consume-latency.hgrm)\n\n</details>\n"), report);
-        assertTrue(Files.isRegularFile(run.resolve("consumer-1/consume-latency.hgrm")));
+                + "- [sub-0/consume-latency.hdr](sub-0/consume-latency.hdr) ·"
+                + " [sub-0/consume-latency.hgrm](sub-0/consume-latency.hgrm)\n"
+                + "- [sub-1/consume-latency.hdr](sub-1/consume-latency.hdr) ·"
+                + " [sub-1/consume-latency.hgrm](sub-1/consume-latency.hgrm)\n\n</details>\n"), report);
+        assertTrue(Files.isRegularFile(run.resolve("sub-1/consume-latency.hgrm")));
         assertTrue(report.contains("The [sampled topic stats](topic-stats.csv) are a CSV file."), report);
         assertTrue(report.contains("| Scenario | [scenario](scenario.yaml) |\n"), report);
         assertTrue(report.contains("| Cluster | 1 broker(s), 3 bookies, [configuration](resolved-config.yaml) |\n"),

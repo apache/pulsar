@@ -104,7 +104,7 @@ public final class RunReport {
         List<JsonNode> consumers = new ArrayList<>();
         List<Path> consumerHistograms = new ArrayList<>();
         for (int application = 0; ; application++) {
-            Path directory = runDirectory.resolve("consumer-" + application);
+            Path directory = applicationDirectory(runDirectory, run.workload(), application);
             if (!Files.isRegularFile(directory.resolve("consumer-summary.json"))) {
                 break;
             }
@@ -128,7 +128,7 @@ public final class RunReport {
             appendTopicStats(report, runDirectory, readSamples(stats), measurementStart, measurementEnd,
                     chartFooter(run.info(), run.finished()));
         }
-        appendFiles(report, runDirectory);
+        appendFiles(report, runDirectory, run.workload());
         Path file = runDirectory.resolve(FILE_NAME);
         Files.writeString(file, report);
         MarkdownPages.renderHtml(file, runDirectory, "Run report: " + run.scenario());
@@ -169,7 +169,7 @@ public final class RunReport {
     }
 
     // The run's own records, collapsed at the end, for a reader who browses the run directory, for example over HTTP
-    private static void appendFiles(StringBuilder report, Path runDirectory) {
+    private static void appendFiles(StringBuilder report, Path runDirectory, JsonNode workload) {
         List<String> links = new ArrayList<>();
         // The scenario and its resolved configuration are linked from the settings table
         for (String name : List.of(RunInfo.FILE_NAME, "producer/producer-summary.json",
@@ -179,9 +179,10 @@ public final class RunReport {
                 links.add(link(runDirectory, file));
             }
         }
-        for (int application = 0; Files.isDirectory(runDirectory.resolve("consumer-" + application)); application++) {
+        for (int application = 0; Files.isDirectory(applicationDirectory(runDirectory, workload, application));
+                application++) {
             for (String name : List.of("consumer-summary.json", CONTAINER_LOG)) {
-                Path file = runDirectory.resolve("consumer-" + application).resolve(name);
+                Path file = applicationDirectory(runDirectory, workload, application).resolve(name);
                 if (Files.isRegularFile(file)) {
                     links.add(link(runDirectory, file));
                 }
@@ -267,15 +268,19 @@ public final class RunReport {
      * {@code iot-application-0}, as the throughput and backlog charts name it. Each application consumes through
      * {@code clientsPerApplication} consumers that record into one latency log.
      */
-    static String applicationName(JsonNode workload, int index) {
+    public static String applicationName(JsonNode workload, int index) {
         String prefix = workload.path("subscriptionPrefix").asText("");
         return (prefix.isEmpty() ? "application-" : prefix) + index;
     }
 
-    // An application's outputs are in consumer-<index>/
-    private static int applicationIndex(Path consumerLog) {
-        String directory = consumerLog.toAbsolutePath().getParent().getFileName().toString();
-        return Integer.parseInt(directory.substring(directory.lastIndexOf('-') + 1));
+    /** Where an application's outputs are: a directory named after the application, such as iot-application-0/. */
+    public static Path applicationDirectory(Path runDirectory, JsonNode workload, int index) {
+        return runDirectory.resolve(applicationName(workload, index));
+    }
+
+    // The application a log belongs to, from the directory it is in
+    private static String applicationOf(Path log) {
+        return log.toAbsolutePath().getParent().getFileName().toString();
     }
 
     private static void appendLatency(StringBuilder report, Path runDirectory, Run run, List<Path> consumers,
@@ -293,7 +298,7 @@ public final class RunReport {
         List<String> delivery = new ArrayList<>();
         List<String> applications = new ArrayList<>();
         for (Path consumer : consumers) {
-            String application = applicationName(run.workload(), applicationIndex(consumer));
+            String application = applicationOf(consumer);
             applications.add(application);
             Histogram endToEnd = HdrHistogramRenderer.readMerged(List.of(consumer));
             report.append(latencyRow(consumers.size() == 1 ? "End to end (publish to listener)"
@@ -432,6 +437,10 @@ public final class RunReport {
 
     /** The profiled component a profile directory belongs to: {@code broker-profile} is "Broker". */
     static String componentName(String directoryName) {
+        if (!directoryName.endsWith("-profile") && !directoryName.equals("producer")) {
+            // A consumer application's directory is named after the application, as the rest of the report names it
+            return directoryName;
+        }
         String name = directoryName.replaceFirst("-profile$", "").replace('-', ' ');
         return name.isEmpty() ? directoryName : Character.toUpperCase(name.charAt(0)) + name.substring(1);
     }

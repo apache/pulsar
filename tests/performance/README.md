@@ -135,9 +135,10 @@ Every run writes a report into its run directory; open `run-report.html` in a br
 | `<scenario>.yaml`, `resolved-config.yaml` | The scenario file as written, and the scenario with its inheritance and environment overrides applied, which the workloads read |
 | `index.html`, `README.md` | Symbolic links to `run-report.html` and `run-report.md` |
 | `run-info.json` | The run's start, host, user, project directory, git branch, commit and uncommitted changes, and Pulsar version, with the keys of `pulsar-version.properties` where they match; the launcher collects them itself, from git and `gradle.properties` in the checkout it runs from |
+| `producer/`, `<application>/` | The producer's and each consumer application's outputs: summary, latency log, container log and produced or consumed state. Each application's directory is named after its subscription, such as `iot-application-0`, as the report names it |
 | `latency-percentiles.png` | Latency by percentile, as HistogramLogAnalyzer plots it: publish and each application's end to end, on an axis that spreads the tail (90 %, 99 %, 99.9 %, …) |
 | `latency-timeline.png` | The maximum latency of each logged interval over the run, publish and per application |
-| `producer/produce-latency.hgrm`, `consumer-*/consume-latency.hgrm` | Each latency log's percentile distribution in milliseconds, HdrHistogram's percentile output format, which [plotFiles.html](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html) plots |
+| `producer/produce-latency.hgrm`, `<application>/consume-latency.hgrm` | Each latency log's percentile distribution in milliseconds, HdrHistogram's percentile output format, which [plotFiles.html](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html) plots |
 | `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked |
 | `backlog.svg`, `.png` | Each subscription's backlog over the run |
 | `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
@@ -225,7 +226,7 @@ Docker host. Multi-host experiments need synchronized clocks; the launcher does 
 correct the cut window. The broker-publish-to-listener latency uses the same clock assumption.
 
 Every IoT run writes `producer/produce-latency.hdr` with successful measured-message send-completion latency and
-one `consumer-*/consume-latency.hdr` per backend application with measured-message broker-publish-to-listener
+one `<application>/consume-latency.hdr` per backend application with measured-message broker-publish-to-listener
 latency. Both use microseconds internally and three significant digits. Warmup messages are tagged in the payload
 and excluded. Consumer latency uses a timestamp captured on listener entry; the sample is recorded after payload
 decoding and key validation, before sequence validation and acknowledgment. Decoding and validation time are

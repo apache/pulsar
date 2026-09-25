@@ -185,7 +185,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         try {
             cluster.start();
             for (int application = 0; application < applications; application++) {
-                Path appOutput = runOutput.resolve("consumer-" + application);
+                Path appOutput = applicationOutput(runOutput, workload, application);
                 Files.createDirectories(appOutput);
                 consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                         coordinationDirectory, runId, appOutput, agentJar, offCpuOptions,
@@ -211,14 +211,14 @@ public class PerformanceLauncher implements Callable<Integer> {
             for (int application = 0; application < consumers.size(); application++) {
                 GenericContainer<?> consumer = consumers.get(application);
                 int consumerExit = waitForExit(consumer, timeout);
-                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/" + CONTAINER_LOG));
+                saveContainerLog(consumer, applicationOutput(runOutput, workload, application).resolve(CONTAINER_LOG));
                 if (consumerExit != 0) {
                     throw new IllegalStateException("IoT consumer exited with status " + consumerExit);
                 }
             }
             // The run's end in the charts: every consumer has finished, before the profiles are processed
             workloadFinished = ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-            verifyStates(runOutput, applications);
+            verifyStates(runOutput, workload, applications);
         } finally {
             if (topicStatsSampler != null) {
                 topicStatsSampler.close();
@@ -229,7 +229,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
             for (int application = 0; application < consumers.size(); application++) {
                 GenericContainer<?> consumer = consumers.get(application);
-                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/" + CONTAINER_LOG));
+                saveContainerLog(consumer, applicationOutput(runOutput, workload, application).resolve(CONTAINER_LOG));
                 consumer.stop();
             }
             cluster.stop();
@@ -240,7 +240,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             long lastConsumerReceiptEpochMs = Long.MIN_VALUE;
             for (int application = 0; application < applications; application++) {
                 JsonNode consumerSummary = loader.mapper().readTree(
-                        runOutput.resolve("consumer-" + application + "/consumer-summary.json").toFile());
+                        applicationOutput(runOutput, workload, application).resolve("consumer-summary.json").toFile());
                 lastConsumerReceiptEpochMs = Math.max(lastConsumerReceiptEpochMs,
                         requiredLong(consumerSummary, "lastMeasurementMessageReceivedEpochMs"));
             }
@@ -434,10 +434,15 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
     }
 
-    private static void verifyStates(Path output, int applications) throws Exception {
+    // An application's outputs are in a directory named after it, as the run report names the application
+    private static Path applicationOutput(Path runOutput, JsonNode workload, int application) {
+        return RunReport.applicationDirectory(runOutput, workload, application);
+    }
+
+    private static void verifyStates(Path output, JsonNode workload, int applications) throws Exception {
         long[] produced = readState(output.resolve("producer/produced-state.bin"));
         for (int application = 0; application < applications; application++) {
-            long[] consumed = readState(output.resolve("consumer-" + application + "/consumed-state.bin"));
+            long[] consumed = readState(applicationOutput(output, workload, application).resolve("consumed-state.bin"));
             if (!java.util.Arrays.equals(produced, consumed)) {
                 throw new IllegalStateException("Application " + application
                         + " did not receive every device sequence");

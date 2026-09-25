@@ -72,7 +72,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     private static final int PERCENTILE_TICKS_PER_HALF_DISTANCE = 5;
 
     @Option(names = "--run-directory", required = true,
-            description = "IoT run directory containing producer/ and consumer-* outputs")
+            description = "IoT run directory containing producer/ and one directory per consumer application")
     private Path runDirectory;
 
     @Option(names = "--output-prefix",
@@ -94,13 +94,21 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
         if (!Files.isRegularFile(producer)) {
             throw new IllegalArgumentException("Producer histogram does not exist: " + producer);
         }
+        // The applications' directories are named after their subscriptions, from the run's resolved scenario
+        Path resolvedConfig = normalizedRun.resolve(RunReport.RESOLVED_CONFIG);
+        JsonNode workload = Files.isRegularFile(resolvedConfig)
+                ? new YAMLMapper().readTree(resolvedConfig.toFile()).path("workloads").path("iotTelemetry")
+                : MissingNode.getInstance();
         List<Path> consumers = new ArrayList<>();
+        List<String> applications = new ArrayList<>();
         for (int application = 0; ; application++) {
-            Path consumer = normalizedRun.resolve("consumer-" + application).resolve("consume-latency.hdr");
+            Path directory = RunReport.applicationDirectory(normalizedRun, workload, application);
+            Path consumer = directory.resolve("consume-latency.hdr");
             if (!Files.isRegularFile(consumer)) {
                 break;
             }
             consumers.add(consumer);
+            applications.add(directory.getFileName().toString());
         }
         Path prefix = outputPrefix != null ? outputPrefix.toAbsolutePath().normalize()
                 : normalizedRun.resolve("latency");
@@ -110,15 +118,6 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
             for (Interval interval : readIntervals(log)) {
                 origin = Math.min(origin, interval.startEpochMillis());
             }
-        }
-        // Named after their subscriptions, as the run report names them, when the run's resolved scenario is there
-        Path resolvedConfig = normalizedRun.resolve(RunReport.RESOLVED_CONFIG);
-        JsonNode workload = Files.isRegularFile(resolvedConfig)
-                ? new YAMLMapper().readTree(resolvedConfig.toFile()).path("workloads").path("iotTelemetry")
-                : MissingNode.getInstance();
-        List<String> applications = new ArrayList<>();
-        for (int application = 0; application < consumers.size(); application++) {
-            applications.add(RunReport.applicationName(workload, application));
         }
         for (Path chart : render(producer, consumers, applications, prefix, origin, "")) {
             System.out.println(chart);
