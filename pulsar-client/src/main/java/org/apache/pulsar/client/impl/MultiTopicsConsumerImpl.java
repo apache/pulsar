@@ -688,6 +688,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void cleanupMultiConsumer() {
+        clearListenerRetry();
         if (unAckedMessageTracker != null) {
             unAckedMessageTracker.close();
         }
@@ -858,6 +859,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     private void beforeSeek() {
         duringSeek = true;
+        clearListenerRetry();
         unAckedMessageTracker.clear();
         clearIncomingMessages();
     }
