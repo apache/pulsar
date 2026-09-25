@@ -3074,6 +3074,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         try {
             return asyncGetStats(getPreciseBacklog, subscriptionBacklogSize, getEarliestTimeInBacklog).get();
         } catch (InterruptedException | ExecutionException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             log.error().exception(e).log("Fail to get stats");
             return null;
         }
@@ -3084,6 +3087,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         try {
             return asyncGetStats(getStatsOptions).get();
         } catch (InterruptedException | ExecutionException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             log.error().exception(e).log("Fail to get stats");
             return null;
         }
@@ -3471,6 +3477,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 return pulsarCompactedService.getCompactedTopic().getCompactedTopicContext();
             }
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             log.warn("Fail to get ledger information for compacted topic.");
         }
         return Optional.empty();

@@ -80,6 +80,7 @@ public class LoadReportCommand implements Callable<Integer> {
             try {
                 TimeUnit.MILLISECONDS.sleep(intervalMilliseconds);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             }
             hostUsage.calculateBrokerHostUsage();
             SystemResourceUsage usage = hostUsage.getBrokerHostUsage();

@@ -660,6 +660,7 @@ public class AuthorizationService {
                     tenantName, operation, originalRole, role, authData).get(
                             conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RestException(e);
         } catch (ExecutionException e) {
             throw new RestException(e.getCause());
@@ -767,6 +768,7 @@ public class AuthorizationService {
                     namespaceName, policy, operation, originalRole, role, authData).get(
                             conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RestException(e);
         } catch (ExecutionException e) {
             throw new RestException(e.getCause());
@@ -831,6 +833,7 @@ public class AuthorizationService {
                     topicName, policy, operation, originalRole, role, authData).get(
                             conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RestException(e);
         } catch (ExecutionException e) {
             throw new RestException(e.getCause());
@@ -942,6 +945,7 @@ public class AuthorizationService {
             return allowTopicOperationAsync(topicName, operation, originalRole, role, authData).get(
                     conf.getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RestException(e);
         } catch (ExecutionException e) {
             throw new RestException(e.getCause());

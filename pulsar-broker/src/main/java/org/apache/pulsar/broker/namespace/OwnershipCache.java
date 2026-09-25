@@ -453,6 +453,9 @@ public class OwnershipCache {
                 return future.get(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds(),
                         TimeUnit.SECONDS);
             } catch (InterruptedException | TimeoutException e) {
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 throw new RuntimeException(e);
             } catch (ExecutionException e) {
                 throw new RuntimeException(e.getCause());

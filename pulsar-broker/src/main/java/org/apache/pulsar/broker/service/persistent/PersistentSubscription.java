@@ -422,6 +422,9 @@ public class PersistentSubscription extends AbstractSubscription {
                             try {
                                 topic.getManagedLedger().deleteCursor(cursor.getName());
                             } catch (InterruptedException | ManagedLedgerException e) {
+                                if (e instanceof InterruptedException) {
+                                    Thread.currentThread().interrupt();
+                                }
                                 log.warn()
                                         .exception(e)
                                         .log("Failed to remove non durable cursor");

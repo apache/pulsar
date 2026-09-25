@@ -1614,6 +1614,7 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     tableview.flush(OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS / 2);
                     Thread.sleep(OWNERSHIP_CLEAN_UP_WAIT_RETRY_DELAY_IN_MILLIS / 2);
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     log.warn().attr("broker", brokerId)
                             .log("Interrupted while delaying the next service unit clean-up. Cleaning broker");
                 } catch (ExecutionException e) {

@@ -2949,6 +2949,9 @@ public class BrokerService implements Closeable {
                 try {
                     topicFuture.get();
                 } catch (InterruptedException | ExecutionException ex) {
+                    if (ex instanceof InterruptedException) {
+                        Thread.currentThread().interrupt();
+                    }
                     if (ex.getCause() instanceof ServiceUnitNotReadyException) {
                         // Topic was already unloaded
                         log.debug().attr("topic", topicName).log("Topic was already unloaded");

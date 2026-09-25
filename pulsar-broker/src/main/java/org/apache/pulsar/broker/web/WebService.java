@@ -349,6 +349,7 @@ public class WebService implements AutoCloseable {
                             "PulsarService failed to start.");
                     return;
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     ((HttpServletResponse) response).sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                             "PulsarService is not ready.");
                     return;
