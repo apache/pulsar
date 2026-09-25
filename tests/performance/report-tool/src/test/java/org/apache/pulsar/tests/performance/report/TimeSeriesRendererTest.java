@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.tests.performance.report;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -43,17 +42,17 @@ public class TimeSeriesRendererTest {
                     series, 2.5, "lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04");
 
             String svg = Files.readString(directory.resolve("throughput.svg"));
-            assertTrue(svg.contains("width=\"" + ChartStyle.WIDTH + "\""), svg);
-            assertEquals(svg.split("<polyline", -1).length - 1, 3, svg);
+            assertThat(svg).contains("width=\"" + ChartStyle.WIDTH + "\"");
+            assertThat(svg.split("<polyline", -1).length - 1).isEqualTo(3);
             // The producers' line and its legend are dotted, the consumers' solid
-            assertEquals(svg.split("stroke-dasharray=\"0.1 5\"", -1).length - 1, 2, svg);
-            assertTrue(svg.contains("text-anchor=\"end\" font-size=\"10\">lh-branch@1ebd73f2 2026-09-25"
-                    + " 13:35:22-13:39:04</text>"), svg);
-            assertTrue(svg.contains("Seconds since the measurement start"), svg);
-            assertTrue(svg.contains("producers finished"), svg);
-            assertTrue(svg.contains(">warmup<"), svg);
-            assertTrue(svg.contains(">Consumers (dispatched)<"), svg);
-            assertTrue(Files.size(directory.resolve("throughput.png")) > 0);
+            assertThat(svg.split("stroke-dasharray=\"0.1 5\"", -1).length - 1).isEqualTo(2);
+            assertThat(svg).contains("text-anchor=\"end\" font-size=\"10\">lh-branch@1ebd73f2 2026-09-25"
+                    + " 13:35:22-13:39:04</text>");
+            assertThat(svg).contains("Seconds since the measurement start");
+            assertThat(svg).contains("producers finished");
+            assertThat(svg).contains(">warmup<");
+            assertThat(svg).contains(">Consumers (dispatched)<");
+            assertThat(Files.size(directory.resolve("throughput.png"))).isPositive();
         } finally {
             for (String file : List.of("throughput.svg", "throughput.png")) {
                 Files.deleteIfExists(directory.resolve(file));
@@ -64,13 +63,13 @@ public class TimeSeriesRendererTest {
 
     @Test
     public void choosesReadableAxisSteps() {
-        assertEquals(TimeSeriesRenderer.niceCeiling(118_000), 200_000.0);
-        assertEquals(TimeSeriesRenderer.niceCeiling(4.2), 5.0);
-        assertEquals(TimeSeriesRenderer.axisMaximum(201_700), 250_000.0);
-        assertEquals(TimeSeriesRenderer.axisMaximum(118_000), 150_000.0);
-        assertEquals(TimeSeriesRenderer.axisMaximum(53_000), 60_000.0);
-        assertEquals(TimeSeriesRenderer.compact(120_000), "120k");
-        assertEquals(TimeSeriesRenderer.compact(1_500_000), "1.5M");
-        assertEquals(TimeSeriesRenderer.compact(40), "40");
+        assertThat(TimeSeriesRenderer.niceCeiling(118_000)).isEqualTo(200_000.0);
+        assertThat(TimeSeriesRenderer.niceCeiling(4.2)).isEqualTo(5.0);
+        assertThat(TimeSeriesRenderer.axisMaximum(201_700)).isEqualTo(250_000.0);
+        assertThat(TimeSeriesRenderer.axisMaximum(118_000)).isEqualTo(150_000.0);
+        assertThat(TimeSeriesRenderer.axisMaximum(53_000)).isEqualTo(60_000.0);
+        assertThat(TimeSeriesRenderer.compact(120_000)).isEqualTo("120k");
+        assertThat(TimeSeriesRenderer.compact(1_500_000)).isEqualTo("1.5M");
+        assertThat(TimeSeriesRenderer.compact(40)).isEqualTo("40");
     }
 }

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
-import static org.testng.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.performance.report.OffCpuFlamegraphs;
 import org.testng.annotations.Test;
@@ -27,6 +27,6 @@ import org.testng.annotations.Test;
 public class ReportToolNamingTest {
     @Test
     public void reportToolFindsTheAgentsCaptureStream() {
-        assertEquals(OffCpuFlamegraphs.CAPTURE_SUFFIX, JonoffcpuAgent.CAPTURE_SUFFIX);
+        assertThat(OffCpuFlamegraphs.CAPTURE_SUFFIX).isEqualTo(JonoffcpuAgent.CAPTURE_SUFFIX);
     }
 }

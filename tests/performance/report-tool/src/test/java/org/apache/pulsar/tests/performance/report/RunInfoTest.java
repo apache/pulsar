@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.tests.performance.report;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -67,16 +65,16 @@ public class RunInfoTest {
         Files.writeString(project.resolve("uncommitted.txt"), "change");
         RunInfo dirty = RunInfo.collect(module, STARTED);
 
-        assertEquals(clean.projectDirectory(), project);
-        assertEquals(clean.gitBranch(), "lh-branch");
-        assertEquals(clean.gitCommit().length(), 40);
-        assertEquals(clean.gitCommit(), commit);
-        assertFalse(clean.gitDirty());
-        assertTrue(dirty.gitDirty());
-        assertEquals(clean.version(), "5.0.0-SNAPSHOT");
-        assertEquals(clean.started(), STARTED);
-        assertFalse(clean.host().isEmpty());
-        assertEquals(clean.user(), System.getProperty("user.name"));
+        assertThat(clean.projectDirectory()).isEqualTo(project);
+        assertThat(clean.gitBranch()).isEqualTo("lh-branch");
+        assertThat(clean.gitCommit()).hasSize(40);
+        assertThat(clean.gitCommit()).isEqualTo(commit);
+        assertThat(clean.gitDirty()).isFalse();
+        assertThat(dirty.gitDirty()).isTrue();
+        assertThat(clean.version()).isEqualTo("5.0.0-SNAPSHOT");
+        assertThat(clean.started()).isEqualTo(STARTED);
+        assertThat(clean.host()).isNotEmpty();
+        assertThat(clean.user()).isEqualTo(System.getProperty("user.name"));
     }
 
     @Test
@@ -87,11 +85,11 @@ public class RunInfoTest {
 
         RunInfo info = RunInfo.collect(outside, STARTED);
 
-        assertEquals(info.projectDirectory(), outside);
-        assertEquals(info.gitBranch(), "");
-        assertEquals(info.gitCommit(), "");
-        assertFalse(info.gitDirty());
-        assertEquals(info.version(), "");
+        assertThat(info.projectDirectory()).isEqualTo(outside);
+        assertThat(info.gitBranch()).isEmpty();
+        assertThat(info.gitCommit()).isEmpty();
+        assertThat(info.gitDirty()).isFalse();
+        assertThat(info.version()).isEmpty();
     }
 
     @Test
@@ -104,17 +102,17 @@ public class RunInfoTest {
 
         // JSON, not the YAML the launcher reads scenarios with
         JsonNode json = new ObjectMapper().readTree(Files.readString(directory.resolve(RunInfo.FILE_NAME)));
-        assertTrue(Files.readString(directory.resolve(RunInfo.FILE_NAME)).startsWith("{"));
-        assertEquals(json.path("started").asText(), "2026-09-25T06:42:59+03:00");
-        assertEquals(json.path("version").asText(), "5.0.0-SNAPSHOT");
-        assertEquals(json.path("git.commit.id").asText(), "0123456789abcdef0123456789abcdef01234567");
-        assertTrue(json.path("git.dirty").asBoolean());
-        assertEquals(json.path("git.branch").asText(), "lh-branch");
-        assertEquals(json.path("git.build.user.name").asText(), "Lari Hotari");
-        assertEquals(json.path("git.build.user.email").asText(), "lari@example.com");
-        assertEquals(json.path("git.build.host").asText(), "perf-host");
-        assertEquals(json.path("user").asText(), "lari");
-        assertEquals(json.path("projectDirectory").asText(), "/work/pulsar");
+        assertThat(Files.readString(directory.resolve(RunInfo.FILE_NAME))).startsWith("{");
+        assertThat(json.path("started").asText()).isEqualTo("2026-09-25T06:42:59+03:00");
+        assertThat(json.path("version").asText()).isEqualTo("5.0.0-SNAPSHOT");
+        assertThat(json.path("git.commit.id").asText()).isEqualTo("0123456789abcdef0123456789abcdef01234567");
+        assertThat(json.path("git.dirty").asBoolean()).isTrue();
+        assertThat(json.path("git.branch").asText()).isEqualTo("lh-branch");
+        assertThat(json.path("git.build.user.name").asText()).isEqualTo("Lari Hotari");
+        assertThat(json.path("git.build.user.email").asText()).isEqualTo("lari@example.com");
+        assertThat(json.path("git.build.host").asText()).isEqualTo("perf-host");
+        assertThat(json.path("user").asText()).isEqualTo("lari");
+        assertThat(json.path("projectDirectory").asText()).isEqualTo("/work/pulsar");
     }
 
     private static void git(Path directory, String... arguments) throws IOException {

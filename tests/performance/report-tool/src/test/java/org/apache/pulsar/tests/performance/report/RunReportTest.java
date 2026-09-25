@@ -18,9 +18,7 @@
  */
 package org.apache.pulsar.tests.performance.report;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
@@ -113,77 +111,75 @@ public class RunReportTest {
         String report = Files.readString(file);
 
         // The run's other files are linked, so that they can be found when the run is browsed over HTTP
-        assertTrue(report.endsWith("\n<details><summary>Files</summary>\n\n"
+        assertThat(report).endsWith("\n<details><summary>Files</summary>\n\n"
                 + "- [producer/producer-summary.json](producer/producer-summary.json)\n"
                 + "- [sub-0/consumer-summary.json](sub-0/consumer-summary.json)\n"
                 + "- [sub-0/container.log.txt](sub-0/container.log.txt)\n"
-                + "- [sub-1/consumer-summary.json](sub-1/consumer-summary.json)\n\n</details>\n"), report);
-        assertTrue(report.contains("<details><summary>HDR histogram logs and percentile distributions</summary>\n\n"
+                + "- [sub-1/consumer-summary.json](sub-1/consumer-summary.json)\n\n</details>\n");
+        assertThat(report).contains("<details><summary>HDR histogram logs and percentile distributions</summary>\n\n"
                 + "- [producer/produce-latency.hdr](producer/produce-latency.hdr) ·"
                 + " [producer/produce-latency.hgrm](producer/produce-latency.hgrm)\n"
                 + "- [sub-0/consume-latency.hdr](sub-0/consume-latency.hdr) ·"
                 + " [sub-0/consume-latency.hgrm](sub-0/consume-latency.hgrm)\n"
                 + "- [sub-1/consume-latency.hdr](sub-1/consume-latency.hdr) ·"
-                + " [sub-1/consume-latency.hgrm](sub-1/consume-latency.hgrm)\n\n</details>\n"), report);
-        assertTrue(Files.isRegularFile(run.resolve("sub-1/consume-latency.hgrm")));
-        assertTrue(report.contains("The [sampled topic stats](topic-stats.csv) are a CSV file."), report);
-        assertTrue(report.contains("| Scenario | [scenario](scenario.yaml) |\n"), report);
-        assertTrue(report.contains("| Cluster | 1 broker(s), 3 bookies, [configuration](resolved-config.yaml) |\n"),
-                report);
-        assertTrue(report.contains("| Started | 2026-09-25T06:42:59+03:00 |"), report);
-        assertTrue(report.contains("| Host | perf-host |"), report);
-        assertTrue(report.contains("| User | lari (git: Lari Hotari <lari@example.com>) |"), report);
-        assertTrue(report.contains("| Project directory | `/work/pulsar/.claude/worktrees/w1` |"), report);
-        assertTrue(report.contains("| Git branch | `lh-branch` |"), report);
-        assertTrue(report.contains("| Git commit | `0123456789abcdef0123456789abcdef01234567`, with uncommitted"
-                + " changes |"), report);
-        assertTrue(report.contains("| Pulsar version | 5.0.0-SNAPSHOT |"), report);
+                + " [sub-1/consume-latency.hgrm](sub-1/consume-latency.hgrm)\n\n</details>\n");
+        assertThat(run.resolve("sub-1/consume-latency.hgrm")).isRegularFile();
+        assertThat(report).contains("The [sampled topic stats](topic-stats.csv) are a CSV file.");
+        assertThat(report).contains("| Scenario | [scenario](scenario.yaml) |\n");
+        assertThat(report).contains("| Cluster | 1 broker(s), 3 bookies, [configuration](resolved-config.yaml) |\n");
+        assertThat(report).contains("| Started | 2026-09-25T06:42:59+03:00 |");
+        assertThat(report).contains("| Host | perf-host |");
+        assertThat(report).contains("| User | lari (git: Lari Hotari <lari@example.com>) |");
+        assertThat(report).contains("| Project directory | `/work/pulsar/.claude/worktrees/w1` |");
+        assertThat(report).contains("| Git branch | `lh-branch` |");
+        assertThat(report).contains("| Git commit | `0123456789abcdef0123456789abcdef01234567`, with uncommitted"
+                + " changes |");
+        assertThat(report).contains("| Pulsar version | 5.0.0-SNAPSHOT |");
 
-        assertTrue(report.contains("| [Broker](broker-profile/profile-report.md) | 4.7 s |"
+        assertThat(report).contains("| [Broker](broker-profile/profile-report.md) | 4.7 s |"
                 + " [complete](broker-profile/broker.jfr) ·"
-                + " [measurement period](broker-profile/broker.measurement.jfr) |\n"), report);
-        assertTrue(report.contains("| [Producer](producer-profile/profile-report.md) | not captured |"),
-                report);
+                + " [measurement period](broker-profile/broker.measurement.jfr) |\n");
+        assertThat(report).contains("| [Producer](producer-profile/profile-report.md) | not captured |");
         // The profiles follow the run's settings
-        assertTrue(report.indexOf("## Profiles") > report.indexOf("| Setting |"), report);
-        assertTrue(report.indexOf("## Profiles") < report.indexOf("## Correctness"), report);
-        assertTrue(report.contains("| Ledger replication | E=1, W=1, A=1 |"), report);
-        assertTrue(report.contains("| sub-1 | 500,000 | 1 | 0 | 0 |"), report);
-        assertTrue(report.contains("**Duplicates, ordering violations or invalid messages were received.**"), report);
-        assertTrue(report.contains("| Producer throughput | 100,000 msg/s |"), report);
+        assertThat(report.indexOf("## Profiles")).isGreaterThan(report.indexOf("| Setting |"));
+        assertThat(report.indexOf("## Profiles")).isLessThan(report.indexOf("## Correctness"));
+        assertThat(report).contains("| Ledger replication | E=1, W=1, A=1 |");
+        assertThat(report).contains("| sub-1 | 500,000 | 1 | 0 | 0 |");
+        assertThat(report).contains("**Duplicates, ordering violations or invalid messages were received.**");
+        assertThat(report).contains("| Producer throughput | 100,000 msg/s |");
         // 400,000 measured messages until the slower application finished 6 s after the start
-        assertTrue(report.contains("| 66,667 msg/s |"), report);
-        assertTrue(report.contains("| Consumers still draining after the producers finished | 2.0 s |"), report);
-        assertTrue(report.contains("| Latency (ms) | Count | Min | p50 | p90 | p99 | p99.9 | Max |\n"), report);
+        assertThat(report).contains("| 66,667 msg/s |");
+        assertThat(report).contains("| Consumers still draining after the producers finished | 2.0 s |");
+        assertThat(report).contains("| Latency (ms) | Count | Min | p50 | p90 | p99 | p99.9 | Max |\n");
         // Every observation is the same value: the minimum is the lowest value of its HDR bucket, the percentiles
         // and the maximum its highest
-        assertTrue(report.contains("| Publish (send to acknowledgment) | 1,000 | 899.6 | 900.1 | 900.1 | 900.1 |"
-                + " 900.1 | 900.1 |"), report);
+        assertThat(report).contains("| Publish (send to acknowledgment) | 1,000 | 899.6 | 900.1 | 900.1 | 900.1 |"
+                + " 900.1 | 900.1 |");
         // Each application's end-to-end latency is its own row; none is merged across applications
-        assertTrue(report.contains("| sub-0 (publish to consume) | 1,000 | 1,199.1 | 1,200.1 |"), report);
-        assertTrue(report.contains("| sub-1 (publish to consume) | 1,000 | 1,199.1 | 1,200.1 |"), report);
-        assertFalse(report.contains("End to end"), report);
-        assertFalse(report.contains("Delivery after the publish"), report);
-        assertTrue(report.contains("| Published msg/s | 100,000 | 100,000 |"), report);
+        assertThat(report).contains("| sub-0 (publish to consume) | 1,000 | 1,199.1 | 1,200.1 |");
+        assertThat(report).contains("| sub-1 (publish to consume) | 1,000 | 1,199.1 | 1,200.1 |");
+        assertThat(report).doesNotContain("End to end");
+        assertThat(report).doesNotContain("Delivery after the publish");
+        assertThat(report).contains("| Published msg/s | 100,000 | 100,000 |");
         // Seconds 1–2 and 2–3 are the measurement without its first and last second. sub-1 dispatches nothing in
         // the first and catches up in the second, so the total's minimum drops to 100,000.
-        assertTrue(report.contains("| Dispatched msg/s, all subscriptions | 250,000 | 100,000 |"), report);
-        assertTrue(report.contains("| `sub-1` | 100,000 | 2 s | 50,000 |"), report);
-        assertTrue(report.contains("| `sub-0` | 0 | 0 s | 0 |"), report);
+        assertThat(report).contains("| Dispatched msg/s, all subscriptions | 250,000 | 100,000 |");
+        assertThat(report).contains("| `sub-1` | 100,000 | 2 s | 50,000 |");
+        assertThat(report).contains("| `sub-0` | 0 | 0 s | 0 |");
         // The latency charts are PNG only; throughput and backlog also have SVG
         for (String chart : new String[] {"latency-percentiles.png", "latency-timeline.png", "throughput.svg",
                 "backlog.svg"}) {
-            assertTrue(report.contains("](" + chart + ")"), report);
-            assertTrue(Files.isRegularFile(run.resolve(chart)), chart);
+            assertThat(report).contains("](" + chart + ")");
+            assertThat(run.resolve(chart)).as(chart).isRegularFile();
         }
         // Every SVG chart says which run it shows
         for (String chart : new String[] {"throughput", "backlog"}) {
-            assertTrue(Files.readString(run.resolve(chart + ".svg"))
-                    .contains(">lh-branch@01234567-dirty 2026-09-25 06:42:59-06:46:41</text>"), chart);
+            assertThat(Files.readString(run.resolve(chart + ".svg"))
+                    ).as(chart).contains(">lh-branch@01234567-dirty 2026-09-25 06:42:59-06:46:41</text>");
         }
         String page = Files.readString(run.resolve("run-report.html"));
-        assertTrue(page.contains("<img src=\"throughput.svg\""), page);
-        assertTrue(page.contains("<img src=\"latency-percentiles.png\""), page);
+        assertThat(page).contains("<img src=\"throughput.svg\"");
+        assertThat(page).contains("<img src=\"latency-percentiles.png\"");
     }
 
     @Test
@@ -194,10 +190,10 @@ public class RunReportTest {
         RunInfo noGit = new RunInfo(started, "host", "user", "", "", Path.of("/p"), "", "", false, "");
 
         // Past midnight the end is still only a time, in the start's zone
-        assertEquals(RunReport.chartFooter(clean, ZonedDateTime.parse("2026-09-25T21:02:05Z")),
-                "lh-branch@1ebd73f2 2026-09-25 23:58:30-00:02:05");
-        assertEquals(RunReport.chartFooter(noGit, null), "2026-09-25 23:58:30");
-        assertEquals(RunReport.chartFooter(null, null), "");
+        assertThat(RunReport.chartFooter(clean, ZonedDateTime.parse("2026-09-25T21:02:05Z")))
+                .isEqualTo("lh-branch@1ebd73f2 2026-09-25 23:58:30-00:02:05");
+        assertThat(RunReport.chartFooter(noGit, null)).isEqualTo("2026-09-25 23:58:30");
+        assertThat(RunReport.chartFooter(null, null)).isEmpty();
     }
 
     @Test
@@ -207,12 +203,12 @@ public class RunReportTest {
 
         RunReport.Samples samples = RunReport.readSamples(run.resolve(RunReport.TOPIC_STATS_FILE));
 
-        assertEquals(samples.epochMillis(), new long[] {1000, 2000, 3000});
-        assertTrue(Double.isNaN(samples.published()[0]));
-        assertEquals(samples.published()[1], 100.0);
-        assertEquals(samples.published()[2], 80.0);
-        assertEquals(samples.dispatched().get("s")[2], 110.0);
-        assertEquals(samples.backlog().get("s")[1], 50.0);
+        assertThat(samples.epochMillis()).isEqualTo(new long[] {1000, 2000, 3000});
+        assertThat(samples.published()[0]).isNaN();
+        assertThat(samples.published()[1]).isEqualTo(100.0);
+        assertThat(samples.published()[2]).isEqualTo(80.0);
+        assertThat(samples.dispatched().get("s")[2]).isEqualTo(110.0);
+        assertThat(samples.backlog().get("s")[1]).isEqualTo(50.0);
     }
 
     private JsonNode json(String text) throws IOException {

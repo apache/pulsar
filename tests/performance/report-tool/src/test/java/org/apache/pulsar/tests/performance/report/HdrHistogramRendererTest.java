@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.tests.performance.report;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -63,11 +63,11 @@ public class HdrHistogramRendererTest {
                 List.of("iot-application-0", "iot-application-1"),
                 directory.resolve("latency"), 1_000, "lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04");
 
-        assertEquals(charts, List.of(directory.resolve("latency-percentiles.png"),
-                directory.resolve("latency-timeline.png")));
+        assertThat(charts).containsExactly(directory.resolve("latency-percentiles.png"),
+                directory.resolve("latency-timeline.png"));
         for (Path chart : charts) {
             BufferedImage image = ImageIO.read(chart.toFile());
-            assertEquals(image.getWidth(), ChartStyle.WIDTH, chart.toString());
+            assertThat(image.getWidth()).as(chart.toString()).isEqualTo(ChartStyle.WIDTH);
         }
     }
 
@@ -75,8 +75,8 @@ public class HdrHistogramRendererTest {
     public void readsEachIntervalsMaximum() throws Exception {
         Path log = writeLog(directory.resolve("produce-latency.hdr"), 1_000, 2_000);
 
-        assertEquals(HdrHistogramRenderer.readIntervals(log),
-                List.of(new HdrHistogramRenderer.Interval(1_000, 2_000, 2_000)));
+        assertThat(HdrHistogramRenderer.readIntervals(log))
+                .containsExactly(new HdrHistogramRenderer.Interval(1_000, 2_000, 2_000));
     }
 
     @Test
@@ -85,11 +85,11 @@ public class HdrHistogramRendererTest {
 
         Path distribution = HdrHistogramRenderer.writePercentileDistribution(log);
 
-        assertEquals(distribution, directory.resolve("consume-latency.hgrm"));
+        assertThat(distribution).isEqualTo(directory.resolve("consume-latency.hgrm"));
         String text = Files.readString(distribution);
         // HdrHistogram's percentile output, in milliseconds: value, percentile, count, 1/(1-percentile)
-        assertTrue(text.contains("Value     Percentile TotalCount 1/(1-Percentile)"), text);
-        assertTrue(text.contains("#[Max     =        4.001, Total count    =            2]"), text);
+        assertThat(text).contains("Value     Percentile TotalCount 1/(1-Percentile)");
+        assertThat(text).contains("#[Max     =        4.001, Total count    =            2]");
     }
 
     @DataProvider
@@ -105,8 +105,9 @@ public class HdrHistogramRendererTest {
 
     @Test(dataProvider = "percentileAxis")
     public void spreadsTheTailOverThePercentileAxis(double percentile, double position, String label) {
-        assertEquals(HdrHistogramRenderer.percentileAxisPosition(percentile), position, position * 1e-9);
-        assertEquals(HdrHistogramRenderer.percentileAxisLabel(position), label);
+        assertThat(HdrHistogramRenderer.percentileAxisPosition(percentile))
+                .isCloseTo(position, within(position * 1e-9));
+        assertThat(HdrHistogramRenderer.percentileAxisLabel(position)).isEqualTo(label);
     }
 
     private static Path writeLog(Path path, long first, long second) throws Exception {

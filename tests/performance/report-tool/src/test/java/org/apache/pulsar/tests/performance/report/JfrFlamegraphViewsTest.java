@@ -22,7 +22,7 @@ import static org.apache.pulsar.tests.performance.report.JfrFlamegraphViews.View
 import static org.apache.pulsar.tests.performance.report.JfrFlamegraphViews.View.CPU;
 import static org.apache.pulsar.tests.performance.report.JfrFlamegraphViews.View.LOCK;
 import static org.apache.pulsar.tests.performance.report.JfrFlamegraphViews.View.WALL;
-import static org.testng.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Set;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -46,6 +46,6 @@ public class JfrFlamegraphViewsTest {
 
     @Test(dataProvider = "options")
     public void configuredViews(String options, Set<JfrFlamegraphViews.View> expected) {
-        assertEquals(JfrFlamegraphViews.configuredViews(options), expected);
+        assertThat(JfrFlamegraphViews.configuredViews(options)).isEqualTo(expected);
     }
 }

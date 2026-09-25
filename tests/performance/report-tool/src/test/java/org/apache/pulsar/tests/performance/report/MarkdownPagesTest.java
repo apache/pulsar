@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.tests.performance.report;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -67,7 +66,7 @@ public class MarkdownPagesTest {
 
     @Test(dataProvider = "destinations")
     public void rewritesLinksToPagesAndRunFiles(String destination, Path pageDirectory, Path root, String expected) {
-        assertEquals(MarkdownPages.rewrite(destination, pageDirectory, root), expected);
+        assertThat(MarkdownPages.rewrite(destination, pageDirectory, root)).isEqualTo(expected);
     }
 
     @DataProvider
@@ -89,7 +88,7 @@ public class MarkdownPagesTest {
 
     @Test(dataProvider = "javaNames")
     public void abbreviatesJavaPackages(String text, String expected) {
-        assertEquals(MarkdownPages.abbreviateJavaNames(text), expected);
+        assertThat(MarkdownPages.abbreviateJavaNames(text)).isEqualTo(expected);
     }
 
     @Test
@@ -101,12 +100,12 @@ public class MarkdownPagesTest {
 
         String html = Files.readString(MarkdownPages.renderHtml(markdown, directory, "Digest", true));
 
-        assertTrue(html.contains("<code title=\"org.apache.pulsar.broker.service.Consumer.sendMessages\">"
-                + "o.a.p.b.s.Consumer.sendMessages</code>"), html);
-        assertTrue(html.contains("<summary>2: `o.a.p.c.p.PulsarDecoder.channelRead`</summary>"), html);
+        assertThat(html).contains("<code title=\"org.apache.pulsar.broker.service.Consumer.sendMessages\">"
+                + "o.a.p.b.s.Consumer.sendMessages</code>");
+        assertThat(html).contains("<summary>2: `o.a.p.c.p.PulsarDecoder.channelRead`</summary>");
         // Other pages keep the names as written
         String full = Files.readString(MarkdownPages.renderHtml(markdown, directory, "Digest"));
-        assertTrue(full.contains("<code>org.apache.pulsar.broker.service.Consumer.sendMessages</code>"), full);
+        assertThat(full).contains("<code>org.apache.pulsar.broker.service.Consumer.sendMessages</code>");
     }
 
     @Test
@@ -117,9 +116,9 @@ public class MarkdownPagesTest {
 
         String html = Files.readString(MarkdownPages.renderHtml(markdown, directory, "Digest"));
 
-        assertTrue(html.contains("<h2 id=\"where-the-time-went\">Where the time went</h2>"), html);
-        assertTrue(html.contains("<h2 id=\"about-this-digest\">About this digest</h2>"), html);
-        assertTrue(html.contains("<a href=\"#where-the-time-went\">the totals</a>"), html);
+        assertThat(html).contains("<h2 id=\"where-the-time-went\">Where the time went</h2>");
+        assertThat(html).contains("<h2 id=\"about-this-digest\">About this digest</h2>");
+        assertThat(html).contains("<a href=\"#where-the-time-went\">the totals</a>");
     }
 
     @Test
@@ -133,15 +132,15 @@ public class MarkdownPagesTest {
 
         Path page = MarkdownPages.renderHtml(markdown, directory, "Profile <report>");
 
-        assertEquals(page, profile.resolve("profile-report.html"));
+        assertThat(page).isEqualTo(profile.resolve("profile-report.html"));
         String html = Files.readString(page);
-        assertTrue(html.contains("<title>Profile &lt;report&gt;</title>"), html);
-        assertTrue(html.contains("<table>"), html);
-        assertTrue(html.contains("<td align=\"right\">3.7</td>"), html);
-        assertTrue(html.contains("<a href=\"offcpu-no-idle.html\">no idle</a>"), html);
-        assertTrue(html.contains("<a href=\"broker-offcpu/jonoffcpu-summary.html\">digest</a>"), html);
-        assertTrue(html.contains("<a href=\"idle.txt\">patterns</a>"), html);
-        assertTrue(html.contains("<img src=\"../latency-histograms.svg\" alt=\"chart\" />"), html);
-        assertTrue(html.contains("prefers-color-scheme"), html);
+        assertThat(html).contains("<title>Profile &lt;report&gt;</title>");
+        assertThat(html).contains("<table>");
+        assertThat(html).contains("<td align=\"right\">3.7</td>");
+        assertThat(html).contains("<a href=\"offcpu-no-idle.html\">no idle</a>");
+        assertThat(html).contains("<a href=\"broker-offcpu/jonoffcpu-summary.html\">digest</a>");
+        assertThat(html).contains("<a href=\"idle.txt\">patterns</a>");
+        assertThat(html).contains("<img src=\"../latency-histograms.svg\" alt=\"chart\" />");
+        assertThat(html).contains("prefers-color-scheme");
     }
 }

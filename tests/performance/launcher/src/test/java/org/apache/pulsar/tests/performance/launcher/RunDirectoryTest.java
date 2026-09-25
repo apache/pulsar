@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -54,7 +53,7 @@ public class RunDirectoryTest {
         Path run = RunDirectory.resolve(Path.of("/reports"), ZonedDateTime.parse("2026-09-25T06:42:59+03:00"),
                 "lh-use-jonoffcpu-profiler", "e232-ab");
 
-        assertEquals(run, Path.of("/reports/2026-09-25/lh-use-jonoffcpu-profiler/e232-ab/09-25-06-42-59"));
+        assertThat(run).isEqualTo(Path.of("/reports/2026-09-25/lh-use-jonoffcpu-profiler/e232-ab/09-25-06-42-59"));
     }
 
     @DataProvider
@@ -70,7 +69,7 @@ public class RunDirectoryTest {
 
     @Test(dataProvider = "branches")
     public void namesBranchDirectories(String branch, String commit, String expected) {
-        assertEquals(RunDirectory.branchDirectory(branch, commit), expected);
+        assertThat(RunDirectory.branchDirectory(branch, commit)).isEqualTo(expected);
     }
 
     @Test
@@ -88,10 +87,10 @@ public class RunDirectoryTest {
         // A second call leaves the links in place
         RunDirectory.linkIndexes(directory);
 
-        assertTrue(Files.isSymbolicLink(directory.resolve("index.html")));
-        assertEquals(Files.readSymbolicLink(directory.resolve("index.html")), Path.of("run-report.html"));
-        assertEquals(Files.readString(directory.resolve("index.html")), "<html>report</html>");
-        assertEquals(Files.readSymbolicLink(directory.resolve("README.md")), Path.of("run-report.md"));
-        assertEquals(Files.readString(directory.resolve("README.md")), "# report");
+        assertThat(directory.resolve("index.html")).isSymbolicLink();
+        assertThat(Files.readSymbolicLink(directory.resolve("index.html"))).isEqualTo(Path.of("run-report.html"));
+        assertThat(directory.resolve("index.html")).hasContent("<html>report</html>");
+        assertThat(Files.readSymbolicLink(directory.resolve("README.md"))).isEqualTo(Path.of("run-report.md"));
+        assertThat(directory.resolve("README.md")).hasContent("# report");
     }
 }
