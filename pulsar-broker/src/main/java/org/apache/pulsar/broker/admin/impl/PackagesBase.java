@@ -95,6 +95,7 @@ public class PackagesBase extends AdminResource {
         try {
             checkPermissions(tenant, namespace).get();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
         } catch (ExecutionException e) {
             if (e.getCause() instanceof WebApplicationException) {
@@ -109,6 +110,7 @@ public class PackagesBase extends AdminResource {
                 try {
                     getPackagesManagement().download(name, output).get();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     throw new RestException(Response.Status.INTERNAL_SERVER_ERROR, e.getMessage());
                 } catch (ExecutionException e) {
                     if (e.getCause() instanceof PackagesManagementException.NotFoundException) {

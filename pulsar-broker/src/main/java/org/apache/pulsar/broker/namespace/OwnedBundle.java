@@ -153,6 +153,7 @@ public class OwnedBundle {
                 this.nsLock.writeLock().unlock();
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             return FutureUtil.failedFuture(e);
         }
 

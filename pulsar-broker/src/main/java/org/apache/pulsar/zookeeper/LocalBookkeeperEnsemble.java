@@ -555,6 +555,7 @@ public class LocalBookkeeperEnsemble {
                     throw new IOException("Couldn't connect to zookeeper server");
                 }
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 throw new IOException("Interrupted when connecting to zookeeper server", e);
             }
         }
@@ -597,6 +598,7 @@ public class LocalBookkeeperEnsemble {
             try {
                 Thread.sleep(250);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 // ignore
             }
         }

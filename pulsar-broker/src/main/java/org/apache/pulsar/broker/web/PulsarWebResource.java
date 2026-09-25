@@ -303,6 +303,9 @@ public abstract class PulsarWebResource {
             validateAdminAccessForTenantAsync(pulsar, clientAppId, originalPrincipal, tenant, authenticationData)
                     .get(timeout, unit);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             Throwable realCause = FutureUtil.unwrapCompletionException(e);
             if (realCause instanceof WebApplicationException) {
                 throw (WebApplicationException) realCause;
@@ -796,6 +799,7 @@ public abstract class PulsarWebResource {
                                 throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
             }
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             log.warn().attr("timeoutSec", timeout).attr("namespace", namespace)
                     .log("Timeout while validating policy");
             throw new RestException(Status.SERVICE_UNAVAILABLE, String.format(
