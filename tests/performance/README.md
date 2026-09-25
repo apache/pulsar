@@ -126,7 +126,8 @@ Every run writes a report into its run directory; open `run-report.html` in a br
 
 | File | Contents |
 |---|---|
-| `run-report.md`, `run-report.html` | The scenario settings, where, by whom and from which commit the run was made, correctness per application, producer and delivered throughput, publish and end-to-end latency percentiles, the sampled backlog and per-second rates, and links to the profile reports of a profiled run |
+| `run-report.md`, `run-report.html` | The scenario settings, where, by whom and from which commit the run was made, correctness per application, producer and delivered throughput, publish and end-to-end latency percentiles, the sampled backlog and per-second rates, and links to the profile reports of a profiled run and to the run's other files: the scenario as written and resolved, the summaries, container logs, HDR latency logs and topic stats |
+| `<scenario>.yaml`, `resolved-config.yaml` | The scenario file as written, and the scenario with its inheritance and environment overrides applied, which the workloads read |
 | `index.html`, `README.md` | Symbolic links to `run-report.html` and `run-report.md` |
 | `run-info.json` | The run's start, host, user, project directory, git branch, commit and uncommitted changes, and Pulsar version, with the keys of `pulsar-version.properties` where they match; the launcher collects them itself, from git and `gradle.properties` in the checkout it runs from |
 | `latency-histograms.svg`, `.png` | Publish and end-to-end latency distributions |
@@ -338,7 +339,9 @@ workers waiting for a task, JDK and HotSpot service threads. `offcpu-no-idle` le
 the launcher resource `offcpu-idle-waits.txt`; each pattern names the wait itself rather than the thread's run loop,
 so a lock taken while running a task stays in. What remains is lock and monitor contention, safepoints, GC phases
 and I/O. The digest leaves out the same idle waits. The `-app-root` slices start each stack at its root-most frame
-matching `^org\.apache\.`; stacks without one are grouped as `[no application frame]`, and the totals do not change.
+matching `^org\.apache\.`, once the frames that only dispatch work are hidden. Stacks without such a frame, such as
+the JVM's own threads, are left out of them (`--root-at-unmatched hide`); the profile report shows how much time that
+was, and the digest ranks it by thread pool.
 The off-CPU flame graphs abbreviate package names (`o.a.p.b.s.p.PersistentDispatcherMultipleConsumers…`) and
 highlight the `o.a.` frames. The correlator runs with `--audit none`, which skips its row-level audit files (about
 2 KB per interval); run it again over the retained capture and recording with `--audit full` to reproduce them.

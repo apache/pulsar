@@ -28,6 +28,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 
 /**
  * Writes {@code profile-report.md} into a directory of profiled recordings, such as {@code broker-profile/}: the run
@@ -82,6 +83,7 @@ final class ProfileReport {
         for (Path recording : recordings) {
             String base = base(recording);
             report.append("\n## ").append(base).append("\n");
+            appendRecordings(report, directory, base);
             appendOffCpu(report, directory, base, mapper);
             appendViews(report, directory, base);
         }
@@ -99,6 +101,22 @@ final class ProfileReport {
         return file;
     }
 
+    // The recordings themselves, for JDK Mission Control or the converter; retention may have removed some
+    private static void appendRecordings(StringBuilder report, Path directory, String base) {
+        List<String> links = new ArrayList<>();
+        for (String[] recording : new String[][] {
+                {base + ".jfr", "complete recording"},
+                {base + ".measurement.jfr", "measurement window"},
+                {base + JonoffcpuAgent.CAPTURE_SUFFIX, "off-CPU capture stream"}}) {
+            if (Files.isRegularFile(directory.resolve(recording[0]))) {
+                links.add("[" + recording[0] + "](" + recording[0] + ") (" + recording[1] + ")");
+            }
+        }
+        if (!links.isEmpty()) {
+            report.append("\nRecordings: ").append(String.join(" · ", links)).append('\n');
+        }
+    }
+
     private static void appendOffCpu(StringBuilder report, Path directory, String base, ObjectMapper mapper)
             throws IOException {
         String offCpu = base + OffCpuFlamegraphs.OUTPUT_SUFFIX;
@@ -114,7 +132,8 @@ final class ProfileReport {
                     .append(OffCpuFlamegraphs.IDLE_WAITS_FILE).append("](").append(offCpu).append("/")
                     .append(OffCpuFlamegraphs.IDLE_WAITS_FILE).append(").\n\n");
         }
-        report.append("| Flame graph | Off-CPU s | Intervals | Left out as idle s |\n|---|---:|---:|---:|\n");
+        report.append("| Flame graph | Off-CPU s | Intervals | Left out as idle s | Left out without an application"
+                + " frame s |\n|---|---:|---:|---:|---:|\n");
         for (Slice slice : SLICES) {
             String html = offCpu + "/" + slice.name() + ".html";
             Path json = directory.resolve(offCpu).resolve(slice.name() + ".json");
@@ -126,15 +145,16 @@ final class ProfileReport {
                     .append(seconds(totals.path("totalNanos"))).append(" | ")
                     .append(count(totals.path("intervals"))).append(" | ")
                     .append(slice.idleLeftOut() ? seconds(totals.path("filtered").path("totalNanos")) : "")
+                    .append(" | ").append(seconds(totals.path("rootAtUnmatchedHidden").path("totalNanos")))
                     .append(" |\n");
         }
         report.append("\nThe application's first frame is the root-most frame matching `")
                 .append(OffCpuFlamegraphs.APPLICATION_ROOT).append("` once the frames that only dispatch work, listed")
                 .append(" in [").append(OffCpuFlamegraphs.DISPATCH_HIDE_FILE).append("](").append(offCpu).append("/")
                 .append(OffCpuFlamegraphs.DISPATCH_HIDE_FILE).append(") and jonoffcpu's `jvm-dispatch` preset, are")
-                .append(" hidden; stacks without one are grouped as")
-                .append(" `[no application frame]`. Each flame graph has a `.collapsed` file with full names and a")
-                .append(" `.json` summary beside it.\n");
+                .append(" hidden; stacks without one, such as the JVM's own threads, are left out of those flame")
+                .append(" graphs and counted in the last column, and the digest ranks them by thread pool. Each flame")
+                .append(" graph has a `.collapsed` file with full names and a `.json` summary beside it.\n");
     }
 
     private static void appendViews(StringBuilder report, Path directory, String base) {

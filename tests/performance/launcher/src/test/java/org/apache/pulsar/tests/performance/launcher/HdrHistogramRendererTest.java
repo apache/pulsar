@@ -39,7 +39,8 @@ public class HdrHistogramRendererTest {
             Path consumerTwo = writeHistogram(directory.resolve("consume-2.hdr"), 4_000, 8_000);
             Path prefix = directory.resolve("latency");
 
-            HdrHistogramRenderer.render(producer, List.of(consumerOne, consumerTwo), prefix, "Test latency");
+            HdrHistogramRenderer.render(producer, List.of(consumerOne, consumerTwo), prefix, "Test latency",
+                    "lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04");
 
             byte[] png = Files.readAllBytes(directory.resolve("latency.png"));
             assertTrue(png.length > 8);
@@ -50,6 +51,7 @@ public class HdrHistogramRendererTest {
             assertTrue(svg.contains("Produce · send completion"));
             assertTrue(svg.contains("Consume · publish to listener"));
             assertTrue(svg.contains("n=4"));
+            assertTrue(svg.contains(">lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04</text>"), svg);
         } finally {
             try (var paths = Files.walk(directory)) {
                 for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {

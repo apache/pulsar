@@ -27,6 +27,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -138,8 +139,10 @@ public class PerformanceLauncher implements Callable<Integer> {
             System.setProperty("inttest.asyncprofiler.opts", brokerProfileOptions);
             System.setProperty("inttest.asyncprofiler.outputformat", "jfr");
         }
-        Path resolvedConfig = runOutput.resolve("resolved-config.yaml");
+        Path resolvedConfig = runOutput.resolve(RunReport.RESOLVED_CONFIG);
         loader.write(resolvedConfig, resolved);
+        // The scenario as written, beside its resolved form, so that the run report can link both
+        Files.copy(config, runOutput.resolve(config.getFileName()), StandardCopyOption.REPLACE_EXISTING);
 
         Path resolvedToolsDirectory = (toolsDirectory != null ? toolsDirectory : Path.of(System.getProperty(
                 "performance.tools.dir", "tests/performance/tools/build/install/pulsar-performance-tools")))
@@ -171,6 +174,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         List<GenericContainer<?>> consumers = new ArrayList<>(applications);
         GenericContainer<?> producer = null;
         TopicStatsSampler topicStatsSampler = null;
+        ZonedDateTime workloadFinished;
         try {
             cluster.start();
             for (int application = 0; application < applications; application++) {
@@ -205,6 +209,8 @@ public class PerformanceLauncher implements Callable<Integer> {
                     throw new IllegalStateException("IoT consumer exited with status " + consumerExit);
                 }
             }
+            // The run's end in the charts: every consumer has finished, before the profiles are processed
+            workloadFinished = ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             verifyStates(runOutput, applications);
         } finally {
             if (topicStatsSampler != null) {
@@ -268,7 +274,8 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
         }
         Path runReport = RunReport.write(runOutput, new RunReport.Run(config.getFileName().toString(), runId,
-                PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload, runInfo), loader.mapper());
+                PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload, runInfo, workloadFinished),
+                loader.mapper());
         RunDirectory.linkIndexes(runOutput);
         System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
         return 0;

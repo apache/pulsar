@@ -34,17 +34,21 @@ public class TimeSeriesRendererTest {
             double[] seconds = {-2, -1, 0, 1, 2, 3, 4};
             List<TimeSeriesRenderer.Series> series = List.of(
                     new TimeSeriesRenderer.Series("Producers (published)",
-                            new double[] {Double.NaN, 90_000, 100_000, 110_000, 105_000, 0, 0}),
+                            new double[] {Double.NaN, 90_000, 100_000, 110_000, 105_000, 0, 0}, true),
                     // A gap splits the line in two
                     new TimeSeriesRenderer.Series("Consumers (dispatched)",
                             new double[] {Double.NaN, 80_000, Double.NaN, 100_000, 104_000, 20_000, 0}));
 
             TimeSeriesRenderer.render(directory.resolve("throughput"), "Throughput", "Messages per second", seconds,
-                    series, 2.5);
+                    series, 2.5, "lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04");
 
             String svg = Files.readString(directory.resolve("throughput.svg"));
             assertTrue(svg.contains("width=\"" + HdrHistogramRenderer.WIDTH + "\""), svg);
             assertEquals(svg.split("<polyline", -1).length - 1, 3, svg);
+            // The producers' line and its legend are dotted, the consumers' solid
+            assertEquals(svg.split("stroke-dasharray=\"0.1 5\"", -1).length - 1, 2, svg);
+            assertTrue(svg.contains("text-anchor=\"end\" font-size=\"10\">lh-branch@1ebd73f2 2026-09-25"
+                    + " 13:35:22-13:39:04</text>"), svg);
             assertTrue(svg.contains("Seconds since the measurement start"), svg);
             assertTrue(svg.contains("producers finished"), svg);
             assertTrue(svg.contains(">warmup<"), svg);

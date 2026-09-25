@@ -58,8 +58,9 @@ final class OffCpuFlamegraphs {
     /**
      * The first frame of the application, for {@code stacks --root-at}: each stack starts at its root-most
      * matching frame, so application code reached through different thread pools, event loops or executors joins
-     * into one tree instead of appearing at different depths under each infrastructure root. A stack without
-     * such a frame becomes the single frame {@code [no application frame]}; the totals stay the same.
+     * into one tree instead of appearing at different depths under each infrastructure root. Stacks without such
+     * a frame, such as the JVM's own threads, are left out of those flame graphs ({@code --root-at-unmatched
+     * hide}); the slice summary reports their total as {@code rootAtUnmatchedHidden}.
      */
     static final String APPLICATION_ROOT = "^org\\.apache\\.";
 
@@ -149,7 +150,7 @@ final class OffCpuFlamegraphs {
             List<String> noIdle = List.of("--exclude-from", idleWaits.toString());
             // Rooted as the digest's tables are: dispatch frames hidden, then each stack starts at the application
             List<String> appRoot = List.of("--hide-from", JVM_DISPATCH_PRESET, "--hide-from", dispatchHide.toString(),
-                    "--root-at", APPLICATION_ROOT);
+                    "--root-at", APPLICATION_ROOT, "--root-at-unmatched", "hide");
             renderSlice(profile, ALL_SLICE, "Off-CPU time " + name, List.of());
             renderSlice(profile, NO_IDLE_SLICE, "Off-CPU time without idle waits " + name, noIdle);
             renderSlice(profile, APP_ROOT_SLICE, "Off-CPU time from the application's first frame " + name,

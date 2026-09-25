@@ -56,6 +56,9 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     static final Color GRID = new Color(218, 225, 232);
     static final Color PRODUCER = new Color(0, 123, 155);
     static final Color CONSUMER = new Color(189, 91, 36);
+    // The footer that says which run a chart shows: small, as it is read only when needed
+    private static final int FOOTER_FONT_SIZE = 10;
+    private static final int FOOTER_MARGIN = 12;
 
     @Option(names = "--run-directory", required = true,
             description = "IoT run directory containing producer/ and consumer-* outputs")
@@ -105,6 +108,16 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     /** Merges all intervals for each role and renders count-weighted latency distributions. */
     public static void render(Path producer, List<Path> consumers, Path outputPrefix, String title)
             throws IOException {
+        render(producer, consumers, outputPrefix, title, "");
+    }
+
+    /**
+     * Merges all intervals for each role and renders count-weighted latency distributions.
+     *
+     * @param footer small text at the bottom right, such as the branch, commit and run time; empty for none
+     */
+    static void render(Path producer, List<Path> consumers, Path outputPrefix, String title, String footer)
+            throws IOException {
         Dataset producerData = dataset("Produce · send completion", readMerged(List.of(producer)), PRODUCER);
         Dataset consumerData = dataset("Consume · publish to listener", readMerged(consumers), CONSUMER);
         Path parent = outputPrefix.toAbsolutePath().normalize().getParent();
@@ -112,9 +125,30 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
             Files.createDirectories(parent);
         }
         writePng(outputPrefix.resolveSibling(outputPrefix.getFileName() + ".png"), title,
-                producerData, consumerData);
+                producerData, consumerData, footer);
         Files.writeString(outputPrefix.resolveSibling(outputPrefix.getFileName() + ".svg"),
-                svg(title, producerData, consumerData));
+                svg(title, producerData, consumerData, footer));
+    }
+
+    /** Draws {@code footer} at the bottom right in a small font, which can be zoomed into. */
+    static void drawFooter(Graphics2D graphics, String footer, int height) {
+        if (footer.isEmpty()) {
+            return;
+        }
+        graphics.setColor(MUTED);
+        graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, FOOTER_FONT_SIZE));
+        graphics.drawString(footer, WIDTH - FOOTER_MARGIN - graphics.getFontMetrics().stringWidth(footer),
+                height - FOOTER_MARGIN);
+    }
+
+    /** The SVG form of {@link #drawFooter(Graphics2D, String, int)}. */
+    static void appendSvgFooter(StringBuilder out, String footer, int height) {
+        if (footer.isEmpty()) {
+            return;
+        }
+        out.append("<text class=\"muted\" x=\"").append(WIDTH - FOOTER_MARGIN).append("\" y=\"")
+                .append(height - FOOTER_MARGIN).append("\" text-anchor=\"end\" font-size=\"")
+                .append(FOOTER_FONT_SIZE).append("\">").append(xml(footer)).append("</text>\n");
     }
 
     static Histogram readMerged(List<Path> paths) throws IOException {
@@ -171,7 +205,8 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
         return new Dataset(name, histogram, color, bins, minMillis, maxMillis, peak);
     }
 
-    private static void writePng(Path output, String title, Dataset first, Dataset second) throws IOException {
+    private static void writePng(Path output, String title, Dataset first, Dataset second, String footer)
+            throws IOException {
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         try {
@@ -183,6 +218,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
             graphics.drawString(title, 70, 55);
             drawDataset(graphics, first, FIRST_PANEL_X);
             drawDataset(graphics, second, SECOND_PANEL_X);
+            drawFooter(graphics, footer, HEIGHT);
         } finally {
             graphics.dispose();
         }
@@ -223,7 +259,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
         graphics.drawString(summary(data.histogram()), x, PLOT_TOP + PLOT_HEIGHT + 82);
     }
 
-    private static String svg(String title, Dataset first, Dataset second) {
+    private static String svg(String title, Dataset first, Dataset second, String footer) {
         StringBuilder out = new StringBuilder(32_000);
         out.append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"").append(WIDTH)
                 .append("\" height=\"").append(HEIGHT).append("\" viewBox=\"0 0 ").append(WIDTH).append(' ')
@@ -234,6 +270,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
                 .append(xml(title)).append("</text>\n");
         appendSvgDataset(out, first, FIRST_PANEL_X);
         appendSvgDataset(out, second, SECOND_PANEL_X);
+        appendSvgFooter(out, footer, HEIGHT);
         return out.append("</svg>\n").toString();
     }
 

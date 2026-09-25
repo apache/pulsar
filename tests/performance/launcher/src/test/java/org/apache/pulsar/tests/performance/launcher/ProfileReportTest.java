@@ -58,17 +58,27 @@ public class ProfileReportTest {
         writeSlice(offCpu, OffCpuFlamegraphs.ALL_SLICE, "{\"intervals\": \"1000\", \"totalNanos\": \"3843000000000\"}");
         writeSlice(offCpu, OffCpuFlamegraphs.NO_IDLE_SLICE, "{\"intervals\": \"207\", \"totalNanos\": \"4677199858\","
                 + " \"filtered\": {\"intervals\": \"793\", \"totalNanos\": \"3838609192364\"}}");
+        writeSlice(offCpu, OffCpuFlamegraphs.NO_IDLE_APP_ROOT_SLICE, "{\"intervals\": \"180\", \"totalNanos\":"
+                + " \"2300000000\", \"filtered\": {\"intervals\": \"793\", \"totalNanos\": \"3838609192364\"},"
+                + " \"rootAtUnmatchedHidden\": {\"intervals\": \"27\", \"totalNanos\": \"2377199858\"}}");
         Path views = Files.createDirectories(directory.resolve("broker" + JfrFlamegraphViews.OUTPUT_SUFFIX));
         for (String file : List.of("cpu.html", "cpu-threads.html", "cpu-heatmap.html", "cpu.collapsed",
                 "alloc.html")) {
             Files.writeString(views.resolve(file), "");
         }
+        // Retention removed the complete recording; the measurement recording and the capture stream remain
+        Files.writeString(directory.resolve("broker.measurement.jfr"), "");
+        Files.writeString(directory.resolve("broker.jonoffcpu-capture.pb"), "");
 
         Path file = ProfileReport.write(directory, List.of(directory.resolve("broker.jfr")),
                 new ProfileReport.Run("scenario.yaml", "run-1", Instant.parse("2026-09-25T00:00:00Z"),
                         Instant.parse("2026-09-25T00:00:40Z"), 102328.7),
                 new ObjectMapper(), directory);
         String report = Files.readString(file);
+
+        assertTrue(report.contains("Recordings: [broker.measurement.jfr](broker.measurement.jfr) (measurement window)"
+                + " · [broker.jonoffcpu-capture.pb](broker.jonoffcpu-capture.pb) (off-CPU capture stream)\n"), report);
+        assertFalse(report.contains("(broker.jfr)"), report);
 
         assertTrue(report.contains("Scenario `scenario.yaml`, run `run-1`."), report);
         assertTrue(report.contains("(40.0 s); producer throughput 102,329 msg/s."), report);
@@ -77,7 +87,11 @@ public class ProfileReportTest {
         assertTrue(report.contains("| [All off-CPU time](broker-offcpu/offcpu.html) | 3,843.0 | 1,000 |  |"),
                 report);
         assertTrue(report.contains(
-                "| [Without idle waits](broker-offcpu/offcpu-no-idle.html) | 4.7 | 207 | 3,838.6 |"), report);
+                "| [Without idle waits](broker-offcpu/offcpu-no-idle.html) | 4.7 | 207 | 3,838.6 |  |"), report);
+        // Stacks without an application frame are left out of the app-root flame graphs and counted apart
+        assertTrue(report.contains("| [Without idle waits, from the application's first frame]"
+                + "(broker-offcpu/offcpu-no-idle-app-root.html) | 2.3 | 180 | 3,838.6 | 2.4 |"), report);
+        assertFalse(report.contains("[no application frame]"), report);
         // Slices that were not rendered are left out rather than linked.
         assertFalse(report.contains(OffCpuFlamegraphs.APP_ROOT_SLICE + ".html"), report);
         // Only the rendered views are named; this recording has no lock or wall-clock view.

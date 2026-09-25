@@ -53,12 +53,21 @@ final class TimeSeriesRenderer {
     private static final int PLOT_HEIGHT = 300;
     private static final int PLOT_BOTTOM = PLOT_TOP + PLOT_HEIGHT;
     private static final int GRID_LINES = 5;
+    // A legend wider than the plot continues on the next row
+    private static final int LEGEND_ROW_HEIGHT = 20;
     private static final Color WARMUP = new Color(236, 240, 244);
     private static final List<Color> COLORS = List.of(PRODUCER, CONSUMER, new Color(96, 70, 160),
             new Color(46, 125, 50), new Color(173, 20, 87), new Color(120, 144, 156));
 
-    /** One line of the chart; a {@link Double#NaN} value leaves a gap. */
-    record Series(String name, double[] values) {
+    /**
+     * One line of the chart; a {@link Double#NaN} value leaves a gap.
+     *
+     * @param dotted whether the line is dotted, so that a line it overlaps stays visible
+     */
+    record Series(String name, double[] values, boolean dotted) {
+        Series(String name, double[] values) {
+            this(name, values, false);
+        }
     }
 
     private record Scale(double minSeconds, double maxSeconds, double maxValue) {
@@ -81,9 +90,10 @@ final class TimeSeriesRenderer {
      * @param seconds the sample times, seconds since the measurement start, ascending
      * @param series the lines, each with one value per sample time
      * @param producersFinishedSeconds where to mark the producers' finish, or {@link Double#NaN} for no marker
+     * @param footer small text at the bottom right, such as the branch, commit and run time; empty for none
      */
     static void render(Path outputPrefix, String title, String yLabel, double[] seconds, List<Series> series,
-                       double producersFinishedSeconds) throws IOException {
+                       double producersFinishedSeconds, String footer) throws IOException {
         if (seconds.length < 2) {
             throw new IllegalArgumentException("A time series chart needs at least two samples");
         }
@@ -101,13 +111,13 @@ final class TimeSeriesRenderer {
             Files.createDirectories(parent);
         }
         writePng(outputPrefix.resolveSibling(outputPrefix.getFileName() + ".png"), title, yLabel, seconds, series,
-                producersFinishedSeconds, scale);
+                producersFinishedSeconds, scale, footer);
         Files.writeString(outputPrefix.resolveSibling(outputPrefix.getFileName() + ".svg"),
-                svg(title, yLabel, seconds, series, producersFinishedSeconds, scale));
+                svg(title, yLabel, seconds, series, producersFinishedSeconds, scale, footer));
     }
 
     private static void writePng(Path output, String title, String yLabel, double[] seconds, List<Series> series,
-                                 double finished, Scale scale) throws IOException {
+                                 double finished, Scale scale, String footer) throws IOException {
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         try {
@@ -157,22 +167,30 @@ final class TimeSeriesRenderer {
                 graphics.drawString(label, labelOnLeft(x) ? x - 6 - graphics.getFontMetrics().stringWidth(label)
                         : x + 6, PLOT_TOP + 14);
             }
-            graphics.setStroke(new BasicStroke(2));
             for (int index = 0; index < series.size(); index++) {
                 graphics.setColor(COLORS.get(index % COLORS.size()));
+                graphics.setStroke(stroke(series.get(index)));
                 for (int[][] segment : segments(seconds, series.get(index).values(), scale)) {
                     graphics.drawPolyline(segment[0], segment[1], segment[0].length);
                 }
             }
             graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14));
             int legendX = PLOT_LEFT;
+            int legendY = PLOT_BOTTOM + 72;
             for (int index = 0; index < series.size(); index++) {
+                int width = 40 + graphics.getFontMetrics().stringWidth(series.get(index).name());
+                if (legendX > PLOT_LEFT && legendX + width > PLOT_RIGHT) {
+                    legendX = PLOT_LEFT;
+                    legendY += LEGEND_ROW_HEIGHT;
+                }
                 graphics.setColor(COLORS.get(index % COLORS.size()));
-                graphics.fillRect(legendX, PLOT_BOTTOM + 66, 18, 4);
+                graphics.setStroke(stroke(series.get(index)));
+                graphics.drawLine(legendX, legendY - 4, legendX + 18, legendY - 4);
                 graphics.setColor(INK);
-                graphics.drawString(series.get(index).name(), legendX + 26, PLOT_BOTTOM + 72);
-                legendX += 40 + graphics.getFontMetrics().stringWidth(series.get(index).name());
+                graphics.drawString(series.get(index).name(), legendX + 26, legendY);
+                legendX += width;
             }
+            HdrHistogramRenderer.drawFooter(graphics, footer, HEIGHT);
         } finally {
             graphics.dispose();
         }
@@ -180,7 +198,7 @@ final class TimeSeriesRenderer {
     }
 
     private static String svg(String title, String yLabel, double[] seconds, List<Series> series, double finished,
-                              Scale scale) {
+                              Scale scale, String footer) {
         StringBuilder out = new StringBuilder(16_000);
         out.append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"").append(WIDTH).append("\" height=\"")
                 .append(HEIGHT).append("\" viewBox=\"0 0 ").append(WIDTH).append(' ').append(HEIGHT)
@@ -231,7 +249,7 @@ final class TimeSeriesRenderer {
             String color = hex(COLORS.get(index % COLORS.size()));
             for (int[][] segment : segments(seconds, series.get(index).values(), scale)) {
                 out.append("<polyline fill=\"none\" stroke=\"").append(color)
-                        .append("\" stroke-width=\"2\" points=\"");
+                        .append("\" stroke-width=\"2\"").append(dashes(series.get(index))).append(" points=\"");
                 for (int point = 0; point < segment[0].length; point++) {
                     out.append(segment[0][point]).append(',').append(segment[1][point]).append(' ');
                 }
@@ -239,16 +257,36 @@ final class TimeSeriesRenderer {
             }
         }
         int legendX = PLOT_LEFT;
+        int legendY = PLOT_BOTTOM + 72;
         for (int index = 0; index < series.size(); index++) {
             String name = series.get(index).name();
-            out.append("<rect x=\"").append(legendX).append("\" y=\"").append(PLOT_BOTTOM + 66)
-                    .append("\" width=\"18\" height=\"4\" fill=\"").append(hex(COLORS.get(index % COLORS.size())))
-                    .append("\"/>\n<text x=\"").append(legendX + 26).append("\" y=\"").append(PLOT_BOTTOM + 72)
-                    .append("\" font-size=\"14\">").append(xml(name)).append("</text>\n");
             // Approximate text width for the SVG legend, which has no font metrics.
-            legendX += 40 + (int) (name.length() * 7.5);
+            int width = 40 + (int) (name.length() * 7.5);
+            if (legendX > PLOT_LEFT && legendX + width > PLOT_RIGHT) {
+                legendX = PLOT_LEFT;
+                legendY += LEGEND_ROW_HEIGHT;
+            }
+            out.append("<line x1=\"").append(legendX).append("\" y1=\"").append(legendY - 4)
+                    .append("\" x2=\"").append(legendX + 18).append("\" y2=\"").append(legendY - 4)
+                    .append("\" stroke=\"").append(hex(COLORS.get(index % COLORS.size())))
+                    .append("\" stroke-width=\"2\"").append(dashes(series.get(index))).append("/>\n<text x=\"")
+                    .append(legendX + 26).append("\" y=\"").append(legendY)
+                    .append("\" font-size=\"14\">").append(xml(name)).append("</text>\n");
+            legendX += width;
         }
+        HdrHistogramRenderer.appendSvgFooter(out, footer, HEIGHT);
         return out.append("</svg>\n").toString();
+    }
+
+    // Round dots, two pixels wide and five apart
+    private static BasicStroke stroke(Series series) {
+        return series.dotted()
+                ? new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10, new float[] {0.1f, 5}, 0)
+                : new BasicStroke(2);
+    }
+
+    private static String dashes(Series series) {
+        return series.dotted() ? " stroke-dasharray=\"0.1 5\" stroke-linecap=\"round\"" : "";
     }
 
     /** The runs of consecutive defined values of one series, as x and y pixel arrays. */

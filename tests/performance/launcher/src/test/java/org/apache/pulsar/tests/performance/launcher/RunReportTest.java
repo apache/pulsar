@@ -84,6 +84,8 @@ public class RunReportTest {
                     .append(',').append(in[round]).append(',').append(out1[round]).append('\n');
         }
         Files.writeString(run.resolve(TopicStatsSampler.FILE_NAME), csv);
+        Files.writeString(run.resolve("scenario.yaml"), "extends: base.yaml\n");
+        Files.writeString(run.resolve(RunReport.RESOLVED_CONFIG), "cluster: {}\n");
         // The broker was profiled with off-CPU capture, the producer with async-profiler only.
         Path offCpu = Files.createDirectories(run.resolve("broker-profile/broker" + OffCpuFlamegraphs.OUTPUT_SUFFIX));
         Files.writeString(offCpu.resolve(OffCpuFlamegraphs.NO_IDLE_SLICE + ".json"),
@@ -100,10 +102,23 @@ public class RunReportTest {
                         + " \"warmupRounds\": 1, \"payloadBytes\": 128, \"batchingEnabled\": false, \"rate\": 0}"),
                 new RunInfo(ZonedDateTime.parse("2026-09-25T06:42:59+03:00"), "perf-host", "lari", "Lari Hotari",
                         "lari@example.com", Path.of("/work/pulsar/.claude/worktrees/w1"), "lh-branch",
-                        "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT")),
+                        "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT"),
+                ZonedDateTime.parse("2026-09-25T06:46:41+03:00")),
                 mapper);
         String report = Files.readString(file);
 
+        // The run's other files are linked, so that they can be found when the run is browsed over HTTP
+        assertTrue(report.contains("\nFiles: [producer/producer-summary.json](producer/producer-summary.json) · "
+                + "[consumer-0/consumer-summary.json](consumer-0/consumer-summary.json) · "
+                + "[consumer-1/consumer-summary.json](consumer-1/consumer-summary.json)\n"), report);
+        assertTrue(report.contains("<details><summary>HDR histogram logs</summary>\n\n"
+                + "- [producer/produce-latency.hdr](producer/produce-latency.hdr)\n"
+                + "- [consumer-0/consume-latency.hdr](consumer-0/consume-latency.hdr)\n"
+                + "- [consumer-1/consume-latency.hdr](consumer-1/consume-latency.hdr)\n\n</details>\n"), report);
+        assertTrue(report.contains("The samples are in [topic-stats.csv](topic-stats.csv)."), report);
+        assertTrue(report.contains("| Scenario | [scenario](scenario.yaml) |\n"), report);
+        assertTrue(report.contains("| Cluster | 1 broker(s), 3 bookies, [configuration](resolved-config.yaml) |\n"),
+                report);
         assertTrue(report.contains("| Started | 2026-09-25T06:42:59+03:00 |"), report);
         assertTrue(report.contains("| Host | perf-host |"), report);
         assertTrue(report.contains("| User | lari (git: Lari Hotari <lari@example.com>) |"), report);
@@ -126,8 +141,12 @@ public class RunReportTest {
         // 400,000 measured messages until the slower application finished 6 s after the start
         assertTrue(report.contains("| 66,667 msg/s |"), report);
         assertTrue(report.contains("| Consumers still draining after the producers finished | 2.0 s |"), report);
-        assertTrue(report.contains("| Publish (send to acknowledgment) | 1,000 | 900."), report);
-        assertTrue(report.contains("| End to end, consumer-1 | 1,000 | 1,200."), report);
+        assertTrue(report.contains("| Latency (ms) | Count | Min | p50 | p90 | p99 | p99.9 | Max |\n"), report);
+        // Every observation is the same value: the minimum is the lowest value of its HDR bucket, the percentiles
+        // and the maximum its highest
+        assertTrue(report.contains("| Publish (send to acknowledgment) | 1,000 | 899.6 | 900.1 | 900.1 | 900.1 |"
+                + " 900.1 | 900.1 |"), report);
+        assertTrue(report.contains("| End to end, consumer-1 | 1,000 | 1,199.1 | 1,200.1 |"), report);
         assertTrue(report.contains("Delivery after the publish is acknowledged: about 300."), report);
         assertTrue(report.contains("| Published msg/s | 100,000 | 100,000 |"), report);
         // Seconds 1–2 and 2–3 are the measurement without its first and last second. sub-1 dispatches nothing in
@@ -140,8 +159,28 @@ public class RunReportTest {
             assertTrue(Files.isRegularFile(run.resolve(chart + ".svg")), chart);
             assertTrue(Files.isRegularFile(run.resolve(chart + ".png")), chart);
         }
+        // Every chart says which run it shows; the latency chart's title no longer names the scenario
+        for (String chart : new String[] {"latency-histograms", "throughput", "backlog"}) {
+            assertTrue(Files.readString(run.resolve(chart + ".svg"))
+                    .contains(">lh-branch@01234567-dirty 2026-09-25 06:42:59-06:46:41</text>"), chart);
+        }
+        assertTrue(Files.readString(run.resolve("latency-histograms.svg")).contains("font-weight=\"bold\">Latency<"));
         String page = Files.readString(run.resolve("run-report.html"));
         assertTrue(page.contains("<img src=\"throughput.svg\""), page);
+    }
+
+    @Test
+    public void writesAShortChartFooter() {
+        ZonedDateTime started = ZonedDateTime.parse("2026-09-25T23:58:30+03:00");
+        RunInfo clean = new RunInfo(started, "host", "user", "", "", Path.of("/p"), "lh-branch",
+                "1ebd73f2652103b30483ba6ddd7ab587a605912a", false, "5.0.0-SNAPSHOT");
+        RunInfo noGit = new RunInfo(started, "host", "user", "", "", Path.of("/p"), "", "", false, "");
+
+        // Past midnight the end is still only a time, in the start's zone
+        assertEquals(RunReport.chartFooter(clean, ZonedDateTime.parse("2026-09-25T21:02:05Z")),
+                "lh-branch@1ebd73f2 2026-09-25 23:58:30-00:02:05");
+        assertEquals(RunReport.chartFooter(noGit, null), "2026-09-25 23:58:30");
+        assertEquals(RunReport.chartFooter(null, null), "");
     }
 
     @Test

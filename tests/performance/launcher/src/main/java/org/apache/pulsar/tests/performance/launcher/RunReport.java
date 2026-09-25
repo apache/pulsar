@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -43,13 +44,43 @@ final class RunReport {
     static final String LATENCY_CHART = "latency-histograms";
     static final String THROUGHPUT_CHART = "throughput";
     static final String BACKLOG_CHART = "backlog";
+    static final String RESOLVED_CONFIG = "resolved-config.yaml";
+    private static final DateTimeFormatter FOOTER_START = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final DateTimeFormatter FOOTER_END = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     /**
      * The run the report describes.
      *
      * @param info where, by whom and from which code the run was made; {@code null} leaves it out
+     * @param finished when the workload finished, for the charts' footer; {@code null} leaves the end out
      */
-    record Run(String scenario, String runId, String image, JsonNode cluster, JsonNode workload, RunInfo info) {
+    record Run(String scenario, String runId, String image, JsonNode cluster, JsonNode workload, RunInfo info,
+               ZonedDateTime finished) {
+    }
+
+    /**
+     * The charts' footer, which says what a chart shows when it is looked at on its own: the branch, the short
+     * commit (marked {@code -dirty} with uncommitted changes) and the run's start and end, such as
+     * {@code lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04}. The date is not repeated for the end.
+     */
+    static String chartFooter(RunInfo info, ZonedDateTime finished) {
+        if (info == null) {
+            return "";
+        }
+        StringBuilder footer = new StringBuilder();
+        if (!info.gitBranch().isEmpty()) {
+            footer.append(info.gitBranch());
+        }
+        if (!info.gitCommit().isEmpty()) {
+            footer.append(footer.isEmpty() ? "" : "@")
+                    .append(info.gitCommit(), 0, Math.min(8, info.gitCommit().length()))
+                    .append(info.gitDirty() ? "-dirty" : "");
+        }
+        footer.append(footer.isEmpty() ? "" : " ").append(FOOTER_START.format(info.started()));
+        if (finished != null) {
+            footer.append('-').append(FOOTER_END.format(finished.withZoneSameInstant(info.started().getZone())));
+        }
+        return footer.toString();
     }
 
     /** The sampled topic stats of a run: one row per sample round. */
@@ -76,7 +107,8 @@ final class RunReport {
         }
         StringBuilder report = new StringBuilder();
         report.append("# Run report: ").append(run.scenario()).append("\n\n");
-        appendRun(report, run);
+        appendRun(report, runDirectory, run);
+        appendFiles(report, runDirectory);
         // The profiles come first so that a profiled run leads to its flame graphs
         appendProfiles(report, runDirectory, mapper);
         appendCorrectness(report, consumers);
@@ -86,7 +118,8 @@ final class RunReport {
         appendLatency(report, runDirectory, run, consumerHistograms);
         Path stats = runDirectory.resolve(TopicStatsSampler.FILE_NAME);
         if (Files.isRegularFile(stats)) {
-            appendTopicStats(report, runDirectory, readSamples(stats), measurementStart, measurementEnd);
+            appendTopicStats(report, runDirectory, readSamples(stats), measurementStart, measurementEnd,
+                    chartFooter(run.info(), run.finished()));
         }
         Path file = runDirectory.resolve(FILE_NAME);
         Files.writeString(file, report);
@@ -94,13 +127,19 @@ final class RunReport {
         return file;
     }
 
-    private static void appendRun(StringBuilder report, Run run) {
+    private static void appendRun(StringBuilder report, Path runDirectory, Run run) {
         JsonNode workload = run.workload();
         JsonNode cluster = run.cluster();
+        // The launcher copies the scenario file and writes its resolved form into the run directory
+        String scenarioName = run.scenario().replaceFirst("\\.ya?ml$", "");
+        boolean resolved = Files.isRegularFile(runDirectory.resolve(RESOLVED_CONFIG));
         report.append("Run `").append(run.runId()).append("`, image `").append(run.image()).append("`.\n\n")
                 .append("| Setting | Value |\n|---|---|\n")
+                .append(row("Scenario", Files.isRegularFile(runDirectory.resolve(run.scenario()))
+                        ? "[" + scenarioName + "](" + run.scenario() + ")" : scenarioName))
                 .append(row("Cluster", cluster.path("brokers").asInt() + " broker(s), "
-                        + cluster.path("bookies").asInt() + " bookies"));
+                        + cluster.path("bookies").asInt() + " bookies"
+                        + (resolved ? ", [configuration](" + RESOLVED_CONFIG + ")" : "")));
         JsonNode brokerEnvs = cluster.path("brokerEnvs");
         if (brokerEnvs.has("managedLedgerDefaultEnsembleSize")) {
             report.append(row("Ledger replication", "E=" + brokerEnvs.path("managedLedgerDefaultEnsembleSize")
@@ -119,6 +158,37 @@ final class RunReport {
                 .append(row("Rate limit", workload.path("rate").asLong() > 0
                         ? String.format(Locale.ROOT, "%,d msg/s", workload.path("rate").asLong()) : "none"));
         appendRunInfo(report, run.info());
+    }
+
+    // The run's own records, for a reader who browses the run directory, for example over HTTP
+    private static void appendFiles(StringBuilder report, Path runDirectory) {
+        List<String> links = new ArrayList<>();
+        // The scenario and its resolved configuration are linked from the settings table
+        for (String name : List.of(RunInfo.FILE_NAME, "producer/producer-summary.json",
+                "producer/container.log")) {
+            Path file = runDirectory.resolve(name);
+            if (Files.isRegularFile(file)) {
+                links.add(link(runDirectory, file));
+            }
+        }
+        for (int application = 0; Files.isDirectory(runDirectory.resolve("consumer-" + application)); application++) {
+            for (String name : List.of("consumer-summary.json", "container.log")) {
+                Path file = runDirectory.resolve("consumer-" + application).resolve(name);
+                if (Files.isRegularFile(file)) {
+                    links.add(link(runDirectory, file));
+                }
+            }
+        }
+        if (!links.isEmpty()) {
+            report.append("\nFiles: ").append(String.join(" · ", links)).append('\n');
+        }
+    }
+
+    /** A link to {@code file}, relative to the run directory, named by its path. */
+    private static String link(Path runDirectory, Path file) {
+        String relative = runDirectory.toAbsolutePath().normalize().relativize(file.toAbsolutePath().normalize())
+                .toString().replace('\\', '/');
+        return "[" + relative + "](" + relative + ")";
     }
 
     // Where, by whom and from which code the run was made; the same values are in run-info.json
@@ -185,8 +255,8 @@ final class RunReport {
         if (!Files.isRegularFile(publish) || consumers.isEmpty()) {
             return;
         }
-        report.append("\n## Latency\n\n| Latency (ms) | Count | p50 | p90 | p99 | p99.9 | Max |\n"
-                + "|---|---:|---:|---:|---:|---:|---:|\n");
+        report.append("\n## Latency\n\n| Latency (ms) | Count | Min | p50 | p90 | p99 | p99.9 | Max |\n"
+                + "|---|---:|---:|---:|---:|---:|---:|---:|\n");
         Histogram published = HdrHistogramRenderer.readMerged(List.of(publish));
         report.append(latencyRow("Publish (send to acknowledgment)", published));
         Histogram endToEnd = HdrHistogramRenderer.readMerged(consumers);
@@ -200,13 +270,23 @@ final class RunReport {
         report.append(String.format(Locale.ROOT, "%nDelivery after the publish is acknowledged: about %s ms"
                         + " (end-to-end p50 − publish p50).%n",
                 millis(endToEnd.getValueAtPercentile(50) - published.getValueAtPercentile(50))));
-        HdrHistogramRenderer.render(publish, consumers, runDirectory.resolve(LATENCY_CHART),
-                run.scenario() + " latency");
+        HdrHistogramRenderer.render(publish, consumers, runDirectory.resolve(LATENCY_CHART), "Latency",
+                chartFooter(run.info(), run.finished()));
         report.append("\n![Latency distributions](").append(LATENCY_CHART).append(".svg)\n");
+        List<Path> logs = new ArrayList<>();
+        logs.add(publish);
+        logs.addAll(consumers);
+        // Collapsed, as the logs are for tools such as HdrHistogram's plotter rather than for reading
+        report.append("\n<details><summary>HDR histogram logs</summary>\n\n");
+        for (Path log : logs) {
+            report.append("- ").append(link(runDirectory, log)).append('\n');
+        }
+        report.append("\n</details>\n");
     }
 
     private static void appendTopicStats(StringBuilder report, Path runDirectory, Samples samples,
-                                         long measurementStart, long measurementEnd) throws IOException {
+                                         long measurementStart, long measurementEnd, String footer)
+            throws IOException {
         int rounds = samples.epochMillis().length;
         if (rounds < 3) {
             return;
@@ -226,7 +306,9 @@ final class RunReport {
                 + " per-second deltas of its message counters, and a sampled maximum is not the exact peak"
                 + " between samples. The rates are those of the whole seconds within the measurement (0 to ")
                 .append(String.format(Locale.ROOT, "%.1f", finished))
-                .append(" s), leaving out its first and last second, where the producers start and finish.\n\n")
+                .append(" s), leaving out its first and last second, where the producers start and finish. The")
+                .append(" samples are in ")
+                .append(link(runDirectory, runDirectory.resolve(TopicStatsSampler.FILE_NAME))).append(".\n\n")
                 .append("| Measure | Median | Minimum |\n|---|---:|---:|\n")
                 .append(rateRow("Published msg/s", samples.published(), seconds, finished))
                 .append(rateRow("Dispatched msg/s, all subscriptions", totalDispatched, seconds, finished))
@@ -257,17 +339,19 @@ final class RunReport {
                     backlog[peak], seconds[peak], backlog[atFinish]));
         }
         List<TimeSeriesRenderer.Series> throughput = new ArrayList<>();
-        throughput.add(new TimeSeriesRenderer.Series("Producers (published)", samples.published()));
+        // Dotted, so that the consumer lines it usually overlaps stay visible
+        throughput.add(new TimeSeriesRenderer.Series("Producers (published)", samples.published(), true));
         for (Map.Entry<String, double[]> entry : samples.dispatched().entrySet()) {
+            // One line per subscription, named by it alone so that the legend fits
             throughput.add(new TimeSeriesRenderer.Series(samples.dispatched().size() == 1
-                    ? "Consumers (dispatched)" : "Dispatched to " + entry.getKey(), entry.getValue()));
+                    ? "Consumers (dispatched)" : entry.getKey(), entry.getValue()));
         }
         TimeSeriesRenderer.render(runDirectory.resolve(THROUGHPUT_CHART), "Throughput", "Messages per second",
-                seconds, throughput, finished);
+                seconds, throughput, finished, footer);
         List<TimeSeriesRenderer.Series> backlog = samples.backlog().entrySet().stream()
                 .map(entry -> new TimeSeriesRenderer.Series(entry.getKey(), entry.getValue())).toList();
         TimeSeriesRenderer.render(runDirectory.resolve(BACKLOG_CHART), "Backlog", "Messages in the backlog",
-                seconds, backlog, finished);
+                seconds, backlog, finished, footer);
         report.append("\n![Throughput over time](").append(THROUGHPUT_CHART).append(".svg)\n\n![Backlog over time](")
                 .append(BACKLOG_CHART).append(".svg)\n");
     }
@@ -385,8 +469,8 @@ final class RunReport {
     }
 
     private static String latencyRow(String label, Histogram histogram) {
-        return String.format(Locale.ROOT, "| %s | %,d | %s | %s | %s | %s | %s |%n", label,
-                histogram.getTotalCount(), millis(histogram.getValueAtPercentile(50)),
+        return String.format(Locale.ROOT, "| %s | %,d | %s | %s | %s | %s | %s | %s |%n", label,
+                histogram.getTotalCount(), millis(histogram.getMinValue()), millis(histogram.getValueAtPercentile(50)),
                 millis(histogram.getValueAtPercentile(90)), millis(histogram.getValueAtPercentile(99)),
                 millis(histogram.getValueAtPercentile(99.9)), millis(histogram.getMaxValue()));
     }
