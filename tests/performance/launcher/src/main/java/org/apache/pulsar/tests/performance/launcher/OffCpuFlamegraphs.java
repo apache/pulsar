@@ -36,7 +36,7 @@ import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
  * <p>For a recording {@code profile.jfr} with its {@code profile.jonoffcpu-capture.pb} stream, the correlator
  * writes {@code profile-offcpu/} holding {@code jonoffcpu-offcpu-stacks.collapsed} (Java stacks weighted in
  * microseconds of off-CPU time), the accounting report, {@code jonoffcpu-offcpu-profile.pb} and the analysis digest
- * {@code jonoffcpu-summary.md}, which ranks the busy time, leaving out the idle waits of {@link #IDLE_WAITS_FILE}.
+ * {@code jonoffcpu-summary.md}, which ranks the blocked time, leaving out the idle waits of {@link #IDLE_WAITS_FILE}.
  * Four slices of that profile are then rendered with the correlator's {@code stacks} subcommand:
  * {@code offcpu} with every interval, {@code offcpu-no-idle} without the intervals in which a thread was only
  * waiting for work, and the same two rooted at the application's first frame ({@link #APPLICATION_ROOT}). Each
@@ -111,9 +111,12 @@ final class OffCpuFlamegraphs {
                 "--output", outputDirectory.toString(),
                 "--from", Long.toString(from.toEpochMilli()),
                 "--to", Long.toString(to.toEpochMilli()),
-                // The digest ranks busy time; these are the waits for work it leaves out. The collapsed stacks,
+                // The digest ranks blocked time; these are the waits for work it leaves out. The collapsed stacks,
                 // the profile and the report keep every interval.
-                "--idle-from", recordingIdleWaits.toString(),
+                "--waiting-from", recordingIdleWaits.toString(),
+                // The digest's tables start each stack at the application's first frame and name the application
+                // method that waited
+                "--app", APPLICATION_ROOT,
                 // The row-level audit files are by far the largest outputs, at about 2 KB per row, and nothing
                 // here reads them. Every aggregate stays in jonoffcpu-report.json, and the capture stream is
                 // kept, so correlating it again with --audit full reproduces them when a run needs examining.

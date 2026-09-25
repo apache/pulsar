@@ -262,7 +262,7 @@ output directories):
 | `<recording>.measurement.jfr` | The same cut to the measurement window (see above) |
 | `<recording>-flamegraphs/` | `cpu`, `wall`, `alloc` and `lock` views of the measurement recording, each only when its event is in the profiler options: `<view>.html`, `<view>-threads.html` (split by thread), `<view>-heatmap.html` (samples over time, for bursts and pauses) and `<view>.collapsed`. Pulsar and BookKeeper frames are highlighted |
 | `<recording>.jonoffcpu-capture.pb`, `.manifest.json`, `<recording>.jonoffcpu.yaml` | The off-CPU capture stream, its manifest, and the agent configuration the JVM was started with |
-| `<recording>-offcpu/jonoffcpu-summary.md`, `.json` | The off-CPU digest: capture coverage, where the time went, and the busy time ranked by leaf and thread pool with the heaviest busy stacks, leaving out the idle waits of `offcpu-idle-waits.txt` |
+| `<recording>-offcpu/jonoffcpu-summary.md`, `.json` | The off-CPU digest: the blocked time ranked by the application method that waited, by application root and by application method, where the time went and the capture coverage, leaving out the idle waits of `offcpu-idle-waits.txt` |
 | `<recording>-offcpu/offcpu-no-idle.html` | Off-CPU flame graph of the measurement window without threads that were only waiting for work |
 | `<recording>-offcpu/offcpu-no-idle-app-root.html` | The same with each stack starting at its first Pulsar or BookKeeper frame, so the same code reached from different thread pools or event loops is one tree |
 | `<recording>-offcpu/offcpu.html`, `offcpu-app-root.html` | Every blocked interval, idle waiting included, as is and from the first application frame |
@@ -294,7 +294,7 @@ highlight the `o.a.` frames. The correlator runs with `--audit none`, which skip
    ```bash
    OFFCPU=build/performance/iot-telemetry-high-rate-profile/broker-profile/<recording>-offcpu
    java -jar jonoffcpu-correlator.jar top --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
-     --app '^org\.apache\.' --idle-from $OFFCPU/offcpu-idle-waits.txt --package-names abbreviate
+     --app '^org\.apache\.' --waiting-from $OFFCPU/offcpu-idle-waits.txt --package-names abbreviate
    ```
 
    `export --format jsonl` writes the profile one stack per row for SQL tools such as [DuckDB](https://duckdb.org/).
@@ -307,9 +307,9 @@ highlight the `o.a.` frames. The correlator runs with `--audit none`, which skip
    ```bash
    java -jar jonoffcpu-correlator.jar stacks --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
      --exclude-from $OFFCPU/offcpu-idle-waits.txt --time split --package-names abbreviate \
-     --output /tmp/busy-split.collapsed --summary /tmp/busy-split.json
-   java -jar jfr-converter.jar --title "Busy off-CPU time" --units µs --highlight '^o\.a\.' \
-     /tmp/busy-split.collapsed /tmp/busy-split.html
+     --output /tmp/blocked-split.collapsed --summary /tmp/blocked-split.json
+   java -jar jfr-converter.jar --title "Blocked off-CPU time" --units µs --highlight '^o\.a\.' \
+     /tmp/blocked-split.collapsed /tmp/blocked-split.html
    ```
 
    The transforms `--root-at`, `--trim-root`, `--hide` and `--collapse-leaf` change what each kept stack looks
@@ -322,7 +322,7 @@ highlight the `o.a.` frames. The correlator runs with `--audit none`, which skip
    ```bash
    java -jar jonoffcpu-correlator.jar top --profile candidate-offcpu/jonoffcpu-offcpu-profile.pb \
      --baseline baseline-offcpu/jonoffcpu-offcpu-profile.pb --units 4 --baseline-units 4 --weights estimated \
-     --app '^org\.apache\.' --idle-from candidate-offcpu/offcpu-idle-waits.txt --package-names abbreviate
+     --app '^org\.apache\.' --waiting-from candidate-offcpu/offcpu-idle-waits.txt --package-names abbreviate
    ```
 
 Correlation holds each capture's distinct stacks in memory; the `profile` task runs with a 4 GB heap

@@ -108,8 +108,8 @@ final class ProfileReport {
         String summary = offCpu + "/" + OffCpuFlamegraphs.SUMMARY_FILE;
         if (Files.isRegularFile(directory.resolve(summary))) {
             report.append("Start with the digest, [").append(OffCpuFlamegraphs.SUMMARY_FILE).append("](")
-                    .append(summary).append("): the capture's coverage, where the time went, and the busy time")
-                    .append(" ranked, leaving out the idle waits listed in [")
+                    .append(summary).append("): the blocked time ranked by the application method that waited,")
+                    .append(" where the time went and the capture's coverage, leaving out the idle waits listed in [")
                     .append(OffCpuFlamegraphs.IDLE_WAITS_FILE).append("](").append(offCpu).append("/")
                     .append(OffCpuFlamegraphs.IDLE_WAITS_FILE).append(").\n\n");
         }

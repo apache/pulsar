@@ -204,22 +204,24 @@ final class RunReport {
                         + " Backlog when the producers finished |\n|---|---:|---:|---:|\n");
         for (Map.Entry<String, double[]> entry : samples.backlog().entrySet()) {
             double[] backlog = entry.getValue();
-            int peak = -1;
-            for (int round = 0; round < rounds; round++) {
-                if (seconds[round] >= 0 && seconds[round] <= finished && !Double.isNaN(backlog[round])
-                        && (peak < 0 || backlog[round] > backlog[peak])) {
-                    peak = round;
-                }
-            }
-            if (peak < 0) {
-                continue;
-            }
             int atFinish = rounds - 1;
             for (int round = 0; round < rounds; round++) {
                 if (seconds[round] >= finished) {
                     atFinish = round;
                     break;
                 }
+            }
+            // The measurement ends with the first sample at or after the producers finished, the one reported
+            // as the backlog when they finished, so the maximum is never below it.
+            int peak = -1;
+            for (int round = 0; round <= atFinish; round++) {
+                if (seconds[round] >= 0 && !Double.isNaN(backlog[round])
+                        && (peak < 0 || backlog[round] > backlog[peak])) {
+                    peak = round;
+                }
+            }
+            if (peak < 0) {
+                continue;
             }
             report.append(String.format(Locale.ROOT, "| `%s` | %,.0f | %.0f s | %,.0f |%n", entry.getKey(),
                     backlog[peak], seconds[peak], backlog[atFinish]));
