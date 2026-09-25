@@ -118,7 +118,7 @@ public final class RunReport {
         appendRun(report, runDirectory, run);
         // The profiles come first so that a profiled run leads to its flame graphs
         appendProfiles(report, runDirectory, mapper);
-        appendCorrectness(report, consumers);
+        appendCorrectness(report, run.workload(), consumers);
         long measurementStart = producer.path("measurementStartEpochMs").asLong();
         long measurementEnd = producer.path("measurementEndEpochMs").asLong();
         appendThroughput(report, producer, consumers);
@@ -227,7 +227,7 @@ public final class RunReport {
         return value.isEmpty() ? "" : "`" + value + "`";
     }
 
-    private static void appendCorrectness(StringBuilder report, List<JsonNode> consumers) {
+    private static void appendCorrectness(StringBuilder report, JsonNode workload, List<JsonNode> consumers) {
         report.append("\n## Correctness\n\n| Application | Unique messages | Duplicates | Ordering violations |"
                 + " Invalid |\n|---|---:|---:|---:|---:|\n");
         boolean clean = true;
@@ -236,8 +236,9 @@ public final class RunReport {
             long violations = consumer.path("orderingViolations").asLong();
             long invalid = consumer.path("invalidMessages").asLong();
             clean &= duplicates == 0 && violations == 0 && invalid == 0;
-            report.append(String.format(Locale.ROOT, "| %d | %,d | %,d | %,d | %,d |%n",
-                    consumer.path("applicationIndex").asInt(), consumer.path("uniqueMessages").asLong(),
+            report.append(String.format(Locale.ROOT, "| %s | %,d | %,d | %,d | %,d |%n",
+                    applicationName(workload, consumer.path("applicationIndex").asInt()),
+                    consumer.path("uniqueMessages").asLong(),
                     duplicates, violations, invalid));
         }
         report.append(clean ? "\nNo duplicates, ordering violations or invalid messages.\n"
@@ -261,6 +262,22 @@ public final class RunReport {
                         String.format(Locale.ROOT, "%.1f s", Math.max(0, lastReceived - end) / 1000.0)));
     }
 
+    /**
+     * An application's name: its subscription, the workload's {@code subscriptionPrefix} and its index, such as
+     * {@code iot-application-0}, as the throughput and backlog charts name it. Each application consumes through
+     * {@code clientsPerApplication} consumers that record into one latency log.
+     */
+    static String applicationName(JsonNode workload, int index) {
+        String prefix = workload.path("subscriptionPrefix").asText("");
+        return (prefix.isEmpty() ? "application-" : prefix) + index;
+    }
+
+    // An application's outputs are in consumer-<index>/
+    private static int applicationIndex(Path consumerLog) {
+        String directory = consumerLog.toAbsolutePath().getParent().getFileName().toString();
+        return Integer.parseInt(directory.substring(directory.lastIndexOf('-') + 1));
+    }
+
     private static void appendLatency(StringBuilder report, Path runDirectory, Run run, List<Path> consumers,
                                       long measurementStart) throws IOException {
         Path publish = runDirectory.resolve("producer/produce-latency.hdr");
@@ -274,8 +291,10 @@ public final class RunReport {
         // Each application consumes on its own, so its end-to-end latency is reported on its own: a distribution
         // merged across applications would describe none of them
         List<String> delivery = new ArrayList<>();
+        List<String> applications = new ArrayList<>();
         for (Path consumer : consumers) {
-            String application = consumer.getParent().getFileName().toString();
+            String application = applicationName(run.workload(), applicationIndex(consumer));
+            applications.add(application);
             Histogram endToEnd = HdrHistogramRenderer.readMerged(List.of(consumer));
             report.append(latencyRow(consumers.size() == 1 ? "End to end (publish to listener)"
                     : "End to end, " + application, endToEnd));
@@ -284,8 +303,8 @@ public final class RunReport {
         }
         report.append("\nDelivery after the publish is acknowledged (end-to-end p50 − publish p50): ")
                 .append(String.join(", ", delivery)).append(".\n");
-        List<Path> charts = HdrHistogramRenderer.render(publish, consumers, runDirectory.resolve(LATENCY_CHART),
-                measurementStart, chartFooter(run.info(), run.finished()));
+        List<Path> charts = HdrHistogramRenderer.render(publish, consumers, applications,
+                runDirectory.resolve(LATENCY_CHART), measurementStart, chartFooter(run.info(), run.finished()));
         report.append("\n![Latency by percentile](").append(charts.get(0).getFileName())
                 .append(")\n\n![Maximum latency per interval](").append(charts.get(1).getFileName()).append(")\n");
         List<Path> logs = new ArrayList<>();

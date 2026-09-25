@@ -60,6 +60,7 @@ public class HdrHistogramRendererTest {
         Path consumerTwo = writeLog(directory.resolve("consumer-1/consume-latency.hdr"), 4_000, 8_000);
 
         List<Path> charts = HdrHistogramRenderer.render(producer, List.of(consumerOne, consumerTwo),
+                List.of("iot-application-0", "iot-application-1"),
                 directory.resolve("latency"), 1_000, "lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04");
 
         assertEquals(charts, List.of(directory.resolve("latency-percentiles.png"),

@@ -27,6 +27,8 @@ plugins {
 dependencies {
     // The report inputs are JSON trees (RunReport.Run) written with the caller's mapper
     api(libs.jackson.databind)
+    // renderHdrHistograms names the applications from a run's resolved-config.yaml
+    implementation(libs.jackson.dataformat.yaml)
     implementation(libs.hdrHistogram)
     implementation(libs.picocli)
     // Draws the latency charts as PNG (Apache-2.0). Its optional dependencies, such as the LGPL VectorGraphics2D

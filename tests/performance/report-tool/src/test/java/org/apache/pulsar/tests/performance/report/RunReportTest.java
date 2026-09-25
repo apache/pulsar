@@ -102,7 +102,8 @@ public class RunReportTest {
                 json("{\"brokers\": 1, \"bookies\": 3, \"brokerEnvs\": {\"managedLedgerDefaultEnsembleSize\": \"1\","
                         + " \"managedLedgerDefaultWriteQuorum\": \"1\", \"managedLedgerDefaultAckQuorum\": \"1\"}}"),
                 json("{\"gatewayCount\": 500, \"topicCount\": 1, \"applicationCount\": 2,"
-                        + " \"clientsPerApplication\": 20, \"numberOfMessages\": 400000, \"warmupMessages\": 100000,"
+                        + " \"subscriptionPrefix\": \"sub-\", \"clientsPerApplication\": 20,"
+                        + " \"numberOfMessages\": 400000, \"warmupMessages\": 100000,"
                         + " \"warmupRounds\": 1, \"payloadBytes\": 128, \"batchingEnabled\": false, \"rate\": 0}"),
                 new RunInfo(ZonedDateTime.parse("2026-09-25T06:42:59+03:00"), "perf-host", "lari", "Lari Hotari",
                         "lari@example.com", Path.of("/work/pulsar/.claude/worktrees/w1"), "lh-branch",
@@ -147,7 +148,7 @@ public class RunReportTest {
         assertTrue(report.indexOf("## Profiles") > report.indexOf("| Setting |"), report);
         assertTrue(report.indexOf("## Profiles") < report.indexOf("## Correctness"), report);
         assertTrue(report.contains("| Ledger replication | E=1, W=1, A=1 |"), report);
-        assertTrue(report.contains("| 1 | 500,000 | 1 | 0 | 0 |"), report);
+        assertTrue(report.contains("| sub-1 | 500,000 | 1 | 0 | 0 |"), report);
         assertTrue(report.contains("**Duplicates, ordering violations or invalid messages were received.**"), report);
         assertTrue(report.contains("| Producer throughput | 100,000 msg/s |"), report);
         // 400,000 measured messages until the slower application finished 6 s after the start
@@ -159,11 +160,11 @@ public class RunReportTest {
         assertTrue(report.contains("| Publish (send to acknowledgment) | 1,000 | 899.6 | 900.1 | 900.1 | 900.1 |"
                 + " 900.1 | 900.1 |"), report);
         // Each application's end-to-end latency is its own row; none is merged across applications
-        assertTrue(report.contains("| End to end, consumer-0 | 1,000 | 1,199.1 | 1,200.1 |"), report);
-        assertTrue(report.contains("| End to end, consumer-1 | 1,000 | 1,199.1 | 1,200.1 |"), report);
+        assertTrue(report.contains("| End to end, sub-0 | 1,000 | 1,199.1 | 1,200.1 |"), report);
+        assertTrue(report.contains("| End to end, sub-1 | 1,000 | 1,199.1 | 1,200.1 |"), report);
         assertFalse(report.contains("| End to end (publish to listener) |"), report);
         assertTrue(report.contains("Delivery after the publish is acknowledged (end-to-end p50 − publish p50):"
-                + " consumer-0 about 300.0 ms, consumer-1 about 300.0 ms.\n"), report);
+                + " sub-0 about 300.0 ms, sub-1 about 300.0 ms.\n"), report);
         assertTrue(report.contains("| Published msg/s | 100,000 | 100,000 |"), report);
         // Seconds 1–2 and 2–3 are the measurement without its first and last second. sub-1 dispatches nothing in
         // the first and catches up in the second, so the total's minimum drops to 100,000.

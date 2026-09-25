@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.tests.performance.report;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.MissingNode;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
@@ -108,7 +111,16 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
                 origin = Math.min(origin, interval.startEpochMillis());
             }
         }
-        for (Path chart : render(producer, consumers, prefix, origin, "")) {
+        // Named after their subscriptions, as the run report names them, when the run's resolved scenario is there
+        Path resolvedConfig = normalizedRun.resolve(RunReport.RESOLVED_CONFIG);
+        JsonNode workload = Files.isRegularFile(resolvedConfig)
+                ? new YAMLMapper().readTree(resolvedConfig.toFile()).path("workloads").path("iotTelemetry")
+                : MissingNode.getInstance();
+        List<String> applications = new ArrayList<>();
+        for (int application = 0; application < consumers.size(); application++) {
+            applications.add(RunReport.applicationName(workload, application));
+        }
+        for (Path chart : render(producer, consumers, applications, prefix, origin, "")) {
             System.out.println(chart);
         }
         return 0;
@@ -118,20 +130,25 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
      * Plots {@code <outputPrefix>-percentiles.png} and {@code <outputPrefix>-timeline.png}.
      *
      * @param consumers each consumer application's end-to-end latency log, in application order
+     * @param applications the applications' names, one per log in {@code consumers}
      * @param originEpochMillis the time that the timeline counts seconds from, such as the measurement start
      * @param footer small text at the bottom right, such as the branch, commit and run time; empty for none
      * @return the two charts
      */
-    static List<Path> render(Path producer, List<Path> consumers, Path outputPrefix, long originEpochMillis,
-                             String footer) throws IOException {
+    static List<Path> render(Path producer, List<Path> consumers, List<String> applications, Path outputPrefix,
+                             long originEpochMillis, String footer) throws IOException {
         List<Path> logs = concat(producer, consumers);
+        // Short, so that the legend fits on one row; the chart and the report say what each latency measures
+        List<String> names = new ArrayList<>();
+        names.add("Publish");
+        names.addAll(applications);
         XYChart percentiles = chart("Latency by percentile", "Percentile", HEIGHT);
         percentiles.getStyler().setXAxisLogarithmic(true).setXAxisMin(1.0)
                 .setXAxisMax(percentileAxisPosition(MAX_PERCENTILE))
                 .setXAxisTickLabelsFormattingFunction(HdrHistogramRenderer::percentileAxisLabel);
         XYChart timeline = chart("Maximum latency per interval", "Seconds since the measurement start", HEIGHT);
         for (int index = 0; index < logs.size(); index++) {
-            String name = lineName(logs.get(index), index);
+            String name = names.get(index);
             List<Double> positions = new ArrayList<>();
             List<Double> latencies = new ArrayList<>();
             for (HistogramIterationValue value : readMerged(List.of(logs.get(index)))
@@ -243,11 +260,6 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
         logs.add(producer);
         logs.addAll(consumers);
         return logs;
-    }
-
-    // Short, so that the legend fits on one row; the chart and the report say what each latency measures
-    private static String lineName(Path log, int index) {
-        return index == 0 ? "Publish" : log.toAbsolutePath().getParent().getFileName().toString();
     }
 
     private static XYChart chart(String title, String xAxisTitle, int height) {
