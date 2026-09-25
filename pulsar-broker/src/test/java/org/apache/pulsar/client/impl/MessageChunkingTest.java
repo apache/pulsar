@@ -439,6 +439,65 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         Assert.assertEquals(((ConsumerImpl<String>) consumer).getAvailablePermits(), 8);
     }
 
+    /**
+     * Proves that pendingChunkedMessageCount stays in sync with chunkedMessagesMap when duplicate
+     * (resent) first chunks arrive.
+     *
+     * When a first chunk (chunkId 0) arrives for a uuid that already has a ChunkedMessageCtx,
+     * processMessageChunk() removes the old context from chunkedMessagesMap without decrementing
+     * pendingChunkedMessageCount, then unconditionally increments it for the replacement. Before the
+     * fix, each duplicate first chunk inflated the count by 1 while the map size stayed 1 -- an
+     * upward drift that eventually pushes the count past maxPendingChunkedMessage and triggers
+     * spurious eviction of good in-flight messages.
+     *
+     * Invariant: pendingChunkedMessageCount == chunkedMessagesMap.size().
+     * Buggy client: count == N, map == 1 -> FAIL. Fixed client: count == 1 -> PASS.
+     */
+    @Test
+    public void testPendingChunkedMessageCountDriftOnDuplicateFirstChunk() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/chunkCountDrift";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .maxPendingChunkedMessage(100)   // high so eviction does not mask the drift
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        ConsumerImpl<String> consumerImpl = (ConsumerImpl<String>) consumer;
+
+        // Send the first chunk (chunkId 0) of the SAME uuid many times (duplicate/resent first
+        // chunk), never completing it. Each duplicate replaces the context in the map (size stays 1)
+        // but bumps pendingChunkedMessageCount on the buggy client.
+        final int duplicates = 10;
+        for (int i = 0; i < duplicates; i++) {
+            sendSingleChunk(producer, "dup-uuid", 0, 2);
+        }
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(consumerImpl.chunkedMessagesMap.size(), 1));
+
+        int mapSize = consumerImpl.chunkedMessagesMap.size();
+        int count = consumerImpl.getPendingChunkedMessageCountForTest();
+        int queueSize = consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest();
+
+        // All three structures track the same single in-flight uuid; they must stay consistent
+        // regardless of how many duplicate first chunks arrive for it.
+        assertEquals(queueSize, mapSize,
+                "pendingChunkedMessageUuidQueue.size (" + queueSize + ") drifted from chunkedMessagesMap.size ("
+                        + mapSize + ") after " + duplicates + " duplicate first chunks");
+        assertEquals(count, mapSize,
+                "pendingChunkedMessageCount (" + count + ") drifted from chunkedMessagesMap.size ("
+                        + mapSize + ") after " + duplicates + " duplicate first chunks");
+    }
+
     @Test
     public void testExpireIncompleteChunkMessage() throws Exception{
         final String topicName = "persistent://my-property/my-ns/expireMsg";
