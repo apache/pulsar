@@ -693,23 +693,35 @@ public class PulsarLedgerUnderreplicationManager implements LedgerUnderreplicati
     public void close() throws ReplicationException.UnavailableException {
         log.debug("close()");
         notificationCallbackExecutor.shutdownNow();
-        try {
-            for (Map.Entry<Long, Lock> e : heldLocks.entrySet()) {
+        ReplicationException.UnavailableException failure = null;
+        for (Map.Entry<Long, Lock> e : heldLocks.entrySet()) {
+            try {
                 store.delete(e.getValue().getLockPath(), Optional.empty())
                         .get(BLOCKING_CALL_TIMEOUT, MILLISECONDS);
+            } catch (ExecutionException | TimeoutException ex) {
+                if (!(ex instanceof ExecutionException
+                        && ex.getCause() instanceof MetadataStoreException.NotFoundException)) {
+                    if (failure == null) {
+                        failure = new ReplicationException.UnavailableException("Error contacting metadata store", ex);
+                    } else {
+                        failure.addSuppressed(ex);
+                    }
+                    continue;
+                }
+                // A missing lock is already released; continue cleaning up the remaining locks.
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                var interrupted = new ReplicationException.UnavailableException(
+                        "Interrupted while connecting metadata store", ie);
+                if (failure != null) {
+                    interrupted.addSuppressed(failure);
+                }
+                throw interrupted;
             }
-        } catch (ExecutionException ee) {
-            if (ee.getCause() instanceof MetadataStoreException.NotFoundException) {
-                // this is ok
-            } else {
-                log.error().exception(ee).log("Error deleting underreplicated ledger lock");
-                throw new ReplicationException.UnavailableException("Error contacting metadata store", ee);
-            }
-        } catch (TimeoutException ex) {
-            throw new ReplicationException.UnavailableException("Error contacting metadata store", ex);
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            throw new ReplicationException.UnavailableException("Interrupted while connecting metadata store", ie);
+            heldLocks.remove(e.getKey(), e.getValue());
+        }
+        if (failure != null) {
+            throw failure;
         }
     }
 
