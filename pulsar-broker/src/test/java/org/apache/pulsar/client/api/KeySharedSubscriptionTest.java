@@ -961,8 +961,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
         String messageKey = "testMessageKey";
         String topic = "testMessageDeliveredFromDrainingHashes" + UUID.randomUUID();
 
+        // Fixed name verified not to collide with the hash of "testMessageKey" under the current
+        // consistent-hashing settings, so a "takeover-N" consumer can always take over that hash.
         @Cleanup
-        Consumer<Integer> consumer = createConsumer(topic);
+        Consumer<Integer> consumer = createConsumerWithName(topic,"initial-owner");
         String initialOwnerName = consumer.getConsumerName();
 
         @Cleanup
