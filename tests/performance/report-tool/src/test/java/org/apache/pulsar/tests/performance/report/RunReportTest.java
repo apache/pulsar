@@ -160,9 +160,9 @@ public class RunReportTest {
         assertTrue(report.contains("| Publish (send to acknowledgment) | 1,000 | 899.6 | 900.1 | 900.1 | 900.1 |"
                 + " 900.1 | 900.1 |"), report);
         // Each application's end-to-end latency is its own row; none is merged across applications
-        assertTrue(report.contains("| End to end, sub-0 | 1,000 | 1,199.1 | 1,200.1 |"), report);
-        assertTrue(report.contains("| End to end, sub-1 | 1,000 | 1,199.1 | 1,200.1 |"), report);
-        assertFalse(report.contains("| End to end (publish to listener) |"), report);
+        assertTrue(report.contains("| sub-0 (publish to consume) | 1,000 | 1,199.1 | 1,200.1 |"), report);
+        assertTrue(report.contains("| sub-1 (publish to consume) | 1,000 | 1,199.1 | 1,200.1 |"), report);
+        assertFalse(report.contains("End to end"), report);
         assertTrue(report.contains("Delivery after the publish is acknowledged (end-to-end p50 − publish p50):"
                 + " sub-0 about 300.0 ms, sub-1 about 300.0 ms.\n"), report);
         assertTrue(report.contains("| Published msg/s | 100,000 | 100,000 |"), report);

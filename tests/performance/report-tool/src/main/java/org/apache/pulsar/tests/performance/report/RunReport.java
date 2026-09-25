@@ -301,8 +301,7 @@ public final class RunReport {
             String application = applicationOf(consumer);
             applications.add(application);
             Histogram endToEnd = HdrHistogramRenderer.readMerged(List.of(consumer));
-            report.append(latencyRow(consumers.size() == 1 ? "End to end (publish to listener)"
-                    : "End to end, " + application, endToEnd));
+            report.append(latencyRow(application + " (publish to consume)", endToEnd));
             String millis = millis(endToEnd.getValueAtPercentile(50) - published.getValueAtPercentile(50));
             delivery.add(consumers.size() == 1 ? "about " + millis + " ms" : application + " about " + millis + " ms");
         }
