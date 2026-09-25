@@ -61,11 +61,17 @@ final class OffCpuFlamegraphs {
      * into one tree instead of appearing at different depths under each infrastructure root. Stacks without such
      * a frame, such as the JVM's own threads, are left out of those flame graphs ({@code --root-at-unmatched
      * hide}); the slice summary reports their total as {@code rootAtUnmatchedHidden}.
+     *
+     * <p>The application is Pulsar and BookKeeper. Other {@code org.apache} code, such as ZooKeeper, Log4j or
+     * Commons, is a library here, like Netty: a stack that only reaches its frames has no application frame.
      */
-    static final String APPLICATION_ROOT = "^org\\.apache\\.";
+    static final String APPLICATION_ROOT = "^org\\.apache\\.(pulsar|bookkeeper)\\.";
 
-    /** The application's frames in the flame graphs, whose package names are abbreviated ({@code o.a.p.…}). */
-    private static final String APPLICATION_HIGHLIGHT = "^o\\.a\\.";
+    /**
+     * The application's frames in the flame graphs, whose package names are abbreviated: {@code o.a.p.…} and
+     * {@code o.a.b.…}, as in {@link #APPLICATION_ROOT}.
+     */
+    private static final String APPLICATION_HIGHLIGHT = "^o\\.a\\.(p|b)\\.";
 
     /**
      * The frames that mark a thread waiting for work, one pattern per line, for {@code stacks --exclude-from}. The

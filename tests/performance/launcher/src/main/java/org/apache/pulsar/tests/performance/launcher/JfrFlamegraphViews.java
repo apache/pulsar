@@ -44,8 +44,11 @@ final class JfrFlamegraphViews {
     static final String THREADS_SUFFIX = "-threads";
     static final String HEATMAP_SUFFIX = "-heatmap";
 
-    /** The application's frames, as the converter shows them: {@code org/apache/…} or, dotted, {@code org.apache.…}. */
-    private static final String APPLICATION_HIGHLIGHT = "^org[/.]apache[/.]";
+    /**
+     * The application's frames, Pulsar's and BookKeeper's (see {@link OffCpuFlamegraphs#APPLICATION_ROOT}), as the
+     * converter shows them: {@code org/apache/pulsar/…} or, dotted, {@code org.apache.pulsar.…}.
+     */
+    private static final String APPLICATION_HIGHLIGHT = "^org[/.]apache[/.](pulsar|bookkeeper)[/.]";
 
     enum View {
         CPU(false, "CPU"),

@@ -339,11 +339,11 @@ workers waiting for a task, JDK and HotSpot service threads. `offcpu-no-idle` le
 the launcher resource `offcpu-idle-waits.txt`; each pattern names the wait itself rather than the thread's run loop,
 so a lock taken while running a task stays in. What remains is lock and monitor contention, safepoints, GC phases
 and I/O. The digest leaves out the same idle waits. The `-app-root` slices start each stack at its root-most frame
-matching `^org\.apache\.`, once the frames that only dispatch work are hidden. Stacks without such a frame, such as
+matching `^org\.apache\.(pulsar|bookkeeper)\.`, once the frames that only dispatch work are hidden. Stacks without such a frame, such as
 the JVM's own threads, are left out of them (`--root-at-unmatched hide`); the profile report shows how much time that
 was, and the digest ranks it by thread pool.
 The off-CPU flame graphs abbreviate package names (`o.a.p.b.s.p.PersistentDispatcherMultipleConsumers…`) and
-highlight the `o.a.` frames. The correlator runs with `--audit none`, which skips its row-level audit files (about
+highlight the Pulsar and BookKeeper frames (`o.a.p.`, `o.a.b.`). The correlator runs with `--audit none`, which skips its row-level audit files (about
 2 KB per interval); run it again over the retained capture and recording with `--audit full` to reproduce them.
 
 ### Finding what to optimize
@@ -359,7 +359,7 @@ highlight the `o.a.` frames. The correlator runs with `--audit none`, which skip
    ```bash
    OFFCPU=<run directory>/broker-profile/<recording>-offcpu
    java -jar jonoffcpu-correlator.jar top --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
-     --app '^org\.apache\.' --waiting-from $OFFCPU/offcpu-idle-waits.txt --package-names abbreviate
+     --app '^org\.apache\.(pulsar|bookkeeper)\.' --waiting-from $OFFCPU/offcpu-idle-waits.txt --package-names abbreviate
    ```
 
    `export --format jsonl` writes the profile one stack per row for SQL tools such as [DuckDB](https://duckdb.org/).
@@ -373,7 +373,7 @@ highlight the `o.a.` frames. The correlator runs with `--audit none`, which skip
    java -jar jonoffcpu-correlator.jar stacks --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
      --exclude-from $OFFCPU/offcpu-idle-waits.txt --time split --package-names abbreviate \
      --output /tmp/blocked-split.collapsed --summary /tmp/blocked-split.json
-   java -jar jfr-converter.jar --title "Blocked off-CPU time" --units µs --highlight '^o\.a\.' \
+   java -jar jfr-converter.jar --title "Blocked off-CPU time" --units µs --highlight '^o\.a\.(p|b)\.' \
      /tmp/blocked-split.collapsed /tmp/blocked-split.html
    ```
 
@@ -387,7 +387,7 @@ highlight the `o.a.` frames. The correlator runs with `--audit none`, which skip
    ```bash
    java -jar jonoffcpu-correlator.jar top --profile candidate-offcpu/jonoffcpu-offcpu-profile.pb \
      --baseline baseline-offcpu/jonoffcpu-offcpu-profile.pb --units 4 --baseline-units 4 --weights estimated \
-     --app '^org\.apache\.' --waiting-from candidate-offcpu/offcpu-idle-waits.txt --package-names abbreviate
+     --app '^org\.apache\.(pulsar|bookkeeper)\.' --waiting-from candidate-offcpu/offcpu-idle-waits.txt --package-names abbreviate
    ```
 
 Correlation holds each capture's distinct stacks in memory; the `profile` task runs with a 4 GB heap
