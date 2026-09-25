@@ -147,7 +147,7 @@ The producer writes `produce-latency.hdr` containing send-to-completion latency 
 application writes `consume-latency.hdr` containing broker-publish-to-listener latency for measured messages. Warmup
 messages are excluded from both histograms. The consumer captures its receipt timestamp on listener entry and
 records the sample after payload decoding and key validation, before sequence validation and acknowledgment.
-Decoding and validation time do not contribute to the latency value. Use the launcher's `renderHdrHistograms`
+Decoding and validation time do not contribute to the latency value. Use the report tool's `renderHdrHistograms`
 Gradle task to merge the backend-application
 histograms by observation count and render the producer and consumer distributions as PNG and SVG; see the
 performance README for the command.

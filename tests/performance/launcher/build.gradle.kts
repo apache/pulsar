@@ -32,24 +32,16 @@ val jonoffcpuAgent: Configuration by configurations.creating {
 dependencies {
     implementation(project(":tests:performance:common"))
     implementation(project(path = ":tests:integration", configuration = "testJar"))
-    implementation(libs.hdrHistogram)
+    // Writes the run and profile reports, charts and flame graphs once a run has finished
+    implementation(project(":tests:performance:report-tool"))
     implementation(libs.picocli)
     // Samples topic backlog and message counters during a run for the run report
     implementation(project(":pulsar-client-admin-original"))
-    // Renders the Markdown reports to HTML pages whose links can be followed
-    implementation(libs.commonmark)
-    implementation(libs.commonmark.ext.gfm.tables)
-    implementation(libs.commonmark.ext.heading.anchor)
-    // Joins each recording with its off-CPU capture stream after a profiled run
-    implementation(libs.jonoffcpu.correlator)
-    // async-profiler's converter, from the fork that labels flame graph widths in microseconds. Having it
-    // as a dependency is what keeps an async-profiler installation out of the profiling flow.
-    implementation(libs.jonoffcpu.jfr.converter)
     jonoffcpuAgent(libs.jonoffcpu.agent)
 }
 
-// The launcher already needs a recent JDK at run time (JfrCut uses the JDK 19+ recording writer), and the
-// jonoffcpu correlator's published metadata requires Java 21, so the launcher targets 21.
+// The launcher already needs a recent JDK at run time (JfrCut uses the JDK 19+ recording writer), and the report
+// tool it calls targets 21 for the jonoffcpu correlator, so the launcher targets 21.
 tasks.withType<JavaCompile>().configureEach {
     options.release.set(21)
 }
@@ -129,11 +121,4 @@ tasks.register<JavaExec>("runJfrCut") {
     description = "Inspect or cut a JFR recording to an absolute or recording-relative time interval"
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("org.apache.pulsar.tests.performance.launcher.JfrCut")
-}
-
-tasks.register<JavaExec>("renderHdrHistograms") {
-    group = "verification"
-    description = "Render IoT producer and consumer HDR latency histograms as PNG and SVG"
-    classpath = sourceSets.main.get().runtimeClasspath
-    mainClass.set("org.apache.pulsar.tests.performance.launcher.HdrHistogramRenderer")
 }

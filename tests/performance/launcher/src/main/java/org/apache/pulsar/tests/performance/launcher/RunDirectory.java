@@ -25,6 +25,7 @@ import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
+import org.apache.pulsar.tests.performance.report.RunReport;
 
 /**
  * Where a run writes its outputs: {@code <reports root>/<yyyy-MM-dd>/<branch>/<name>/<MM-dd-HH-mm-ss>/}, so that

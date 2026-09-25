@@ -48,6 +48,12 @@ import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
+import org.apache.pulsar.tests.performance.report.JfrFlamegraphViews;
+import org.apache.pulsar.tests.performance.report.MarkdownPages;
+import org.apache.pulsar.tests.performance.report.OffCpuFlamegraphs;
+import org.apache.pulsar.tests.performance.report.ProfileReport;
+import org.apache.pulsar.tests.performance.report.RunInfo;
+import org.apache.pulsar.tests.performance.report.RunReport;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -64,8 +70,7 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String CONFIG_MOUNT = "/performance-config/resolved-config.yaml";
     private static final String COORDINATION_MOUNT = "/performance-coordination";
     private static final String OUTPUT_MOUNT = "/performance-output";
-    // .txt, so that an HTTP server such as Python's shows the log as text instead of offering a download
-    static final String CONTAINER_LOG = "container.log.txt";
+    private static final String CONTAINER_LOG = RunReport.CONTAINER_LOG;
 
     @Option(names = "--config", required = true)
     Path config;
@@ -251,7 +256,8 @@ public class PerformanceLauncher implements Callable<Integer> {
             // retention may delete it afterwards.
             if (offCpuCaptureEnabled(offCpuOptions)) {
                 for (Path recording : recordings) {
-                    Path outputDirectory = OffCpuFlamegraphs.process(recording, measurementStart, measurementEnd);
+                    Path outputDirectory = OffCpuFlamegraphs.process(recording,
+                            JonoffcpuAgent.capture(recording), measurementStart, measurementEnd);
                     System.out.println("Off-CPU profile: " + outputDirectory);
                 }
             }

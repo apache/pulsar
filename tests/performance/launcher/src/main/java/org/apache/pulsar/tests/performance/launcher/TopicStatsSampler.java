@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.tests.performance.report.RunReport;
 
 /**
  * Samples the workload topics' stats once per second into {@code topic-stats.csv}: each subscription's backlog, the
@@ -43,8 +44,9 @@ import org.apache.pulsar.common.policies.data.TopicStats;
  * run.
  */
 final class TopicStatsSampler implements AutoCloseable {
-    static final String FILE_NAME = "topic-stats.csv";
-    static final String HEADER = "epochMillis,topic,subscription,msgBacklog,msgInCounter,msgOutCounter";
+    // The CSV the run report reads; its name and columns are the report tool's
+    static final String FILE_NAME = RunReport.TOPIC_STATS_FILE;
+    static final String HEADER = RunReport.TOPIC_STATS_HEADER;
     private static final long INTERVAL_MILLIS = 1000;
 
     private final PulsarAdmin admin;

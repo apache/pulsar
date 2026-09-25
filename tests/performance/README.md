@@ -36,7 +36,9 @@ Performance scenarios belong in this directory. Build reusable, mountable worklo
 [`scenarios`](scenarios), and run them through the standalone [`launcher`](launcher). The launcher owns the
 Testcontainers cluster and workload lifecycle directly, consumes recursively merged YAML, persists the resolved
 configuration and run artifacts, and does not use a unit-test framework as a process runner. Shared scenario
-loading is implemented in [`common`](common).
+loading is implemented in [`common`](common). Once a run has finished, the launcher calls the
+[`report-tool`](report-tool), which writes the run and profile reports, their HTML pages, the charts and the
+flame graphs.
 
 The original profiling harness under `tests/integration` uses TestNG classes as wrappers around a manually run
 performance workload. That runner is deprecated: TestNG discovery and test lifecycle add no useful test semantics
@@ -102,12 +104,15 @@ on its report; where the file system has no symbolic links, they are left out.
 
 The reports are static files, so any HTTP server can serve the reports root, and its directory listings lead
 through days, branches and names to the runs. When the performance tests run on a separate machine, serve the
-root there with Python's built-in server, bound to the loopback interface so that it is not reachable from the
-network:
+root there with [`serve-reports.py`](serve-reports.py), Python's built-in server set up to show the YAML, CSV,
+HDR latency logs, collapsed stacks, logs and Markdown of a run as text rather than as downloads. It binds to the
+loopback interface on port 8000 by default (`--bind`, `--port`), so that it is not reachable from the network, and
+serves the reports root, `performance.reportsDir` from `~/.gradle/gradle.properties` or `build/performance`,
+unless given a directory:
 
 ```bash
 # On the performance testing machine
-python3 -m http.server 8000 --bind 127.0.0.1 --directory build/performance
+tests/performance/serve-reports.py
 ```
 
 and reach it through an SSH tunnel, which forwards a local port to that loopback address over the encrypted SSH
@@ -120,7 +125,7 @@ ssh -N -L 8000:127.0.0.1:8000 perf-host
 
 Then open <http://localhost:8000/> and follow the listings to a run; its `index.html` opens the run report, from
 which the profile reports, digests and flame graphs are linked. The server reads the files as they are requested,
-so new runs appear without restarting it. With `-Pperformance.reportsDir=<dir>`, serve that directory instead.
+so new runs appear without restarting it.
 
 Every run writes a report into its run directory; open `run-report.html` in a browser, where its links work:
 
@@ -229,7 +234,7 @@ different title, render the producer distribution together with the count-weight
 backend-application consumer histograms as PNG and SVG:
 
 ```bash
-./gradlew :tests:performance:launcher:renderHdrHistograms \
+./gradlew :tests:performance:report-tool:renderHdrHistograms \
   --args='--run-directory tests/performance/build/iot-telemetry-high-rate-profile'
 ```
 
@@ -336,7 +341,7 @@ output directories):
 
 In a broker, over 99% of off-CPU time is threads waiting for work: Netty event loops in `epollWait`, executor
 workers waiting for a task, JDK and HotSpot service threads. `offcpu-no-idle` leaves those out with the patterns in
-the launcher resource `offcpu-idle-waits.txt`; each pattern names the wait itself rather than the thread's run loop,
+the report tool resource `offcpu-idle-waits.txt`; each pattern names the wait itself rather than the thread's run loop,
 so a lock taken while running a task stays in. What remains is lock and monitor contention, safepoints, GC phases
 and I/O. The digest leaves out the same idle waits. The `-app-root` slices start each stack at its root-most frame
 matching `^org\.apache\.(pulsar|bookkeeper)\.`, once the frames that only dispatch work are hidden. Stacks without such a frame, such as
