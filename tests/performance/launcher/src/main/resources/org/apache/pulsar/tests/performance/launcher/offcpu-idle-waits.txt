@@ -34,6 +34,8 @@
 ^java\.util\.concurrent\.ForkJoinPool\.awaitWork$
 ^java\.util\.concurrent\.[\w$]*(BlockingQueue|BlockingDeque|TransferQueue|DelayedWorkQueue|DelayQueue|SynchronousQueue)\.take$
 ^org\.apache\.bookkeeper\.common\.collections\.[\w$]*BlockingQueue\.take(All)?$
+# Jetty's reserved threads (the broker's pulsar-web pool) waiting to be handed a job
+^org\.eclipse\.jetty\.util\.thread\.ReservedThreadExecutor\$ReservedThread\.waitForTask$
 
 # JDK housekeeping threads
 ^java\.lang\.ref\.Reference\.waitForReferencePendingList$
