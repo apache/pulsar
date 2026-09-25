@@ -73,7 +73,7 @@ public class PulsarRecord<T> implements RecordWithEncryptionContext<T> {
 
     @Override
     public Optional<Long> getRecordSequence() {
-        return Optional.of(FunctionCommon.getSequenceId(message.getMessageId()));
+        return Optional.of(FunctionCommon.getSequenceId(message));
     }
 
     @Override
