@@ -43,10 +43,11 @@ import picocli.CommandLine.Option;
 final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
     private static final int STATE_VERSION = 1;
 
-    @Option(names = "--await-measurement-start",
-            description = "Before the first measured message, signal readiness in the coordination directory and wait "
-                    + "for the launcher to start the measurement, for example after letting the host cool down")
-    boolean awaitMeasurementStart;
+    @Option(names = "--control-port",
+            description = "Serve the measurement control endpoints on this port, and before the first measured "
+                    + "message wait for the launcher to start the measurement, for example after letting the host "
+                    + "cool down")
+    Integer controlPort;
 
     @Override
     public Integer call() throws Exception {
@@ -66,6 +67,11 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         Semaphore outstanding = new Semaphore(maxOutstanding);
         Set<Integer> devicesInFlight = ConcurrentHashMap.newKeySet();
 
+        MeasurementControl control = null;
+        if (controlPort != null) {
+            control = MeasurementControl.start(controlPort);
+            System.out.println("CONTROL_READY port=" + control.port());
+        }
         PulsarClientSharedResources sharedResources = SharedClientResources.create(scenario);
         try {
             for (int gateway = 0; gateway < scenario.gatewayCount(); gateway++) {
@@ -113,11 +119,11 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
 
                 boolean measurementMessage = sent >= warmupMessageCount;
                 if (measurementMessage && measurementStartedNanos < 0) {
-                    if (awaitMeasurementStart) {
+                    if (control != null) {
                         // The warmup rounds have been received; the launcher lets the host cool down first.
-                        WarmupBarrier.markReadyForMeasurement(coordinationDirectory(), runId);
+                        control.markReady();
                         System.out.println("MEASUREMENT_READY");
-                        WarmupBarrier.awaitMeasurementStart(coordinationDirectory(), runId, runDeadlineNanos);
+                        control.awaitStart(runDeadlineNanos);
                         // Do not turn the wait into a rate-limiter catch-up burst.
                         nextSend = System.nanoTime();
                     }
@@ -215,6 +221,9 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 client.close();
             }
             sharedResources.close();
+            if (control != null) {
+                control.close();
+            }
         }
         return 0;
     }

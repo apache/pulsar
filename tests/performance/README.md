@@ -122,7 +122,10 @@ temperature, before starting the cluster and again after the warmup rounds, befo
 `--cooldown-temperature <°C>` sets it for one run, and `performance.cooldownTemperature` in
 `~/.gradle/gradle.properties` for every run on a machine. Pick a temperature a few degrees above the host's idle
 temperature, which the first samples of `host-stats.csv` show. `--cooldown-timeout <seconds>` (600 by default)
-bounds each wait; the run goes on after it, and the report says at which temperature. The workloads' timeouts are
+bounds each wait; the run goes on after it, and the report says at which temperature. For the wait before the
+measurement, the producer serves two HTTP endpoints with the JDK's built-in server, which the launcher reaches
+through the port Testcontainers maps on the host: `GET /measurement/ready?waitMillis=<ms>` answers as soon as every
+warmup round has been received, and `POST /measurement/start` starts the measurement. The workloads' timeouts are
 extended by the cool-down timeout, so that a wait before the measurement doesn't fail them. Both waits and their
 durations are in the run report.
 

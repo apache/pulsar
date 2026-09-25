@@ -53,26 +53,6 @@ final class WarmupBarrier {
                 + " applications to receive warmup round " + round);
     }
 
-    /**
-     * Tells the launcher that the producer is about to send its first measured message, after every warmup round
-     * has been received, so that the launcher can let the host cool down before the measurement.
-     */
-    static void markReadyForMeasurement(Path directory, String runId) throws IOException {
-        Files.createDirectories(directory);
-        Files.writeString(directory.resolve("measurement-" + runId + ".ready"), "ready\n");
-    }
-
-    /** Waits until the launcher lets the measurement start. */
-    static void awaitMeasurementStart(Path directory, String runId, long deadlineNanos) throws Exception {
-        Path start = directory.resolve("measurement-" + runId + ".start");
-        while (!Files.isRegularFile(start)) {
-            if (deadlineNanos - System.nanoTime() <= 0) {
-                throw new IllegalStateException("Timed out waiting for the launcher to start the measurement");
-            }
-            Thread.sleep(POLL_INTERVAL_MILLIS);
-        }
-    }
-
     private static Path marker(Path directory, String runId, int round, int application) {
         return directory.resolve("warmup-" + runId + "-round-" + round + "-application-" + application + ".complete");
     }

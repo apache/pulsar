@@ -25,6 +25,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -72,6 +76,8 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String TOOLS_MOUNT = "/opt/pulsar-performance-tools";
     private static final String CONFIG_MOUNT = "/performance-config/resolved-config.yaml";
     private static final String COORDINATION_MOUNT = "/performance-coordination";
+    // The producer's measurement control endpoints, inside its container
+    private static final int CONTROL_PORT = 8089;
     private static final String OUTPUT_MOUNT = "/performance-output";
     private static final String CONTAINER_LOG = RunReport.CONTAINER_LOG;
 
@@ -227,13 +233,19 @@ public class PerformanceLauncher implements Callable<Integer> {
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                     coordinationDirectory, runId, producerOutput, agentJar, offCpuOptions,
-                    producerProfileOptions, "iot-produce",
-                    cooldownCelsius != null ? new String[] {"--await-measurement-start"} : new String[0]);
-            topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput);
+                    producerProfileOptions, "iot-produce", cooldownCelsius != null
+                            ? new String[] {"--control-port", Integer.toString(CONTROL_PORT)} : new String[0]);
             if (cooldownCelsius != null) {
-                measurementGate = startMeasurementGate(sensors, coordinationDirectory, runId, cooldowns);
+                // The launcher reaches the producer's control endpoints through the port mapped on the host
+                producer.withExposedPorts(CONTROL_PORT)
+                        .waitingFor(Wait.forLogMessage(".*CONTROL_READY.*", 1)
+                                .withStartupTimeout(Duration.ofMinutes(5)));
             }
+            topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput);
             producer.start();
+            if (cooldownCelsius != null) {
+                measurementGate = startMeasurementGate(sensors, producer, cooldowns);
+            }
             int timeout = workload.path("consumerTimeoutSeconds").intValue() + 60;
             int producerExit = waitForExit(producer, timeout);
             saveContainerLog(producer, producerOutput.resolve(CONTAINER_LOG));
@@ -411,37 +423,72 @@ public class PerformanceLauncher implements Callable<Integer> {
     }
 
     /**
-     * Lets the host cool down again between the warmup and the measurement: the producer signals, through the
-     * coordination directory, that every warmup round has been received, and waits until this thread lets the
-     * measurement start. The start is always signalled, also when the cool-down fails, so that the producer never
-     * waits for a launcher that has given up.
+     * Lets the host cool down again between the warmup and the measurement. The producer serves its measurement
+     * control endpoints over HTTP on {@link #CONTROL_PORT}, which this thread reaches through the port Testcontainers
+     * maps on the host: it waits on the ready endpoint, which answers as soon as every warmup round has been
+     * received, cools down, and starts the measurement. The start is always sent, also when the cool-down fails, so
+     * that the producer never waits for a launcher that has given up.
      */
-    private Thread startMeasurementGate(HostStatsSampler.Sensors sensors, Path coordinationDirectory, String runId,
+    private Thread startMeasurementGate(HostStatsSampler.Sensors sensors, GenericContainer<?> producer,
                                         List<RunReport.Cooldown> cooldowns) {
-        Path ready = coordinationDirectory.resolve("measurement-" + runId + ".ready");
-        Path start = coordinationDirectory.resolve("measurement-" + runId + ".start");
+        String control = "http://" + producer.getHost() + ":" + producer.getMappedPort(CONTROL_PORT);
+        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
         Thread gate = new Thread(() -> {
             try {
-                while (!Files.isRegularFile(ready)) {
-                    Thread.sleep(100);
-                }
-                RunReport.Cooldown cooldown = coolDown(sensors, RunReport.Cooldown.BEFORE_MEASUREMENT);
-                if (cooldown != null) {
-                    cooldowns.add(cooldown);
+                if (awaitReady(client, control, producer)) {
+                    System.out.println("Warmup received; cooling down before the measurement");
+                    RunReport.Cooldown cooldown = coolDown(sensors, RunReport.Cooldown.BEFORE_MEASUREMENT);
+                    if (cooldown != null) {
+                        cooldowns.add(cooldown);
+                    }
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } finally {
-                try {
-                    Files.writeString(start, "start\n");
-                } catch (IOException e) {
-                    System.out.println("Couldn't start the measurement: " + e);
-                }
+                startMeasurement(client, control);
             }
         }, "measurement-gate");
         gate.setDaemon(true);
         gate.start();
         return gate;
+    }
+
+    /**
+     * Waits until the producer is ready for the measurement; false when it stopped before that. Each request waits
+     * up to 10 s, within the JDK server's 30 s idle connection timeout, and is repeated until the producer is ready.
+     */
+    private static boolean awaitReady(HttpClient client, String control, GenericContainer<?> producer)
+            throws InterruptedException {
+        HttpRequest ready = HttpRequest.newBuilder(URI.create(control + "/measurement/ready?waitMillis=10000"))
+                .timeout(Duration.ofSeconds(30)).GET().build();
+        while (producer.isRunning()) {
+            try {
+                if (client.send(ready, HttpResponse.BodyHandlers.discarding()).statusCode() == 200) {
+                    return true;
+                }
+            } catch (IOException e) {
+                // The producer may be starting its server, or have stopped; the loop checks which
+                Thread.sleep(1000);
+            }
+        }
+        return false;
+    }
+
+    private static void startMeasurement(HttpClient client, String control) {
+        HttpRequest start = HttpRequest.newBuilder(URI.create(control + "/measurement/start"))
+                .timeout(Duration.ofSeconds(10)).POST(HttpRequest.BodyPublishers.noBody()).build();
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                if (client.send(start, HttpResponse.BodyHandlers.discarding()).statusCode() == 200) {
+                    return;
+                }
+            } catch (IOException e) {
+                System.out.println("Couldn't start the measurement (attempt " + attempt + "): " + e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
     }
 
     /**
