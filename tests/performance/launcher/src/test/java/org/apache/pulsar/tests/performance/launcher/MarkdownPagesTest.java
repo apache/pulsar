@@ -70,6 +70,45 @@ public class MarkdownPagesTest {
         assertEquals(MarkdownPages.rewrite(destination, pageDirectory, root), expected);
     }
 
+    @DataProvider
+    public Object[][] javaNames() {
+        return new Object[][] {
+                {"org.apache.pulsar.broker.service.Consumer.sendMessages", "o.a.p.b.s.Consumer.sendMessages"},
+                {"org.apache.pulsar.broker.service.ServerCnx.handleSend → … (4) → java.util.concurrent.locks"
+                        + ".StampedLock.readLock",
+                        "o.a.p.b.s.ServerCnx.handleSend → … (4) → j.u.c.l.StampedLock.readLock"},
+                {"org.apache.bookkeeper.util.collections.ConcurrentOpenHashMap$Section.get",
+                        "o.a.b.u.c.ConcurrentOpenHashMap$Section.get"},
+                {"libjvm.so.Unsafe_Park", "libjvm.so.Unsafe_Park"},
+                {"C2 Runtime complete_monitor_locking", "C2 Runtime complete_monitor_locking"},
+                {"^org\\.apache\\.", "^org\\.apache\\."},
+                {"/runs/run-1/broker.offcpu-idle-waits.txt", "/runs/run-1/broker.offcpu-idle-waits.txt"},
+                {"ZDriverMinor", "ZDriverMinor"},
+        };
+    }
+
+    @Test(dataProvider = "javaNames")
+    public void abbreviatesJavaPackages(String text, String expected) {
+        assertEquals(MarkdownPages.abbreviateJavaNames(text), expected);
+    }
+
+    @Test
+    public void abbreviatesJavaNamesWithTheFullNameAsTooltip() throws IOException {
+        Path markdown = directory.resolve("jonoffcpu-summary.md");
+        Files.writeString(markdown, "| Boundary |\n|---|\n| `org.apache.pulsar.broker.service.Consumer.sendMessages` |"
+                + "\n\n<details><summary>2: `org.apache.pulsar.common.protocol.PulsarDecoder.channelRead`</summary>"
+                + "\n\n1. `org.apache.pulsar.common.protocol.PulsarDecoder.channelRead`\n\n</details>\n");
+
+        String html = Files.readString(MarkdownPages.renderHtml(markdown, directory, "Digest", true));
+
+        assertTrue(html.contains("<code title=\"org.apache.pulsar.broker.service.Consumer.sendMessages\">"
+                + "o.a.p.b.s.Consumer.sendMessages</code>"), html);
+        assertTrue(html.contains("<summary>2: `o.a.p.c.p.PulsarDecoder.channelRead`</summary>"), html);
+        // Other pages keep the names as written
+        String full = Files.readString(MarkdownPages.renderHtml(markdown, directory, "Digest"));
+        assertTrue(full.contains("<code>org.apache.pulsar.broker.service.Consumer.sendMessages</code>"), full);
+    }
+
     @Test
     public void givesHeadingsIdsForInPageLinks() throws IOException {
         Path markdown = directory.resolve("jonoffcpu-summary.md");

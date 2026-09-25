@@ -72,7 +72,30 @@ final class OffCpuFlamegraphs {
      */
     static final String IDLE_WAITS_FILE = "offcpu-idle-waits.txt";
 
+    /**
+     * The BookKeeper and Pulsar frames that only dispatch work, such as executors running a task and the inbound
+     * Netty handlers, for {@code --hide-from} after {@code preset:jvm-dispatch}: hidden, the application's first
+     * frame is the code that does the work. Used by the digest and the flame graphs rooted at the application, and
+     * copied like {@link #IDLE_WAITS_FILE}.
+     */
+    static final String DISPATCH_HIDE_FILE = "offcpu-dispatch-hide.txt";
+
+    /** The JVM's dispatch frames, the correlator's default for {@code --hide-from}, which a hide file replaces. */
+    private static final String JVM_DISPATCH_PRESET = "preset:jvm-dispatch";
+
     private OffCpuFlamegraphs() {
+    }
+
+    private static Path copyPatterns(Path recording, String resource) throws IOException {
+        String name = recording.getFileName().toString();
+        Path copy = recording.resolveSibling(name.substring(0, name.length() - ".jfr".length()) + "." + resource);
+        try (InputStream patterns = OffCpuFlamegraphs.class.getResourceAsStream(resource)) {
+            if (patterns == null) {
+                throw new IOException("Missing launcher resource " + resource);
+            }
+            Files.copy(patterns, copy, StandardCopyOption.REPLACE_EXISTING);
+        }
+        return copy;
     }
 
     /**
@@ -96,15 +119,9 @@ final class OffCpuFlamegraphs {
             throw new IOException("Correlator output directory already exists: " + outputDirectory);
         }
         // The correlator creates its output directory, so the patterns it reads go beside the recording. They stay
-        // there: the digest names that file in its reproduce commands.
-        Path recordingIdleWaits = recording.resolveSibling(name.substring(0, name.length() - ".jfr".length())
-                + "." + IDLE_WAITS_FILE);
-        try (InputStream patterns = OffCpuFlamegraphs.class.getResourceAsStream(IDLE_WAITS_FILE)) {
-            if (patterns == null) {
-                throw new IOException("Missing launcher resource " + IDLE_WAITS_FILE);
-            }
-            Files.copy(patterns, recordingIdleWaits, StandardCopyOption.REPLACE_EXISTING);
-        }
+        // there: the digest names these files in its reproduce commands.
+        Path recordingIdleWaits = copyPatterns(recording, IDLE_WAITS_FILE);
+        Path recordingDispatchHide = copyPatterns(recording, DISPATCH_HIDE_FILE);
         correlator("Correlating " + recording, outputDirectory, List.of(
                 "--source", stream.toString(),
                 "--jfr", recording.toString(),
@@ -117,16 +134,22 @@ final class OffCpuFlamegraphs {
                 // The digest's tables start each stack at the application's first frame and name the application
                 // method that waited
                 "--app", APPLICATION_ROOT,
+                "--hide-from", JVM_DISPATCH_PRESET,
+                "--hide-from", recordingDispatchHide.toString(),
                 // The row-level audit files are by far the largest outputs, at about 2 KB per row, and nothing
                 // here reads them. Every aggregate stays in jonoffcpu-report.json, and the capture stream is
                 // kept, so correlating it again with --audit full reproduces them when a run needs examining.
                 "--audit", "none"));
         Path idleWaits = outputDirectory.resolve(IDLE_WAITS_FILE);
         Files.copy(recordingIdleWaits, idleWaits);
+        Path dispatchHide = outputDirectory.resolve(DISPATCH_HIDE_FILE);
+        Files.copy(recordingDispatchHide, dispatchHide);
         Path profile = outputDirectory.resolve(PROFILE_FILE);
         if (Files.isRegularFile(profile)) {
             List<String> noIdle = List.of("--exclude-from", idleWaits.toString());
-            List<String> appRoot = List.of("--root-at", APPLICATION_ROOT);
+            // Rooted as the digest's tables are: dispatch frames hidden, then each stack starts at the application
+            List<String> appRoot = List.of("--hide-from", JVM_DISPATCH_PRESET, "--hide-from", dispatchHide.toString(),
+                    "--root-at", APPLICATION_ROOT);
             renderSlice(profile, ALL_SLICE, "Off-CPU time " + name, List.of());
             renderSlice(profile, NO_IDLE_SLICE, "Off-CPU time without idle waits " + name, noIdle);
             renderSlice(profile, APP_ROOT_SLICE, "Off-CPU time from the application's first frame " + name,

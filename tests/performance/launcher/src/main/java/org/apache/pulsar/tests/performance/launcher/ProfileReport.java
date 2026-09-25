@@ -92,7 +92,8 @@ final class ProfileReport {
             Path digest = directory.resolve(base(recording) + OffCpuFlamegraphs.OUTPUT_SUFFIX)
                     .resolve(OffCpuFlamegraphs.SUMMARY_FILE);
             if (Files.isRegularFile(digest)) {
-                MarkdownPages.renderHtml(digest, root, "Off-CPU digest: " + base(recording));
+                // The digest names every frame in full; its page abbreviates them as the flame graphs do
+                MarkdownPages.renderHtml(digest, root, "Off-CPU digest: " + base(recording), true);
             }
         }
         return file;
@@ -128,7 +129,10 @@ final class ProfileReport {
                     .append(" |\n");
         }
         report.append("\nThe application's first frame is the root-most frame matching `")
-                .append(OffCpuFlamegraphs.APPLICATION_ROOT).append("`; stacks without one are grouped as")
+                .append(OffCpuFlamegraphs.APPLICATION_ROOT).append("` once the frames that only dispatch work, listed")
+                .append(" in [").append(OffCpuFlamegraphs.DISPATCH_HIDE_FILE).append("](").append(offCpu).append("/")
+                .append(OffCpuFlamegraphs.DISPATCH_HIDE_FILE).append(") and jonoffcpu's `jvm-dispatch` preset, are")
+                .append(" hidden; stacks without one are grouped as")
                 .append(" `[no application frame]`. Each flame graph has a `.collapsed` file with full names and a")
                 .append(" `.json` summary beside it.\n");
     }

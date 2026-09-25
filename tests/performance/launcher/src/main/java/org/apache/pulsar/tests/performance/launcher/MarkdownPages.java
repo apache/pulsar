@@ -24,11 +24,19 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.commonmark.Extension;
 import org.commonmark.ext.gfm.tables.TablesExtension;
 import org.commonmark.ext.heading.anchor.HeadingAnchorExtension;
 import org.commonmark.node.AbstractVisitor;
+import org.commonmark.node.Code;
+import org.commonmark.node.HtmlBlock;
 import org.commonmark.node.Image;
 import org.commonmark.node.Link;
 import org.commonmark.node.Node;
@@ -49,6 +57,8 @@ final class MarkdownPages {
     private static final Parser PARSER = Parser.builder().extensions(EXTENSIONS).build();
     private static final HtmlRenderer RENDERER = HtmlRenderer.builder().extensions(EXTENSIONS).build();
     private static final String MARKDOWN_SUFFIX = ".md";
+    // A package: lower-case segments, each followed by a dot, before a class name. Not part of a longer name or path.
+    private static final Pattern JAVA_PACKAGE = Pattern.compile("(?<![\\w$./\\\\-])(?:[a-z][a-z0-9_]*\\.)+(?=[A-Z])");
 
     private MarkdownPages() {
     }
@@ -60,10 +70,24 @@ final class MarkdownPages {
      * @return the HTML page
      */
     static Path renderHtml(Path markdown, Path root, String title) throws IOException {
+        return renderHtml(markdown, root, title, false);
+    }
+
+    /**
+     * Renders {@code markdown} to the HTML page beside it.
+     *
+     * @param root the run directory: absolute paths inside it become relative links
+     * @param abbreviateJavaNames whether code spans show Java names with abbreviated packages, as the flame graphs
+     *                            do, with the full name as their tooltip
+     * @return the HTML page
+     */
+    static Path renderHtml(Path markdown, Path root, String title, boolean abbreviateJavaNames)
+            throws IOException {
         Path page = htmlPage(markdown);
         Path pageDirectory = page.toAbsolutePath().normalize().getParent();
         Path normalizedRoot = root.toAbsolutePath().normalize();
         Node document = PARSER.parse(Files.readString(markdown));
+        Map<Node, String> fullNames = new IdentityHashMap<>();
         document.accept(new AbstractVisitor() {
             @Override
             public void visit(Link link) {
@@ -76,11 +100,35 @@ final class MarkdownPages {
                 image.setDestination(rewrite(image.getDestination(), pageDirectory, normalizedRoot));
                 visitChildren(image);
             }
+
+            @Override
+            public void visit(Code code) {
+                String abbreviated = abbreviateJavaNames ? abbreviateJavaNames(code.getLiteral()) : code.getLiteral();
+                if (!abbreviated.equals(code.getLiteral())) {
+                    fullNames.put(code, code.getLiteral());
+                    code.setLiteral(abbreviated);
+                }
+            }
+
+            @Override
+            public void visit(HtmlBlock block) {
+                // Such as a <details> summary naming a method, whose Markdown inside is not parsed
+                if (abbreviateJavaNames) {
+                    block.setLiteral(abbreviateJavaNames(block.getLiteral()));
+                }
+            }
         });
+        HtmlRenderer renderer = fullNames.isEmpty() ? RENDERER : HtmlRenderer.builder().extensions(EXTENSIONS)
+                .attributeProviderFactory(context -> (node, tagName, attributes) -> {
+                    String fullName = fullNames.get(node);
+                    if (fullName != null) {
+                        attributes.put("title", fullName);
+                    }
+                }).build();
         String html = resource("report-page.html")
                 .replace("{{title}}", escape(title))
                 .replace("{{style}}", resource("report.css"))
-                .replace("{{body}}", RENDERER.render(document));
+                .replace("{{body}}", renderer.render(document));
         Files.writeString(page, html);
         return page;
     }
@@ -91,6 +139,25 @@ final class MarkdownPages {
         String base = name.endsWith(MARKDOWN_SUFFIX) ? name.substring(0, name.length() - MARKDOWN_SUFFIX.length())
                 : name;
         return markdown.resolveSibling(base + ".html");
+    }
+
+    /**
+     * Abbreviates the packages of the Java names in {@code text} to their initials, as {@code stacks
+     * --package-names abbreviate} does: {@code org.apache.pulsar.broker.service.Consumer.sendMessages} is
+     * {@code o.a.p.b.s.Consumer.sendMessages}. Native names such as {@code libjvm.so.Unsafe_Park}, file paths and
+     * regular expressions stay as they are.
+     */
+    static String abbreviateJavaNames(String text) {
+        Matcher matcher = JAVA_PACKAGE.matcher(text);
+        StringBuilder result = new StringBuilder();
+        while (matcher.find()) {
+            String packageName = matcher.group();
+            String replacement = packageName.contains(".so.") || packageName.startsWith("so.") ? packageName
+                    : Arrays.stream(packageName.split("\\.")).map(segment -> segment.substring(0, 1))
+                            .collect(Collectors.joining(".", "", "."));
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+        }
+        return matcher.appendTail(result).toString();
     }
 
     static String rewrite(String destination, Path pageDirectory, Path root) {

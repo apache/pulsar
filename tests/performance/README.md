@@ -264,10 +264,11 @@ output directories):
 | `<recording>.jonoffcpu-capture.pb`, `.manifest.json`, `<recording>.jonoffcpu.yaml` | The off-CPU capture stream, its manifest, and the agent configuration the JVM was started with |
 | `<recording>-offcpu/jonoffcpu-summary.md`, `.json` | The off-CPU digest: the blocked time ranked by the application method that waited, by application root and by application method, where the time went and the capture coverage, leaving out the idle waits of `offcpu-idle-waits.txt` |
 | `<recording>-offcpu/offcpu-no-idle.html` | Off-CPU flame graph of the measurement window without threads that were only waiting for work |
-| `<recording>-offcpu/offcpu-no-idle-app-root.html` | The same with each stack starting at its first Pulsar or BookKeeper frame, so the same code reached from different thread pools or event loops is one tree |
+| `<recording>-offcpu/offcpu-no-idle-app-root.html` | The same with each stack starting at its first Pulsar or BookKeeper frame once executor and Netty dispatch frames are hidden, so the same code reached from different thread pools or event loops is one tree |
 | `<recording>-offcpu/offcpu.html`, `offcpu-app-root.html` | Every blocked interval, idle waiting included, as is and from the first application frame |
 | `<recording>-offcpu/*.collapsed`, `*.json` | The same slices as collapsed stacks (full names, microseconds) and the summary of each, including the time the idle filter removed |
 | `<recording>-offcpu/offcpu-idle-waits.txt`, `<recording>.offcpu-idle-waits.txt` | The idle-wait patterns the run used; the copy beside the recording is the one the digest's reproduce commands name |
+| `<recording>-offcpu/offcpu-dispatch-hide.txt`, `<recording>.offcpu-dispatch-hide.txt` | The BookKeeper and Pulsar frames that only dispatch work (executors running a task, Pulsar's inbound Netty handlers), hidden with jonoffcpu's `jvm-dispatch` preset in the digest and the app-root flame graphs |
 | `<recording>-offcpu/jonoffcpu-offcpu-profile.pb` | The stack profile: every distinct stack with its counters, from which other slices are rendered without correlating again |
 | `<recording>-offcpu/jonoffcpu-report.json` | Accounting: intervals recorded and matched, loss, switch-out reasons, sleeping versus run-queue time |
 

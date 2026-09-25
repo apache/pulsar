@@ -1,0 +1,36 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Apache BookKeeper and Pulsar frames that only dispatch work to the code that does it, passed to the correlator's
+# digest (`--hide-from`, with `preset:jvm-dispatch` for the JDK's executors and lambdas) and to the flame graphs
+# rooted at the application's first frame (`stacks --hide-from`). Hidden, the first org.apache frame of a stack is
+# the code a task runs or the command handler, not the executor or pipeline plumbing that ran it.
+#
+# One Java regular expression per line, matched against each frame's full name. Not hidden, on purpose: executor
+# submit paths such as SingleThreadExecutor.execute and executeOrdered show how a task was handed over, and
+# collections such as GrowableBatchedArrayBlockingQueue.offer are often the finding itself.
+
+# BookKeeper and Pulsar executors running a task
+^org\.apache\.bookkeeper\.common\.util\.SingleThreadExecutor\.(run|runQueuedTask|safeRunTask)$
+^org\.apache\.bookkeeper\.common\.util\.OrderedExecutor\$TimedRunnable\.run$
+^org\.apache\.bookkeeper\.common\.util\.SingleThreadSafeScheduledExecutorService\$SafeRunnable\.run$
+^org\.apache\.pulsar\.common\.util\.SingleThreadNonConcurrentFixedRateScheduler\$ScheduledFutureTask\.run$
+^org\.apache\.pulsar\.common\.util\.Runnables\$CatchingAndLoggingRunnable\.run$
+
+# Pulsar's inbound Netty plumbing: the command handlers below them, ServerCnx.handle*, are the work
+^org\.apache\.pulsar\.common\.protocol\.PulsarDecoder\.channelRead$
+^org\.apache\.pulsar\.common\.util\.netty\.PulsarFlowControlHandler\.
