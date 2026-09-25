@@ -202,6 +202,16 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             public BookKeeper getBookKeeperClient() {
                 return defaultBkClient;
             }
+
+            @Override
+            public CompletableFuture<BookKeeper> getBookKeeperClient(
+                    EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
+                try {
+                    return bkFactory.get(ensemblePlacementPolicyConfig);
+                } catch (RuntimeException e) {
+                    return CompletableFuture.failedFuture(e);
+                }
+            }
         };
     }
 

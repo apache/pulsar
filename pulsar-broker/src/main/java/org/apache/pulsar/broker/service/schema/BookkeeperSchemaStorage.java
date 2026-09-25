@@ -49,11 +49,15 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.SchemaException;
+import org.apache.pulsar.broker.storage.BookKeeperClientContext;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.protocol.schema.SchemaStorage;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.protocol.schema.StoredSchema;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataSerde;
@@ -641,11 +645,48 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NonNull
-    private CompletableFuture<LedgerHandle> createLedger(String schemaId) {
-        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForSchema(schemaId);
+    @VisibleForTesting
+    CompletableFuture<LedgerHandle> createLedger(String schemaId) {
+        return CompletableFuture.completedFuture(schemaId)
+                .thenCompose(id -> {
+                    Optional<TopicName> topicName = getOwnerTopicName(id);
+                    if (topicName.isEmpty()) {
+                        return createLedger(id, bookKeeper, LedgerMetadataUtils.buildMetadataForSchema(id));
+                    }
+                    return pulsar.getBookKeeperClientContext(topicName.get())
+                            .thenCompose(clientContext -> createLedger(id, clientContext));
+                });
+    }
+
+    private static Optional<TopicName> getOwnerTopicName(String schemaId) {
+        String[] parts = schemaId.split("/", -1);
+        if (parts.length != 3) {
+            return Optional.empty();
+        }
+        try {
+            String localName = Codec.decode(parts[2]);
+            TopicDomain domain = localName.indexOf('/') >= 0 ? TopicDomain.topic : TopicDomain.persistent;
+            TopicName topicName = TopicName.get(domain.value(), parts[0], parts[1], localName);
+            return schemaId.equals(topicName.getSchemaName()) ? Optional.of(topicName) : Optional.empty();
+        } catch (IllegalArgumentException e) {
+            // SchemaStorage historically accepts arbitrary keys, including legacy topic names.
+            // Non-canonical keys have no unambiguous owner namespace, so use the default schema client.
+            return Optional.empty();
+        }
+    }
+
+    private CompletableFuture<LedgerHandle> createLedger(String schemaId,
+                                                           BookKeeperClientContext clientContext) {
+        Map<String, byte[]> metadata = clientContext.withPlacementMetadata(
+                LedgerMetadataUtils.buildMetadataForSchema(schemaId));
+        return createLedger(schemaId, clientContext.getBookKeeper(), metadata);
+    }
+
+    private CompletableFuture<LedgerHandle> createLedger(String schemaId, BookKeeper client,
+                                                           Map<String, byte[]> metadata) {
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
         try {
-            bookKeeper.newCreateLedgerOp()
+            client.newCreateLedgerOp()
                     .withEnsembleSize(config.getManagedLedgerDefaultEnsembleSize())
                     .withWriteQuorumSize(config.getManagedLedgerDefaultWriteQuorum())
                     .withAckQuorumSize(config.getManagedLedgerDefaultAckQuorum())

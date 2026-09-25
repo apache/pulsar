@@ -40,6 +40,7 @@ import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegment;
 import org.apache.pulsar.broker.delayed.proto.SnapshotSegmentMetadata;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.NonNull;
 
@@ -172,28 +173,40 @@ public class BookkeeperBucketSnapshotStorage implements BucketSnapshotStorage {
     }
 
     @NonNull
-    private CompletableFuture<LedgerHandle> createLedger(String bucketKey, String topicName, String cursorName) {
-        CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
-        Map<String, byte[]> metadata = LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey,
-                topicName, cursorName);
-        bookKeeper.newCreateLedgerOp()
-                .withEnsembleSize(config.getManagedLedgerDefaultEnsembleSize())
-                .withWriteQuorumSize(config.getManagedLedgerDefaultWriteQuorum())
-                .withAckQuorumSize(config.getManagedLedgerDefaultAckQuorum())
-                .withDigestType(config.getManagedLedgerDigestType())
-                .withPassword(LedgerPassword)
-                .withCustomMetadata(metadata)
-                .withLoggerContext(log.with().attr("topic", topicName).attr("cursor", cursorName).build())
-                .execute()
-                .whenComplete((writeHandle, ex) -> {
-                    if (ex != null) {
-                        future.completeExceptionally(bkException("Create ledger",
-                                BKException.getExceptionCode(ex), -1));
-                    } else {
-                        future.complete((LedgerHandle) writeHandle);
+    @VisibleForTesting
+    CompletableFuture<LedgerHandle> createLedger(String bucketKey, String topicName, String cursorName) {
+        return CompletableFuture.completedFuture(topicName)
+                .thenApply(TopicName::get)
+                .thenCompose(pulsar::getBookKeeperClientContext)
+                .thenCompose(bookKeeperClientContext -> {
+                    CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
+                    Map<String, byte[]> metadata = bookKeeperClientContext.withPlacementMetadata(
+                            LedgerMetadataUtils.buildMetadataForDelayedIndexBucket(bucketKey, topicName, cursorName));
+                    bookKeeperClientContext.getBookKeeper().newCreateLedgerOp()
+                            .withEnsembleSize(config.getManagedLedgerDefaultEnsembleSize())
+                            .withWriteQuorumSize(config.getManagedLedgerDefaultWriteQuorum())
+                            .withAckQuorumSize(config.getManagedLedgerDefaultAckQuorum())
+                            .withDigestType(config.getManagedLedgerDigestType())
+                            .withPassword(LedgerPassword)
+                            .withCustomMetadata(metadata)
+                            .withLoggerContext(log.with().attr("topic", topicName).attr("cursor", cursorName).build())
+                            .execute()
+                            .whenComplete((writeHandle, ex) -> {
+                                if (ex != null) {
+                                    future.completeExceptionally(bkException("Create ledger",
+                                            BKException.getExceptionCode(ex), -1));
+                                } else {
+                                    future.complete((LedgerHandle) writeHandle);
+                                }
+                            });
+                    return future;
+                }).exceptionallyCompose(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof BucketSnapshotPersistenceException) {
+                        return FutureUtil.failedFuture(cause);
                     }
+                    return FutureUtil.failedFuture(new BucketSnapshotPersistenceException(cause));
                 });
-        return future;
     }
 
     private CompletableFuture<LedgerHandle> getLedgerHandle(Long ledgerId) {
