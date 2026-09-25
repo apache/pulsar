@@ -69,11 +69,25 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     private final String identity;
     private Optional<MetadataEventSynchronizer> synchronizer;
 
+    /**
+     * Delivers the session events through the session canary, or null when the caller did not
+     * request the session watcher.
+     *
+     * @see OxiaSessionWatcher
+     */
+    private final OxiaSessionWatcher sessionWatcher;
+
     public OxiaMetadataStore(AsyncOxiaClient oxia, String identity) {
+        this(oxia, identity, false);
+    }
+
+    OxiaMetadataStore(AsyncOxiaClient oxia, String identity, boolean enableSessionWatcher) {
         super("oxia-metadata", OpenTelemetry.noop(), null, 1);
         this.client = oxia;
         this.identity = identity;
         this.synchronizer = Optional.empty();
+        this.sessionWatcher =
+                enableSessionWatcher ? new OxiaSessionWatcher(oxia, this::receivedSessionEvent) : null;
         init();
     }
 
@@ -98,6 +112,8 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             oxiaClientBuilder.loadConfig(metadataStoreConfig.getConfigFilePath());
         }
         client = oxiaClientBuilder.asyncClient().get();
+        this.sessionWatcher =
+                enableSessionWatcher ? new OxiaSessionWatcher(client, this::receivedSessionEvent) : null;
         init();
     }
 
@@ -105,10 +121,23 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         updateMetadataEventSynchronizer(synchronizer.orElse(null));
 
         client.notifications(this::notificationCallback);
+        if (sessionWatcher != null) {
+            sessionWatcher.start();
+        }
         super.registerSyncListener(synchronizer);
     }
 
     private void notificationCallback(Notification notification) {
+        if (OxiaSessionWatcher.isCanaryKey(notification)) {
+            // The reserved canary namespace is internal to the session watcher and is never
+            // forwarded as an ordinary metadata store notification, not even when this store
+            // instance did not enable the session watcher: the canaries of other instances in
+            // the same namespace carry no state of this store.
+            if (sessionWatcher != null) {
+                sessionWatcher.handleNotification(notification);
+            }
+            return;
+        }
         if (notification instanceof Notification.KeyCreated keyCreated) {
             receivedNotification(
                     new org.apache.pulsar.metadata.api.Notification(
@@ -469,10 +498,16 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     @Override
     public void close() throws Exception {
         if (isClosed.compareAndSet(false, true)) {
-            if (client != null) {
-                client.close();
+            try {
+                if (client != null) {
+                    client.close();
+                }
+            } finally {
+                if (sessionWatcher != null) {
+                    sessionWatcher.close();
+                }
+                super.close();
             }
-            super.close();
         }
     }
 
