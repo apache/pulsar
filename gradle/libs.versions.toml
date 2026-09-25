@@ -21,7 +21,7 @@
 docker-jdk = "25"
 pulsar-client-python = "3.13.0"
 async-profiler = "4.5"
-jonoffcpu = "0.6.0"
+jonoffcpu = "0.7.0"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
