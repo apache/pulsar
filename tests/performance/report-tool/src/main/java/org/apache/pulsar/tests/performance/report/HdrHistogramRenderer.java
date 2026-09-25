@@ -52,7 +52,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     private static final int FIRST_PANEL_X = 100;
     private static final int SECOND_PANEL_X = 780;
     // The y axis labels end this far left of their panel
-    private static final int AXIS_LABEL_GAP = 8;
+    private static final int AXIS_LABEL_GAP = 4;
     private static final int BIN_COUNT = 50;
     static final Color INK = new Color(20, 43, 64);
     static final Color MUTED = new Color(80, 98, 117);
