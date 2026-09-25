@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.tests.performance.report;
 
-import static org.apache.pulsar.tests.performance.report.HdrHistogramRenderer.CONSUMER;
-import static org.apache.pulsar.tests.performance.report.HdrHistogramRenderer.GRID;
-import static org.apache.pulsar.tests.performance.report.HdrHistogramRenderer.INK;
-import static org.apache.pulsar.tests.performance.report.HdrHistogramRenderer.MUTED;
-import static org.apache.pulsar.tests.performance.report.HdrHistogramRenderer.PRODUCER;
-import static org.apache.pulsar.tests.performance.report.HdrHistogramRenderer.WIDTH;
-import static org.apache.pulsar.tests.performance.report.HdrHistogramRenderer.xml;
+import static org.apache.pulsar.tests.performance.report.ChartStyle.GRID;
+import static org.apache.pulsar.tests.performance.report.ChartStyle.INK;
+import static org.apache.pulsar.tests.performance.report.ChartStyle.MUTED;
+import static org.apache.pulsar.tests.performance.report.ChartStyle.WIDTH;
+import static org.apache.pulsar.tests.performance.report.ChartStyle.xml;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
@@ -56,8 +54,6 @@ final class TimeSeriesRenderer {
     // A legend wider than the plot continues on the next row
     private static final int LEGEND_ROW_HEIGHT = 20;
     private static final Color WARMUP = new Color(236, 240, 244);
-    private static final List<Color> COLORS = List.of(PRODUCER, CONSUMER, new Color(96, 70, 160),
-            new Color(46, 125, 50), new Color(173, 20, 87), new Color(120, 144, 156));
 
     /**
      * One line of the chart; a {@link Double#NaN} value leaves a gap.
@@ -168,7 +164,7 @@ final class TimeSeriesRenderer {
                         : x + 6, PLOT_TOP + 14);
             }
             for (int index = 0; index < series.size(); index++) {
-                graphics.setColor(COLORS.get(index % COLORS.size()));
+                graphics.setColor(ChartStyle.seriesColor(index));
                 graphics.setStroke(stroke(series.get(index)));
                 for (int[][] segment : segments(seconds, series.get(index).values(), scale)) {
                     graphics.drawPolyline(segment[0], segment[1], segment[0].length);
@@ -183,14 +179,14 @@ final class TimeSeriesRenderer {
                     legendX = PLOT_LEFT;
                     legendY += LEGEND_ROW_HEIGHT;
                 }
-                graphics.setColor(COLORS.get(index % COLORS.size()));
+                graphics.setColor(ChartStyle.seriesColor(index));
                 graphics.setStroke(stroke(series.get(index)));
                 graphics.drawLine(legendX, legendY - 4, legendX + 18, legendY - 4);
                 graphics.setColor(INK);
                 graphics.drawString(series.get(index).name(), legendX + 26, legendY);
                 legendX += width;
             }
-            HdrHistogramRenderer.drawFooter(graphics, footer, HEIGHT);
+            ChartStyle.drawFooter(graphics, footer, HEIGHT);
         } finally {
             graphics.dispose();
         }
@@ -246,7 +242,7 @@ final class TimeSeriesRenderer {
                     .append("\" font-size=\"12\">producers finished</text>\n");
         }
         for (int index = 0; index < series.size(); index++) {
-            String color = hex(COLORS.get(index % COLORS.size()));
+            String color = hex(ChartStyle.seriesColor(index));
             for (int[][] segment : segments(seconds, series.get(index).values(), scale)) {
                 out.append("<polyline fill=\"none\" stroke=\"").append(color)
                         .append("\" stroke-width=\"2\"").append(dashes(series.get(index))).append(" points=\"");
@@ -268,13 +264,13 @@ final class TimeSeriesRenderer {
             }
             out.append("<line x1=\"").append(legendX).append("\" y1=\"").append(legendY - 4)
                     .append("\" x2=\"").append(legendX + 18).append("\" y2=\"").append(legendY - 4)
-                    .append("\" stroke=\"").append(hex(COLORS.get(index % COLORS.size())))
+                    .append("\" stroke=\"").append(hex(ChartStyle.seriesColor(index)))
                     .append("\" stroke-width=\"2\"").append(dashes(series.get(index))).append("/>\n<text x=\"")
                     .append(legendX + 26).append("\" y=\"").append(legendY)
                     .append("\" font-size=\"14\">").append(xml(name)).append("</text>\n");
             legendX += width;
         }
-        HdrHistogramRenderer.appendSvgFooter(out, footer, HEIGHT);
+        ChartStyle.appendSvgFooter(out, footer, HEIGHT);
         return out.append("</svg>\n").toString();
     }
 

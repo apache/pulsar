@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.performance.report;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -116,10 +117,14 @@ public class RunReportTest {
                 + "- [consumer-0/consumer-summary.json](consumer-0/consumer-summary.json)\n"
                 + "- [consumer-0/container.log.txt](consumer-0/container.log.txt)\n"
                 + "- [consumer-1/consumer-summary.json](consumer-1/consumer-summary.json)\n\n</details>\n"), report);
-        assertTrue(report.contains("<details><summary>HDR histogram logs</summary>\n\n"
-                + "- [producer/produce-latency.hdr](producer/produce-latency.hdr)\n"
-                + "- [consumer-0/consume-latency.hdr](consumer-0/consume-latency.hdr)\n"
-                + "- [consumer-1/consume-latency.hdr](consumer-1/consume-latency.hdr)\n\n</details>\n"), report);
+        assertTrue(report.contains("<details><summary>HDR histogram logs and percentile distributions</summary>\n\n"
+                + "- [producer/produce-latency.hdr](producer/produce-latency.hdr) ·"
+                + " [producer/produce-latency.hgrm](producer/produce-latency.hgrm)\n"
+                + "- [consumer-0/consume-latency.hdr](consumer-0/consume-latency.hdr) ·"
+                + " [consumer-0/consume-latency.hgrm](consumer-0/consume-latency.hgrm)\n"
+                + "- [consumer-1/consume-latency.hdr](consumer-1/consume-latency.hdr) ·"
+                + " [consumer-1/consume-latency.hgrm](consumer-1/consume-latency.hgrm)\n\n</details>\n"), report);
+        assertTrue(Files.isRegularFile(run.resolve("consumer-1/consume-latency.hgrm")));
         assertTrue(report.contains("The [sampled topic stats](topic-stats.csv) are a CSV file."), report);
         assertTrue(report.contains("| Scenario | [scenario](scenario.yaml) |\n"), report);
         assertTrue(report.contains("| Cluster | 1 broker(s), 3 bookies, [configuration](resolved-config.yaml) |\n"),
@@ -153,27 +158,32 @@ public class RunReportTest {
         // and the maximum its highest
         assertTrue(report.contains("| Publish (send to acknowledgment) | 1,000 | 899.6 | 900.1 | 900.1 | 900.1 |"
                 + " 900.1 | 900.1 |"), report);
+        // Each application's end-to-end latency is its own row; none is merged across applications
+        assertTrue(report.contains("| End to end, consumer-0 | 1,000 | 1,199.1 | 1,200.1 |"), report);
         assertTrue(report.contains("| End to end, consumer-1 | 1,000 | 1,199.1 | 1,200.1 |"), report);
-        assertTrue(report.contains("Delivery after the publish is acknowledged: about 300."), report);
+        assertFalse(report.contains("| End to end (publish to listener) |"), report);
+        assertTrue(report.contains("Delivery after the publish is acknowledged (end-to-end p50 − publish p50):"
+                + " consumer-0 about 300.0 ms, consumer-1 about 300.0 ms.\n"), report);
         assertTrue(report.contains("| Published msg/s | 100,000 | 100,000 |"), report);
         // Seconds 1–2 and 2–3 are the measurement without its first and last second. sub-1 dispatches nothing in
         // the first and catches up in the second, so the total's minimum drops to 100,000.
         assertTrue(report.contains("| Dispatched msg/s, all subscriptions | 250,000 | 100,000 |"), report);
         assertTrue(report.contains("| `sub-1` | 100,000 | 2 s | 50,000 |"), report);
         assertTrue(report.contains("| `sub-0` | 0 | 0 s | 0 |"), report);
-        for (String chart : new String[] {"latency-histograms", "throughput", "backlog"}) {
-            assertTrue(report.contains("](" + chart + ".svg)"), report);
-            assertTrue(Files.isRegularFile(run.resolve(chart + ".svg")), chart);
-            assertTrue(Files.isRegularFile(run.resolve(chart + ".png")), chart);
+        // The latency charts are PNG only; throughput and backlog also have SVG
+        for (String chart : new String[] {"latency-percentiles.png", "latency-timeline.png", "throughput.svg",
+                "backlog.svg"}) {
+            assertTrue(report.contains("](" + chart + ")"), report);
+            assertTrue(Files.isRegularFile(run.resolve(chart)), chart);
         }
-        // Every chart says which run it shows; the latency chart's title no longer names the scenario
-        for (String chart : new String[] {"latency-histograms", "throughput", "backlog"}) {
+        // Every SVG chart says which run it shows
+        for (String chart : new String[] {"throughput", "backlog"}) {
             assertTrue(Files.readString(run.resolve(chart + ".svg"))
                     .contains(">lh-branch@01234567-dirty 2026-09-25 06:42:59-06:46:41</text>"), chart);
         }
-        assertTrue(Files.readString(run.resolve("latency-histograms.svg")).contains("font-weight=\"bold\">Latency<"));
         String page = Files.readString(run.resolve("run-report.html"));
         assertTrue(page.contains("<img src=\"throughput.svg\""), page);
+        assertTrue(page.contains("<img src=\"latency-percentiles.png\""), page);
     }
 
     @Test

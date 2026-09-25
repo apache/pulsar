@@ -50,7 +50,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         List<ClientAndConsumer> pods = new ArrayList<>(scenario.clientsPerApplication());
         AtomicBoolean stopping = new AtomicBoolean();
         AtomicReference<Throwable> restarterFailure = new AtomicReference<>();
-        HdrLatencyRecorder receiveLatency = new HdrLatencyRecorder();
+        HdrLatencyRecorder receiveLatency = new HdrLatencyRecorder(output.resolve("consume-latency.hdr"));
         AtomicLong firstMeasurementReceiptEpochMs = new AtomicLong();
         AtomicLong lastMeasurementReceiptEpochMs = new AtomicLong();
         int nextWarmupRound = 1;
@@ -93,8 +93,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 restarter.join(TimeUnit.SECONDS.toMillis(10));
             }
             DeviceSequenceTracker.Summary summary = tracker.summary();
-            receiveLatency.write(output.resolve("consume-latency.hdr"),
-                    firstMeasurementReceiptEpochMs.get(), lastMeasurementReceiptEpochMs.get());
+            receiveLatency.close();
             tracker.writeState(output.resolve("consumed-state.bin"));
             tracker.writeViolationSamples(output.resolve("ordering-violations.txt"));
             Files.writeString(output.resolve("consumer-summary.json"), "{\n"

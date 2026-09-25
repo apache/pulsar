@@ -148,9 +148,8 @@ application writes `consume-latency.hdr` containing broker-publish-to-listener l
 messages are excluded from both histograms. The consumer captures its receipt timestamp on listener entry and
 records the sample after payload decoding and key validation, before sequence validation and acknowledgment.
 Decoding and validation time do not contribute to the latency value. Use the report tool's `renderHdrHistograms`
-Gradle task to merge the backend-application
-histograms by observation count and render the producer and consumer distributions as PNG and SVG; see the
-performance README for the command.
+Gradle task to plot the publish latency and each application's end-to-end latency by percentile and over time
+as PNG; see the performance README for the command.
 
 ## Interpreting a run
 

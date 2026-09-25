@@ -25,55 +25,57 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.PrintStream;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.concurrent.Callable;
 import javax.imageio.ImageIO;
 import org.HdrHistogram.EncodableHistogram;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramIterationValue;
 import org.HdrHistogram.HistogramLogReader;
+import org.knowm.xchart.BitmapEncoder;
+import org.knowm.xchart.XYChart;
+import org.knowm.xchart.XYChartBuilder;
+import org.knowm.xchart.XYSeries;
+import org.knowm.xchart.style.Styler;
+import org.knowm.xchart.style.markers.SeriesMarkers;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
-/** Renders the producer and merged consumer HDR latency distributions from an IoT performance run. */
+/**
+ * Plots the latencies of an IoT performance run from its HDR histogram logs, the way HistogramLogAnalyzer does, as
+ * two PNG charts drawn with XChart: the latency at each percentile, on an axis that spreads the tail (90 %, 99 %,
+ * 99.9 %, …), and the maximum latency of each logged interval over the run. The publish latency and each consumer
+ * application's end-to-end latency are separate lines: the applications consume independently, so a merged
+ * distribution would describe none of them.
+ */
 @Command(name = "render-hdr-histograms", mixinStandardHelpOptions = true,
-        description = "Render IoT producer and consumer HDR latency distributions as PNG and SVG")
+        description = "Plot IoT publish and per-application end-to-end latencies by percentile and over time as PNG")
 public final class HdrHistogramRenderer implements Callable<Integer> {
-    static final int WIDTH = 1400;
-    private static final int HEIGHT = 700;
-    private static final int PLOT_TOP = 125;
-    private static final int PLOT_HEIGHT = 390;
-    // The panels are far enough apart that the second panel's axis labels read as its own
-    private static final int PANEL_WIDTH = 570;
-    private static final int FIRST_PANEL_X = 100;
-    private static final int SECOND_PANEL_X = 780;
-    // The y axis labels end this far left of their panel
-    private static final int AXIS_LABEL_GAP = 4;
-    private static final int BIN_COUNT = 50;
-    static final Color INK = new Color(20, 43, 64);
-    static final Color MUTED = new Color(80, 98, 117);
-    static final Color GRID = new Color(218, 225, 232);
-    static final Color PRODUCER = new Color(0, 123, 155);
-    static final Color CONSUMER = new Color(189, 91, 36);
-    // The footer that says which run a chart shows: small, as it is read only when needed
-    private static final int FOOTER_FONT_SIZE = 10;
-    private static final int FOOTER_MARGIN = 12;
+    static final String PERCENTILES_SUFFIX = "-percentiles.png";
+    static final String TIMELINE_SUFFIX = "-timeline.png";
+    /** The percentile distribution's file extension, as HdrHistogram's plotter, plotFiles.html, reads it. */
+    static final String DISTRIBUTION_EXTENSION = ".hgrm";
+    private static final int HEIGHT = 620;
+    private static final int FOOTER_STRIP_HEIGHT = 24;
+    // The percentile axis ends here: 1/(1 - p) is a million, six nines
+    private static final double MAX_PERCENTILE = 99.9999;
+    private static final int PERCENTILE_TICKS_PER_HALF_DISTANCE = 5;
 
     @Option(names = "--run-directory", required = true,
             description = "IoT run directory containing producer/ and consumer-* outputs")
     private Path runDirectory;
 
     @Option(names = "--output-prefix",
-            description = "Output path without extension; defaults to <run-directory>/latency-histograms")
+            description = "Output path without the -percentiles.png and -timeline.png suffixes; defaults to"
+                    + " <run-directory>/latency")
     private Path outputPrefix;
-
-    @Option(names = "--title", defaultValue = "IoT telemetry latency",
-            description = "Chart title")
-    private String title;
 
     private HdrHistogramRenderer() {
     }
@@ -86,72 +88,109 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     public Integer call() throws Exception {
         Path normalizedRun = runDirectory.toAbsolutePath().normalize();
         Path producer = normalizedRun.resolve("producer/produce-latency.hdr");
-        List<Path> consumers;
-        try (var files = Files.walk(normalizedRun)) {
-            consumers = files.filter(Files::isRegularFile)
-                    .filter(path -> path.getFileName().toString().equals("consume-latency.hdr"))
-                    .sorted()
-                    .toList();
-        }
         if (!Files.isRegularFile(producer)) {
             throw new IllegalArgumentException("Producer histogram does not exist: " + producer);
         }
-        if (consumers.isEmpty()) {
-            throw new IllegalArgumentException("No consumer histograms found below " + normalizedRun);
+        List<Path> consumers = new ArrayList<>();
+        for (int application = 0; ; application++) {
+            Path consumer = normalizedRun.resolve("consumer-" + application).resolve("consume-latency.hdr");
+            if (!Files.isRegularFile(consumer)) {
+                break;
+            }
+            consumers.add(consumer);
         }
-        Path prefix = outputPrefix != null
-                ? outputPrefix.toAbsolutePath().normalize()
-                : normalizedRun.resolve("latency-histograms");
-        render(producer, consumers, prefix, title);
-        System.out.println(prefix + ".png");
-        System.out.println(prefix + ".svg");
+        Path prefix = outputPrefix != null ? outputPrefix.toAbsolutePath().normalize()
+                : normalizedRun.resolve("latency");
+        // Without the run report's measurement start, time runs from the first logged interval
+        long origin = Long.MAX_VALUE;
+        for (Path log : concat(producer, consumers)) {
+            for (Interval interval : readIntervals(log)) {
+                origin = Math.min(origin, interval.startEpochMillis());
+            }
+        }
+        for (Path chart : render(producer, consumers, prefix, origin, "")) {
+            System.out.println(chart);
+        }
         return 0;
     }
 
-    /** Merges all intervals for each role and renders count-weighted latency distributions. */
-    public static void render(Path producer, List<Path> consumers, Path outputPrefix, String title)
-            throws IOException {
-        render(producer, consumers, outputPrefix, title, "");
-    }
-
     /**
-     * Merges all intervals for each role and renders count-weighted latency distributions.
+     * Plots {@code <outputPrefix>-percentiles.png} and {@code <outputPrefix>-timeline.png}.
      *
+     * @param consumers each consumer application's end-to-end latency log, in application order
+     * @param originEpochMillis the time that the timeline counts seconds from, such as the measurement start
      * @param footer small text at the bottom right, such as the branch, commit and run time; empty for none
+     * @return the two charts
      */
-    static void render(Path producer, List<Path> consumers, Path outputPrefix, String title, String footer)
-            throws IOException {
-        Dataset producerData = dataset("Produce · send completion", readMerged(List.of(producer)), PRODUCER);
-        Dataset consumerData = dataset("Consume · publish to listener", readMerged(consumers), CONSUMER);
+    static List<Path> render(Path producer, List<Path> consumers, Path outputPrefix, long originEpochMillis,
+                             String footer) throws IOException {
+        List<Path> logs = concat(producer, consumers);
+        XYChart percentiles = chart("Latency by percentile", "Percentile", HEIGHT);
+        percentiles.getStyler().setXAxisLogarithmic(true).setXAxisMin(1.0)
+                .setXAxisMax(percentileAxisPosition(MAX_PERCENTILE))
+                .setXAxisTickLabelsFormattingFunction(HdrHistogramRenderer::percentileAxisLabel);
+        XYChart timeline = chart("Maximum latency per interval", "Seconds since the measurement start", HEIGHT);
+        for (int index = 0; index < logs.size(); index++) {
+            String name = lineName(logs.get(index), index);
+            List<Double> positions = new ArrayList<>();
+            List<Double> latencies = new ArrayList<>();
+            for (HistogramIterationValue value : readMerged(List.of(logs.get(index)))
+                    .percentiles(PERCENTILE_TICKS_PER_HALF_DISTANCE)) {
+                double percentile = Math.min(value.getPercentileLevelIteratedTo(), MAX_PERCENTILE);
+                positions.add(percentileAxisPosition(percentile));
+                latencies.add(value.getValueIteratedTo() / 1000.0);
+                if (percentile >= MAX_PERCENTILE) {
+                    break;
+                }
+            }
+            style(percentiles.addSeries(name, positions, latencies), index);
+            List<Double> seconds = new ArrayList<>();
+            List<Double> maxima = new ArrayList<>();
+            for (Interval interval : readIntervals(logs.get(index))) {
+                seconds.add((interval.endEpochMillis() - originEpochMillis) / 1000.0);
+                maxima.add(interval.maxMicros() / 1000.0);
+            }
+            if (!seconds.isEmpty()) {
+                style(timeline.addSeries(name, seconds, maxima), index);
+            }
+        }
         Path parent = outputPrefix.toAbsolutePath().normalize().getParent();
         if (parent != null) {
             Files.createDirectories(parent);
         }
-        writePng(outputPrefix.resolveSibling(outputPrefix.getFileName() + ".png"), title,
-                producerData, consumerData, footer);
-        Files.writeString(outputPrefix.resolveSibling(outputPrefix.getFileName() + ".svg"),
-                svg(title, producerData, consumerData, footer));
+        Path percentilesFile = outputPrefix.resolveSibling(outputPrefix.getFileName() + PERCENTILES_SUFFIX);
+        Path timelineFile = outputPrefix.resolveSibling(outputPrefix.getFileName() + TIMELINE_SUFFIX);
+        writePng(percentiles, footer, percentilesFile);
+        writePng(timeline, footer, timelineFile);
+        return List.of(percentilesFile, timelineFile);
     }
 
-    /** Draws {@code footer} at the bottom right in a small font, which can be zoomed into. */
-    static void drawFooter(Graphics2D graphics, String footer, int height) {
-        if (footer.isEmpty()) {
-            return;
+    /**
+     * Writes the log's percentile distribution in milliseconds beside it, {@code produce-latency.hdr} to
+     * {@code produce-latency.hgrm}, the text that HdrHistogram's plotFiles.html and other tools plot.
+     *
+     * @return the distribution file
+     */
+    static Path writePercentileDistribution(Path log) throws IOException {
+        String name = log.getFileName().toString();
+        Path distribution = log.resolveSibling((name.endsWith(".hdr") ? name.substring(0, name.length() - 4) : name)
+                + DISTRIBUTION_EXTENSION);
+        try (PrintStream out = new PrintStream(Files.newOutputStream(distribution), false, "UTF-8")) {
+            readMerged(List.of(log)).outputPercentileDistribution(out, 1000.0);
         }
-        graphics.setColor(MUTED);
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, FOOTER_FONT_SIZE));
-        graphics.drawString(footer, WIDTH - FOOTER_MARGIN - graphics.getFontMetrics().stringWidth(footer),
-                height - FOOTER_MARGIN);
+        return distribution;
     }
 
-    /** The SVG form of {@link #drawFooter(Graphics2D, String, int)}. */
-    static void appendSvgFooter(StringBuilder out, String footer, int height) {
-        if (footer.isEmpty()) {
-            return;
-        }
-        out.append("<text class=\"muted\" x=\"").append(WIDTH - FOOTER_MARGIN).append("\" y=\"")
-                .append(height - FOOTER_MARGIN).append("\" text-anchor=\"end\" font-size=\"")
-                .append(FOOTER_FONT_SIZE).append("\">").append(xml(footer)).append("</text>\n");
+    /** Where percentile {@code p} (0 to 100) sits on the percentile axis: 1/(1 - p), so each nine is a decade. */
+    static double percentileAxisPosition(double percentile) {
+        return 1.0 / (1.0 - percentile / 100.0);
+    }
+
+    /** The label of a percentile axis position: 1 is 0 %, 10 is 90 %, 100 is 99 %, 1000 is 99.9 %. */
+    static String percentileAxisLabel(double position) {
+        double percentile = 100.0 * (1.0 - 1.0 / position);
+        return BigDecimal.valueOf(percentile).setScale(4, RoundingMode.HALF_UP).stripTrailingZeros().toPlainString()
+                + "%";
     }
 
     static Histogram readMerged(List<Path> paths) throws IOException {
@@ -177,180 +216,78 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
         return merged;
     }
 
-    private static Dataset dataset(String name, Histogram histogram, Color color) {
-        long minPositive = Long.MAX_VALUE;
-        long max = 1;
-        for (HistogramIterationValue value : histogram.recordedValues()) {
-            long representative = histogram.medianEquivalentValue(value.getValueIteratedTo());
-            if (representative > 0) {
-                minPositive = Math.min(minPositive, representative);
-            }
-            max = Math.max(max, representative);
-        }
-        if (minPositive == Long.MAX_VALUE) {
-            minPositive = 1;
-        }
-        double minMillis = Math.max(0.001, minPositive / 1000.0);
-        double maxMillis = Math.max(minMillis * 1.01, max / 1000.0);
-        double logMin = Math.log10(minMillis);
-        double logMax = Math.log10(maxMillis);
-        long[] bins = new long[BIN_COUNT];
-        for (HistogramIterationValue value : histogram.recordedValues()) {
-            double millis = Math.max(minMillis,
-                    histogram.medianEquivalentValue(value.getValueIteratedTo()) / 1000.0);
-            int bin = (int) ((Math.log10(millis) - logMin) / (logMax - logMin) * BIN_COUNT);
-            bins[Math.max(0, Math.min(BIN_COUNT - 1, bin))] += value.getCountAtValueIteratedTo();
-        }
-        long peak = 1;
-        for (long count : bins) {
-            peak = Math.max(peak, count);
-        }
-        return new Dataset(name, histogram, color, bins, minMillis, maxMillis, peak);
+    /** One logged interval: when it started and ended, and the largest latency recorded in it. */
+    record Interval(long startEpochMillis, long endEpochMillis, long maxMicros) {
     }
 
-    private static void writePng(Path output, String title, Dataset first, Dataset second, String footer)
-            throws IOException {
-        BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
+    static List<Interval> readIntervals(Path log) throws IOException {
+        List<Interval> intervals = new ArrayList<>();
+        try (HistogramLogReader reader = new HistogramLogReader(log.toFile())) {
+            EncodableHistogram interval;
+            while ((interval = reader.nextIntervalHistogram()) != null) {
+                if (!(interval instanceof Histogram histogram)) {
+                    throw new IOException("Unsupported HDR histogram type in " + log);
+                }
+                if (histogram.getTotalCount() > 0) {
+                    intervals.add(new Interval(histogram.getStartTimeStamp(), histogram.getEndTimeStamp(),
+                            histogram.getMaxValue()));
+                }
+            }
+        }
+        return intervals;
+    }
+
+    // Publish first, then each consumer application in order, so that the colors match the other charts
+    private static List<Path> concat(Path producer, List<Path> consumers) {
+        List<Path> logs = new ArrayList<>();
+        logs.add(producer);
+        logs.addAll(consumers);
+        return logs;
+    }
+
+    private static String lineName(Path log, int index) {
+        return index == 0 ? "Publish (send to acknowledgment)"
+                : "End to end, " + log.toAbsolutePath().getParent().getFileName();
+    }
+
+    private static XYChart chart(String title, String xAxisTitle, int height) {
+        XYChart chart = new XYChartBuilder().width(ChartStyle.WIDTH).height(height).title(title)
+                .xAxisTitle(xAxisTitle).yAxisTitle("Latency (ms)").build();
+        Styler styler = chart.getStyler();
+        styler.setChartBackgroundColor(Color.WHITE).setPlotBackgroundColor(Color.WHITE).setPlotBorderVisible(false)
+                .setChartFontColor(ChartStyle.INK).setChartTitleFont(new Font(Font.SANS_SERIF, Font.BOLD, 24))
+                .setChartTitleBoxBackgroundColor(Color.WHITE).setLegendFont(new Font(Font.SANS_SERIF, Font.PLAIN, 14))
+                .setLegendPosition(Styler.LegendPosition.OutsideS).setLegendLayout(Styler.LegendLayout.Horizontal)
+                .setLegendBorderColor(Color.WHITE).setChartPadding(24).setAntiAlias(true).setTextAntiAlias(true);
+        chart.getStyler().setPlotGridLinesColor(ChartStyle.GRID)
+                .setAxisTickLabelsFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12))
+                .setAxisTitleFont(new Font(Font.SANS_SERIF, Font.PLAIN, 13))
+                .setAxisTickMarksColor(ChartStyle.MUTED).setYAxisMin(0.0);
+        chart.getStyler().setMarkerSize(0);
+        return chart;
+    }
+
+    private static void style(XYSeries series, int index) {
+        series.setMarker(SeriesMarkers.NONE);
+        series.setLineColor(ChartStyle.seriesColor(index));
+        series.setLineStyle(new BasicStroke(2f));
+    }
+
+    // The footer gets a strip of its own below the chart, where XChart's legend cannot overlap it
+    private static void writePng(XYChart chart, String footer, Path output) throws IOException {
+        BufferedImage chartImage = BitmapEncoder.getBufferedImage(chart);
+        BufferedImage image = new BufferedImage(chartImage.getWidth(),
+                chartImage.getHeight() + (footer.isEmpty() ? 0 : FOOTER_STRIP_HEIGHT), BufferedImage.TYPE_INT_RGB);
         Graphics2D graphics = image.createGraphics();
         try {
-            graphics.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             graphics.setColor(Color.WHITE);
-            graphics.fillRect(0, 0, WIDTH, HEIGHT);
-            graphics.setColor(INK);
-            graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 28));
-            graphics.drawString(title, 70, 55);
-            drawDataset(graphics, first, FIRST_PANEL_X);
-            drawDataset(graphics, second, SECOND_PANEL_X);
-            drawFooter(graphics, footer, HEIGHT);
+            graphics.fillRect(0, 0, image.getWidth(), image.getHeight());
+            graphics.drawImage(chartImage, 0, 0, null);
+            graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            ChartStyle.drawFooter(graphics, footer, image.getHeight());
         } finally {
             graphics.dispose();
         }
         ImageIO.write(image, "png", output.toFile());
-    }
-
-    private static void drawDataset(Graphics2D graphics, Dataset data, int x) {
-        graphics.setColor(INK);
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 19));
-        graphics.drawString(data.name(), x, PLOT_TOP - 28);
-        graphics.setStroke(new BasicStroke(1));
-        graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
-        for (int line = 0; line <= 4; line++) {
-            int y = PLOT_TOP + PLOT_HEIGHT - line * PLOT_HEIGHT / 4;
-            graphics.setColor(GRID);
-            graphics.drawLine(x, y, x + PANEL_WIDTH, y);
-            if (line == 0) {
-                // The baseline needs no 0.0% label
-                continue;
-            }
-            graphics.setColor(MUTED);
-            String label = String.format(Locale.ROOT, "%.1f%%", data.peakPercent() * line / 4);
-            graphics.drawString(label, x - AXIS_LABEL_GAP - graphics.getFontMetrics().stringWidth(label), y + 4);
-        }
-        double barWidth = (double) PANEL_WIDTH / BIN_COUNT;
-        graphics.setColor(new Color(data.color().getRed(), data.color().getGreen(), data.color().getBlue(), 190));
-        for (int bin = 0; bin < BIN_COUNT; bin++) {
-            int height = (int) Math.round(PLOT_HEIGHT * data.bins()[bin] / (double) data.peakCount());
-            int barX = x + (int) Math.floor(bin * barWidth);
-            int nextX = x + (int) Math.floor((bin + 1) * barWidth);
-            graphics.fillRect(barX, PLOT_TOP + PLOT_HEIGHT - height, Math.max(1, nextX - barX - 1), height);
-        }
-        graphics.setColor(INK);
-        graphics.drawLine(x, PLOT_TOP + PLOT_HEIGHT, x + PANEL_WIDTH, PLOT_TOP + PLOT_HEIGHT);
-        graphics.drawString(formatMillis(data.minMillis()), x, PLOT_TOP + PLOT_HEIGHT + 22);
-        String max = formatMillis(data.maxMillis());
-        int maxWidth = graphics.getFontMetrics().stringWidth(max);
-        graphics.drawString(max, x + PANEL_WIDTH - maxWidth, PLOT_TOP + PLOT_HEIGHT + 22);
-        graphics.drawString("Latency (ms, logarithmic)", x + PANEL_WIDTH / 2 - 75, PLOT_TOP + PLOT_HEIGHT + 38);
-        graphics.setColor(data.color());
-        graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
-        graphics.drawString(summary(data.histogram()), x, PLOT_TOP + PLOT_HEIGHT + 82);
-    }
-
-    private static String svg(String title, Dataset first, Dataset second, String footer) {
-        StringBuilder out = new StringBuilder(32_000);
-        out.append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"").append(WIDTH)
-                .append("\" height=\"").append(HEIGHT).append("\" viewBox=\"0 0 ").append(WIDTH).append(' ')
-                .append(HEIGHT).append("\">\n<rect width=\"100%\" height=\"100%\" fill=\"white\"/>\n")
-                .append("<style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#142b40}.muted{fill:#506275}"
-                        + ".summary{font-family:DejaVu Sans Mono,monospace}</style>\n")
-                .append("<text x=\"70\" y=\"55\" font-size=\"28\" font-weight=\"bold\">")
-                .append(xml(title)).append("</text>\n");
-        appendSvgDataset(out, first, FIRST_PANEL_X);
-        appendSvgDataset(out, second, SECOND_PANEL_X);
-        appendSvgFooter(out, footer, HEIGHT);
-        return out.append("</svg>\n").toString();
-    }
-
-    private static void appendSvgDataset(StringBuilder out, Dataset data, int x) {
-        out.append("<text x=\"").append(x).append("\" y=\"").append(PLOT_TOP - 28)
-                .append("\" font-size=\"19\" font-weight=\"bold\">").append(xml(data.name())).append("</text>\n");
-        for (int line = 0; line <= 4; line++) {
-            int y = PLOT_TOP + PLOT_HEIGHT - line * PLOT_HEIGHT / 4;
-            out.append("<line x1=\"").append(x).append("\" y1=\"").append(y).append("\" x2=\"")
-                    .append(x + PANEL_WIDTH).append("\" y2=\"").append(y).append("\" stroke=\"#dae1e8\"/>\n");
-            if (line == 0) {
-                // The baseline needs no 0.0% label
-                continue;
-            }
-            out.append("<text class=\"muted\" x=\"").append(x - AXIS_LABEL_GAP)
-                    .append("\" y=\"").append(y + 4).append("\" text-anchor=\"end\" font-size=\"12\">")
-                    .append(String.format(Locale.ROOT, "%.1f%%", data.peakPercent() * line / 4))
-                    .append("</text>\n");
-        }
-        double barWidth = (double) PANEL_WIDTH / BIN_COUNT;
-        String color = String.format(Locale.ROOT, "#%02x%02x%02x", data.color().getRed(),
-                data.color().getGreen(), data.color().getBlue());
-        for (int bin = 0; bin < BIN_COUNT; bin++) {
-            int height = (int) Math.round(PLOT_HEIGHT * data.bins()[bin] / (double) data.peakCount());
-            int barX = x + (int) Math.floor(bin * barWidth);
-            int nextX = x + (int) Math.floor((bin + 1) * barWidth);
-            out.append("<rect x=\"").append(barX).append("\" y=\"")
-                    .append(PLOT_TOP + PLOT_HEIGHT - height).append("\" width=\"")
-                    .append(Math.max(1, nextX - barX - 1)).append("\" height=\"").append(height)
-                    .append("\" fill=\"").append(color).append("\" fill-opacity=\"0.75\"/>\n");
-        }
-        int bottom = PLOT_TOP + PLOT_HEIGHT;
-        out.append("<line x1=\"").append(x).append("\" y1=\"").append(bottom).append("\" x2=\"")
-                .append(x + PANEL_WIDTH).append("\" y2=\"").append(bottom).append("\" stroke=\"#142b40\"/>\n")
-                .append("<text x=\"").append(x).append("\" y=\"").append(bottom + 22)
-                .append("\" font-size=\"12\">").append(formatMillis(data.minMillis())).append("</text>\n")
-                .append("<text x=\"").append(x + PANEL_WIDTH).append("\" y=\"").append(bottom + 22)
-                .append("\" text-anchor=\"end\" font-size=\"12\">").append(formatMillis(data.maxMillis()))
-                .append("</text>\n<text x=\"").append(x + PANEL_WIDTH / 2).append("\" y=\"")
-                .append(bottom + 38).append("\" text-anchor=\"middle\" font-size=\"12\">"
-                        + "Latency (ms, logarithmic)</text>\n")
-                .append("<text class=\"summary\" x=\"").append(x).append("\" y=\"").append(bottom + 82)
-                .append("\" font-size=\"13\" fill=\"").append(color).append("\">")
-                .append(xml(summary(data.histogram()))).append("</text>\n");
-    }
-
-    private static String summary(Histogram histogram) {
-        return String.format(Locale.ROOT, "n=%,d  p50=%s  p95=%s  p99=%s  p99.9=%s",
-                histogram.getTotalCount(), formatMicros(histogram.getValueAtPercentile(50)),
-                formatMicros(histogram.getValueAtPercentile(95)),
-                formatMicros(histogram.getValueAtPercentile(99)),
-                formatMicros(histogram.getValueAtPercentile(99.9)));
-    }
-
-    private static String formatMicros(long micros) {
-        return formatMillis(micros / 1000.0);
-    }
-
-    private static String formatMillis(double millis) {
-        return millis >= 100 ? String.format(Locale.ROOT, "%.0f ms", millis)
-                : millis >= 10 ? String.format(Locale.ROOT, "%.1f ms", millis)
-                : String.format(Locale.ROOT, "%.3f ms", millis);
-    }
-
-    static String xml(String value) {
-        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                .replace("\"", "&quot;").replace("'", "&apos;");
-    }
-
-    private record Dataset(String name, Histogram histogram, Color color, long[] bins,
-                           double minMillis, double maxMillis, long peakCount) {
-        double peakPercent() {
-            return peakCount * 100.0 / histogram.getTotalCount();
-        }
     }
 }

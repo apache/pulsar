@@ -135,7 +135,9 @@ Every run writes a report into its run directory; open `run-report.html` in a br
 | `<scenario>.yaml`, `resolved-config.yaml` | The scenario file as written, and the scenario with its inheritance and environment overrides applied, which the workloads read |
 | `index.html`, `README.md` | Symbolic links to `run-report.html` and `run-report.md` |
 | `run-info.json` | The run's start, host, user, project directory, git branch, commit and uncommitted changes, and Pulsar version, with the keys of `pulsar-version.properties` where they match; the launcher collects them itself, from git and `gradle.properties` in the checkout it runs from |
-| `latency-histograms.svg`, `.png` | Publish and end-to-end latency distributions |
+| `latency-percentiles.png` | Latency by percentile, as HistogramLogAnalyzer plots it: publish and each application's end to end, on an axis that spreads the tail (90 %, 99 %, 99.9 %, …) |
+| `latency-timeline.png` | The maximum latency of each logged interval over the run, publish and per application |
+| `producer/produce-latency.hgrm`, `consumer-*/consume-latency.hgrm` | Each latency log's percentile distribution in milliseconds, HdrHistogram's percentile output format, which [plotFiles.html](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html) plots |
 | `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked |
 | `backlog.svg`, `.png` | Each subscription's backlog over the run |
 | `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
@@ -229,17 +231,21 @@ and excluded. Consumer latency uses a timestamp captured on listener entry; the 
 decoding and key validation, before sequence validation and acknowledgment. Decoding and validation time are
 excluded from the latency value.
 
-The run report includes these distributions. To render them again for any run directory, for example with a
-different title, render the producer distribution together with the count-weighted merge of all
-backend-application consumer histograms as PNG and SVG:
+The run report plots these logs as HistogramLogAnalyzer does, with [XChart](https://knowm.org/open-source/xchart/):
+the latency by percentile and the maximum latency of each logged interval, with the publish latency and each
+application's end-to-end latency as separate lines. The applications consume independently, so their
+latencies are never merged. To plot them again for any run directory:
 
 ```bash
 ./gradlew :tests:performance:report-tool:renderHdrHistograms \
   --args='--run-directory tests/performance/build/iot-telemetry-high-rate-profile'
 ```
 
-The default outputs are `latency-histograms.png` and `latency-histograms.svg` in the run directory. Pass
-`--output-prefix /path/to/name` or `--title 'Comparison label'` to change them.
+The default outputs are `latency-percentiles.png` and `latency-timeline.png` in the run directory; pass
+`--output-prefix /path/to/name` to change them. The `.hdr` interval logs also open in
+[HistogramLogAnalyzer](https://github.com/HdrHistogram/HistogramLogAnalyzer), and the `.hgrm` percentile
+distributions in HdrHistogram's [plotFiles.html](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html),
+for interactive comparisons across runs.
 
 Use the same cutter independently to select a different interval from an existing recording. `--from` and `--to`
 accept ISO-8601 instants, epoch milliseconds, or offsets from the recording start such as `500ms`, `5s`, `2m`, `1h`,

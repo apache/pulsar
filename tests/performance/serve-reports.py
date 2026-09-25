@@ -34,7 +34,7 @@ import http.server
 from pathlib import Path
 
 TEXT = "text/plain; charset=utf-8"
-TEXT_EXTENSIONS = [".yaml", ".yml", ".csv", ".hdr", ".collapsed", ".log", ".md", ".txt"]
+TEXT_EXTENSIONS = [".yaml", ".yml", ".csv", ".hdr", ".hgrm", ".collapsed", ".log", ".md", ".txt"]
 
 
 class ReportRequestHandler(http.server.SimpleHTTPRequestHandler):

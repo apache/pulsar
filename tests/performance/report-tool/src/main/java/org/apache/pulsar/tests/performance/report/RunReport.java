@@ -41,7 +41,7 @@ import org.HdrHistogram.Histogram;
  */
 public final class RunReport {
     public static final String FILE_NAME = "run-report.md";
-    static final String LATENCY_CHART = "latency-histograms";
+    static final String LATENCY_CHART = "latency";
     static final String THROUGHPUT_CHART = "throughput";
     static final String BACKLOG_CHART = "backlog";
     public static final String RESOLVED_CONFIG = "resolved-config.yaml";
@@ -122,7 +122,7 @@ public final class RunReport {
         long measurementStart = producer.path("measurementStartEpochMs").asLong();
         long measurementEnd = producer.path("measurementEndEpochMs").asLong();
         appendThroughput(report, producer, consumers);
-        appendLatency(report, runDirectory, run, consumerHistograms);
+        appendLatency(report, runDirectory, run, consumerHistograms, measurementStart);
         Path stats = runDirectory.resolve(TOPIC_STATS_FILE);
         if (Files.isRegularFile(stats)) {
             appendTopicStats(report, runDirectory, readSamples(stats), measurementStart, measurementEnd,
@@ -261,8 +261,8 @@ public final class RunReport {
                         String.format(Locale.ROOT, "%.1f s", Math.max(0, lastReceived - end) / 1000.0)));
     }
 
-    private static void appendLatency(StringBuilder report, Path runDirectory, Run run, List<Path> consumers)
-            throws IOException {
+    private static void appendLatency(StringBuilder report, Path runDirectory, Run run, List<Path> consumers,
+                                      long measurementStart) throws IOException {
         Path publish = runDirectory.resolve("producer/produce-latency.hdr");
         if (!Files.isRegularFile(publish) || consumers.isEmpty()) {
             return;
@@ -271,27 +271,32 @@ public final class RunReport {
                 + "|---|---:|---:|---:|---:|---:|---:|---:|\n");
         Histogram published = HdrHistogramRenderer.readMerged(List.of(publish));
         report.append(latencyRow("Publish (send to acknowledgment)", published));
-        Histogram endToEnd = HdrHistogramRenderer.readMerged(consumers);
-        if (consumers.size() > 1) {
-            for (Path consumer : consumers) {
-                report.append(latencyRow("End to end, " + consumer.getParent().getFileName(),
-                        HdrHistogramRenderer.readMerged(List.of(consumer))));
-            }
+        // Each application consumes on its own, so its end-to-end latency is reported on its own: a distribution
+        // merged across applications would describe none of them
+        List<String> delivery = new ArrayList<>();
+        for (Path consumer : consumers) {
+            String application = consumer.getParent().getFileName().toString();
+            Histogram endToEnd = HdrHistogramRenderer.readMerged(List.of(consumer));
+            report.append(latencyRow(consumers.size() == 1 ? "End to end (publish to listener)"
+                    : "End to end, " + application, endToEnd));
+            String millis = millis(endToEnd.getValueAtPercentile(50) - published.getValueAtPercentile(50));
+            delivery.add(consumers.size() == 1 ? "about " + millis + " ms" : application + " about " + millis + " ms");
         }
-        report.append(latencyRow("End to end (publish to listener)", endToEnd));
-        report.append(String.format(Locale.ROOT, "%nDelivery after the publish is acknowledged: about %s ms"
-                        + " (end-to-end p50 − publish p50).%n",
-                millis(endToEnd.getValueAtPercentile(50) - published.getValueAtPercentile(50))));
-        HdrHistogramRenderer.render(publish, consumers, runDirectory.resolve(LATENCY_CHART), "Latency",
-                chartFooter(run.info(), run.finished()));
-        report.append("\n![Latency distributions](").append(LATENCY_CHART).append(".svg)\n");
+        report.append("\nDelivery after the publish is acknowledged (end-to-end p50 − publish p50): ")
+                .append(String.join(", ", delivery)).append(".\n");
+        List<Path> charts = HdrHistogramRenderer.render(publish, consumers, runDirectory.resolve(LATENCY_CHART),
+                measurementStart, chartFooter(run.info(), run.finished()));
+        report.append("\n![Latency by percentile](").append(charts.get(0).getFileName())
+                .append(")\n\n![Maximum latency per interval](").append(charts.get(1).getFileName()).append(")\n");
         List<Path> logs = new ArrayList<>();
         logs.add(publish);
         logs.addAll(consumers);
-        // Collapsed, as the logs are for tools such as HdrHistogram's plotter rather than for reading
-        report.append("\n<details><summary>HDR histogram logs</summary>\n\n");
+        // Collapsed, as the files are for tools rather than for reading: the interval logs for HistogramLogAnalyzer,
+        // and the percentile distributions (.hgrm) for HdrHistogram's plotter, plotFiles.html
+        report.append("\n<details><summary>HDR histogram logs and percentile distributions</summary>\n\n");
         for (Path log : logs) {
-            report.append("- ").append(link(runDirectory, log)).append('\n');
+            report.append("- ").append(link(runDirectory, log)).append(" · ")
+                    .append(link(runDirectory, HdrHistogramRenderer.writePercentileDistribution(log))).append('\n');
         }
         report.append("\n</details>\n");
     }

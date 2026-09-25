@@ -29,6 +29,9 @@ dependencies {
     api(libs.jackson.databind)
     implementation(libs.hdrHistogram)
     implementation(libs.picocli)
+    // Draws the latency charts as PNG (Apache-2.0). Its optional dependencies, such as the LGPL VectorGraphics2D
+    // behind its SVG and PDF export, are not pulled in; only PNG export is used.
+    implementation(libs.xchart)
     // Renders the Markdown reports to HTML pages whose links can be followed
     implementation(libs.commonmark)
     implementation(libs.commonmark.ext.gfm.tables)

@@ -55,7 +55,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         AtomicLong completed = new AtomicLong();
         AtomicLong warmupCompleted = new AtomicLong();
         AtomicLong measurementCompleted = new AtomicLong();
-        HdrLatencyRecorder sendLatency = new HdrLatencyRecorder();
+        HdrLatencyRecorder sendLatency = new HdrLatencyRecorder(output.resolve("produce-latency.hdr"));
         int maxOutstanding = Math.min(scenario.maxOutstanding(), scenario.deviceCount());
         Semaphore outstanding = new Semaphore(maxOutstanding);
         Set<Integer> devicesInFlight = ConcurrentHashMap.newKeySet();
@@ -172,8 +172,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             long finishedNanos = System.nanoTime();
             long elapsedNanos = finishedNanos - startedNanos;
             long measurementElapsedNanos = finishedNanos - measurementStartedNanos;
-            sendLatency.write(output.resolve("produce-latency.hdr"), measurementStartEpochMs,
-                    measurementEndEpochMs);
+            sendLatency.close();
             writeState(deviceSequences);
             Files.writeString(output.resolve("producer-summary.json"),
                     "{\n  \"sent\": " + completed.get()

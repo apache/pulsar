@@ -43,7 +43,7 @@ public class TimeSeriesRendererTest {
                     series, 2.5, "lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04");
 
             String svg = Files.readString(directory.resolve("throughput.svg"));
-            assertTrue(svg.contains("width=\"" + HdrHistogramRenderer.WIDTH + "\""), svg);
+            assertTrue(svg.contains("width=\"" + ChartStyle.WIDTH + "\""), svg);
             assertEquals(svg.split("<polyline", -1).length - 1, 3, svg);
             // The producers' line and its legend are dotted, the consumers' solid
             assertEquals(svg.split("stroke-dasharray=\"0.1 5\"", -1).length - 1, 2, svg);

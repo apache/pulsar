@@ -114,6 +114,7 @@ prometheus-jmx = "0.16.1"
 dropwizardmetrics = "4.2.39"
 hdrHistogram = "2.2.2"
 commonmark = "0.30.0"
+xchart = "4.0.4"
 perfmark = "0.27.0"
 # Auth
 jsonwebtoken = "0.13.0"
@@ -414,6 +415,7 @@ jonoffcpu-jfr-converter = { module = "io.github.jonoffcpu:jonoffcpu-jfr-converte
 commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark" }
 commonmark-ext-gfm-tables = { module = "org.commonmark:commonmark-ext-gfm-tables", version.ref = "commonmark" }
 commonmark-ext-heading-anchor = { module = "org.commonmark:commonmark-ext-heading-anchor", version.ref = "commonmark" }
+xchart = { module = "org.knowm.xchart:xchart", version.ref = "xchart" }
 dropwizardmetrics-core = { module = "io.dropwizard.metrics:metrics-core", version.ref = "dropwizardmetrics" }
 dropwizardmetrics-graphite = { module = "io.dropwizard.metrics:metrics-graphite", version.ref = "dropwizardmetrics" }
 dropwizardmetrics-jvm = { module = "io.dropwizard.metrics:metrics-jvm", version.ref = "dropwizardmetrics" }

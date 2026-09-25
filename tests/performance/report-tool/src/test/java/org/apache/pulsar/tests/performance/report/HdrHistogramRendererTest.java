@@ -19,53 +19,97 @@
 package org.apache.pulsar.tests.performance.report;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Stream;
+import javax.imageio.ImageIO;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class HdrHistogramRendererTest {
-    @Test
-    public void rendersMergedProducerAndConsumerHistograms() throws Exception {
-        Path directory = Files.createTempDirectory("hdr-render-test");
-        try {
-            Path producer = writeHistogram(directory.resolve("produce.hdr"), 1_000, 2_000);
-            Path consumerOne = writeHistogram(directory.resolve("consume-1.hdr"), 2_000, 4_000);
-            Path consumerTwo = writeHistogram(directory.resolve("consume-2.hdr"), 4_000, 8_000);
-            Path prefix = directory.resolve("latency");
+    private Path directory;
 
-            HdrHistogramRenderer.render(producer, List.of(consumerOne, consumerTwo), prefix, "Test latency",
-                    "lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04");
+    @BeforeMethod
+    public void createDirectory() throws IOException {
+        directory = Files.createTempDirectory("hdr-render-test");
+    }
 
-            byte[] png = Files.readAllBytes(directory.resolve("latency.png"));
-            assertTrue(png.length > 8);
-            assertEquals(List.of(png[0], png[1], png[2], png[3]),
-                    List.of((byte) 0x89, (byte) 'P', (byte) 'N', (byte) 'G'));
-            String svg = Files.readString(directory.resolve("latency.svg"));
-            assertTrue(svg.contains("Test latency"));
-            assertTrue(svg.contains("Produce · send completion"));
-            assertTrue(svg.contains("Consume · publish to listener"));
-            assertTrue(svg.contains("n=4"));
-            // Each panel labels its grid lines except the baseline
-            assertEquals(svg.split("%</text>", -1).length - 1, 8, svg);
-            assertFalse(svg.contains(">0.0%<"), svg);
-            assertTrue(svg.contains(">lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04</text>"), svg);
-        } finally {
-            try (var paths = Files.walk(directory)) {
-                for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                    Files.deleteIfExists(path);
-                }
+    @AfterMethod(alwaysRun = true)
+    public void deleteDirectory() throws IOException {
+        try (Stream<Path> paths = Files.walk(directory)) {
+            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+                Files.delete(path);
             }
         }
     }
 
-    private static Path writeHistogram(Path path, long first, long second) throws Exception {
+    @Test
+    public void plotsPercentilesAndIntervalMaximaAsPng() throws Exception {
+        Path producer = writeLog(directory.resolve("producer/produce-latency.hdr"), 1_000, 2_000);
+        Path consumerOne = writeLog(directory.resolve("consumer-0/consume-latency.hdr"), 2_000, 4_000);
+        Path consumerTwo = writeLog(directory.resolve("consumer-1/consume-latency.hdr"), 4_000, 8_000);
+
+        List<Path> charts = HdrHistogramRenderer.render(producer, List.of(consumerOne, consumerTwo),
+                directory.resolve("latency"), 1_000, "lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04");
+
+        assertEquals(charts, List.of(directory.resolve("latency-percentiles.png"),
+                directory.resolve("latency-timeline.png")));
+        for (Path chart : charts) {
+            BufferedImage image = ImageIO.read(chart.toFile());
+            assertEquals(image.getWidth(), ChartStyle.WIDTH, chart.toString());
+        }
+    }
+
+    @Test
+    public void readsEachIntervalsMaximum() throws Exception {
+        Path log = writeLog(directory.resolve("produce-latency.hdr"), 1_000, 2_000);
+
+        assertEquals(HdrHistogramRenderer.readIntervals(log),
+                List.of(new HdrHistogramRenderer.Interval(1_000, 2_000, 2_000)));
+    }
+
+    @Test
+    public void writesThePercentileDistributionThatPlottersRead() throws Exception {
+        Path log = writeLog(directory.resolve("consume-latency.hdr"), 2_000, 4_000);
+
+        Path distribution = HdrHistogramRenderer.writePercentileDistribution(log);
+
+        assertEquals(distribution, directory.resolve("consume-latency.hgrm"));
+        String text = Files.readString(distribution);
+        // HdrHistogram's percentile output, in milliseconds: value, percentile, count, 1/(1-percentile)
+        assertTrue(text.contains("Value     Percentile TotalCount 1/(1-Percentile)"), text);
+        assertTrue(text.contains("#[Max     =        4.001, Total count    =            2]"), text);
+    }
+
+    @DataProvider
+    public Object[][] percentileAxis() {
+        return new Object[][] {
+                {0.0, 1.0, "0%"},
+                {90.0, 10.0, "90%"},
+                {99.0, 100.0, "99%"},
+                {99.9, 1_000.0, "99.9%"},
+                {99.9999, 1_000_000.0, "99.9999%"},
+        };
+    }
+
+    @Test(dataProvider = "percentileAxis")
+    public void spreadsTheTailOverThePercentileAxis(double percentile, double position, String label) {
+        assertEquals(HdrHistogramRenderer.percentileAxisPosition(percentile), position, position * 1e-9);
+        assertEquals(HdrHistogramRenderer.percentileAxisLabel(position), label);
+    }
+
+    private static Path writeLog(Path path, long first, long second) throws Exception {
+        Files.createDirectories(path.getParent());
         Histogram histogram = new Histogram(3);
         histogram.recordValue(first);
         histogram.recordValue(second);
