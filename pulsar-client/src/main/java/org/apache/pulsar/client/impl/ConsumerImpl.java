@@ -1695,6 +1695,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             chunkedMessagesMap.remove(msgMetadata.getUuid());
             compressedPayload.release();
+            // This discarded chunk consumed a broker flow-control permit. Non-last chunks already
+            // had their permit returned at the top of this method (increaseAvailablePermits when
+            // chunkId != last); the last chunk did not. Return it here so that tearing a chunked
+            // message apart (expiry/eviction/orphaned last chunk) does not leak permits, which would
+            // otherwise drain the consumer's available permits to zero and stall dispatch.
+            if (msgMetadata.getChunkId() == (msgMetadata.getNumChunksFromMsg() - 1)) {
+                increaseAvailablePermits(cnx);
+            }
             if (expireTimeOfIncompleteChunkedMessageMillis > 0
                     && System.currentTimeMillis() > (msgMetadata.getPublishTime()
                             + expireTimeOfIncompleteChunkedMessageMillis)) {

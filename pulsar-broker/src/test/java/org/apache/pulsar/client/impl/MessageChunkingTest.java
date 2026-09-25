@@ -365,6 +365,65 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         assertNull(consumer.receive(5, TimeUnit.SECONDS));
     }
 
+    /**
+     * Verifies that discarding an orphaned last chunk does not leak a flow-control permit.
+     *
+     * Each chunk the broker dispatches consumes one permit. Non-last chunks are credited back at
+     * arrival; the last chunk is normally credited when the assembled message is consumed. When a
+     * chunked message is torn apart (its first chunk expires, then the last chunk arrives with no
+     * assembly context), the last chunk hits the discard branch. Without the fix that branch never
+     * returned the permit, so every torn message leaked one permit and the consumer's available
+     * permits eventually drained to zero and dispatch stalled.
+     *
+     * Here we send N chunk-0's (all non-last, each credited at arrival) then expire them, then send
+     * N orphaned last chunks. Every chunk delivered must have its permit returned, so the client's
+     * availablePermits must equal the total number of chunks delivered (2 * N).
+     */
+    @Test
+    public void testOrphanedLastChunkDoesNotLeakPermits() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/orphanChunkPermitLeak";
+        final String subName = "my-sub";
+        @Cleanup
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .maxPendingChunkedMessage(100)
+                .expireTimeOfIncompleteChunkedMessage(1, TimeUnit.SECONDS)
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        final int numMessages = 20;
+
+        // Send only the first (non-last) chunk of each message; these are credited at arrival.
+        for (int i = 0; i < numMessages; i++) {
+            sendSingleChunk(producer, "orphan-" + i, 0, 2);
+        }
+
+        // Let the scheduled expiry discard all the incomplete contexts.
+        Awaitility.await().atMost(15, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(consumer.chunkedMessagesMap.size(), 0));
+
+        int permitsAfterExpiry = consumer.getAvailablePermits();
+
+        // Now send the orphaned LAST chunk of each message -> discard branch. Each must return its
+        // permit; without the fix none of these are credited.
+        for (int i = 0; i < numMessages; i++) {
+            sendSingleChunk(producer, "orphan-" + i, 1, 2);
+        }
+
+        // Each orphaned last chunk consumed one permit that must be returned.
+        Awaitility.await().atMost(15, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals(consumer.getAvailablePermits(), permitsAfterExpiry + numMessages,
+                        "orphaned last chunks leaked flow-control permits"));
+    }
+
     @Test
     public void testResendChunkMessagesWithoutAckHole() throws Exception {
         log.info().attr("method", methodName).log("Starting test");
