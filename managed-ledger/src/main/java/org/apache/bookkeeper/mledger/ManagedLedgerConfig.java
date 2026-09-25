@@ -63,7 +63,7 @@ public class ManagedLedgerConfig {
     private Semaphore ledgerDeletionSemaphore;
     private ExecutorService ledgerDeleteExecutor;
     private boolean readEntriesCallbackInline = false;
-    private int maxAddEntryHandoverBatchSize = 1024;
+    private int addEntryHandoverMaxBatchSize = 1024;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
@@ -451,10 +451,10 @@ public class ManagedLedgerConfig {
      * The maximum number of add entry requests handed over to the ledger's executor thread in one batch, or 0 when
      * batching is disabled.
      *
-     * @see #setMaxAddEntryHandoverBatchSize(int)
+     * @see #setAddEntryHandoverMaxBatchSize(int)
      */
-    public int getMaxAddEntryHandoverBatchSize() {
-        return maxAddEntryHandoverBatchSize;
+    public int getAddEntryHandoverMaxBatchSize() {
+        return addEntryHandoverMaxBatchSize;
     }
 
     /**
@@ -469,12 +469,12 @@ public class ManagedLedgerConfig {
      * <p>The value is captured when the ledger is opened; subsequent changes, including
      * {@link ManagedLedger#setConfig(ManagedLedgerConfig)}, do not change it for an already open ledger.
      *
-     * @param maxAddEntryHandoverBatchSize the maximum handover batch size, or 0 to disable batching
+     * @param addEntryHandoverMaxBatchSize the maximum handover batch size, or 0 to disable batching
      * @return this configuration
      */
-    public ManagedLedgerConfig setMaxAddEntryHandoverBatchSize(int maxAddEntryHandoverBatchSize) {
-        checkArgument(maxAddEntryHandoverBatchSize >= 0, "maxAddEntryHandoverBatchSize must not be negative");
-        this.maxAddEntryHandoverBatchSize = maxAddEntryHandoverBatchSize;
+    public ManagedLedgerConfig setAddEntryHandoverMaxBatchSize(int addEntryHandoverMaxBatchSize) {
+        checkArgument(addEntryHandoverMaxBatchSize >= 0, "addEntryHandoverMaxBatchSize must not be negative");
+        this.addEntryHandoverMaxBatchSize = addEntryHandoverMaxBatchSize;
         return this;
     }
 
