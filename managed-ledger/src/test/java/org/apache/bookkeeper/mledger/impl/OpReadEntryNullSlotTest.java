@@ -23,7 +23,6 @@ import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
-
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
