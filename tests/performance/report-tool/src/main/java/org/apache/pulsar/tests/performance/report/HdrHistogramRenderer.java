@@ -267,10 +267,11 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
         return chart;
     }
 
+    // Publish is dotted, as the producers are in the throughput chart; the applications' lines are solid
     private static void style(XYSeries series, int index) {
         series.setMarker(SeriesMarkers.NONE);
         series.setLineColor(ChartStyle.seriesColor(index));
-        series.setLineStyle(new BasicStroke(2f));
+        series.setLineStyle(index == 0 ? ChartStyle.DOTTED : new BasicStroke(2f));
     }
 
     // The footer gets a strip of its own below the chart, where XChart's legend cannot overlap it

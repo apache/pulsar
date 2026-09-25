@@ -274,11 +274,8 @@ final class TimeSeriesRenderer {
         return out.append("</svg>\n").toString();
     }
 
-    // Round dots, two pixels wide and five apart
     private static BasicStroke stroke(Series series) {
-        return series.dotted()
-                ? new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10, new float[] {0.1f, 5}, 0)
-                : new BasicStroke(2);
+        return series.dotted() ? ChartStyle.DOTTED : new BasicStroke(2);
     }
 
     private static String dashes(Series series) {

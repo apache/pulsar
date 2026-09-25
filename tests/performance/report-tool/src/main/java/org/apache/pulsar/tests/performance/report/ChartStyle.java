@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.performance.report;
 
+import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
@@ -38,6 +39,12 @@ final class ChartStyle {
     /** The colors of a chart's lines, in order: the producers first, then each consumer application. */
     static final List<Color> SERIES_COLORS = List.of(PRODUCER, CONSUMER, new Color(96, 70, 160),
             new Color(46, 125, 50), new Color(173, 20, 87), new Color(120, 144, 156));
+    /**
+     * The producers' line: round dots, two pixels wide and five apart, so that the consumer lines it often overlaps
+     * stay visible.
+     */
+    static final BasicStroke DOTTED =
+            new BasicStroke(2, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 10, new float[] {0.1f, 5}, 0);
     // The footer that says which run a chart shows: small, as it is read only when needed
     private static final int FOOTER_FONT_SIZE = 10;
     private static final int FOOTER_MARGIN = 12;
