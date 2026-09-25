@@ -48,20 +48,27 @@ final class JfrFlamegraphViews {
     private static final String APPLICATION_HIGHLIGHT = "^org[/.]apache[/.]";
 
     enum View {
-        CPU(false),
-        WALL(false),
-        ALLOC(true),
-        LOCK(true);
+        CPU(false, "CPU"),
+        WALL(false, "wall-clock"),
+        ALLOC(true, "allocation"),
+        LOCK(true, "lock");
 
         // Allocation and lock samples carry a size or a duration, which is what their graphs should weigh
         private final boolean total;
+        private final String description;
 
-        View(boolean total) {
+        View(boolean total, String description) {
             this.total = total;
+            this.description = description;
         }
 
         String label() {
             return name().toLowerCase(Locale.ROOT);
+        }
+
+        /** The view's name in prose, such as "allocation". */
+        String description() {
+            return description;
         }
     }
 

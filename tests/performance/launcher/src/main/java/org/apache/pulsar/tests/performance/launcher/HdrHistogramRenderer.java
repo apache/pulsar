@@ -181,9 +181,6 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
             graphics.setColor(INK);
             graphics.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 28));
             graphics.drawString(title, 70, 55);
-            graphics.setColor(MUTED);
-            graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 15));
-            graphics.drawString("Count-weighted HDR distributions; latency axis is logarithmic", 70, 82);
             drawDataset(graphics, first, FIRST_PANEL_X);
             drawDataset(graphics, second, SECOND_PANEL_X);
         } finally {
@@ -220,7 +217,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
         String max = formatMillis(data.maxMillis());
         int maxWidth = graphics.getFontMetrics().stringWidth(max);
         graphics.drawString(max, x + PANEL_WIDTH - maxWidth, PLOT_TOP + PLOT_HEIGHT + 22);
-        graphics.drawString("Latency (ms, logarithmic)", x + PANEL_WIDTH / 2 - 75, PLOT_TOP + PLOT_HEIGHT + 47);
+        graphics.drawString("Latency (ms, logarithmic)", x + PANEL_WIDTH / 2 - 75, PLOT_TOP + PLOT_HEIGHT + 38);
         graphics.setColor(data.color());
         graphics.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
         graphics.drawString(summary(data.histogram()), x, PLOT_TOP + PLOT_HEIGHT + 82);
@@ -234,9 +231,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
                 .append("<style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#142b40}.muted{fill:#506275}"
                         + ".summary{font-family:DejaVu Sans Mono,monospace}</style>\n")
                 .append("<text x=\"70\" y=\"55\" font-size=\"28\" font-weight=\"bold\">")
-                .append(xml(title)).append("</text>\n")
-                .append("<text class=\"muted\" x=\"70\" y=\"82\" font-size=\"15\">"
-                        + "Count-weighted HDR distributions; latency axis is logarithmic</text>\n");
+                .append(xml(title)).append("</text>\n");
         appendSvgDataset(out, first, FIRST_PANEL_X);
         appendSvgDataset(out, second, SECOND_PANEL_X);
         return out.append("</svg>\n").toString();
@@ -274,7 +269,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
                 .append("<text x=\"").append(x + PANEL_WIDTH).append("\" y=\"").append(bottom + 22)
                 .append("\" text-anchor=\"end\" font-size=\"12\">").append(formatMillis(data.maxMillis()))
                 .append("</text>\n<text x=\"").append(x + PANEL_WIDTH / 2).append("\" y=\"")
-                .append(bottom + 47).append("\" text-anchor=\"middle\" font-size=\"12\">"
+                .append(bottom + 38).append("\" text-anchor=\"middle\" font-size=\"12\">"
                         + "Latency (ms, logarithmic)</text>\n")
                 .append("<text class=\"summary\" x=\"").append(x).append("\" y=\"").append(bottom + 82)
                 .append("\" font-size=\"13\" fill=\"").append(color).append("\">")

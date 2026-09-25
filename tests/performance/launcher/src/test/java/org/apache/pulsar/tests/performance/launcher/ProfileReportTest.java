@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -79,6 +80,8 @@ public class ProfileReportTest {
                 "| [Without idle waits](broker-offcpu/offcpu-no-idle.html) | 4.7 | 207 | 3,838.6 |"), report);
         // Slices that were not rendered are left out rather than linked.
         assertFalse(report.contains(OffCpuFlamegraphs.APP_ROOT_SLICE + ".html"), report);
+        // Only the rendered views are named; this recording has no lock or wall-clock view.
+        assertTrue(report.contains("### CPU and allocation views\n"), report);
         assertTrue(report.contains("| cpu | [flame graph](broker-flamegraphs/cpu.html) | "
                 + "[by thread](broker-flamegraphs/cpu-threads.html) | "
                 + "[heatmap](broker-flamegraphs/cpu-heatmap.html) | "
@@ -102,6 +105,32 @@ public class ProfileReportTest {
         assertTrue(report.contains("## producer\n"), report);
         assertFalse(report.contains("producer throughput"), report);
         assertFalse(report.contains("### "), report);
+    }
+
+    @Test
+    public void reportsViewsWithoutOffCpuCapture() throws IOException {
+        Path views = Files.createDirectories(directory.resolve("broker" + JfrFlamegraphViews.OUTPUT_SUFFIX));
+        for (String file : List.of("cpu.html", "alloc.html", "lock.html")) {
+            Files.writeString(views.resolve(file), "");
+        }
+
+        Path file = ProfileReport.write(directory, List.of(directory.resolve("broker.jfr")),
+                new ProfileReport.Run("scenario.yaml", "run-3", Instant.parse("2026-09-25T00:00:00Z"),
+                        Instant.parse("2026-09-25T00:00:10Z"), 0),
+                new ObjectMapper(), directory);
+        String report = Files.readString(file);
+
+        assertFalse(report.contains("Off-CPU"), report);
+        assertTrue(report.contains("### CPU, allocation and lock views\n"), report);
+        assertTrue(report.contains("| lock | [flame graph](broker-flamegraphs/lock.html) |"), report);
+    }
+
+    @Test
+    public void namesViewsInProse() {
+        assertEquals(ProfileReport.inProse(List.of("CPU")), "CPU");
+        assertEquals(ProfileReport.inProse(List.of("CPU", "allocation")), "CPU and allocation");
+        assertEquals(ProfileReport.inProse(List.of("CPU", "wall-clock", "allocation", "lock")),
+                "CPU, wall-clock, allocation and lock");
     }
 
     private static void writeSlice(Path offCpu, String slice, String json) throws IOException {

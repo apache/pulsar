@@ -72,6 +72,8 @@ final class RunReport {
         StringBuilder report = new StringBuilder();
         report.append("# Run report: ").append(run.scenario()).append("\n\n");
         appendRun(report, run);
+        // The profiles come first so that a profiled run leads to its flame graphs
+        appendProfiles(report, runDirectory, mapper);
         appendCorrectness(report, consumers);
         long measurementStart = producer.path("measurementStartEpochMs").asLong();
         long measurementEnd = producer.path("measurementEndEpochMs").asLong();
@@ -81,7 +83,6 @@ final class RunReport {
         if (Files.isRegularFile(stats)) {
             appendTopicStats(report, runDirectory, readSamples(stats), measurementStart, measurementEnd);
         }
-        appendProfiles(report, runDirectory, mapper);
         Path file = runDirectory.resolve(FILE_NAME);
         Files.writeString(file, report);
         MarkdownPages.renderHtml(file, runDirectory, "Run report: " + run.scenario());
@@ -199,13 +200,13 @@ final class RunReport {
                 .append("| Measure | Median | Minimum |\n|---|---:|---:|\n")
                 .append(rateRow("Published msg/s", samples.published(), seconds, finished))
                 .append(rateRow("Dispatched msg/s, all subscriptions", totalDispatched, seconds, finished))
-                .append("\n| Subscription | Sampled maximum backlog from the measurement start | At |"
+                .append("\n| Subscription | Sampled maximum backlog during the measurement | At |"
                         + " Backlog when the producers finished |\n|---|---:|---:|---:|\n");
         for (Map.Entry<String, double[]> entry : samples.backlog().entrySet()) {
             double[] backlog = entry.getValue();
             int peak = -1;
             for (int round = 0; round < rounds; round++) {
-                if (seconds[round] >= 0 && !Double.isNaN(backlog[round])
+                if (seconds[round] >= 0 && seconds[round] <= finished && !Double.isNaN(backlog[round])
                         && (peak < 0 || backlog[round] > backlog[peak])) {
                     peak = round;
                 }
@@ -249,23 +250,29 @@ final class RunReport {
         if (profileReports.isEmpty()) {
             return;
         }
-        report.append("\n## Profiles\n\n| Profile report | Busy off-CPU time (without idle waits) |\n|---|---:|\n");
+        report.append("\n## Profiles\n\n| Profile report | Blocked off-CPU time (without idle waits) |\n"
+                + "|---|---:|\n");
         for (Path profileReport : profileReports) {
             Path directory = profileReport.getParent();
-            double busySeconds = 0;
+            double blockedSeconds = 0;
+            boolean offCpuCaptured = false;
             try (Stream<Path> slices = Files.list(directory)) {
                 for (Path offCpu : slices.filter(path -> path.getFileName().toString()
                         .endsWith(OffCpuFlamegraphs.OUTPUT_SUFFIX)).toList()) {
                     Path json = offCpu.resolve(OffCpuFlamegraphs.NO_IDLE_SLICE + ".json");
                     if (Files.isRegularFile(json)) {
-                        busySeconds += Long.parseLong(mapper.readTree(json.toFile()).path("totalNanos").asText("0"))
-                                / 1e9;
+                        offCpuCaptured = true;
+                        blockedSeconds += Long.parseLong(mapper.readTree(json.toFile()).path("totalNanos")
+                                .asText("0")) / 1e9;
                     }
                 }
             }
             String name = directory.getFileName().toString();
             report.append("| [").append(name).append("](").append(name).append("/").append(ProfileReport.FILE_NAME)
-                    .append(") | ").append(String.format(Locale.ROOT, "%.1f s", busySeconds)).append(" |\n");
+                    .append(") | ")
+                    // Without off-CPU capture, the profile has only its JFR views.
+                    .append(offCpuCaptured ? String.format(Locale.ROOT, "%.1f s", blockedSeconds) : "not captured")
+                    .append(" |\n");
         }
     }
 

@@ -75,12 +75,21 @@ public class RunReportTest {
         long[] out1 = {0, 100_000, 200_000, 200_000, 350_000, 450_000, 500_000, 500_000};
         for (int round = 0; round < in.length; round++) {
             long epoch = START - 1000 + round * 1000L;
-            csv.append(epoch).append(",persistent://public/default/t-0,sub-0,").append(in[round] - out0[round])
+            // sub-0 carries a warmup backlog before the measurement, which its maximum leaves out
+            csv.append(epoch).append(",persistent://public/default/t-0,sub-0,")
+                    .append(round == 0 ? 900_000 : in[round] - out0[round])
                     .append(',').append(in[round]).append(',').append(out0[round]).append('\n');
             csv.append(epoch).append(",persistent://public/default/t-0,sub-1,").append(in[round] - out1[round])
                     .append(',').append(in[round]).append(',').append(out1[round]).append('\n');
         }
         Files.writeString(run.resolve(TopicStatsSampler.FILE_NAME), csv);
+        // The broker was profiled with off-CPU capture, the producer with async-profiler only.
+        Path offCpu = Files.createDirectories(run.resolve("broker-profile/broker" + OffCpuFlamegraphs.OUTPUT_SUFFIX));
+        Files.writeString(offCpu.resolve(OffCpuFlamegraphs.NO_IDLE_SLICE + ".json"),
+                "{\"totalNanos\": \"4677199858\"}");
+        Files.writeString(run.resolve("broker-profile/" + ProfileReport.FILE_NAME), "");
+        Files.createDirectories(run.resolve("producer-profile/producer" + JfrFlamegraphViews.OUTPUT_SUFFIX));
+        Files.writeString(run.resolve("producer-profile/" + ProfileReport.FILE_NAME), "");
 
         Path file = RunReport.write(run, new RunReport.Run("scenario.yaml", "run-1", "image:tag",
                 json("{\"brokers\": 1, \"bookies\": 3, \"brokerEnvs\": {\"managedLedgerDefaultEnsembleSize\": \"1\","
@@ -91,6 +100,12 @@ public class RunReportTest {
                 mapper);
         String report = Files.readString(file);
 
+        assertTrue(report.contains("| [broker-profile](broker-profile/profile-report.md) | 4.7 s |"), report);
+        assertTrue(report.contains("| [producer-profile](producer-profile/profile-report.md) | not captured |"),
+                report);
+        // The profiles follow the run's settings
+        assertTrue(report.indexOf("## Profiles") > report.indexOf("| Setting |"), report);
+        assertTrue(report.indexOf("## Profiles") < report.indexOf("## Correctness"), report);
         assertTrue(report.contains("| Ledger replication | E=1, W=1, A=1 |"), report);
         assertTrue(report.contains("| 1 | 500,000 | 1 | 0 | 0 |"), report);
         assertTrue(report.contains("**Duplicates, ordering violations or invalid messages were received.**"), report);
@@ -106,6 +121,7 @@ public class RunReportTest {
         // the first and catches up in the second, so the total's minimum drops to 100,000.
         assertTrue(report.contains("| Dispatched msg/s, all subscriptions | 250,000 | 100,000 |"), report);
         assertTrue(report.contains("| `sub-1` | 100,000 | 2 s | 50,000 |"), report);
+        assertTrue(report.contains("| `sub-0` | 0 | 0 s | 0 |"), report);
         for (String chart : new String[] {"latency-histograms", "throughput", "backlog"}) {
             assertTrue(report.contains("](" + chart + ".svg)"), report);
             assertTrue(Files.isRegularFile(run.resolve(chart + ".svg")), chart);

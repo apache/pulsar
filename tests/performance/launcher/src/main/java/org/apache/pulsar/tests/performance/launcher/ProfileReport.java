@@ -25,14 +25,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
 /**
  * Writes {@code profile-report.md} into a directory of profiled recordings, such as {@code broker-profile/}: the run
  * it belongs to, and for each recording links to the off-CPU digest, the off-CPU flame graphs with their totals, and
- * the CPU, allocation, lock and wall-clock views. Links are relative, so the directory can be moved or archived, and
- * only files that exist are listed.
+ * the CPU, allocation, lock or wall-clock views that were rendered. Links are relative, so the directory can be moved
+ * or archived, and only files that exist are listed.
  */
 final class ProfileReport {
     static final String FILE_NAME = "profile-report.md";
@@ -138,11 +139,13 @@ final class ProfileReport {
             return;
         }
         StringBuilder rows = new StringBuilder();
+        List<String> rendered = new ArrayList<>();
         for (JfrFlamegraphViews.View view : JfrFlamegraphViews.View.values()) {
             String label = view.label();
             if (!Files.isRegularFile(directory.resolve(views).resolve(label + ".html"))) {
                 continue;
             }
+            rendered.add(view.description());
             rows.append("| ").append(label).append(" | ")
                     .append(link(directory, views, label + ".html", "flame graph")).append(" | ")
                     .append(link(directory, views, label + JfrFlamegraphViews.THREADS_SUFFIX + ".html",
@@ -152,10 +155,23 @@ final class ProfileReport {
                     .append(link(directory, views, label + ".collapsed", "collapsed")).append(" |\n");
         }
         if (!rows.isEmpty()) {
-            report.append("\n### CPU, allocation, lock and wall-clock views\n\n")
+            report.append("\n### ").append(capitalize(inProse(rendered)))
+                    .append(rendered.size() == 1 ? " view\n\n" : " views\n\n")
                     .append("| View | Flame graph | By thread | Over time | Stacks |\n|---|---|---|---|---|\n")
                     .append(rows);
         }
+    }
+
+    /** "CPU", "CPU and allocation", "CPU, allocation and lock". */
+    static String inProse(List<String> items) {
+        if (items.size() <= 1) {
+            return String.join("", items);
+        }
+        return String.join(", ", items.subList(0, items.size() - 1)) + " and " + items.get(items.size() - 1);
+    }
+
+    private static String capitalize(String text) {
+        return text.isEmpty() ? text : Character.toUpperCase(text.charAt(0)) + text.substring(1);
     }
 
     private static String link(Path directory, String subdirectory, String file, String text) {
