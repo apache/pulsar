@@ -37,10 +37,16 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 @Command(name = "iot-produce", description = "Produce keyed IoT telemetry through isolated gateway clients")
 final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
     private static final int STATE_VERSION = 1;
+
+    @Option(names = "--await-measurement-start",
+            description = "Before the first measured message, signal readiness in the coordination directory and wait "
+                    + "for the launcher to start the measurement, for example after letting the host cool down")
+    boolean awaitMeasurementStart;
 
     @Override
     public Integer call() throws Exception {
@@ -107,6 +113,14 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
 
                 boolean measurementMessage = sent >= warmupMessageCount;
                 if (measurementMessage && measurementStartedNanos < 0) {
+                    if (awaitMeasurementStart) {
+                        // The warmup rounds have been received; the launcher lets the host cool down first.
+                        WarmupBarrier.markReadyForMeasurement(coordinationDirectory(), runId);
+                        System.out.println("MEASUREMENT_READY");
+                        WarmupBarrier.awaitMeasurementStart(coordinationDirectory(), runId, runDeadlineNanos);
+                        // Do not turn the wait into a rate-limiter catch-up burst.
+                        nextSend = System.nanoTime();
+                    }
                     measurementStartedNanos = System.nanoTime();
                     measurementStartEpochMs = System.currentTimeMillis();
                     System.out.println("MEASUREMENT_START epochMs=" + measurementStartEpochMs);

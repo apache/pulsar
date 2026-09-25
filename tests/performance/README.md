@@ -100,6 +100,32 @@ The launcher prints the run directory when it starts. In it, `index.html` and `R
 run report, so that a directory of runs served by an HTTP server, or pushed to a GitHub repository, opens each run
 on its report; where the file system has no symbolic links, they are left out.
 
+#### Host temperature and cool-down
+
+A host that heats up during a run lowers its clock speed or throttles, which lowers throughput and adds latency
+stalls, and a run that starts on a CPU that the previous run left hot has less headroom than one that starts cool.
+This matters most on laptops and small desktops, and when runs follow each other, as in an A/B comparison. The
+launcher samples the host's CPU once per second from Linux's sysfs files (`/sys/class/hwmon`, `/sys/class/thermal`
+and `/sys/devices/system/cpu`): the package and hottest core temperature, the core frequencies and the kernel's
+thermal throttle counters. The run report summarizes them in the settings table and in its Host section, and says
+so in bold when the CPU throttled during the measurement. A host without these files, such as one that isn't Linux,
+is not sampled.
+
+To start runs from comparable thermal conditions, let the launcher wait for the CPU package to cool down to a
+temperature, before starting the cluster and again after the warmup rounds, before the first measured message:
+
+```bash
+./gradlew :tests:performance:launcher:run -Pperformance.cooldownTemperature=50 \
+  --args='--config tests/performance/scenarios/iot-key-shared-500x20.yaml'
+```
+
+`--cooldown-temperature <°C>` sets it for one run, and `performance.cooldownTemperature` in
+`~/.gradle/gradle.properties` for every run on a machine. Pick a temperature a few degrees above the host's idle
+temperature, which the first samples of `host-stats.csv` show. `--cooldown-timeout <seconds>` (600 by default)
+bounds each wait; the run goes on after it, and the report says at which temperature. The workloads' timeouts are
+extended by the cool-down timeout, so that a wait before the measurement doesn't fail them. Both waits and their
+durations are in the run report.
+
 #### Browsing the reports over HTTP
 
 The reports are static files, so any HTTP server can serve the reports root, and its directory listings lead
@@ -131,7 +157,7 @@ Every run writes a report into its run directory; open `run-report.html` in a br
 
 | File | Contents |
 |---|---|
-| `run-report.md`, `run-report.html` | The scenario settings, where, by whom and from which commit the run was made, correctness per application, producer and delivered throughput, publish and end-to-end latency percentiles, the sampled backlog and per-second rates, and links to the profile reports of a profiled run and to the run's other files: the scenario as written and resolved, the summaries, container logs (`container.log.txt`, so that HTTP servers show them as text), HDR latency logs and topic stats |
+| `run-report.md`, `run-report.html` | The scenario settings, where, by whom and from which commit the run was made, correctness per application, producer and delivered throughput, publish and end-to-end latency percentiles, the sampled backlog and per-second rates, the host's CPU temperature, frequency and thermal throttling, and links to the profile reports of a profiled run and to the run's other files: the scenario as written and resolved, the summaries, container logs (`container.log.txt`, so that HTTP servers show them as text), HDR latency logs and topic stats |
 | `<scenario>.yaml`, `resolved-config.yaml` | The scenario file as written, and the scenario with its inheritance and environment overrides applied, which the workloads read |
 | `index.html`, `README.md` | Symbolic links to `run-report.html` and `run-report.md` |
 | `run-info.json` | The run's start, host, user, project directory, git branch, commit and uncommitted changes, and Pulsar version, with the keys of `pulsar-version.properties` where they match; the launcher collects them itself, from git and `gradle.properties` in the checkout it runs from |
@@ -142,6 +168,8 @@ Every run writes a report into its run directory; open `run-report.html` in a br
 | `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked |
 | `backlog.svg`, `.png` | Each subscription's backlog over the run |
 | `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
+| `host-temperature.svg`, `.png`, `host-frequency.svg`, `.png` | The CPU package and hottest core temperature, and the mean and lowest core frequency, over the run |
+| `host-stats.csv` | The host's CPU sampled once per second from Linux's sysfs files: package and hottest core temperature, mean and lowest core frequency, the kernel's thermal throttle counters and the fastest fan |
 
 The backlog and the per-second rates come from the topic stats endpoint, polled once per second while the
 producers run and the consumers drain; a sampled maximum is not the exact peak between samples. Every Markdown

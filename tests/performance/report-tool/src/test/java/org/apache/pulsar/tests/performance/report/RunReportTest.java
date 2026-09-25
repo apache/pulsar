@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Stream;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
@@ -106,7 +107,7 @@ public class RunReportTest {
                 new RunInfo(ZonedDateTime.parse("2026-09-25T06:42:59+03:00"), "perf-host", "lari", "Lari Hotari",
                         "lari@example.com", Path.of("/work/pulsar/.claude/worktrees/w1"), "lh-branch",
                         "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT"),
-                ZonedDateTime.parse("2026-09-25T06:46:41+03:00")),
+                ZonedDateTime.parse("2026-09-25T06:46:41+03:00"), List.of()),
                 mapper);
         String report = Files.readString(file);
 
@@ -180,6 +181,65 @@ public class RunReportTest {
         String page = Files.readString(run.resolve("run-report.html"));
         assertThat(page).contains("<img src=\"throughput.svg\"");
         assertThat(page).contains("<img src=\"latency-percentiles.png\"");
+    }
+
+    @Test
+    public void reportsTheHostsThermalState() throws IOException {
+        Files.createDirectories(run.resolve("producer"));
+        Files.writeString(run.resolve("producer/producer-summary.json"), "{\"measurementMessages\": 400000,"
+                + " \"measurementElapsedSeconds\": 4.0, \"messagesPerSecond\": 100000.0,"
+                + " \"measurementStartEpochMs\": " + START + ", \"measurementEndEpochMs\": " + (START + 4000) + "}");
+        // A sample before the measurement, four within it and one after; the counters grow within it, the
+        // host has no fan sensor and the second sample has no frequency
+        Files.writeString(run.resolve(RunReport.HOST_STATS_FILE), RunReport.HOST_STATS_HEADER + "\n"
+                + (START - 1000) + ",52.0,54.0,3500,3000,100,1000,\n"
+                + START + ",70.0,73.0,,,100,1000,\n"
+                + (START + 1000) + ",80.0,84.0,3100,2900,105,1000,\n"
+                + (START + 2000) + ",90.0,95.0,2800,2400,112,1003,\n"
+                + (START + 4000) + ",82.0,85.0,3000,2700,112,1003,\n"
+                + (START + 6000) + ",60.0,61.0,3600,3200,150,1010,\n");
+
+        Path file = RunReport.write(run, new RunReport.Run("scenario.yaml", "run-1", "image:tag",
+                json("{\"brokers\": 1, \"bookies\": 3}"), json("{\"applicationCount\": 1}"), null, null,
+                List.of(new RunReport.Cooldown(RunReport.Cooldown.BEFORE_RUN, 50.0, 78.0, 49.5, 95.0, true),
+                        new RunReport.Cooldown(RunReport.Cooldown.BEFORE_MEASUREMENT, 50.0, 71.0, 58.0, 600.0,
+                                false))), mapper);
+        String report = Files.readString(file);
+
+        assertThat(report).contains("| Host CPU | 52 °C at the start, at most 90 °C and 2,967 MHz on average during"
+                + " the measurement, **thermal throttling** |");
+        assertThat(report).contains("Before the run, the launcher waited 95 s for the CPU package to cool down from"
+                + " 78 °C to 50 °C.");
+        assertThat(report).contains("After the warmup, before the measurement, the launcher waited 600 s for the CPU"
+                + " package to cool down to 50 °C, and went on at 58 °C when the wait timed out.");
+        // Growth from the last sample before the measurement to the last one within it
+        assertThat(report).contains("**The CPU throttled during the measurement:** 12 core and 3 package thermal"
+                + " throttle events");
+        assertThat(report).contains("| CPU package temperature (°C) | 52 | 81 | 70 | 90 |");
+        assertThat(report).contains("| Hottest core temperature (°C) | 54 | 84 | 73 | 95 |");
+        assertThat(report).contains("| Lowest core frequency (MHz) | 3,000 | 2,667 | 2,400 | 2,900 |");
+        // No fan sensor, no fan row
+        assertThat(report).doesNotContain("Fastest fan");
+        assertThat(report).contains("The [sampled host stats](host-stats.csv) are a CSV file.");
+        for (String chart : new String[] {"host-temperature", "host-frequency"}) {
+            assertThat(report).contains("](" + chart + ".svg)");
+            assertThat(run.resolve(chart + ".svg")).isRegularFile();
+        }
+    }
+
+    @Test
+    public void reportsAHostThatDidNotThrottle() throws IOException {
+        Files.writeString(run.resolve(RunReport.HOST_STATS_FILE), RunReport.HOST_STATS_HEADER + "\n"
+                + START + ",60.0,,3100,3100,5,5,4000\n" + (START + 1000) + ",62.0,,3100,3100,5,5,4100\n");
+
+        RunReport.HostSamples samples = RunReport.readHostSamples(run.resolve(RunReport.HOST_STATS_FILE));
+        RunReport.HostSummary summary = RunReport.summarize(samples, START, START + 1000);
+
+        assertThat(summary.throttled()).isFalse();
+        assertThat(summary.fanRpm().max()).isEqualTo(4100.0);
+        assertThat(summary.coreCelsius().mean()).isNaN();
+        assertThat(RunReport.hostSummaryLine(summary)).isEqualTo("60 °C at the start, at most 62 °C and 3,100 MHz"
+                + " on average during the measurement, no thermal throttling");
     }
 
     @Test

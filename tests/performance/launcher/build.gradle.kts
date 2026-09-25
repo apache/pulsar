@@ -78,6 +78,11 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     providers.gradleProperty("performance.reportsDir").orNull?.let {
         systemProperty("performance.reports.dir", rootProject.file(it).absolutePath)
     }
+    // Wait for the CPU package to cool down to this many °C before each run, -Pperformance.cooldownTemperature=<°C>,
+    // so that runs start from comparable thermal conditions. Without it the launcher doesn't wait.
+    providers.gradleProperty("performance.cooldownTemperature").orNull?.let {
+        systemProperty("performance.cooldown.temperature", it)
+    }
 }
 
 tasks.named<JavaExec>("run") {

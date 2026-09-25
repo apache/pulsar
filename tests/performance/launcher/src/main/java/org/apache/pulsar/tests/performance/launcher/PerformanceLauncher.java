@@ -35,11 +35,14 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -89,6 +92,18 @@ public class PerformanceLauncher implements Callable<Integer> {
 
     @Option(names = "--tools-directory", description = "Installed pulsar-performance-tools distribution")
     Path toolsDirectory;
+
+    @Option(names = "--cooldown-temperature", defaultValue = "${sys:performance.cooldown.temperature}",
+            description = "Before starting the cluster, wait until the CPU package temperature is at most this "
+                    + "many °C, so that runs start from comparable thermal conditions; default: no wait")
+    Double cooldownCelsius;
+
+    @Option(names = "--cooldown-timeout", defaultValue = "600",
+            description = "The longest wait for --cooldown-temperature, in seconds; the run starts anyway after it")
+    int cooldownTimeoutSeconds;
+
+    @Option(names = "--sysfs", defaultValue = "/sys", hidden = true)
+    Path sysfs;
 
     public static void main(String[] args) {
         System.exit(new CommandLine(new PerformanceLauncher()).execute(args));
@@ -147,6 +162,11 @@ public class PerformanceLauncher implements Callable<Integer> {
             System.setProperty("inttest.asyncprofiler.outputformat", "jfr");
         }
         Path resolvedConfig = runOutput.resolve(RunReport.RESOLVED_CONFIG);
+        if (cooldownCelsius != null) {
+            // The workloads wait while the host cools down before the measurement; give them the time for it
+            workload.put("consumerTimeoutSeconds", workload.path("consumerTimeoutSeconds").intValue()
+                    + cooldownTimeoutSeconds);
+        }
         loader.write(resolvedConfig, resolved);
         // The scenario as written, beside its resolved form, so that the run report can link both
         Files.copy(config, runOutput.resolve(config.getFileName()), StandardCopyOption.REPLACE_EXISTING);
@@ -177,10 +197,18 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .bookkeeperEnvs(bookkeeperEnvs)
                 .build();
 
+        HostStatsSampler.Sensors sensors = HostStatsSampler.discover(sysfs);
+        List<RunReport.Cooldown> cooldowns = new CopyOnWriteArrayList<>();
+        RunReport.Cooldown beforeRun = coolDown(sensors, RunReport.Cooldown.BEFORE_RUN);
+        if (beforeRun != null) {
+            cooldowns.add(beforeRun);
+        }
+        Thread measurementGate = null;
         PulsarCluster cluster = PulsarCluster.forSpec(spec);
         List<GenericContainer<?>> consumers = new ArrayList<>(applications);
         GenericContainer<?> producer = null;
         TopicStatsSampler topicStatsSampler = null;
+        HostStatsSampler hostStatsSampler = startHostStatsSampler(sensors, runOutput);
         ZonedDateTime workloadFinished;
         try {
             cluster.start();
@@ -199,8 +227,12 @@ public class PerformanceLauncher implements Callable<Integer> {
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                     coordinationDirectory, runId, producerOutput, agentJar, offCpuOptions,
-                    producerProfileOptions, "iot-produce");
+                    producerProfileOptions, "iot-produce",
+                    cooldownCelsius != null ? new String[] {"--await-measurement-start"} : new String[0]);
             topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput);
+            if (cooldownCelsius != null) {
+                measurementGate = startMeasurementGate(sensors, coordinationDirectory, runId, cooldowns);
+            }
             producer.start();
             int timeout = workload.path("consumerTimeoutSeconds").intValue() + 60;
             int producerExit = waitForExit(producer, timeout);
@@ -222,6 +254,12 @@ public class PerformanceLauncher implements Callable<Integer> {
         } finally {
             if (topicStatsSampler != null) {
                 topicStatsSampler.close();
+            }
+            if (hostStatsSampler != null) {
+                hostStatsSampler.close();
+            }
+            if (measurementGate != null) {
+                measurementGate.interrupt();
             }
             if (producer != null) {
                 saveContainerLog(producer, runOutput.resolve("producer").resolve(CONTAINER_LOG));
@@ -282,8 +320,8 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
         }
         Path runReport = RunReport.write(runOutput, new RunReport.Run(config.getFileName().toString(), runId,
-                PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload, runInfo, workloadFinished),
-                loader.mapper());
+                PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload, runInfo, workloadFinished,
+                List.copyOf(cooldowns)), loader.mapper());
         RunDirectory.linkIndexes(runOutput);
         System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
         return 0;
@@ -317,6 +355,93 @@ public class PerformanceLauncher implements Callable<Integer> {
             System.out.println("Topic stats sampling is off for this run: " + e);
             return null;
         }
+    }
+
+    /**
+     * Starts sampling the host's thermal state for the run report. Sampling is an observation, so a failure to
+     * start it is reported and the run goes on without it.
+     */
+    private static HostStatsSampler startHostStatsSampler(HostStatsSampler.Sensors sensors, Path runOutput) {
+        try {
+            HostStatsSampler sampler = HostStatsSampler.start(sensors, runOutput);
+            if (sampler == null) {
+                System.out.println("Host stats sampling is off for this run: no CPU sensors under the sysfs root");
+            }
+            return sampler;
+        } catch (Exception e) {
+            System.out.println("Host stats sampling is off for this run: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Waits until the CPU package has cooled down to --cooldown-temperature, or --cooldown-timeout has passed, so
+     * that a run doesn't start on a CPU that the previous run or the image build left hot. Returns what happened,
+     * for the run report, or {@code null} when no cool-down was asked for or the host has no temperature sensor.
+     */
+    private RunReport.Cooldown coolDown(HostStatsSampler.Sensors sensors, String phase)
+            throws InterruptedException {
+        if (cooldownCelsius == null) {
+            return null;
+        }
+        OptionalDouble initial = sensors.packageCelsius();
+        if (initial.isEmpty()) {
+            System.out.println("No cool-down: the host has no CPU temperature sensor");
+            return null;
+        }
+        long start = System.nanoTime();
+        long deadline = start + TimeUnit.SECONDS.toNanos(cooldownTimeoutSeconds);
+        long nextProgress = start;
+        double current = initial.getAsDouble();
+        while (current > cooldownCelsius && System.nanoTime() < deadline) {
+            if (System.nanoTime() >= nextProgress) {
+                System.out.printf(Locale.ROOT, "Cooling down: CPU package at %.0f °C, waiting for %.0f °C%n",
+                        current, cooldownCelsius);
+                nextProgress = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+            }
+            Thread.sleep(2000);
+            current = sensors.packageCelsius().orElse(current);
+        }
+        double waitedSeconds = (System.nanoTime() - start) / 1e9;
+        boolean reached = current <= cooldownCelsius;
+        System.out.printf(Locale.ROOT, "%s: CPU package at %.0f °C after %.0f s%n",
+                reached ? "Cooled down" : "Cool-down timed out", current, waitedSeconds);
+        return new RunReport.Cooldown(phase, cooldownCelsius, initial.getAsDouble(), current, waitedSeconds,
+                reached);
+    }
+
+    /**
+     * Lets the host cool down again between the warmup and the measurement: the producer signals, through the
+     * coordination directory, that every warmup round has been received, and waits until this thread lets the
+     * measurement start. The start is always signalled, also when the cool-down fails, so that the producer never
+     * waits for a launcher that has given up.
+     */
+    private Thread startMeasurementGate(HostStatsSampler.Sensors sensors, Path coordinationDirectory, String runId,
+                                        List<RunReport.Cooldown> cooldowns) {
+        Path ready = coordinationDirectory.resolve("measurement-" + runId + ".ready");
+        Path start = coordinationDirectory.resolve("measurement-" + runId + ".start");
+        Thread gate = new Thread(() -> {
+            try {
+                while (!Files.isRegularFile(ready)) {
+                    Thread.sleep(100);
+                }
+                RunReport.Cooldown cooldown = coolDown(sensors, RunReport.Cooldown.BEFORE_MEASUREMENT);
+                if (cooldown != null) {
+                    cooldowns.add(cooldown);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                try {
+                    Files.writeString(start, "start\n");
+                } catch (IOException e) {
+                    System.out.println("Couldn't start the measurement: " + e);
+                }
+            }
+        }, "measurement-gate");
+        gate.setDaemon(true);
+        gate.start();
+        return gate;
     }
 
     /**

@@ -44,11 +44,21 @@ public final class RunReport {
     static final String LATENCY_CHART = "latency";
     static final String THROUGHPUT_CHART = "throughput";
     static final String BACKLOG_CHART = "backlog";
+    static final String TEMPERATURE_CHART = "host-temperature";
+    static final String FREQUENCY_CHART = "host-frequency";
     public static final String RESOLVED_CONFIG = "resolved-config.yaml";
     /** The broker's topic stats sampled during a run, one row per topic, subscription and sample. */
     public static final String TOPIC_STATS_FILE = "topic-stats.csv";
     public static final String TOPIC_STATS_HEADER =
             "epochMillis,topic,subscription,msgBacklog,msgInCounter,msgOutCounter";
+    /**
+     * The host's thermal state sampled during a run, one row per second: temperatures in °C, frequencies in MHz, the
+     * thermal throttle counters since boot (the most on any logical CPU) and the fastest fan in rpm. A value the host
+     * doesn't provide is empty.
+     */
+    public static final String HOST_STATS_FILE = "host-stats.csv";
+    public static final String HOST_STATS_HEADER =
+            "epochMillis,packageCelsius,coreCelsius,meanMHz,minMHz,coreThrottles,packageThrottles,fanRpm";
     // .txt, so that an HTTP server such as Python's shows the log as text instead of offering a download
     public static final String CONTAINER_LOG = "container.log.txt";
     private static final String MEASUREMENT_RECORDING_SUFFIX = ".measurement.jfr";
@@ -60,10 +70,41 @@ public final class RunReport {
      *
      * @param info where, by whom and from which code the run was made; {@code null} leaves it out
      * @param finished when the workload finished, for the charts' footer; {@code null} leaves the end out
+     * @param cooldowns how the launcher waited for the CPU to cool down, in order; empty if it didn't
      */
     public record Run(String scenario, String runId, String image, JsonNode cluster, JsonNode workload,
-                      RunInfo info,
-               ZonedDateTime finished) {
+                      RunInfo info, ZonedDateTime finished, List<Cooldown> cooldowns) {
+    }
+
+    /**
+     * A wait of the launcher for the CPU package to cool down to {@code targetCelsius}.
+     *
+     * @param phase when the launcher waited: {@link #BEFORE_RUN} or {@link #BEFORE_MEASUREMENT}
+     * @param reached whether the package reached the target before the wait timed out
+     */
+    public record Cooldown(String phase, double targetCelsius, double initialCelsius, double finalCelsius,
+                           double waitedSeconds, boolean reached) {
+        /** Before the cluster started. */
+        public static final String BEFORE_RUN = "Before the run";
+        /** After the warmup rounds had been received, before the first measured message. */
+        public static final String BEFORE_MEASUREMENT = "After the warmup, before the measurement";
+    }
+
+    /** The sampled host stats of a run: one value per sample and column of {@link #HOST_STATS_HEADER}, or NaN. */
+    record HostSamples(long[] epochMillis, double[] packageCelsius, double[] coreCelsius, double[] meanMegaHertz,
+                       double[] minMegaHertz, double[] coreThrottles, double[] packageThrottles, double[] fanRpm) {
+    }
+
+    /** The host's state during the measurement, summarized from its samples. */
+    record HostSummary(double startCelsius, Stats packageCelsius, Stats coreCelsius, Stats meanMegaHertz,
+                       Stats minMegaHertz, Stats fanRpm, long coreThrottles, long packageThrottles) {
+        boolean throttled() {
+            return coreThrottles > 0 || packageThrottles > 0;
+        }
+    }
+
+    /** The mean, minimum and maximum of a column during the measurement, NaN when it has no values. */
+    record Stats(double mean, double min, double max) {
     }
 
     /**
@@ -113,19 +154,26 @@ public final class RunReport {
                 consumerHistograms.add(directory.resolve("consume-latency.hdr"));
             }
         }
+        long measurementStart = producer.path("measurementStartEpochMs").asLong();
+        long measurementEnd = producer.path("measurementEndEpochMs").asLong();
+        Path hostStats = runDirectory.resolve(HOST_STATS_FILE);
+        HostSamples hostSamples = Files.isRegularFile(hostStats) ? readHostSamples(hostStats) : null;
+        HostSummary host = hostSamples != null ? summarize(hostSamples, measurementStart, measurementEnd) : null;
         StringBuilder report = new StringBuilder();
         report.append("# Run report: ").append(run.scenario()).append("\n\n");
-        appendRun(report, runDirectory, run);
+        appendRun(report, runDirectory, run, host);
         // The profiles come first so that a profiled run leads to its flame graphs
         appendProfiles(report, runDirectory, mapper);
         appendCorrectness(report, run.workload(), consumers);
-        long measurementStart = producer.path("measurementStartEpochMs").asLong();
-        long measurementEnd = producer.path("measurementEndEpochMs").asLong();
         appendThroughput(report, producer, consumers);
         appendLatency(report, runDirectory, run, consumerHistograms, measurementStart);
         Path stats = runDirectory.resolve(TOPIC_STATS_FILE);
         if (Files.isRegularFile(stats)) {
             appendTopicStats(report, runDirectory, readSamples(stats), measurementStart, measurementEnd,
+                    chartFooter(run.info(), run.finished()));
+        }
+        if (hostSamples != null) {
+            appendHost(report, runDirectory, hostSamples, host, run.cooldowns(), measurementStart, measurementEnd,
                     chartFooter(run.info(), run.finished()));
         }
         appendFiles(report, runDirectory, run.workload());
@@ -135,7 +183,7 @@ public final class RunReport {
         return file;
     }
 
-    private static void appendRun(StringBuilder report, Path runDirectory, Run run) {
+    private static void appendRun(StringBuilder report, Path runDirectory, Run run, HostSummary host) {
         JsonNode workload = run.workload();
         JsonNode cluster = run.cluster();
         // The launcher copies the scenario file and writes its resolved form into the run directory
@@ -165,7 +213,33 @@ public final class RunReport {
                         + (workload.path("batchingEnabled").asBoolean() ? "on" : "off")))
                 .append(row("Rate limit", workload.path("rate").asLong() > 0
                         ? String.format(Locale.ROOT, "%,d msg/s", workload.path("rate").asLong()) : "none"));
+        if (host != null) {
+            report.append(row("Host CPU", hostSummaryLine(host)));
+        }
         appendRunInfo(report, run.info());
+    }
+
+    /**
+     * One line on the host's thermal state for the settings table, such as "68 °C at the start, at most 78 °C and
+     * 3,100 MHz on average during the measurement, no thermal throttling".
+     */
+    static String hostSummaryLine(HostSummary host) {
+        List<String> parts = new ArrayList<>();
+        if (!Double.isNaN(host.startCelsius())) {
+            parts.add(String.format(Locale.ROOT, "%.0f °C at the start", host.startCelsius()));
+        }
+        List<String> measurement = new ArrayList<>();
+        if (!Double.isNaN(host.packageCelsius().max())) {
+            measurement.add(String.format(Locale.ROOT, "at most %.0f °C", host.packageCelsius().max()));
+        }
+        if (!Double.isNaN(host.meanMegaHertz().mean())) {
+            measurement.add(String.format(Locale.ROOT, "%,.0f MHz on average", host.meanMegaHertz().mean()));
+        }
+        if (!measurement.isEmpty()) {
+            parts.add(String.join(" and ", measurement) + " during the measurement");
+        }
+        parts.add(host.throttled() ? "**thermal throttling**" : "no thermal throttling");
+        return String.join(", ", parts);
     }
 
     // The run's own records, collapsed at the end, for a reader who browses the run directory, for example over HTTP
@@ -388,6 +462,161 @@ public final class RunReport {
                 seconds, backlog, finished, footer);
         report.append("\n![Throughput over time](").append(THROUGHPUT_CHART).append(".svg)\n\n![Backlog over time](")
                 .append(BACKLOG_CHART).append(".svg)\n");
+    }
+
+    private static void appendHost(StringBuilder report, Path runDirectory, HostSamples samples, HostSummary host,
+                                   List<Cooldown> cooldowns, long measurementStart, long measurementEnd,
+                                   String footer)
+            throws IOException {
+        report.append("\n## Host\n\nThe host's CPU, sampled once per second from Linux's sysfs files. The")
+                .append(" [sampled host stats](").append(HOST_STATS_FILE).append(") are a CSV file.\n\n");
+        for (Cooldown cooldown : cooldowns != null ? cooldowns : List.<Cooldown>of()) {
+            report.append(cooldown.reached()
+                    ? String.format(Locale.ROOT, "%s, the launcher waited %.0f s for the CPU package to cool down"
+                            + " from %.0f °C to %.0f °C.%n%n", cooldown.phase(), cooldown.waitedSeconds(),
+                            cooldown.initialCelsius(), cooldown.targetCelsius())
+                    : String.format(Locale.ROOT, "%s, the launcher waited %.0f s for the CPU package to cool down"
+                            + " to %.0f °C, and went on at %.0f °C when the wait timed out.%n%n", cooldown.phase(),
+                            cooldown.waitedSeconds(), cooldown.targetCelsius(), cooldown.finalCelsius()));
+        }
+        if (host.throttled()) {
+            report.append(String.format(Locale.ROOT, "**The CPU throttled during the measurement:** %,d core and %,d"
+                    + " package thermal throttle events (the most on any CPU), so the host ran below its capacity"
+                    + " for part of the run.%n%n", host.coreThrottles(), host.packageThrottles()));
+        } else {
+            report.append("No thermal throttling during the measurement.\n\n");
+        }
+        report.append("| Measure | At the start | Mean | Minimum | Maximum |\n|---|---:|---:|---:|---:|\n")
+                .append(hostRow("CPU package temperature (°C)", samples.packageCelsius()[0], host.packageCelsius(),
+                        "%.0f"))
+                .append(hostRow("Hottest core temperature (°C)", samples.coreCelsius()[0], host.coreCelsius(),
+                        "%.0f"))
+                .append(hostRow("Core frequency, mean over the cores (MHz)", samples.meanMegaHertz()[0],
+                        host.meanMegaHertz(), "%,.0f"))
+                .append(hostRow("Lowest core frequency (MHz)", samples.minMegaHertz()[0], host.minMegaHertz(),
+                        "%,.0f"))
+                .append(hostRow("Fastest fan (rpm)", samples.fanRpm()[0], host.fanRpm(), "%,.0f"));
+        report.append("\nThe mean, minimum and maximum are those of the measurement; the start is the first sample,"
+                + " taken when the cluster started.\n");
+        int rounds = samples.epochMillis().length;
+        if (rounds < 2) {
+            return;
+        }
+        double[] seconds = new double[rounds];
+        for (int round = 0; round < rounds; round++) {
+            seconds[round] = (samples.epochMillis()[round] - measurementStart) / 1000.0;
+        }
+        double finished = (measurementEnd - measurementStart) / 1000.0;
+        List<String> charts = new ArrayList<>();
+        if (hasValues(samples.packageCelsius()) || hasValues(samples.coreCelsius())) {
+            List<TimeSeriesRenderer.Series> temperatures = new ArrayList<>();
+            temperatures.add(new TimeSeriesRenderer.Series("CPU package", samples.packageCelsius()));
+            if (hasValues(samples.coreCelsius())) {
+                temperatures.add(new TimeSeriesRenderer.Series("Hottest core", samples.coreCelsius(), true));
+            }
+            TimeSeriesRenderer.render(runDirectory.resolve(TEMPERATURE_CHART), "CPU temperature", "°C, sampled once"
+                    + " per second", seconds, temperatures, finished, footer);
+            charts.add("![CPU temperature over time](" + TEMPERATURE_CHART + ".svg)");
+        }
+        if (hasValues(samples.meanMegaHertz())) {
+            TimeSeriesRenderer.render(runDirectory.resolve(FREQUENCY_CHART), "CPU frequency", "MHz, sampled once"
+                    + " per second", seconds, List.of(
+                            new TimeSeriesRenderer.Series("Mean over the cores", samples.meanMegaHertz()),
+                            new TimeSeriesRenderer.Series("Lowest core", samples.minMegaHertz(), true)),
+                    finished, footer);
+            charts.add("![CPU frequency over time](" + FREQUENCY_CHART + ".svg)");
+        }
+        for (String chart : charts) {
+            report.append('\n').append(chart).append('\n');
+        }
+    }
+
+    private static String hostRow(String label, double start, Stats stats, String format) {
+        if (Double.isNaN(start) && Double.isNaN(stats.mean())) {
+            return "";
+        }
+        return "| " + label + " | " + formatValue(start, format) + " | " + formatValue(stats.mean(), format) + " | "
+                + formatValue(stats.min(), format) + " | " + formatValue(stats.max(), format) + " |\n";
+    }
+
+    private static String formatValue(double value, String format) {
+        return Double.isNaN(value) ? "" : String.format(Locale.ROOT, format, value);
+    }
+
+    private static boolean hasValues(double[] values) {
+        return Arrays.stream(values).anyMatch(value -> !Double.isNaN(value));
+    }
+
+    /** Reads {@code host-stats.csv}; an empty value is NaN. */
+    static HostSamples readHostSamples(Path csv) throws IOException {
+        List<String> lines = Files.readAllLines(csv);
+        int rounds = lines.size() - 1;
+        long[] epochMillis = new long[rounds];
+        double[][] columns = new double[7][rounds];
+        for (int round = 0; round < rounds; round++) {
+            String[] fields = lines.get(round + 1).split(",", -1);
+            epochMillis[round] = Long.parseLong(fields[0]);
+            for (int column = 0; column < columns.length; column++) {
+                String field = column + 1 < fields.length ? fields[column + 1] : "";
+                columns[column][round] = field.isEmpty() ? Double.NaN : Double.parseDouble(field);
+            }
+        }
+        return new HostSamples(epochMillis, columns[0], columns[1], columns[2], columns[3], columns[4], columns[5],
+                columns[6]);
+    }
+
+    /**
+     * Summarizes the samples within the measurement. The throttle events are the counters' growth from the last
+     * sample before the measurement, or the first sample, to the last sample within it.
+     */
+    static HostSummary summarize(HostSamples samples, long measurementStart, long measurementEnd) {
+        long[] epochs = samples.epochMillis();
+        int first = -1;
+        int last = -1;
+        int before = 0;
+        for (int round = 0; round < epochs.length; round++) {
+            if (epochs[round] < measurementStart) {
+                before = round;
+            } else if (epochs[round] <= measurementEnd) {
+                if (first < 0) {
+                    first = round;
+                }
+                last = round;
+            }
+        }
+        double startCelsius = epochs.length > 0 ? samples.packageCelsius()[0] : Double.NaN;
+        if (first < 0) {
+            Stats none = new Stats(Double.NaN, Double.NaN, Double.NaN);
+            return new HostSummary(startCelsius, none, none, none, none, none, 0, 0);
+        }
+        return new HostSummary(startCelsius, stats(samples.packageCelsius(), first, last),
+                stats(samples.coreCelsius(), first, last), stats(samples.meanMegaHertz(), first, last),
+                stats(samples.minMegaHertz(), first, last), stats(samples.fanRpm(), first, last),
+                growth(samples.coreThrottles(), before, last), growth(samples.packageThrottles(), before, last));
+    }
+
+    private static Stats stats(double[] values, int first, int last) {
+        double sum = 0;
+        double min = Double.NaN;
+        double max = Double.NaN;
+        int count = 0;
+        for (int round = first; round <= last; round++) {
+            double value = values[round];
+            if (!Double.isNaN(value)) {
+                sum += value;
+                min = Double.isNaN(min) ? value : Math.min(min, value);
+                max = Double.isNaN(max) ? value : Math.max(max, value);
+                count++;
+            }
+        }
+        return new Stats(count > 0 ? sum / count : Double.NaN, min, max);
+    }
+
+    private static long growth(double[] counters, int from, int to) {
+        if (Double.isNaN(counters[from]) || Double.isNaN(counters[to])) {
+            return 0;
+        }
+        return Math.max(0, (long) (counters[to] - counters[from]));
     }
 
     private static void appendProfiles(StringBuilder report, Path runDirectory, ObjectMapper mapper)
