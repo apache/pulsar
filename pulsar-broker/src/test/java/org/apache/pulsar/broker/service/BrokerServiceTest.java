@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_LOG;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
@@ -2264,6 +2265,51 @@ public class BrokerServiceTest extends BrokerTestBase {
             }
         } finally {
             serviceConfiguration.setManagedLedgerReadEntriesCallbackInline(originalInline);
+        }
+    }
+
+    @Test
+    public void testManagedLedgerMaxAddBatchSizeConfiguration() throws Exception {
+        var serviceConfiguration = pulsar.getConfiguration();
+        int originalMaxAddBatchSize = serviceConfiguration.getManagedLedgerMaxAddBatchSize();
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/add-batch-" + UUID.randomUUID());
+        BrokerService brokerService = pulsar.getBrokerService();
+        assertThat(brokerService.isDynamicConfiguration("managedLedgerMaxAddBatchSize")).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration("managedLedgerMaxAddBatchSize", "0")).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration("managedLedgerMaxAddBatchSize", "256")).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration("managedLedgerMaxAddBatchSize", "-1")).isFalse();
+        assertThat(brokerService.validateDynamicConfiguration("managedLedgerMaxAddBatchSize", "abc")).isFalse();
+        try {
+            for (int maxAddBatchSize : new int[]{0, 1, 256}) {
+                serviceConfiguration.setManagedLedgerMaxAddBatchSize(maxAddBatchSize);
+                ManagedLedgerConfig ledgerConfig = brokerService.getManagedLedgerConfig(topicName)
+                        .get(10, TimeUnit.SECONDS);
+                assertThat(ledgerConfig.getMaxAddBatchSize()).isEqualTo(maxAddBatchSize);
+            }
+        } finally {
+            serviceConfiguration.setManagedLedgerMaxAddBatchSize(originalMaxAddBatchSize);
+        }
+    }
+
+    @Test
+    public void testManagedLedgerMaxAddBatchSizeDynamicUpdate() throws Exception {
+        var serviceConfiguration = pulsar.getConfiguration();
+        int originalMaxAddBatchSize = serviceConfiguration.getManagedLedgerMaxAddBatchSize();
+        String topicName = "persistent://prop/ns-abc/add-batch-dynamic-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        try {
+            admin.brokers().updateDynamicConfiguration("managedLedgerMaxAddBatchSize", "16");
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(serviceConfiguration.getManagedLedgerMaxAddBatchSize()).isEqualTo(16);
+                assertThat(topic.getManagedLedger().getConfig().getMaxAddBatchSize()).isEqualTo(16);
+            });
+            assertThatThrownBy(() -> admin.brokers().updateDynamicConfiguration("managedLedgerMaxAddBatchSize", "-1"))
+                    .isInstanceOf(PulsarAdminException.class);
+        } finally {
+            admin.brokers().deleteDynamicConfiguration("managedLedgerMaxAddBatchSize");
+            Awaitility.await().untilAsserted(() -> assertThat(serviceConfiguration.getManagedLedgerMaxAddBatchSize())
+                    .isEqualTo(originalMaxAddBatchSize));
         }
     }
 

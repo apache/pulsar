@@ -230,6 +230,7 @@ public class PulsarConfigurationLoaderTest {
         ServiceConfiguration defaults = PulsarConfigurationLoader.create(properties, ServiceConfiguration.class);
         assertEquals(defaults.getReplicationMaxReadProcessingStepsPerTurn(), 64);
         assertTrue(defaults.isManagedLedgerReadEntriesCallbackInline());
+        assertEquals(defaults.getManagedLedgerMaxAddBatchSize(), 1024);
         assertTrue(isComplete(defaults));
 
         for (int limit : new int[] {1, 3, 64, 128, 0, -1}) {

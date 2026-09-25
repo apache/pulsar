@@ -342,8 +342,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // the thread that finds no batch task scheduled submits one, and that task runs every add queued by then. The
     // executor's own queue then sees one task per batch rather than one per add, so concurrent publishers contend on
     // it once per batch, and other executor work (add completions, cursor notifications) does not wait behind a task
-    // per published message.
-    private static final int MAX_ADDS_PER_BATCH = 1024;
+    // per published message. A batch runs at most maxAddBatchSize adds, captured when the ledger is opened; 0 disables
+    // batching, and each add is then submitted to the executor as a task of its own.
     // Chunk size of the add batch queue; the queue grows by linking chunks of this size when a batch backs up.
     private static final int ADD_BATCH_QUEUE_CHUNK_SIZE = 512;
     @SuppressWarnings("rawtypes")
@@ -353,6 +353,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // Created by the first add, so that ledgers that are never written to do not allocate it, and never replaced.
     private volatile MpscUnboundedArrayQueue<Runnable> addBatchQueue;
     private final AtomicBoolean addBatchScheduled = new AtomicBoolean();
+    private final int maxAddBatchSize;
 
     // Captured at ledger creation so configuration updates cannot change affinity with callbacks still queued.
     private final boolean readEntriesCallbackInline;
@@ -422,6 +423,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // withOrderingKey, so their processing can run inline with executeOrRun() instead of re-queueing.
         this.executor = (ThreadBoundExecutor) bookKeeper.getMainWorkerPool().chooseThread(name);
         this.readEntriesCallbackInline = config.isReadEntriesCallbackInline();
+        this.maxAddBatchSize = config.getMaxAddBatchSize();
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
@@ -886,12 +888,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         buffer.retain();
 
         // Jump to specific thread to avoid contention from writers writing from different threads, batching the adds
-        // across the thread boundary.
-        addBatchQueue().offer(() -> {
+        // across the thread boundary unless batching is disabled.
+        Runnable add = () -> {
             OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
                     currentLedgerTimeoutTriggered);
             internalAsyncAddEntry(addOperation);
-        });
+        };
+        if (maxAddBatchSize == 0) {
+            executor.execute(add);
+            return;
+        }
+        addBatchQueue().offer(add);
         scheduleAddBatch();
     }
 
@@ -934,7 +941,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
         Runnable add;
-        for (int i = 0; i < MAX_ADDS_PER_BATCH && (add = queue.poll()) != null; i++) {
+        for (int i = 0; i < maxAddBatchSize && (add = queue.poll()) != null; i++) {
             try {
                 add.run();
             } catch (Throwable t) {
@@ -4724,6 +4731,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     /** Returns the read-completion policy captured when this ledger was opened. */
     boolean isReadEntriesCallbackInline() {
         return readEntriesCallbackInline;
+    }
+
+    /** Returns the maximum add batch size captured when this ledger was opened. */
+    @VisibleForTesting
+    int getMaxAddBatchSize() {
+        return maxAddBatchSize;
     }
 
     /**

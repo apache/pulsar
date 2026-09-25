@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -614,11 +615,50 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
-    @Test(timeOut = 30000)
-    public void testConcurrentAsyncAddEntriesKeepPerThreadOrder() throws Exception {
+    @Test(timeOut = 20000)
+    public void testAddBatchingDisabled() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_batching_disabled",
+                initManagedLedgerConfig(defaultConfig().setMaxAddBatchSize(0)));
+
+        Position position = ledger.addEntry("entry".getBytes(Encoding));
+
+        // Each add is submitted to the executor on its own, without the add batch queue.
+        assertFalse(ledger.hasAddBatchQueue());
+        assertEquals(ledger.getLastConfirmedEntry(), position);
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testMaxAddBatchSizeIsCapturedWhenOpened() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig().setMaxAddBatchSize(16));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_batch_size_captured", config);
+        assertEquals(ledger.getMaxAddBatchSize(), 16);
+
+        config.setMaxAddBatchSize(0);
+        ledger.setConfig(initManagedLedgerConfig(defaultConfig().setMaxAddBatchSize(0)));
+
+        assertEquals(ledger.getMaxAddBatchSize(), 16);
+        ledger.close();
+    }
+
+    @Test
+    public void testMaxAddBatchSizeRejectsNegativeValues() {
+        assertEquals(new ManagedLedgerConfig().getMaxAddBatchSize(), 1024);
+        assertThatThrownBy(() -> new ManagedLedgerConfig().setMaxAddBatchSize(-1))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @DataProvider
+    public Object[][] maxAddBatchSizes() {
+        return new Object[][] {{0}, {1}, {1024}};
+    }
+
+    @Test(timeOut = 30000, dataProvider = "maxAddBatchSizes")
+    public void testConcurrentAsyncAddEntriesKeepPerThreadOrder(int maxAddBatchSize) throws Exception {
         int threads = 8;
         int entriesPerThread = 2000;
-        ManagedLedger ledger = factory.open("concurrent_adds", initManagedLedgerConfig(defaultConfig()));
+        ManagedLedger ledger = factory.open("concurrent_adds_" + maxAddBatchSize,
+                initManagedLedgerConfig(defaultConfig().setMaxAddBatchSize(maxAddBatchSize)));
         List<List<Position>> positionsByThread = new ArrayList<>();
         CountDownLatch completed = new CountDownLatch(threads * entriesPerThread);
         AtomicReference<Throwable> failure = new AtomicReference<>();

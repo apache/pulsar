@@ -2576,6 +2576,7 @@ public class BrokerService implements Closeable {
             }
             managedLedgerConfig.setBatchReadEnabled(serviceConfig.isManagedLedgerBatchReadEnabled());
             managedLedgerConfig.setReadEntriesCallbackInline(serviceConfig.isManagedLedgerReadEntriesCallbackInline());
+            managedLedgerConfig.setMaxAddBatchSize(Math.max(0, serviceConfig.getManagedLedgerMaxAddBatchSize()));
             managedLedgerConfig.setMinimumBacklogCursorsForCaching(
                     serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
             managedLedgerConfig.setMinimumBacklogEntriesForCaching(
@@ -3455,6 +3456,13 @@ public class BrokerService implements Closeable {
             }
             return true;
         });
+        addDynamicConfigValidator("managedLedgerMaxAddBatchSize", (value) -> {
+            try {
+                return Integer.parseInt(value) >= 0;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        });
 
         // (2) Listener Registration
         // add listener on "maxConcurrentLookupRequest" value change
@@ -3538,6 +3546,11 @@ public class BrokerService implements Closeable {
         });
         // add listener to update managed-ledger config to skipNonRecoverableLedgers
         registerConfigurationListener("autoSkipNonRecoverableData", (skipNonRecoverableLedger) -> {
+            updateManagedLedgerConfig();
+        });
+        // add listener to update managed-ledger config to managedLedgerMaxAddBatchSize; managed ledgers apply it
+        // when they are opened, so ledgers that are already open keep the value they opened with
+        registerConfigurationListener("managedLedgerMaxAddBatchSize", (maxAddBatchSize) -> {
             updateManagedLedgerConfig();
         });
         // add listener to update message-dispatch-rate in msg for subscription
@@ -3760,8 +3773,12 @@ public class BrokerService implements Closeable {
                     if (topic instanceof PersistentTopic) {
                         PersistentTopic persistentTopic = (PersistentTopic) topic;
                         // update skipNonRecoverableLedger configuration
-                        persistentTopic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(
+                        ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
+                        managedLedgerConfig.setAutoSkipNonRecoverableData(
                                 pulsar.getConfiguration().isAutoSkipNonRecoverableData());
+                        // update maxAddBatchSize configuration, which applies when a managed ledger is opened
+                        managedLedgerConfig.setMaxAddBatchSize(
+                                Math.max(0, pulsar.getConfiguration().getManagedLedgerMaxAddBatchSize()));
                     }
                 } catch (Exception e) {
                     log.warn().attr("topic", topic.getName()).exception(e)
