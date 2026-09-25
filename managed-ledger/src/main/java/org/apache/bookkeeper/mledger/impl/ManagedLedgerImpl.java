@@ -338,22 +338,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     @Getter
     protected final ThreadBoundExecutor executor;
 
-    // Adds are batched across the thread boundary to the executor. Publishing threads append to the add batch queue;
-    // the thread that finds no batch task scheduled submits one, and that task runs every add queued by then. The
+    // Adds are handed over to the executor in batches. Publishing threads append to the add entry handover queue; the
+    // thread that finds no handover batch scheduled submits one, and that task runs every add queued by then. The
     // executor's own queue then sees one task per batch rather than one per add, so concurrent publishers contend on
     // it once per batch, and other executor work (add completions, cursor notifications) does not wait behind a task
-    // per published message. A batch runs at most maxAddBatchSize adds, captured when the ledger is opened; 0 disables
-    // batching, and each add is then submitted to the executor as a task of its own.
-    // Chunk size of the add batch queue; the queue grows by linking chunks of this size when a batch backs up.
-    private static final int ADD_BATCH_QUEUE_CHUNK_SIZE = 512;
+    // per published message. A handover batch runs at most maxAddEntryHandoverBatchSize adds, captured when the ledger
+    // is opened; 0 disables batching, and each add is then handed over to the executor as a task of its own.
+    // Chunk size of the add entry handover queue; the queue grows by linking chunks of this size when a batch backs up.
+    private static final int ADD_ENTRY_HANDOVER_QUEUE_CHUNK_SIZE = 512;
     @SuppressWarnings("rawtypes")
     private static final AtomicReferenceFieldUpdater<ManagedLedgerImpl, MpscUnboundedArrayQueue>
-            ADD_BATCH_QUEUE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class,
-                    MpscUnboundedArrayQueue.class, "addBatchQueue");
+            ADD_ENTRY_HANDOVER_QUEUE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class,
+                    MpscUnboundedArrayQueue.class, "addEntryHandoverQueue");
     // Created by the first add, so that ledgers that are never written to do not allocate it, and never replaced.
-    private volatile MpscUnboundedArrayQueue<Runnable> addBatchQueue;
-    private final AtomicBoolean addBatchScheduled = new AtomicBoolean();
-    private final int maxAddBatchSize;
+    private volatile MpscUnboundedArrayQueue<Runnable> addEntryHandoverQueue;
+    private final AtomicBoolean addEntryHandoverScheduled = new AtomicBoolean();
+    private final int maxAddEntryHandoverBatchSize;
 
     // Captured at ledger creation so configuration updates cannot change affinity with callbacks still queued.
     private final boolean readEntriesCallbackInline;
@@ -423,7 +423,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // withOrderingKey, so their processing can run inline with executeOrRun() instead of re-queueing.
         this.executor = (ThreadBoundExecutor) bookKeeper.getMainWorkerPool().chooseThread(name);
         this.readEntriesCallbackInline = config.isReadEntriesCallbackInline();
-        this.maxAddBatchSize = config.getMaxAddBatchSize();
+        this.maxAddEntryHandoverBatchSize = config.getMaxAddEntryHandoverBatchSize();
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
@@ -887,61 +887,61 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // retain buffer in this thread
         buffer.retain();
 
-        // Jump to specific thread to avoid contention from writers writing from different threads, batching the adds
-        // across the thread boundary unless batching is disabled.
+        // Jump to specific thread to avoid contention from writers writing from different threads, handing the adds
+        // over in batches unless batching is disabled.
         Runnable add = () -> {
             OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
                     currentLedgerTimeoutTriggered);
             internalAsyncAddEntry(addOperation);
         };
-        if (maxAddBatchSize == 0) {
+        if (maxAddEntryHandoverBatchSize == 0) {
             executor.execute(add);
             return;
         }
-        addBatchQueue().offer(add);
-        scheduleAddBatch();
+        addEntryHandoverQueue().offer(add);
+        scheduleAddEntryHandover();
     }
 
     @SuppressWarnings("unchecked")
-    private MpscUnboundedArrayQueue<Runnable> addBatchQueue() {
-        MpscUnboundedArrayQueue<Runnable> queue = addBatchQueue;
+    private MpscUnboundedArrayQueue<Runnable> addEntryHandoverQueue() {
+        MpscUnboundedArrayQueue<Runnable> queue = addEntryHandoverQueue;
         if (queue == null) {
-            queue = new MpscUnboundedArrayQueue<>(ADD_BATCH_QUEUE_CHUNK_SIZE);
-            if (!ADD_BATCH_QUEUE_UPDATER.compareAndSet(this, null, queue)) {
+            queue = new MpscUnboundedArrayQueue<>(ADD_ENTRY_HANDOVER_QUEUE_CHUNK_SIZE);
+            if (!ADD_ENTRY_HANDOVER_QUEUE_UPDATER.compareAndSet(this, null, queue)) {
                 // Another publishing thread created it first: every thread must use the same queue.
-                queue = addBatchQueue;
+                queue = addEntryHandoverQueue;
             }
         }
         return queue;
     }
 
     @VisibleForTesting
-    boolean hasAddBatchQueue() {
-        return addBatchQueue != null;
+    boolean hasAddEntryHandoverQueue() {
+        return addEntryHandoverQueue != null;
     }
 
-    private void scheduleAddBatch() {
-        if (addBatchScheduled.compareAndSet(false, true)) {
+    private void scheduleAddEntryHandover() {
+        if (addEntryHandoverScheduled.compareAndSet(false, true)) {
             try {
-                executor.execute(this::runAddBatch);
+                executor.execute(this::runAddEntryHandoverBatch);
             } catch (RuntimeException e) {
                 // Let a later add retry scheduling, and fail this caller like a rejected task did before.
-                addBatchScheduled.set(false);
+                addEntryHandoverScheduled.set(false);
                 throw e;
             }
         }
     }
 
-    private void runAddBatch() {
+    private void runAddEntryHandoverBatch() {
         // Clear the flag before polling: an add queued after this point schedules another batch if this one misses
         // it, so no add is left behind.
-        addBatchScheduled.set(false);
-        MpscUnboundedArrayQueue<Runnable> queue = addBatchQueue;
+        addEntryHandoverScheduled.set(false);
+        MpscUnboundedArrayQueue<Runnable> queue = addEntryHandoverQueue;
         if (queue == null) {
             return;
         }
         Runnable add;
-        for (int i = 0; i < maxAddBatchSize && (add = queue.poll()) != null; i++) {
+        for (int i = 0; i < maxAddEntryHandoverBatchSize && (add = queue.poll()) != null; i++) {
             try {
                 add.run();
             } catch (Throwable t) {
@@ -949,8 +949,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
         if (!queue.isEmpty()) {
-            // Leave the rest to the next batch so that other executor tasks, such as add completions, can run.
-            scheduleAddBatch();
+            // Leave the rest to the next handover batch so that other executor tasks, such as add completions, can run.
+            scheduleAddEntryHandover();
         }
     }
 
@@ -4733,10 +4733,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return readEntriesCallbackInline;
     }
 
-    /** Returns the maximum add batch size captured when this ledger was opened. */
+    /** Returns the maximum add entry handover batch size captured when this ledger was opened. */
     @VisibleForTesting
-    int getMaxAddBatchSize() {
-        return maxAddBatchSize;
+    int getMaxAddEntryHandoverBatchSize() {
+        return maxAddEntryHandoverBatchSize;
     }
 
     /**
