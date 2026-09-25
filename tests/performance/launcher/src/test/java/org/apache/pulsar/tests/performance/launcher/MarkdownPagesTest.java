@@ -71,6 +71,19 @@ public class MarkdownPagesTest {
     }
 
     @Test
+    public void givesHeadingsIdsForInPageLinks() throws IOException {
+        Path markdown = directory.resolve("jonoffcpu-summary.md");
+        Files.writeString(markdown, "# jonoffcpu analysis digest\n\nSee [the totals](#where-the-time-went).\n\n"
+                + "## Where the time went\n\n## About this digest\n");
+
+        String html = Files.readString(MarkdownPages.renderHtml(markdown, directory, "Digest"));
+
+        assertTrue(html.contains("<h2 id=\"where-the-time-went\">Where the time went</h2>"), html);
+        assertTrue(html.contains("<h2 id=\"about-this-digest\">About this digest</h2>"), html);
+        assertTrue(html.contains("<a href=\"#where-the-time-went\">the totals</a>"), html);
+    }
+
+    @Test
     public void rendersTablesLinksAndTheStylesheet() throws IOException {
         Path profile = Files.createDirectories(directory.resolve("broker-profile"));
         Path markdown = profile.resolve("profile-report.md");

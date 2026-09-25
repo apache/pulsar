@@ -39,6 +39,7 @@ dependencies {
     // Renders the Markdown reports to HTML pages whose links can be followed
     implementation(libs.commonmark)
     implementation(libs.commonmark.ext.gfm.tables)
+    implementation(libs.commonmark.ext.heading.anchor)
     // Joins each recording with its off-CPU capture stream after a profiled run
     implementation(libs.jonoffcpu.correlator)
     // async-profiler's converter, from the fork that labels flame graph widths in microseconds. Having it

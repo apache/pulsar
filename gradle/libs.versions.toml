@@ -413,6 +413,7 @@ jonoffcpu-correlator = { module = "io.github.jonoffcpu:jonoffcpu-correlator", ve
 jonoffcpu-jfr-converter = { module = "io.github.jonoffcpu:jonoffcpu-jfr-converter", version.ref = "jonoffcpu" }
 commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark" }
 commonmark-ext-gfm-tables = { module = "org.commonmark:commonmark-ext-gfm-tables", version.ref = "commonmark" }
+commonmark-ext-heading-anchor = { module = "org.commonmark:commonmark-ext-heading-anchor", version.ref = "commonmark" }
 dropwizardmetrics-core = { module = "io.dropwizard.metrics:metrics-core", version.ref = "dropwizardmetrics" }
 dropwizardmetrics-graphite = { module = "io.dropwizard.metrics:metrics-graphite", version.ref = "dropwizardmetrics" }
 dropwizardmetrics-jvm = { module = "io.dropwizard.metrics:metrics-jvm", version.ref = "dropwizardmetrics" }

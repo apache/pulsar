@@ -27,6 +27,7 @@ import java.nio.file.Path;
 import java.util.List;
 import org.commonmark.Extension;
 import org.commonmark.ext.gfm.tables.TablesExtension;
+import org.commonmark.ext.heading.anchor.HeadingAnchorExtension;
 import org.commonmark.node.AbstractVisitor;
 import org.commonmark.node.Image;
 import org.commonmark.node.Link;
@@ -42,7 +43,9 @@ import org.commonmark.renderer.html.HtmlRenderer;
  * single self-contained file.
  */
 final class MarkdownPages {
-    private static final List<Extension> EXTENSIONS = List.of(TablesExtension.create());
+    // Heading anchors give each heading a GitHub-style id, so in-page links such as #where-the-time-went work.
+    private static final List<Extension> EXTENSIONS = List.of(TablesExtension.create(),
+            HeadingAnchorExtension.create());
     private static final Parser PARSER = Parser.builder().extensions(EXTENSIONS).build();
     private static final HtmlRenderer RENDERER = HtmlRenderer.builder().extensions(EXTENSIONS).build();
     private static final String MARKDOWN_SUFFIX = ".md";
