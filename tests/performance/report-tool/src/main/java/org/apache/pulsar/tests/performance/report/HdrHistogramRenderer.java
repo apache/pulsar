@@ -238,6 +238,10 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
             int y = PLOT_TOP + PLOT_HEIGHT - line * PLOT_HEIGHT / 4;
             graphics.setColor(GRID);
             graphics.drawLine(x, y, x + PANEL_WIDTH, y);
+            if (line == 0) {
+                // The baseline needs no 0.0% label
+                continue;
+            }
             graphics.setColor(MUTED);
             String label = String.format(Locale.ROOT, "%.1f%%", data.peakPercent() * line / 4);
             graphics.drawString(label, x - AXIS_LABEL_GAP - graphics.getFontMetrics().stringWidth(label), y + 4);
@@ -283,8 +287,12 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
         for (int line = 0; line <= 4; line++) {
             int y = PLOT_TOP + PLOT_HEIGHT - line * PLOT_HEIGHT / 4;
             out.append("<line x1=\"").append(x).append("\" y1=\"").append(y).append("\" x2=\"")
-                    .append(x + PANEL_WIDTH).append("\" y2=\"").append(y)
-                    .append("\" stroke=\"#dae1e8\"/>\n<text class=\"muted\" x=\"").append(x - AXIS_LABEL_GAP)
+                    .append(x + PANEL_WIDTH).append("\" y2=\"").append(y).append("\" stroke=\"#dae1e8\"/>\n");
+            if (line == 0) {
+                // The baseline needs no 0.0% label
+                continue;
+            }
+            out.append("<text class=\"muted\" x=\"").append(x - AXIS_LABEL_GAP)
                     .append("\" y=\"").append(y + 4).append("\" text-anchor=\"end\" font-size=\"12\">")
                     .append(String.format(Locale.ROOT, "%.1f%%", data.peakPercent() * line / 4))
                     .append("</text>\n");

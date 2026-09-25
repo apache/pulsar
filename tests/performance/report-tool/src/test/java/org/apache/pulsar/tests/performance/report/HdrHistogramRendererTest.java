@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.performance.report;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.io.PrintStream;
 import java.nio.file.Files;
@@ -51,6 +52,9 @@ public class HdrHistogramRendererTest {
             assertTrue(svg.contains("Produce · send completion"));
             assertTrue(svg.contains("Consume · publish to listener"));
             assertTrue(svg.contains("n=4"));
+            // Each panel labels its grid lines except the baseline
+            assertEquals(svg.split("%</text>", -1).length - 1, 8, svg);
+            assertFalse(svg.contains(">0.0%<"), svg);
             assertTrue(svg.contains(">lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04</text>"), svg);
         } finally {
             try (var paths = Files.walk(directory)) {
