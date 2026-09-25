@@ -245,9 +245,9 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
         return logs;
     }
 
+    // Short, so that the legend fits on one row; the chart and the report say what each latency measures
     private static String lineName(Path log, int index) {
-        return index == 0 ? "Publish (send to acknowledgment)"
-                : "End to end, " + log.toAbsolutePath().getParent().getFileName();
+        return index == 0 ? "Publish" : log.toAbsolutePath().getParent().getFileName().toString();
     }
 
     private static XYChart chart(String title, String xAxisTitle, int height) {
