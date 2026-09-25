@@ -88,7 +88,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer.State;
-import org.apache.pulsar.broker.service.TopicLoadingContext.TopicLoadingStage;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
@@ -152,33 +151,141 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Test
     public void testTopicLoadTimeoutReason() {
         TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
-                new CompletableFuture<>());
+                new CompletableFuture<>(), mock(PulsarStats.class));
         assertEquals(context.getTopicLoadTimeoutReason(), TopicLoadFailureReason.TIMEOUT);
 
-        assertTimeoutReason(context, TopicLoadingStage.NAMESPACE_POLICIES,
+        assertTimeoutReason(context, "namespace-policies",
                 TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES);
-        assertTimeoutReason(context, TopicLoadingStage.TOPIC_POLICIES,
+        assertTimeoutReason(context, "local-topic-policies",
                 TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES);
-        assertTimeoutReason(context, TopicLoadingStage.OPEN_ML, TopicLoadFailureReason.TIMEOUT_LOAD_ML);
-        assertTimeoutReason(context, TopicLoadingStage.INITIALIZE, TopicLoadFailureReason.TIMEOUT_INIT);
-        assertTimeoutReason(context, TopicLoadingStage.PRE_CREATE_COMPACTED_SUB, TopicLoadFailureReason.TIMEOUT_INIT);
-        assertTimeoutReason(context, TopicLoadingStage.REPLICATION, TopicLoadFailureReason.TIMEOUT_INIT);
-        assertTimeoutReason(context, TopicLoadingStage.DEDUPLICATION, TopicLoadFailureReason.TIMEOUT_DEDUP);
+        assertTimeoutReason(context, "global-topic-policies",
+                TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES);
+        assertTimeoutReason(context, "local-policies",
+                TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES);
+        assertTimeoutReason(context, "open-ml", TopicLoadFailureReason.TIMEOUT_LOAD_ML);
+        assertTimeoutReason(context, "init", TopicLoadFailureReason.TIMEOUT_INIT);
+        assertTimeoutReason(context, "pre-create-compacted-sub", TopicLoadFailureReason.TIMEOUT_INIT);
+        assertTimeoutReason(context, "replication", TopicLoadFailureReason.TIMEOUT_INIT);
+        assertTimeoutReason(context, "deduplication", TopicLoadFailureReason.TIMEOUT_DEDUP);
 
-        context.start(TopicLoadingStage.INITIALIZE);
-        assertTimeoutReason(context, TopicLoadingStage.NAMESPACE_POLICIES,
+        assertTimeoutReasonWithPendingInit("namespace-policies",
                 TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES);
-        assertTimeoutReason(context, TopicLoadingStage.TOPIC_POLICIES,
+        assertTimeoutReasonWithPendingInit("local-topic-policies",
                 TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES);
-        context.finish(TopicLoadingStage.INITIALIZE);
     }
 
-    private void assertTimeoutReason(TopicLoadingContext context, TopicLoadingStage stage,
+    @Test
+    public void testTopicLoadFailureReasonIsTraced() {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        context.trace("namespace-policies", future);
+        future.completeExceptionally(new RuntimeException());
+
+        assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES);
+    }
+
+    @Test
+    public void testCloseRecordsTimeoutTime() {
+        TopicLoadingContext timeoutContext = new TopicLoadingContext(
+                TopicName.get("persistent://public/default/test-timeout"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        timeoutContext.close(true);
+        assertTrue(timeoutContext.isClosed());
+        assertNotNull(timeoutContext.getTimeoutTimeInMillis());
+        assertFalse(timeoutContext.getSnapshot().success());
+        assertTrue(timeoutContext.getSnapshot().description().contains("state: failure"));
+        assertTrue(timeoutContext.getSnapshot().description().contains("timeout timestamp:"));
+
+        TopicLoadingContext successfulContext = new TopicLoadingContext(
+                TopicName.get("persistent://public/default/test-success"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        successfulContext.close(false);
+        assertTrue(successfulContext.isClosed());
+        assertNull(successfulContext.getTimeoutTimeInMillis());
+    }
+
+    @Test
+    public void testTimeoutSnapshotIncludesFailureStateAndPendingSteps() {
+        TopicLoadingContext context = new TopicLoadingContext(
+                TopicName.get("persistent://public/default/test-timeout"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Void> pendingFuture = new CompletableFuture<>();
+        context.trace("namespace-policies", pendingFuture);
+
+        // This is the same order used by the topic-future completion observer before it emits the timeout log.
+        context.close(true);
+        var snapshot = context.getSnapshot();
+
+        assertFalse(snapshot.completed());
+        assertFalse(snapshot.success());
+        assertTrue(snapshot.description().contains("state: failure"));
+        assertTrue(snapshot.description().contains("pending steps: namespace-policies"));
+        assertTrue(snapshot.description().contains("timeout timestamp:"));
+
+        pendingFuture.complete(null);
+    }
+
+    @Test
+    public void testConcurrentPolicyLoadFailureReasonUsesFirstPendingReason() {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Void> namespacePolicies = new CompletableFuture<>();
+        CompletableFuture<Void> topicPolicies = new CompletableFuture<>();
+
+        context.trace("namespace-policies", namespacePolicies);
+        context.trace("local-topic-policies", topicPolicies);
+        namespacePolicies.completeExceptionally(new RuntimeException("failure"));
+
+        assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES);
+    }
+
+    @Test
+    public void testCompletedFailureIsAttributedToItsTracePoint() {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Void> namespacePolicies = new CompletableFuture<>();
+
+        context.trace("namespace-policies", namespacePolicies);
+        context.trace("ownership", CompletableFuture.failedFuture(new RuntimeException("failure")));
+
+        assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
+    }
+
+    @Test
+    public void testNonStageTraceIsPending() {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Void> future = new CompletableFuture<>();
+
+        context.trace("ownership", future);
+        assertTrue(context.isTracePending("ownership"));
+
+        future.complete(null);
+        assertFalse(context.isTracePending("ownership"));
+    }
+
+    private void assertTimeoutReason(TopicLoadingContext context, String stage,
                                      TopicLoadFailureReason expected) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         context.trace(stage, future);
         assertEquals(context.getTopicLoadTimeoutReason(), expected);
         future.complete(null);
+    }
+
+    private void assertTimeoutReasonWithPendingInit(String stage, TopicLoadFailureReason expected) {
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        final var initTracePoint = context.startTrace("init");
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        context.trace(stage, future);
+
+        context.close(true);
+        assertEquals(context.getTopicLoadTimeoutReason(), expected);
+
+        future.complete(null);
+        context.finishTrace(initTracePoint, null);
     }
 
     @BeforeClass
@@ -1231,7 +1338,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         // try to create topic which should fail as bundle is disable
         CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService()
                 .loadOrCreatePersistentTopic(new TopicLoadingContext(topic, true,
-                        new CompletableFuture<>()));
+                new CompletableFuture<>(), mock(PulsarStats.class)));
 
         try {
             futureResult.get();
@@ -1318,7 +1425,8 @@ public class BrokerServiceTest extends BrokerTestBase {
             for (int i = 0; i < 10; i++) {
                 // try to create topic which should fail as bundle is disable
                 CompletableFuture<Optional<Topic>> futureResult = pulsar.getBrokerService().loadOrCreatePersistentTopic(
-                        new TopicLoadingContext(TopicName.get(topicName + "_" + i), false, new CompletableFuture<>()));
+                        new TopicLoadingContext(TopicName.get(topicName + "_" + i), false, new CompletableFuture<>(),
+                                mock(PulsarStats.class)));
                 loadFutures.add(futureResult);
             }
 

@@ -21,36 +21,18 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.TimeoutException;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicMigratedException;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.LatencyTracer;
+import org.apache.pulsar.common.util.LatencyTracer.TracePoint;
 import org.jspecify.annotations.Nullable;
 
 public class TopicLoadingContext extends LatencyTracer {
-
-    public enum TopicLoadingStage {
-        NAMESPACE_POLICIES("namespace policies", TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES),
-        TOPIC_POLICIES("topic policies", TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES),
-        OPEN_ML("open-ml", TopicLoadFailureReason.TIMEOUT_LOAD_ML),
-        INITIALIZE("init", TopicLoadFailureReason.TIMEOUT_INIT),
-        PRE_CREATE_COMPACTED_SUB("pre-create compacted sub", TopicLoadFailureReason.TIMEOUT_INIT),
-        REPLICATION("replication", TopicLoadFailureReason.TIMEOUT_INIT),
-        DEDUPLICATION("deduplication", TopicLoadFailureReason.TIMEOUT_DEDUP);
-
-        private final String tracePoint;
-        private final TopicLoadFailureReason timeoutReason;
-
-        TopicLoadingStage(String tracePoint, TopicLoadFailureReason timeoutReason) {
-            this.tracePoint = tracePoint;
-            this.timeoutReason = timeoutReason;
-        }
-    }
 
     @Getter
     private final TopicName topicName;
@@ -58,59 +40,109 @@ public class TopicLoadingContext extends LatencyTracer {
     private final boolean createIfMissing;
     @Getter
     private final CompletableFuture<Optional<Topic>> topicFuture;
+    private final PulsarStats pulsarStats;
+    @Nullable
+    private volatile Long timeoutTimeInMillis;
     @Getter
     @Setter
     @Nullable private Map<String, String> properties;
-    private final AtomicReference<TopicLoadFailureReason> failureReason = new AtomicReference<>();
-    private final ConcurrentHashMap<TopicLoadingStage, AtomicInteger> pendingStages = new ConcurrentHashMap<>();
 
     public TopicLoadingContext(TopicName topicName, boolean createIfMissing,
-                               CompletableFuture<Optional<Topic>> topicFuture) {
-        // The topic loading could be ended asynchronously by a timeout event, so we need a thread safe queue here
-        super(new ConcurrentLinkedQueue<>(), System::nanoTime);
+                               CompletableFuture<Optional<Topic>> topicFuture, PulsarStats pulsarStats) {
+        super(System::nanoTime, 32);
         this.topicName = topicName;
         this.createIfMissing = createIfMissing;
         this.topicFuture = topicFuture;
+        this.pulsarStats = pulsarStats;
     }
 
-    public <T> CompletableFuture<T> trace(TopicLoadingStage stage, CompletableFuture<T> future) {
-        if (future.isDone()) {
-            return future;
+    public void close(boolean timedOut) {
+        if (timedOut) {
+            this.timeoutTimeInMillis = System.currentTimeMillis();
         }
-        start(stage);
-        return future.whenComplete((__, ___) -> {
-            finish(stage);
-        });
+        super.close();
     }
 
-    public void start(TopicLoadingStage stage) {
-        pendingStages.computeIfAbsent(stage, __ -> new AtomicInteger()).incrementAndGet();
+    @Override
+    @Nullable
+    public Long getTimeoutTimeInMillis() {
+        return timeoutTimeInMillis;
     }
 
-    public void finish(TopicLoadingStage stage) {
-        pendingStages.computeIfPresent(stage, (__, count) -> count.decrementAndGet() == 0 ? null : count);
-        trace(stage.tracePoint);
+    public void recordTopicLoadFailureMetric(Throwable throwable) {
+        if (throwable instanceof TopicMigratedException) {
+            return;
+        }
+        if (throwable instanceof TimeoutException) {
+            pulsarStats.recordTopicLoadFailed(getTopicLoadTimeoutReason());
+        } else if (throwable instanceof ServiceUnitNotReadyException) {
+            pulsarStats.recordTopicLoadFailed(TopicLoadFailureReason.BUNDLE_UNLOADING);
+        } else {
+            TopicLoadFailureReason reason = getTopicLoadFailureReason();
+            pulsarStats.recordTopicLoadFailed(reason != null ? reason : TopicLoadFailureReason.OTHERS);
+        }
     }
 
-    public void setTopicLoadFailureReason(TopicLoadFailureReason reason) {
-        failureReason.compareAndSet(null, reason);
+    @Override
+    protected String resolveFailureReason(TracePoint tracePoint) {
+        Throwable throwable = getTracePointFailure(tracePoint);
+        TopicLoadFailureReason reason = throwable instanceof TimeoutException
+                ? getTimeoutReason(tracePoint.name()) : getFailureReason(tracePoint.name());
+        return reason == null ? super.resolveFailureReason(tracePoint) : reason.name();
     }
 
     public TopicLoadFailureReason getTopicLoadFailureReason() {
-        return failureReason.get();
+        String reason = getFailureReason();
+        try {
+            return reason == null ? null : TopicLoadFailureReason.valueOf(reason);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
     }
 
     public TopicLoadFailureReason getTopicLoadTimeoutReason() {
-        boolean namespacePoliciesPending = pendingStages.containsKey(TopicLoadingStage.NAMESPACE_POLICIES);
-        boolean topicPoliciesPending = pendingStages.containsKey(TopicLoadingStage.TOPIC_POLICIES);
-        if (namespacePoliciesPending != topicPoliciesPending) {
-            return namespacePoliciesPending
-                    ? TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES
-                    : TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES;
+        // If closed, we can use the reverse convenience set to obtain the last pending action, as the subsequent ones
+        // are often sub-actions of the previous one.
+        if (isClosed()) {
+            for (int i = tracePoints.size() - 1; i >= 0; i--) {
+                if (tracePoints.get(i).isPending()) {
+                    TopicLoadFailureReason reason = getTimeoutReason(tracePoints.get(i).name());
+                    if (reason != null) {
+                        return reason;
+                    }
+                }
+            }
         }
-        if (pendingStages.size() != 1) {
-            return TopicLoadFailureReason.TIMEOUT;
+        for (TracePoint pendingTracePoint : getPendingTracePoints()) {
+            TopicLoadFailureReason reason = getTimeoutReason(pendingTracePoint.name());
+            if (reason != null) {
+                return reason;
+            }
         }
-        return pendingStages.keySet().iterator().next().timeoutReason;
+        return TopicLoadFailureReason.TIMEOUT;
+    }
+
+    private static TopicLoadFailureReason getTimeoutReason(String pendingStep) {
+        return switch (pendingStep) {
+            case "namespace-policies", "local-policies" -> TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES;
+            case "local-topic-policies", "global-topic-policies" -> TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES;
+            case "open-ml" -> TopicLoadFailureReason.TIMEOUT_LOAD_ML;
+            case "init", "pre-create-compacted-sub", "replication" -> TopicLoadFailureReason.TIMEOUT_INIT;
+            case "deduplication" -> TopicLoadFailureReason.TIMEOUT_DEDUP;
+            default -> null;
+        };
+    }
+
+    private static TopicLoadFailureReason getFailureReason(String pendingStep) {
+        return switch (pendingStep) {
+            case "namespace-policies", "local-policies" -> TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES;
+            case "local-topic-policies", "global-topic-policies" -> TopicLoadFailureReason.FAILED_LOAD_TOPIC_POLICIES;
+            case "open-ml" -> TopicLoadFailureReason.FAILED_LOAD_ML;
+            case "ownership", "2nd-ownership" -> TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP;
+            case "topic-exists", "properties" -> TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE;
+            case "init", "pre-create-compacted-sub", "replication", "deduplication" ->
+                    TopicLoadFailureReason.FAILED_INIT;
+            default -> null;
+        };
     }
 }
