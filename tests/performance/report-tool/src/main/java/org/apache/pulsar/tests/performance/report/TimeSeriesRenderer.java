@@ -66,6 +66,18 @@ final class TimeSeriesRenderer {
         }
     }
 
+    /**
+     * A period left out of the time axis, such as a long cool-down between the warmup and the measurement: the
+     * samples before it are moved up by its length. The axis breaks there, with a small break mark, and the ticks
+     * left of it show the real time, so that the axis has a gap of {@code gapSeconds}.
+     */
+    record Cut(double atSeconds, double gapSeconds) {
+        /** The real time at a position on the axis. */
+        double realSeconds(double position) {
+            return position < atSeconds ? position - gapSeconds : position;
+        }
+    }
+
     private record Scale(double minSeconds, double maxSeconds, double maxValue) {
         int x(double seconds) {
             return PLOT_LEFT + (int) Math.round((seconds - minSeconds) / (maxSeconds - minSeconds)
@@ -90,6 +102,16 @@ final class TimeSeriesRenderer {
      */
     static void render(Path outputPrefix, String title, String yLabel, double[] seconds, List<Series> series,
                        double producersFinishedSeconds, String footer) throws IOException {
+        render(outputPrefix, title, yLabel, seconds, series, producersFinishedSeconds, null, footer);
+    }
+
+    /**
+     * Renders {@code <outputPrefix>.png} and {@code <outputPrefix>.svg} with a period cut out of the time axis.
+     *
+     * @param cut the period left out of {@code seconds}, or {@code null} for none
+     */
+    static void render(Path outputPrefix, String title, String yLabel, double[] seconds, List<Series> series,
+                       double producersFinishedSeconds, Cut cut, String footer) throws IOException {
         if (seconds.length < 2) {
             throw new IllegalArgumentException("A time series chart needs at least two samples");
         }
@@ -107,13 +129,13 @@ final class TimeSeriesRenderer {
             Files.createDirectories(parent);
         }
         writePng(outputPrefix.resolveSibling(outputPrefix.getFileName() + ".png"), title, yLabel, seconds, series,
-                producersFinishedSeconds, scale, footer);
+                producersFinishedSeconds, cut, scale, footer);
         Files.writeString(outputPrefix.resolveSibling(outputPrefix.getFileName() + ".svg"),
-                svg(title, yLabel, seconds, series, producersFinishedSeconds, scale, footer));
+                svg(title, yLabel, seconds, series, producersFinishedSeconds, cut, scale, footer));
     }
 
     private static void writePng(Path output, String title, String yLabel, double[] seconds, List<Series> series,
-                                 double finished, Scale scale, String footer) throws IOException {
+                                 double finished, Cut cut, Scale scale, String footer) throws IOException {
         BufferedImage image = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = image.createGraphics();
         try {
@@ -146,7 +168,7 @@ final class TimeSeriesRenderer {
                 int x = scale.x(tick);
                 graphics.setColor(INK);
                 graphics.drawLine(x, PLOT_BOTTOM, x, PLOT_BOTTOM + 5);
-                String label = String.format(Locale.ROOT, "%.0f", tick);
+                String label = String.format(Locale.ROOT, "%.0f", cut != null ? cut.realSeconds(tick) : tick);
                 graphics.drawString(label, x - graphics.getFontMetrics().stringWidth(label) / 2, PLOT_BOTTOM + 20);
             }
             graphics.drawLine(PLOT_LEFT, PLOT_BOTTOM, PLOT_RIGHT, PLOT_BOTTOM);
@@ -162,6 +184,15 @@ final class TimeSeriesRenderer {
                 String label = "producers finished";
                 graphics.drawString(label, labelOnLeft(x) ? x - 6 - graphics.getFontMetrics().stringWidth(label)
                         : x + 6, PLOT_TOP + 14);
+            }
+            if (cut != null) {
+                int x = scale.x(cut.atSeconds());
+                graphics.setColor(Color.WHITE);
+                graphics.fillRect(x - 3, PLOT_BOTTOM - 1, 7, 3);
+                graphics.setColor(INK);
+                graphics.setStroke(new BasicStroke(1.5f));
+                graphics.drawLine(x - 6, PLOT_BOTTOM + 5, x - 1, PLOT_BOTTOM - 5);
+                graphics.drawLine(x + 1, PLOT_BOTTOM + 5, x + 6, PLOT_BOTTOM - 5);
             }
             for (int index = 0; index < series.size(); index++) {
                 graphics.setColor(ChartStyle.seriesColor(index));
@@ -194,7 +225,7 @@ final class TimeSeriesRenderer {
     }
 
     private static String svg(String title, String yLabel, double[] seconds, List<Series> series, double finished,
-                              Scale scale, String footer) {
+                              Cut cut, Scale scale, String footer) {
         StringBuilder out = new StringBuilder(16_000);
         out.append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"").append(WIDTH).append("\" height=\"")
                 .append(HEIGHT).append("\" viewBox=\"0 0 ").append(WIDTH).append(' ').append(HEIGHT)
@@ -226,7 +257,8 @@ final class TimeSeriesRenderer {
                     .append("\" y2=\"").append(PLOT_BOTTOM + 5).append("\" stroke=\"#142b40\"/>\n<text x=\"")
                     .append(x).append("\" y=\"").append(PLOT_BOTTOM + 20)
                     .append("\" text-anchor=\"middle\" font-size=\"12\">")
-                    .append(String.format(Locale.ROOT, "%.0f", tick)).append("</text>\n");
+                    .append(String.format(Locale.ROOT, "%.0f", cut != null ? cut.realSeconds(tick) : tick))
+                    .append("</text>\n");
         }
         out.append("<line x1=\"").append(PLOT_LEFT).append("\" y1=\"").append(PLOT_BOTTOM).append("\" x2=\"")
                 .append(PLOT_RIGHT).append("\" y2=\"").append(PLOT_BOTTOM).append("\" stroke=\"#142b40\"/>\n")
@@ -240,6 +272,17 @@ final class TimeSeriesRenderer {
                     .append(labelOnLeft(x) ? x - 6 : x + 6).append("\" y=\"").append(PLOT_TOP + 14)
                     .append(labelOnLeft(x) ? "\" text-anchor=\"end" : "")
                     .append("\" font-size=\"12\">producers finished</text>\n");
+        }
+        if (cut != null) {
+            // An axis break: a gap in the x axis with two short slanted strokes
+            int x = scale.x(cut.atSeconds());
+            out.append("<rect x=\"").append(x - 3).append("\" y=\"").append(PLOT_BOTTOM - 1)
+                    .append("\" width=\"7\" height=\"3\" fill=\"white\"/>\n");
+            for (int offset : new int[] {-6, 1}) {
+                out.append("<line x1=\"").append(x + offset).append("\" y1=\"").append(PLOT_BOTTOM + 5)
+                        .append("\" x2=\"").append(x + offset + 5).append("\" y2=\"").append(PLOT_BOTTOM - 5)
+                        .append("\" stroke=\"#142b40\" stroke-width=\"1.5\"/>\n");
+            }
         }
         for (int index = 0; index < series.size(); index++) {
             String color = hex(ChartStyle.seriesColor(index));

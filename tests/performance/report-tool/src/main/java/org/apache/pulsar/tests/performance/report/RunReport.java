@@ -81,9 +81,11 @@ public final class RunReport {
      *
      * @param phase when the launcher waited: {@link #BEFORE_RUN} or {@link #BEFORE_MEASUREMENT}
      * @param reached whether the package reached the target before the wait timed out
+     * @param startEpochMillis when the wait started
+     * @param endEpochMillis when the wait ended
      */
     public record Cooldown(String phase, double targetCelsius, double initialCelsius, double finalCelsius,
-                           double waitedSeconds, boolean reached) {
+                           double waitedSeconds, boolean reached, long startEpochMillis, long endEpochMillis) {
         /** Before the cluster started. */
         public static final String BEFORE_RUN = "Before the run";
         /** After the warmup rounds had been received, before the first measured message. */
@@ -132,6 +134,57 @@ public final class RunReport {
         return footer.toString();
     }
 
+    // A cool-down before the measurement at least this long is cut out of the throughput and backlog charts
+    private static final long CHART_CUT_MIN_MILLIS = 10_000;
+
+    /**
+     * The time axis of a chart: the sample rounds it shows, their seconds since the measurement start, and the cut
+     * where a long cool-down before the measurement was left out. A round of -1 is a break in the lines at the cut.
+     */
+    record ChartTimeline(int[] rounds, double[] seconds, TimeSeriesRenderer.Cut cut) {
+        double[] select(double[] values) {
+            double[] selected = new double[rounds.length];
+            for (int index = 0; index < rounds.length; index++) {
+                selected[index] = rounds[index] < 0 ? Double.NaN : values[rounds[index]];
+            }
+            return selected;
+        }
+    }
+
+    /**
+     * The charts' time axis. The launcher's cool-down wait between the warmup and the measurement, when it took at
+     * least 10 s, is left out: its samples are dropped and the samples before it move up by its length, so that the
+     * measurement follows the warmup, and its fixed delay, instead of a long flat stretch. The axis breaks there and
+     * shows the real time left of the break.
+     */
+    static ChartTimeline chartTimeline(long[] epochMillis, long measurementStart, List<Cooldown> cooldowns) {
+        Cooldown gap = cooldowns == null ? null : cooldowns.stream()
+                .filter(cooldown -> Cooldown.BEFORE_MEASUREMENT.equals(cooldown.phase())
+                        && cooldown.endEpochMillis() - cooldown.startEpochMillis() >= CHART_CUT_MIN_MILLIS)
+                .findFirst().orElse(null);
+        List<Integer> rounds = new ArrayList<>();
+        List<Double> seconds = new ArrayList<>();
+        TimeSeriesRenderer.Cut cut = null;
+        for (int round = 0; round < epochMillis.length; round++) {
+            long epoch = epochMillis[round];
+            if (gap != null && epoch >= gap.startEpochMillis() && epoch < gap.endEpochMillis()) {
+                continue;
+            }
+            if (gap != null && cut == null && epoch >= gap.endEpochMillis()) {
+                cut = new TimeSeriesRenderer.Cut((gap.endEpochMillis() - measurementStart) / 1000.0,
+                        (gap.endEpochMillis() - gap.startEpochMillis()) / 1000.0);
+                rounds.add(-1);
+                seconds.add(cut.atSeconds());
+            }
+            long shift = gap != null && epoch < gap.startEpochMillis()
+                    ? gap.endEpochMillis() - gap.startEpochMillis() : 0;
+            rounds.add(round);
+            seconds.add((epoch + shift - measurementStart) / 1000.0);
+        }
+        return new ChartTimeline(rounds.stream().mapToInt(Integer::intValue).toArray(),
+                seconds.stream().mapToDouble(Double::doubleValue).toArray(), cut);
+    }
+
     /** The sampled topic stats of a run: one row per sample round. */
     record Samples(long[] epochMillis, double[] published, Map<String, double[]> dispatched,
                    Map<String, double[]> backlog) {
@@ -170,7 +223,7 @@ public final class RunReport {
         Path stats = runDirectory.resolve(TOPIC_STATS_FILE);
         if (Files.isRegularFile(stats)) {
             appendTopicStats(report, runDirectory, readSamples(stats), measurementStart, measurementEnd,
-                    chartFooter(run.info(), run.finished()));
+                    run.cooldowns(), chartFooter(run.info(), run.finished()));
         }
         if (hostSamples != null) {
             appendHost(report, runDirectory, hostSamples, host, run.cooldowns(), measurementStart, measurementEnd,
@@ -394,7 +447,8 @@ public final class RunReport {
     }
 
     private static void appendTopicStats(StringBuilder report, Path runDirectory, Samples samples,
-                                         long measurementStart, long measurementEnd, String footer)
+                                         long measurementStart, long measurementEnd, List<Cooldown> cooldowns,
+                                         String footer)
             throws IOException {
         int rounds = samples.epochMillis().length;
         if (rounds < 3) {
@@ -446,20 +500,23 @@ public final class RunReport {
             report.append(String.format(Locale.ROOT, "| `%s` | %,.0f | %.0f s | %,.0f |%n", entry.getKey(),
                     backlog[peak], seconds[peak], backlog[atFinish]));
         }
+        ChartTimeline timeline = chartTimeline(samples.epochMillis(), measurementStart, cooldowns);
         List<TimeSeriesRenderer.Series> throughput = new ArrayList<>();
         // Dotted, so that the consumer lines it usually overlaps stay visible
-        throughput.add(new TimeSeriesRenderer.Series("Producers (published)", samples.published(), true));
+        throughput.add(new TimeSeriesRenderer.Series("Producers (published)", timeline.select(samples.published()),
+                true));
         for (Map.Entry<String, double[]> entry : samples.dispatched().entrySet()) {
             // One line per subscription, named by it alone so that the legend fits
             throughput.add(new TimeSeriesRenderer.Series(samples.dispatched().size() == 1
-                    ? "Consumers (dispatched)" : entry.getKey(), entry.getValue()));
+                    ? "Consumers (dispatched)" : entry.getKey(), timeline.select(entry.getValue())));
         }
         TimeSeriesRenderer.render(runDirectory.resolve(THROUGHPUT_CHART), "Throughput", "Messages per second",
-                seconds, throughput, finished, footer);
+                timeline.seconds(), throughput, finished, timeline.cut(), footer);
         List<TimeSeriesRenderer.Series> backlog = samples.backlog().entrySet().stream()
-                .map(entry -> new TimeSeriesRenderer.Series(entry.getKey(), entry.getValue())).toList();
+                .map(entry -> new TimeSeriesRenderer.Series(entry.getKey(), timeline.select(entry.getValue())))
+                .toList();
         TimeSeriesRenderer.render(runDirectory.resolve(BACKLOG_CHART), "Backlog", "Messages in the backlog",
-                seconds, backlog, finished, footer);
+                timeline.seconds(), backlog, finished, timeline.cut(), footer);
         report.append("\n![Throughput over time](").append(THROUGHPUT_CHART).append(".svg)\n\n![Backlog over time](")
                 .append(BACKLOG_CHART).append(".svg)\n");
     }
@@ -514,14 +571,14 @@ public final class RunReport {
             if (hasValues(samples.coreCelsius())) {
                 temperatures.add(new TimeSeriesRenderer.Series("Hottest core", samples.coreCelsius(), true));
             }
-            TimeSeriesRenderer.render(runDirectory.resolve(TEMPERATURE_CHART), "CPU temperature", "°C, sampled once"
-                    + " per second", seconds, temperatures, finished, footer);
+            // The host charts keep the whole time axis: the cooling down is what they show
+            TimeSeriesRenderer.render(runDirectory.resolve(TEMPERATURE_CHART), "CPU temperature", "°C", seconds,
+                    temperatures, finished, footer);
             charts.add("![CPU temperature over time](" + TEMPERATURE_CHART + ".svg)");
         }
         if (hasValues(samples.meanMegaHertz())) {
-            TimeSeriesRenderer.render(runDirectory.resolve(FREQUENCY_CHART), "CPU frequency", "MHz, sampled once"
-                    + " per second", seconds, List.of(
-                            new TimeSeriesRenderer.Series("Mean over the cores", samples.meanMegaHertz()),
+            TimeSeriesRenderer.render(runDirectory.resolve(FREQUENCY_CHART), "CPU frequency", "MHz", seconds,
+                    List.of(new TimeSeriesRenderer.Series("Mean over the cores", samples.meanMegaHertz()),
                             new TimeSeriesRenderer.Series("Lowest core", samples.minMegaHertz(), true)),
                     finished, footer);
             charts.add("![CPU frequency over time](" + FREQUENCY_CHART + ".svg)");

@@ -401,6 +401,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             System.out.println("No cool-down: the host has no CPU temperature sensor");
             return null;
         }
+        long startEpochMillis = System.currentTimeMillis();
         long start = System.nanoTime();
         long deadline = start + TimeUnit.SECONDS.toNanos(cooldownTimeoutSeconds);
         long nextProgress = start;
@@ -419,7 +420,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         System.out.printf(Locale.ROOT, "%s: CPU package at %.0f °C after %.0f s%n",
                 reached ? "Cooled down" : "Cool-down timed out", current, waitedSeconds);
         return new RunReport.Cooldown(phase, cooldownCelsius, initial.getAsDouble(), current, waitedSeconds,
-                reached);
+                reached, startEpochMillis, System.currentTimeMillis());
     }
 
     /**

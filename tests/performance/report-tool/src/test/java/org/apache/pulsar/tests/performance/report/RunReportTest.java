@@ -201,9 +201,10 @@ public class RunReportTest {
 
         Path file = RunReport.write(run, new RunReport.Run("scenario.yaml", "run-1", "image:tag",
                 json("{\"brokers\": 1, \"bookies\": 3}"), json("{\"applicationCount\": 1}"), null, null,
-                List.of(new RunReport.Cooldown(RunReport.Cooldown.BEFORE_RUN, 50.0, 78.0, 49.5, 95.0, true),
+                List.of(new RunReport.Cooldown(RunReport.Cooldown.BEFORE_RUN, 50.0, 78.0, 49.5, 95.0, true,
+                                START - 200_000, START - 105_000),
                         new RunReport.Cooldown(RunReport.Cooldown.BEFORE_MEASUREMENT, 50.0, 71.0, 58.0, 600.0,
-                                false))), mapper);
+                                false, START - 600_500, START - 500))), mapper);
         String report = Files.readString(file);
 
         assertThat(report).contains("| Host CPU | 52 °C at the start, at most 90 °C and 2,967 MHz on average during"
@@ -240,6 +241,34 @@ public class RunReportTest {
         assertThat(summary.coreCelsius().mean()).isNaN();
         assertThat(RunReport.hostSummaryLine(summary)).isEqualTo("60 °C at the start, at most 62 °C and 3,100 MHz"
                 + " on average during the measurement, no thermal throttling");
+    }
+
+    @Test
+    public void cutsALongCoolDownBeforeTheMeasurementOutOfTheCharts() {
+        // Warmup samples at -103 and -102 s, a cool-down from -101.5 to -1.5 s sampled every second, then the
+        // measurement
+        long[] epochs = new long[106];
+        for (int round = 0; round < epochs.length; round++) {
+            epochs[round] = START - 103_000 + round * 1000L;
+        }
+        RunReport.Cooldown coolDown = new RunReport.Cooldown(RunReport.Cooldown.BEFORE_MEASUREMENT, 50, 70, 50, 100,
+                true, START - 101_500, START - 1_500);
+
+        RunReport.ChartTimeline timeline = RunReport.chartTimeline(epochs, START, List.of(coolDown));
+
+        // The warmup samples moved up by the 100 s of the cool-down, a break at its end, then the samples from -1 s
+        assertThat(timeline.seconds()).containsExactly(-3.0, -2.0, -1.5, -1.0, 0.0, 1.0, 2.0);
+        assertThat(timeline.rounds()).containsExactly(0, 1, -1, 102, 103, 104, 105);
+        // Left of the cut the axis shows the real time
+        assertThat(timeline.cut().gapSeconds()).isEqualTo(100.0);
+        assertThat(timeline.cut().realSeconds(-3.0)).isEqualTo(-103.0);
+        assertThat(timeline.cut().realSeconds(1.0)).isEqualTo(1.0);
+        assertThat(timeline.select(new double[106])[2]).isNaN();
+        // A short cool-down, or none, leaves the time axis as it is
+        RunReport.Cooldown shortCoolDown = new RunReport.Cooldown(RunReport.Cooldown.BEFORE_MEASUREMENT, 50, 55, 50,
+                5, true, START - 6_500, START - 1_500);
+        assertThat(RunReport.chartTimeline(epochs, START, List.of(shortCoolDown)).cut()).isNull();
+        assertThat(RunReport.chartTimeline(epochs, START, List.of()).seconds()).hasSize(106);
     }
 
     @Test
