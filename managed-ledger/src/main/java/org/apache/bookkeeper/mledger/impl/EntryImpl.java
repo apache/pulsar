@@ -71,6 +71,11 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.data = ledgerEntry.getEntryBuffer();
         entry.data.retain();
         entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        // Reset the lazily-cached position LAST, after the id assignments: a recycled object can
+        // carry a stale Position materialized by a getPosition() call that raced past the recycle
+        // (deallocation nulls the field, but a late reader re-materializes it from the reset ids
+        // as (-1, -1)), and any racy lazy rebuild must observe the fresh legitimate ids.
+        entry.position = null;
         entry.setRefCnt(1);
         return entry;
     }
@@ -109,6 +114,8 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.entryId = entryId;
         entry.data = Unpooled.wrappedBuffer(data);
         entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        // Reset the lazily-cached position: see create(LedgerEntry, int).
+        entry.position = null;
         entry.setRefCnt(1);
         return entry;
     }
@@ -124,6 +131,8 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.data = data;
         entry.data.retain();
         entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        // Reset the lazily-cached position: see create(LedgerEntry, int).
+        entry.position = null;
         entry.setRefCnt(1);
         return entry;
     }
