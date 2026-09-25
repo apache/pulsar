@@ -2739,16 +2739,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             dynamic = true,
-            doc = "Maximum number of add entry requests that the managed ledger's executor thread processes in one "
-                    + "batch. Publishing threads queue adds for the ledger's executor, which processes them in batches "
-                    + "of up to this size before other tasks on that thread can run. A larger value reduces "
-                    + "scheduling overhead and contention between publishing threads under high publish rates, but "
-                    + "keeps the executor thread occupied for longer per batch, which can delay add completions, "
-                    + "reads and cursor notifications for the ledgers that share the thread. A smaller value favors "
-                    + "those tasks over add throughput. Set to 0 to disable batching, so that each add is "
-                    + "submitted to the executor as a task of its own. Updates apply to managed ledgers "
+            doc = "Maximum number of add entry requests handed over to the managed ledger's executor thread in one "
+                    + "batch. Publishing threads queue adds for the ledger's executor, which takes them over in "
+                    + "batches of up to this size and processes each batch before other tasks on that thread can run. "
+                    + "A larger value reduces scheduling overhead and contention between publishing threads under "
+                    + "high publish rates, but keeps the executor thread occupied for longer per batch, which can "
+                    + "delay add completions, reads and cursor notifications for the ledgers that share the thread. "
+                    + "A smaller value favors those tasks over add throughput. Set to 0 to disable batching, so that "
+                    + "each add is handed over to the executor as a task of its own. Updates apply to managed ledgers "
                     + "opened after the change; ledgers that are already open keep the value they opened with.")
-    private int managedLedgerMaxAddBatchSize = 1024;
+    private int managedLedgerMaxAddEntryHandoverBatchSize = 1024;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"

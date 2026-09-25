@@ -2559,7 +2559,8 @@ public class BrokerService implements Closeable {
             }
             managedLedgerConfig.setBatchReadEnabled(serviceConfig.isManagedLedgerBatchReadEnabled());
             managedLedgerConfig.setReadEntriesCallbackInline(serviceConfig.isManagedLedgerReadEntriesCallbackInline());
-            managedLedgerConfig.setMaxAddBatchSize(Math.max(0, serviceConfig.getManagedLedgerMaxAddBatchSize()));
+            managedLedgerConfig.setMaxAddEntryHandoverBatchSize(
+                    Math.max(0, serviceConfig.getManagedLedgerMaxAddEntryHandoverBatchSize()));
             managedLedgerConfig.setMinimumBacklogCursorsForCaching(
                     serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
             managedLedgerConfig.setMinimumBacklogEntriesForCaching(
@@ -3439,7 +3440,7 @@ public class BrokerService implements Closeable {
             }
             return true;
         });
-        addDynamicConfigValidator("managedLedgerMaxAddBatchSize", (value) -> {
+        addDynamicConfigValidator("managedLedgerMaxAddEntryHandoverBatchSize", (value) -> {
             try {
                 return Integer.parseInt(value) >= 0;
             } catch (NumberFormatException e) {
@@ -3531,9 +3532,9 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("autoSkipNonRecoverableData", (skipNonRecoverableLedger) -> {
             updateManagedLedgerConfig();
         });
-        // add listener to update managed-ledger config to managedLedgerMaxAddBatchSize; managed ledgers apply it
-        // when they are opened, so ledgers that are already open keep the value they opened with
-        registerConfigurationListener("managedLedgerMaxAddBatchSize", (maxAddBatchSize) -> {
+        // add listener to update managed-ledger config to managedLedgerMaxAddEntryHandoverBatchSize; managed ledgers
+        // apply it when they are opened, so ledgers that are already open keep the value they opened with
+        registerConfigurationListener("managedLedgerMaxAddEntryHandoverBatchSize", (maxAddEntryHandoverBatchSize) -> {
             updateManagedLedgerConfig();
         });
         // add listener to update message-dispatch-rate in msg for subscription
@@ -3759,9 +3760,10 @@ public class BrokerService implements Closeable {
                         ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
                         managedLedgerConfig.setAutoSkipNonRecoverableData(
                                 pulsar.getConfiguration().isAutoSkipNonRecoverableData());
-                        // update maxAddBatchSize configuration, which applies when a managed ledger is opened
-                        managedLedgerConfig.setMaxAddBatchSize(
-                                Math.max(0, pulsar.getConfiguration().getManagedLedgerMaxAddBatchSize()));
+                        // update maxAddEntryHandoverBatchSize configuration, which applies when a managed ledger
+                        // is opened
+                        managedLedgerConfig.setMaxAddEntryHandoverBatchSize(
+                                Math.max(0, pulsar.getConfiguration().getManagedLedgerMaxAddEntryHandoverBatchSize()));
                     }
                 } catch (Exception e) {
                     log.warn().attr("topic", topic.getName()).exception(e)
