@@ -76,14 +76,16 @@ public class ProfileReportTest {
                 new ObjectMapper(), directory);
         String report = Files.readString(file);
 
-        assertTrue(report.contains("Recordings: [broker.measurement.jfr](broker.measurement.jfr) (measurement window)"
-                + " · [broker.jonoffcpu-capture.pb](broker.jonoffcpu-capture.pb) (off-CPU capture stream)\n"), report);
-        assertFalse(report.contains("(broker.jfr)"), report);
-
         assertTrue(report.contains("Scenario `scenario.yaml`, run `run-1`."), report);
         assertTrue(report.contains("(40.0 s); producer throughput 102,329 msg/s."), report);
-        assertTrue(report.contains("[jonoffcpu-summary.md](broker-offcpu/jonoffcpu-summary.md)"), report);
-        assertTrue(report.contains("[offcpu-idle-waits.txt](broker-offcpu/offcpu-idle-waits.txt)"), report);
+        // The files are a table with descriptive link texts; the recording's generated name is not shown
+        assertTrue(report.contains("| File | Contents |\n|---|---|\n"
+                + "| [Digest (off-CPU summary)](broker-offcpu/jonoffcpu-summary.md) | Start here:"), report);
+        assertTrue(report.contains("| [JFR recording for the measurement period](broker.measurement.jfr) |"), report);
+        assertTrue(report.contains("| [Off-CPU capture stream](broker.jonoffcpu-capture.pb) |"), report);
+        assertTrue(report.contains("| [Idle-wait patterns](broker-offcpu/offcpu-idle-waits.txt) |"), report);
+        assertFalse(report.contains("(broker.jfr)"), report);
+        assertFalse(report.contains("## broker"), report);
         assertTrue(report.contains("| [All off-CPU time](broker-offcpu/offcpu.html) | 3,843.0 | 1,000 |  |"),
                 report);
         assertTrue(report.contains(
@@ -110,15 +112,19 @@ public class ProfileReportTest {
 
     @Test
     public void reportsTheRunWithoutProfilerOutputs() throws IOException {
-        Path file = ProfileReport.write(directory, List.of(directory.resolve("producer.jfr")),
+        Path file = ProfileReport.write(directory, List.of(directory.resolve("producer-1.jfr"),
+                        directory.resolve("producer-2.jfr")),
                 new ProfileReport.Run("scenario.yaml", "run-2", Instant.parse("2026-09-25T00:00:00Z"),
                         Instant.parse("2026-09-25T00:00:01Z"), 0),
                 new ObjectMapper(), directory);
         String report = Files.readString(file);
 
-        assertTrue(report.contains("## producer\n"), report);
+        // Several recordings in one directory are numbered rather than named
+        assertTrue(report.contains("## Recording 1\n"), report);
+        assertTrue(report.contains("## Recording 2\n"), report);
         assertFalse(report.contains("producer throughput"), report);
         assertFalse(report.contains("### "), report);
+        assertFalse(report.contains("| File |"), report);
     }
 
     @Test

@@ -92,6 +92,8 @@ public class RunReportTest {
         Files.writeString(offCpu.resolve(OffCpuFlamegraphs.NO_IDLE_SLICE + ".json"),
                 "{\"totalNanos\": \"4677199858\"}");
         Files.writeString(run.resolve("broker-profile/" + ProfileReport.FILE_NAME), "");
+        Files.writeString(run.resolve("broker-profile/broker.jfr"), "");
+        Files.writeString(run.resolve("broker-profile/broker.measurement.jfr"), "");
         Files.createDirectories(run.resolve("producer-profile/producer" + JfrFlamegraphViews.OUTPUT_SUFFIX));
         Files.writeString(run.resolve("producer-profile/" + ProfileReport.FILE_NAME), "");
 
@@ -118,7 +120,7 @@ public class RunReportTest {
                 + "- [producer/produce-latency.hdr](producer/produce-latency.hdr)\n"
                 + "- [consumer-0/consume-latency.hdr](consumer-0/consume-latency.hdr)\n"
                 + "- [consumer-1/consume-latency.hdr](consumer-1/consume-latency.hdr)\n\n</details>\n"), report);
-        assertTrue(report.contains("The samples are in [topic-stats.csv](topic-stats.csv)."), report);
+        assertTrue(report.contains("The [sampled topic stats](topic-stats.csv) are a CSV file."), report);
         assertTrue(report.contains("| Scenario | [scenario](scenario.yaml) |\n"), report);
         assertTrue(report.contains("| Cluster | 1 broker(s), 3 bookies, [configuration](resolved-config.yaml) |\n"),
                 report);
@@ -131,8 +133,10 @@ public class RunReportTest {
                 + " changes |"), report);
         assertTrue(report.contains("| Pulsar version | 5.0.0-SNAPSHOT |"), report);
 
-        assertTrue(report.contains("| [broker-profile](broker-profile/profile-report.md) | 4.7 s |"), report);
-        assertTrue(report.contains("| [producer-profile](producer-profile/profile-report.md) | not captured |"),
+        assertTrue(report.contains("| [Broker](broker-profile/profile-report.md) | 4.7 s |"
+                + " [complete](broker-profile/broker.jfr) ·"
+                + " [measurement period](broker-profile/broker.measurement.jfr) |\n"), report);
+        assertTrue(report.contains("| [Producer](producer-profile/profile-report.md) | not captured |"),
                 report);
         // The profiles follow the run's settings
         assertTrue(report.indexOf("## Profiles") > report.indexOf("| Setting |"), report);

@@ -32,9 +32,10 @@ import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 
 /**
  * Writes {@code profile-report.md} into a directory of profiled recordings, such as {@code broker-profile/}: the run
- * it belongs to, and for each recording links to the off-CPU digest, the off-CPU flame graphs with their totals, and
- * the CPU, allocation, lock or wall-clock views that were rendered. Links are relative, so the directory can be moved
- * or archived, and only files that exist are listed.
+ * it belongs to, and for each recording tables linking its files (the off-CPU digest, the JFR recordings, the capture
+ * stream and the patterns used), the off-CPU flame graphs with their totals, and the CPU, allocation, lock or
+ * wall-clock views that were rendered. Links are relative, so the directory can be moved or archived, and only files
+ * that exist are listed.
  */
 final class ProfileReport {
     static final String FILE_NAME = "profile-report.md";
@@ -80,10 +81,13 @@ final class ProfileReport {
                     run.producerMessagesPerSecond()));
         }
         report.append(".\n");
-        for (Path recording : recordings) {
-            String base = base(recording);
-            report.append("\n## ").append(base).append("\n");
-            appendRecordings(report, directory, base);
+        for (int index = 0; index < recordings.size(); index++) {
+            String base = base(recordings.get(index));
+            // The recording's generated name says nothing to a reader; several recordings are just numbered
+            if (recordings.size() > 1) {
+                report.append("\n## Recording ").append(index + 1).append("\n");
+            }
+            appendFiles(report, directory, base);
             appendOffCpu(report, directory, base, mapper);
             appendViews(report, directory, base);
         }
@@ -101,19 +105,30 @@ final class ProfileReport {
         return file;
     }
 
-    // The recordings themselves, for JDK Mission Control or the converter; retention may have removed some
-    private static void appendRecordings(StringBuilder report, Path directory, String base) {
-        List<String> links = new ArrayList<>();
-        for (String[] recording : new String[][] {
-                {base + ".jfr", "complete recording"},
-                {base + ".measurement.jfr", "measurement window"},
-                {base + JonoffcpuAgent.CAPTURE_SUFFIX, "off-CPU capture stream"}}) {
-            if (Files.isRegularFile(directory.resolve(recording[0]))) {
-                links.add("[" + recording[0] + "](" + recording[0] + ") (" + recording[1] + ")");
+    // The digest, the recordings and the patterns the off-CPU outputs used; retention may have removed some
+    private static void appendFiles(StringBuilder report, Path directory, String base) {
+        String offCpu = base + OffCpuFlamegraphs.OUTPUT_SUFFIX + "/";
+        StringBuilder rows = new StringBuilder();
+        for (String[] file : new String[][] {
+                {offCpu + OffCpuFlamegraphs.SUMMARY_FILE, "Digest (off-CPU summary)", "Start here: the blocked time"
+                        + " ranked by the application method that waited, where the time went and the capture's"
+                        + " coverage"},
+                {base + ".jfr", "JFR recording", "The complete recording, for JDK Mission Control or the converter"},
+                {base + ".measurement.jfr", "JFR recording for the measurement period", "Cut to the measurement"
+                        + " window; the CPU, allocation, lock and wall-clock views are rendered from it"},
+                {base + JonoffcpuAgent.CAPTURE_SUFFIX, "Off-CPU capture stream", "The kernel's off-CPU intervals;"
+                        + " correlating it with the JFR recording again reproduces the off-CPU outputs"},
+                {offCpu + OffCpuFlamegraphs.IDLE_WAITS_FILE, "Idle-wait patterns", "The waits for work that the"
+                        + " digest and the flame graphs without idle waits leave out"},
+                {offCpu + OffCpuFlamegraphs.DISPATCH_HIDE_FILE, "Dispatch frames", "Frames that only dispatch work,"
+                        + " hidden with jonoffcpu's `jvm-dispatch` preset before stacks start at the application"}}) {
+            if (Files.isRegularFile(directory.resolve(file[0]))) {
+                rows.append("| [").append(file[1]).append("](").append(file[0]).append(") | ").append(file[2])
+                        .append(" |\n");
             }
         }
-        if (!links.isEmpty()) {
-            report.append("\nRecordings: ").append(String.join(" · ", links)).append('\n');
+        if (!rows.isEmpty()) {
+            report.append("\n| File | Contents |\n|---|---|\n").append(rows);
         }
     }
 
@@ -124,14 +139,6 @@ final class ProfileReport {
             return;
         }
         report.append("\n### Off-CPU time\n\n");
-        String summary = offCpu + "/" + OffCpuFlamegraphs.SUMMARY_FILE;
-        if (Files.isRegularFile(directory.resolve(summary))) {
-            report.append("Start with the digest, [").append(OffCpuFlamegraphs.SUMMARY_FILE).append("](")
-                    .append(summary).append("): the blocked time ranked by the application method that waited,")
-                    .append(" where the time went and the capture's coverage, leaving out the idle waits listed in [")
-                    .append(OffCpuFlamegraphs.IDLE_WAITS_FILE).append("](").append(offCpu).append("/")
-                    .append(OffCpuFlamegraphs.IDLE_WAITS_FILE).append(").\n\n");
-        }
         report.append("| Flame graph | Off-CPU s | Intervals | Left out as idle s | Left out without an application"
                 + " frame s |\n|---|---:|---:|---:|---:|\n");
         for (Slice slice : SLICES) {
@@ -149,10 +156,8 @@ final class ProfileReport {
                     .append(" |\n");
         }
         report.append("\nThe application's first frame is the root-most frame matching `")
-                .append(OffCpuFlamegraphs.APPLICATION_ROOT).append("` once the frames that only dispatch work, listed")
-                .append(" in [").append(OffCpuFlamegraphs.DISPATCH_HIDE_FILE).append("](").append(offCpu).append("/")
-                .append(OffCpuFlamegraphs.DISPATCH_HIDE_FILE).append(") and jonoffcpu's `jvm-dispatch` preset, are")
-                .append(" hidden; stacks without one, such as the JVM's own threads, are left out of those flame")
+                .append(OffCpuFlamegraphs.APPLICATION_ROOT).append("` once the dispatch frames are hidden; stacks")
+                .append(" without one, such as the JVM's own threads, are left out of those flame")
                 .append(" graphs and counted in the last column, and the digest ranks them by thread pool. Each flame")
                 .append(" graph has a `.collapsed` file with full names and a `.json` summary beside it.\n");
     }

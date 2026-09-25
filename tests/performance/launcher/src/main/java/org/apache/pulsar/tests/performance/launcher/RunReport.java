@@ -45,6 +45,7 @@ final class RunReport {
     static final String THROUGHPUT_CHART = "throughput";
     static final String BACKLOG_CHART = "backlog";
     static final String RESOLVED_CONFIG = "resolved-config.yaml";
+    private static final String MEASUREMENT_RECORDING_SUFFIX = ".measurement.jfr";
     private static final DateTimeFormatter FOOTER_START = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter FOOTER_END = DateTimeFormatter.ofPattern("HH:mm:ss");
 
@@ -311,8 +312,7 @@ final class RunReport {
                 + " between samples. The rates are those of the whole seconds within the measurement (0 to ")
                 .append(String.format(Locale.ROOT, "%.1f", finished))
                 .append(" s), leaving out its first and last second, where the producers start and finish. The")
-                .append(" samples are in ")
-                .append(link(runDirectory, runDirectory.resolve(TopicStatsSampler.FILE_NAME))).append(".\n\n")
+                .append(" [sampled topic stats](").append(TopicStatsSampler.FILE_NAME).append(") are a CSV file.\n\n")
                 .append("| Measure | Median | Minimum |\n|---|---:|---:|\n")
                 .append(rateRow("Published msg/s", samples.published(), seconds, finished))
                 .append(rateRow("Dispatched msg/s, all subscriptions", totalDispatched, seconds, finished))
@@ -370,8 +370,10 @@ final class RunReport {
         if (profileReports.isEmpty()) {
             return;
         }
-        report.append("\n## Profiles\n\n| Profile report | Blocked off-CPU time (without idle waits) |\n"
-                + "|---|---:|\n");
+        report.append("\n## Profiles\n\nEach profile report has the off-CPU digest, which ranks where threads were"
+                + " blocked, the off-CPU flame graphs, and the CPU, allocation and other flame graphs, split by thread"
+                + " and as heatmaps over time.\n\n| Profile report | Blocked off-CPU time (without idle waits)"
+                + " | JFR recordings |\n|---|---:|---|\n");
         for (Path profileReport : profileReports) {
             Path directory = profileReport.getParent();
             double blockedSeconds = 0;
@@ -388,12 +390,34 @@ final class RunReport {
                 }
             }
             String name = directory.getFileName().toString();
-            report.append("| [").append(name).append("](").append(name).append("/").append(ProfileReport.FILE_NAME)
+            report.append("| [").append(componentName(name)).append("](").append(name).append("/")
+                    .append(ProfileReport.FILE_NAME)
                     .append(") | ")
                     // Without off-CPU capture, the profile has only its JFR views.
                     .append(offCpuCaptured ? String.format(Locale.ROOT, "%.1f s", blockedSeconds) : "not captured")
-                    .append(" |\n");
+                    .append(" | ").append(recordingLinks(name, directory)).append(" |\n");
         }
+    }
+
+    /** The profiled component a profile directory belongs to: {@code broker-profile} is "Broker". */
+    static String componentName(String directoryName) {
+        String name = directoryName.replaceFirst("-profile$", "").replace('-', ' ');
+        return name.isEmpty() ? directoryName : Character.toUpperCase(name.charAt(0)) + name.substring(1);
+    }
+
+    // Direct downloads of a profile's recordings: each complete recording and its measurement cut, where kept
+    private static String recordingLinks(String name, Path directory) throws IOException {
+        List<Path> recordings;
+        try (Stream<Path> files = Files.list(directory)) {
+            recordings = files.filter(path -> path.getFileName().toString().endsWith(".jfr")).sorted().toList();
+        }
+        List<String> links = new ArrayList<>();
+        for (Path recording : recordings) {
+            String file = recording.getFileName().toString();
+            String text = file.endsWith(MEASUREMENT_RECORDING_SUFFIX) ? "measurement period" : "complete";
+            links.add("[" + text + "](" + name + "/" + file + ")");
+        }
+        return String.join(" · ", links);
     }
 
     /** Reads {@code topic-stats.csv} into per-round published and dispatched rates and backlogs. */
