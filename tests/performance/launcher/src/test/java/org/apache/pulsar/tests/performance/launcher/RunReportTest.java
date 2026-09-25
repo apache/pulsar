@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.stream.Stream;
 import org.HdrHistogram.Histogram;
@@ -96,9 +97,21 @@ public class RunReportTest {
                         + " \"managedLedgerDefaultWriteQuorum\": \"1\", \"managedLedgerDefaultAckQuorum\": \"1\"}}"),
                 json("{\"gatewayCount\": 500, \"topicCount\": 1, \"applicationCount\": 2,"
                         + " \"clientsPerApplication\": 20, \"numberOfMessages\": 400000, \"warmupMessages\": 100000,"
-                        + " \"warmupRounds\": 1, \"payloadBytes\": 128, \"batchingEnabled\": false, \"rate\": 0}")),
+                        + " \"warmupRounds\": 1, \"payloadBytes\": 128, \"batchingEnabled\": false, \"rate\": 0}"),
+                new RunInfo(ZonedDateTime.parse("2026-09-25T06:42:59+03:00"), "perf-host", "lari", "Lari Hotari",
+                        "lari@example.com", Path.of("/work/pulsar/.claude/worktrees/w1"), "lh-branch",
+                        "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT")),
                 mapper);
         String report = Files.readString(file);
+
+        assertTrue(report.contains("| Started | 2026-09-25T06:42:59+03:00 |"), report);
+        assertTrue(report.contains("| Host | perf-host |"), report);
+        assertTrue(report.contains("| User | lari (git: Lari Hotari <lari@example.com>) |"), report);
+        assertTrue(report.contains("| Project directory | `/work/pulsar/.claude/worktrees/w1` |"), report);
+        assertTrue(report.contains("| Git branch | `lh-branch` |"), report);
+        assertTrue(report.contains("| Git commit | `0123456789abcdef0123456789abcdef01234567`, with uncommitted"
+                + " changes |"), report);
+        assertTrue(report.contains("| Pulsar version | 5.0.0-SNAPSHOT |"), report);
 
         assertTrue(report.contains("| [broker-profile](broker-profile/profile-report.md) | 4.7 s |"), report);
         assertTrue(report.contains("| [producer-profile](producer-profile/profile-report.md) | not captured |"),

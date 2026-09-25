@@ -21,5 +21,3 @@ workloads:
   iotTelemetry:
     clientRestartIntervalSeconds: 30
     clientRestartFraction: 0.1
-output:
-  directory: build/performance/iot-telemetry-restarts

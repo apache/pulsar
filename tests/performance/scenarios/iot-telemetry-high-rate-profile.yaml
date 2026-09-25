@@ -36,5 +36,3 @@ profiling:
       recordAllAboveMicros: 10000
   retainOriginalRecording: true
   createMeasurementRecording: true
-output:
-  directory: build/performance/iot-telemetry-high-rate-profile

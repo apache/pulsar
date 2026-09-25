@@ -29,6 +29,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -65,8 +67,17 @@ public class PerformanceLauncher implements Callable<Integer> {
     @Option(names = "--config", required = true)
     Path config;
 
-    @Option(names = "--output")
+    @Option(names = "--output", description = "Exact run directory, instead of one in the reports hierarchy")
     Path output;
+
+    @Option(names = "--reports-dir", defaultValue = "${sys:performance.reports.dir}",
+            description = "Root of the reports hierarchy <root>/<yyyy-MM-dd>/<branch>/<name>/<MM-dd-HH-mm-ss>; "
+                    + "default: build/performance in the project directory")
+    Path reportsDirectory;
+
+    @Option(names = "--name", description = "The run's name in the reports hierarchy; default: the scenario's "
+            + "output.name, else the scenario file name without .yaml")
+    String name;
 
     @Option(names = "--tools-directory", description = "Installed pulsar-performance-tools distribution")
     Path toolsDirectory;
@@ -105,10 +116,18 @@ public class PerformanceLauncher implements Callable<Integer> {
         String clusterName = "iot-" + ProcessHandle.current().pid();
         workload.put("serviceUrl", "pulsar://" + clusterName + "-pulsar-broker-0:6650");
 
-        Path runOutput = output != null ? output
-                : Path.of(loader.select(resolved, "output.directory").textValue());
+        // Whole seconds, as the run directory names the start
+        RunInfo runInfo = RunInfo.collect(Path.of("").toAbsolutePath(),
+                ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+        Path runOutput = output != null ? output : RunDirectory.resolve(
+                reportsDirectory != null ? reportsDirectory
+                        : runInfo.projectDirectory().resolve(RunDirectory.DEFAULT_REPORTS_ROOT),
+                runInfo.started(), RunDirectory.branchDirectory(runInfo.gitBranch(), runInfo.gitCommit()),
+                runName(resolved));
         runOutput = runOutput.toAbsolutePath().normalize();
         Files.createDirectories(runOutput);
+        System.out.println("Run directory: " + runOutput);
+        runInfo.write(runOutput);
         Path coordinationDirectory = runOutput.resolve("coordination");
         Files.createDirectories(coordinationDirectory);
         Files.writeString(runOutput.resolve("run-id.txt"), runId + "\n");
@@ -249,9 +268,23 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
         }
         Path runReport = RunReport.write(runOutput, new RunReport.Run(config.getFileName().toString(), runId,
-                PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload), loader.mapper());
+                PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload, runInfo), loader.mapper());
+        RunDirectory.linkIndexes(runOutput);
         System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
         return 0;
+    }
+
+    /** The run's name in the reports hierarchy: --name, else the scenario's output.name, else its file name. */
+    private String runName(JsonNode resolved) {
+        if (name != null && !name.isBlank()) {
+            return name;
+        }
+        String scenarioName = resolved.path("output").path("name").textValue();
+        if (scenarioName != null && !scenarioName.isBlank()) {
+            return scenarioName;
+        }
+        String fileName = config.getFileName().toString();
+        return fileName.replaceFirst("\\.ya?ml$", "");
     }
 
     /**

@@ -66,5 +66,3 @@ workloads:
     consumerTimeoutSeconds: 240
     clientRestartIntervalSeconds: 0
     clientRestartFraction: 0.0
-output:
-  directory: build/performance/iot-telemetry

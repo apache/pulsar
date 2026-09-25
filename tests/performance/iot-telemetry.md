@@ -136,8 +136,8 @@ configuration events needed to describe the source JVM in JDK Mission Control. S
 `profiling.retainOriginalRecording: false` to keep only the measurement recording, or
 `profiling.createMeasurementRecording: false` to keep only the complete recording. If cutting fails, the complete
 recording is preserved even when its retention is disabled. Setting both flags to `false` intentionally discards
-all current-run recordings. Earlier runs' recordings are left alone; use a fresh output directory per experiment
-if you want an unambiguous set of artifacts.
+all current-run recordings. Earlier runs' recordings are left alone; each run has a directory of its own unless
+`--output` reuses one.
 
 The JFR measurement window and broker-publish-to-listener latency assume synchronized producer, consumer, and
 broker clocks. Containers on one Docker host share its clock. When adapting the tools to multiple hosts,

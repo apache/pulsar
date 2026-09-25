@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -43,8 +44,12 @@ final class RunReport {
     static final String THROUGHPUT_CHART = "throughput";
     static final String BACKLOG_CHART = "backlog";
 
-    /** The run the report describes. */
-    record Run(String scenario, String runId, String image, JsonNode cluster, JsonNode workload) {
+    /**
+     * The run the report describes.
+     *
+     * @param info where, by whom and from which code the run was made; {@code null} leaves it out
+     */
+    record Run(String scenario, String runId, String image, JsonNode cluster, JsonNode workload, RunInfo info) {
     }
 
     /** The sampled topic stats of a run: one row per sample round. */
@@ -113,6 +118,31 @@ final class RunReport {
                         + (workload.path("batchingEnabled").asBoolean() ? "on" : "off")))
                 .append(row("Rate limit", workload.path("rate").asLong() > 0
                         ? String.format(Locale.ROOT, "%,d msg/s", workload.path("rate").asLong()) : "none"));
+        appendRunInfo(report, run.info());
+    }
+
+    // Where, by whom and from which code the run was made; the same values are in run-info.json
+    private static void appendRunInfo(StringBuilder report, RunInfo info) {
+        if (info == null) {
+            return;
+        }
+        String user = info.user();
+        if (!info.gitUserName().isEmpty()) {
+            user += " (git: " + info.gitUserName()
+                    + (info.gitUserEmail().isEmpty() ? "" : " <" + info.gitUserEmail() + ">") + ")";
+        }
+        report.append(row("Started", info.started().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)))
+                .append(row("Host", info.host()))
+                .append(row("User", user))
+                .append(row("Project directory", code(info.projectDirectory().toString())))
+                .append(row("Git branch", code(info.gitBranch())))
+                .append(row("Git commit", info.gitCommit().isEmpty() ? ""
+                        : code(info.gitCommit()) + (info.gitDirty() ? ", with uncommitted changes" : "")))
+                .append(row("Pulsar version", info.version()));
+    }
+
+    private static String code(String value) {
+        return value.isEmpty() ? "" : "`" + value + "`";
     }
 
     private static void appendCorrectness(StringBuilder report, List<JsonNode> consumers) {

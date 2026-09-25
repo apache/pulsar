@@ -22,5 +22,3 @@ extends: iot-telemetry-high-rate.yaml
 cluster:
   brokerEnvs:
     brokerDeduplicationEntriesInterval: "100000"
-output:
-  directory: build/performance/iot-telemetry-high-rate-dedup-snapshot-100k

@@ -64,11 +64,71 @@ Use the `profile` task when the selected scenario contains profiler options:
 The Gradle tasks build the Pulsar test image and the workload distribution before launching the scenario. See
 [the IoT scenario reference](iot-telemetry.md) for topology, correctness checks and output details.
 
-Every run writes a report into its output directory; open `run-report.html` in a browser, where its links work:
+### Where runs are written
+
+Every run gets a directory of its own, in a hierarchy by day, git branch and name:
+
+```
+<reports root>/<yyyy-MM-dd>/<branch>/<name>/<MM-dd-HH-mm-ss>/
+```
+
+- The reports root is `build/performance` in the repository; `-Pperformance.reportsDir=<dir>` (relative to the
+  repository root, or absolute) puts the reports elsewhere, for example in a directory shared by several worktrees
+  or a git repository of results. To make that permanent for every checkout and worktree on a machine, set it in
+  `~/.gradle/gradle.properties` (use an absolute path there, since a relative one would resolve in each checkout):
+
+  ```properties
+  performance.reportsDir=/data/pulsar-performance-reports
+  ```
+- The branch is the checked-out branch, with `/` and other characters that do not belong in a directory name
+  replaced by `-`; a detached HEAD is `detached-<commit>`.
+- The name is the scenario file name without `.yaml`, or the scenario's `output.name` when it sets one. `--name`
+  names an experiment instead, so that its runs stay together:
+
+  ```bash
+  ./gradlew :tests:performance:launcher:profile -Pperformance.reportsDir=/data/pulsar-reports \
+    --args='--config tests/performance/scenarios/iot-key-shared-500x20-profile.yaml --name e232-ab'
+  ```
+
+- The run directory is named by the run's start in local time. Two runs of the same name started within the same
+  second would share it.
+- `--output <dir>` writes the run to exactly that directory instead, outside the hierarchy.
+
+The launcher prints the run directory when it starts. In it, `index.html` and `README.md` are symbolic links to the
+run report, so that a directory of runs served by an HTTP server, or pushed to a GitHub repository, opens each run
+on its report; where the file system has no symbolic links, they are left out.
+
+#### Browsing the reports over HTTP
+
+The reports are static files, so any HTTP server can serve the reports root, and its directory listings lead
+through days, branches and names to the runs. When the performance tests run on a separate machine, serve the
+root there with Python's built-in server, bound to the loopback interface so that it is not reachable from the
+network:
+
+```bash
+# On the performance testing machine
+python3 -m http.server 8000 --bind 127.0.0.1 --directory build/performance
+```
+
+and reach it through an SSH tunnel, which forwards a local port to that loopback address over the encrypted SSH
+connection:
+
+```bash
+# On your own machine
+ssh -N -L 8000:127.0.0.1:8000 perf-host
+```
+
+Then open <http://localhost:8000/> and follow the listings to a run; its `index.html` opens the run report, from
+which the profile reports, digests and flame graphs are linked. The server reads the files as they are requested,
+so new runs appear without restarting it. With `-Pperformance.reportsDir=<dir>`, serve that directory instead.
+
+Every run writes a report into its run directory; open `run-report.html` in a browser, where its links work:
 
 | File | Contents |
 |---|---|
-| `run-report.md`, `run-report.html` | The scenario settings, correctness per application, producer and delivered throughput, publish and end-to-end latency percentiles, the sampled backlog and per-second rates, and links to the profile reports of a profiled run |
+| `run-report.md`, `run-report.html` | The scenario settings, where, by whom and from which commit the run was made, correctness per application, producer and delivered throughput, publish and end-to-end latency percentiles, the sampled backlog and per-second rates, and links to the profile reports of a profiled run |
+| `index.html`, `README.md` | Symbolic links to `run-report.html` and `run-report.md` |
+| `run-info.json` | The run's start, host, user, project directory, git branch, commit and uncommitted changes, and Pulsar version, with the keys of `pulsar-version.properties` where they match; the launcher collects them itself, from git and `gradle.properties` in the checkout it runs from |
 | `latency-histograms.svg`, `.png` | Publish and end-to-end latency distributions |
 | `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked |
 | `backlog.svg`, `.png` | Each subscription's backlog over the run |
@@ -90,7 +150,8 @@ standalone launcher uses these top-level sections:
 - `workloads`: named workload configurations, currently including `iotTelemetry`;
 - `profiling`: optional async-profiler options for the broker, producer and consumer processes, recorded through
   the [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent, plus the shared `offCpu` sampling policy; and
-- `output`: the run-artifact directory.
+- `output`: optional; `output.name` names the scenario's runs in the reports hierarchy instead of the file name
+  (see [Where runs are written](#where-runs-are-written)).
 
 Workload-specific fields live below their workload name so another launcher or application can reuse the same
 file without interpreting unrelated sections. The launcher writes the fully resolved tree to
@@ -128,7 +189,7 @@ profiling:
   retainOriginalRecording: true
   createMeasurementRecording: true
 output:
-  directory: build/performance/iot-restart-profile
+  name: iot-restart-profile
 ```
 
 Each inherited path is resolved relative to the file that declares it; absolute paths also work. Parents can
@@ -148,8 +209,8 @@ Control can describe the source JVM. Set
 recording after a successful cut, or `profiling.createMeasurementRecording: false` to keep only the complete
 recording. Both options default to `true` and apply to broker, producer and consumer recordings.
 Setting both to `false` intentionally discards all recordings produced by the current run. Retention options do
-not remove recordings from earlier runs. Use a fresh output directory for each experiment to keep profiles,
-summaries, and histograms together without mixing artifacts from different runs.
+not remove recordings from earlier runs, which matters only when `--output` reuses a directory: each run in the
+reports hierarchy has a directory of its own.
 
 These timestamps assume that producer, consumer, and broker clocks agree, as they do for containers on the same
 Docker host. Multi-host experiments need synchronized clocks; the launcher does not estimate clock skew or
@@ -293,7 +354,7 @@ highlight the `o.a.` frames. The correlator runs with `--audit none`, which skip
    [jonoffcpu releases](https://github.com/jonoffcpu/jonoffcpu/releases):
 
    ```bash
-   OFFCPU=build/performance/iot-telemetry-high-rate-profile/broker-profile/<recording>-offcpu
+   OFFCPU=<run directory>/broker-profile/<recording>-offcpu
    java -jar jonoffcpu-correlator.jar top --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
      --app '^org\.apache\.' --waiting-from $OFFCPU/offcpu-idle-waits.txt --package-names abbreviate
    ```

@@ -81,6 +81,11 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     systemProperty("performance.tools.dir",
         project(":tests:performance:tools").layout.buildDirectory.dir("install/pulsar-performance-tools")
             .get().asFile.absolutePath)
+    // Root of the reports hierarchy, -Pperformance.reportsDir=<dir> (relative to the repository root, or
+    // absolute). Without it the launcher writes to build/performance in the project directory it finds.
+    providers.gradleProperty("performance.reportsDir").orNull?.let {
+        systemProperty("performance.reports.dir", rootProject.file(it).absolutePath)
+    }
 }
 
 tasks.named<JavaExec>("run") {
