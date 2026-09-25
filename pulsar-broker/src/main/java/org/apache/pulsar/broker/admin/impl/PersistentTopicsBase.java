@@ -626,9 +626,9 @@ public class PersistentTopicsBase extends AdminResource {
                         // However, when checkAllowAutoCreation is true, the client will create the topic if
                         // it doesn't exist. In this case, `partitions == 0` means the automatically created topic
                         // is a non-partitioned topic so we shouldn't check if the topic exists.
-                        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName)
-                                .thenCompose(brokerAllowAutoTopicCreation -> {
-                            if (checkAllowAutoCreation && brokerAllowAutoTopicCreation) {
+                        return (checkAllowAutoCreation ? isAllowAutoTopicCreationAsync(topicName)
+                                : CompletableFuture.completedFuture(false)).thenCompose(allowAutoTopicCreation -> {
+                            if (allowAutoTopicCreation) {
                                 // Whether it exists or not, auto create a non-partitioned topic by client.
                                 return CompletableFuture.completedFuture(metadata);
                             } else {
@@ -2484,7 +2484,7 @@ public class PersistentTopicsBase extends AdminResource {
 
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SUBSCRIBE, subscriptionName))
-                .thenCompose(__ -> pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName))
+                .thenCompose(__ -> isAllowAutoTopicCreationAsync(topicName))
                 .thenCompose(isAllowAutoTopicCreation -> pulsar().getBrokerService()
                         .getTopic(topicName.toString(), isAllowAutoTopicCreation))
                 .thenApply(optTopic -> {

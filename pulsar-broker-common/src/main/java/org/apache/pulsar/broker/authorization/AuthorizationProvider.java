@@ -346,6 +346,30 @@ public interface AuthorizationProvider extends Closeable {
     }
 
     /**
+     * Check if a given <tt>role</tt> may have a topic created automatically, when it produces to, subscribes to or
+     * looks up a topic that does not exist and the auto topic creation settings allow creating it.
+     *
+     * <p>The default allows it, so the auto topic creation settings alone decide, as they did before this check
+     * existed. A provider overrides it to restrict which roles may trigger topic auto-creation, for example by
+     * checking {@link NamespaceOperation#CREATE_TOPIC}.
+     *
+     * <p>It is called whenever the settings would create a missing topic, on some paths before the broker knows
+     * whether the topic exists, so it must not assume the topic is missing and should be cheap. A refusal only
+     * prevents creating a missing topic. The broker's own clients, such as geo-replication and system topics,
+     * go through it too with their role, so a provider should keep allowing super users.
+     *
+     * @param topic topic name
+     * @param role role name
+     * @param authData authenticated data
+     * @return CompletableFuture<Boolean>
+     */
+    default CompletableFuture<Boolean> allowTopicAutoCreationAsync(TopicName topic,
+                                                                   String role,
+                                                                   AuthenticationDataSource authData) {
+        return CompletableFuture.completedFuture(true);
+    }
+
+    /**
      * Check if a given <tt>role</tt> is allowed to execute a given topic <tt>operation</tt> on topic's <tt>policy</tt>.
      *
      * @param topic topic name
