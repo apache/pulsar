@@ -795,4 +795,64 @@ public class RangeEntryCacheImplTest {
             }
         });
     }
+
+    @Test
+    public void testOutOfRangeEntryFromStorageReadIsReleased() {
+        // Partial cache hit on (1,1) so the read takes the mixed path (cache hit + missing-range
+        // storage reads).
+        EntryImpl cached = EntryImpl.create(1, 1, Unpooled.EMPTY_BUFFER);
+        assertThat(rangeEntryCache.insert(cached)).isTrue();
+        cached.release();
+
+        // The storage read returns the requested range plus one entry positioned OUTSIDE the
+        // requested range: the assembly loop drops it with a WARN, and must also release it —
+        // a dropped entry has no other owner (the future's list is the sole reference).
+        List<EntryImpl> outOfRangeEntries = new ArrayList<>();
+        doAnswer(invocation -> {
+            long firstEntry = invocation.getArgument(1);
+            long lastEntry = invocation.getArgument(2);
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            Object ctx = invocation.getArgument(6);
+            List<Entry> entries = new ArrayList<>((int) (lastEntry - firstEntry + 2));
+            for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+                entries.add(EntryImpl.create(1, entryId, Unpooled.EMPTY_BUFFER));
+            }
+            EntryImpl outOfRange = EntryImpl.create(1, 99, Unpooled.EMPTY_BUFFER);
+            outOfRangeEntries.add(outOfRange);
+            entries.add(outOfRange);
+            callback.readEntriesComplete(entries, ctx);
+            return null;
+        }).when(pendingReadsManager).readEntries(any(), anyLong(), anyLong(), anyLong(), any(), any(), any());
+
+        CompletableFuture<List<Entry>> result = new CompletableFuture<>();
+        rangeEntryCache.doAsyncReadEntriesByPosition(lh, PositionFactory.create(1, 0), PositionFactory.create(1, 3),
+                4, 1024 * 1024, expectedReadCount, new AsyncCallbacks.ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        result.complete(entries);
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        result.completeExceptionally(exception);
+                    }
+                }, null);
+
+        List<Entry> delivered = result.join();
+        try {
+            assertThat(delivered).hasSize(4);
+            for (int i = 0; i < 4; i++) {
+                assertThat(delivered.get(i)).isNotNull();
+                assertThat(delivered.get(i).getEntryId()).isEqualTo(i);
+            }
+        } finally {
+            delivered.forEach(Entry::release);
+        }
+
+        // The dropped out-of-range entries must have been released by the assembly loop.
+        assertThat(outOfRangeEntries).isNotEmpty();
+        for (EntryImpl outOfRange : outOfRangeEntries) {
+            assertThat(outOfRange.refCnt()).isZero();
+        }
+    }
 }
