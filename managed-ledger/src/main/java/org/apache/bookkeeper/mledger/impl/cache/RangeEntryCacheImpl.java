@@ -487,6 +487,11 @@ public class RangeEntryCacheImpl implements EntryCache {
                                             .attr("firstPosition", firstPosition)
                                             .attr("lastPosition", lastPosition)
                                             .log("Received entry outside of expected range");
+                                    // The dropped entry has no other owner: the future's list is
+                                    // the sole reference, and unlike the failure path above (which
+                                    // releases every successfully-read entry), nothing downstream
+                                    // would release it — release it here to avoid leaking its buffer.
+                                    entry.release();
                                 }
                             }
                         }
