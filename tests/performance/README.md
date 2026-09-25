@@ -126,7 +126,7 @@ Every run writes a report into its run directory; open `run-report.html` in a br
 
 | File | Contents |
 |---|---|
-| `run-report.md`, `run-report.html` | The scenario settings, where, by whom and from which commit the run was made, correctness per application, producer and delivered throughput, publish and end-to-end latency percentiles, the sampled backlog and per-second rates, and links to the profile reports of a profiled run and to the run's other files: the scenario as written and resolved, the summaries, container logs, HDR latency logs and topic stats |
+| `run-report.md`, `run-report.html` | The scenario settings, where, by whom and from which commit the run was made, correctness per application, producer and delivered throughput, publish and end-to-end latency percentiles, the sampled backlog and per-second rates, and links to the profile reports of a profiled run and to the run's other files: the scenario as written and resolved, the summaries, container logs (`container.log.txt`, so that HTTP servers show them as text), HDR latency logs and topic stats |
 | `<scenario>.yaml`, `resolved-config.yaml` | The scenario file as written, and the scenario with its inheritance and environment overrides applied, which the workloads read |
 | `index.html`, `README.md` | Symbolic links to `run-report.html` and `run-report.md` |
 | `run-info.json` | The run's start, host, user, project directory, git branch, commit and uncommitted changes, and Pulsar version, with the keys of `pulsar-version.properties` where they match; the launcher collects them itself, from git and `gradle.properties` in the checkout it runs from |

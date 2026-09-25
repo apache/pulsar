@@ -64,6 +64,8 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String CONFIG_MOUNT = "/performance-config/resolved-config.yaml";
     private static final String COORDINATION_MOUNT = "/performance-coordination";
     private static final String OUTPUT_MOUNT = "/performance-output";
+    // .txt, so that an HTTP server such as Python's shows the log as text instead of offering a download
+    static final String CONTAINER_LOG = "container.log.txt";
 
     @Option(names = "--config", required = true)
     Path config;
@@ -197,14 +199,14 @@ public class PerformanceLauncher implements Callable<Integer> {
             producer.start();
             int timeout = workload.path("consumerTimeoutSeconds").intValue() + 60;
             int producerExit = waitForExit(producer, timeout);
-            saveContainerLog(producer, producerOutput.resolve("container.log"));
+            saveContainerLog(producer, producerOutput.resolve(CONTAINER_LOG));
             if (producerExit != 0) {
                 throw new IllegalStateException("IoT producer exited with status " + producerExit);
             }
             for (int application = 0; application < consumers.size(); application++) {
                 GenericContainer<?> consumer = consumers.get(application);
                 int consumerExit = waitForExit(consumer, timeout);
-                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/container.log"));
+                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/" + CONTAINER_LOG));
                 if (consumerExit != 0) {
                     throw new IllegalStateException("IoT consumer exited with status " + consumerExit);
                 }
@@ -217,12 +219,12 @@ public class PerformanceLauncher implements Callable<Integer> {
                 topicStatsSampler.close();
             }
             if (producer != null) {
-                saveContainerLog(producer, runOutput.resolve("producer/container.log"));
+                saveContainerLog(producer, runOutput.resolve("producer").resolve(CONTAINER_LOG));
                 producer.stop();
             }
             for (int application = 0; application < consumers.size(); application++) {
                 GenericContainer<?> consumer = consumers.get(application);
-                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/container.log"));
+                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/" + CONTAINER_LOG));
                 consumer.stop();
             }
             cluster.stop();

@@ -108,7 +108,6 @@ final class RunReport {
         StringBuilder report = new StringBuilder();
         report.append("# Run report: ").append(run.scenario()).append("\n\n");
         appendRun(report, runDirectory, run);
-        appendFiles(report, runDirectory);
         // The profiles come first so that a profiled run leads to its flame graphs
         appendProfiles(report, runDirectory, mapper);
         appendCorrectness(report, consumers);
@@ -121,6 +120,7 @@ final class RunReport {
             appendTopicStats(report, runDirectory, readSamples(stats), measurementStart, measurementEnd,
                     chartFooter(run.info(), run.finished()));
         }
+        appendFiles(report, runDirectory);
         Path file = runDirectory.resolve(FILE_NAME);
         Files.writeString(file, report);
         MarkdownPages.renderHtml(file, runDirectory, "Run report: " + run.scenario());
@@ -160,19 +160,19 @@ final class RunReport {
         appendRunInfo(report, run.info());
     }
 
-    // The run's own records, for a reader who browses the run directory, for example over HTTP
+    // The run's own records, collapsed at the end, for a reader who browses the run directory, for example over HTTP
     private static void appendFiles(StringBuilder report, Path runDirectory) {
         List<String> links = new ArrayList<>();
         // The scenario and its resolved configuration are linked from the settings table
         for (String name : List.of(RunInfo.FILE_NAME, "producer/producer-summary.json",
-                "producer/container.log")) {
+                "producer/" + PerformanceLauncher.CONTAINER_LOG)) {
             Path file = runDirectory.resolve(name);
             if (Files.isRegularFile(file)) {
                 links.add(link(runDirectory, file));
             }
         }
         for (int application = 0; Files.isDirectory(runDirectory.resolve("consumer-" + application)); application++) {
-            for (String name : List.of("consumer-summary.json", "container.log")) {
+            for (String name : List.of("consumer-summary.json", PerformanceLauncher.CONTAINER_LOG)) {
                 Path file = runDirectory.resolve("consumer-" + application).resolve(name);
                 if (Files.isRegularFile(file)) {
                     links.add(link(runDirectory, file));
@@ -180,7 +180,11 @@ final class RunReport {
             }
         }
         if (!links.isEmpty()) {
-            report.append("\nFiles: ").append(String.join(" · ", links)).append('\n');
+            report.append("\n<details><summary>Files</summary>\n\n");
+            for (String link : links) {
+                report.append("- ").append(link).append('\n');
+            }
+            report.append("\n</details>\n");
         }
     }
 
