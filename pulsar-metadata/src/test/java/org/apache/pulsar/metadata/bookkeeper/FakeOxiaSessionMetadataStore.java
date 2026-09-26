@@ -20,7 +20,6 @@ package org.apache.pulsar.metadata.bookkeeper;
 
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -29,11 +28,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Data;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -59,11 +56,6 @@ import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
  * <li>the first session established after an expiry is reported as
  * {@link SessionEvent#SessionReestablished}, mirroring the session watcher mapping.</li>
  * </ul>
- *
- * <p>By default the session purge does not replay per-record Deleted notifications: in the
- * production gap this fix targets, the notifications are lost while the client is
- * disconnected, which is why the SessionLost event driven loop is needed. A test can fire
- * them explicitly with {@link #fireDeletedNotification(String)}.
  */
 class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
 
@@ -83,20 +75,15 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
 
     private final String identity;
     private final NavigableMap<String, Record> records = new TreeMap<>();
-    private final Map<String, Long> successfulEphemeralPuts = new HashMap<>();
-    private final Map<String, String> lastPutThreads = new HashMap<>();
 
     // guarded by this
     private long nextSessionId = 1;
     private Long currentSessionId;
     private boolean seenExpired;
 
-    private final ScheduledExecutorService delayExecutor = Executors.newSingleThreadScheduledExecutor(
-            r -> new Thread(r, "fake-oxia-put-delay"));
     private final ScheduledExecutorService sessionEventDispatcher = Executors.newSingleThreadScheduledExecutor(
             r -> new Thread(r, "fake-oxia-session-events"));
 
-    private volatile long putDelayMillis = 0;
     private volatile boolean unavailable = false;
     /**
      * When set, models the zk ownership semantics: an update (setData) neither transfers
@@ -105,8 +92,6 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
      */
     private volatile boolean zkOwnershipSemantics = false;
     private final AtomicInteger deletesToFailWithBadVersion = new AtomicInteger();
-    private final AtomicInteger putsToFailWithBadVersion = new AtomicInteger();
-    private volatile CountDownLatch sessionEventGate;
 
     FakeOxiaSessionMetadataStore(String identity) {
         super("fake-oxia-session-store", OpenTelemetry.noop(), null, 1);
@@ -158,12 +143,6 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
         if (unavailable) {
             return failed(new MetadataStoreException("injected store unavailability"));
         }
-        if (putsToFailWithBadVersion.getAndUpdate(d -> d > 0 ? d - 1 : 0) > 0) {
-            // A put race: someone wrote after the caller read, before this put applied. No
-            // state effect.
-            return failed(new MetadataStoreException.BadVersionException("injected put race"));
-        }
-
         Record existing = records.get(path);
         if (optExpectedVersion.isPresent()) {
             long expected = optExpectedVersion.get();
@@ -194,11 +173,7 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
                     ephemeral, identity, ownerSessionId);
         }
         records.put(path, record);
-        lastPutThreads.put(path, Thread.currentThread().getName());
-        if (ephemeral) {
-            successfulEphemeralPuts.merge(path, 1L, Long::sum);
-        }
-        return completeLater(CompletableFuture.completedFuture(stat(path, record)));
+        return CompletableFuture.completedFuture(stat(path, record));
     }
 
     @Override
@@ -247,47 +222,12 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
 
     private void fireSessionEvent(SessionEvent event) {
         try {
-            sessionEventDispatcher.execute(() -> {
-                CountDownLatch gate = sessionEventGate;
-                if (gate != null) {
-                    try {
-                        gate.await();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                }
-                receivedSessionEvent(event);
-            });
+            sessionEventDispatcher.execute(() -> receivedSessionEvent(event));
         } catch (RejectedExecutionException ignore) {
             // store closed
         }
     }
 
-    private <T> CompletableFuture<T> completeLater(CompletableFuture<T> future) {
-        long delay = putDelayMillis;
-        if (delay <= 0) {
-            return future;
-        }
-        CompletableFuture<T> delayed = new CompletableFuture<>();
-        future.whenComplete((value, ex) -> {
-            try {
-                delayExecutor.schedule(() -> {
-                    if (ex != null) {
-                        delayed.completeExceptionally(ex);
-                    } else {
-                        delayed.complete(value);
-                    }
-                }, delay, TimeUnit.MILLISECONDS);
-            } catch (RejectedExecutionException e) {
-                if (ex != null) {
-                    delayed.completeExceptionally(ex);
-                } else {
-                    delayed.complete(value);
-                }
-            }
-        });
-        return delayed;
-    }
 
     private static <T> CompletableFuture<T> failed(MetadataStoreException exception) {
         CompletableFuture<T> future = new CompletableFuture<>();
@@ -322,45 +262,18 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
         fireSessionEvent(SessionEvent.SessionLost);
     }
 
-    /** Fires an extra {@link SessionEvent#SessionLost} without changing any session state. */
-    void fireSessionLost() {
-        fireSessionEvent(SessionEvent.SessionLost);
-    }
 
-    /** Replays a KEY_DELETED notification for a path, like the oxia notification stream. */
-    void fireDeletedNotification(String path) {
-        receivedNotification(new Notification(NotificationType.Deleted, path));
-        notifyParentChildrenChanged(path);
-    }
 
     /**
-     * Bumps the version of a record invisibly: same identity, same value, same owning
-     * session, only the version moves on. Models any other version substitution that the
-     * client cannot distinguish from its own state.
+     * Fires an extra {@link SessionEvent#SessionReestablished}, like the session watcher of a
+     * metadata store reporting that a fresh session was established after a loss.
      */
-    synchronized void invisibleVersionBump(String path) {
-        Record record = records.get(path);
-        if (record == null) {
-            return;
-        }
-        records.put(path, new Record(record.version + 1, record.data, record.createdTimestamp,
-                System.currentTimeMillis(), record.ephemeral, record.creatorIdentity, record.ownerSessionId));
+    void fireSessionReestablished() {
+        fireSessionEvent(SessionEvent.SessionReestablished);
     }
 
-    /**
-     * Sweeps all the ephemeral records owned by a session, like a server-side
-     * ghost-session expiry cascade. Deliberately fires no notifications: in the production
-     * gap this fix targets, that notification leg did not translate into a recovery.
-     */
-    synchronized void sweepSession(long sessionId) {
-        List<String> swept = new ArrayList<>();
-        for (Map.Entry<String, Record> entry : records.entrySet()) {
-            if (entry.getValue().ephemeral && entry.getValue().ownerSessionId == sessionId) {
-                swept.add(entry.getKey());
-            }
-        }
-        swept.forEach(records::remove);
-    }
+
+
 
     /** Overwrites a path with an ephemeral record owned by a foreign identity. */
     synchronized void putForeignRecord(String path, String foreignIdentity, byte[] value) {
@@ -382,28 +295,14 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
         return record != null ? Optional.of(record) : Optional.empty();
     }
 
-    synchronized boolean isRecordCreatedBySelf(String path) {
-        Record record = records.get(path);
-        return record != null && Objects.equals(record.creatorIdentity, identity);
-    }
 
-    synchronized long getRecordVersion(String path) {
-        Record record = records.get(path);
-        return record != null ? record.version : -1L;
-    }
 
     synchronized long getRecordSession(String path) {
         Record record = records.get(path);
         return record != null ? record.ownerSessionId : Long.MIN_VALUE;
     }
 
-    synchronized long getSuccessfulEphemeralPuts(String path) {
-        return successfulEphemeralPuts.getOrDefault(path, 0L);
-    }
 
-    synchronized String getLastPutThread(String path) {
-        return lastPutThreads.get(path);
-    }
 
     synchronized Long getCurrentSessionId() {
         return currentSessionId;
@@ -418,29 +317,15 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
         this.zkOwnershipSemantics = zkOwnershipSemantics;
     }
 
-    void setPutDelayMillis(long putDelayMillis) {
-        this.putDelayMillis = putDelayMillis;
-    }
 
     /** Makes the next n deletes fail with a BadVersion, modeling a lost delete/re-put race. */
     void failNextDeletesWithBadVersion(int n) {
         deletesToFailWithBadVersion.addAndGet(n);
     }
 
-    /** Makes the next n puts fail with a BadVersion, modeling a lost read/write race. */
-    void failNextPutsWithBadVersion(int n) {
-        putsToFailWithBadVersion.addAndGet(n);
-    }
-
-    /** Holds all session events until the latch is opened. */
-    void holdSessionEvents(CountDownLatch latch) {
-        sessionEventGate = latch;
-    }
-
     @Override
     public void close() throws Exception {
         if (isClosed.compareAndSet(false, true)) {
-            delayExecutor.shutdownNow();
             sessionEventDispatcher.shutdownNow();
             super.close();
         }
