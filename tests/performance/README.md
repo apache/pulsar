@@ -29,6 +29,12 @@ and jonoffcpu at the same time, which gives CPU, allocation and off-CPU flame gr
 both where threads use CPU and where they wait. Everything runs from the command line and writes its results to
 files, so that experiments can be automated, including tuning by AI agents, which [`AGENTS.md`](AGENTS.md) guides.
 
+The performance tests aren't currently used as automated regression tests: no CI job runs the scenarios, and no run
+is checked against a baseline automatically. A person or an agent compares revisions, as
+[Compare two revisions](#5-compare-two-revisions) describes. A future improvement is to evolve the tests into an
+automated regression test suite, which would prevent performance regressions by checking changes against a baseline,
+and set the new baseline when a change improves performance.
+
 For the performance of a single class or method, use [the JMH microbenchmarks](../../microbench/README.md) instead.
 
 ## How the tests work
