@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -71,8 +73,21 @@ public class ClusterResources extends BaseResources<ClusterData> {
         return getAsync(joinPath(BASE_CLUSTERS_PATH, clusterName));
     }
 
+    public CompletableFuture<List<String>> getNamespacesForClusterAsync(String tenant, String clusterName) {
+        return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant, clusterName));
+    }
+
     public List<String> getNamespacesForCluster(String tenant, String clusterName) throws MetadataStoreException {
-        return getChildren(joinPath(BASE_POLICIES_PATH, tenant, clusterName));
+        try {
+            return getNamespacesForClusterAsync(tenant, clusterName)
+                    .get(getOperationTimeoutSec(), TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
+        } catch (Exception e) {
+            throw new MetadataStoreException(
+                    "Failed to get namespaces for tenant " + tenant + " in cluster " + clusterName, e);
+        }
     }
 
     public void createCluster(String clusterName, ClusterData clusterData) throws MetadataStoreException {
@@ -109,22 +124,28 @@ public class ClusterResources extends BaseResources<ClusterData> {
                             .collect(Collectors.toList());
                     return FutureUtil.waitForAll(futures)
                             .thenApply(__ -> {
-                                // We found a tenant that has at least a namespace in this cluster
-                                return futures.stream().map(CompletableFuture::join)
+                                // Futures are already complete after waitForAll; use getNow to avoid
+                                // accidental blocking if this is ever refactored.
+                                return futures.stream()
+                                        .map(f -> f.getNow(List.of()))
                                         .anyMatch(CollectionUtils::isNotEmpty);
                             });
                 });
     }
 
+    /**
+     * Synchronous wrapper around {@link #isClusterUsedAsync(String)}.
+     * Prefer the async method so callers do not block metadata store threads.
+     */
     public boolean isClusterUsed(String clusterName) throws MetadataStoreException {
-        for (String tenant : getCache().getChildren(BASE_POLICIES_PATH).join()) {
-            if (!getCache().getChildren(joinPath(BASE_POLICIES_PATH, tenant, clusterName)).join().isEmpty()) {
-                // We found a tenant that has at least a namespace in this cluster
-                return true;
-            }
+        try {
+            return isClusterUsedAsync(clusterName).get(getOperationTimeoutSec(), TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            throw (e.getCause() instanceof MetadataStoreException) ? (MetadataStoreException) e.getCause()
+                    : new MetadataStoreException(e.getCause());
+        } catch (Exception e) {
+            throw new MetadataStoreException("Failed to check if cluster is used: " + clusterName, e);
         }
-
-        return false;
     }
 
     public boolean clusterExists(String clusterName) throws MetadataStoreException {
