@@ -129,6 +129,18 @@ scenarios in detail.
 
   `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` checks, without root, that the
   host is ready: that it's on AC power, has disk space and runs with the profile's settings.
+- **A reports root** that your checkouts share. Without one, each checkout writes its runs to its own
+  `build/performance`, so the runs of two revisions in separate worktrees end up apart, and removing a worktree
+  removes its runs. Set `performance.reportsDir` in `~/.gradle/gradle.properties`, which applies to every checkout
+  and worktree on the machine. Use an absolute path, since a relative one resolves in each checkout, and Gradle
+  doesn't expand `~` or `$HOME` in the file; the shell expands `$HOME` in this command:
+
+  ```bash
+  echo "performance.reportsDir=$HOME/pulsar-performance-reports" >> ~/.gradle/gradle.properties
+  ```
+
+  The launcher creates the directory, and `serveReports` serves it. `-Pperformance.reportsDir=<dir>` overrides the
+  setting for one command.
 
 Run the commands in the root directory of the repository.
 
@@ -158,15 +170,16 @@ Run directory: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26
 Run report: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00/index.html
 ```
 
-Every run gets a directory of its own under `build/performance`, by day, git branch, scenario and start time:
-`build/performance/<yyyy-MM-dd>/<branch>/<scenario>/<MM-dd-HH-mm-ss>/`. To find the newest run later:
+Every run gets a directory of its own under the reports root, by day, git branch, scenario and start time:
+`<reports root>/<yyyy-MM-dd>/<branch>/<scenario>/<MM-dd-HH-mm-ss>/`. The reports root is `performance.reportsDir`
+when you set it as [Before you start](#before-you-start) describes, or else `build/performance` in the repository.
+To find the newest run later, with the reports root in place of `build/performance` when you set one:
 
 ```bash
 ls -dt build/performance/*/*/*/*/ | head -n 1
 ```
 
-To keep the reports somewhere else, such as a directory that several checkouts share, set `performance.reportsDir`,
-see [Where runs are written](docs/running-scenarios.md#where-runs-are-written).
+[Where runs are written](docs/running-scenarios.md#where-runs-are-written) describes the run directories' names.
 [Finding the results of a run](docs/run-reports.md#finding-the-results-of-a-run) and
 [Layout of a run directory](docs/run-reports.md#layout-of-a-run-directory) describe what's in a run directory.
 
@@ -238,7 +251,8 @@ guide describes finding performance issues in a recording with it.
 
 To find out whether a change makes Pulsar faster, run the same scenario on the baseline and on the candidate, a few
 times each, alternating between them. Use a worktree for each revision, a separate Docker image tag for each, and the
-same experiment name, so that the runs of both land next to each other:
+same experiment name, so that the runs of both land next to each other in the reports root that the worktrees share,
+as [Before you start](#before-you-start) describes:
 
 ```bash
 # In the baseline worktree
