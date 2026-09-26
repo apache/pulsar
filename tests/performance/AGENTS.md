@@ -56,6 +56,35 @@ to install and use it. Agents other than Claude Code can use the Jafar MCP serve
 [AI agent analysis](docs/analyzing-profiles.md#ai-agent-analysis) describes. For heap dumps, see also
 [Heap dumps and memory leaks](docs/analyzing-profiles.md#heap-dumps-and-memory-leaks).
 
+## Pull requests for performance improvements
+
+When the user asks you to create a pull request, or update one, for a performance improvement that was tested with
+these tests, suggest adding the charts of the comparison to the pull request's description as SVG images. Each run
+directory has its charts as SVG, such as `throughput.svg` and `latency-percentiles.svg`, see
+[Files of a run](docs/run-reports.md#files-of-a-run). Use the run of each revision whose numbers are closest to that
+revision's medians, and suggest the charts that show the improvement. Add the charts only when the user agrees.
+
+These instructions are for the `apache/pulsar` repository, when a human has prepared the change and asks you to
+create the pull request. Never open or update a pull request in `apache/pulsar` without the human's explicit
+confirmation: as [Licensing and provenance](../../AGENTS.md#licensing-and-provenance-read-first) in the repository's
+agent guide states, every pull request must be submitted by a human contributor who has reviewed and verified the
+change and takes responsibility for it. Automated pull requests, such as those of a tuning experiment, may go to a
+personal fork or another fork.
+
+- Attach the charts with the `--attach` option of `gh pr create` and `gh pr edit`, which recent versions of the
+  GitHub CLI have. Check its details with `gh pr create --help` or `gh pr edit --help`, and if the installed `gh`
+  lacks the option, tell the user.
+- The charts of every run have the same file names, so copy them to names that say the revision, such as
+  `baseline-throughput.svg` and `candidate-throughput.svg`, before attaching them.
+- Give each image an alt text that says what the chart shows and for which revision:
+  `--attach './candidate-throughput.svg#Throughput with the change'`.
+- `gh` appends an attachment to the end of the description, unless the description references the file, such as
+  `![Throughput with the change](./candidate-throughput.svg)`, in which case it points that reference at the uploaded
+  file. Put the references where the charts belong, or, after attaching the files, move the image tags that `gh`
+  added by editing the description, for example with `gh pr view --json body` and `gh pr edit --body-file`.
+- The charts don't replace the numbers: state the medians of the measures and their changes in the text, as
+  [Compare](docs/comparing-revisions.md#compare) describes.
+
 ## Changing the performance tests
 
 - New scenarios, workload applications and profiling support belong to the standalone launcher, not to the
