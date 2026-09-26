@@ -145,8 +145,8 @@ claude mcp add jafar -- jbang jfr-mcp@btraceio --stdio
 
 For a broader toolset, use the `jafar-perf` Claude Code plugin from
 [jafar-perf-box](https://github.com/btraceio/jafar-perf-box) instead. It adds skills and agents on top of the Jafar
-MCP server that guide an analysis of a recording or a heap dump from triage to a report, including comparing
-recordings and investigating memory leaks, and it registers the Jafar MCP server itself.
+MCP server that guide an analysis of a recording or a [heap dump](#heap-dumps-and-memory-leaks) from triage to a
+report, including comparing recordings and investigating memory leaks, and it registers the Jafar MCP server itself.
 [Its README](https://github.com/btraceio/jafar-perf-box/blob/main/plugins/jafar-perf/README.md) describes how to
 install and use it.
 
@@ -166,11 +166,16 @@ async-profiler's allocation samples are `jdk.ObjectAllocationInNewTLAB` (not `jd
 Treat automated analysis as a lead. Confirm a performance claim with a controlled comparison, a JMH benchmark where
 appropriate, or a second profile.
 
-## Heap dumps and memory leaks with MAT MCP
+## Heap dumps and memory leaks
 
-For an `OutOfMemoryError` or suspected retention problem, analyze the resulting `.hprof` with a headless Eclipse
-Memory Analyzer (MAT) MCP server such as [`mcp-mat`](https://github.com/codelipenghui/mcp-mat). Use the leak suspects
-report and dominator tree first, then query paths to GC roots or OQL for the retained objects. Keep the heap dump and
-the MCP result outside the source tree when they contain sensitive workload data; record the commands, heap limits
-and the resulting conclusions in the experiment notes. The [`jafar-perf` plugin](#jafar-mcp-analysis) can investigate
-memory leaks in heap dumps too.
+For an `OutOfMemoryError` or a suspected retention problem, analyze the resulting `.hprof` heap dump with an AI agent
+through one of these tools:
+
+- The [`jafar-perf` plugin](#jafar-mcp-analysis) from jafar-perf-box supports heap dump analysis, including
+  investigating memory leaks and comparing heap dumps.
+- [codelipenghui/mcp-mat](https://github.com/codelipenghui/mcp-mat), an MCP server that runs a headless Eclipse Memory
+  Analyzer (MAT). Use the leak suspects report and the dominator tree first, then query paths to GC roots or OQL for
+  the retained objects.
+
+Keep the heap dump and the analysis outside the source tree when they contain sensitive workload data; record the
+commands, heap limits and the resulting conclusions in the experiment notes.

@@ -53,7 +53,8 @@ installs the `jafar-perf` Claude Code plugin from [jafar-perf-box](https://githu
 adds analysis skills and agents and registers the Jafar MCP server;
 [the plugin's README](https://github.com/btraceio/jafar-perf-box/blob/main/plugins/jafar-perf/README.md) describes how
 to install and use it. Agents other than Claude Code can use the Jafar MCP server on its own, as "Jafar MCP analysis"
-in `docs/analyzing-profiles.md` describes.
+in `docs/analyzing-profiles.md` describes. For heap dumps, see also
+[Heap dumps and memory leaks](docs/analyzing-profiles.md#heap-dumps-and-memory-leaks).
 
 ## Changing the performance tests
 

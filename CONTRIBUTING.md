@@ -126,6 +126,8 @@ isolation, such as SASL's one class per worker, takes precedence.
 
 Test JVMs write heap dumps on heap exhaustion to `/tmp/java_pid<PID>.hprof`, collected by CI's
 existing failure artifacts. Set `-PtestHeapDumpPath=<existing-directory>` to use another directory.
+[Heap dumps and memory leaks](tests/performance/docs/analyzing-profiles.md#heap-dumps-and-memory-leaks)
+describes tools for analyzing them.
 
 Failed tests are retried once by default (`testRetryCount=1`; `0` when running inside the IDE). When
 running tests locally, prefer **`-PtestRetryCount=0`** to catch failures (including flakiness) early
@@ -238,7 +240,9 @@ monitors, queues, I/O or GC, not only where they use CPU. See [Performance tests
 
 [Analyzing profiles](tests/performance/docs/analyzing-profiles.md) describes rendering these recordings
 into flame graphs, opening them in JDK Mission Control or IntelliJ IDEA, analyzing them with the Jafar
-MCP server or its jafar-perf plugin, and investigating memory leaks with the MAT MCP server.
+MCP server or its jafar-perf plugin, and
+[investigating memory leaks in heap dumps](tests/performance/docs/analyzing-profiles.md#heap-dumps-and-memory-leaks)
+with the jafar-perf plugin or codelipenghui/mcp-mat.
 
 ### Integration tests
 
