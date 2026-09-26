@@ -24,10 +24,13 @@
 The performance tests are for running performance test experiments: measuring a change, comparing two revisions
 and finding what to optimize. They run a Pulsar cluster and its client workloads in Docker containers on one host, as
 a [scenario](scenarios/README.md) describes them, and write a report for every run: throughput, latency, delivery and
-ordering checks, and the host's CPU temperature. A run can also be profiled with async-profiler, JDK Flight Recorder
-and jonoffcpu at the same time, which gives CPU, allocation and off-CPU flame graphs of the broker and the clients:
-both where threads use CPU and where they wait. Everything runs from the command line and writes its results to
-files, so that experiments can be automated, including tuning by AI agents, which [`AGENTS.md`](AGENTS.md) guides.
+ordering checks, and the host's CPU temperature. A run can also be profiled with
+[async-profiler](https://github.com/async-profiler/async-profiler),
+[JDK Flight Recorder](https://docs.oracle.com/en/java/javase/25/troubleshoot/diagnostic-tools.html#GUID-D38849B6-61C7-4ED6-A395-EA4BC32A9FD6)
+and [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) at the same time, which gives CPU, allocation and off-CPU
+flame graphs of the broker and the clients: both where threads use CPU and where they wait. Everything runs from the
+command line and writes its results to files, so that experiments can be automated, including tuning by AI agents,
+which [`AGENTS.md`](AGENTS.md) guides.
 
 The performance tests aren't currently used as automated regression tests: no CI job runs the scenarios, and no run
 is checked against a baseline automatically. A person or an agent compares revisions, as
@@ -207,8 +210,9 @@ To keep a workload, write it as a scenario that extends an existing one with the
 ### 4. Profile a run
 
 The `profile` task runs a scenario with three recorders running at the same time in the broker and the clients:
-[async-profiler](https://github.com/async-profiler/async-profiler) samples CPU time and allocations, JDK Flight
-Recorder records the JVM's own events into the same recording, and
+[async-profiler](https://github.com/async-profiler/async-profiler) samples CPU time and allocations,
+[JDK Flight Recorder](https://docs.oracle.com/en/java/javase/25/troubleshoot/diagnostic-tools.html#GUID-D38849B6-61C7-4ED6-A395-EA4BC32A9FD6)
+records the JVM's own events into the same recording, and
 [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) records from the kernel the time each thread spent blocked. It
 needs a Linux Docker engine. The profiling scenario saturates one topic from 500 producers:
 
