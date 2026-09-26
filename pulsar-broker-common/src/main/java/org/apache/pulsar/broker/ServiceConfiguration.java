@@ -2738,6 +2738,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private boolean managedLedgerReadEntriesCallbackInline = true;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,
+            dynamic = true,
+            doc = "Maximum number of add entry requests handed over to the managed ledger's executor thread in one "
+                    + "batch. Publishing threads queue adds for the ledger's executor, which takes them over in "
+                    + "batches of up to this size and processes each batch before other tasks on that thread can run. "
+                    + "A larger value reduces scheduling overhead and contention between publishing threads under "
+                    + "high publish rates, but keeps the executor thread occupied for longer per batch, which can "
+                    + "delay add completions, reads and cursor notifications for the ledgers that share the thread. "
+                    + "A smaller value favors those tasks over add throughput. Set to 0 to disable batching, so that "
+                    + "each add is handed over to the executor as a task of its own. Updates apply to managed ledgers "
+                    + "opened after the change; ledgers that are already open keep the value they opened with.")
+    private int managedLedgerAddEntryHandoverMaxBatchSize = 1024;
+
+    @FieldContext(category = CATEGORY_STORAGE_ML,
             doc = "Configure the threshold (in number of entries) from where a cursor should be considered 'backlogged'"
                     + " and thus should be set as inactive.\n"
                     + "Set to -1 to disable this behavior.\n"

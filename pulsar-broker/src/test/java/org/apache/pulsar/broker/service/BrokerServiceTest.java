@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_LOG;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
@@ -2264,6 +2265,53 @@ public class BrokerServiceTest extends BrokerTestBase {
             }
         } finally {
             serviceConfiguration.setManagedLedgerReadEntriesCallbackInline(originalInline);
+        }
+    }
+
+    @Test
+    public void testManagedLedgerAddEntryHandoverMaxBatchSizeConfiguration() throws Exception {
+        String setting = "managedLedgerAddEntryHandoverMaxBatchSize";
+        var serviceConfiguration = pulsar.getConfiguration();
+        int originalBatchSize = serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchSize();
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/add-entry-handover-" + UUID.randomUUID());
+        BrokerService brokerService = pulsar.getBrokerService();
+        assertThat(brokerService.isDynamicConfiguration(setting)).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "0")).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "256")).isTrue();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "-1")).isFalse();
+        assertThat(brokerService.validateDynamicConfiguration(setting, "abc")).isFalse();
+        try {
+            for (int batchSize : new int[]{0, 1, 256}) {
+                serviceConfiguration.setManagedLedgerAddEntryHandoverMaxBatchSize(batchSize);
+                ManagedLedgerConfig ledgerConfig = brokerService.getManagedLedgerConfig(topicName)
+                        .get(10, TimeUnit.SECONDS);
+                assertThat(ledgerConfig.getAddEntryHandoverMaxBatchSize()).isEqualTo(batchSize);
+            }
+        } finally {
+            serviceConfiguration.setManagedLedgerAddEntryHandoverMaxBatchSize(originalBatchSize);
+        }
+    }
+
+    @Test
+    public void testManagedLedgerAddEntryHandoverMaxBatchSizeDynamicUpdate() throws Exception {
+        String setting = "managedLedgerAddEntryHandoverMaxBatchSize";
+        var serviceConfiguration = pulsar.getConfiguration();
+        int originalBatchSize = serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchSize();
+        String topicName = "persistent://prop/ns-abc/add-entry-handover-dynamic-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
+        try {
+            admin.brokers().updateDynamicConfiguration(setting, "16");
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchSize()).isEqualTo(16);
+                assertThat(topic.getManagedLedger().getConfig().getAddEntryHandoverMaxBatchSize()).isEqualTo(16);
+            });
+            assertThatThrownBy(() -> admin.brokers().updateDynamicConfiguration(setting, "-1"))
+                    .isInstanceOf(PulsarAdminException.class);
+        } finally {
+            admin.brokers().deleteDynamicConfiguration(setting);
+            Awaitility.await().untilAsserted(() -> assertThat(
+                    serviceConfiguration.getManagedLedgerAddEntryHandoverMaxBatchSize()).isEqualTo(originalBatchSize));
         }
     }
 

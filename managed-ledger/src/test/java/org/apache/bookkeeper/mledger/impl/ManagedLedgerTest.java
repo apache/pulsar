@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -596,6 +597,114 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(evictedEntriesCount, 11,
                 "It is expected that the cache evicts entries to the earliest read position");
 
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testAddEntryHandoverQueueIsCreatedByTheFirstAdd() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_entry_handover_queue_lazy",
+                initManagedLedgerConfig(defaultConfig()));
+        // An opened ledger that is never written to does not allocate the queue.
+        ledger.openCursor("c1");
+        assertFalse(ledger.hasAddEntryHandoverQueue());
+
+        Position position = ledger.addEntry("entry".getBytes(Encoding));
+
+        assertTrue(ledger.hasAddEntryHandoverQueue());
+        assertEquals(ledger.getLastConfirmedEntry(), position);
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testAddEntryHandoverBatchingDisabled() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_entry_handover_batching_disabled",
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchSize(0)));
+
+        Position position = ledger.addEntry("entry".getBytes(Encoding));
+
+        // Each add is submitted to the executor on its own, without the add entry handover queue.
+        assertFalse(ledger.hasAddEntryHandoverQueue());
+        assertEquals(ledger.getLastConfirmedEntry(), position);
+        ledger.close();
+    }
+
+    @Test(timeOut = 20000)
+    public void testAddEntryHandoverMaxBatchSizeIsCapturedWhenOpened() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchSize(16));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("add_entry_handover_batch_size_captured", config);
+        assertEquals(ledger.getAddEntryHandoverMaxBatchSize(), 16);
+
+        config.setAddEntryHandoverMaxBatchSize(0);
+        ledger.setConfig(initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchSize(0)));
+
+        assertEquals(ledger.getAddEntryHandoverMaxBatchSize(), 16);
+        ledger.close();
+    }
+
+    @Test
+    public void testAddEntryHandoverMaxBatchSizeRejectsNegativeValues() {
+        assertEquals(new ManagedLedgerConfig().getAddEntryHandoverMaxBatchSize(), 1024);
+        assertThatThrownBy(() -> new ManagedLedgerConfig().setAddEntryHandoverMaxBatchSize(-1))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @DataProvider
+    public Object[][] addEntryHandoverMaxBatchSizes() {
+        return new Object[][] {{0}, {1}, {1024}};
+    }
+
+    @Test(timeOut = 30000, dataProvider = "addEntryHandoverMaxBatchSizes")
+    public void testConcurrentAsyncAddEntriesKeepPerThreadOrder(int addEntryHandoverMaxBatchSize) throws Exception {
+        int threads = 8;
+        int entriesPerThread = 2000;
+        ManagedLedger ledger = factory.open("concurrent_adds_" + addEntryHandoverMaxBatchSize,
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchSize(addEntryHandoverMaxBatchSize)));
+        List<List<Position>> positionsByThread = new ArrayList<>();
+        CountDownLatch completed = new CountDownLatch(threads * entriesPerThread);
+        AtomicReference<Throwable> failure = new AtomicReference<>();
+        CyclicBarrier start = new CyclicBarrier(threads);
+        ExecutorService publishers = Executors.newFixedThreadPool(threads);
+        try {
+            for (int t = 0; t < threads; t++) {
+                List<Position> positions = Collections.synchronizedList(new ArrayList<>());
+                positionsByThread.add(positions);
+                publishers.execute(() -> {
+                    try {
+                        start.await();
+                    } catch (Exception e) {
+                        failure.set(e);
+                        return;
+                    }
+                    for (int i = 0; i < entriesPerThread; i++) {
+                        ledger.asyncAddEntry(("entry-" + i).getBytes(Encoding), new AddEntryCallback() {
+                            @Override
+                            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                                positions.add(position);
+                                completed.countDown();
+                            }
+
+                            @Override
+                            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                                failure.set(exception);
+                                completed.countDown();
+                            }
+                        }, null);
+                    }
+                });
+            }
+            assertTrue(completed.await(20, TimeUnit.SECONDS));
+        } finally {
+            publishers.shutdownNow();
+        }
+        assertNull(failure.get());
+        assertEquals(ledger.getNumberOfEntries(), threads * entriesPerThread);
+        // Adds from one thread are written in the order that thread made them.
+        for (List<Position> positions : positionsByThread) {
+            assertEquals(positions.size(), entriesPerThread);
+            List<Position> sorted = new ArrayList<>(positions);
+            Collections.sort(sorted);
+            assertEquals(positions, sorted);
+        }
         ledger.close();
     }
 
