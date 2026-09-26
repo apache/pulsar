@@ -34,7 +34,7 @@ on any Linux distribution where TuneD and the profile are installed.
 
 | Command | What it does |
 |---|---|
-| `install` | Installs TuneD when it is missing (Debian based distributions), disables TuneD's dynamic tuning, installs the `performance-testing` TuneD profile, limits the size of Docker's container logs and leaves the TuneD daemon disabled. Run once, and again after the profile changes. |
+| `install` | Installs TuneD when it is missing (Debian based distributions), disables TuneD's dynamic tuning, installs the `performance-testing` TuneD profile without activating it, limits the size of Docker's container logs and leaves the TuneD daemon disabled; when the profile is active, it applies the updated profile. Run once, and again after the profile changes. |
 | `start` | Checks that the host is on AC power and warns when Docker's disk is 90 % full, stops `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS), activates and verifies the `performance-testing` profile and skips the `:tests:integration:tuneKernelPerfEvents` task in `~/.gradle/gradle.properties`. |
 | `stop` | Switches TuneD to the `balanced` profile, stops TuneD, applies the system's configured dirty page limits and swappiness again, starts the stopped daemons again and removes the Gradle property. |
 | `validate` | Checks that the host is ready for performance tests, see [Checking the host](#checking-the-host). Doesn't need root. |

@@ -390,18 +390,28 @@ install_environment() {
 
     configure_docker_logging
     disable_tuned_dynamic_tuning
-    # Restart so that TuneD reads its main configuration again
-    systemctl restart "${TUNED_SERVICE}"
     write_perf_profile
-    activate_perf_profile
 
-    echo
-    echo "Switching TuneD to the ${RESTORE_PROFILE} profile and disabling the daemon"
-    tuned-adm profile "${RESTORE_PROFILE}"
-    systemctl disable --now "${TUNED_SERVICE}"
+    # The profile isn't activated here: "start" activates and verifies it. TuneD isn't started at
+    # boot, and it runs only between "start" and "stop"
+    systemctl disable --quiet "${TUNED_SERVICE}"
+    if perf_profile_active; then
+        echo "The ${PERF_PROFILE} profile is active: restarting TuneD to apply the updated profile"
+        # The restart also reads TuneD's main configuration again
+        systemctl restart "${TUNED_SERVICE}"
+        tuned-adm profile "${PERF_PROFILE}"
+    else
+        systemctl stop "${TUNED_SERVICE}"
+    fi
 
     echo
     echo "Installation completed. Run \"sudo $0 start\" before performance testing."
+}
+
+# Whether TuneD runs with the performance testing profile, between "start" and "stop"
+perf_profile_active() {
+    systemctl is-active --quiet "${TUNED_SERVICE}" \
+        && [[ "$(tuned-adm active 2>/dev/null)" == *": ${PERF_PROFILE}" ]]
 }
 
 check_perf_profile_installed() {
