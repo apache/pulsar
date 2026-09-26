@@ -52,7 +52,7 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.register<JavaExec>("renderHdrHistograms") {
     group = "verification"
-    description = "Render IoT producer and consumer HDR latency histograms as PNG and SVG"
+    description = "Plot IoT publish and per-application end-to-end latencies by percentile and over time as PNG"
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("org.apache.pulsar.tests.performance.report.HdrHistogramRenderer")
 }
