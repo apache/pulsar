@@ -81,8 +81,8 @@ every device sequence"). A failed run isn't a valid measurement: find and fix th
 ├── index.html, README.md              the run report, as an HTML page and as Markdown
 ├── <scenario>.yaml, resolved-config.yaml
 ├── run-info.json, run-id.txt
-├── throughput.svg, backlog.svg, latency-percentiles.png, latency-timeline.png,
-│   host-temperature.svg, host-frequency.svg    the charts, the SVG charts also as PNG
+├── throughput.svg, backlog.svg, latency-percentiles.svg, latency-timeline.svg,
+│   host-temperature.svg, host-frequency.svg    the charts, each also as PNG
 ├── topic-stats.csv, host-stats.csv    the sampled topic stats and host CPU
 ├── producer/                          the producer's outputs, and its recordings in a profiled run
 ├── <application>/                     one directory per consumer application, named after its subscription,
@@ -131,8 +131,8 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `run-id.txt` | The ID that correlates the producer and the consumers of the run |
 | `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked. A cool-down wait of 10 s or more before the measurement is cut out of the time axis |
 | `backlog.svg`, `.png` | Each subscription's backlog over the run, on the same time axis |
-| `latency-percentiles.png` | Latency by percentile, as HistogramLogAnalyzer plots it: publish and each application's end to end, on an axis that spreads the tail (90 %, 99 %, 99.9 %, …) |
-| `latency-timeline.png` | The maximum latency of each logged interval over the run, publish and per application |
+| `latency-percentiles.svg`, `.png` | Latency by percentile, as HistogramLogAnalyzer plots it: publish and each application's end to end, on an axis that spreads the tail (90 %, 99 %, 99.9 %, …) |
+| `latency-timeline.svg`, `.png` | The maximum latency of each logged interval over the run, publish and per application |
 | `host-temperature.svg`, `.png`, `host-frequency.svg`, `.png` | The CPU package and hottest core temperature, and the mean and lowest core frequency, over the run |
 | `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
 | `host-stats.csv` | The host's CPU sampled once per second from Linux's sysfs files: package and hottest core temperature, mean and lowest core frequency, the kernel's thermal throttle counters and the fastest fan |
@@ -165,8 +165,8 @@ never merged. To plot them again for a run directory:
   --args='--run-directory <run directory>'
 ```
 
-The outputs are `latency-percentiles.png` and `latency-timeline.png` in the run directory; `--output-prefix
-/path/to/name` changes them. The `.hdr` interval logs also open in
+The outputs are `latency-percentiles.svg` and `latency-timeline.svg` in the run directory, each with a PNG beside
+it; `--output-prefix /path/to/name` changes them. The `.hdr` interval logs also open in
 [HistogramLogAnalyzer](https://github.com/HdrHistogram/HistogramLogAnalyzer), and the `.hgrm` percentile
 distributions in HdrHistogram's [plotFiles.html](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), for
 interactive comparisons across runs.

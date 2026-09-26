@@ -227,8 +227,8 @@ final class TimeSeriesRenderer {
     private static String svg(String title, String yLabel, double[] seconds, List<Series> series, double finished,
                               Cut cut, Scale scale, String footer) {
         StringBuilder out = new StringBuilder(16_000);
-        out.append("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"").append(WIDTH).append("\" height=\"")
-                .append(HEIGHT).append("\" viewBox=\"0 0 ").append(WIDTH).append(' ').append(HEIGHT)
+        // A viewBox without a width and height, so that the chart scales to the space it gets
+        out.append("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 ").append(WIDTH).append(' ').append(HEIGHT)
                 .append("\">\n<rect width=\"100%\" height=\"100%\" fill=\"white\"/>\n")
                 .append("<style>text{font-family:DejaVu Sans,Arial,sans-serif;fill:#142b40}.muted{fill:#506275}"
                         + "</style>\n")

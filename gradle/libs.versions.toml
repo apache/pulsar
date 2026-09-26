@@ -211,6 +211,7 @@ shadow = "9.6.1"
 jonoffcpu = "0.7.0"
 commonmark = "0.30.0"
 xchart = "4.0.4"
+vectorgraphics2d = "0.13"
 
 [libraries]
 # SLF4J
@@ -514,6 +515,8 @@ tooling-commonmark = { module = "org.commonmark:commonmark", version.ref = "comm
 tooling-commonmark-ext-gfm-tables = { module = "org.commonmark:commonmark-ext-gfm-tables", version.ref = "commonmark" }
 tooling-commonmark-ext-heading-anchor = { module = "org.commonmark:commonmark-ext-heading-anchor", version.ref = "commonmark" }
 tooling-xchart = { module = "org.knowm.xchart:xchart", version.ref = "xchart" }
+# LGPL-3.0: XChart's SVG export for the performance test reports, which aren't distributed
+tooling-vectorgraphics2d = { module = "de.erichseifert.vectorgraphics2d:VectorGraphics2D", version.ref = "vectorgraphics2d" }
 
 [plugins]
 lightproto = { id = "io.streamnative.lightproto", version.ref = "lightproto" }

@@ -21,16 +21,22 @@ package org.apache.pulsar.tests.performance.report;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.MissingNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import de.erichseifert.vectorgraphics2d.Document;
+import de.erichseifert.vectorgraphics2d.VectorGraphics2D;
+import de.erichseifert.vectorgraphics2d.svg.SVGProcessor;
+import de.erichseifert.vectorgraphics2d.util.PageSize;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -59,10 +65,11 @@ import picocli.CommandLine.Option;
  * distribution would describe none of them.
  */
 @Command(name = "render-hdr-histograms", mixinStandardHelpOptions = true,
-        description = "Plot IoT publish and per-application end-to-end latencies by percentile and over time as PNG")
+        description = "Plot IoT publish and per-application end-to-end latencies by percentile and over time as SVG"
+                + " and PNG")
 public final class HdrHistogramRenderer implements Callable<Integer> {
-    static final String PERCENTILES_SUFFIX = "-percentiles.png";
-    static final String TIMELINE_SUFFIX = "-timeline.png";
+    static final String PERCENTILES_SUFFIX = "-percentiles";
+    static final String TIMELINE_SUFFIX = "-timeline";
     /** The percentile distribution's file extension, as HdrHistogram's plotter, plotFiles.html, reads it. */
     static final String DISTRIBUTION_EXTENSION = ".hgrm";
     private static final int HEIGHT = 620;
@@ -76,7 +83,8 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     private Path runDirectory;
 
     @Option(names = "--output-prefix",
-            description = "Output path without the -percentiles.png and -timeline.png suffixes; defaults to"
+            description = "Output path without the -percentiles and -timeline suffixes and their .svg and .png"
+                    + " extensions; defaults to"
                     + " <run-directory>/latency")
     private Path outputPrefix;
 
@@ -126,13 +134,13 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     }
 
     /**
-     * Plots {@code <outputPrefix>-percentiles.png} and {@code <outputPrefix>-timeline.png}.
+     * Plots {@code <outputPrefix>-percentiles} and {@code <outputPrefix>-timeline}, each as SVG and PNG.
      *
      * @param consumers each consumer application's end-to-end latency log, in application order
      * @param applications the applications' names, one per log in {@code consumers}
      * @param originEpochMillis the time that the timeline counts seconds from, such as the measurement start
      * @param footer small text at the bottom right, such as the branch, commit and run time; empty for none
-     * @return the two charts
+     * @return the SVG charts, percentiles and timeline, which a report shows, followed by the PNG charts
      */
     static List<Path> render(Path producer, List<Path> consumers, List<String> applications, Path outputPrefix,
                              long originEpochMillis, String footer) throws IOException {
@@ -174,11 +182,17 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
         if (parent != null) {
             Files.createDirectories(parent);
         }
-        Path percentilesFile = outputPrefix.resolveSibling(outputPrefix.getFileName() + PERCENTILES_SUFFIX);
-        Path timelineFile = outputPrefix.resolveSibling(outputPrefix.getFileName() + TIMELINE_SUFFIX);
-        writePng(percentiles, footer, percentilesFile);
-        writePng(timeline, footer, timelineFile);
-        return List.of(percentilesFile, timelineFile);
+        String percentilesName = outputPrefix.getFileName() + PERCENTILES_SUFFIX;
+        String timelineName = outputPrefix.getFileName() + TIMELINE_SUFFIX;
+        List<Path> charts = List.of(outputPrefix.resolveSibling(percentilesName + ".svg"),
+                outputPrefix.resolveSibling(timelineName + ".svg"),
+                outputPrefix.resolveSibling(percentilesName + ".png"),
+                outputPrefix.resolveSibling(timelineName + ".png"));
+        writeSvg(percentiles, footer, charts.get(0));
+        writeSvg(timeline, footer, charts.get(1));
+        writePng(percentiles, footer, charts.get(2));
+        writePng(timeline, footer, charts.get(3));
+        return charts;
     }
 
     /**
@@ -301,5 +315,20 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
             graphics.dispose();
         }
         ImageIO.write(image, "png", output.toFile());
+    }
+
+    // The same chart and footer strip as the PNG, drawn into VectorGraphics2D, which XChart's SVG export uses
+    private static void writeSvg(XYChart chart, String footer, Path output) throws IOException {
+        int height = chart.getHeight() + (footer.isEmpty() ? 0 : FOOTER_STRIP_HEIGHT);
+        VectorGraphics2D graphics = new VectorGraphics2D();
+        graphics.setColor(Color.WHITE);
+        graphics.fillRect(0, 0, chart.getWidth(), height);
+        chart.paint(graphics, chart.getWidth(), chart.getHeight());
+        ChartStyle.drawFooter(graphics, footer, height);
+        Document document = new SVGProcessor().getDocument(graphics.getCommands(),
+                new PageSize(0, 0, chart.getWidth(), height));
+        ByteArrayOutputStream svg = new ByteArrayOutputStream();
+        document.writeTo(svg);
+        Files.writeString(output, ChartStyle.scalable(svg.toString(StandardCharsets.UTF_8)));
     }
 }

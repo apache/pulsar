@@ -42,7 +42,10 @@ public class TimeSeriesRendererTest {
                     series, 2.5, "lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04");
 
             String svg = Files.readString(directory.resolve("throughput.svg"));
-            assertThat(svg).contains("width=\"" + ChartStyle.WIDTH + "\"");
+            // No fixed size, so that the chart scales to the browser window or the page
+            assertThat(svg).contains("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 " + ChartStyle.WIDTH
+                    + " ");
+            assertThat(svg.substring(0, svg.indexOf('>'))).doesNotContain("width=").doesNotContain("height=");
             assertThat(svg.split("<polyline", -1).length - 1).isEqualTo(3);
             // The producers' line and its legend are dotted, the consumers' solid
             assertThat(svg.split("stroke-dasharray=\"0.1 5\"", -1).length - 1).isEqualTo(2);

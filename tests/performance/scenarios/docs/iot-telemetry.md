@@ -151,7 +151,7 @@ messages are excluded from both histograms. The consumer captures its receipt ti
 records the sample after payload decoding and key validation, before sequence validation and acknowledgment.
 Decoding and validation time do not contribute to the latency value. Use the report tool's `renderHdrHistograms`
 Gradle task to plot the publish latency and each application's end-to-end latency by percentile and over time
-as PNG; see [Latency logs](../../docs/run-reports.md#latency-logs) for the command.
+as SVG and PNG; see [Latency logs](../../docs/run-reports.md#latency-logs) for the command.
 
 ## Interpreting a run
 

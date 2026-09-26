@@ -31,9 +31,10 @@ dependencies {
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.hdrHistogram)
     implementation(libs.picocli)
-    // Draws the latency charts as PNG (Apache-2.0). Its optional dependencies, such as the LGPL VectorGraphics2D
-    // behind its SVG and PDF export, are not pulled in; only PNG export is used.
+    // Draws the latency charts (Apache-2.0), as PNG and, through VectorGraphics2D, as SVG. VectorGraphics2D is
+    // LGPL-3.0, which is fine for this tool: the reports are test tooling that no Pulsar distribution includes.
     implementation(libs.tooling.xchart)
+    implementation(libs.tooling.vectorgraphics2d)
     // Renders the Markdown reports to HTML pages whose links can be followed
     implementation(libs.tooling.commonmark)
     implementation(libs.tooling.commonmark.ext.gfm.tables)
@@ -52,7 +53,8 @@ tasks.withType<JavaCompile>().configureEach {
 
 tasks.register<JavaExec>("renderHdrHistograms") {
     group = "verification"
-    description = "Plot IoT publish and per-application end-to-end latencies by percentile and over time as PNG"
+    description = "Plot IoT publish and per-application end-to-end latencies by percentile and over time as SVG " +
+        "and PNG"
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("org.apache.pulsar.tests.performance.report.HdrHistogramRenderer")
 }

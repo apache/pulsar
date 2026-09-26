@@ -78,6 +78,21 @@ final class ChartStyle {
                 .append(FOOTER_FONT_SIZE).append("\">").append(xml(footer)).append("</text>\n");
     }
 
+    /**
+     * Removes the width and height of an SVG's root element and keeps its viewBox, so that the chart scales to the
+     * space it gets with its proportions kept: the browser window when the chart is opened on its own, or the page
+     * width in a report.
+     */
+    static String scalable(String svg) {
+        int start = svg.indexOf("<svg");
+        int end = start < 0 ? -1 : svg.indexOf('>', start);
+        if (end < 0) {
+            return svg;
+        }
+        String root = svg.substring(start, end).replaceAll("\\s(width|height)=\"[^\"]*\"", "");
+        return svg.substring(0, start) + root + svg.substring(end);
+    }
+
     static String xml(String value) {
         return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }

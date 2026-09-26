@@ -54,7 +54,7 @@ public class HdrHistogramRendererTest {
     }
 
     @Test
-    public void plotsPercentilesAndIntervalMaximaAsPng() throws Exception {
+    public void plotsPercentilesAndIntervalMaximaAsSvgAndPng() throws Exception {
         Path producer = writeLog(directory.resolve("producer/produce-latency.hdr"), 1_000, 2_000);
         Path consumerOne = writeLog(directory.resolve("iot-application-0/consume-latency.hdr"), 2_000, 4_000);
         Path consumerTwo = writeLog(directory.resolve("iot-application-1/consume-latency.hdr"), 4_000, 8_000);
@@ -63,9 +63,19 @@ public class HdrHistogramRendererTest {
                 List.of("iot-application-0", "iot-application-1"),
                 directory.resolve("latency"), 1_000, "lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04");
 
-        assertThat(charts).containsExactly(directory.resolve("latency-percentiles.png"),
+        assertThat(charts).containsExactly(directory.resolve("latency-percentiles.svg"),
+                directory.resolve("latency-timeline.svg"), directory.resolve("latency-percentiles.png"),
                 directory.resolve("latency-timeline.png"));
-        for (Path chart : charts) {
+        // XChart draws its text as outlines; the footer below the chart is text
+        for (Path chart : charts.subList(0, 2)) {
+            String svg = Files.readString(chart);
+            assertThat(svg).as(chart.toString()).contains("viewBox=\"0 0 " + ChartStyle.WIDTH + " ")
+                    .contains("lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04");
+            // No fixed size, so that the chart scales to the browser window or the page
+            String root = svg.substring(svg.indexOf("<svg"), svg.indexOf('>', svg.indexOf("<svg")));
+            assertThat(root).as(chart.toString()).doesNotContain(" width=").doesNotContain(" height=");
+        }
+        for (Path chart : charts.subList(2, 4)) {
             BufferedImage image = ImageIO.read(chart.toFile());
             assertThat(image.getWidth()).as(chart.toString()).isEqualTo(ChartStyle.WIDTH);
         }

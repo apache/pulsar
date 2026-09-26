@@ -167,11 +167,12 @@ public class RunReportTest {
         assertThat(report).contains("| Dispatched msg/s, all subscriptions | 250,000 | 100,000 |");
         assertThat(report).contains("| `sub-1` | 100,000 | 2 s | 50,000 |");
         assertThat(report).contains("| `sub-0` | 0 | 0 s | 0 |");
-        // The latency charts are PNG only; throughput and backlog also have SVG
-        for (String chart : new String[] {"latency-percentiles.png", "latency-timeline.png", "throughput.svg",
+        // The report shows the SVG charts; each also has a PNG beside it
+        for (String chart : new String[] {"latency-percentiles.svg", "latency-timeline.svg", "throughput.svg",
                 "backlog.svg"}) {
             assertThat(report).contains("](" + chart + ")");
             assertThat(run.resolve(chart)).as(chart).isRegularFile();
+            assertThat(run.resolve(chart.replace(".svg", ".png"))).as(chart).isRegularFile();
         }
         // Every SVG chart says which run it shows
         for (String chart : new String[] {"throughput", "backlog"}) {
@@ -180,7 +181,7 @@ public class RunReportTest {
         }
         String page = Files.readString(run.resolve("index.html"));
         assertThat(page).contains("<img src=\"throughput.svg\"");
-        assertThat(page).contains("<img src=\"latency-percentiles.png\"");
+        assertThat(page).contains("<img src=\"latency-percentiles.svg\"");
     }
 
     @Test
