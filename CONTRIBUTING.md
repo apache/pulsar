@@ -215,7 +215,8 @@ automatically** whenever profiling is on — the long-running, load-generating t
 skipped are usually the ones worth profiling — so `ENABLE_MANUAL_TEST` does not have to be exported. Recordings are written to
 `build/test-profiles/` in the repository root, named after the test task and stamped with the start
 time and the pid — for example `test_profile_pulsar-broker-test_20260904-114040_23420.jfr`, next to
-`test_profile_pulsar-broker-test.log`. See [Analyzing a JFR file](#analyzing-a-jfr-file) below.
+`test_profile_pulsar-broker-test.log`. See
+[Performance recording analysis](#performance-recording-analysis) below.
 
 The defaults can be tuned with `-Ptest.asyncprofiler.event=<event>` (the CPU sampling engine:
 `cpu` on Linux, `itimer` elsewhere — see
@@ -318,14 +319,14 @@ cut to the measurement window. It needs a Linux Docker engine:
   --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
 ```
 
-See [Profiling with jonoffcpu](tests/performance/README.md#profiling-with-jonoffcpu) for the requirements, the
-files a run writes and how to find what to optimize.
+See [Profiling](tests/performance/docs/profiling.md) for the requirements and the files a run writes,
+and [Analyzing profiles](tests/performance/docs/analyzing-profiles.md) for how to find what to optimize.
 
 #### Performance recording analysis
 
-See [`tests/performance/README.md`](tests/performance/README.md) for JFR rendering, async-profiler
-recording analysis, Jafar MCP usage and MAT MCP based memory-leak investigation. That document also
-explains how to keep the raw recordings and analysis next to the workload documentation.
+See [Analyzing profiles](tests/performance/docs/analyzing-profiles.md) for JFR rendering, async-profiler
+recording analysis, Jafar MCP usage and MAT MCP based memory-leak investigation, and
+[Performance testing](tests/performance/README.md) for running and comparing performance scenarios.
 
 ### Integration tests
 

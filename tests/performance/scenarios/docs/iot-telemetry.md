@@ -27,17 +27,17 @@ application-visible order across Key_Shared hash-range reassignment.
 
 ## Scenarios
 
-- [`iot-telemetry.yaml`](scenarios/iot-telemetry.yaml) is the full topology without churn.
-- [`iot-telemetry-restarts.yaml`](scenarios/iot-telemetry-restarts.yaml) restarts 10% of each application's
+- [`iot-telemetry.yaml`](../iot-telemetry.yaml) is the full topology without churn.
+- [`iot-telemetry-restarts.yaml`](../iot-telemetry-restarts.yaml) restarts 10% of each application's
   clients every 30 seconds.
-- [`iot-telemetry-local-steady.yaml`](scenarios/iot-telemetry-local-steady.yaml) keeps the 20-way fanout,
+- [`iot-telemetry-local-steady.yaml`](../iot-telemetry-local-steady.yaml) keeps the 20-way fanout,
   30 topics and 1,000 msg/s rate, but uses 10 gateways and 10 clients per application.
-- [`iot-telemetry-local.yaml`](scenarios/iot-telemetry-local.yaml) adds restart churn to that host-sized
+- [`iot-telemetry-local.yaml`](../iot-telemetry-local.yaml) adds restart churn to that host-sized
   topology.
-- [`iot-telemetry-high-rate.yaml`](scenarios/iot-telemetry-high-rate.yaml) removes the producer rate limit
+- [`iot-telemetry-high-rate.yaml`](../iot-telemetry-high-rate.yaml) removes the producer rate limit
   and sends five million messages through 500 preconnected producers to one topic. Five applications each
   consume with ten isolated clients on one Key_Shared subscription.
-- [`iot-telemetry-high-rate-profile.yaml`](scenarios/iot-telemetry-high-rate-profile.yaml) enables broker and
+- [`iot-telemetry-high-rate-profile.yaml`](../iot-telemetry-high-rate-profile.yaml) enables broker and
   producer jonoffcpu (async-profiler plus off-CPU) recordings for the same saturation workload.
 
 Build the mountable workload distribution without running a cluster:
@@ -108,9 +108,9 @@ Use the `profile` task for a scenario that has non-empty `profiling.brokerOption
 ```
 
 The options are async-profiler options, recorded through the [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu)
-agent together with kernel-measured off-CPU samples. The requirements, the files each recording produces and how
-to analyze them are in the performance README's
-[Profiling with jonoffcpu](README.md#profiling-with-jonoffcpu) section.
+agent together with kernel-measured off-CPU samples. [Profiling](../../docs/profiling.md) describes the requirements
+and the files each recording produces, and [Analyzing profiles](../../docs/analyzing-profiles.md) how to find what to
+optimize.
 
 Broker recordings are written under `broker-profile/`; producer and consumer recordings are written in their
 corresponding output directories. The launcher owns each recording path so recordings remain inside the run
@@ -122,10 +122,9 @@ only intervals where a thread blocked (`reasons: [blocked]`), not those where it
 CPU. It ignores waits under 100 µs (`minOffCpuMicros: 100`) and records every wait of 10 ms or longer, sampling
 shorter ones in proportion to their length (`admission: {policy: proportional, recordAllAboveMicros: 10000}`),
 which bounds the recording rate by off-CPU time rather than by context-switch count: a broker run records about
-400,000 intervals. For this workload, start with `run-report.html`, the broker's profile report and the off-CPU digest it links
-to and `cpu-threads.html`: the
-five-million-message run sends everything through one topic, so the topic's managed-ledger thread
-(`BookKeeperClientWorker-OrderedExecutor-*`) is the serial stage to watch.
+400,000 intervals. For this workload, start with the run report, `index.html`, the broker's profile report, the
+off-CPU digest it links to and `cpu-threads.html`: the five-million-message run sends everything through one topic,
+so the topic's managed-ledger thread (`BookKeeperClientWorker-OrderedExecutor-*`) is the serial stage to watch.
 
 After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the producer's
 measurement start through the latest measured-message receipt across all backend applications. The upper boundary
@@ -149,7 +148,7 @@ messages are excluded from both histograms. The consumer captures its receipt ti
 records the sample after payload decoding and key validation, before sequence validation and acknowledgment.
 Decoding and validation time do not contribute to the latency value. Use the report tool's `renderHdrHistograms`
 Gradle task to plot the publish latency and each application's end-to-end latency by percentile and over time
-as PNG; see the performance README for the command.
+as PNG; see [Latency logs](../../docs/run-reports.md#latency-logs) for the command.
 
 ## Interpreting a run
 

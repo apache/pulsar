@@ -143,10 +143,10 @@ Each recording gets a directory beside it named after the file without its exten
 `-flamegraphs` suffix, holding `cpu`, `wall`, `alloc` and `lock`, each rendered merged
 (`cpu.html`), split per thread (`cpu_threads.html`) and grouped into async-profiler's categories
 (`cpu_classify.html`). A view whose event the recording does not contain is skipped. See
-[Performance testing](../tests/performance/README.md) for the analysis workflow.
+[Analyzing profiles](../tests/performance/docs/analyzing-profiles.md) for the analysis workflow.
 
 The `.jfr` can also be opened in [Eclipse Mission Control](https://adoptium.net/jmc) or IntelliJ
 IDEA, or handed to an AI agent through the
 [Jafar MCP server](https://github.com/btraceio/jafar/blob/main/jfr-mcp/README.md), which lets the
 agent query the recording directly with tools such as `jfr_diagnose` and `jfr_stackprofile` — see
-[Jafar MCP analysis](../tests/performance/README.md#jafar-mcp-analysis).
+[Jafar MCP analysis](../tests/performance/docs/analyzing-profiles.md#jafar-mcp-analysis).

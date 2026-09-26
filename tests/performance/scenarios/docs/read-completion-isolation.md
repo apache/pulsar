@@ -23,11 +23,12 @@
 
 Use this scenario to measure whether consumer dispatch keeps up when many producers publish to
 one persistent topic. Run the same workload and profiler settings on the base revision and the
-candidate revision. See [README.md](README.md) for the profiling harness and analysis tools.
+candidate revision. The scenario runs on [the legacy TestNG profiling runner](../../docs/legacy-testng-runner.md); see
+[Analyzing profiles](../../docs/analyzing-profiles.md) for the analysis tools.
 
 ## Workload
 
-[read-completion-isolation.yaml](scenarios/read-completion-isolation.yaml) runs `pulsar-perf` on the v4 client
+[read-completion-isolation.yaml](../read-completion-isolation.yaml) runs `pulsar-perf` on the v4 client
 with 500 producers, 500 isolated clients sharing PIP-234 resources, one connection per client,
 and one Exclusive consumer on a non-partitioned `persistent://` topic. It sends 12 million
 unbatched 128-byte messages at unrestricted rate. Each producer permits 40 outstanding sends,
@@ -35,10 +36,10 @@ for a total limit of 20,000. The harness creates the subscription before publish
 
 Inherited variations change one aspect of this workload:
 
-- [Shared subscription](scenarios/read-completion-isolation-shared.yaml)
-- [Failover subscription](scenarios/read-completion-isolation-failover.yaml)
-- [64/32 KiB channel high/low watermarks](scenarios/read-completion-isolation-64k-32k.yaml)
-- [256/128 KiB channel high/low watermarks](scenarios/read-completion-isolation-256k-128k.yaml)
+- [Shared subscription](../read-completion-isolation-shared.yaml)
+- [Failover subscription](../read-completion-isolation-failover.yaml)
+- [64/32 KiB channel high/low watermarks](../read-completion-isolation-64k-32k.yaml)
+- [256/128 KiB channel high/low watermarks](../read-completion-isolation-256k-128k.yaml)
 
 Keep inherited YAML files together: parent paths resolve relative to the file declaring them.
 Always use the same variation for the baseline and candidate. A result for one subscription type

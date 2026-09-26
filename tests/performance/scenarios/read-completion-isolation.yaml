@@ -16,7 +16,7 @@
 # under the License.
 
 # 500 producers / 500 TCP connections / one Exclusive consumer on a persistent topic.
-# Run with PulsarProfilingV4Test; see read-completion-isolation.md for a baseline comparison.
+# Run with PulsarProfilingV4Test; see docs/read-completion-isolation.md for a baseline comparison.
 cluster:
   numBrokers: 1
   numBookies: 3
