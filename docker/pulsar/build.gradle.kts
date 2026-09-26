@@ -60,6 +60,7 @@ fun registerDockerBuild(taskName: String, dockerfile: String, imageTag: String) 
     dependsOn(copyTarball, copyOffloaderTarball)
 
     val imageName = "${dockerOrganization}/${dockerImage}:${imageTag}"
+    val imageIdFile = layout.buildDirectory.file("docker/${taskName}.iid").get().asFile
     val tarballName = "apache-pulsar-${pulsarVersion}-bin.tar.gz"
     val offloaderTarballName = "apache-pulsar-offloaders-${pulsarVersion}-bin.tar.gz"
     // Resolve version catalog values at configuration time (not in doFirst)
@@ -74,6 +75,7 @@ fun registerDockerBuild(taskName: String, dockerfile: String, imageTag: String) 
         "docker", "build",
         "-f", dockerfile,
         "-t", imageName,
+        "--iidfile", imageIdFile.absolutePath,
         "--build-arg", "PULSAR_TARBALL=build/target/${tarballName}",
         "--build-arg", "PULSAR_CLIENT_PYTHON_VERSION=${pythonClientVersion}",
         "--build-arg", "SNAPPY_VERSION=${snappyVersion}",
@@ -92,6 +94,14 @@ fun registerDockerBuild(taskName: String, dockerfile: String, imageTag: String) 
     args.add(".")
 
     commandLine(args)
+
+    // Rebuild the image only when what goes into it changes, see dockerImageOutput
+    inputs.file(dockerfile)
+    inputs.dir("build-scripts")
+    inputs.dir("scripts")
+    inputs.files(copyTarball, copyOffloaderTarball)
+    inputs.property("dockerBuildArgs", args)
+    dockerImageOutput(imageName, imageIdFile)
 }
 
 val dockerBuild = registerDockerBuild("dockerBuild", if (useWolfi) "Dockerfile.wolfi" else "Dockerfile", dockerTag)

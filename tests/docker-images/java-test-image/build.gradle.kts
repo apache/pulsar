@@ -88,7 +88,10 @@ fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler
         dependsOn(pulsarImageTask, prepareBuildContext)
 
         val imageName = "${dockerOrganization}/java-test-image:${imageTag}"
+        val imageIdFile = layout.buildDirectory.file("docker/${taskName}.iid").get().asFile
         val pulsarImage = "${dockerOrganization}/pulsar:${pulsarImageTag}"
+        // The ID of the Pulsar image that pulsarImageTask built, so that a new base image rebuilds this one
+        val pulsarImageIdFile = rootDir.resolve("docker/pulsar/build/docker/${pulsarImageTask.substringAfterLast(':')}.iid")
         val asyncProfilerVersion = libs.versions.async.profiler.get()
 
         workingDir = projectDir
@@ -96,6 +99,7 @@ fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler
         val args = mutableListOf(
             "docker", "build",
             "-t", imageName,
+            "--iidfile", imageIdFile.absolutePath,
             "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
             "--build-arg", "INSTALL_ASYNC_PROFILER=${installAsyncProfiler}",
             "--build-arg", "ASYNC_PROFILER_VERSION=${asyncProfilerVersion}"
@@ -108,6 +112,13 @@ fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler
         args.add(".")
 
         commandLine(args)
+
+        // Rebuild the image only when what goes into it changes, see dockerImageOutput
+        inputs.file("Dockerfile")
+        inputs.files(prepareBuildContext)
+        inputs.files(pulsarImageIdFile)
+        inputs.property("dockerBuildArgs", args)
+        dockerImageOutput(imageName, imageIdFile)
     }
 
 val dockerBuild = registerDockerBuild("dockerBuild", dockerTag, dockerInstallAsyncProfiler)

@@ -113,6 +113,20 @@ val gitCommitIdAbbrev = providers.gradleProperty("git.commit.id.abbrev")
 // Must match the image that :tests:java-test-image:dockerBuildWithAsyncProfiler tags.
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
+// The image that integrationTest runs against: PULSAR_TEST_IMAGE_NAME, or else the image that
+// :tests:latest-version-image:dockerBuild builds. integrationTest depends on the task that builds the
+// image, which Gradle skips when nothing that goes into the image has changed, so that the tests don't
+// run against a stale image. -Pinttest.skipDockerBuild skips building it, for CI jobs that load an image
+// that an earlier job built.
+val integrationTestImage = providers.environmentVariable("PULSAR_TEST_IMAGE_NAME")
+    .getOrElse("${dockerOrganization}/pulsar-test-latest-version:${dockerTag}")
+val integrationTestImageBuild = mapOf(
+    "${dockerOrganization}/pulsar-test-latest-version:${dockerTag}" to ":tests:latest-version-image:dockerBuild",
+    "${dockerOrganization}/java-test-image:${dockerTag}" to ":tests:java-test-image:dockerBuild",
+)[integrationTestImage]
+val skipDockerBuild = providers.gradleProperty("inttest.skipDockerBuild")
+    .map { it.isEmpty() || it.toBoolean() }
+    .getOrElse(false)
 val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.getOrElse(false)
 // When `--tests` is passed on the CLI, let TestNG discover tests directly from the classpath
 // instead of restricting discovery to the suite XML — unless -PintegrationTestSuiteFile was
@@ -177,6 +191,11 @@ fun Test.configureIntegrationTestDefaults(defaultProfiledComponents: String = ""
 
 val integrationTest = tasks.register<Test>("integrationTest") {
     configureIntegrationTestDefaults()
+
+    environment("PULSAR_TEST_IMAGE_NAME", integrationTestImage)
+    if (integrationTestImageBuild != null && !skipDockerBuild) {
+        dependsOn(integrationTestImageBuild)
+    }
 
     if (!ideaActive && (!hasCliTestsFilter || integrationTestSuiteFileExplicit)) {
         useTestNG {

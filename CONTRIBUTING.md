@@ -329,16 +329,16 @@ explains how to keep the raw recordings and analysis next to the workload docume
 
 ### Integration tests
 
-Integration tests live in `tests/` (see `tests/README.md`). They use
+Integration tests live in `tests/` (see [`tests/README.md`](tests/README.md)). They use
 [Testcontainers](https://www.testcontainers.org/) to bring up Pulsar services in Docker, so **Docker
-must be installed and running**. Build the test image first, then run the tests.
+must be installed and running**. `integrationTest` builds the Docker test image when something that
+goes into it has changed.
 
 The full integration suite is heavy and slow. **In local development, always run individual
 integration tests** rather than the whole suite — pass `--tests` to select a class (TestNG then
 discovers it directly from the classpath):
 
 ```bash
-./gradlew :tests:latest-version-image:dockerBuild     # build the docker test image
 ./gradlew :tests:integration:integrationTest --tests "org.apache.pulsar.tests.integration.<TestClass>"
 ```
 
