@@ -24,7 +24,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.github.merlimat.slog.Logger;
-import io.netty.channel.EventLoopGroup;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,11 +36,11 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.IntConsumer;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -109,6 +108,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
                     "totalAvailablePermits");
     protected volatile int totalAvailablePermits = 0;
+    private final IntConsumer addFlowPermitsToTotal =
+            permits -> TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, permits);
     protected volatile int readBatchSize;
     protected final Backoff readFailureBackoff;
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
@@ -230,6 +231,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             consumerList.sort(Comparator.comparingInt(Consumer::getPriorityLevel));
         }
         consumerSet.add(consumer);
+        consumer.startDispatcherFlowAccounting();
 
         return CompletableFuture.completedFuture(null);
     }
@@ -242,6 +244,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     @Override
     public synchronized void removeConsumer(Consumer consumer) throws BrokerServiceException {
         if (consumerSet.removeAll(consumer) == 1) {
+            // Stop adding this consumer's Flow updates to the dispatcher total. The balance excludes Flow permits
+            // that have not updated the dispatcher total yet; those are ignored once they complete.
+            int availablePermits = consumer.stopDispatcherFlowAccounting();
             // decrement unack-message count for removed consumer. Only the removal that actually
             // unregisters the consumer may debit it, otherwise removing an already-removed consumer
             // debits the same messages again and drives the subscription counter negative.
@@ -263,9 +268,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     }
                 });
                 // Restore the invariant that the dispatcher total equals the sum of the removal balances of the
-                // remaining consumers. Exclude Flow permits that have not updated the dispatcher total yet.
-                int availablePermits = consumer.getAvailablePermitsForDispatcherRemoval();
-                totalAvailablePermits -= availablePermits;
+                // remaining consumers.
+                TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -availablePermits);
                 log.debug()
                         .attr("availablePermits", availablePermits)
                         .attr("totalAvailablePermits", totalAvailablePermits)
@@ -292,6 +296,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     protected synchronized void internalRemoveConsumer(Consumer consumer) {
+        consumer.stopDispatcherFlowAccounting();
         consumerSet.removeAll(consumer);
         removeConsumerFromList(consumer);
     }
@@ -305,36 +310,19 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             log.info("All consumers removed. Subscription is disconnected");
             closeFuture.complete(null);
         }
-        totalAvailablePermits = 0;
+        TOTAL_AVAILABLE_PERMITS_UPDATER.set(this, 0);
     }
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        EventLoopGroup flowExecutor = topic.getBrokerService().executor();
-        try {
-            flowExecutor.execute(() -> internalConsumerFlow(consumer, additionalNumberOfMessages));
-        } catch (RejectedExecutionException e) {
-            // Leave the permits pending so removal excludes this unapplied Flow during broker shutdown.
-            log.debug()
-                    .attr("consumer", consumer)
-                    .attr("executorShutdown", flowExecutor.isShuttingDown())
-                    .exception(e)
-                    .log("Unable to schedule flow control update");
-        }
-    }
-
-    private synchronized void internalConsumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        // The queued Flow task is no longer pending, even if the consumer was removed while the task was waiting.
-        consumer.completePendingDispatcherFlow(additionalNumberOfMessages);
-        if (!containsConsumerInstance(consumer)) {
+        // Apply the permits on the calling thread, without the dispatcher monitor: the consumer's accounting lock
+        // orders the update with the consumer's removal, and readMoreEntriesAsync coalesces the read requests.
+        if (!consumer.completePendingDispatcherFlow(additionalNumberOfMessages, addFlowPermitsToTotal)) {
             log.debug()
                     .attr("consumer", consumer)
                     .log("Ignoring flow control from disconnected consumer");
             return;
         }
-
-        totalAvailablePermits += additionalNumberOfMessages;
-
         log.debug()
                 .attr("consumer", consumer)
                 .attr("totalAvailablePermits", totalAvailablePermits)
