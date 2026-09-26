@@ -38,7 +38,7 @@ Pass the launcher's options with `--args`:
 
 ```bash
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry-local.yaml --name my-experiment'
+  --args='--config tests/performance/scenarios/iot-telemetry.yaml --name my-experiment'
 ```
 
 ## Launcher options
@@ -114,11 +114,11 @@ containers go to `launcher.log` in the run directory.
 While the workload runs, the launcher prints two lines every `--progress-interval` seconds, as pulsar-perf does:
 the producer's messages, throughput, pending sends and publish latency, and the applications' messages, throughput,
 backlog and end-to-end latency. The prefix has the time since the producer started and the producer's phase, such as
-`warmup round 1/1` or `measurement 48 s`:
+`warmup round 1/1` or `measurement 47 s`:
 
 ```
-[01:10 measurement 48 s] Produced: 68,973 msg of 140,000 (49%) --- 1,003.3 msg/s --- 0.5 Mbit/s --- pending: 1 --- Latency: mean: 2.889 ms - med: 1.748 - 95pct: 4.215 - 99pct: 31.135 - 99.9pct: 100.223 - 99.99pct: 143.615 - Max: 155.007
-[01:10 measurement 48 s] Received: 1,384,032 msg of 2,800,000 (49%) --- 20,141.7 msg/s --- 10.3 Mbit/s --- backlog: 1,131 msg (max per application: 65) --- Latency: mean: 4.584 ms - med: 3.001 - 95pct: 11.007 - 99pct: 26.015 - 99.9pct: 89.023 - 99.99pct: 154.111 - Max: 212.095
+[01:21 measurement 47 s] Produced: 67,816 msg of 140,000 (48%) --- 1,020.0 msg/s --- 0.5 Mbit/s --- pending: 3 --- Latency: mean: 65.769 ms - med: 6.271 - 95pct: 342.783 - 99pct: 504.063 - 99.9pct: 744.447 - 99.99pct: 802.815 - Max: 814.591
+[01:21 measurement 47 s] Received: 1,354,097 msg of 2,800,000 (48%) --- 20,048.9 msg/s --- 10.3 Mbit/s --- backlog: 1,081 msg (max per application: 65) --- Latency: mean: 80.588 ms - med: 13.007 - 95pct: 383.231 - 99pct: 550.399 - 99.9pct: 776.191 - 99.99pct: 874.495 - Max: 921.087
 ```
 
 - The throughput and the latencies are those of the interval since the previous lines. The received messages and

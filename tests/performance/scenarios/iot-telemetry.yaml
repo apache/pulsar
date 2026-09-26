@@ -16,7 +16,7 @@
 # under the License.
 
 
-# Full representative topology. Start with iot-telemetry-local.yaml on one development host.
+# Full representative topology. iot-telemetry-small.yaml scales its connections down by 10.
 cluster:
   brokers: 1
   bookies: 3

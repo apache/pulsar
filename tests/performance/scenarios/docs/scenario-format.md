@@ -74,7 +74,7 @@ elements with underscores. The loader keeps the scalar's YAML type:
 ```bash
 PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=2000 \
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry-local.yaml'
+  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
 ```
 
 Environment overrides are applied after inheritance. They only update paths present in the resolved tree, which

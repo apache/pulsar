@@ -30,9 +30,9 @@ application-visible order across Key_Shared hash-range reassignment.
 - [`iot-telemetry.yaml`](../iot-telemetry.yaml) is the full topology without churn.
 - [`iot-telemetry-restarts.yaml`](../iot-telemetry-restarts.yaml) restarts 10% of each application's
   clients every 30 seconds.
-- [`iot-telemetry-local-steady.yaml`](../iot-telemetry-local-steady.yaml) keeps the 20-way fanout,
+- [`iot-telemetry-small.yaml`](../iot-telemetry-small.yaml) keeps the 20-way fanout,
   30 topics and 1,000 msg/s rate, but uses 10 gateways and 10 clients per application.
-- [`iot-telemetry-local.yaml`](../iot-telemetry-local.yaml) adds restart churn to that host-sized
+- [`iot-telemetry-small-restarts.yaml`](../iot-telemetry-small-restarts.yaml) adds restart churn to that smaller
   topology.
 - [`iot-telemetry-high-rate.yaml`](../iot-telemetry-high-rate.yaml) removes the producer rate limit
   and sends five million messages through 500 preconnected producers to one topic. Five applications each
@@ -46,12 +46,12 @@ Build the mountable workload distribution without running a cluster:
 ./gradlew :tests:performance:tools:installDist
 ```
 
-The mount root is `tests/performance/tools/build/install/pulsar-performance-tools`. Run the local scenario
+The mount root is `tests/performance/tools/build/install/pulsar-performance-tools`. Run the scenario
 through the standalone Testcontainers launcher with:
 
 ```bash
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry-local.yaml'
+  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
 ```
 
 The Gradle task builds the server test image and the workload distribution before launching. The launcher

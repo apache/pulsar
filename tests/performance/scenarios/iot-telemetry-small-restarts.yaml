@@ -16,8 +16,8 @@
 # under the License.
 
 
-# Adds restart churn to the host-sized topology.
-extends: iot-telemetry-local-steady.yaml
+# Adds restart churn to the small topology.
+extends: iot-telemetry-small.yaml
 workloads:
   iotTelemetry:
     clientRestartIntervalSeconds: 30

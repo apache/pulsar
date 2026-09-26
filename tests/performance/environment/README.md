@@ -124,7 +124,7 @@ sudo /usr/local/sbin/configure-perf-test-environment.sh start
 
 # Then run the tests
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry-local.yaml'
+  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
 
 # After running tests
 sudo /usr/local/sbin/configure-perf-test-environment.sh stop

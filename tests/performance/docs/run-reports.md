@@ -30,9 +30,9 @@ the profile reports and flame graphs.
 The launcher prints the run directory when the run starts, and the run report when it has finished:
 
 ```
-Run directory: /home/user/pulsar/build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00
+Run directory: /home/user/pulsar/build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00
 ...
-Run report: /home/user/pulsar/build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00/index.html
+Run report: /home/user/pulsar/build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00/index.html
 ```
 
 In between, it prints the run's phases and, every 10 seconds, the workload's progress, see
@@ -110,7 +110,7 @@ see [What a profiled run writes](profiling.md#what-a-profiled-run-writes).
 ## Reading a run report
 
 The report's title names the run's start, the code that it used and the scenario, such as `Pulsar performance test
-run 2026-09-26 12:00:00 master 0123456789ab iot-telemetry-local`: the branch, which a commit that no branch contains
+run 2026-09-26 12:00:00 master 0123456789ab iot-telemetry`: the branch, which a commit that no branch contains
 doesn't have, and the commit, with `-dirty` when the checkout had uncommitted changes. The title tells the reports of
 different runs and revisions apart, for example in browser tabs. The first paragraph links to the guide to the
 performance tests, and a footer below a horizontal line at the end repeats the title, the run ID and that link. The

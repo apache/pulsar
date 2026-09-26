@@ -148,19 +148,19 @@ Run the commands in the root directory of the repository.
 
 ### 1. Run a scenario
 
-Run the workstation-sized IoT telemetry scenario:
+Run the IoT telemetry scenario:
 
 ```bash
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry-local.yaml'
+  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
 ```
 
 Gradle builds the Pulsar test image and the workload applications first, when they are out of date. Then the
 launcher starts a cluster of one broker and three bookies, and runs the workload:
-[`iot-telemetry-local.yaml`](scenarios/iot-telemetry-local.yaml) sends keyed telemetry messages from 10 gateways to 30
-topics, which 20 applications consume on Key_Shared subscriptions, for 20 seconds of warmup and 120 seconds of
-measurement at 1,000 messages per second. It restarts some of the applications' clients every 30 seconds, and checks
-that every application receives every message of every device in order.
+[`iot-telemetry.yaml`](scenarios/iot-telemetry.yaml) sends keyed telemetry messages from 100 gateways to 30 topics,
+which 20 applications with 100 clients each consume on Key_Shared subscriptions, for 20 seconds of warmup and 120
+seconds of measurement at 1,000 messages per second. It checks that every application receives every message of every
+device in order.
 
 The launcher prints the run directory and the scenario's resolved configuration when it starts, the phases of the
 run as it goes, and the run report when it has finished. While the workload runs, it prints the producer's and the
@@ -169,9 +169,9 @@ percentiles of the last 10 seconds, merged over every application, and the subsc
 `launcher.log` in the run directory instead of the console:
 
 ```
-Run directory: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00
-12:00:00 Logs: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00/launcher.log
-12:00:00 Scenario iot-telemetry-local (iot-telemetry-local.yaml), resolved:
+Run directory: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00
+12:00:00 Logs: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00/launcher.log
+12:00:00 Scenario iot-telemetry (iot-telemetry.yaml), resolved:
   cluster:
     brokers: 1
     ...
@@ -180,12 +180,12 @@ Run directory: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26
 12:00:23 Starting 20 application(s) with 10 client(s) each
 12:00:32 Starting the producer: 20,000 warmup and 120,000 measured message(s) at 1,000 msg/s from 10 gateway(s) to 30 topic(s)
 ...
-[01:10 measurement 48 s] Produced: 68,973 msg of 140,000 (49%) --- 1,003.3 msg/s --- 0.5 Mbit/s --- pending: 1 --- Latency: mean: 2.889 ms - med: 1.748 - 95pct: 4.215 - 99pct: 31.135 - 99.9pct: 100.223 - 99.99pct: 143.615 - Max: 155.007
-[01:10 measurement 48 s] Received: 1,384,032 msg of 2,800,000 (49%) --- 20,141.7 msg/s --- 10.3 Mbit/s --- backlog: 1,131 msg (max per application: 65) --- Latency: mean: 4.584 ms - med: 3.001 - 95pct: 11.007 - 99pct: 26.015 - 99.9pct: 89.023 - 99.99pct: 154.111 - Max: 212.095
+[01:21 measurement 47 s] Produced: 67,816 msg of 140,000 (48%) --- 1,020.0 msg/s --- 0.5 Mbit/s --- pending: 3 --- Latency: mean: 65.769 ms - med: 6.271 - 95pct: 342.783 - 99pct: 504.063 - 99.9pct: 744.447 - 99.99pct: 802.815 - Max: 814.591
+[01:21 measurement 47 s] Received: 1,354,097 msg of 2,800,000 (48%) --- 20,048.9 msg/s --- 10.3 Mbit/s --- backlog: 1,081 msg (max per application: 65) --- Latency: mean: 80.588 ms - med: 13.007 - 95pct: 383.231 - 99pct: 550.399 - 99.9pct: 776.191 - 99.99pct: 874.495 - Max: 921.087
 ...
 12:02:55 Every application has received every message; verifying the device sequences
 12:02:57 Stopping the Pulsar cluster
-Run report: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00/index.html
+Run report: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00/index.html
 ```
 
 Every run gets a directory of its own under the reports root, by day, git branch, scenario and start time:
@@ -249,7 +249,7 @@ Try a single value with an environment variable, which overrides a setting of th
 ```bash
 PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=5000 \
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry-local.yaml'
+  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
 ```
 
 To keep a workload, write it as a scenario that extends an existing one with the settings it changes.
