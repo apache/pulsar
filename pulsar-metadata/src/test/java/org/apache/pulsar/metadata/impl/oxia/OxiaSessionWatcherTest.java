@@ -45,6 +45,8 @@ import org.testng.annotations.Test;
 
 class OxiaSessionWatcherTest {
 
+    private static final long SESSION_TIMEOUT_MILLIS = 30_000;
+
     private AsyncOxiaClient client;
     private List<SessionEvent> events;
     private AtomicInteger putCalls;
@@ -77,7 +79,7 @@ class OxiaSessionWatcherTest {
     }
 
     private OxiaSessionWatcher startedWatcher() {
-        OxiaSessionWatcher watcher = new OxiaSessionWatcher(client, events::add);
+        OxiaSessionWatcher watcher = new OxiaSessionWatcher(client, events::add, SESSION_TIMEOUT_MILLIS);
         watcher.start();
         await().atMost(5, SECONDS).until(() -> putKey.get() != null);
         awaitSessionEstablished(watcher);
@@ -157,11 +159,9 @@ class OxiaSessionWatcherTest {
     }
 
     @Test
-    void existenceCheckIgnoresAPresentCanaryAndAFailingRead() {
+    void existenceCheckIgnoresAPresentCanary() {
         try (OxiaSessionWatcher watcher = startedWatcher()) {
             doReturn(CompletableFuture.completedFuture(mock(GetResult.class))).when(client).get(anyString());
-            watcher.checkCanary();
-            doReturn(CompletableFuture.failedFuture(new RuntimeException("down"))).when(client).get(anyString());
             watcher.checkCanary();
 
             await().during(1, SECONDS).atMost(3, SECONDS)
@@ -173,7 +173,8 @@ class OxiaSessionWatcherTest {
     void existenceCheckDoesNothingBeforeTheSessionIsEstablished() {
         stubPut(() -> new CompletableFuture<>());
 
-        try (OxiaSessionWatcher watcher = new OxiaSessionWatcher(client, events::add)) {
+        try (OxiaSessionWatcher watcher =
+                     new OxiaSessionWatcher(client, events::add, SESSION_TIMEOUT_MILLIS)) {
             watcher.start();
             await().atMost(5, SECONDS).until(() -> putKey.get() != null);
 
@@ -218,12 +219,118 @@ class OxiaSessionWatcherTest {
     }
 
     @Test
+    void aLateDeletionOfAnExpiredIncarnationIsIgnored() {
+        try (OxiaSessionWatcher watcher = startedWatcher()) {
+            String expiredIncarnation = putKey.get();
+            watcher.handleNotification(new Notification.KeyDeleted(expiredIncarnation));
+            await().atMost(5, SECONDS)
+                    .untilAsserted(() -> assertThat(events).containsExactly(
+                            SessionEvent.SessionLost, SessionEvent.SessionReestablished));
+            assertThat(putKey.get()).isNotEqualTo(expiredIncarnation);
+
+            // The notification stream resumes from its last offset after a reconnect, so the
+            // deletion of the expired incarnation can be delivered again, after the session is
+            // already re-established: it must not flip the live session to lost.
+            watcher.handleNotification(new Notification.KeyDeleted(expiredIncarnation));
+
+            await().during(1, SECONDS).atMost(3, SECONDS)
+                    .untilAsserted(() -> {
+                        assertThat(events).containsExactly(
+                                SessionEvent.SessionLost, SessionEvent.SessionReestablished);
+                        assertThat(putCalls.get()).isEqualTo(2);
+                    });
+        }
+    }
+
+    @Test
+    void theCompletionOfAPreLossWriteIsDiscarded() {
+        CompletableFuture<PutResult> preLossWrite = new CompletableFuture<>();
+        stubPut(() -> preLossWrite);
+
+        try (OxiaSessionWatcher watcher =
+                     new OxiaSessionWatcher(client, events::add, SESSION_TIMEOUT_MILLIS)) {
+            watcher.start();
+            await().atMost(5, SECONDS).until(() -> putKey.get() != null);
+
+            // The session is lost while the initial canary write is still in flight.
+            watcher.handleNotification(new Notification.KeyDeleted(putKey.get()));
+            await().atMost(5, SECONDS).until(() -> events.contains(SessionEvent.SessionLost));
+            assertThat(putCalls.get()).isEqualTo(1);
+
+            stubPut(() -> CompletableFuture.completedFuture(null));
+
+            // The pre-loss write lands on the server and completes: its incarnation was already
+            // replaced, so it must be discarded, and only the write issued after the loss may
+            // report the recovery.
+            preLossWrite.complete(null);
+
+            await().atMost(5, SECONDS)
+                    .untilAsserted(() -> assertThat(events).containsExactly(
+                            SessionEvent.SessionLost, SessionEvent.SessionReestablished));
+            assertThat(putCalls.get()).isEqualTo(2);
+            assertThat(putKey.get()).startsWith(OxiaSessionWatcher.CANARY_KEY_PREFIX);
+        }
+    }
+
+    @Test
+    void aFailingCheckReportsConnectionLostUntilACheckSucceedsAgain() {
+        try (OxiaSessionWatcher watcher = startedWatcher()) {
+            doReturn(CompletableFuture.failedFuture(new RuntimeException("down")))
+                    .when(client).get(anyString());
+            watcher.checkCanary();
+            await().atMost(5, SECONDS)
+                    .untilAsserted(() -> assertThat(events).containsExactly(
+                            SessionEvent.ConnectionLost));
+
+            doReturn(CompletableFuture.completedFuture(mock(GetResult.class))).when(client).get(anyString());
+            watcher.checkCanary();
+
+            await().atMost(5, SECONDS)
+                    .untilAsserted(() -> assertThat(events).containsExactly(
+                            SessionEvent.ConnectionLost, SessionEvent.Reconnected));
+            // A connection loss does not rewrite the canary: the session was never lost.
+            assertThat(putCalls.get()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    void sustainedCheckFailuresSpanningASessionTimeoutReportASessionLoss() {
+        try (OxiaSessionWatcher watcher =
+                     new OxiaSessionWatcher(client, events::add, 1)) {
+            watcher.start();
+            await().atMost(5, SECONDS).until(() -> putKey.get() != null);
+            awaitSessionEstablished(watcher);
+
+            doReturn(CompletableFuture.failedFuture(new RuntimeException("down")))
+                    .when(client).get(anyString());
+            watcher.checkCanary();
+            await().atMost(5, SECONDS)
+                    .untilAsserted(() -> assertThat(events).containsExactly(
+                            SessionEvent.ConnectionLost));
+
+            // The next check fails after the session timeout has elapsed without an answer:
+            // the server has reaped the session by then, so the loss is reported without
+            // waiting for the connectivity to return.
+            watcher.checkCanary();
+
+            await().atMost(5, SECONDS)
+                    .untilAsserted(() -> assertThat(events).containsExactly(
+                            SessionEvent.ConnectionLost,
+                            SessionEvent.SessionLost,
+                            SessionEvent.SessionReestablished));
+            // The session loss moved to a fresh canary incarnation.
+            assertThat(putCalls.get()).isEqualTo(2);
+        }
+    }
+
+    @Test
     void failedCanaryWriteIsRetriedUntilItSucceeds() {
         doAnswer(recording(() -> CompletableFuture.failedFuture(new RuntimeException("down"))))
                 .doAnswer(recording(() -> CompletableFuture.completedFuture(null)))
                 .when(client).put(anyString(), any(), any());
 
-        try (OxiaSessionWatcher watcher = new OxiaSessionWatcher(client, events::add)) {
+        try (OxiaSessionWatcher watcher =
+                     new OxiaSessionWatcher(client, events::add, SESSION_TIMEOUT_MILLIS)) {
             watcher.start();
 
             // The first write fails and is retried after the backoff delay; the retry

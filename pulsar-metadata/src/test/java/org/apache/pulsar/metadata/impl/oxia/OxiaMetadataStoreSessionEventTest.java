@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
@@ -89,13 +90,13 @@ class OxiaMetadataStoreSessionEventTest {
     }
 
     /**
-     * The core ordering property: the canary sorts before every '/'-rooted path, and the
-     * notifications of one batch are delivered in key order, so a sweep that deletes the canary
-     * and ordinary records together delivers the synthesized SessionLost to the session
-     * listeners before the Deleted notifications of the swept records.
+     * The store dispatches session events and ordinary notifications on the same single-thread
+     * event executor, so the listeners observe them in the order the store received them. No
+     * wire-level ordering exists between the two — an oxia notification batch is a map — so this
+     * pins the dispatch serialization only.
      */
     @Test
-    void sessionLostIsDeliveredBeforeTheSweptRecordsDeletedNotifications() throws Exception {
+    void sessionEventsAndNotificationsAreDeliveredInArrivalOrder() throws Exception {
         List<SessionEvent> sessionEvents = new CopyOnWriteArrayList<>();
         List<org.apache.pulsar.metadata.api.Notification> notifications = new CopyOnWriteArrayList<>();
         List<String> deliveryOrder = new CopyOnWriteArrayList<>();
@@ -116,7 +117,8 @@ class OxiaMetadataStoreSessionEventTest {
             ArgumentCaptor<Consumer<Notification>> notificationCallback = notificationCallbackCaptor();
             verify(client).notifications(notificationCallback.capture());
 
-            // One sweep batch, in key order: the canary first, then an ordinary record.
+            // The canary deletion first, then an ordinary record: the listeners must observe
+            // them in this arrival order.
             notificationCallback.getValue().accept(new Notification.KeyDeleted(putKey.getValue()));
             notificationCallback.getValue().accept(new Notification.KeyDeleted("/ledgers/available/bookie-1"));
 
@@ -170,6 +172,35 @@ class OxiaMetadataStoreSessionEventTest {
             await().during(1, SECONDS).atMost(3, SECONDS)
                     .untilAsserted(() -> assertThat(notifications).isEmpty());
         }
+    }
+
+    /**
+     * {@code AsyncOxiaClientImpl.close()} closes the session manager before the notification
+     * stream, so the CloseSession sweep delivers the canary's {@code KeyDeleted} while the
+     * stream is still live. The store closes the watcher before the client, so that sweep must
+     * not reach the session listeners as a {@code SessionLost} in the middle of the shutdown.
+     */
+    @Test
+    void closingTheStoreDoesNotDeliverASessionLossFromTheCloseSweep() throws Exception {
+        List<SessionEvent> sessionEvents = new CopyOnWriteArrayList<>();
+
+        when(client.put(anyString(), any(), any())).thenReturn(CompletableFuture.completedFuture(null));
+        try (OxiaMetadataStore store = new OxiaMetadataStore(client, "identity", true)) {
+            store.registerSessionListener(sessionEvents::add);
+
+            ArgumentCaptor<String> putKey = ArgumentCaptor.forClass(String.class);
+            verify(client, timeout(5_000)).put(putKey.capture(), any(), any());
+            ArgumentCaptor<Consumer<Notification>> notificationCallback = notificationCallbackCaptor();
+            verify(client).notifications(notificationCallback.capture());
+
+            doAnswer(invocation -> {
+                notificationCallback.getValue().accept(new Notification.KeyDeleted(putKey.getValue()));
+                return null;
+            }).when(client).close();
+        }
+
+        await().during(1, SECONDS).atMost(3, SECONDS)
+                .untilAsserted(() -> assertThat(sessionEvents).isEmpty());
     }
 
     @SuppressWarnings("unchecked")

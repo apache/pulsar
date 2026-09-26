@@ -81,13 +81,17 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
         assertTrue(value.getStat().isFirstVersion());
         var version = value.getStat().getVersion();
 
-        store.put(key1, "value-2".getBytes(), Optional.empty(), EnumSet.noneOf(CreateOption.class)).join();
+        // The read must return exactly the version the put reported (read-your-write); across
+        // writes only monotonic growth holds, because on stores where the version id derives
+        // from a global sequence (oxia) a concurrent writer — including the session watcher's
+        // canary record — can advance it between two reads.
+        var rewritten = store
+                .put(key1, "value-2".getBytes(), Optional.empty(), EnumSet.noneOf(CreateOption.class))
+                .join();
         value = store.get(key1).join().get();
         assertEquals(value.getValue(), "value-2".getBytes());
         assertFalse(value.getStat().isEphemeral());
-        // The version id is an opaque compare-and-swap token: on stores where it derives from
-        // a global sequence (oxia), a concurrent writer — including the session watcher's
-        // canary record — can advance it between two reads, so only monotonic growth holds.
+        assertEquals(value.getStat().getVersion(), rewritten.getVersion());
         assertTrue(value.getStat().getVersion() > version);
 
         final String key2 = newKey();
@@ -99,10 +103,13 @@ public class MetadataStoreExtendedTest extends BaseMetadataStoreTest {
         version = value.getStat().getVersion();
 
 
-        store.put(key2, "value-5".getBytes(), Optional.empty(), EnumSet.of(CreateOption.Ephemeral)).join();
+        var rewrittenEphemeral = store
+                .put(key2, "value-5".getBytes(), Optional.empty(), EnumSet.of(CreateOption.Ephemeral))
+                .join();
         value = store.get(key2).join().get();
         assertEquals(value.getValue(), "value-5".getBytes());
         assertTrue(value.getStat().isEphemeral());
+        assertEquals(value.getStat().getVersion(), rewrittenEphemeral.getVersion());
         assertTrue(value.getStat().getVersion() > version);
     }
 
