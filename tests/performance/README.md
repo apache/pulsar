@@ -105,6 +105,9 @@ Markdown. Read it from the top:
 3. **Host**: the CPU temperature and frequency during the measurement. The report says in bold when the CPU
    throttled; such a run isn't comparable to one that didn't throttle.
 
+A run that fails, for example because an application didn't receive every message, stops with an error and writes no
+report. [When a run fails](docs/run-reports.md#when-a-run-fails) describes where to look for the cause.
+
 When the tests run on another machine, serve its reports over HTTP and browse them from your own:
 
 ```bash

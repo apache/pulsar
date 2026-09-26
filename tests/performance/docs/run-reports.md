@@ -58,6 +58,22 @@ ls -dt build/performance/*/*/*/*/ | head -n 1
 On a machine that runs the tests for others, serve the reports root over HTTP and browse it, see
 [Browsing the reports over HTTP](#browsing-the-reports-over-http).
 
+### When a run fails
+
+A run that fails writes no report: the launcher stops with an error, such as `IoT consumer exited with status 1`, and
+the Gradle task fails. The run directory that the launcher printed at the start still has what the run wrote before
+it failed:
+
+- `producer/container.log.txt` and `<application>/container.log.txt`, the logs of the workload containers
+- `<application>/consumer-summary.json`, with the application's unique messages, duplicates, ordering violations and
+  invalid messages, and `<application>/ordering-violations.txt`, with samples of the ordering violations, when the
+  application got as far as its checks
+- `topic-stats.csv` and `host-stats.csv`, sampled until the failure
+
+A consumer exits with an error when it found ordering violations or invalid messages, or didn't receive every
+message, and the launcher fails a run when an application's state shows that it missed messages ("did not receive
+every device sequence"). A failed run isn't a valid measurement: find and fix the cause, and run it again.
+
 ## Layout of a run directory
 
 ```
@@ -97,8 +113,9 @@ The report has these sections:
   stats once per second while the producers run and the consumers drain. A sampled maximum is not the exact peak
   between samples.
 - **Host**: the CPU temperature, frequency and thermal throttling at the start and during the measurement, with
-  their charts in a collapsed section; a chart whose values the host doesn't provide is left out. The report says so in bold when the CPU throttled during the measurement, and that throttling is unknown
-  when the host has no thermal throttle counters. A host that isn't Linux isn't sampled.
+  their charts in a collapsed section; a chart whose values the host doesn't provide is left out. The report says so
+  in bold when the CPU throttled during the measurement, and that throttling is unknown when the host has no thermal
+  throttle counters. A host that isn't Linux isn't sampled.
 
 A profiled run's report also links to the profile reports, see [Profiling](profiling.md#what-a-profiled-run-writes).
 Every Markdown report the launcher writes, including the profile reports and the off-CPU digests, has an HTML page

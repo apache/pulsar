@@ -28,8 +28,9 @@ details; read it before running or changing the tests.
     yourself, without a password; `install` still needs the user.
 - Use a run's numbers only when its report shows a valid run, as "Read the report" in the README describes, and don't
   claim a performance change from a single run: compare revisions as `docs/comparing-revisions.md` describes.
-- Find a run's results from the launcher's output, which prints the run directory and the run report. Don't commit
-  run output.
+- Find a run's results from the launcher's output, which prints the run directory and the run report. A run that
+  fails writes no report; find the cause as "When a run fails" in `docs/run-reports.md` describes, and tell the user
+  rather than using the run. Don't commit run output.
 
 ## Tuning experiments
 

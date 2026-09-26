@@ -33,19 +33,25 @@ use the CPU, and keep the disk that holds Docker's data less than 90 % full.
 
 ## Check out both revisions
 
-Use a worktree for each revision, so that both can be built and run without switching branches. For example, from a
-candidate checkout based on `origin/master`:
+Use a worktree for each revision, so that both can be built and run without switching branches. Both revisions need
+the same performance tests, and everything they build from, so that only the code under test differs.
+
+When the candidate changes only the code under test, and the base revision already has the same performance tests,
+check out the base revision as the baseline. For example, from a candidate checkout based on `origin/master`:
 
 ```bash
 git worktree add --detach ../pulsar-baseline origin/master
 ```
 
-When the candidate also changes the performance tests (the launcher, the workload applications or the scenarios),
-apply those changes to the baseline too, so that only the code under test differs:
+Otherwise, for example when the candidate also changes the performance tests, or the base revision doesn't have them
+yet, create the baseline from the candidate and restore only the code under test from the base revision. Take the
+paths from `git diff --stat origin/master...HEAD`, such as the broker's and the managed ledger's sources, and commit
+the result, so that the baseline's runs name their own commit:
 
 ```bash
-git diff origin/master...HEAD -- tests/performance > /tmp/performance-tests.patch
-git -C ../pulsar-baseline apply /tmp/performance-tests.patch
+git worktree add --detach ../pulsar-baseline HEAD
+git -C ../pulsar-baseline checkout origin/master -- pulsar-broker/src/main managed-ledger/src/main
+git -C ../pulsar-baseline commit -m "Baseline: the code under test from origin/master"
 ```
 
 ## Keep the runs and images of both revisions apart
