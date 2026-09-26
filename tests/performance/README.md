@@ -111,15 +111,21 @@ scenarios in detail.
 
 ## Before you start
 
+- **A host with Docker**: most hosts that run Docker can run the workloads, macOS and Windows with WSL 2 included,
+  since the cluster and the workloads run in containers. jonoffcpu's off-CPU profiling needs kernel features that not
+  every Docker implementation's kernel has; there, profile with async-profiler and JDK Flight Recorder only, see
+  [Profiling](docs/profiling.md#configuring-profiling). For consistent results, use a Linux host configured for low
+  run-to-run variance, as *A host configured for consistent results* below describes.
 - **Docker** installed and running, and a JDK that builds Pulsar, see
   [the contributing guide](../../CONTRIBUTING.md).
 - **Disk space**: keep the disk that holds Docker's data less than 90 % full. BookKeeper bookies switch to read-only
   mode when it is 95 % full. [`docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) frees the space that test
   runs and image builds use up.
 - **A host configured for consistent results** (Linux): turbo frequencies depend on the CPU's temperature, and power
-  management changes CPU settings during a run, so results vary between runs of the same code.
-  [The performance testing environment setup](environment/README.md) fixes the CPU frequency with a TuneD profile
-  for the duration of the tests. Install it once, and start it before a series of runs:
+  management changes CPU settings during a run, so results vary between runs of the same code, and a change smaller than
+  that variance can't be detected. [The performance testing environment setup](environment/README.md) fixes the CPU
+  frequency with a [TuneD](https://tuned-project.org/) profile for the duration of the tests. Install it once, and start
+  it before a series of runs:
 
   ```bash
   sudo tests/performance/environment/scripts/configure-perf-test-environment.sh install  # once

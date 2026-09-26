@@ -24,8 +24,8 @@
 Results of a run depend on the state of the host: a CPU running at turbo frequencies slows down as it heats up and
 throttles, and daemons that manage power change CPU and device settings during a run. The scripts in `scripts/`
 configure a Linux host for consistent results across runs with a [TuneD](https://tuned-project.org/) profile, and
-restore a configuration that allows power saving afterwards. The TuneD daemon only runs between `start` and `stop`.
-The same setup gives consistent results for [the JMH microbenchmarks](../../../microbench/README.md).
+restore a configuration that allows power saving afterwards. The TuneD daemon only runs between `start` and `stop`. The
+same setup gives consistent results for [the JMH microbenchmarks](../../../microbench/README.md).
 
 `install` installs TuneD with `apt-get` when it is missing, on Debian based Linux distributions such as Debian,
 Ubuntu and Pop!_OS; on other distributions, install TuneD first. It updates Docker's logging configuration with `jq`,

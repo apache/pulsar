@@ -17,6 +17,17 @@ describes.
 
 - A run takes minutes and uses the whole host. Don't start runs, or run them alongside other runs or builds, unless
   the user asked for them.
+- The performance tests are designed to run on a Linux host. They also run on macOS and on Windows with WSL 2,
+  since the cluster and the workloads run in Docker containers, but there Docker runs in a virtual machine that
+  shares the host's CPUs, memory, disk and network with the host operating system, which schedules them, so the
+  results aren't representative of a Linux deployment and vary more between runs. Use such runs to check that a
+  scenario works, or for large effects, and say that a result comes from a non-Linux host when reporting it; don't
+  compare revisions on one, and never compare runs made on different hosts.
+- On a Linux host, `configure-perf-test-environment.sh` reduces the run-to-run variance: it fixes the CPU frequency and
+  stops the daemons that change power settings during a run, see
+  [`environment/README.md`](environment/README.md). Variance sets the smallest change that a comparison can detect:
+  when the spread between runs of the same revision is larger than a change's effect, the effect can't be told apart
+  from noise, so minor improvements and regressions go undetected, or noise is mistaken for them.
 - Before a series of runs, check the host; this needs no root:
 
   ```bash
