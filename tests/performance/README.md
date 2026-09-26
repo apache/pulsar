@@ -25,8 +25,8 @@ This directory contains standalone performance scenarios, workload applications,
 for repeatable profiling and analysis. Keep scenario files, commands, results and interpretation together so a
 later run can reproduce the same workload.
 
-For micro-level questions about one class or method, use the JMH benchmarks in
-[`microbench`](../../microbench). JMH is the benchmark harness; this directory is for documenting the
+For micro-level questions about one class or method, use
+[the JMH microbenchmarks](../../microbench/README.md). JMH is the benchmark harness; this directory is for documenting the
 end-to-end profiling scenario, profile collection, analysis and conclusions. A useful experiment keeps
 the workload definition, the revision under test, the profiler options, the raw recording and the
 resulting analysis together.
@@ -66,6 +66,14 @@ Use the `profile` task when the selected scenario contains profiler options:
 The Gradle tasks build the Pulsar test image and the workload distribution before launching the scenario. See
 [the IoT scenario reference](iot-telemetry.md) for topology, correctness checks and output details.
 
+Consistent results need a host configured for them. [The host environment setup guide](environment/README.md)
+describes a script that switches a Linux host to a TuneD profile with turbo disabled, the performance CPU governor
+and shallow CPU idle states, and stops `thermald` for the duration of the runs, and restores power saving afterwards.
+Keep the disk that holds Docker's data less than 90 % full, since BookKeeper bookies switch to read-only mode at
+95 %; every `-Pdocker.tag` leaves Pulsar images behind, and
+[`environment/scripts/docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) removes them and other unused
+Docker data.
+
 ### Where runs are written
 
 Every run gets a directory of its own, in a hierarchy by day, git branch and name:
@@ -89,7 +97,7 @@ Every run gets a directory of its own, in a hierarchy by day, git branch and nam
 
   ```bash
   ./gradlew :tests:performance:launcher:profile -Pperformance.reportsDir=/data/pulsar-reports \
-    --args='--config tests/performance/scenarios/iot-key-shared-500x20-profile.yaml --name e232-ab'
+    --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml --name e232-ab'
   ```
 
 - The run directory is named by the run's start in local time. Two runs of the same name started within the same
@@ -116,7 +124,7 @@ temperature, before starting the cluster and again after the warmup rounds, befo
 
 ```bash
 ./gradlew :tests:performance:launcher:run -Pperformance.cooldownTemperature=50 \
-  --args='--config tests/performance/scenarios/iot-key-shared-500x20.yaml'
+  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml'
 ```
 
 `--cooldown-temperature <°C>` sets it for one run, and `performance.cooldownTemperature` in
@@ -128,6 +136,9 @@ through the port Testcontainers maps on the host: `GET /measurement/ready?waitMi
 warmup round has been received, and `POST /measurement/start` starts the measurement. The workloads' timeouts are
 extended by the cool-down timeout, so that a wait before the measurement doesn't fail them. Both waits and their
 durations are in the run report.
+
+With turbo disabled, as [the host environment setup guide](environment/README.md) configures the host, the CPU runs
+at a fixed base frequency, and cooling down between runs matters much less.
 
 #### Browsing the reports over HTTP
 
@@ -168,8 +179,8 @@ Every run writes a report into its run directory; open `run-report.html` in a br
 | `latency-percentiles.png` | Latency by percentile, as HistogramLogAnalyzer plots it: publish and each application's end to end, on an axis that spreads the tail (90 %, 99 %, 99.9 %, …) |
 | `latency-timeline.png` | The maximum latency of each logged interval over the run, publish and per application |
 | `producer/produce-latency.hgrm`, `<application>/consume-latency.hgrm` | Each latency log's percentile distribution in milliseconds, HdrHistogram's percentile output format, which [plotFiles.html](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html) plots |
-| `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked |
-| `backlog.svg`, `.png` | Each subscription's backlog over the run |
+| `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked; a cool-down wait of 10 s or more before the measurement is cut out of the time axis |
+| `backlog.svg`, `.png` | Each subscription's backlog over the run, on the same time axis |
 | `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
 | `host-temperature.svg`, `.png`, `host-frequency.svg`, `.png` | The CPU package and hottest core temperature, and the mean and lowest core frequency, over the run |
 | `host-stats.csv` | The host's CPU sampled once per second from Linux's sysfs files: package and hottest core temperature, mean and lowest core frequency, the kernel's thermal throttle counters and the fastest fan |
@@ -273,7 +284,7 @@ latencies are never merged. To plot them again for any run directory:
 
 ```bash
 ./gradlew :tests:performance:report-tool:renderHdrHistograms \
-  --args='--run-directory tests/performance/build/iot-telemetry-high-rate-profile'
+  --args='--run-directory <run directory>'
 ```
 
 The default outputs are `latency-percentiles.png` and `latency-timeline.png` in the run directory; pass
@@ -351,7 +362,8 @@ Requirements:
 - The relaxed perf-event and BPF sysctls, which the `:tests:integration:tuneKernelPerfEvents` task that `profile`
   depends on writes from a throwaway privileged container; `-Pinttest.asyncprofiler.skipPerfEventTuning` skips it
   where they are already set. `sudo environment/scripts/configure-perf-test-environment.sh start` sets them and
-  skips the task in `~/.gradle/gradle.properties` until `stop`.
+  skips the task in `~/.gradle/gradle.properties` until `stop`; see
+  [the host environment setup guide](environment/README.md).
 - Profiled containers run privileged with the JVM as root: loading the eBPF programs needs `CAP_BPF` and
   `CAP_PERFMON`, which Docker grants to root in the container only. A tracefs is mounted read-only at
   `/sys/kernel/tracing` as a Docker volume.

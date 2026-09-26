@@ -25,6 +25,10 @@ Results of a run depend on the state of the host: a CPU running at turbo frequen
 throttles, and daemons that manage power change CPU and device settings during a run. The scripts in `scripts/`
 configure a Linux host for consistent results across runs with a [TuneD](https://tuned-project.org/) profile, and
 restore a configuration that allows power saving afterwards. The TuneD daemon only runs between `start` and `stop`.
+The same setup gives consistent results for [the JMH microbenchmarks](../../../microbench/README.md).
+
+The script currently supports Debian based Linux distributions, such as Debian, Ubuntu and Pop!_OS: `install` uses
+`apt-get`. `start` and `stop` work on any Linux distribution where TuneD and the profile are installed.
 
 | Command | What it does |
 |---|---|
