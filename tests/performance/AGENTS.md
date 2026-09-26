@@ -6,6 +6,13 @@ automating them, including tuning Pulsar by AI agents. [`README.md`](README.md) 
 reading its report, profiling a run and comparing revisions, and its Reference section lists the pages with the
 details; read it before running or changing the tests.
 
+The testing strategy is to simulate real-world use cases of Pulsar: a domain models a use case, currently IoT
+telemetry, and each scenario sets its scale so that it maps to a kind of real-world deployment. This keeps the tests
+from becoming synthetic: unlike a `pulsar-perf` producer and consumer pair, a scenario exercises the features that
+real deployments use together and checks their delivery guarantees, so its improvements are likely to carry over to
+real-world use. Express experiments and new scenarios in the domain's terms, as "How the tests work" in the README
+describes.
+
 ## Running experiments
 
 - A run takes minutes and uses the whole host. Don't start runs, or run them alongside other runs or builds, unless
@@ -17,9 +24,10 @@ details; read it before running or changing the tests.
   ```
 
   It exits with 1 when a check failed, and prints the reasons to stderr:
-  - When the disk is too full, ask the user for permission to run `environment/scripts/docker-cleanup.sh`, which
-    removes the Pulsar images and unused Docker data. Show what it would remove with `--dry-run` first, and run it
-    only once the user has allowed it.
+  - When the disk is too full, ask the user for permission to run
+    [`environment/scripts/docker-cleanup.sh`](environment/scripts/docker-cleanup.sh), which removes the Pulsar
+    images and unused Docker data. Show what it would remove with `--dry-run` first, and run it only once the user
+    has allowed it.
   - When the host isn't configured, ask the user to configure it as
     [`environment/README.md`](environment/README.md) instructs, which needs `sudo`. When you'll be running
     experiments repeatedly, you can suggest that the user sets up the sudoers rule that

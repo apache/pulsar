@@ -42,6 +42,7 @@ pulsar-function-go/examples/go.sum
 **/*.txt
 **/*.pem
 **/*.json
+**/*.svg
 **/*.htpasswd
 **/src/test/resources/athenz.conf.test
 deployment/terraform-ansible/templates/myid

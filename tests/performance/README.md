@@ -26,11 +26,79 @@ and finding what to optimize. They run a Pulsar cluster and its client workloads
 a [scenario](scenarios/README.md) describes them, and write a report for every run: throughput, latency, delivery and
 ordering checks, and the host's CPU temperature. A run can also be profiled with async-profiler, JDK Flight Recorder
 and jonoffcpu at the same time, which gives CPU, allocation and off-CPU flame graphs of the broker and the clients:
-both where threads use CPU and where they wait. Everything runs from
-the command line and writes its results to files, so that experiments can be automated, including tuning by AI
-agents, which [`AGENTS.md`](AGENTS.md) guides.
+both where threads use CPU and where they wait. Everything runs from the command line and writes its results to
+files, so that experiments can be automated, including tuning by AI agents, which [`AGENTS.md`](AGENTS.md) guides.
 
 For the performance of a single class or method, use [the JMH microbenchmarks](../../microbench/README.md) instead.
+
+## How the tests work
+
+The testing strategy is to simulate real-world use cases of Pulsar. A domain models a use case: who sends messages,
+who consumes them, and what they need from the delivery, such as ordering. Scenarios then set the domain's scale and
+behavior, such as the number of devices, the message rate or restarting clients, so that each scenario maps to a kind
+of real-world deployment. A run shows how Pulsar performs for it, and whether the domain's delivery guarantees held.
+
+Simulating a domain keeps the tests from becoming synthetic. A synthetic benchmark, such as a `pulsar-perf` producer
+and consumer pair, measures one path through Pulsar under conditions that real deployments seldom have, so an
+improvement in its results doesn't directly carry over to real-world use. A real deployment uses many features at
+the same time, such as many producers and topics, keyed messages, batching, deduplication, Key_Shared subscriptions
+and clients that restart, and it relies on delivery guarantees such as ordering. A simulated use case exercises the
+same combination, so that:
+
+- an improvement measured in a scenario is likely to show in the deployments that the scenario maps to, and
+  bottlenecks that only appear when the features interact show up in the tests too
+- every run checks the guarantees that the use case relies on, so that a change can't trade correctness for speed
+  unnoticed
+- the results are stated in the domain's terms, such as the number of devices and their message rate, which relate to
+  sizing a real deployment
+
+The scenarios can grow toward the operations of real deployments too. Today they restart application pods, and later
+scenarios can add, for example, rolling restarts and upgrades of the Pulsar cluster while the traffic runs.
+
+The current tests simulate an IoT telemetry domain. More domains can be added later, but that will need refactoring:
+the workload applications in [`tools`](tools), the workload settings of the scenarios and the checks and sections of
+the run report are written for the IoT domain.
+
+![Devices send telemetry through gateways to Pulsar topics, which every application consumes with several pods](docs/images/iot-system-overview.svg)
+
+### IoT domain glossary
+
+- **Device**: a sensor or a machine that sends telemetry. It has an ID and numbers its messages, which have to be
+  processed in the order it sent them.
+- **Telemetry message**: a small reading from a device, with the device's ID and the message's sequence number.
+- **Gateway**: an edge gateway that forwards the devices' messages to Pulsar. Gateways are interchangeable: a device's
+  next message can go through another gateway.
+- **Application**: a backend service, such as storage, alerting or analytics, that consumes the telemetry of every
+  device, independently of the other applications.
+- **Pod**: an instance of an application. An application's pods share its devices between them, and pods come and
+  go, as in a rolling restart.
+
+### How the domain is simulated
+
+| Domain | Simulation |
+|---|---|
+| Device | A device ID, which is the message key. `deviceCount` sets the number of devices |
+| Telemetry message | A message with the device ID, the device's sequence number and the send time, `payloadBytes` long |
+| Gateway | A Pulsar client in the producer container, with a producer named `iot-gateway-<gateway>-topic-<topic>` for each topic. `gatewayCount` sets the number of gateways; their clients share I/O threads and memory, as the clients of one process can since PIP-234 |
+| Topics | `topicCount` topics; a device's messages always go to the same topic, the device ID modulo `topicCount` |
+| Application | A Key_Shared subscription on every topic, named `iot-application-<index>`, in a container of its own. `applicationCount` sets the number of applications |
+| Pod | A Pulsar client with a consumer of the application's subscription, named `iot-application-<index>-pod-<pod>`. `clientsPerApplication` sets the number of pods per application |
+
+- The producer sends each message from a random device through a random gateway, at `rate` messages per second, or as
+  fast as it can when the rate is 0. It keeps one message per device in flight, as a device waits for its message to
+  be acknowledged, so that a device's messages reach Pulsar in order even through different gateways. The producers
+  batch messages by key, and the broker deduplicates them by producer name and sequence ID.
+- `clientRestartFraction` and `clientRestartIntervalSeconds` restart some of each application's pods periodically,
+  which moves devices between the pods mid-stream.
+- Each application tracks the sequence of every device: it counts ordering violations, invalid messages and
+  duplicates, which at-least-once delivery allows. At the end, the launcher compares each application's last
+  sequence per device with the producer's, which catches messages missing at the end. A run fails when a check
+  fails.
+- Warmup messages take the same path as the measured ones before the measurement starts, and the delivery checks
+  include them.
+
+[The IoT telemetry scenario](scenarios/docs/iot-telemetry.md) describes the workload's settings and the maintained
+scenarios in detail.
 
 ## Before you start
 
