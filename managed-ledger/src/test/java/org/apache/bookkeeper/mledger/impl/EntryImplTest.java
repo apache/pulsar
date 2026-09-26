@@ -31,6 +31,12 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.concurrent.FastThreadLocalThread;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -260,9 +266,37 @@ public class EntryImplTest {
     }
 
     @Test
-    public void testRecycledObjectDoesNotInheritPoisonedPosition() {
+    public void testRecycledObjectDoesNotInheritPoisonedPosition() throws Exception {
+        // Netty's Recycler only pools instances for FastThreadLocalThreads; a plain test worker
+        // thread receives a no-op handle, every create() would return a fresh object, and this
+        // scenario would silently degrade to asserting fresh instances (see the review on #26707).
+        // Run it on a FastThreadLocalThread and prove instance identity with assertSame.
+        runOnFastThreadLocalThread(() -> {
+            assertTrue(warmUpRecyclerUntilReused(),
+                    "recycler never handed the same instance back; the scenario cannot exercise recycling");
+
+            // The managed-ledger read path wraps a BookKeeper LedgerEntry.
+            assertRecycledPoisonedPositionIsNotInherited("create(LedgerEntry, int)",
+                    () -> createFromLedgerEntry(5L, 10L),
+                    () -> createFromLedgerEntry(6L, 20L), 6L, 20L);
+            // byte[] variant.
+            assertRecycledPoisonedPositionIsNotInherited("byte[] variant",
+                    () -> EntryImpl.create(5L, 10L, new byte[]{1, 2, 3}),
+                    () -> EntryImpl.create(6L, 20L, new byte[]{4, 5, 6}), 6L, 20L);
+            // ByteBuf variant.
+            assertRecycledPoisonedPositionIsNotInherited("ByteBuf variant",
+                    () -> createFromRetainedBuffer(5L, 10L),
+                    () -> createFromRetainedBuffer(6L, 20L), 6L, 20L);
+        });
+    }
+
+    private static void assertRecycledPoisonedPositionIsNotInherited(String variant,
+                                                                     Supplier<EntryImpl> firstEntry,
+                                                                     Supplier<EntryImpl> secondEntry,
+                                                                     long expectedLedgerId,
+                                                                     long expectedEntryId) {
         // Given a legitimate entry that is released normally
-        EntryImpl first = EntryImpl.create(5L, 10L, new byte[]{1, 2, 3});
+        EntryImpl first = firstEntry.get();
         first.release();
 
         // When a getPosition() call slips in AFTER the release: deallocation nulls the lazy
@@ -270,19 +304,62 @@ public class EntryImplTest {
         // and leaves the poisoned value cached inside the pooled object.
         first.getPosition();
 
-        // Then the next create() (the recycler hands back the most recently released object on
-        // the same thread) must not report that stale (-1, -1) position as its own — through
-        // both the byte[] and the ByteBuf variants, which own the lazy field.
-        EntryImpl second = EntryImpl.create(6L, 20L, new byte[]{4, 5, 6});
-        assertTrue(second.getPosition().compareTo(PositionFactory.create(6L, 20L)) == 0,
-                "byte[] variant: a recycled entry must not inherit the poisoned (-1, -1) position");
+        // Then the very next create() on this thread reuses that exact instance and must not
+        // report the poisoned (-1, -1) position as its own.
+        EntryImpl second = secondEntry.get();
+        assertSame(second, first, variant + ": expected the recycler to reuse the same instance");
+        assertTrue(second.getPosition().compareTo(PositionFactory.create(expectedLedgerId, expectedEntryId)) == 0,
+                variant + ": a recycled entry must not inherit the poisoned (-1, -1) position");
         second.release();
+    }
 
-        second.getPosition(); // re-poison the recycled object
-        EntryImpl third = EntryImpl.create(7L, 30L, Unpooled.wrappedBuffer(new byte[]{7, 8}));
-        assertTrue(third.getPosition().compareTo(PositionFactory.create(7L, 30L)) == 0,
-                "ByteBuf variant: a recycled entry must not inherit the poisoned (-1, -1) position");
-        third.release();
+    private static EntryImpl createFromLedgerEntry(long ledgerId, long entryId) {
+        ByteBuf buffer = Unpooled.wrappedBuffer(new byte[]{1, 2, 3});
+        LedgerEntry ledgerEntry = LedgerEntryImpl.create(ledgerId, entryId, buffer.readableBytes(), buffer);
+        // LedgerEntryImpl.create adopts the caller's buffer reference (released again on close()),
+        // while EntryImpl.create retains its own, so this ordering keeps the counts balanced.
+        EntryImpl entry = EntryImpl.create(ledgerEntry, 0);
+        ledgerEntry.close();
+        return entry;
+    }
+
+    private static EntryImpl createFromRetainedBuffer(long ledgerId, long entryId) {
+        ByteBuf buffer = Unpooled.wrappedBuffer(new byte[]{1, 2, 3});
+        EntryImpl entry = EntryImpl.create(ledgerId, entryId, buffer);
+        // create(long, long, ByteBuf, int) retains the buffer; drop the caller-owned reference.
+        buffer.release();
+        return entry;
+    }
+
+    private static boolean warmUpRecyclerUntilReused() {
+        // Absorb Netty's io.netty.recycler.ratio warm-up and prove the per-thread pool hands the
+        // same instance back; without it the assertions above could be checking fresh objects.
+        for (int i = 0; i < 64; i++) {
+            EntryImpl warm = EntryImpl.create(0L, 0L, new byte[]{0});
+            warm.release();
+            EntryImpl again = EntryImpl.create(0L, 0L, new byte[]{0});
+            boolean reused = again == warm;
+            again.release();
+            if (reused) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void runOnFastThreadLocalThread(Runnable scenario) throws Exception {
+        CompletableFuture<Void> completion = new CompletableFuture<>();
+        Thread thread = new FastThreadLocalThread(() -> {
+            try {
+                scenario.run();
+                completion.complete(null);
+            } catch (Throwable error) {
+                completion.completeExceptionally(error);
+            }
+        });
+        thread.start();
+        // Rethrow assertion failures on the test thread.
+        completion.get(30, TimeUnit.SECONDS);
     }
 
     private void assertEntryFields(EntryImpl entry, long expectedLedgerId, long expectedEntryId) {
