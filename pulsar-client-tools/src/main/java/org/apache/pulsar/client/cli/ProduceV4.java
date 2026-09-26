@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.cli;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.client.cli.CmdProduce.KEY_VALUE_ENCODING_TYPE_NOT_SET;
 import com.google.common.util.concurrent.RateLimiter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -26,8 +27,6 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Supplier;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
@@ -39,86 +38,62 @@ import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaType;
-import picocli.CommandLine.Command;
 
 /**
- * The {@code produce} command driven by the v4 ({@code pulsar-client-original}) client.
- *
- * <p>This is the counterpart of {@link CmdProduce}: the CLI options, the message bodies and the
- * WebSocket path come from {@link AbstractCmdProduce}, and only the client bindings differ. It
- * restores the v4-only producer capabilities: KeyValue schemas ({@code --key-value-encoding-type}
- * with {@code --key-value-key} / {@code --key-value-key-file} and {@code --key-schema}),
+ * Publishes the messages of a {@link CmdProduce} invocation with the v4 ({@code pulsar-client-original})
+ * client, including the v4-only capabilities: KeyValue schemas ({@code --key-value-encoding-type} with
+ * {@code --key-value-key} / {@code --key-value-key-file} and {@code --key-schema}),
  * {@code --disable-replication}, and {@code data:} URI encryption keys.
  */
-@Command(name = "produce-v4", description = "Produce messages to a specified topic using the v4 client")
-public class CmdProduceV4 extends AbstractCmdProduce {
+final class ProduceV4 {
 
-    private static final String KEY_VALUE_ENCODING_TYPE_SEPARATED = "separated";
-    private static final String KEY_VALUE_ENCODING_TYPE_INLINE = "inline";
+    static final String KEY_VALUE_ENCODING_TYPE_SEPARATED = "separated";
+    static final String KEY_VALUE_ENCODING_TYPE_INLINE = "inline";
 
-    private Supplier<ClientBuilder> clientBuilder;
+    private final CmdProduce cmd;
+    private final CmdProduce.V4Options v4;
+    private final ClientBuilder clientBuilder;
 
-    public CmdProduceV4() {
-        // Do nothing
+    ProduceV4(CmdProduce cmd, ClientBuilder clientBuilder) {
+        this.cmd = cmd;
+        this.v4 = cmd.v4;
+        this.clientBuilder = clientBuilder;
     }
 
     /**
-     * Set Pulsar client configuration. The builder is supplied lazily so that constructing it —
-     * which validates the service URL and parses the whole {@code client.conf} — only happens when
-     * this command actually runs, not on every {@code pulsar-client} invocation.
+     * Publish the messages.
+     *
+     * @return 0 for success, &lt; 0 otherwise
      */
-    public void updateConfig(Supplier<ClientBuilder> newBuilder, Authentication authentication, String serviceURL) {
-        this.clientBuilder = newBuilder;
-        updateSharedConfig(authentication, serviceURL);
-    }
-
-    @Override
-    protected void validateSchemaOptions() {
-        // An absent flag is fine; an explicitly-supplied value must name a real encoding type —
-        // including the empty string, which the pre-migration v4 command also rejected.
-        if (keyValueEncodingType == null) {
-            return;
-        }
-        switch (keyValueEncodingType) {
-            case KEY_VALUE_ENCODING_TYPE_SEPARATED:
-            case KEY_VALUE_ENCODING_TYPE_INLINE:
-                break;
-            default:
-                throw new IllegalArgumentException("--key-value-encoding-type "
-                        + keyValueEncodingType + " is not valid, only 'separated' or 'inline'");
-        }
-    }
-
-    @Override
     @SuppressWarnings({"unchecked", "rawtypes", "deprecation"})
-    protected int publish(String topic) {
+    int publish(String topic) {
         int numMessagesSent = 0;
         int returnCode = 0;
 
-        try (PulsarClient client = clientBuilder.get().build()) {
-            Schema<?> schema = buildSchema(this.keySchema, this.valueSchema, this.keyValueEncodingType);
+        try (PulsarClient client = clientBuilder.build()) {
+            Schema<?> schema = buildSchema(v4.keySchema, cmd.valueSchema, v4.keyValueEncodingType);
             ProducerBuilder<?> producerBuilder = client.newProducer(schema).topic(topic);
-            if (this.chunkingAllowed) {
+            if (cmd.chunkingAllowed) {
                 producerBuilder.enableChunking(true);
                 producerBuilder.enableBatching(false);
-            } else if (this.disableBatching) {
+            } else if (cmd.disableBatching) {
                 producerBuilder.enableBatching(false);
             }
-            if (isNotBlank(this.encKeyName) && isNotBlank(this.encKeyValue)) {
-                producerBuilder.addEncryptionKey(this.encKeyName);
-                producerBuilder.defaultCryptoKeyReader(this.encKeyValue);
+            if (isNotBlank(cmd.encKeyName) && isNotBlank(cmd.encKeyValue)) {
+                producerBuilder.addEncryptionKey(cmd.encKeyName);
+                producerBuilder.defaultCryptoKeyReader(cmd.encKeyValue);
             }
             try (Producer<?> producer = producerBuilder.create()) {
                 Schema<?> schemaForPayload = schema.getSchemaInfo().getType() == SchemaType.KEY_VALUE
                         ? ((KeyValueSchema) schema).getValueSchema() : schema;
-                List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames,
+                List<byte[]> messageBodies = CmdProduce.generateMessageBodies(cmd.messages, cmd.messageFileNames,
                         nativeAvroSchemaOrNull(schemaForPayload));
-                RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
+                RateLimiter limiter = (cmd.publishRate > 0) ? RateLimiter.create(cmd.publishRate) : null;
 
-                Map<String, String> kvMap = propertiesMap();
+                Map<String, String> kvMap = cmd.propertiesMap();
                 final byte[] keyValueKeyBytes = resolveKeyValueKeyBytes();
 
-                for (int i = 0; i < this.numTimesProduce; i++) {
+                for (int i = 0; i < cmd.numTimesProduce; i++) {
                     for (byte[] content : messageBodies) {
                         if (limiter != null) {
                             limiter.acquire();
@@ -131,16 +106,16 @@ public class CmdProduceV4 extends AbstractCmdProduce {
                             message.properties(kvMap);
                         }
 
-                        if (KEY_VALUE_ENCODING_TYPE_NOT_SET.equals(keyValueEncodingType)) {
-                            if (key != null && !key.isEmpty()) {
-                                message.key(key);
+                        if (KEY_VALUE_ENCODING_TYPE_NOT_SET.equals(v4.keyValueEncodingType)) {
+                            if (cmd.key != null && !cmd.key.isEmpty()) {
+                                message.key(cmd.key);
                             }
                             message.value(content);
                         } else {
                             message.value(new KeyValue<>(keyValueKeyBytes, content));
                         }
 
-                        if (disableReplication) {
+                        if (v4.disableReplication) {
                             message.disableReplication();
                         }
 
@@ -150,10 +125,10 @@ public class CmdProduceV4 extends AbstractCmdProduce {
                 }
             }
         } catch (Exception e) {
-            log.error().exception(e).log("Error while producing messages");
+            cmd.log.error().exception(e).log("Error while producing messages");
             returnCode = -1;
         } finally {
-            log.infof("%d messages successfully produced", numMessagesSent);
+            cmd.log.infof("%d messages successfully produced", numMessagesSent);
         }
 
         return returnCode;
@@ -164,22 +139,22 @@ public class CmdProduceV4 extends AbstractCmdProduce {
      * {@code --key-value-key-file} or, failing both, {@code --key}.
      */
     private byte[] resolveKeyValueKeyBytes() throws Exception {
-        if (this.keyValueKey != null) {
+        if (v4.keyValueKey != null) {
             requireKeyValueEncodingType("--key-value-key");
-            return this.keyValueKey.getBytes(StandardCharsets.UTF_8);
+            return v4.keyValueKey.getBytes(StandardCharsets.UTF_8);
         }
-        if (this.keyValueKeyFile != null) {
+        if (v4.keyValueKeyFile != null) {
             requireKeyValueEncodingType("--key-value-key-file");
-            return Files.readAllBytes(Paths.get(this.keyValueKeyFile));
+            return Files.readAllBytes(Paths.get(v4.keyValueKeyFile));
         }
-        if (this.key != null) {
-            return this.key.getBytes(StandardCharsets.UTF_8);
+        if (cmd.key != null) {
+            return cmd.key.getBytes(StandardCharsets.UTF_8);
         }
         return null;
     }
 
     private void requireKeyValueEncodingType(String flag) {
-        if (KEY_VALUE_ENCODING_TYPE_NOT_SET.equals(keyValueEncodingType)) {
+        if (KEY_VALUE_ENCODING_TYPE_NOT_SET.equals(v4.keyValueEncodingType)) {
             throw new IllegalArgumentException(
                     "Key value encoding type must be set when using " + flag);
         }

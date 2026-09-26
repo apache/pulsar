@@ -257,9 +257,9 @@ through
 `PulsarProfilingTest` — the one the task runs by default — drives a v5 scalable (`topic://`) topic
 with the `produce` / `consume` commands, and
 [`PulsarProfilingV4Test`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/PulsarProfilingV4Test.java)
-drives a classic `persistent://` topic with `produce-v4` / `consume-v4`. The pairing is not a free
-choice: the v4 client rejects the `topic://` domain outright, so it is the v4 client that goes with
-the classic topic. To profile that baseline instead:
+drives a classic `persistent://` topic with the same commands, for which `pulsar-perf` picks the v4
+client. The pairing is not a free choice: the v4 client rejects the `topic://` domain outright, so it
+is the v4 client that goes with the classic topic. To profile that baseline instead:
 
 ```bash
 ./gradlew :tests:integration:profilingIntegrationTest --tests "*PulsarProfilingV4Test"

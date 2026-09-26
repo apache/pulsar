@@ -43,10 +43,6 @@ public class PulsarProfilingV4Test extends AbstractPulsarProfilingTest {
         return TopicDomain.persistent;
     }
 
-    @Override
-    protected String getPerfCommandSuffix() {
-        return "-v4";
-    }
 
     @Override
     protected void prepareTopic(String topicName) throws Exception {

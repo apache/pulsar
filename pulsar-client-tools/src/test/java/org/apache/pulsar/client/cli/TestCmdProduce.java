@@ -57,32 +57,32 @@ public class TestCmdProduce {
     @Test
     public void testBuildValueSchema() {
         // bytes -> raw BYTES, no native Avro schema.
-        CmdProduce.ValueSchema bytes = CmdProduce.buildValueSchema("bytes");
+        ProduceV5.ValueSchema bytes = ProduceV5.buildValueSchema("bytes");
         assertEquals(bytes.schema().schemaInfo().type(), SchemaType.BYTES);
         assertNull(bytes.avroNative());
 
         // string -> AUTO_PRODUCE_BYTES wrapping string; no native Avro schema.
-        CmdProduce.ValueSchema string = CmdProduce.buildValueSchema("string");
+        ProduceV5.ValueSchema string = ProduceV5.buildValueSchema("string");
         assertNotNull(string.schema());
         assertNull(string.avroNative());
 
         // avro:<def> -> AUTO_PRODUCE_BYTES wrapping a generic Avro schema; native Avro present.
-        CmdProduce.ValueSchema avro = CmdProduce.buildValueSchema("avro:" + AVRO_DEF);
+        ProduceV5.ValueSchema avro = ProduceV5.buildValueSchema("avro:" + AVRO_DEF);
         assertNotNull(avro.schema());
         assertNotNull(avro.avroNative());
 
         // json:<def> -> AUTO_PRODUCE_BYTES wrapping a generic JSON schema; no native Avro schema.
-        CmdProduce.ValueSchema json = CmdProduce.buildValueSchema("json:" + AVRO_DEF);
+        ProduceV5.ValueSchema json = ProduceV5.buildValueSchema("json:" + AVRO_DEF);
         assertNotNull(json.schema());
         assertNull(json.avroNative());
 
         // unknown -> rejected.
-        expectThrows(IllegalArgumentException.class, () -> CmdProduce.buildValueSchema("nope"));
+        expectThrows(IllegalArgumentException.class, () -> ProduceV5.buildValueSchema("nope"));
     }
 
     @Test
     public void generateAvroMessageBodies() throws Exception {
-        CmdProduce.ValueSchema vs = CmdProduce.buildValueSchema("avro:" + AVRO_DEF);
+        ProduceV5.ValueSchema vs = ProduceV5.buildValueSchema("avro:" + AVRO_DEF);
 
         List<byte[]> bytes = CmdProduce.generateMessageBodies(List.of("{\"a\":\"stringValue\",\"b\":123}"),
                 Collections.emptyList(), vs.avroNative());
