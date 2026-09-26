@@ -229,6 +229,19 @@ public class PulsarClusterSpec {
     String profileDirectory;
 
     /**
+     * Host path of the jonoffcpu agent JAR to attach instead of the image's async-profiler library.
+     * Unset means the {@code inttest.jonoffcpu.agent} system property, and failing that plain
+     * async-profiler. See {@link org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent}.
+     */
+    String jonoffcpuAgentJar;
+
+    /**
+     * The jonoffcpu agent's {@code sampling} block, deciding which off-CPU intervals are recorded.
+     */
+    @Default
+    Map<String, Object> jonoffcpuOptions = Map.of();
+
+    /**
      * Whether the given cluster component should be profiled with async-profiler, according to the
      * {@code inttest.asyncprofiler.components} system property. The property holds a comma separated
      * list of {@code broker}, {@code proxy}, {@code functionworker}, {@code bookie} and

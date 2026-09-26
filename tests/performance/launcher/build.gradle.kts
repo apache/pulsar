@@ -22,11 +22,28 @@ plugins {
     application
 }
 
+// The jonoffcpu agent JAR is mounted into profiled containers rather than loaded here, so it is
+// resolved on its own instead of joining the launcher's classpath.
+val jonoffcpuAgent: Configuration by configurations.creating {
+    isCanBeConsumed = false
+    isTransitive = false
+}
+
 dependencies {
     implementation(project(":tests:performance:common"))
     implementation(project(path = ":tests:integration", configuration = "testJar"))
-    implementation(libs.hdrHistogram)
+    // Writes the run and profile reports, charts and flame graphs once a run has finished
+    implementation(project(":tests:performance:report-tool"))
     implementation(libs.picocli)
+    // Samples topic backlog and message counters during a run for the run report
+    implementation(project(":pulsar-client-admin-original"))
+    jonoffcpuAgent(libs.tooling.jonoffcpu.agent)
+}
+
+// The launcher already needs a recent JDK at run time (JfrCut uses the JDK 19+ recording writer), and the report
+// tool it calls targets 21 for the jonoffcpu correlator, so the launcher targets 21.
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(21)
 }
 
 application {
@@ -34,31 +51,72 @@ application {
     mainClass.set("org.apache.pulsar.tests.performance.launcher.PerformanceLauncher")
 }
 
-fun JavaExec.configurePerformanceLauncher(asyncProfiler: Boolean) {
+// Profiled containers use the glibc-based Wolfi image: on musl every native frame reads as the unsymbolized
+// /lib/ld-musl-x86_64.so.1, which hides what the JVM's own threads were waiting in. -Pinttest.testImageVariant=alpine
+// profiles on the same Alpine image as every other run instead.
+val wolfiTestImage = providers.gradleProperty("inttest.testImageVariant").map {
+    when (it) {
+        "wolfi" -> true
+        "alpine" -> false
+        else -> throw GradleException("inttest.testImageVariant must be alpine or wolfi, not '$it'")
+    }
+}.getOrElse(true)
+
+fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     workingDir(rootProject.projectDir)
     dependsOn(":tests:performance:tools:installDist")
-    val imageSuffix = if (asyncProfiler) "-asyncprofiler" else ""
+    val imageSuffix = if (profiler && wolfiTestImage) "-wolfi" else ""
     environment("PULSAR_TEST_IMAGE_NAME",
         "${providers.gradleProperty("docker.organization").getOrElse("apachepulsar")}/java-test-image:"
             + providers.gradleProperty("docker.tag").getOrElse("latest") + imageSuffix)
-    environment("PERFORMANCE_ASYNC_PROFILER_AVAILABLE", asyncProfiler.toString())
+    environment("PERFORMANCE_PROFILER_AVAILABLE", profiler.toString())
     systemProperty("performance.tools.dir",
         project(":tests:performance:tools").layout.buildDirectory.dir("install/pulsar-performance-tools")
             .get().asFile.absolutePath)
+    // Root of the reports hierarchy, -Pperformance.reportsDir=<dir> (relative to the repository root, or
+    // absolute). Without it the launcher writes to build/performance in the project directory it finds.
+    providers.gradleProperty("performance.reportsDir").orNull?.let {
+        systemProperty("performance.reports.dir", rootProject.file(it).absolutePath)
+    }
+    // Wait for the CPU package to cool down to this many °C before each run, -Pperformance.cooldownTemperature=<°C>,
+    // so that runs start from comparable thermal conditions. Without it the launcher doesn't wait.
+    providers.gradleProperty("performance.cooldownTemperature").orNull?.let {
+        systemProperty("performance.cooldown.temperature", it)
+    }
 }
 
 tasks.named<JavaExec>("run") {
-    configurePerformanceLauncher(asyncProfiler = false)
+    configurePerformanceLauncher(profiler = false)
     dependsOn(":tests:java-test-image:dockerBuild")
 }
 
 tasks.register<JavaExec>("profile") {
     group = "verification"
-    description = "Run a standalone performance scenario with async-profiler available in every container"
+    description = "Run a standalone performance scenario, profiling the JVMs that have profiler options with " +
+        "async-profiler, JDK Flight Recorder and jonoffcpu's off-CPU recording at the same time"
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set(application.mainClass)
-    configurePerformanceLauncher(asyncProfiler = true)
-    dependsOn(":tests:java-test-image:dockerBuildWithAsyncProfiler", ":tests:integration:tuneKernelPerfEvents")
+    configurePerformanceLauncher(profiler = true)
+    // The agent JAR embeds async-profiler, so nothing needs installing in the image. The cpu event still
+    // samples through perf_events, and the off-CPU collector loads eBPF programs, so both need the
+    // relaxed kernel limits.
+    dependsOn(if (wolfiTestImage) ":tests:java-test-image:dockerBuildWolfi" else ":tests:java-test-image:dockerBuild",
+        ":tests:integration:tuneKernelPerfEvents")
+    inputs.files(jonoffcpuAgent)
+    // The correlator sizes its retention budget at sixty percent of the heap and thins the capture, reporting
+    // it, when a capture exceeds it. The heap is stated so that a run's result does not depend on how much
+    // memory the host has; a few minutes of broker capture correlates in about 2 GB.
+    maxHeapSize = providers.gradleProperty("performance.profile.maxHeapSize").getOrElse("4g")
+    val agentJar = jonoffcpuAgent.elements.map { it.single().asFile.absolutePath }
+    // The correlator reads the capture stream with a protobuf codec that uses sun.misc.Unsafe, which the
+    // JDK reports once as a terminally deprecated call. The option silences that and changes nothing else.
+    // It does not exist before JDK 24, so it is decided by the JVM that runs the task.
+    val allowUnsafeMemoryAccess = JavaVersion.current() >= JavaVersion.VERSION_24
+    // Providers rather than doFirst, so that the task can be stored in the configuration cache.
+    jvmArgumentProviders.add(CommandLineArgumentProvider {
+        listOfNotNull("-Dperformance.jonoffcpu.agent=${agentJar.get()}",
+            "--sun-misc-unsafe-memory-access=allow".takeIf { allowUnsafeMemoryAccess })
+    })
     outputs.upToDateWhen { false }
     outputs.cacheIf("profiling runs are never cached") { false }
 }
@@ -68,11 +126,4 @@ tasks.register<JavaExec>("runJfrCut") {
     description = "Inspect or cut a JFR recording to an absolute or recording-relative time interval"
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("org.apache.pulsar.tests.performance.launcher.JfrCut")
-}
-
-tasks.register<JavaExec>("renderHdrHistograms") {
-    group = "verification"
-    description = "Render IoT producer and consumer HDR latency histograms as PNG and SVG"
-    classpath = sourceSets.main.get().runtimeClasspath
-    mainClass.set("org.apache.pulsar.tests.performance.launcher.HdrHistogramRenderer")
 }

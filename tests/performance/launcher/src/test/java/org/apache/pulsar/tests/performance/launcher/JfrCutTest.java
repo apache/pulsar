@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -54,10 +53,10 @@ public class JfrCutTest {
 
             JfrCut.cut(input, interval[0], interval[1], output);
 
-            assertEquals(markers(output), List.of("measurement"));
-            assertEquals(markers(input), List.of("before", "measurement", "after"));
-            assertTrue(eventNames(output).contains("jdk.JVMInformation"));
-            assertEquals(JfrCut.recordingInfo(output), JfrCut.recordingInfo(input));
+            assertThat(markers(output)).containsExactly("measurement");
+            assertThat(markers(input)).containsExactly("before", "measurement", "after");
+            assertThat(eventNames(output)).contains("jdk.JVMInformation");
+            assertThat(JfrCut.recordingInfo(output)).isEqualTo(JfrCut.recordingInfo(input));
         } finally {
             deleteDirectory(directory);
         }
@@ -89,13 +88,13 @@ public class JfrCutTest {
                     .findFirst().orElseThrow();
             Path output = directory.resolve("output.jfr");
             JfrCut.cut(input, duration.getEndTime(), instant.getStartTime().plusNanos(1), output);
-            assertEquals(markers(output), List.of("instant"));
+            assertThat(markers(output)).containsExactly("instant");
             JfrCut.cutFrom(input, duration.getEndTime(), output);
-            assertEquals(markers(output), List.of("instant"));
+            assertThat(markers(output)).containsExactly("instant");
             JfrCut.cut(input, instant.getStartTime(), instant.getStartTime().plusNanos(1), output);
-            assertEquals(markers(output), List.of("instant"));
+            assertThat(markers(output)).containsExactly("instant");
             JfrCut.cut(input, duration.getStartTime(), instant.getStartTime(), output);
-            assertEquals(markers(output), List.of("duration"));
+            assertThat(markers(output)).containsExactly("duration");
         } finally {
             deleteDirectory(directory);
         }
@@ -113,10 +112,10 @@ public class JfrCutTest {
             JfrRecordingProcessor.process(Set.of(input), interval[0], interval[1],
                     retainOriginal, createMeasurement);
 
-            assertEquals(Files.exists(input), retainOriginal);
-            assertEquals(Files.exists(measurement), createMeasurement);
+            assertThat(Files.exists(input)).isEqualTo(retainOriginal);
+            assertThat(Files.exists(measurement)).isEqualTo(createMeasurement);
             if (createMeasurement) {
-                assertEquals(markers(measurement), List.of("measurement"));
+                assertThat(markers(measurement)).containsExactly("measurement");
             }
         } finally {
             deleteDirectory(directory);
@@ -133,7 +132,7 @@ public class JfrCutTest {
             Files.write(measurement, new byte[] {1});
             Files.writeString(directory.resolve("profile.log"), "log");
 
-            assertEquals(JfrRecordingProcessor.findOriginalRecordings(directory), Set.of(original));
+            assertThat(JfrRecordingProcessor.findOriginalRecordings(directory)).containsExactlyInAnyOrder(original);
         } finally {
             deleteDirectory(directory);
         }
@@ -146,13 +145,9 @@ public class JfrCutTest {
             Path input = directory.resolve("input.jfr");
             Files.write(input, new byte[] {1});
             Instant now = Instant.now();
-            try {
-                JfrCut.cut(input, now, now, directory.resolve("output.jfr"));
-            } catch (IllegalArgumentException expected) {
-                assertTrue(expected.getMessage().contains("start must be before"));
-                return;
-            }
-            fail("Expected an invalid interval to be rejected");
+            assertThatThrownBy(() -> JfrCut.cut(input, now, now, directory.resolve("output.jfr")))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("start must be before");
         } finally {
             deleteDirectory(directory);
         }
@@ -162,19 +157,19 @@ public class JfrCutTest {
     public void parsesIsoInstantsAndEpochMilliseconds() {
         Instant instant = Instant.parse("2026-09-20T10:05:00Z");
 
-        assertEquals(JfrCut.parseInstant(instant.toString()), instant);
-        assertEquals(JfrCut.parseInstant(Long.toString(instant.toEpochMilli())), instant);
+        assertThat(JfrCut.parseInstant(instant.toString())).isEqualTo(instant);
+        assertThat(JfrCut.parseInstant(Long.toString(instant.toEpochMilli()))).isEqualTo(instant);
     }
 
     @Test
     public void parsesRecordingRelativeTimes() {
         Instant start = Instant.parse("2026-09-20T10:00:00Z");
 
-        assertEquals(JfrCut.parseTimeExpression("500ms", start), start.plusMillis(500));
-        assertEquals(JfrCut.parseTimeExpression("5s", start), start.plusSeconds(5));
-        assertEquals(JfrCut.parseTimeExpression("2m", start), start.plus(2, ChronoUnit.MINUTES));
-        assertEquals(JfrCut.parseTimeExpression("1h", start), start.plus(1, ChronoUnit.HOURS));
-        assertEquals(JfrCut.parseTimeExpression("PT5S", start), start.plusSeconds(5));
+        assertThat(JfrCut.parseTimeExpression("500ms", start)).isEqualTo(start.plusMillis(500));
+        assertThat(JfrCut.parseTimeExpression("5s", start)).isEqualTo(start.plusSeconds(5));
+        assertThat(JfrCut.parseTimeExpression("2m", start)).isEqualTo(start.plus(2, ChronoUnit.MINUTES));
+        assertThat(JfrCut.parseTimeExpression("1h", start)).isEqualTo(start.plus(1, ChronoUnit.HOURS));
+        assertThat(JfrCut.parseTimeExpression("PT5S", start)).isEqualTo(start.plusSeconds(5));
     }
 
     @Test
@@ -189,12 +184,12 @@ public class JfrCutTest {
             JfrCut.cutUsingTimeExpressions(input, null, "1h", fromBeginning);
             JfrCut.cutUsingTimeExpressions(input, "0ms", null, throughEnd);
 
-            assertEquals(markers(fromBeginning), List.of("before", "measurement", "after"));
-            assertEquals(markers(throughEnd), List.of("before", "measurement", "after"));
+            assertThat(markers(fromBeginning)).containsExactly("before", "measurement", "after");
+            assertThat(markers(throughEnd)).containsExactly("before", "measurement", "after");
             JfrCut.RecordingInfo info = JfrCut.recordingInfo(input);
-            assertTrue(!info.start().isAfter(measurementInterval[0]));
-            assertTrue(!info.end().isBefore(measurementInterval[1]));
-            assertEquals(info.duration(), Duration.between(info.start(), info.end()));
+            assertThat(info.start()).isBeforeOrEqualTo(measurementInterval[0]);
+            assertThat(info.end()).isAfterOrEqualTo(measurementInterval[1]);
+            assertThat(info.duration()).isEqualTo(Duration.between(info.start(), info.end()));
         } finally {
             deleteDirectory(directory);
         }
@@ -202,8 +197,8 @@ public class JfrCutTest {
 
     @Test
     public void derivesDefaultOutputBesideInput() {
-        assertEquals(JfrCut.defaultOutput(Path.of("/tmp/profile.jfr")), Path.of("/tmp/profile.cut.jfr"));
-        assertEquals(JfrCut.defaultOutput(Path.of("/tmp/profile")), Path.of("/tmp/profile.cut.jfr"));
+        assertThat(JfrCut.defaultOutput(Path.of("/tmp/profile.jfr"))).isEqualTo(Path.of("/tmp/profile.cut.jfr"));
+        assertThat(JfrCut.defaultOutput(Path.of("/tmp/profile"))).isEqualTo(Path.of("/tmp/profile.cut.jfr"));
     }
 
     @DataProvider

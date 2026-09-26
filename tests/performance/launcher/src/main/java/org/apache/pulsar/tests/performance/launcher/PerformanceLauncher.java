@@ -18,26 +18,53 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.dockerjava.api.model.Capability;
+import com.github.dockerjava.api.model.Info;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
+import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
+import org.apache.pulsar.tests.performance.report.DockerEngine;
+import org.apache.pulsar.tests.performance.report.JfrFlamegraphViews;
+import org.apache.pulsar.tests.performance.report.MarkdownPages;
+import org.apache.pulsar.tests.performance.report.OffCpuFlamegraphs;
+import org.apache.pulsar.tests.performance.report.ProfileReport;
+import org.apache.pulsar.tests.performance.report.RunInfo;
+import org.apache.pulsar.tests.performance.report.RunReport;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -53,15 +80,41 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String TOOLS_MOUNT = "/opt/pulsar-performance-tools";
     private static final String CONFIG_MOUNT = "/performance-config/resolved-config.yaml";
     private static final String COORDINATION_MOUNT = "/performance-coordination";
+    // The producer's measurement control endpoints, inside its container
+    private static final int CONTROL_PORT = 8089;
+    private static final String OUTPUT_MOUNT = "/performance-output";
+    static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
+    private static final String CONTAINER_LOG = RunReport.CONTAINER_LOG;
 
     @Option(names = "--config", required = true)
     Path config;
 
-    @Option(names = "--output")
+    @Option(names = "--output", description = "Exact run directory, instead of one in the reports hierarchy")
     Path output;
+
+    @Option(names = "--reports-dir", defaultValue = "${sys:performance.reports.dir}",
+            description = "Root of the reports hierarchy <root>/<yyyy-MM-dd>/<branch>/<name>/<MM-dd-HH-mm-ss>; "
+                    + "default: build/performance in the project directory")
+    Path reportsDirectory;
+
+    @Option(names = "--name", description = "The run's name in the reports hierarchy; default: the scenario's "
+            + "output.name, else the scenario file name without .yaml")
+    String name;
 
     @Option(names = "--tools-directory", description = "Installed pulsar-performance-tools distribution")
     Path toolsDirectory;
+
+    @Option(names = "--cooldown-temperature", defaultValue = "${sys:performance.cooldown.temperature}",
+            description = "Before starting the cluster, wait until the CPU package temperature is at most this "
+                    + "many °C, so that runs start from comparable thermal conditions; default: no wait")
+    Double cooldownCelsius;
+
+    @Option(names = "--cooldown-timeout", defaultValue = "600",
+            description = "The longest wait for --cooldown-temperature, in seconds; the run starts anyway after it")
+    int cooldownTimeoutSeconds;
+
+    @Option(names = "--sysfs", defaultValue = "/sys", hidden = true)
+    Path sysfs;
 
     public static void main(String[] args) {
         System.exit(new CommandLine(new PerformanceLauncher()).execute(args));
@@ -79,22 +132,36 @@ public class PerformanceLauncher implements Callable<Integer> {
         String consumerProfileOptions = text(profiling, "consumerOptions");
         boolean retainOriginalRecording = booleanValue(profiling, "retainOriginalRecording", true);
         boolean createMeasurementRecording = booleanValue(profiling, "createMeasurementRecording", true);
+        Map<String, Object> offCpuOptions = offCpuOptions(loader.mapper(), profiling);
         boolean profilingEnabled = brokerProfileOptions != null || producerProfileOptions != null
                 || consumerProfileOptions != null;
-        if (profilingEnabled
-                && !Boolean.parseBoolean(System.getenv("PERFORMANCE_ASYNC_PROFILER_AVAILABLE"))) {
-            throw new IllegalArgumentException("This scenario enables async-profiler; run it with "
-                    + "./gradlew :tests:performance:launcher:profile");
+        Path agentJar = null;
+        if (profilingEnabled) {
+            String configuredAgentJar = System.getProperty("performance.jonoffcpu.agent");
+            if (!Boolean.parseBoolean(System.getenv("PERFORMANCE_PROFILER_AVAILABLE"))
+                    || configuredAgentJar == null) {
+                throw new IllegalArgumentException("This scenario enables profiling; run it with "
+                        + "./gradlew :tests:performance:launcher:profile");
+            }
+            agentJar = Path.of(configuredAgentJar).toAbsolutePath().normalize();
         }
         int applications = workload.path("applicationCount").intValue();
         String runId = UUID.randomUUID().toString();
         String clusterName = "iot-" + ProcessHandle.current().pid();
         workload.put("serviceUrl", "pulsar://" + clusterName + "-pulsar-broker-0:6650");
 
-        Path runOutput = output != null ? output
-                : Path.of(loader.select(resolved, "output.directory").textValue());
+        // Whole seconds, as the run directory names the start
+        RunInfo runInfo = RunInfo.collect(Path.of("").toAbsolutePath(),
+                ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS)).withDockerEngine(dockerEngine());
+        Path runOutput = output != null ? output : RunDirectory.resolve(
+                reportsDirectory != null ? reportsDirectory
+                        : runInfo.projectDirectory().resolve(RunDirectory.DEFAULT_REPORTS_ROOT),
+                runInfo.started(), RunDirectory.branchDirectory(runInfo.gitBranch(), runInfo.gitCommit()),
+                runName(resolved));
         runOutput = runOutput.toAbsolutePath().normalize();
         Files.createDirectories(runOutput);
+        System.out.println("Run directory: " + runOutput);
+        runInfo.write(runOutput);
         Path coordinationDirectory = runOutput.resolve("coordination");
         Files.createDirectories(coordinationDirectory);
         Files.writeString(runOutput.resolve("run-id.txt"), runId + "\n");
@@ -105,8 +172,15 @@ public class PerformanceLauncher implements Callable<Integer> {
             System.setProperty("inttest.asyncprofiler.opts", brokerProfileOptions);
             System.setProperty("inttest.asyncprofiler.outputformat", "jfr");
         }
-        Path resolvedConfig = runOutput.resolve("resolved-config.yaml");
+        Path resolvedConfig = runOutput.resolve(RunReport.RESOLVED_CONFIG);
+        if (cooldownCelsius != null) {
+            // The workloads wait while the host cools down before the measurement; give them the time for it
+            workload.put("consumerTimeoutSeconds", workload.path("consumerTimeoutSeconds").intValue()
+                    + cooldownTimeoutSeconds);
+        }
         loader.write(resolvedConfig, resolved);
+        // The scenario as written, beside its resolved form, so that the run report can link both
+        Files.copy(config, runOutput.resolve(config.getFileName()), StandardCopyOption.REPLACE_EXISTING);
 
         Path resolvedToolsDirectory = (toolsDirectory != null ? toolsDirectory : Path.of(System.getProperty(
                 "performance.tools.dir", "tests/performance/tools/build/install/pulsar-performance-tools")))
@@ -121,6 +195,10 @@ public class PerformanceLauncher implements Callable<Integer> {
         @SuppressWarnings("unchecked")
         Map<String, String> bookkeeperEnvs =
                 loader.mapper().convertValue(clusterConfig.path("bookkeeperEnvs"), Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, String> producerEnvs = loader.mapper().convertValue(clusterConfig.path("producerEnvs"), Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, String> consumerEnvs = loader.mapper().convertValue(clusterConfig.path("consumerEnvs"), Map.class);
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
                 .numBrokers(clusterConfig.path("brokers").intValue())
@@ -128,21 +206,34 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .numProxies(0)
                 .profileBroker(brokerProfileOptions != null)
                 .profileDirectory(brokerProfileDirectory.toString())
+                .jonoffcpuAgentJar(agentJar != null ? agentJar.toString() : null)
+                .jonoffcpuOptions(offCpuOptions)
                 .brokerEnvs(brokerEnvs)
                 .bookkeeperEnvs(bookkeeperEnvs)
                 .build();
 
+        HostStatsSampler.Sensors sensors = HostStatsSampler.discover(sysfs);
+        List<RunReport.Cooldown> cooldowns = new CopyOnWriteArrayList<>();
+        RunReport.Cooldown beforeRun = coolDown(sensors, RunReport.Cooldown.BEFORE_RUN);
+        if (beforeRun != null) {
+            cooldowns.add(beforeRun);
+        }
+        Thread measurementGate = null;
         PulsarCluster cluster = PulsarCluster.forSpec(spec);
         List<GenericContainer<?>> consumers = new ArrayList<>(applications);
         GenericContainer<?> producer = null;
+        TopicStatsSampler topicStatsSampler = null;
+        HostStatsSampler hostStatsSampler = startHostStatsSampler(sensors, runOutput);
+        ZonedDateTime workloadFinished;
         try {
             cluster.start();
             for (int application = 0; application < applications; application++) {
-                Path appOutput = runOutput.resolve("consumer-" + application);
+                Path appOutput = applicationOutput(runOutput, workload, application);
                 Files.createDirectories(appOutput);
                 consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
-                        coordinationDirectory, runId, appOutput,
-                        consumerProfileOptions, "iot-consume", "--application-index", Integer.toString(application))
+                        coordinationDirectory, runId, appOutput, agentJar, offCpuOptions,
+                        consumerProfileOptions, consumerEnvs, "iot-consume", "--application-index",
+                        Integer.toString(application))
                         .waitingFor(Wait.forLogMessage(".*READY application=.*", 1)
                                 .withStartupTimeout(Duration.ofMinutes(5))));
             }
@@ -151,32 +242,54 @@ public class PerformanceLauncher implements Callable<Integer> {
             Path producerOutput = runOutput.resolve("producer");
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
-                    coordinationDirectory, runId, producerOutput,
-                    producerProfileOptions, "iot-produce");
+                    coordinationDirectory, runId, producerOutput, agentJar, offCpuOptions,
+                    producerProfileOptions, producerEnvs, "iot-produce", cooldownCelsius != null
+                            ? new String[] {"--control-port", Integer.toString(CONTROL_PORT)} : new String[0]);
+            if (cooldownCelsius != null) {
+                // The launcher reaches the producer's control endpoints through the port mapped on the host
+                producer.withExposedPorts(CONTROL_PORT)
+                        .waitingFor(Wait.forLogMessage(".*CONTROL_READY.*", 1)
+                                .withStartupTimeout(Duration.ofMinutes(5)));
+            }
+            topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput);
             producer.start();
+            if (cooldownCelsius != null) {
+                measurementGate = startMeasurementGate(sensors, producer, cooldowns);
+            }
             int timeout = workload.path("consumerTimeoutSeconds").intValue() + 60;
             int producerExit = waitForExit(producer, timeout);
-            saveContainerLog(producer, producerOutput.resolve("container.log"));
+            saveContainerLog(producer, producerOutput.resolve(CONTAINER_LOG));
             if (producerExit != 0) {
                 throw new IllegalStateException("IoT producer exited with status " + producerExit);
             }
             for (int application = 0; application < consumers.size(); application++) {
                 GenericContainer<?> consumer = consumers.get(application);
                 int consumerExit = waitForExit(consumer, timeout);
-                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/container.log"));
+                saveContainerLog(consumer, applicationOutput(runOutput, workload, application).resolve(CONTAINER_LOG));
                 if (consumerExit != 0) {
                     throw new IllegalStateException("IoT consumer exited with status " + consumerExit);
                 }
             }
-            verifyStates(runOutput, applications);
+            // The run's end in the charts: every consumer has finished, before the profiles are processed
+            workloadFinished = ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            verifyStates(runOutput, workload, applications);
         } finally {
+            if (topicStatsSampler != null) {
+                topicStatsSampler.close();
+            }
+            if (hostStatsSampler != null) {
+                hostStatsSampler.close();
+            }
+            if (measurementGate != null) {
+                measurementGate.interrupt();
+            }
             if (producer != null) {
-                saveContainerLog(producer, runOutput.resolve("producer/container.log"));
+                saveContainerLog(producer, runOutput.resolve("producer").resolve(CONTAINER_LOG));
                 producer.stop();
             }
             for (int application = 0; application < consumers.size(); application++) {
                 GenericContainer<?> consumer = consumers.get(application);
-                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/container.log"));
+                saveContainerLog(consumer, applicationOutput(runOutput, workload, application).resolve(CONTAINER_LOG));
                 consumer.stop();
             }
             cluster.stop();
@@ -187,7 +300,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             long lastConsumerReceiptEpochMs = Long.MIN_VALUE;
             for (int application = 0; application < applications; application++) {
                 JsonNode consumerSummary = loader.mapper().readTree(
-                        runOutput.resolve("consumer-" + application + "/consumer-summary.json").toFile());
+                        applicationOutput(runOutput, workload, application).resolve("consumer-summary.json").toFile());
                 lastConsumerReceiptEpochMs = Math.max(lastConsumerReceiptEpochMs,
                         requiredLong(consumerSummary, "lastMeasurementMessageReceivedEpochMs"));
             }
@@ -199,23 +312,245 @@ public class PerformanceLauncher implements Callable<Integer> {
             if (recordings.isEmpty()) {
                 throw new IllegalStateException("Profiling completed without producing a JFR recording");
             }
+            // Correlate against the untouched recording first: the stream binds its size and digest, and
+            // retention may delete it afterwards.
+            if (offCpuCaptureEnabled(offCpuOptions)) {
+                for (Path recording : recordings) {
+                    Path outputDirectory = OffCpuFlamegraphs.process(recording,
+                            JonoffcpuAgent.capture(recording), measurementStart, measurementEnd);
+                    System.out.println("Off-CPU profile: " + outputDirectory);
+                }
+            }
             JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd,
                     retainOriginalRecording, createMeasurementRecording);
+            for (Path recording : recordings) {
+                Path source = createMeasurementRecording ? JfrRecordingProcessor.measurementPath(recording)
+                        : recording;
+                Set<JfrFlamegraphViews.View> views = JfrFlamegraphViews.configuredViews(
+                        asyncProfilerOptions(loader.mapper(), recording));
+                if (!views.isEmpty() && Files.isRegularFile(source)) {
+                    System.out.println("Flame graphs: " + JfrFlamegraphViews.render(recording, source, views));
+                }
+            }
+            ProfileReport.Run run = new ProfileReport.Run(config.getFileName().toString(), runId,
+                    measurementStart, measurementEnd, summary.path("messagesPerSecond").asDouble());
+            Map<Path, List<Path>> recordingsByDirectory = recordings.stream().sorted()
+                    .collect(Collectors.groupingBy(Path::getParent, TreeMap::new, Collectors.toList()));
+            for (Map.Entry<Path, List<Path>> entry : recordingsByDirectory.entrySet()) {
+                System.out.println("Profile report: " + MarkdownPages.htmlPage(
+                        ProfileReport.write(entry.getKey(), entry.getValue(), run, loader.mapper(), runOutput)));
+            }
         }
+        Path runReport = RunReport.write(runOutput, new RunReport.Run(config.getFileName().toString(), runId,
+                PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload, runInfo, workloadFinished,
+                List.copyOf(cooldowns)), loader.mapper());
+        System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
         return 0;
+    }
+
+    /** The run's name in the reports hierarchy: --name, else the scenario's output.name, else its file name. */
+    private String runName(JsonNode resolved) {
+        if (name != null && !name.isBlank()) {
+            return name;
+        }
+        String scenarioName = resolved.path("output").path("name").textValue();
+        if (scenarioName != null && !scenarioName.isBlank()) {
+            return scenarioName;
+        }
+        String fileName = config.getFileName().toString();
+        return fileName.replaceFirst("\\.ya?ml$", "");
+    }
+
+    /**
+     * Starts sampling the workload topics' stats for the run report. Sampling is an observation, so a failure to
+     * start it is reported and the run goes on without it.
+     */
+    private static TopicStatsSampler startTopicStatsSampler(PulsarCluster cluster, JsonNode workload,
+                                                            Path runOutput) {
+        String prefix = workload.path("topicPrefix").textValue();
+        List<String> topics = IntStream.range(0, workload.path("topicCount").intValue())
+                .mapToObj(topic -> prefix + topic).toList();
+        try {
+            return TopicStatsSampler.start(cluster.getAnyBroker().getHttpServiceUrl(), topics, runOutput);
+        } catch (Exception e) {
+            System.out.println("Topic stats sampling is off for this run: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Starts sampling the host's thermal state for the run report. Sampling is an observation, so a failure to
+     * start it is reported and the run goes on without it.
+     */
+    private static HostStatsSampler startHostStatsSampler(HostStatsSampler.Sensors sensors, Path runOutput) {
+        try {
+            HostStatsSampler sampler = HostStatsSampler.start(sensors, runOutput);
+            if (sampler == null) {
+                System.out.println("Host stats sampling is off for this run: no CPU sensors under the sysfs root");
+            }
+            return sampler;
+        } catch (Exception e) {
+            System.out.println("Host stats sampling is off for this run: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Waits until the CPU package has cooled down to --cooldown-temperature, or --cooldown-timeout has passed, so
+     * that a run doesn't start on a CPU that the previous run or the image build left hot. Returns what happened,
+     * for the run report, or {@code null} when no cool-down was asked for or the host has no temperature sensor.
+     */
+    private RunReport.Cooldown coolDown(HostStatsSampler.Sensors sensors, String phase)
+            throws InterruptedException {
+        if (cooldownCelsius == null) {
+            return null;
+        }
+        OptionalDouble initial = sensors.packageCelsius();
+        if (initial.isEmpty()) {
+            System.out.println("No cool-down: the host has no CPU temperature sensor");
+            return null;
+        }
+        long startEpochMillis = System.currentTimeMillis();
+        long start = System.nanoTime();
+        long deadline = start + TimeUnit.SECONDS.toNanos(cooldownTimeoutSeconds);
+        long nextProgress = start;
+        double current = initial.getAsDouble();
+        while (current > cooldownCelsius && System.nanoTime() < deadline) {
+            if (System.nanoTime() >= nextProgress) {
+                System.out.printf(Locale.ROOT, "Cooling down: CPU package at %.0f °C, waiting for %.0f °C%n",
+                        current, cooldownCelsius);
+                nextProgress = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+            }
+            Thread.sleep(2000);
+            current = sensors.packageCelsius().orElse(current);
+        }
+        double waitedSeconds = (System.nanoTime() - start) / 1e9;
+        boolean reached = current <= cooldownCelsius;
+        System.out.printf(Locale.ROOT, "%s: CPU package at %.0f °C after %.0f s%n",
+                reached ? "Cooled down" : "Cool-down timed out", current, waitedSeconds);
+        return new RunReport.Cooldown(phase, cooldownCelsius, initial.getAsDouble(), current, waitedSeconds,
+                reached, startEpochMillis, System.currentTimeMillis());
+    }
+
+    /**
+     * Lets the host cool down again between the warmup and the measurement. The producer serves its measurement
+     * control endpoints over HTTP on {@link #CONTROL_PORT}, which this thread reaches through the port Testcontainers
+     * maps on the host: it waits on the ready endpoint, which answers as soon as every warmup round has been
+     * received, cools down, and starts the measurement. The start is always sent, also when the cool-down fails, so
+     * that the producer never waits for a launcher that has given up.
+     */
+    private Thread startMeasurementGate(HostStatsSampler.Sensors sensors, GenericContainer<?> producer,
+                                        List<RunReport.Cooldown> cooldowns) {
+        String control = "http://" + producer.getHost() + ":" + producer.getMappedPort(CONTROL_PORT);
+        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        Thread gate = new Thread(() -> {
+            try {
+                if (awaitReady(client, control, producer)) {
+                    System.out.println("Warmup received; cooling down before the measurement");
+                    RunReport.Cooldown cooldown = coolDown(sensors, RunReport.Cooldown.BEFORE_MEASUREMENT);
+                    if (cooldown != null) {
+                        cooldowns.add(cooldown);
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                startMeasurement(client, control);
+            }
+        }, "measurement-gate");
+        gate.setDaemon(true);
+        gate.start();
+        return gate;
+    }
+
+    /**
+     * Waits until the producer is ready for the measurement; false when it stopped before that. Each request waits
+     * up to 10 s, within the JDK server's 30 s idle connection timeout, and is repeated until the producer is ready.
+     */
+    private static boolean awaitReady(HttpClient client, String control, GenericContainer<?> producer)
+            throws InterruptedException {
+        HttpRequest ready = HttpRequest.newBuilder(URI.create(control + "/measurement/ready?waitMillis=10000"))
+                .timeout(Duration.ofSeconds(30)).GET().build();
+        while (producer.isRunning()) {
+            try {
+                if (client.send(ready, HttpResponse.BodyHandlers.discarding()).statusCode() == 200) {
+                    return true;
+                }
+            } catch (IOException e) {
+                // The producer may be starting its server, or have stopped; the loop checks which
+                Thread.sleep(1000);
+            }
+        }
+        return false;
+    }
+
+    private static void startMeasurement(HttpClient client, String control) {
+        HttpRequest start = HttpRequest.newBuilder(URI.create(control + "/measurement/start"))
+                .timeout(Duration.ofSeconds(10)).POST(HttpRequest.BodyPublishers.noBody()).build();
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                if (client.send(start, HttpResponse.BodyHandlers.discarding()).statusCode() == 200) {
+                    return;
+                }
+            } catch (IOException e) {
+                System.out.println("Couldn't start the measurement (attempt " + attempt + "): " + e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
+    /**
+     * The async-profiler options a recording was made with, as the agent configuration beside it records them.
+     */
+    private static String asyncProfilerOptions(ObjectMapper mapper, Path recording) throws IOException {
+        Path config = JonoffcpuAgent.config(recording);
+        if (!Files.isRegularFile(config)) {
+            return null;
+        }
+        JsonNode options = mapper.readTree(config.toFile()).path("asyncProfilerOptions");
+        return options.isTextual() ? options.textValue() : null;
+    }
+
+    /**
+     * The {@code profiling.offCpu} section as the jonoffcpu agent's {@code sampling} block. Types are kept as
+     * the scenario wrote them, so that a quoted probability such as {@code "0.010"} stays a string and is
+     * recorded in the capture metadata as spelled.
+     */
+    private static Map<String, Object> offCpuOptions(ObjectMapper mapper, JsonNode profiling) {
+        JsonNode section = profiling.path("offCpu");
+        if (section.isMissingNode() || section.isNull()) {
+            return Map.of();
+        }
+        if (!section.isObject()) {
+            throw new IllegalArgumentException("profiling.offCpu must be the jonoffcpu agent's sampling block");
+        }
+        return mapper.convertValue(section, new TypeReference<LinkedHashMap<String, Object>>() { });
+    }
+
+    /**
+     * Whether the agent records off-CPU samples at all: the admission policy {@code none} runs plain
+     * async-profiler through the same agent, leaving nothing to correlate.
+     */
+    private static boolean offCpuCaptureEnabled(Map<String, Object> offCpuOptions) {
+        Object admission = offCpuOptions.get("admission");
+        return !(admission instanceof Map<?, ?> policy && "none".equals(policy.get("policy")));
     }
 
     private GenericContainer<?> workloadContainer(PulsarCluster cluster, Path tools, Path configFile,
                                                    Path coordinationDirectory, String runId,
-                                                   Path outputDirectory, String profileOptions,
-                                                   String command, String... extraArguments) {
+                                                   Path outputDirectory, Path agentJar,
+                                                   Map<String, Object> offCpuOptions, String profileOptions,
+                                                   Map<String, String> envs, String command,
+                                                   String... extraArguments) throws IOException {
         List<String> arguments = new ArrayList<>();
         arguments.add(TOOLS_MOUNT + "/bin/pulsar-performance-tools");
         arguments.add(command);
         arguments.add("--config");
         arguments.add(CONFIG_MOUNT);
         arguments.add("--output");
-        arguments.add("/performance-output");
+        arguments.add(OUTPUT_MOUNT);
         arguments.add("--coordination-directory");
         arguments.add(COORDINATION_MOUNT);
         arguments.add("--run-id");
@@ -223,28 +558,40 @@ public class PerformanceLauncher implements Callable<Integer> {
         arguments.addAll(List.of(extraArguments));
         String javaOptions = "-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m";
         if (profileOptions != null) {
-            if (profileOptions.contains("file=")) {
-                throw new IllegalArgumentException("Profiler options must not set file; the launcher owns output");
-            }
-            javaOptions += " -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"
-                    + " -agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start," + profileOptions
-                    + ",file=/performance-output/profile-" + command + "-%t-%p.jfr";
+            // The launcher owns the recording name so that it lands inside the run directory
+            javaOptions += " -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints "
+                    + JonoffcpuAgent.writeConfig(outputDirectory, OUTPUT_MOUNT,
+                    "profile-" + command + "-" + System.currentTimeMillis(), profileOptions, offCpuOptions);
         }
         GenericContainer<?> container = new GenericContainer<>(PulsarContainer.DEFAULT_IMAGE_NAME)
                 .withNetwork(cluster.getNetwork())
                 .withFileSystemBind(tools.toString(), TOOLS_MOUNT, BindMode.READ_ONLY)
                 .withFileSystemBind(configFile.toString(), CONFIG_MOUNT, BindMode.READ_ONLY)
                 .withFileSystemBind(coordinationDirectory.toString(), COORDINATION_MOUNT, BindMode.READ_WRITE)
-                .withFileSystemBind(outputDirectory.toString(), "/performance-output", BindMode.READ_WRITE)
-                .withEnv("JAVA_TOOL_OPTIONS", javaOptions)
+                .withFileSystemBind(outputDirectory.toString(), OUTPUT_MOUNT, BindMode.READ_WRITE)
+                .withEnv(workloadEnvironment(javaOptions, envs))
                 .withCommand(arguments.toArray(String[]::new));
         if (profileOptions != null) {
-            container.withCreateContainerCmdModifier(cmd -> cmd.getHostConfig()
-                    .withCapAdd(Capability.PERFMON)
-                    .withCapAdd(Capability.SYS_PTRACE)
-                    .withSecurityOpts(List.of("seccomp=unconfined")));
+            JonoffcpuAgent.attach(container, agentJar);
         }
         return container;
+    }
+
+    /**
+     * The environment of a workload container: the configured variables ({@code cluster.producerEnvs} or
+     * {@code cluster.consumerEnvs}) and {@code JAVA_TOOL_OPTIONS} with the launcher's JVM options. A configured
+     * {@code JAVA_TOOL_OPTIONS} is appended to the launcher's options, so that it can add or override options without
+     * dropping the heap settings or the profiling agent.
+     */
+    static Map<String, String> workloadEnvironment(String javaOptions, Map<String, String> envs) {
+        Map<String, String> environment = new LinkedHashMap<>();
+        if (envs != null) {
+            envs.forEach((name, value) -> environment.put(name, value != null ? value : ""));
+        }
+        String configured = environment.get(JAVA_TOOL_OPTIONS);
+        environment.put(JAVA_TOOL_OPTIONS,
+                configured == null || configured.isBlank() ? javaOptions : javaOptions + " " + configured);
+        return environment;
     }
 
     private static String text(JsonNode parent, String field) {
@@ -287,10 +634,15 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
     }
 
-    private static void verifyStates(Path output, int applications) throws Exception {
+    // An application's outputs are in a directory named after it, as the run report names the application
+    private static Path applicationOutput(Path runOutput, JsonNode workload, int application) {
+        return RunReport.applicationDirectory(runOutput, workload, application);
+    }
+
+    private static void verifyStates(Path output, JsonNode workload, int applications) throws Exception {
         long[] produced = readState(output.resolve("producer/produced-state.bin"));
         for (int application = 0; application < applications; application++) {
-            long[] consumed = readState(output.resolve("consumer-" + application + "/consumed-state.bin"));
+            long[] consumed = readState(applicationOutput(output, workload, application).resolve("consumed-state.bin"));
             if (!java.util.Arrays.equals(produced, consumed)) {
                 throw new IllegalStateException("Application " + application
                         + " did not receive every device sequence");
@@ -309,6 +661,22 @@ public class PerformanceLauncher implements Callable<Integer> {
                 result[i] = input.readLong();
             }
             return result;
+        }
+    }
+
+    /**
+     * The Docker engine that runs the containers, as {@code docker info} describes it, or null when Docker can't be
+     * asked. On macOS its CPUs and memory are those of Docker Desktop's virtual machine rather than the host's.
+     */
+    static DockerEngine dockerEngine() {
+        try {
+            Info info = DockerClientFactory.instance().getInfo();
+            return new DockerEngine(Objects.toString(info.getServerVersion(), ""),
+                    Objects.requireNonNullElse(info.getNCPU(), 0), Objects.requireNonNullElse(info.getMemTotal(), 0L),
+                    Objects.toString(info.getOperatingSystem(), ""), Objects.toString(info.getKernelVersion(), ""),
+                    Objects.toString(info.getArchitecture(), ""));
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 }

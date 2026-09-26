@@ -58,5 +58,12 @@ function run_pulsar_component() {
     sed -i 's/autostart=.*/autostart=true/' /etc/supervisord/conf.d/${supervisord_component}.conf
   fi
 
+  # Run the component as another user than the image default. Needs the container itself to run as
+  # root, since supervisord can only switch to a user it has the privilege to become. Profiling with
+  # jonoffcpu uses this to run the JVM as root so that it may load its eBPF programs.
+  if [ -n "$PULSAR_PROCESS_USER" ]; then
+    sed -i "s/^user=.*/user=${PULSAR_PROCESS_USER}/" /etc/supervisord/conf.d/${supervisord_component}.conf
+  fi
+
   exec /usr/bin/supervisord -c /etc/supervisord.conf
 }

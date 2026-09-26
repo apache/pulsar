@@ -37,10 +37,17 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 @Command(name = "iot-produce", description = "Produce keyed IoT telemetry through isolated gateway clients")
 final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
     private static final int STATE_VERSION = 1;
+
+    @Option(names = "--control-port",
+            description = "Serve the measurement control endpoints on this port, and before the first measured "
+                    + "message wait for the launcher to start the measurement, for example after letting the host "
+                    + "cool down")
+    Integer controlPort;
 
     @Override
     public Integer call() throws Exception {
@@ -55,11 +62,16 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         AtomicLong completed = new AtomicLong();
         AtomicLong warmupCompleted = new AtomicLong();
         AtomicLong measurementCompleted = new AtomicLong();
-        HdrLatencyRecorder sendLatency = new HdrLatencyRecorder();
+        HdrLatencyRecorder sendLatency = new HdrLatencyRecorder(output.resolve("produce-latency.hdr"));
         int maxOutstanding = Math.min(scenario.maxOutstanding(), scenario.deviceCount());
         Semaphore outstanding = new Semaphore(maxOutstanding);
         Set<Integer> devicesInFlight = ConcurrentHashMap.newKeySet();
 
+        MeasurementControl control = null;
+        if (controlPort != null) {
+            control = MeasurementControl.start(controlPort);
+            System.out.println("CONTROL_READY port=" + control.port());
+        }
         PulsarClientSharedResources sharedResources = SharedClientResources.create(scenario);
         try {
             for (int gateway = 0; gateway < scenario.gatewayCount(); gateway++) {
@@ -107,6 +119,14 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
 
                 boolean measurementMessage = sent >= warmupMessageCount;
                 if (measurementMessage && measurementStartedNanos < 0) {
+                    if (control != null) {
+                        // The warmup rounds have been received; the launcher lets the host cool down first.
+                        control.markReady();
+                        System.out.println("MEASUREMENT_READY");
+                        control.awaitStart(runDeadlineNanos);
+                        // Do not turn the wait into a rate-limiter catch-up burst.
+                        nextSend = System.nanoTime();
+                    }
                     measurementStartedNanos = System.nanoTime();
                     measurementStartEpochMs = System.currentTimeMillis();
                     System.out.println("MEASUREMENT_START epochMs=" + measurementStartEpochMs);
@@ -172,8 +192,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             long finishedNanos = System.nanoTime();
             long elapsedNanos = finishedNanos - startedNanos;
             long measurementElapsedNanos = finishedNanos - measurementStartedNanos;
-            sendLatency.write(output.resolve("produce-latency.hdr"), measurementStartEpochMs,
-                    measurementEndEpochMs);
+            sendLatency.close();
             writeState(deviceSequences);
             Files.writeString(output.resolve("producer-summary.json"),
                     "{\n  \"sent\": " + completed.get()
@@ -202,6 +221,9 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 client.close();
             }
             sharedResources.close();
+            if (control != null) {
+                control.close();
+            }
         }
         return 0;
     }

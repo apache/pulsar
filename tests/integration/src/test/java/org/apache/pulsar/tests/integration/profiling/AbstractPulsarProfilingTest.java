@@ -60,7 +60,7 @@ import org.testcontainers.containers.GenericContainer;
  * That single task builds the test image with async-profiler in it, relaxes the kernel perf_event
  * limits that the cpu sampling engine needs, and runs {@link PulsarProfilingTest} against the
  * result. Add --tests "*PulsarProfilingV4Test" to profile the v4 variant instead. See
- * {@code tests/performance/README.md} for scenario YAML files and environment overrides.
+ * {@code tests/performance/docs/legacy-testng-runner.md} for scenario YAML files and environment overrides.
  * On a Linux host the perf_event limits can also be set persistently with sysctl, in which case
  * -Pinttest.asyncprofiler.skipPerfEventTuning skips the container that sets them:
  * kernel.perf_event_paranoid=1

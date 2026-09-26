@@ -79,14 +79,19 @@ val prepareBuildContext = tasks.register<Sync>("prepareBuildContext") {
     into("${projectDir}/target")
 }
 
-fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler: String) =
+fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler: String,
+                        pulsarImageTag: String = dockerTag,
+                        pulsarImageTask: String = ":docker:pulsar-docker-image:dockerBuild") =
     tasks.register<Exec>(taskName) {
         group = "docker"
 
-        dependsOn(":docker:pulsar-docker-image:dockerBuild", prepareBuildContext)
+        dependsOn(pulsarImageTask, prepareBuildContext)
 
         val imageName = "${dockerOrganization}/java-test-image:${imageTag}"
-        val pulsarImage = "${dockerOrganization}/pulsar:${dockerTag}"
+        val imageIdFile = layout.buildDirectory.file("docker/${taskName}.iid").get().asFile
+        val pulsarImage = "${dockerOrganization}/pulsar:${pulsarImageTag}"
+        // The ID of the Pulsar image that pulsarImageTask built, so that a new base image rebuilds this one
+        val pulsarImageIdFile = rootDir.resolve("docker/pulsar/build/docker/${pulsarImageTask.substringAfterLast(':')}.iid")
         val asyncProfilerVersion = libs.versions.async.profiler.get()
 
         workingDir = projectDir
@@ -94,6 +99,7 @@ fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler
         val args = mutableListOf(
             "docker", "build",
             "-t", imageName,
+            "--iidfile", imageIdFile.absolutePath,
             "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
             "--build-arg", "INSTALL_ASYNC_PROFILER=${installAsyncProfiler}",
             "--build-arg", "ASYNC_PROFILER_VERSION=${asyncProfilerVersion}"
@@ -106,6 +112,13 @@ fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler
         args.add(".")
 
         commandLine(args)
+
+        // Rebuild the image only when what goes into it changes, see dockerImageOutput
+        inputs.file("Dockerfile")
+        inputs.files(prepareBuildContext)
+        inputs.files(pulsarImageIdFile)
+        inputs.property("dockerBuildArgs", args)
+        dockerImageOutput(imageName, imageIdFile)
     }
 
 val dockerBuild = registerDockerBuild("dockerBuild", dockerTag, dockerInstallAsyncProfiler)
@@ -120,4 +133,12 @@ val dockerBuildWithAsyncProfiler =
     registerDockerBuild("dockerBuildWithAsyncProfiler", "${dockerTag}-asyncprofiler", "true")
 dockerBuildWithAsyncProfiler.configure {
     description = "Build the java-test-image Docker image with async-profiler installed"
+}
+
+// The glibc-based variant on top of the Wolfi Pulsar image, for the jonoffcpu profiler agent whose native
+// libraries do not load on musl. :tests:performance:launcher:profile builds and uses this one.
+val dockerBuildWolfi = registerDockerBuild("dockerBuildWolfi", "${dockerTag}-wolfi", "false",
+    "${dockerTag}-wolfi", ":docker:pulsar-docker-image:dockerBuildWolfi")
+dockerBuildWolfi.configure {
+    description = "Build the java-test-image Docker image from the Wolfi Pulsar image under the <tag>-wolfi tag"
 }

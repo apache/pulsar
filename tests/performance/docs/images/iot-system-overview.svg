@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 560" role="img"
+     aria-labelledby="title description">
+  <title id="title">The IoT telemetry domain that the performance tests simulate</title>
+  <desc id="description">Devices send telemetry through interchangeable gateways, which run in the producer
+    container, to Pulsar topics keyed by device ID. Each application consumes every topic through a Key_Shared
+    subscription of its own, with several instances, and runs in a container of its own.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
+            orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#506275"/>
+    </marker>
+    <style>
+      text { font-family: -apple-system, "Segoe UI", "DejaVu Sans", Arial, sans-serif; fill: #142b40; }
+      .title { font-size: 20px; font-weight: bold; }
+      .name { font-size: 14px; }
+      .small { font-size: 12px; fill: #506275; }
+      .heading { font-size: 15px; font-weight: bold; }
+      .note { font-size: 14px; fill: #506275; }
+      .flow { stroke: #506275; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+      .container { fill: none; stroke: #8a9aab; stroke-width: 1.5; stroke-dasharray: 6 4; }
+      .device { fill: #eaf4f8; stroke: #007b9b; stroke-width: 1.5; }
+      .gateway { fill: #ffffff; stroke: #007b9b; stroke-width: 1.5; }
+      .pulsar { fill: #f4f6f8; stroke: #142b40; stroke-width: 1.5; }
+      .topic { fill: #ffffff; stroke: #142b40; stroke-width: 1.2; }
+      .pod { fill: #fbeee6; stroke: #bd5b24; stroke-width: 1.5; }
+    </style>
+  </defs>
+  <rect width="1100" height="560" fill="#ffffff"/>
+  <text class="title" x="550" y="40" text-anchor="middle">The IoT telemetry domain that the performance tests simulate</text>
+
+  <!-- Devices -->
+  <rect class="device" x="40" y="100" width="130" height="36" rx="18"/>
+  <text class="name" x="105" y="123" text-anchor="middle">device 0</text>
+  <rect class="device" x="40" y="156" width="130" height="36" rx="18"/>
+  <text class="name" x="105" y="179" text-anchor="middle">device 1</text>
+  <rect class="device" x="40" y="212" width="130" height="36" rx="18"/>
+  <text class="name" x="105" y="235" text-anchor="middle">device 2</text>
+  <text class="name" x="105" y="275" text-anchor="middle">⋮</text>
+  <rect class="device" x="40" y="300" width="130" height="36" rx="18"/>
+  <text class="name" x="105" y="323" text-anchor="middle">device D−1</text>
+  <text class="heading" x="105" y="410" text-anchor="middle">Devices</text>
+  <text class="small" x="105" y="430" text-anchor="middle">deviceCount; a device</text>
+  <text class="small" x="105" y="446" text-anchor="middle">numbers its messages</text>
+
+  <!-- Gateways in the producer container -->
+  <rect class="container" x="225" y="80" width="225" height="300" rx="10"/>
+  <text class="small" x="337" y="100" text-anchor="middle">producer container</text>
+  <rect class="gateway" x="250" y="115" width="175" height="44" rx="6"/>
+  <text class="name" x="337" y="134" text-anchor="middle">gateway 0</text>
+  <text class="small" x="337" y="151" text-anchor="middle">a producer per topic</text>
+  <rect class="gateway" x="250" y="175" width="175" height="44" rx="6"/>
+  <text class="name" x="337" y="194" text-anchor="middle">gateway 1</text>
+  <text class="small" x="337" y="211" text-anchor="middle">a producer per topic</text>
+  <text class="name" x="337" y="247" text-anchor="middle">⋮</text>
+  <rect class="gateway" x="250" y="265" width="175" height="44" rx="6"/>
+  <text class="name" x="337" y="284" text-anchor="middle">gateway G−1</text>
+  <text class="small" x="337" y="301" text-anchor="middle">a producer per topic</text>
+  <text class="heading" x="337" y="410" text-anchor="middle">Gateways</text>
+  <text class="small" x="337" y="430" text-anchor="middle">gatewayCount; interchangeable,</text>
+  <text class="small" x="337" y="446" text-anchor="middle">each with its own Pulsar client</text>
+
+  <!-- A device's messages take any gateway -->
+  <path class="flow" d="M170,118 L248,137"/>
+  <path class="flow" d="M170,174 L248,287"/>
+  <path class="flow" d="M170,230 L248,197"/>
+  <path class="flow" d="M170,318 L248,137"/>
+  <path class="flow" d="M170,318 L248,197"/>
+
+  <!-- Pulsar and its topics -->
+  <rect class="pulsar" x="500" y="80" width="220" height="300" rx="10"/>
+  <text class="heading" x="610" y="106" text-anchor="middle">Pulsar</text>
+  <rect class="topic" x="520" y="125" width="180" height="40" rx="4"/>
+  <text class="name" x="610" y="143" text-anchor="middle">topic 0</text>
+  <text class="small" x="610" y="158" text-anchor="middle">key: device ID</text>
+  <rect class="topic" x="520" y="185" width="180" height="40" rx="4"/>
+  <text class="name" x="610" y="203" text-anchor="middle">topic 1</text>
+  <text class="small" x="610" y="218" text-anchor="middle">key: device ID</text>
+  <text class="name" x="610" y="253" text-anchor="middle">⋮</text>
+  <rect class="topic" x="520" y="275" width="180" height="40" rx="4"/>
+  <text class="name" x="610" y="293" text-anchor="middle">topic T−1</text>
+  <text class="small" x="610" y="308" text-anchor="middle">key: device ID</text>
+  <text class="small" x="610" y="360" text-anchor="middle">broker-side deduplication</text>
+  <text class="heading" x="610" y="410" text-anchor="middle">Topics</text>
+  <text class="small" x="610" y="430" text-anchor="middle">topicCount; a device always</text>
+  <text class="small" x="610" y="446" text-anchor="middle">uses the same topic</text>
+
+  <!-- Gateways publish to the device's topic -->
+  <path class="flow" d="M425,137 L518,145"/>
+  <path class="flow" d="M425,137 L518,205"/>
+  <path class="flow" d="M425,197 L518,145"/>
+  <path class="flow" d="M425,197 L518,295"/>
+  <path class="flow" d="M425,287 L518,205"/>
+  <path class="flow" d="M425,287 L518,295"/>
+
+  <!-- Applications, each in a container of its own -->
+  <rect class="container" x="790" y="80" width="280" height="135" rx="10"/>
+  <text class="name" x="930" y="102" text-anchor="middle">application 0</text>
+  <text class="small" x="930" y="122" text-anchor="middle">Key_Shared subscription on every topic</text>
+  <rect class="pod" x="805" y="150" width="70" height="36" rx="6"/>
+  <text class="name" x="840" y="173" text-anchor="middle">pod 0</text>
+  <rect class="pod" x="885" y="150" width="70" height="36" rx="6"/>
+  <text class="name" x="920" y="173" text-anchor="middle">pod 1</text>
+  <rect class="pod" x="965" y="150" width="70" height="36" rx="6"/>
+  <text class="name" x="1000" y="173" text-anchor="middle">pod 2</text>
+  <text class="name" x="1052" y="173" text-anchor="middle">…</text>
+
+  <rect class="container" x="790" y="245" width="280" height="135" rx="10"/>
+  <text class="name" x="930" y="267" text-anchor="middle">application A−1</text>
+  <text class="small" x="930" y="287" text-anchor="middle">Key_Shared subscription on every topic</text>
+  <rect class="pod" x="805" y="315" width="70" height="36" rx="6"/>
+  <text class="name" x="840" y="338" text-anchor="middle">pod 0</text>
+  <rect class="pod" x="885" y="315" width="70" height="36" rx="6"/>
+  <text class="name" x="920" y="338" text-anchor="middle">pod 1</text>
+  <rect class="pod" x="965" y="315" width="70" height="36" rx="6"/>
+  <text class="name" x="1000" y="338" text-anchor="middle">pod 2</text>
+  <text class="name" x="1052" y="338" text-anchor="middle">…</text>
+  <text class="name" x="930" y="233" text-anchor="middle">⋮</text>
+
+  <!-- Every application receives every topic -->
+  <path class="flow" d="M700,145 L788,147"/>
+  <path class="flow" d="M700,145 L788,312"/>
+  <path class="flow" d="M700,205 L788,147"/>
+  <path class="flow" d="M700,205 L788,312"/>
+  <path class="flow" d="M700,295 L788,147"/>
+  <path class="flow" d="M700,295 L788,312"/>
+  <text class="heading" x="930" y="410" text-anchor="middle">Applications</text>
+  <text class="small" x="930" y="430" text-anchor="middle">applicationCount, each with</text>
+  <text class="small" x="930" y="446" text-anchor="middle">clientsPerApplication pods</text>
+
+  <!-- The guarantees the runs check -->
+  <text class="note" x="40" y="490">• One message per device is in flight, so a device's messages stay in order even when they take different gateways.</text>
+  <text class="note" x="40" y="514">• Key_Shared gives each pod a share of the devices; restarting pods moves devices between them mid-stream.</text>
+  <text class="note" x="40" y="538">• Every application checks that it received every device's messages, in order; duplicates are counted.</text>
+</svg>

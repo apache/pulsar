@@ -25,5 +25,3 @@ workloads:
     clientsPerApplication: 10
     ioThreads: 4
     listenerThreads: 8
-output:
-  directory: build/performance/iot-telemetry-local-steady

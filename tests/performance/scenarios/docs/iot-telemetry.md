@@ -27,18 +27,18 @@ application-visible order across Key_Shared hash-range reassignment.
 
 ## Scenarios
 
-- [`iot-telemetry.yaml`](scenarios/iot-telemetry.yaml) is the full topology without churn.
-- [`iot-telemetry-restarts.yaml`](scenarios/iot-telemetry-restarts.yaml) restarts 10% of each application's
+- [`iot-telemetry.yaml`](../iot-telemetry.yaml) is the full topology without churn.
+- [`iot-telemetry-restarts.yaml`](../iot-telemetry-restarts.yaml) restarts 10% of each application's
   clients every 30 seconds.
-- [`iot-telemetry-local-steady.yaml`](scenarios/iot-telemetry-local-steady.yaml) keeps the 20-way fanout,
+- [`iot-telemetry-local-steady.yaml`](../iot-telemetry-local-steady.yaml) keeps the 20-way fanout,
   30 topics and 1,000 msg/s rate, but uses 10 gateways and 10 clients per application.
-- [`iot-telemetry-local.yaml`](scenarios/iot-telemetry-local.yaml) adds restart churn to that host-sized
+- [`iot-telemetry-local.yaml`](../iot-telemetry-local.yaml) adds restart churn to that host-sized
   topology.
-- [`iot-telemetry-high-rate.yaml`](scenarios/iot-telemetry-high-rate.yaml) removes the producer rate limit
+- [`iot-telemetry-high-rate.yaml`](../iot-telemetry-high-rate.yaml) removes the producer rate limit
   and sends five million messages through 500 preconnected producers to one topic. Five applications each
   consume with ten isolated clients on one Key_Shared subscription.
-- [`iot-telemetry-high-rate-profile.yaml`](scenarios/iot-telemetry-high-rate-profile.yaml) enables broker and
-  producer async-profiler recordings for the same saturation workload.
+- [`iot-telemetry-high-rate-profile.yaml`](../iot-telemetry-high-rate-profile.yaml) enables broker and
+  producer jonoffcpu (async-profiler plus off-CPU) recordings for the same saturation workload.
 
 Build the mountable workload distribution without running a cluster:
 
@@ -97,7 +97,7 @@ Set `rate: 0` together with a positive `numberOfMessages` to remove producer pac
 summary reports `messagesPerSecond` only for the post-warmup measurement phase and retains
 `wholeRunMessagesPerSecond` as startup and warmup context.
 
-## Async-profiler
+## Profiling with jonoffcpu
 
 Use the `profile` task for a scenario that has non-empty `profiling.brokerOptions`, `producerOptions` or
 `consumerOptions`:
@@ -107,12 +107,27 @@ Use the `profile` task for a scenario that has non-empty `profiling.brokerOption
   --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
 ```
 
-The task builds the test image containing async-profiler, tunes Linux perf-event settings using the existing
-integration-test task, and grants profiled containers the required capabilities. Broker recordings are written
-under `broker-profile/`; producer and consumer recordings are written in their corresponding output directories.
-The launcher owns each `file=` option so recordings remain inside the run directory. Empty options leave that
-component unprofiled. The ordinary `run` task rejects profiling-enabled YAML rather than silently running with
-an image that lacks the native agent.
+The options are async-profiler options. The [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent runs
+async-profiler with them, JDK Flight Recorder alongside with `jfrsync`, and its kernel-measured off-CPU recording, all
+at the same time. [Profiling](../../docs/profiling.md) describes the requirements
+and the files each recording produces, and [Analyzing profiles](../../docs/analyzing-profiles.md) how to find what to
+optimize.
+
+Broker recordings are written under `broker-profile/`; producer and consumer recordings are written in their
+corresponding output directories. The launcher owns each recording path so recordings remain inside the run
+directory, and rejects options that set `file=`. Empty options leave that component unprofiled. The ordinary
+`run` task rejects profiling-enabled YAML rather than silently running without the agent.
+
+The profile scenario samples CPU every 10 ms and allocations every 2 MB in the broker and the producer, records the
+JVM's own events with JFR's `profile` configuration (`jfrsync=profile`, see
+[Configuring profiling](../../docs/profiling.md#configuring-profiling)), and records only intervals where a thread
+blocked (`reasons: [blocked]`), not those where it was runnable but waiting for a CPU. It ignores waits under 100 µs
+(`minOffCpuMicros: 100`) and records every wait of 10 ms or longer, sampling shorter ones in proportion to their
+length (`admission: {policy: proportional, recordAllAboveMicros: 10000}`), which bounds the recording rate by off-CPU
+time rather than by context-switch count: a broker run records about 400,000 intervals. For this workload, start with
+the run report, `index.html`, the broker's profile report, the off-CPU digest it links to and `cpu-threads.html`: the
+five-million-message run sends everything through one topic, so the topic's managed-ledger thread
+(`BookKeeperClientWorker-OrderedExecutor-*`) is the serial stage to watch.
 
 After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the producer's
 measurement start through the latest measured-message receipt across all backend applications. The upper boundary
@@ -123,8 +138,8 @@ configuration events needed to describe the source JVM in JDK Mission Control. S
 `profiling.retainOriginalRecording: false` to keep only the measurement recording, or
 `profiling.createMeasurementRecording: false` to keep only the complete recording. If cutting fails, the complete
 recording is preserved even when its retention is disabled. Setting both flags to `false` intentionally discards
-all current-run recordings. Earlier runs' recordings are left alone; use a fresh output directory per experiment
-if you want an unambiguous set of artifacts.
+all current-run recordings. Earlier runs' recordings are left alone; each run has a directory of its own unless
+`--output` reuses one.
 
 The JFR measurement window and broker-publish-to-listener latency assume synchronized producer, consumer, and
 broker clocks. Containers on one Docker host share its clock. When adapting the tools to multiple hosts,
@@ -134,10 +149,9 @@ The producer writes `produce-latency.hdr` containing send-to-completion latency 
 application writes `consume-latency.hdr` containing broker-publish-to-listener latency for measured messages. Warmup
 messages are excluded from both histograms. The consumer captures its receipt timestamp on listener entry and
 records the sample after payload decoding and key validation, before sequence validation and acknowledgment.
-Decoding and validation time do not contribute to the latency value. Use the launcher's `renderHdrHistograms`
-Gradle task to merge the backend-application
-histograms by observation count and render the producer and consumer distributions as PNG and SVG; see the
-performance README for the command.
+Decoding and validation time do not contribute to the latency value. Use the report tool's `renderHdrHistograms`
+Gradle task to plot the publish latency and each application's end-to-end latency by percentile and over time
+as SVG and PNG; see [Latency logs](../../docs/run-reports.md#latency-logs) for the command.
 
 ## Interpreting a run
 

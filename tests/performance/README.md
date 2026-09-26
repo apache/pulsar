@@ -21,315 +21,297 @@
 
 # Performance testing
 
-This directory contains standalone performance scenarios, workload applications, their launcher, and guidance
-for repeatable profiling and analysis. Keep scenario files, commands, results and interpretation together so a
-later run can reproduce the same workload.
+The performance tests are for running performance test experiments: measuring a change, comparing two revisions
+and finding what to optimize. They run a Pulsar cluster and its client workloads in Docker containers on one host, as
+a [scenario](scenarios/README.md) describes them, and write a report for every run: throughput, latency, delivery and
+ordering checks, and the host's CPU temperature. A run can also be profiled with
+[async-profiler](https://github.com/async-profiler/async-profiler),
+[JDK Flight Recorder](https://docs.oracle.com/en/java/javase/25/troubleshoot/diagnostic-tools.html#GUID-D38849B6-61C7-4ED6-A395-EA4BC32A9FD6)
+and [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) at the same time, which gives CPU, allocation and off-CPU
+flame graphs of the broker and the clients: both where threads use CPU and where they wait. Everything runs from the
+command line and writes its results to files, so that experiments can be automated, including tuning by AI agents,
+which [`AGENTS.md`](AGENTS.md) guides.
 
-For micro-level questions about one class or method, use the JMH benchmarks in
-[`microbench`](../../microbench). JMH is the benchmark harness; this directory is for documenting the
-end-to-end profiling scenario, profile collection, analysis and conclusions. A useful experiment keeps
-the workload definition, the revision under test, the profiler options, the raw recording and the
-resulting analysis together.
+The performance tests aren't currently used as automated regression tests: no CI job runs the scenarios, and no run
+is checked against a baseline automatically. A person or an agent compares revisions, as
+[Compare two revisions](#5-compare-two-revisions) describes. A future improvement is to evolve the tests into an
+automated regression test suite, which would prevent performance regressions by checking changes against a baseline,
+and set the new baseline when a change improves performance.
 
-Performance scenarios belong in this directory. Build reusable, mountable workload applications in
-[`tools`](tools) with `./gradlew :tests:performance:tools:installDist`, describe workloads in
-[`scenarios`](scenarios), and run them through the standalone [`launcher`](launcher). The launcher owns the
-Testcontainers cluster and workload lifecycle directly, consumes recursively merged YAML, persists the resolved
-configuration and run artifacts, and does not use a unit-test framework as a process runner. Shared scenario
-loading is implemented in [`common`](common).
+For the performance of a single class or method, use [the JMH microbenchmarks](../../microbench/README.md) instead.
 
-The original profiling harness under `tests/integration` uses TestNG classes as wrappers around a manually run
-performance workload. That runner is deprecated: TestNG discovery and test lifecycle add no useful test semantics
-to these long-running profiling scenarios and make them harder to invoke and automate as standalone jobs. It is
-retained temporarily for its existing v4 and v5 `pulsar-perf` scenarios while they are migrated. Add new scenarios,
-workload applications and profiling support to `tests/performance` and the standalone launcher instead.
+## How the tests work
 
-## Running standalone scenarios
+The testing strategy is to simulate real-world use cases of Pulsar. A domain models a use case: who sends messages,
+who consumes them, and what they need from the delivery, such as ordering. Scenarios then set the domain's scale and
+behavior, such as the number of devices, the message rate or restarting clients, so that each scenario maps to a kind
+of real-world deployment. A run shows how Pulsar performs for it, and whether the domain's delivery guarantees held.
 
-The IoT scenarios exercise keyed telemetry fanout, ordering, client restart and saturation behavior. Run the
-host-sized scenario with:
+Simulating a domain keeps the tests from becoming synthetic. A synthetic benchmark, such as a `pulsar-perf` producer
+and consumer pair, measures one path through Pulsar under conditions that real deployments seldom have, so an
+improvement in its results doesn't directly carry over to real-world use. A real deployment uses many features at
+the same time, such as many producers and topics, keyed messages, batching, deduplication, Key_Shared subscriptions
+and clients that restart, and it relies on delivery guarantees such as ordering. A simulated use case exercises the
+same combination, so that:
+
+- an improvement measured in a scenario is likely to show in the deployments that the scenario maps to, and
+  bottlenecks that only appear when the features interact show up in the tests too
+- every run checks the guarantees that the use case relies on, so that a change can't trade correctness for speed
+  unnoticed
+- the results are stated in the domain's terms, such as the number of devices and their message rate, which relate to
+  sizing a real deployment
+
+The scenarios can grow toward the operations of real deployments too. Today they restart application pods, and later
+scenarios can add, for example, rolling restarts and upgrades of the Pulsar cluster while the traffic runs.
+
+The current tests simulate an IoT telemetry domain. More domains can be added later, but that will need refactoring:
+the workload applications in [`tools`](tools), the workload settings of the scenarios and the checks and sections of
+the run report are written for the IoT domain.
+
+![Devices send telemetry through gateways to Pulsar topics, which every application consumes with several pods](docs/images/iot-system-overview.svg)
+
+### IoT domain glossary
+
+- **Device**: a sensor or a machine that sends telemetry. It has an ID and numbers its messages, which have to be
+  processed in the order it sent them.
+- **Telemetry message**: a small reading from a device, with the device's ID and the message's sequence number.
+- **Gateway**: an edge gateway that forwards the devices' messages to Pulsar. Gateways are interchangeable: a device's
+  next message can go through another gateway.
+- **Application**: a backend service, such as storage, alerting or analytics, that consumes the telemetry of every
+  device, independently of the other applications.
+- **Pod**: an instance of an application. An application's pods share its devices between them, and pods come and
+  go, as in a rolling restart.
+
+### How the domain is simulated
+
+| Domain | Simulation |
+|---|---|
+| Device | A device ID, which is the message key. `deviceCount` sets the number of devices |
+| Telemetry message | A message with the device ID, the device's sequence number and the send time, `payloadBytes` long |
+| Gateway | A Pulsar client in the producer container, with a producer named `iot-gateway-<gateway>-topic-<topic>` for each topic. `gatewayCount` sets the number of gateways; their clients share I/O threads and memory, as the clients of one process can since PIP-234 |
+| Topics | `topicCount` topics; a device's messages always go to the same topic, the device ID modulo `topicCount` |
+| Application | A Key_Shared subscription on every topic, named `iot-application-<index>`, in a container of its own. `applicationCount` sets the number of applications |
+| Pod | A Pulsar client with a consumer of the application's subscription, named `iot-application-<index>-pod-<pod>`. `clientsPerApplication` sets the number of pods per application |
+
+- The producer sends each message from a random device through a random gateway, at `rate` messages per second, or as
+  fast as it can when the rate is 0. It keeps one message per device in flight, as a device waits for its message to
+  be acknowledged, so that a device's messages reach Pulsar in order even through different gateways. The producers
+  batch messages by key, and the broker deduplicates them by producer name and sequence ID.
+- `clientRestartFraction` and `clientRestartIntervalSeconds` restart some of each application's pods periodically,
+  which moves devices between the pods mid-stream.
+- Each application tracks the sequence of every device: it counts ordering violations, invalid messages and
+  duplicates, which at-least-once delivery allows. At the end, the launcher compares each application's last
+  sequence per device with the producer's, which catches messages missing at the end. A run fails when a check
+  fails.
+- Warmup messages take the same path as the measured ones before the measurement starts, and the delivery checks
+  include them.
+
+[The IoT telemetry scenario](scenarios/docs/iot-telemetry.md) describes the workload's settings and the maintained
+scenarios in detail.
+
+## Before you start
+
+- **Docker** installed and running, and a JDK that builds Pulsar, see
+  [the contributing guide](../../CONTRIBUTING.md).
+- **Disk space**: keep the disk that holds Docker's data less than 90 % full. BookKeeper bookies switch to read-only
+  mode when it is 95 % full. [`docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) frees the space that test
+  runs and image builds use up.
+- **A host configured for consistent results** (Linux): turbo frequencies depend on the CPU's temperature, and power
+  management changes CPU settings during a run, so results vary between runs of the same code.
+  [The performance testing environment setup](environment/README.md) fixes the CPU frequency with a TuneD profile
+  for the duration of the tests. Install it once, and start it before a series of runs:
+
+  ```bash
+  sudo tests/performance/environment/scripts/configure-perf-test-environment.sh install  # once
+  sudo tests/performance/environment/scripts/configure-perf-test-environment.sh start    # before the runs
+  sudo tests/performance/environment/scripts/configure-perf-test-environment.sh stop     # after the runs
+  ```
+
+  `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` checks, without root, that the
+  host is ready: that it's on AC power, has disk space and runs with the profile's settings.
+- **A reports root** that your checkouts share. Without one, each checkout writes its runs to its own
+  `build/performance`, so the runs of two revisions in separate worktrees end up apart, and removing a worktree
+  removes its runs. Set `performance.reportsDir` in `~/.gradle/gradle.properties`, which applies to every checkout
+  and worktree on the machine. Use an absolute path, since a relative one resolves in each checkout, and Gradle
+  doesn't expand `~` or `$HOME` in the file; the shell expands `$HOME` in this command:
+
+  ```bash
+  echo "performance.reportsDir=$HOME/pulsar-performance-reports" >> ~/.gradle/gradle.properties
+  ```
+
+  The launcher creates the directory, and `serveReports` serves it. `-Pperformance.reportsDir=<dir>` overrides the
+  setting for one command.
+
+Run the commands in the root directory of the repository.
+
+## Tutorial
+
+### 1. Run a scenario
+
+Run the workstation-sized IoT telemetry scenario:
 
 ```bash
 ./gradlew :tests:performance:launcher:run \
   --args='--config tests/performance/scenarios/iot-telemetry-local.yaml'
 ```
 
-Use the `profile` task when the selected scenario contains async-profiler options:
+Gradle builds the Pulsar test image and the workload applications first, when they are out of date. Then the
+launcher starts a cluster of one broker and three bookies, and runs the workload:
+[`iot-telemetry-local.yaml`](scenarios/iot-telemetry-local.yaml) sends keyed telemetry messages from 10 gateways to 30
+topics, which 20 applications consume on Key_Shared subscriptions, for 20 seconds of warmup and 120 seconds of
+measurement at 1,000 messages per second. It restarts some of the applications' clients every 30 seconds, and checks
+that every application receives every message of every device in order.
+
+The launcher prints the run directory when it starts, and the run report when it has finished:
+
+```
+Run directory: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00
+...
+Run report: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00/index.html
+```
+
+Every run gets a directory of its own under the reports root, by day, git branch, scenario and start time:
+`<reports root>/<yyyy-MM-dd>/<branch>/<scenario>/<MM-dd-HH-mm-ss>/`. The reports root is `performance.reportsDir`
+when you set it as [Before you start](#before-you-start) describes, or else `build/performance` in the repository.
+To find the newest run later, with the reports root in place of `build/performance` when you set one:
+
+```bash
+ls -dt build/performance/*/*/*/*/ | head -n 1
+```
+
+[Where runs are written](docs/running-scenarios.md#where-runs-are-written) describes the run directories' names.
+[Finding the results of a run](docs/run-reports.md#finding-the-results-of-a-run) and
+[Layout of a run directory](docs/run-reports.md#layout-of-a-run-directory) describe what's in a run directory.
+
+### 2. Read the report
+
+Open the run report, `index.html` in the run directory, in a browser; `README.md` beside it is the same report as
+Markdown. Read it from the top:
+
+1. **Correctness**: every application should have received every message, with no ordering violations and no
+   invalid messages. A run that fails these checks isn't a valid measurement.
+2. **Throughput** and **Latency**: the producer and delivered throughput, and the publish and end-to-end latency
+   percentiles, with charts over the run.
+3. **Host**: the CPU temperature and frequency during the measurement. The report says in bold when the CPU
+   throttled; such a run isn't comparable to one that didn't throttle.
+
+A run that fails, for example because an application didn't receive every message, stops with an error and writes no
+report. [When a run fails](docs/run-reports.md#when-a-run-fails) describes where to look for the cause.
+
+To browse the reports in a browser, serve the reports root over HTTP:
+
+```bash
+./gradlew :tests:performance:report-tool:serveReports
+```
+
+Then open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and follow the directory listings to a run. These
+properties in `~/.gradle/gradle.properties`, or `-P` options on the command line, configure the server:
+
+| Property | Default | Sets |
+|---|---|---|
+| `performance.reportsDir` | `build/performance` | The reports root that it serves |
+| `performance.reportsServer.bindAddress` | `127.0.0.1` | The address that it binds to |
+| `performance.reportsServer.port` | `8000` | The port that it listens on |
+
+The default address makes the server reachable only from the machine that it runs on. When the tests run on another
+machine, run `serveReports` there, and to browse the reports from your own machine, do one of these:
+
+- Set `performance.reportsServer.bindAddress=0.0.0.0` in `~/.gradle/gradle.properties` on the machine that runs the
+  tests, or pass it with `-P`, which makes the server available on the network, at the machine's host name or IP
+  address. The server has no authentication, so do that only on a trusted network.
+- Keep the default address and reach the server through an SSH tunnel, as
+  [Browsing the reports over HTTP](docs/run-reports.md#browsing-the-reports-over-http) describes.
+
+[Run reports](docs/run-reports.md) describes every section and file of a run.
+
+### 3. Change the workload
+
+Try a single value with an environment variable, which overrides a setting of the scenario for one run:
+
+```bash
+PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=5000 \
+./gradlew :tests:performance:launcher:run \
+  --args='--config tests/performance/scenarios/iot-telemetry-local.yaml'
+```
+
+To keep a workload, write it as a scenario that extends an existing one with the settings it changes.
+[The scenarios](scenarios/README.md) lists the maintained scenarios and describes writing one.
+
+### 4. Profile a run
+
+The `profile` task runs a scenario with three recorders running at the same time in the broker and the clients:
+[async-profiler](https://github.com/async-profiler/async-profiler) samples CPU time and allocations,
+[JDK Flight Recorder](https://docs.oracle.com/en/java/javase/25/troubleshoot/diagnostic-tools.html#GUID-D38849B6-61C7-4ED6-A395-EA4BC32A9FD6)
+records the JVM's own events into the same recording, and
+[jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) records from the kernel the time each thread spent blocked. It
+needs a Linux Docker engine. The profiling scenario saturates one topic from 500 producers:
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
   --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
 ```
 
-The Gradle tasks build the Pulsar test image and the workload distribution before launching the scenario. See
-[the IoT scenario reference](iot-telemetry.md) for topology, correctness checks and output details.
+The launcher renders the flame graphs itself when the run has finished, into the run directory next to the
+recordings: the broker's under `broker-profile/`, and the producer's under `producer/`. The run report links to a
+profile report for each of them. Start from the broker's: it links to the CPU, allocation and off-CPU flame graphs,
+cut to the measurement, and to a digest that ranks the time threads spent blocked by the Pulsar or BookKeeper method
+that waited. [Profiling](docs/profiling.md) describes the
+requirements, the profiler options and the files, and [Analyzing profiles](docs/analyzing-profiles.md) how to find
+what to optimize.
 
-## Scenario configuration format
+The JFR recordings also open in JDK Mission Control, whose OpenJDK distribution is
+[Eclipse Mission Control](https://adoptium.net/jmc). The JDK's
+[Troubleshoot Performance Issues Using Flight Recorder](https://docs.oracle.com/en/java/javase/25/troubleshoot/troubleshoot-performance-issues-using-jfr.html#GUID-0FE29092-18B5-4BEB-8D8D-0CBA7A4FEA1D)
+guide describes finding performance issues in a recording with it.
 
-Scenario YAML is a reusable configuration tree rather than a format tied to a test class. The shared loader in
-[`common`](common) resolves the tree; launchers and workload applications select the subtree they own. The
-standalone launcher uses these top-level sections:
+### 5. Compare two revisions
 
-- `cluster`: the Pulsar topology and broker or BookKeeper environment settings;
-- `workloads`: named workload configurations, currently including `iotTelemetry`;
-- `profiling`: optional async-profiler settings for the broker, producer and consumer processes; and
-- `output`: the run-artifact directory.
-
-Workload-specific fields live below their workload name so another launcher or application can reuse the same
-file without interpreting unrelated sections. The launcher writes the fully resolved tree to
-`resolved-config.yaml` in the run directory and mounts that file into workload containers. A workload command can
-select its subtree with `--config-path`.
-
-The `iotTelemetry` workload can run traffic before measurements begin. Use `warmupSeconds` with a positive `rate`,
-or use `warmupMessages` when `rate: 0`; the two settings are mutually exclusive. `warmupRounds` repeats that
-traffic, and `warmupRoundDelaySeconds` adds an idle stabilization period after each fully drained round, including
-the final round. A round is fully drained only after every backend application has uniquely received its cumulative
-warmup message count; producer send completions alone do not release the barrier. The default is one round with no
-delay. Warmup traffic remains part of delivery and ordering validation. Producer throughput and the
-epoch-millisecond measurement boundaries in
-`producer-summary.json` cover only the configured measurement messages. Every consumer summary records its first
-and last measured-message receipt as metadata. The launcher cuts from the producer measurement start through the
-latest last receipt across all backend applications.
-
-Use a top-level `extends` entry to inherit one file or an ordered list of files:
-
-```yaml
-extends: [cluster.yaml, workloads/iot-base.yaml]
-workloads:
-  iotTelemetry:
-    rate: 1000
-    clientRestartFraction: 0.1
-profiling:
-  brokerOptions: event=cpu,interval=10ms,jfrsync=profile
-  producerOptions: ~
-  retainOriginalRecording: true
-  createMeasurementRecording: true
-output:
-  directory: build/performance/iot-restart-profile
-```
-
-Each inherited path is resolved relative to the file that declares it; absolute paths also work. Parents can
-inherit other files recursively. Parents are applied in list order and the current file is applied last. Mappings
-merge recursively, while scalar values and lists replace earlier values. An explicit YAML `null` or `~` removes
-an inherited entry. Cycles, missing files, non-mapping roots and invalid `extends` entries are rejected.
-
-Profiled standalone runs retain the complete JFR and also create a sibling whose name ends in
-`.measurement.jfr`. The measurement recording contains events from the producer's recorded measurement start through
-the latest measured-message receipt across all backend applications. This excludes startup, warmup, and shutdown
-while retaining the broker and consumer work needed to deliver every measured message. One-time JVM, host, recording
-setting and runtime configuration events are copied from the beginning of the complete recording so JDK Mission
-Control can describe the source JVM. Set
-`profiling.retainOriginalRecording: false` to remove the complete
-recording after a successful cut, or `profiling.createMeasurementRecording: false` to keep only the complete
-recording. Both options default to `true` and apply to broker, producer and consumer recordings.
-Setting both to `false` intentionally discards all recordings produced by the current run. Retention options do
-not remove recordings from earlier runs. Use a fresh output directory for each experiment to keep profiles,
-summaries, and histograms together without mixing artifacts from different runs.
-
-These timestamps assume that producer, consumer, and broker clocks agree, as they do for containers on the same
-Docker host. Multi-host experiments need synchronized clocks; the launcher does not estimate clock skew or
-correct the cut window. The broker-publish-to-listener latency uses the same clock assumption.
-
-Every IoT run writes `producer/produce-latency.hdr` with successful measured-message send-completion latency and
-one `consumer-*/consume-latency.hdr` per backend application with measured-message broker-publish-to-listener
-latency. Both use microseconds internally and three significant digits. Warmup messages are tagged in the payload
-and excluded. Consumer latency uses a timestamp captured on listener entry; the sample is recorded after payload
-decoding and key validation, before sequence validation and acknowledgment. Decoding and validation time are
-excluded from the latency value.
-
-Render the producer distribution together with the count-weighted merge of all backend-application consumer
-histograms as PNG and SVG:
+To find out whether a change makes Pulsar faster, run the same scenario on the baseline and on the candidate, a few
+times each, alternating between them. Use a worktree for each revision, a separate Docker image tag for each, and the
+same experiment name, so that the runs of both land next to each other in the reports root that the worktrees share,
+as [Before you start](#before-you-start) describes:
 
 ```bash
-./gradlew :tests:performance:launcher:renderHdrHistograms \
-  --args='--run-directory tests/performance/build/iot-telemetry-high-rate-profile'
+# In the baseline worktree
+./gradlew :tests:performance:launcher:run -Pdocker.tag=baseline \
+  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
+
+# In the candidate worktree
+./gradlew :tests:performance:launcher:run -Pdocker.tag=candidate \
+  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
 ```
 
-The default outputs are `latency-histograms.png` and `latency-histograms.svg` in the run directory. Pass
-`--output-prefix /path/to/name` or `--title 'Comparison label'` to change them.
+[Comparing revisions](docs/comparing-revisions.md) describes preparing the worktrees and what to compare.
 
-Use the same cutter independently to select a different interval from an existing recording. `--from` and `--to`
-accept ISO-8601 instants, epoch milliseconds, or offsets from the recording start such as `500ms`, `5s`, `2m`, `1h`,
-or `PT5S`. Omit `--from` to select from the beginning, or omit `--to` to select through the end. Use `--info`
-without either boundary to display the actual recording start, end and total duration from the JFR chunk headers;
-it can also accompany a cut. JFR cutting preserves those source chunk timestamps, so the original recording period
-remains available in the cut file and in JDK Mission Control. The
-task requires JDK 19 or newer because it uses the public JFR recording writer added in that release:
+## Reference
 
-```bash
-./gradlew :tests:performance:launcher:runJfrCut \
-  --args='--input /tmp/full.jfr --from 5s --to 2m --output /tmp/measurement.jfr --info'
-```
+- [Running scenarios](docs/running-scenarios.md): the Gradle tasks, the launcher's options and Gradle properties,
+  where runs are written, and waiting for the CPU to cool down between runs.
+- [Run reports](docs/run-reports.md): the sections and files of a run, the latency logs, and serving the reports over
+  HTTP.
+- [Scenarios](scenarios/README.md) and [the scenario format](scenarios/docs/scenario-format.md): the maintained
+  scenarios, inheritance, environment overrides and the warmup.
+- [Profiling](docs/profiling.md): the jonoffcpu profiler, its requirements and options, the files of a profiled run
+  and the measurement recording.
+- [Analyzing profiles](docs/analyzing-profiles.md): finding what to optimize, comparing profiles,
+  [flame graphs of other recordings](docs/analyzing-profiles.md#flame-graphs-of-other-recordings), such as those of
+  profiled tests, integration tests and benchmarks, the tools that read the recordings, including JDK Mission Control
+  and [AI agents](docs/analyzing-profiles.md#ai-agent-analysis), and
+  [analyzing heap dumps](docs/analyzing-profiles.md#heap-dumps-and-memory-leaks).
+- [Comparing revisions](docs/comparing-revisions.md): running an A/B comparison.
+- [The performance testing environment setup](environment/README.md): configuring a Linux host for consistent
+  results, and freeing Docker disk space.
+- [The legacy TestNG profiling runner](docs/legacy-testng-runner.md): the deprecated `pulsar-perf` based runner
+  and its scenarios.
 
-Java code can call `JfrCut.cut(Path input, Instant from, Instant to, Path output)` or
-`JfrCut.cutFrom(Path input, Instant from, Path output)` directly without invoking the command-line entry point.
-`JfrCut.cutUsingTimeExpressions(...)` provides the relative and omitted-boundary syntax,
-and `JfrCut.recordingInfo(...)` returns the event range. Events overlapping the half-open interval `[from, to)`
-are retained: duration events ending exactly at `from` are excluded, instantaneous events at `from` are included,
-and events starting exactly at `to` are excluded.
+## What's in this directory
 
-For one-off standalone overrides, prefix an existing scalar path with `PULSAR_PERFORMANCE_`, uppercase it and
-separate path elements with underscores. The loader preserves the scalar's YAML type. For example:
-
-```bash
-PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=2000 \
-./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry-local.yaml'
-```
-
-Environment overrides are applied after inheritance. They only update paths present in the resolved tree, which
-keeps misspelled or workload-inapplicable settings from creating new configuration. Store maintained scenarios in
-[`scenarios`](scenarios); use environment overrides for temporary measurements rather than as the only record of
-a workload.
-
-## Legacy TestNG profiling runner
-
-The deprecated TestNG runner remains available for the existing scenarios:
-
-```bash
-./gradlew :tests:integration:profilingIntegrationTest
-./gradlew :tests:integration:profilingIntegrationTest --tests "*PulsarProfilingV4Test"
-```
-
-The first command profiles the v5 scalable-topic scenario. The second uses the v4 client against a
-classic `persistent://` topic. Both variants profile a single broker and write recordings and command
-output under `tests/integration/build/pulsar-profiling`. Do not use this runner as the basis for new scenarios.
-
-The harness accepts a YAML scenario file through `PULSAR_PROFILING_CONFIG`. Start with
-[`pulsar-profiling.yaml`](scenarios/pulsar-profiling.yaml); omitted values retain the existing defaults. The
-sections correspond to the main components of a run: `cluster`, `load`, `profiling` and `output`. Individual scalar
-values can still be overridden for a one-off run with the `PULSAR_PROFILING_` prefix and an upper-case
-path, for example:
-
-```bash
-PULSAR_PROFILING_CONFIG="$PWD/tests/performance/scenarios/pulsar-profiling.yaml" \
-PULSAR_PROFILING_LOAD_NUMBER_OF_MESSAGES=1000000 \
-./gradlew :tests:integration:profilingIntegrationTest --tests "*PulsarProfilingV4Test"
-```
-
-For the v4 scenario, set `load.isolatedProducers` or `load.isolatedConsumers` to create that many
-independent v4 client instances. The corresponding `pulsar-perf` command receives
-`--isolated-clients`, a v4-client option; the v5 scenario ignores these fields. The option is mutually exclusive with the regular
-producer test-thread option and with consumer listener-thread expansion. Set `load.producerCount`
-and `load.consumerCount` separately: creating clients does not create producers or consumers.
-`load.subscriptionType` selects the subscription type; `producerIoThreads` and `consumerIoThreads`
-size the shared client IO pools. `maxOutstanding` is per producer, not a global limit.
-Set `load.batchingEnabled: true` to use pulsar-perf's default producer batching; the default is
-`false`, preserving unbatched entry-by-entry measurements.
-
-For a single Key_Shared subscription with 500 producers and 20 consumers, use
-[`key-shared-500x20.yaml`](scenarios/key-shared-500x20.yaml). The `load.messageKeyGenerationMode`
-option maps to pulsar-perf's `--message-key-generation-mode`: `random` uses random integer keys,
-`autoIncrement` uses the sender's message counter, and an empty or null value omits keys.
-Override it with `PULSAR_PROFILING_LOAD_MESSAGE_KEY_GENERATION_MODE`. This scenario disables batching
-so every entry has one key, and uses isolated clients with shared resources on both sides.
-All consumers use the same subscription; `receiverQueueSize` is per consumer.
-
-Client profiling is optional and independent of broker profiling. Set `profiling.producerOptions`
-and/or `profiling.consumerOptions` to async-profiler options, for example
-`event=cpu,interval=10ms,lock=0,alloc=2m,jfrsync=profile`. An empty or null option disables that
-client's profiler. Client recordings are named `client-producer-*.jfr` and `client-consumer-*.jfr`
-in the same output directory. The harness grants native CPU profiling access only to enabled clients.
-The broker continues to use `-Pinttest.asyncprofiler.opts`. To inspect lock contention without
-wall-clock sampling overhead, omit `wall` and use `lock=0` to record all supported lock events.
-Use the same options for baseline and candidate; extra profiling has a measurement cost.
-
-Broker-side variations from the contention investigations need no dedicated environment switches:
-use `cluster.brokerEnvs` for write-buffer watermarks, dispatcher batch size, broker/BookKeeper IO
-thread counts and `PULSAR_GC`; use `cluster.brokerMemory` for heap/direct-memory limits and JVM
-properties such as allocator or transport selection. These maps let YAML scenarios retain the
-complete configuration instead of relying on shell history.
-
-The harness saves `resolved-config.yaml` with inheritance and environment overrides applied in the output directory.
-For v4 production, `--num-producers` remains the producer count per topic and is distributed across
-the isolated clients; when the counts differ, producers are assigned round-robin as evenly as possible.
-
-## Reproducible scenarios
-
-- [IoT telemetry fanout and ordering](iot-telemetry.md): keyed telemetry through interchangeable gateways
-  to Key_Shared applications, including isolated shared-resource clients, restart validation, a 500-connection
-  saturation workload, and standalone async-profiler integration.
-- [Read-completion queue isolation](read-completion-isolation.md): 500 producers on separate
-  connections to one persistent topic, with one Exclusive consumer. Includes the
-  [scenario YAML](scenarios/read-completion-isolation.yaml), an inherited
-  [Shared-subscription variant](scenarios/read-completion-isolation-shared.yaml), a
-  [Failover variant](scenarios/read-completion-isolation-failover.yaml), explicit
-  [64/32 KiB](scenarios/read-completion-isolation-64k-32k.yaml) and
-  [256/128 KiB](scenarios/read-completion-isolation-256k-128k.yaml) channel-watermark variations,
-  and baseline/comparison instructions.
-
-## Inspecting recordings
-
-Render the CPU, wall-clock, allocation and lock views with:
-
-```bash
-./gradlew jfrFlamegraphs -Pjfr=tests/integration/build/pulsar-profiling
-```
-
-The `.jfr` files can also be opened in [Eclipse Mission Control](https://adoptium.net/jmc) or IntelliJ
-IDEA. Do not use `jfr summary` as a measure of profile completeness: recordings made with
-`jfrsync=profile` contain profiler samples that the JDK summary does not show.
-
-On macOS, add the JDK Mission Control application launcher to a directory on `PATH`:
-
-```bash
-mkdir -p ~/.local/bin
-ln -s /Applications/JDK\ Mission\ Control.app/Contents/MacOS/jmc ~/.local/bin/jmc
-```
-
-JDK Mission Control requires an absolute recording path. From the directory containing a recording, open it with:
-
-```bash
-jmc -open "$PWD/<recording.jfr>"
-```
-
-The following shell function accepts a relative or absolute path and resolves it before launching JMC. Add it to
-`~/.zshrc` or the corresponding shell startup file:
-
-```bash
-jmc-open() {
-  if [ "$#" -ne 1 ]; then
-    echo "usage: jmc-open <recording.jfr>" >&2
-    return 2
-  fi
-  local recording directory
-  recording=$1
-  directory=$(cd "$(dirname "$recording")" && pwd -P) || return
-  jmc -open "$directory/$(basename "$recording")"
-}
-```
-
-With IntelliJ IDEA's command-line launcher installed, open a recording directly with:
-
-```bash
-idea <recording.jfr>
-```
-
-### Jafar MCP analysis
-
-The [Jafar MCP server](https://github.com/btraceio/jafar/blob/main/jfr-mcp/README.md) lets an AI coding
-agent query a recording. Register it once with [JBang](https://www.jbang.dev/) and JDK 25+:
-
-```bash
-claude mcp add jafar -- jbang jfr-mcp@btraceio --stdio
-```
-
-Use `jfr_diagnose` and `jfr_stackprofile` first, then query further with the other Jafar tools when
-needed. Save the result beside the recording as `<recording>.analysis.md`, in addition to showing the
-report in the console. A useful starting prompt is:
-
-> use Jafar MCP's jfr_diagnose and jfr_stackprofile to analyze @filename.jfr. Besides showing the
-> report on the console, write the analysis in a markdown file with the jfr file as prefix and the
-> suffix as ".analysis.md"
-
-Treat automated analysis as a lead. Confirm a performance claim with a controlled comparison, a JMH
-benchmark where appropriate, or a second profile.
-
-### Heap dumps and memory leaks with MAT MCP
-
-For an `OutOfMemoryError` or suspected retention problem, analyze the resulting `.hprof` with a
-headless Eclipse Memory Analyzer (MAT) MCP server such as
-[`mcp-mat`](https://github.com/codelipenghui/mcp-mat). Use the leak suspects report and dominator tree first,
-then query paths to GC roots or OQL for the retained objects. Keep the heap dump and the MCP result
-outside the source tree when they contain sensitive workload data; record the commands, heap limits and
-the resulting conclusions in the experiment notes.
+| Directory | Contents |
+|---|---|
+| [`scenarios`](scenarios/README.md) | The scenario files and their guides |
+| [`launcher`](launcher) | The standalone launcher, which runs a scenario's cluster and workloads with Testcontainers and collects the run |
+| [`tools`](tools) | The workload applications, which run in the workload containers |
+| [`common`](common) | The scenario loader, shared by the launcher and the workload applications |
+| [`report-tool`](report-tool) | Writes the run and profile reports, charts and flame graphs, and serves the reports over HTTP |
+| [`environment`](environment/README.md) | Scripts that configure the host for performance testing and free Docker disk space |
+| [`docs`](docs) | The reference documentation |

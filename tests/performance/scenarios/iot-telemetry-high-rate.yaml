@@ -42,5 +42,3 @@ workloads:
     maxOutstanding: 100000
     precreateProducers: true
     consumerTimeoutSeconds: 600
-output:
-  directory: build/performance/iot-telemetry-high-rate

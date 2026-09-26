@@ -589,6 +589,8 @@ public class PulsarCluster {
     private void configureProfiling(PulsarContainer<?> container, boolean enabled) {
         container.setEnableAsyncProfiler(enabled);
         container.setProfileDirectory(spec.profileDirectory);
+        container.setJonoffcpuAgentJar(spec.jonoffcpuAgentJar);
+        container.setJonoffcpuOptions(spec.jonoffcpuOptions);
     }
 
     private void startFunctionWorkersWithThreadContainerFactory(String suffix, int numFunctionWorkers) {
