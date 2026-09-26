@@ -350,7 +350,8 @@ Requirements:
 - A Linux Docker engine whose kernel has BTF (`/sys/kernel/btf/vmlinux`), which recent distribution kernels have.
 - The relaxed perf-event and BPF sysctls, which the `:tests:integration:tuneKernelPerfEvents` task that `profile`
   depends on writes from a throwaway privileged container; `-Pinttest.asyncprofiler.skipPerfEventTuning` skips it
-  where they are already set.
+  where they are already set. `sudo environment/scripts/configure-perf-test-environment.sh start` sets them and
+  skips the task in `~/.gradle/gradle.properties` until `stop`.
 - Profiled containers run privileged with the JVM as root: loading the eBPF programs needs `CAP_BPF` and
   `CAP_PERFMON`, which Docker grants to root in the container only. A tracefs is mounted read-only at
   `/sys/kernel/tracing` as a Docker volume.
