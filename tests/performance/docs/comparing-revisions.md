@@ -57,8 +57,13 @@ git -C ../pulsar-baseline commit -m "Baseline: the code under test from origin/m
 ## Keep the runs and images of both revisions apart
 
 Share one reports root between the checkouts and name the experiment with `--name`. The runs of both revisions then
-sit under the same name, one directory per branch; a detached checkout is `detached-<commit>`. Set the root in
-`~/.gradle/gradle.properties` with an absolute path:
+sit under the same name, one directory per branch. A detached checkout's runs go under the closest branch that
+contains its commit, as [Where runs are written](running-scenarios.md#where-runs-are-written) describes: a baseline
+checked out from `origin/master` is `master`, and a baseline commit that no branch contains is `detached-<commit>`.
+A baseline at an earlier commit of the candidate's branch can go under that branch, beside the candidate's runs: tell
+them apart by the commit that each report names, or commit the baseline as the previous section describes, so that
+its runs get a directory of their own.
+Set the root in `~/.gradle/gradle.properties` with an absolute path:
 
 ```properties
 performance.reportsDir=/data/pulsar-performance-reports

@@ -350,7 +350,7 @@ public final class RunReport {
     }
 
     // Where, by whom and from which code the run was made; the same values are in run-info.json
-    private static void appendRunInfo(StringBuilder report, RunInfo info) {
+    static void appendRunInfo(StringBuilder report, RunInfo info) {
         if (info == null) {
             return;
         }
@@ -363,7 +363,9 @@ public final class RunReport {
                 .append(row("Host", info.host()))
                 .append(row("User", user))
                 .append(row("Project directory", code(info.projectDirectory().toString())))
-                .append(row("Git branch", code(info.gitBranch())))
+                .append(row("Git branch", code(info.gitBranch())
+                        + (info.gitDetached() && !info.gitBranch().equals(RunInfo.DETACHED_HEAD)
+                        ? ", a detached HEAD at a commit of this branch" : "")))
                 .append(row("Git commit", info.gitCommit().isEmpty() ? ""
                         : code(info.gitCommit()) + (info.gitDirty() ? ", with uncommitted changes" : "")))
                 .append(row("Pulsar version", info.version()));

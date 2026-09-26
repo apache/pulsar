@@ -29,9 +29,11 @@ import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
@@ -41,10 +43,18 @@ import java.util.concurrent.TimeUnit;
  * starts, so it is the same whether the launcher runs under Gradle or directly, and it describes the tree the run
  * used rather than when {@code pulsar-common} was built, as {@code pulsar-version.properties} would.
  *
+ * <p>On a detached HEAD, the branch is the branch that contains the commit with the fewest commits after it, so
+ * that a checked-out commit's runs sit with its branch's runs; {@code gitDetached} says that the HEAD was
+ * detached. The branch is {@code HEAD} when no branch contains the commit.
+ *
  * <p>Nothing here fails a run: a value that cannot be found is empty.
  */
 public record RunInfo(ZonedDateTime started, String host, String user, String gitUserName, String gitUserEmail,
-               Path projectDirectory, String gitBranch, String gitCommit, boolean gitDirty, String version) {
+               Path projectDirectory, String gitBranch, boolean gitDetached, String gitCommit, boolean gitDirty,
+               String version) {
+    /** What {@code git rev-parse --abbrev-ref HEAD} prints on a detached HEAD. */
+    static final String DETACHED_HEAD = "HEAD";
+
     static final String FILE_NAME = "run-info.json";
 
     private static final long GIT_TIMEOUT_SECONDS = 10;
@@ -62,9 +72,14 @@ public record RunInfo(ZonedDateTime started, String host, String user, String gi
         Path projectDirectory = (topLevel.isEmpty() ? workingDirectory : Path.of(topLevel)).toAbsolutePath()
                 .normalize();
         String commit = git(projectDirectory, "rev-parse", "HEAD");
+        String branch = git(projectDirectory, "rev-parse", "--abbrev-ref", "HEAD");
+        boolean detached = branch.equals(DETACHED_HEAD);
+        if (detached) {
+            branch = containingBranch(projectDirectory).orElse(DETACHED_HEAD);
+        }
         return new RunInfo(started, hostName(), System.getProperty("user.name", ""),
                 git(projectDirectory, "config", "user.name"), git(projectDirectory, "config", "user.email"),
-                projectDirectory, git(projectDirectory, "rev-parse", "--abbrev-ref", "HEAD"), commit,
+                projectDirectory, branch, detached, commit,
                 !commit.isEmpty() && !git(projectDirectory, "status", "--porcelain").isEmpty(),
                 version(projectDirectory));
     }
@@ -80,12 +95,61 @@ public record RunInfo(ZonedDateTime started, String host, String user, String gi
         values.put("git.commit.id", gitCommit);
         values.put("git.dirty", gitDirty);
         values.put("git.branch", gitBranch);
+        values.put("git.detached", gitDetached);
         values.put("git.build.user.name", gitUserName);
         values.put("git.build.user.email", gitUserEmail);
         values.put("git.build.host", host);
         values.put("user", user);
         values.put("projectDirectory", projectDirectory.toString());
         JSON.writerWithDefaultPrettyPrinter().writeValue(directory.resolve(FILE_NAME).toFile(), values);
+    }
+
+    /**
+     * The branch that contains HEAD with the fewest commits after it, a local branch before a remote-tracking one
+     * at the same distance, and a remote-tracking branch named without its remote: a detached checkout of
+     * {@code origin/master} is {@code master}. Git before 2.41 has no {@code ahead-behind}, and gets the branch with
+     * the latest commit instead.
+     */
+    static Optional<String> containingBranch(Path projectDirectory) {
+        String closest = git(projectDirectory, "for-each-ref", "--contains", "HEAD",
+                "--format=%(ahead-behind:HEAD) %(symref) %(refname)", "refs/heads", "refs/remotes");
+        if (!closest.isEmpty()) {
+            return closestBranch(closest);
+        }
+        return latestBranch(git(projectDirectory, "for-each-ref", "--contains", "HEAD", "--sort=-committerdate",
+                "--format=%(refname) %(symref)", "refs/heads", "refs/remotes"));
+    }
+
+    /**
+     * The closest branch in {@code <ahead> <behind> <symref> <refname>} lines, where {@code <ahead>} is the number of
+     * the branch's commits after HEAD.
+     */
+    static Optional<String> closestBranch(String forEachRefOutput) {
+        return forEachRefOutput.lines()
+                .map(line -> line.split(" "))
+                // A symbolic ref, such as refs/remotes/origin/HEAD, has its target in the third field
+                .filter(fields -> fields.length == 4 && fields[2].isEmpty())
+                .min(Comparator.<String[]>comparingLong(fields -> Long.parseLong(fields[0]))
+                        .thenComparing(fields -> fields[3].startsWith("refs/remotes/")))
+                .map(fields -> branchName(fields[3]));
+    }
+
+    /**
+     * The first branch in {@code <refname> <symref>} lines, newest first. A symbolic ref is told apart by its target
+     * rather than by blank space, which {@link #git} trims from the start and the end of the output.
+     */
+    static Optional<String> latestBranch(String forEachRefOutput) {
+        return forEachRefOutput.lines()
+                .map(String::strip)
+                .filter(line -> !line.isEmpty() && line.indexOf(' ') < 0)
+                .findFirst()
+                .map(RunInfo::branchName);
+    }
+
+    // refs/heads/feat/x is feat/x, and refs/remotes/origin/feat/x is also feat/x
+    private static String branchName(String refName) {
+        String name = refName.substring(refName.indexOf('/', "refs/".length()) + 1);
+        return refName.startsWith("refs/remotes/") ? name.substring(name.indexOf('/') + 1) : name;
     }
 
     private static String hostName() {

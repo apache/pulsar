@@ -84,7 +84,10 @@ Every run gets a directory of its own, in a hierarchy by day, git branch and nam
   performance.reportsDir=/data/pulsar-performance-reports
   ```
 - The branch is the checked-out branch, with `/` and other characters that don't belong in a directory name
-  replaced by `-`. A detached HEAD is `detached-<commit>`.
+  replaced by `-`. On a detached HEAD, it is the branch that contains the commit with the fewest commits after it,
+  a local branch before a remote-tracking one at the same distance, and a remote-tracking branch is named without
+  its remote: a detached checkout of `origin/master` is `master`. The report says that the HEAD was detached. A
+  detached HEAD that no branch contains is `detached-<commit>`.
 - The name is the scenario file name without `.yaml`, or the scenario's `output.name` when it sets one. `--name`
   names an experiment instead, so that its runs stay together:
 

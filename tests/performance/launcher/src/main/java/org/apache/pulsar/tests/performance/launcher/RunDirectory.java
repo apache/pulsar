@@ -49,8 +49,8 @@ final class RunDirectory {
     }
 
     /**
-     * The directory name for a git branch: {@code feat/x} is {@code feat-x}, a detached HEAD is
-     * {@code detached-<short commit>}, and a tree without git is {@code no-git}.
+     * The directory name for a git branch: {@code feat/x} is {@code feat-x}, a detached HEAD that no branch contains
+     * is {@code detached-<short commit>}, and a tree without git is {@code no-git}.
      */
     static String branchDirectory(String branch, String commit) {
         if (branch.isEmpty()) {

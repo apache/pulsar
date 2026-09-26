@@ -127,7 +127,7 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 |---|---|
 | `README.md`, `index.html` | The run report, as Markdown and as its HTML page, with links to the run's other files. The names make HTTP servers and GitHub open a run's directory on its report |
 | `<scenario>.yaml`, `resolved-config.yaml` | The scenario file as written, and the scenario with its inheritance and environment overrides applied, which the workloads read |
-| `run-info.json` | The run's start, host, user, project directory, git branch and commit, whether the checkout had uncommitted changes, and the Pulsar version, with the keys of `pulsar-version.properties` where they match. The launcher collects them itself, from git and `gradle.properties` in the checkout it runs from |
+| `run-info.json` | The run's start, host, user, project directory, git branch, whether the HEAD was detached, the commit, whether the checkout had uncommitted changes, and the Pulsar version, with the keys of `pulsar-version.properties` where they match. The launcher collects them itself, from git and `gradle.properties` in the checkout it runs from |
 | `run-id.txt` | The ID that correlates the producer and the consumers of the run |
 | `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked. A cool-down wait of 10 s or more before the measurement is cut out of the time axis |
 | `backlog.svg`, `.png` | Each subscription's backlog over the run, on the same time axis |

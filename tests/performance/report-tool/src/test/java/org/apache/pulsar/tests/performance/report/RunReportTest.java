@@ -105,7 +105,7 @@ public class RunReportTest {
                         + " \"numberOfMessages\": 400000, \"warmupMessages\": 100000,"
                         + " \"warmupRounds\": 1, \"payloadBytes\": 128, \"batchingEnabled\": false, \"rate\": 0}"),
                 new RunInfo(ZonedDateTime.parse("2026-09-25T06:42:59+03:00"), "perf-host", "lari", "Lari Hotari",
-                        "lari@example.com", Path.of("/work/pulsar/.claude/worktrees/w1"), "lh-branch",
+                        "lari@example.com", Path.of("/work/pulsar/.claude/worktrees/w1"), "lh-branch", false,
                         "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT"),
                 ZonedDateTime.parse("2026-09-25T06:46:41+03:00"), List.of()),
                 mapper);
@@ -312,15 +312,36 @@ public class RunReportTest {
     @Test
     public void writesAShortChartFooter() {
         ZonedDateTime started = ZonedDateTime.parse("2026-09-25T23:58:30+03:00");
-        RunInfo clean = new RunInfo(started, "host", "user", "", "", Path.of("/p"), "lh-branch",
+        RunInfo clean = new RunInfo(started, "host", "user", "", "", Path.of("/p"), "lh-branch", false,
                 "1ebd73f2652103b30483ba6ddd7ab587a605912a", false, "5.0.0-SNAPSHOT");
-        RunInfo noGit = new RunInfo(started, "host", "user", "", "", Path.of("/p"), "", "", false, "");
+        RunInfo noGit = new RunInfo(started, "host", "user", "", "", Path.of("/p"), "", false, "", false, "");
 
         // Past midnight the end is still only a time, in the start's zone
         assertThat(RunReport.chartFooter(clean, ZonedDateTime.parse("2026-09-25T21:02:05Z")))
                 .isEqualTo("lh-branch@1ebd73f2 2026-09-25 23:58:30-00:02:05");
         assertThat(RunReport.chartFooter(noGit, null)).isEqualTo("2026-09-25 23:58:30");
         assertThat(RunReport.chartFooter(null, null)).isEmpty();
+    }
+
+    @Test
+    public void saysWhenTheHeadWasDetached() {
+        ZonedDateTime started = ZonedDateTime.parse("2026-09-25T23:58:30+03:00");
+        String commit = "1ebd73f2652103b30483ba6ddd7ab587a605912a";
+        StringBuilder onBranch = new StringBuilder();
+        RunReport.appendRunInfo(onBranch, new RunInfo(started, "host", "user", "", "", Path.of("/p"), "lh-branch",
+                false, commit, false, "5.0.0-SNAPSHOT"));
+        StringBuilder atBranchCommit = new StringBuilder();
+        RunReport.appendRunInfo(atBranchCommit, new RunInfo(started, "host", "user", "", "", Path.of("/p"),
+                "lh-branch", true, commit, false, "5.0.0-SNAPSHOT"));
+        StringBuilder atNoBranch = new StringBuilder();
+        RunReport.appendRunInfo(atNoBranch, new RunInfo(started, "host", "user", "", "", Path.of("/p"),
+                RunInfo.DETACHED_HEAD, true, commit, false, "5.0.0-SNAPSHOT"));
+
+        assertThat(onBranch.toString()).contains("| Git branch | `lh-branch` |\n");
+        assertThat(atBranchCommit.toString())
+                .contains("| Git branch | `lh-branch`, a detached HEAD at a commit of this branch |\n");
+        // A commit that no branch contains is named as git names it
+        assertThat(atNoBranch.toString()).contains("| Git branch | `HEAD` |\n");
     }
 
     @Test
