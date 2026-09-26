@@ -61,7 +61,7 @@ Pass these with `-P` on the command line, or set them in `~/.gradle/gradle.prope
 |---|---|
 | `performance.reportsDir` | The root of the reports hierarchy, relative to the repository root or absolute. Use an absolute path in `~/.gradle/gradle.properties`, since a relative one resolves in each checkout. |
 | `performance.cooldownTemperature` | The default of `--cooldown-temperature`. |
-| `performance.reportsServer.address`, `performance.reportsServer.port` | Where `:tests:performance:report-tool:serveReports` listens, `127.0.0.1` and `8000` by default, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |
+| `performance.reportsServer.bindAddress`, `performance.reportsServer.port` | Where `:tests:performance:report-tool:serveReports` listens, `127.0.0.1` and `8000` by default, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |
 | `performance.profile.maxHeapSize` | The heap of the `profile` task, which correlates the off-CPU captures. Default: `4g`. |
 | `docker.tag` | The tag of the Docker images the tasks build and run, `latest` by default. Separate tags keep the images of two revisions apart, see [Comparing revisions](comparing-revisions.md). |
 | `docker.organization` | The organization of the Docker images, `apachepulsar` by default. |

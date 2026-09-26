@@ -198,14 +198,31 @@ Markdown. Read it from the top:
 A run that fails, for example because an application didn't receive every message, stops with an error and writes no
 report. [When a run fails](docs/run-reports.md#when-a-run-fails) describes where to look for the cause.
 
-When the tests run on another machine, serve its reports over HTTP and browse them from your own:
+To browse the reports in a browser, serve the reports root over HTTP:
 
 ```bash
 ./gradlew :tests:performance:report-tool:serveReports
 ```
 
-[Run reports](docs/run-reports.md) describes every section and file of a run, and how to reach the server through
-an SSH tunnel.
+Then open [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and follow the directory listings to a run. These
+properties in `~/.gradle/gradle.properties`, or `-P` options on the command line, configure the server:
+
+| Property | Default | Sets |
+|---|---|---|
+| `performance.reportsDir` | `build/performance` | The reports root that it serves |
+| `performance.reportsServer.bindAddress` | `127.0.0.1` | The address that it binds to |
+| `performance.reportsServer.port` | `8000` | The port that it listens on |
+
+The default address makes the server reachable only from the machine that it runs on. When the tests run on another
+machine, run `serveReports` there, and to browse the reports from your own machine, do one of these:
+
+- Set `performance.reportsServer.bindAddress=0.0.0.0` in `~/.gradle/gradle.properties` on the machine that runs the
+  tests, or pass it with `-P`, which makes the server available on the network, at the machine's host name or IP
+  address. The server has no authentication, so do that only on a trusted network.
+- Keep the default address and reach the server through an SSH tunnel, as
+  [Browsing the reports over HTTP](docs/run-reports.md#browsing-the-reports-over-http) describes.
+
+[Run reports](docs/run-reports.md) describes every section and file of a run.
 
 ### 3. Change the workload
 

@@ -194,16 +194,23 @@ Gradle properties change where it listens, on the command line with `-P` or in `
 
 | Property | Default |
 |---|---|
-| `performance.reportsServer.address` | `127.0.0.1` |
+| `performance.reportsServer.bindAddress` | `127.0.0.1` |
 | `performance.reportsServer.port` | `8000` |
 
-When the performance tests run on a separate machine, start the server there and reach it through an SSH tunnel,
-which forwards a local port to that loopback address over the encrypted SSH connection:
+`performance.reportsServer.bindAddress=0.0.0.0` makes the server available on the network, at the machine's host name or
+IP address. The server has no authentication, so do that only on a trusted network.
+
+When the performance tests run on a separate machine, start the server there. It's reachable from your own machine
+only when `performance.reportsServer.bindAddress` is set as above, in that machine's `~/.gradle/gradle.properties` or
+with `-P`, or through an SSH tunnel with the default address. The tunnel forwards a local port to that loopback
+address over the encrypted SSH connection:
 
 ```bash
 # On your own machine
 ssh -N -L 8000:127.0.0.1:8000 perf-host
 ```
+
+Then open <http://127.0.0.1:8000/> on your own machine.
 
 [`serve-reports.py`](../serve-reports.py) does the same with Python's built-in server, without Gradle:
 `tests/performance/serve-reports.py [directory] [--bind <address>] [--port <port>]`. It reads
