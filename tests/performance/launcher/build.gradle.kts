@@ -92,8 +92,8 @@ tasks.named<JavaExec>("run") {
 
 tasks.register<JavaExec>("profile") {
     group = "verification"
-    description = "Run a standalone performance scenario with the jonoffcpu profiler (async-profiler plus " +
-        "off-CPU samples) available in every container"
+    description = "Run a standalone performance scenario, profiling the JVMs that have profiler options with " +
+        "async-profiler, JDK Flight Recorder and jonoffcpu's off-CPU recording at the same time"
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set(application.mainClass)
     configurePerformanceLauncher(profiler = true)

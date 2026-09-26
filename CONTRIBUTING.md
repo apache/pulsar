@@ -226,9 +226,13 @@ any integration test and without changing it. See
 #### Profiling a performance scenario, including off-CPU time
 
 The performance tests' `profile` task profiles a whole scenario — a cluster and its workload
-applications — with [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu), which runs async-profiler and
-adds kernel-measured **off-CPU** samples: where threads wait on locks, monitors, queues, I/O or GC, not
-only where they use CPU. See [Performance tests](#performance-tests).
+applications — with three recorders running at the same time in each profiled JVM:
+[async-profiler](https://github.com/async-profiler/async-profiler) samples CPU time and allocations,
+JDK Flight Recorder (JFR) records the JVM's own events, such as monitor contention, thread parking and
+garbage collection, into the same recording, and [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu),
+which bundles async-profiler, records from the kernel every interval in which a thread was blocked.
+Joined to the Java stacks, those intervals give **off-CPU** profiles: where threads wait on locks,
+monitors, queues, I/O or GC, not only where they use CPU. See [Performance tests](#performance-tests).
 
 #### Performance recording analysis
 
@@ -251,7 +255,8 @@ images and profiling a test's cluster.
 [`tests/performance`](tests/performance/README.md) is for running performance test experiments: it runs
 a Pulsar cluster and its workloads in Docker on one host, as a scenario file describes them, and writes a
 report for every run with throughput, latency, delivery and ordering checks and the host's CPU state.
-Runs can be profiled, including off-CPU time, and two revisions can be compared. Everything runs from the
+Runs can be profiled with async-profiler, JDK Flight Recorder and jonoffcpu's off-CPU recording at the
+same time, and two revisions can be compared. Everything runs from the
 command line and writes its results to files, which makes the experiments automatable, including tuning
 by AI agents (see [`tests/performance/AGENTS.md`](tests/performance/AGENTS.md)). A Linux host configured
 with [the performance testing environment setup](tests/performance/environment/README.md) gives

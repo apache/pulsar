@@ -147,9 +147,10 @@ Use `jfr_diagnose` and `jfr_stackprofile` first, then query further with the oth
 result beside the recording as `<recording>.analysis.md`, in addition to showing the report in the console. For a
 standalone profiled run, analyze `<recording>.measurement.jfr`: CPU samples are `jdk.ExecutionSample`,
 async-profiler's allocation samples are `jdk.ObjectAllocationInNewTLAB` (not `jdk.ObjectAllocationSample`), and
-`jfrsync=profile` adds JDK events such as `jdk.JavaMonitorEnter` and `jdk.ThreadPark`. Off-CPU time is not in a JFR
-file; use the digest `<recording>-offcpu/jonoffcpu-summary.md` and the correlator's `top` and `stacks` subcommands
-(see [Finding what to optimize](#finding-what-to-optimize)). A useful starting prompt is:
+`jfrsync=profile` adds JDK events such as `jdk.JavaMonitorEnter` and `jdk.ThreadPark` (see
+[Configuring profiling](profiling.md#configuring-profiling)). Off-CPU time is not in a JFR file; use the digest
+`<recording>-offcpu/jonoffcpu-summary.md` and the correlator's `top` and `stacks` subcommands (see
+[Finding what to optimize](#finding-what-to-optimize)). A useful starting prompt is:
 
 > use Jafar MCP's jfr_diagnose and jfr_stackprofile to analyze @filename.jfr. Besides showing the
 > report on the console, write the analysis in a markdown file with the jfr file as prefix and the

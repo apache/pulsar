@@ -22,11 +22,19 @@
 # Profiling
 
 The launcher's `profile` task attaches the [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent to every JVM
-that has profiler options. jonoffcpu bundles [async-profiler](https://github.com/async-profiler/async-profiler), so
-the recording holds the usual CPU and allocation samples, and adds **off-CPU** samples: each interval in which a
-thread blocked is measured by the kernel scheduler through eBPF and joined to the Java stack of the thread that
-waited. A CPU profile shows where threads burn CPU; the off-CPU profile shows where they wait — on locks, monitors,
-queues, I/O, safepoints or GC. The agent, the correlator that joins the two, and the flame graph converter are
+that has profiler options. In each of them, three recorders run at the same time:
+
+- [async-profiler](https://github.com/async-profiler/async-profiler), which the agent bundles, samples CPU time and
+  allocations into a JFR recording.
+- JDK Flight Recorder (JFR), which async-profiler starts alongside with its `jfrsync` option, records the JVM's own
+  events into the same recording, such as monitor contention (`jdk.JavaMonitorEnter`), thread parking
+  (`jdk.ThreadPark`) and garbage collection.
+- jonoffcpu's eBPF collector records, from the kernel scheduler, every interval in which a thread blocked, into a
+  capture stream beside the recording.
+
+After the run, jonoffcpu's correlator joins each blocked interval to the Java stack of the thread that waited, which
+gives the **off-CPU** profile. A CPU profile shows where threads burn CPU; the off-CPU profile shows where they wait —
+on locks, monitors, queues, I/O, safepoints or GC. The agent, the correlator and the flame graph converter are
 resolved by Gradle (see `jonoffcpu` in `gradle/libs.versions.toml`); nothing needs installing on the host or in the
 image.
 
@@ -57,9 +65,17 @@ profiling:
   createMeasurementRecording: true
 ```
 
-- `brokerOptions`, `producerOptions` and `consumerOptions` are async-profiler options. An empty value leaves that
-  component unprofiled. The launcher owns each recording's path, so that recordings stay inside the run directory,
-  and rejects options that set `file=`.
+- `brokerOptions`, `producerOptions` and `consumerOptions` are
+  [async-profiler options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md). An
+  empty value leaves that component unprofiled. The launcher owns each recording's path, so that recordings stay
+  inside the run directory, and rejects options that set `file=`.
+- `jfrsync` chooses what JDK Flight Recorder records alongside async-profiler. `jfrsync=profile` uses the JFR
+  configuration named `profile` that the JDK ships, `$JAVA_HOME/lib/jfr/profile.jfc`, which the JDK describes as a
+  profiling configuration with about 2 % overhead; `jfrsync=default` uses `default.jfc`, meant for continuous use at
+  less than 1 %. `jfrsync` also takes the path of a custom JFR configuration file (`.jfc`), or a list of events
+  starting with `+`. A custom file's path is resolved inside the container that runs the JVM, so the file has to be
+  readable there, for example built into the test image. Without `jfrsync`, the recording holds only
+  async-profiler's samples.
 - `offCpu` is the agent's [`sampling` block](https://github.com/jonoffcpu/jonoffcpu#choosing-what-to-sample): which
   switch-out reasons to record (`blocked` — the thread could not run — rather than `runnable` preemption), a minimum
   duration, and an admission policy that records every long wait and samples short ones in proportion to their

@@ -107,8 +107,9 @@ Use the `profile` task for a scenario that has non-empty `profiling.brokerOption
   --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
 ```
 
-The options are async-profiler options, recorded through the [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu)
-agent together with kernel-measured off-CPU samples. [Profiling](../../docs/profiling.md) describes the requirements
+The options are async-profiler options. The [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent runs
+async-profiler with them, JDK Flight Recorder alongside with `jfrsync`, and its kernel-measured off-CPU recording, all
+at the same time. [Profiling](../../docs/profiling.md) describes the requirements
 and the files each recording produces, and [Analyzing profiles](../../docs/analyzing-profiles.md) how to find what to
 optimize.
 
@@ -117,14 +118,16 @@ corresponding output directories. The launcher owns each recording path so recor
 directory, and rejects options that set `file=`. Empty options leave that component unprofiled. The ordinary
 `run` task rejects profiling-enabled YAML rather than silently running without the agent.
 
-The profile scenario samples CPU every 10 ms and allocations every 2 MB in the broker and the producer, and records
-only intervals where a thread blocked (`reasons: [blocked]`), not those where it was runnable but waiting for a
-CPU. It ignores waits under 100 µs (`minOffCpuMicros: 100`) and records every wait of 10 ms or longer, sampling
-shorter ones in proportion to their length (`admission: {policy: proportional, recordAllAboveMicros: 10000}`),
-which bounds the recording rate by off-CPU time rather than by context-switch count: a broker run records about
-400,000 intervals. For this workload, start with the run report, `index.html`, the broker's profile report, the
-off-CPU digest it links to and `cpu-threads.html`: the five-million-message run sends everything through one topic,
-so the topic's managed-ledger thread (`BookKeeperClientWorker-OrderedExecutor-*`) is the serial stage to watch.
+The profile scenario samples CPU every 10 ms and allocations every 2 MB in the broker and the producer, records the
+JVM's own events with JFR's `profile` configuration (`jfrsync=profile`, see
+[Configuring profiling](../../docs/profiling.md#configuring-profiling)), and records only intervals where a thread
+blocked (`reasons: [blocked]`), not those where it was runnable but waiting for a CPU. It ignores waits under 100 µs
+(`minOffCpuMicros: 100`) and records every wait of 10 ms or longer, sampling shorter ones in proportion to their
+length (`admission: {policy: proportional, recordAllAboveMicros: 10000}`), which bounds the recording rate by off-CPU
+time rather than by context-switch count: a broker run records about 400,000 intervals. For this workload, start with
+the run report, `index.html`, the broker's profile report, the off-CPU digest it links to and `cpu-threads.html`: the
+five-million-message run sends everything through one topic, so the topic's managed-ledger thread
+(`BookKeeperClientWorker-OrderedExecutor-*`) is the serial stage to watch.
 
 After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the producer's
 measurement start through the latest measured-message receipt across all backend applications. The upper boundary
