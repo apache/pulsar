@@ -319,7 +319,7 @@ as [Before you start](#before-you-start) describes:
 - [Comparing revisions](docs/comparing-revisions.md): running an A/B comparison.
 - [The performance testing environment setup](environment/README.md): configuring a Linux host for consistent
   results, and freeing Docker disk space.
-- [The legacy TestNG profiling runner](docs/legacy-testng-runner.md): the deprecated `pulsar-perf` based runner
+- [The legacy TestNG profiling runner](docs/legacy-testng-runner/README.md): the deprecated `pulsar-perf` based runner
   and its scenarios.
 
 ## What's in this directory

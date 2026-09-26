@@ -81,7 +81,7 @@ The flame graphs of a standalone run are already in its run directory. Recording
 project's `jfrFlamegraphs` task: those of a module's tests profiled with `-PtestAsyncProfiler` (see
 [Profiling tests with async-profiler](../../../CONTRIBUTING.md#profiling-tests-with-async-profiler)), of
 [a profiled integration test](../../README.md#profiling-an-integration-test) or
-[the legacy TestNG runner](legacy-testng-runner.md), and of the [JMH microbenchmarks](../../../microbench/README.md).
+[the legacy TestNG runner](legacy-testng-runner/README.md), and of the [JMH microbenchmarks](../../../microbench/README.md).
 Without `-Pjfr`, it converts every recording in `build/test-profiles`, where `-PtestAsyncProfiler` writes them;
 `-Pjfr` points it at a recording or at a directory, which it searches for recordings:
 

@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Pass this file with PULSAR_PROFILING_CONFIG=/path/to/pulsar-profiling.yaml.
+# Select this scenario with PULSAR_PROFILING_CONFIG=pulsar-profiling.
 # Values not present here keep the harness defaults.
 cluster:
   numBrokers: 1

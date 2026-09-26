@@ -51,14 +51,10 @@ detail.
 
 ## Scenarios for the legacy TestNG runner
 
-These scenarios run `pulsar-perf` through [the legacy TestNG profiling runner](../docs/legacy-testng-runner.md),
-which is kept until they are migrated to the standalone launcher.
-
-| Scenario | What it runs |
-|---|---|
-| [`pulsar-profiling.yaml`](pulsar-profiling.yaml) | The runner's default settings, to start from |
-| [`read-completion-isolation.yaml`](read-completion-isolation.yaml) | 500 producers on separate connections to one topic, with one Exclusive consumer. [Read-completion queue isolation](docs/read-completion-isolation.md) describes it and its variations: [Shared](read-completion-isolation-shared.yaml), [Failover](read-completion-isolation-failover.yaml), and [64/32 KiB](read-completion-isolation-64k-32k.yaml) and [256/128 KiB](read-completion-isolation-256k-128k.yaml) channel watermarks |
-| [`key-shared-500x20.yaml`](key-shared-500x20.yaml) | 500 producers and 20 consumers on one Key_Shared subscription |
+The scenarios of [the legacy TestNG profiling runner](../docs/legacy-testng-runner/README.md#scenario-files), which runs
+`pulsar-perf` and is kept until its scenarios are migrated to the standalone launcher, are in
+[its test resources][profiling-scenarios]:
+`tests/integration/src/test/resources/org/apache/pulsar/tests/integration/profiling`.
 
 ## Writing a scenario
 
@@ -86,3 +82,5 @@ PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=5000 \
 [The scenario format](docs/scenario-format.md) describes the sections, inheritance, environment overrides and the
 warmup, and [the IoT telemetry scenario](docs/iot-telemetry.md#scenarios) the workload's settings. Add a scenario that
 others can use to this directory and to the tables above, with a guide under [`docs`](docs) when it needs one.
+
+[profiling-scenarios]: ../../integration/src/test/resources/org/apache/pulsar/tests/integration/profiling

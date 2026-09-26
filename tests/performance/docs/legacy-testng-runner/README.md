@@ -35,7 +35,7 @@ profiling support to the standalone launcher instead.
 ```
 
 `profilingIntegrationTest` builds the test image with async-profiler, relaxes the kernel's `perf_event` limits and
-runs the test with retries off, as [Profiling an integration test](../../README.md#profiling-an-integration-test)
+runs the test with retries off, as [Profiling an integration test](../../../README.md#profiling-an-integration-test)
 describes. Both variants drive `pulsar-perf` against a single broker, and share everything but the client generation
 and the topic domain through `AbstractPulsarProfilingTest`:
 
@@ -46,7 +46,7 @@ and the topic domain through `AbstractPulsarProfilingTest`:
 
 The runs aren't like-for-like: scalable topics split their segments under load (`scalableTopicAutoScaleEnabled`
 defaults to true), so the v5 run profiles a topology that reshapes itself, while the v4 run's stays fixed. With
-[`pulsar-profiling.yaml`](../scenarios/pulsar-profiling.yaml)'s defaults, a run sends 20 million messages, a bit over
+[`pulsar-profiling`][profiling-scenarios]'s defaults, a run sends 20 million messages, a bit over
 a minute of load, and has to finish within three minutes, with both `pulsar-perf` commands exiting with zero, so that
 a run that stalls or dies fails the test rather than passing as a finished profile.
 
@@ -54,23 +54,32 @@ Both variants write their recordings and command output under `tests/integration
 run's `pulsar-perf` output, latency histograms, topic stats and metrics scrapes are suffixed `-v4`; the recordings
 carry the container name, which embeds the test class name. The broker's profiler options come from
 `-Pinttest.asyncprofiler.opts`. The runner doesn't render flame graphs;
-[Flame graphs of other recordings](analyzing-profiles.md#flame-graphs-of-other-recordings) describes rendering them
+[Flame graphs of other recordings](../analyzing-profiles.md#flame-graphs-of-other-recordings) describes rendering them
 from its recordings.
 
 ## Scenario files
 
-The harness accepts a YAML scenario file through `PULSAR_PROFILING_CONFIG`. Start with
-[`pulsar-profiling.yaml`](../scenarios/pulsar-profiling.yaml); omitted values keep the existing defaults. The
-sections correspond to the main components of a run: `cluster`, `load`, `profiling` and `output`. Individual scalar
-values can be overridden for a one-off run with the `PULSAR_PROFILING_` prefix and an upper-case path, for example:
+The runner's scenarios are in [its test resources][profiling-scenarios]:
+`tests/integration/src/test/resources/org/apache/pulsar/tests/integration/profiling`.
+
+| Scenario | What it runs |
+|---|---|
+| [`pulsar-profiling`](../../../integration/src/test/resources/org/apache/pulsar/tests/integration/profiling/pulsar-profiling.yaml) | The runner's default settings, to start from |
+| [`read-completion-isolation`](../../../integration/src/test/resources/org/apache/pulsar/tests/integration/profiling/read-completion-isolation.yaml) | 500 producers on separate connections to one topic, with one Exclusive consumer. [Read-completion queue isolation](read-completion-isolation.md) describes it and its variations: `read-completion-isolation-shared`, `read-completion-isolation-failover`, and the `read-completion-isolation-64k-32k` and `read-completion-isolation-256k-128k` channel watermarks |
+| [`key-shared-500x20`](../../../integration/src/test/resources/org/apache/pulsar/tests/integration/profiling/key-shared-500x20.yaml) | 500 producers and 20 consumers on one Key_Shared subscription |
+
+Select a scenario by its name, its file name without `.yaml`, in `PULSAR_PROFILING_CONFIG`, or pass the path of a
+scenario file of your own there, an absolute one since Gradle runs the test in the integration module's directory.
+Start with `pulsar-profiling`; omitted values keep the existing defaults. The sections correspond to the main
+components of a run: `cluster`, `load`, `profiling` and `output`. Individual scalar values can be overridden for a
+one-off run with the `PULSAR_PROFILING_` prefix and an upper-case path, for example:
 
 ```bash
-PULSAR_PROFILING_CONFIG="$PWD/tests/performance/scenarios/pulsar-profiling.yaml" \
+PULSAR_PROFILING_CONFIG=pulsar-profiling \
 PULSAR_PROFILING_LOAD_NUMBER_OF_MESSAGES=1000000 \
 ./gradlew :tests:integration:profilingIntegrationTest --tests "*PulsarProfilingV4Test"
 ```
 
-Use an absolute path in `PULSAR_PROFILING_CONFIG`, since Gradle runs the test in the integration module's directory.
 The harness saves `resolved-config.yaml`, with inheritance and environment overrides applied, in the output
 directory.
 
@@ -91,7 +100,7 @@ directory.
   integer keys, `autoIncrement` uses the sender's message counter, and an empty or null value omits keys. Override it
   with `PULSAR_PROFILING_LOAD_MESSAGE_KEY_GENERATION_MODE`.
 
-[`key-shared-500x20.yaml`](../scenarios/key-shared-500x20.yaml) runs a single Key_Shared subscription with 500
+[`key-shared-500x20`][profiling-scenarios] runs a single Key_Shared subscription with 500
 producers and 20 consumers. It disables batching so that every entry has one key, and uses isolated clients with
 shared resources on both sides. All consumers use the same subscription; `receiverQueueSize` is per consumer.
 
@@ -114,6 +123,8 @@ keep the complete configuration instead of relying on shell history.
 
 ## Scenarios
 
-[Read-completion queue isolation](../scenarios/docs/read-completion-isolation.md) runs on this runner: 500
+[Read-completion queue isolation](read-completion-isolation.md) runs on this runner: 500
 producers on separate connections to one persistent topic, with one Exclusive consumer. It describes the scenario's
 variations and how to compare a baseline and a candidate.
+
+[profiling-scenarios]: ../../../integration/src/test/resources/org/apache/pulsar/tests/integration/profiling

@@ -23,12 +23,12 @@
 
 Use this scenario to measure whether consumer dispatch keeps up when many producers publish to
 one persistent topic. Run the same workload and profiler settings on the base revision and the
-candidate revision. The scenario runs on [the legacy TestNG profiling runner](../../docs/legacy-testng-runner.md); see
-[Analyzing profiles](../../docs/analyzing-profiles.md) for the analysis tools.
+candidate revision. The scenario runs on [the legacy TestNG profiling runner](README.md); see
+[Analyzing profiles](../analyzing-profiles.md) for the analysis tools.
 
 ## Workload
 
-[read-completion-isolation.yaml](../read-completion-isolation.yaml) runs `pulsar-perf` on the v4 client
+[`read-completion-isolation`][profiling-scenarios] runs `pulsar-perf` on the v4 client
 with 500 producers, 500 isolated clients sharing PIP-234 resources, one connection per client,
 and one Exclusive consumer on a non-partitioned `persistent://` topic. It sends 12 million
 unbatched 128-byte messages at unrestricted rate. Each producer permits 40 outstanding sends,
@@ -36,10 +36,12 @@ for a total limit of 20,000. The harness creates the subscription before publish
 
 Inherited variations change one aspect of this workload:
 
-- [Shared subscription](../read-completion-isolation-shared.yaml)
-- [Failover subscription](../read-completion-isolation-failover.yaml)
-- [64/32 KiB channel high/low watermarks](../read-completion-isolation-64k-32k.yaml)
-- [256/128 KiB channel high/low watermarks](../read-completion-isolation-256k-128k.yaml)
+- `read-completion-isolation-shared`: a Shared subscription
+- `read-completion-isolation-failover`: a Failover subscription
+- `read-completion-isolation-64k-32k`: 64/32 KiB channel high/low watermarks
+- `read-completion-isolation-256k-128k`: 256/128 KiB channel high/low watermarks
+
+They are beside it in the runner's test resources.
 
 Keep inherited YAML files together: parent paths resolve relative to the file declaring them.
 Always use the same variation for the baseline and candidate. A result for one subscription type
@@ -58,11 +60,10 @@ git -C ../pulsar-read-baseline apply /tmp/read-completion-harness.patch
 ```
 
 Run this command from each checkout's root. Replace `baseline` with `candidate` for the candidate
-run and use a fresh output directory for every repetition. Use an absolute YAML path because
-Gradle runs the test from the integration module directory.
+run and use a fresh output directory for every repetition.
 
 ```bash
-PULSAR_PROFILING_CONFIG="$PWD/tests/performance/scenarios/read-completion-isolation.yaml" \
+PULSAR_PROFILING_CONFIG=read-completion-isolation \
 PULSAR_PROFILING_OUTPUT_DIRECTORY="$PWD/tests/integration/build/pulsar-profiling/baseline" \
 ./gradlew :tests:integration:profilingIntegrationTest --tests '*PulsarProfilingV4Test' \
   '-Pinttest.asyncprofiler.opts=event=cpu,interval=10ms,lock=0,alloc=2m,jfrsync=profile'
@@ -73,7 +74,7 @@ settings, memory limits and profiler options identical. Avoid other builds or be
 measurement; record thermal throttling and available memory. Save the source revision and any local
 diff alongside the output. The harness writes the effective configuration to `resolved-config.yaml`.
 
-To select a variation, change `PULSAR_PROFILING_CONFIG` to its YAML file. For a rate-limited run,
+To select a variation, set `PULSAR_PROFILING_CONFIG` to its name. For a rate-limited run,
 add `PULSAR_PROFILING_LOAD_PRODUCE_RATE=100000`, which gives 200 messages/s per producer client.
 The message count must be divisible by the number of isolated producer clients.
 
@@ -106,7 +107,7 @@ Before comparing rates:
   such as backlog and CPU from higher-is-better throughput.
 
 Analyze the broker recording with an AI agent, as
-[AI agent analysis](../../docs/analyzing-profiles.md#ai-agent-analysis) describes, saving output
+[AI agent analysis](../analyzing-profiles.md#ai-agent-analysis) describes, saving output
 beside the recording as `<filename>.jfr.analysis.md`. Compare CPU, monitor contention and thread-park
 views within the steady window. Executor queue delay need not appear as monitor contention.
 The command above omits wall-clock sampling to avoid its overhead during lock profiling.
@@ -123,3 +124,5 @@ java -jar microbench/build/libs/microbench-*-benchmarks.jar \
 
 The microbenchmark uses real executors without storage IO or publishing pressure. Its latency and
 allocation results do not predict end-to-end throughput or establish concurrency correctness.
+
+[profiling-scenarios]: ../../../integration/src/test/resources/org/apache/pulsar/tests/integration/profiling
