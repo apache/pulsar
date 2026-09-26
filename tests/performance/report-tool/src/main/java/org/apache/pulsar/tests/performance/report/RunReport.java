@@ -55,8 +55,8 @@ public final class RunReport {
             "epochMillis,topic,subscription,msgBacklog,msgInCounter,msgOutCounter";
     /**
      * The host's thermal state sampled during a run, one row per second: temperatures in °C, frequencies in MHz, the
-     * thermal throttle counters since boot (the most on any logical CPU) and the fastest fan in rpm. A value the host
-     * doesn't provide is empty.
+     * thermal throttle counters since boot (summed over the cores, and over the packages) and the fastest fan in rpm.
+     * A value the host doesn't provide is empty.
      */
     public static final String HOST_STATS_FILE = "host-stats.csv";
     public static final String HOST_STATS_HEADER =
@@ -99,11 +99,21 @@ public final class RunReport {
                        double[] minMegaHertz, double[] coreThrottles, double[] packageThrottles, double[] fanRpm) {
     }
 
-    /** The host's state during the measurement, summarized from its samples. */
+    /**
+     * The host's state during the measurement, summarized from its samples. The throttle counts are
+     * {@link #UNKNOWN} when the host has no such counters or wasn't sampled during the measurement.
+     */
     record HostSummary(double startCelsius, Stats packageCelsius, Stats coreCelsius, Stats meanMegaHertz,
                        Stats minMegaHertz, Stats fanRpm, long coreThrottles, long packageThrottles) {
+        static final long UNKNOWN = -1;
+
         boolean throttled() {
             return coreThrottles > 0 || packageThrottles > 0;
+        }
+
+        /** Whether it is known if the CPU throttled: a counter was sampled during the measurement. */
+        boolean throttlingKnown() {
+            return coreThrottles != UNKNOWN || packageThrottles != UNKNOWN;
         }
     }
 
@@ -293,7 +303,8 @@ public final class RunReport {
         if (!measurement.isEmpty()) {
             parts.add(String.join(" and ", measurement) + " during the measurement");
         }
-        parts.add(host.throttled() ? "**thermal throttling**" : "no thermal throttling");
+        parts.add(host.throttled() ? "**thermal throttling**"
+                : host.throttlingKnown() ? "no thermal throttling" : "thermal throttling unknown");
         return String.join(", ", parts);
     }
 
@@ -539,11 +550,20 @@ public final class RunReport {
                             cooldown.waitedSeconds(), cooldown.targetCelsius(), cooldown.finalCelsius()));
         }
         if (host.throttled()) {
-            report.append(String.format(Locale.ROOT, "**The CPU throttled during the measurement:** %,d core and %,d"
-                    + " package thermal throttle events (the most on any CPU), so the host ran below its capacity"
-                    + " for part of the run.%n%n", host.coreThrottles(), host.packageThrottles()));
-        } else {
+            List<String> events = new ArrayList<>();
+            if (host.coreThrottles() != HostSummary.UNKNOWN) {
+                events.add(String.format(Locale.ROOT, "%,d core", host.coreThrottles()));
+            }
+            if (host.packageThrottles() != HostSummary.UNKNOWN) {
+                events.add(String.format(Locale.ROOT, "%,d package", host.packageThrottles()));
+            }
+            report.append("**The CPU throttled during the measurement:** ").append(String.join(" and ", events))
+                    .append(" thermal throttle events, so the host ran below its capacity for part of the run.\n\n");
+        } else if (host.throttlingKnown()) {
             report.append("No thermal throttling during the measurement.\n\n");
+        } else {
+            report.append("The host doesn't report thermal throttle counters, so whether the CPU throttled during the"
+                    + " measurement is unknown.\n\n");
         }
         report.append("| Measure | At the start | Mean | Minimum | Maximum |\n|---|---:|---:|---:|---:|\n")
                 .append(hostRow("CPU package temperature (°C)", samples.packageCelsius()[0], host.packageCelsius(),
@@ -646,7 +666,8 @@ public final class RunReport {
         double startCelsius = epochs.length > 0 ? samples.packageCelsius()[0] : Double.NaN;
         if (first < 0) {
             Stats none = new Stats(Double.NaN, Double.NaN, Double.NaN);
-            return new HostSummary(startCelsius, none, none, none, none, none, 0, 0);
+            return new HostSummary(startCelsius, none, none, none, none, none, HostSummary.UNKNOWN,
+                    HostSummary.UNKNOWN);
         }
         return new HostSummary(startCelsius, stats(samples.packageCelsius(), first, last),
                 stats(samples.coreCelsius(), first, last), stats(samples.meanMegaHertz(), first, last),
@@ -673,7 +694,7 @@ public final class RunReport {
 
     private static long growth(double[] counters, int from, int to) {
         if (Double.isNaN(counters[from]) || Double.isNaN(counters[to])) {
-            return 0;
+            return HostSummary.UNKNOWN;
         }
         return Math.max(0, (long) (counters[to] - counters[from]));
     }

@@ -97,8 +97,8 @@ The report has these sections:
   stats once per second while the producers run and the consumers drain. A sampled maximum is not the exact peak
   between samples.
 - **Host**: the CPU temperature, frequency and thermal throttling at the start and during the measurement, with
-  charts. The report says so in bold when the CPU throttled during the measurement. A host that isn't Linux isn't
-  sampled.
+  charts. The report says so in bold when the CPU throttled during the measurement, and that throttling is unknown
+  when the host has no thermal throttle counters. A host that isn't Linux isn't sampled.
 
 A profiled run's report also links to the profile reports, see [Profiling](profiling.md#what-a-profiled-run-writes).
 Every Markdown report the launcher writes, including the profile reports and the off-CPU digests, has an HTML page

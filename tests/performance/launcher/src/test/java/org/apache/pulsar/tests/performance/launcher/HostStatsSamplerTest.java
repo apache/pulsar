@@ -62,11 +62,9 @@ public class HostStatsSamplerTest {
         write("class/hwmon/hwmon2/name", "nvme");
         write("class/hwmon/hwmon2/temp1_input", "90000");
         write("devices/system/cpu/cpu0/cpufreq/scaling_cur_freq", "3100000");
-        write("devices/system/cpu/cpu0/thermal_throttle/core_throttle_count", "5");
-        write("devices/system/cpu/cpu0/thermal_throttle/package_throttle_count", "10");
+        writeCpu(0, 0, 0, "5", "10");
         write("devices/system/cpu/cpu1/cpufreq/scaling_cur_freq", "2900000");
-        write("devices/system/cpu/cpu1/thermal_throttle/core_throttle_count", "7");
-        write("devices/system/cpu/cpu1/thermal_throttle/package_throttle_count", "10");
+        writeCpu(1, 0, 1, "7", "10");
         // Not a CPU directory
         write("devices/system/cpu/cpufreq/boost", "1");
 
@@ -74,8 +72,20 @@ public class HostStatsSamplerTest {
 
         assertThat(sensors.available()).isTrue();
         assertThat(sensors.packageCelsius()).hasValue(68.0);
-        assertThat(sensors.row(1000)).isEqualTo("1000,68.0,70.0,3000,2900,7,10,5100");
+        // The core counters are summed; both CPUs are in the same package, whose counter is read once
+        assertThat(sensors.row(1000)).isEqualTo("1000,68.0,70.0,3000,2900,12,10,5100");
         assertThat(RunReport.HOST_STATS_HEADER.split(",")).hasSize(sensors.row(1000).split(",", -1).length);
+    }
+
+    @Test
+    public void readsEachCoresAndPackagesThrottleCounterOnce() throws IOException {
+        // Two cores with two hyperthreads each, which show their core's counter, in two packages
+        writeCpu(0, 0, 0, "100", "20");
+        writeCpu(1, 0, 0, "100", "20");
+        writeCpu(2, 1, 0, "5", "3");
+        writeCpu(3, 1, 0, "5", "3");
+
+        assertThat(HostStatsSampler.discover(sysfs).row(1000)).isEqualTo("1000,,,,,105,23,");
     }
 
     @Test
@@ -132,5 +142,14 @@ public class HostStatsSamplerTest {
         Path file = sysfs.resolve(path);
         Files.createDirectories(file.getParent());
         Files.writeString(file, content + "\n");
+    }
+
+    private void writeCpu(int cpu, int packageId, int coreId, String coreThrottles, String packageThrottles)
+            throws IOException {
+        String directory = "devices/system/cpu/cpu" + cpu + "/";
+        write(directory + "topology/physical_package_id", Integer.toString(packageId));
+        write(directory + "topology/core_id", Integer.toString(coreId));
+        write(directory + "thermal_throttle/core_throttle_count", coreThrottles);
+        write(directory + "thermal_throttle/package_throttle_count", packageThrottles);
     }
 }

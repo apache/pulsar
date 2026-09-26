@@ -23,10 +23,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.OptionalDouble;
 import java.util.OptionalLong;
+import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -75,10 +77,12 @@ final class HostStatsSampler implements AutoCloseable {
             List<Long> kiloHertz = values(frequencies);
             OptionalDouble meanMegaHertz = kiloHertz.stream().mapToLong(Long::longValue).average();
             OptionalLong minKiloHertz = kiloHertz.stream().mapToLong(Long::longValue).min();
-            // The counters count per logical CPU since boot; the most on any CPU tells whether and how often the
-            // cores, or the package, throttled.
-            OptionalLong coreThrottles = values(coreThrottleCounters).stream().mapToLong(Long::longValue).max();
-            OptionalLong packageThrottles = values(packageThrottleCounters).stream().mapToLong(Long::longValue).max();
+            // The counters count since boot, one counter per core and per package; their sums grow by the throttle
+            // events of all of them, so that the growth during the measurement counts events on any core.
+            OptionalLong coreThrottles = values(coreThrottleCounters).stream().mapToLong(Long::longValue)
+                    .reduce(Long::sum);
+            OptionalLong packageThrottles = values(packageThrottleCounters).stream().mapToLong(Long::longValue)
+                    .reduce(Long::sum);
             OptionalLong fanRpm = values(fans).stream().mapToLong(Long::longValue).max();
             return epochMillis + "," + format(packageCelsius) + "," + format(coreCelsius) + ","
                     + (meanMegaHertz.isPresent() ? Math.round(meanMegaHertz.getAsDouble() / 1000) : "") + ","
@@ -168,13 +172,23 @@ final class HostStatsSampler implements AutoCloseable {
         List<Path> frequencies = new ArrayList<>();
         List<Path> coreThrottleCounters = new ArrayList<>();
         List<Path> packageThrottleCounters = new ArrayList<>();
+        // The hyperthreads of a core show its counter, and the CPUs of a package the package's, so each is read once
+        Set<String> cores = new HashSet<>();
+        Set<String> packages = new HashSet<>();
         for (Path cpu : list(sysfs.resolve("devices/system/cpu"))) {
             if (!CPU_DIRECTORY.matcher(cpu.getFileName().toString()).matches()) {
                 continue;
             }
             addIfReadable(frequencies, cpu.resolve("cpufreq/scaling_cur_freq"));
-            addIfReadable(coreThrottleCounters, cpu.resolve("thermal_throttle/core_throttle_count"));
-            addIfReadable(packageThrottleCounters, cpu.resolve("thermal_throttle/package_throttle_count"));
+            String packageId = read(cpu.resolve("topology/physical_package_id"));
+            String coreId = read(cpu.resolve("topology/core_id"));
+            String name = cpu.getFileName().toString();
+            if (cores.add(packageId != null && coreId != null ? packageId + ":" + coreId : name)) {
+                addIfReadable(coreThrottleCounters, cpu.resolve("thermal_throttle/core_throttle_count"));
+            }
+            if (packages.add(packageId != null ? packageId : name)) {
+                addIfReadable(packageThrottleCounters, cpu.resolve("thermal_throttle/package_throttle_count"));
+            }
         }
         return new Sensors(packageTemperatures, coreTemperatures, frequencies, coreThrottleCounters,
                 packageThrottleCounters, fans);

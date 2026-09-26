@@ -244,6 +244,21 @@ public class RunReportTest {
     }
 
     @Test
+    public void reportsThrottlingAsUnknownWithoutThrottleCounters() throws IOException {
+        // Temperatures and frequencies, but no throttle counters, as on hosts without the thermal_throttle files
+        Files.writeString(run.resolve(RunReport.HOST_STATS_FILE), RunReport.HOST_STATS_HEADER + "\n"
+                + START + ",60.0,,3100,3100,,,\n" + (START + 1000) + ",62.0,,3100,3100,,,\n");
+
+        RunReport.HostSamples samples = RunReport.readHostSamples(run.resolve(RunReport.HOST_STATS_FILE));
+        RunReport.HostSummary summary = RunReport.summarize(samples, START, START + 1000);
+
+        assertThat(summary.throttled()).isFalse();
+        assertThat(summary.throttlingKnown()).isFalse();
+        assertThat(RunReport.hostSummaryLine(summary)).isEqualTo("60 °C at the start, at most 62 °C and 3,100 MHz"
+                + " on average during the measurement, thermal throttling unknown");
+    }
+
+    @Test
     public void cutsALongCoolDownBeforeTheMeasurementOutOfTheCharts() {
         // Warmup samples at -103 and -102 s, a cool-down from -101.5 to -1.5 s sampled every second, then the
         // measurement
