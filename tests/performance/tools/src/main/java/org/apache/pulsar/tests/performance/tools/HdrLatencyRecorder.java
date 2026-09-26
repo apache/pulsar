@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -34,12 +36,17 @@ import org.HdrHistogram.Recorder;
  * second, so that the log shows how latency changed over the run, as HistogramLogAnalyzer plots it. Merged, the
  * intervals give the run's whole distribution. A second without recorded values, such as during warmup, writes no
  * interval.
+ *
+ * <p>The latencies are also recorded into a second recorder for each open progress stream, as pulsar-perf keeps a
+ * second histogram for its periodic report, so that a stream reads its own intervals without taking them from the
+ * log. The progress recorders also get the warmup's latencies, which the log leaves out.
  */
 final class HdrLatencyRecorder implements AutoCloseable {
     private static final long MAX_LATENCY_MICROS = TimeUnit.DAYS.toMicros(10);
     private static final int SIGNIFICANT_DIGITS = 3;
     private static final long INTERVAL_MILLIS = 1000;
     private final Recorder recorder = new Recorder(MAX_LATENCY_MICROS, SIGNIFICANT_DIGITS);
+    private final List<Recorder> progressRecorders = new CopyOnWriteArrayList<>();
     private final PrintStream output;
     private final HistogramLogWriter writer;
     private final ScheduledExecutorService intervals;
@@ -62,15 +69,42 @@ final class HdrLatencyRecorder implements AutoCloseable {
     }
 
     void recordNanos(long latencyNanos) {
-        recordMicros(TimeUnit.NANOSECONDS.toMicros(Math.max(0, latencyNanos)));
+        recordNanos(latencyNanos, true);
     }
 
     void recordMillis(long latencyMillis) {
-        recordMicros(TimeUnit.MILLISECONDS.toMicros(Math.max(0, latencyMillis)));
+        recordMillis(latencyMillis, true);
     }
 
-    private void recordMicros(long latencyMicros) {
-        recorder.recordValue(Math.min(latencyMicros, MAX_LATENCY_MICROS));
+    /** Records a latency, into the log only when it was {@code measured} rather than a warmup message's. */
+    void recordNanos(long latencyNanos, boolean measured) {
+        recordMicros(TimeUnit.NANOSECONDS.toMicros(Math.max(0, latencyNanos)), measured);
+    }
+
+    /** Records a latency, into the log only when it was {@code measured} rather than a warmup message's. */
+    void recordMillis(long latencyMillis, boolean measured) {
+        recordMicros(TimeUnit.MILLISECONDS.toMicros(Math.max(0, latencyMillis)), measured);
+    }
+
+    private void recordMicros(long latencyMicros, boolean measured) {
+        long value = Math.min(latencyMicros, MAX_LATENCY_MICROS);
+        if (measured) {
+            recorder.recordValue(value);
+        }
+        for (Recorder progressRecorder : progressRecorders) {
+            progressRecorder.recordValue(value);
+        }
+    }
+
+    /** A recorder that gets every latency from now on, until it is removed, for a progress stream's intervals. */
+    Recorder addProgressRecorder() {
+        Recorder progressRecorder = new Recorder(MAX_LATENCY_MICROS, SIGNIFICANT_DIGITS);
+        progressRecorders.add(progressRecorder);
+        return progressRecorder;
+    }
+
+    void removeProgressRecorder(Recorder progressRecorder) {
+        progressRecorders.remove(progressRecorder);
     }
 
     // The Recorder stamps each interval with its start and end, so the log carries its own timeline

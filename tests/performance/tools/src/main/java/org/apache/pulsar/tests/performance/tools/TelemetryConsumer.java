@@ -55,6 +55,23 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         AtomicLong lastMeasurementReceiptEpochMs = new AtomicLong();
         int nextWarmupRound = 1;
         Thread restarter = null;
+        AtomicReference<String> phase = new AtomicReference<>("connecting");
+        ProgressStream progress = new ProgressStream(receiveLatency, line -> {
+            DeviceSequenceTracker.Summary summary = tracker.summary();
+            line.put("role", "consumer");
+            line.put("application", applicationIndex);
+            line.put("phase", phase.get());
+            line.put("received", summary.uniqueMessages());
+            line.put("duplicates", summary.duplicates());
+            line.put("orderingViolations", summary.orderingViolations());
+            line.put("invalidMessages", summary.invalidMessages());
+            line.put("messageCount", scenario.messageCount());
+        });
+        MeasurementControl control = null;
+        if (controlPort != null) {
+            control = MeasurementControl.start(controlPort);
+            control.serveProgress(progress);
+        }
 
         PulsarClientSharedResources sharedResources = SharedClientResources.create(scenario);
         try {
@@ -62,6 +79,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 pods.add(createPod(scenario, sharedResources, tracker, receiveLatency,
                         firstMeasurementReceiptEpochMs, lastMeasurementReceiptEpochMs, pod));
             }
+            phase.set("receiving");
             System.out.println("READY application=" + applicationIndex + " clients=" + pods.size());
             if (scenario.clientRestartIntervalSeconds() > 0 && scenario.clientRestartFraction() > 0) {
                 restarter = new Thread(() -> restartClients(scenario, sharedResources, tracker, pods, stopping,
@@ -93,6 +111,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 restarter.join(TimeUnit.SECONDS.toMillis(10));
             }
             DeviceSequenceTracker.Summary summary = tracker.summary();
+            phase.set("finished");
             receiveLatency.close();
             tracker.writeState(output.resolve("consumed-state.bin"));
             tracker.writeViolationSamples(output.resolve("ordering-violations.txt"));
@@ -115,6 +134,13 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 }
             }
             sharedResources.close();
+            if (!"finished".equals(phase.get())) {
+                phase.set("failed");
+            }
+            progress.finish();
+            if (control != null) {
+                control.close();
+            }
         }
     }
 
@@ -147,8 +173,9 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                                 firstMeasurementReceiptEpochMs.accumulateAndGet(receivedEpochMs,
                                         (current, received) -> current == 0 ? received : Math.min(current, received));
                                 lastMeasurementReceiptEpochMs.accumulateAndGet(receivedEpochMs, Math::max);
-                                receiveLatency.recordMillis(receivedEpochMs - message.getPublishTime());
                             }
+                            receiveLatency.recordMillis(receivedEpochMs - message.getPublishTime(),
+                                    decoded.measurement());
                             tracker.received(decoded.deviceId(), decoded.sequence(), message.getMessageId(),
                                     decoded.sentNanos(), message.getTopicName(), Thread.currentThread().getName());
                             currentConsumer.acknowledgeAsync(message);

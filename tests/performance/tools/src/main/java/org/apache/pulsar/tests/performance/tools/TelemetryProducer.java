@@ -43,11 +43,15 @@ import picocli.CommandLine.Option;
 final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
     private static final int STATE_VERSION = 1;
 
-    @Option(names = "--control-port",
-            description = "Serve the measurement control endpoints on this port, and before the first measured "
-                    + "message wait for the launcher to start the measurement, for example after letting the host "
-                    + "cool down")
-    Integer controlPort;
+    @Option(names = "--await-measurement-start",
+            description = "Before the first measured message, wait for the launcher to start the measurement over "
+                    + "the control port, for example after letting the host cool down")
+    boolean awaitMeasurementStart;
+
+    // What the producer is doing, for the progress stream
+    private volatile String phase = "connecting";
+    private volatile int warmupRound;
+    private volatile long measurementStartEpochMs = -1;
 
     @Override
     public Integer call() throws Exception {
@@ -67,9 +71,24 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         Semaphore outstanding = new Semaphore(maxOutstanding);
         Set<Integer> devicesInFlight = ConcurrentHashMap.newKeySet();
 
+        if (awaitMeasurementStart && controlPort == null) {
+            throw new IllegalArgumentException("--await-measurement-start needs --control-port");
+        }
+        ProgressStream progress = new ProgressStream(sendLatency, line -> {
+            line.put("role", "producer");
+            line.put("phase", phase);
+            line.put("sent", completed.get());
+            line.put("pending", maxOutstanding - outstanding.availablePermits());
+            line.put("messageCount", scenario.messageCount());
+            line.put("warmupMessageCount", scenario.warmupMessageCount());
+            line.put("warmupRound", warmupRound);
+            line.put("warmupRounds", scenario.warmupMessageCount() > 0 ? scenario.warmupRounds() : 0);
+            line.put("measurementStartEpochMs", measurementStartEpochMs);
+        });
         MeasurementControl control = null;
         if (controlPort != null) {
             control = MeasurementControl.start(controlPort);
+            control.serveProgress(progress);
             System.out.println("CONTROL_READY port=" + control.port());
         }
         PulsarClientSharedResources sharedResources = SharedClientResources.create(scenario);
@@ -88,6 +107,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                     }
                 }
             }
+            phase = scenario.warmupMessageCount() > 0 ? "warmup" : "measurement";
             SplittableRandom random = new SplittableRandom(0x51c0ffeeL);
             long intervalNanos = scenario.rate() == 0 ? 0 : TimeUnit.SECONDS.toNanos(1) / scenario.rate();
             long nextSend = System.nanoTime();
@@ -119,8 +139,9 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
 
                 boolean measurementMessage = sent >= warmupMessageCount;
                 if (measurementMessage && measurementStartedNanos < 0) {
-                    if (control != null) {
+                    if (awaitMeasurementStart) {
                         // The warmup rounds have been received; the launcher lets the host cool down first.
+                        phase = "awaiting-measurement-start";
                         control.markReady();
                         System.out.println("MEASUREMENT_READY");
                         control.awaitStart(runDeadlineNanos);
@@ -129,6 +150,8 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                     }
                     measurementStartedNanos = System.nanoTime();
                     measurementStartEpochMs = System.currentTimeMillis();
+                    this.measurementStartEpochMs = measurementStartEpochMs;
+                    phase = "measurement";
                     System.out.println("MEASUREMENT_START epochMs=" + measurementStartEpochMs);
                 }
                 long deviceSequence = deviceSequences[device]++;
@@ -148,9 +171,9 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                                 failure.compareAndSet(null, error);
                             } else {
                                 completed.incrementAndGet();
+                                sendLatency.recordNanos(System.nanoTime() - sendStartedNanos, measurementMessage);
                                 if (measurementMessage) {
                                     measurementCompleted.incrementAndGet();
-                                    sendLatency.recordNanos(System.nanoTime() - sendStartedNanos);
                                 } else {
                                     warmupCompleted.incrementAndGet();
                                 }
@@ -171,6 +194,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                         throw new IllegalStateException("Telemetry warmup send failed", failure.get());
                     }
                     int round = Math.toIntExact((sent + 1) / warmupMessagesPerRound);
+                    warmupRound = round;
                     WarmupBarrier.awaitApplications(coordinationDirectory(), runId, round, scenario.applicationCount(),
                             runDeadlineNanos);
                     System.out.println("WARMUP_ROUND_COMPLETE round=" + round + "/" + scenario.warmupRounds()
@@ -184,10 +208,12 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                     nextSend = System.nanoTime();
                 }
             }
+            phase = "draining";
             awaitOutstanding(outstanding, maxOutstanding);
             if (failure.get() != null) {
                 throw new IllegalStateException("Telemetry send failed", failure.get());
             }
+            phase = "finished";
             long measurementEndEpochMs = System.currentTimeMillis();
             long finishedNanos = System.nanoTime();
             long elapsedNanos = finishedNanos - startedNanos;
@@ -221,6 +247,10 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                 client.close();
             }
             sharedResources.close();
+            if (!"finished".equals(phase)) {
+                phase = "failed";
+            }
+            progress.finish();
             if (control != null) {
                 control.close();
             }

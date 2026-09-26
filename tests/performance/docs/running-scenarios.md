@@ -51,6 +51,7 @@ Pass the launcher's options with `--args`:
 | `--output <dir>` | Writes the run to exactly this directory instead of one in the reports hierarchy. |
 | `--cooldown-temperature <°C>` | Waits for the CPU package to cool down to this temperature before starting, see [Host temperature and cool-down](#host-temperature-and-cool-down). Default: `performance.cooldownTemperature`, or else no wait. |
 | `--cooldown-timeout <seconds>` | The longest wait for `--cooldown-temperature`. Default: 600. |
+| `--progress-interval <seconds>` | How often to print the workload's progress, see [Progress on the console](#progress-on-the-console). Default: 10. |
 | `--tools-directory <dir>` | The installed workload applications. The Gradle tasks pass it. |
 
 ## Gradle properties
@@ -102,6 +103,34 @@ Every run gets a directory of its own, in a hierarchy by day, git branch and nam
 The launcher prints the run directory when it starts, and the run report when it has finished.
 [Finding the results of a run](run-reports.md#finding-the-results-of-a-run) describes finding a run later, and
 [Layout of a run directory](run-reports.md#layout-of-a-run-directory) what a run directory contains.
+
+## Progress on the console
+
+The launcher's console shows only the run's phases and progress: starting the cluster, the applications and the
+producer, waiting for the applications, verifying, and the run report. The logs of Testcontainers and of the Pulsar
+containers go to `launcher.log` in the run directory.
+
+While the workload runs, the launcher prints two lines every `--progress-interval` seconds, as pulsar-perf does:
+the producer's messages, throughput, pending sends and publish latency, and the applications' messages, throughput,
+backlog and end-to-end latency. The prefix has the time since the producer started and the producer's phase, such as
+`warmup round 1/1` or `measurement 48 s`:
+
+```
+[01:10 measurement 48 s] Produced: 68,973 msg of 140,000 (49%) --- 1,003.3 msg/s --- 0.5 Mbit/s --- pending: 1 --- Latency: mean: 2.889 ms - med: 1.748 - 95pct: 4.215 - 99pct: 31.135 - 99.9pct: 100.223 - 99.99pct: 143.615 - Max: 155.007
+[01:10 measurement 48 s] Received: 1,384,032 msg of 2,800,000 (49%) --- 20,141.7 msg/s --- 10.3 Mbit/s --- backlog: 1,131 msg (most behind application: 65) --- Latency: mean: 4.584 ms - med: 3.001 - 95pct: 11.007 - 99pct: 26.015 - 99.9pct: 89.023 - 99.99pct: 154.111 - Max: 212.095
+```
+
+- The throughput and the latencies are those of the interval since the previous lines. The received messages and
+  the throughput are summed over every application, and the latencies merged over every application; they include
+  the warmup, which the latency logs and the run report leave out. The bit rates count the payload only.
+- The backlog is the sum of every subscription's backlog, from the latest topic stats sample, and the largest
+  application's, summed over its topics. The lines also show duplicates and ordering violations as soon as an
+  application has any.
+- The end-to-end latency is measured from the broker's publish time, which has millisecond resolution.
+
+The producer and each application stream their progress to the launcher from the control port of their container,
+`GET /progress` on port 8089, as newline-delimited JSON: a line per second with the phase, cumulative counters and the
+second's latencies as a compressed HdrHistogram of microseconds, which the launcher merges.
 
 ## Host temperature and cool-down
 

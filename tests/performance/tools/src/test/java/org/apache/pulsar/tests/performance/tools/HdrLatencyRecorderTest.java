@@ -67,6 +67,24 @@ public class HdrLatencyRecorderTest {
     }
 
     @Test
+    public void leavesWarmupLatenciesOutOfTheLog() throws Exception {
+        Path output = Files.createTempFile("warmup-latency", ".hdr");
+        try {
+            HdrLatencyRecorder recorder = new HdrLatencyRecorder(output);
+            recorder.recordMillis(2, false);
+            recorder.recordMillis(4, true);
+            recorder.close();
+
+            List<Histogram> intervals = read(output);
+            assertThat(intervals).hasSize(1);
+            assertThat(intervals.get(0).getTotalCount()).isEqualTo(1);
+            assertThat(intervals.get(0).getMaxValue()).isBetween(4_000L, 4_003L);
+        } finally {
+            Files.deleteIfExists(output);
+        }
+    }
+
+    @Test
     public void writesAnIntervalPerSecond() throws Exception {
         Path output = Files.createTempFile("latency-intervals", ".hdr");
         try {

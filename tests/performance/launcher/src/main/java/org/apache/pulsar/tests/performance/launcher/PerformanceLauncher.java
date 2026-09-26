@@ -35,7 +35,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -85,6 +87,10 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String OUTPUT_MOUNT = "/performance-output";
     static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
     private static final String CONTAINER_LOG = RunReport.CONTAINER_LOG;
+    // Every log goes to this file in the run directory, and the console shows only the launcher's own messages
+    static final String LAUNCHER_LOG = "launcher.log";
+    private static final String LOG_CONFIGURATION = "performance-launcher-log4j2.xml";
+    private static final DateTimeFormatter STATUS_TIME = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.ROOT);
 
     @Option(names = "--config", required = true)
     Path config;
@@ -113,10 +119,17 @@ public class PerformanceLauncher implements Callable<Integer> {
             description = "The longest wait for --cooldown-temperature, in seconds; the run starts anyway after it")
     int cooldownTimeoutSeconds;
 
+    @Option(names = "--progress-interval", defaultValue = "10",
+            description = "Report the workload's throughput, latency and backlog every this many seconds")
+    int progressIntervalSeconds;
+
     @Option(names = "--sysfs", defaultValue = "/sys", hidden = true)
     Path sysfs;
 
     public static void main(String[] args) {
+        if (System.getProperty("log4j2.configurationFile") == null) {
+            System.setProperty("log4j2.configurationFile", LOG_CONFIGURATION);
+        }
         System.exit(new CommandLine(new PerformanceLauncher()).execute(args));
     }
 
@@ -152,7 +165,7 @@ public class PerformanceLauncher implements Callable<Integer> {
 
         // Whole seconds, as the run directory names the start
         RunInfo runInfo = RunInfo.collect(Path.of("").toAbsolutePath(),
-                ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS)).withDockerEngine(dockerEngine());
+                ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS));
         Path runOutput = output != null ? output : RunDirectory.resolve(
                 reportsDirectory != null ? reportsDirectory
                         : runInfo.projectDirectory().resolve(RunDirectory.DEFAULT_REPORTS_ROOT),
@@ -161,6 +174,11 @@ public class PerformanceLauncher implements Callable<Integer> {
         runOutput = runOutput.toAbsolutePath().normalize();
         Files.createDirectories(runOutput);
         System.out.println("Run directory: " + runOutput);
+        Path launcherLog = runOutput.resolve(LAUNCHER_LOG);
+        // Before anything logs, which is when the logging reads its configuration
+        System.setProperty("performance.launcher.log", launcherLog.toString());
+        status("Logs: " + launcherLog);
+        runInfo = runInfo.withDockerEngine(dockerEngine());
         runInfo.write(runOutput);
         Path coordinationDirectory = runOutput.resolve("coordination");
         Files.createDirectories(coordinationDirectory);
@@ -223,36 +241,59 @@ public class PerformanceLauncher implements Callable<Integer> {
         List<GenericContainer<?>> consumers = new ArrayList<>(applications);
         GenericContainer<?> producer = null;
         TopicStatsSampler topicStatsSampler = null;
+        ProgressMonitor progress = null;
         HostStatsSampler hostStatsSampler = startHostStatsSampler(sensors, runOutput);
         ZonedDateTime workloadFinished;
         try {
+            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)",
+                    spec.numBrokers(), spec.numBookies()));
+            long clusterStart = System.nanoTime();
             cluster.start();
+            status(String.format(Locale.ROOT, "Started the Pulsar cluster in %.0f s",
+                    (System.nanoTime() - clusterStart) / 1e9));
+            status(String.format(Locale.ROOT, "Starting %d application(s) with %d client(s) each",
+                    applications, workload.path("clientsPerApplication").intValue()));
             for (int application = 0; application < applications; application++) {
                 Path appOutput = applicationOutput(runOutput, workload, application);
                 Files.createDirectories(appOutput);
                 consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                         coordinationDirectory, runId, appOutput, agentJar, offCpuOptions,
                         consumerProfileOptions, consumerEnvs, "iot-consume", "--application-index",
-                        Integer.toString(application))
+                        Integer.toString(application), "--control-port", Integer.toString(CONTROL_PORT))
+                        .withExposedPorts(CONTROL_PORT)
                         .waitingFor(Wait.forLogMessage(".*READY application=.*", 1)
                                 .withStartupTimeout(Duration.ofMinutes(5))));
             }
             Startables.deepStart(consumers.stream()).join();
+            topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput);
+            TopicStatsSampler backlogSource = topicStatsSampler;
+            progress = new ProgressMonitor(loader.mapper(), System.out, workload.path("payloadBytes").intValue(),
+                    applications, () -> backlogSource != null ? backlogSource.latestBacklog() : null);
+            for (int application = 0; application < applications; application++) {
+                GenericContainer<?> consumer = consumers.get(application);
+                progress.follow("application-" + application, controlUrl(consumer), consumer::isRunning);
+            }
 
             Path producerOutput = runOutput.resolve("producer");
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                     coordinationDirectory, runId, producerOutput, agentJar, offCpuOptions,
                     producerProfileOptions, producerEnvs, "iot-produce", cooldownCelsius != null
-                            ? new String[] {"--control-port", Integer.toString(CONTROL_PORT)} : new String[0]);
-            if (cooldownCelsius != null) {
-                // The launcher reaches the producer's control endpoints through the port mapped on the host
-                producer.withExposedPorts(CONTROL_PORT)
-                        .waitingFor(Wait.forLogMessage(".*CONTROL_READY.*", 1)
-                                .withStartupTimeout(Duration.ofMinutes(5)));
-            }
-            topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput);
+                            ? new String[] {"--control-port", Integer.toString(CONTROL_PORT),
+                                    "--await-measurement-start"}
+                            : new String[] {"--control-port", Integer.toString(CONTROL_PORT)});
+            // The launcher reaches the producer's control endpoints through the port mapped on the host
+            producer.withExposedPorts(CONTROL_PORT)
+                    .waitingFor(Wait.forLogMessage(".*CONTROL_READY.*", 1)
+                            .withStartupTimeout(Duration.ofMinutes(5)));
+            status(String.format(Locale.ROOT, "Starting the producer: %,d warmup and %,d measured message(s) at "
+                            + "%,d msg/s from %d gateway(s) to %d topic(s)",
+                    warmupMessageCount(workload), measurementMessageCount(workload), workload.path("rate").intValue(),
+                    workload.path("gatewayCount").intValue(), workload.path("topicCount").intValue()));
             producer.start();
+            GenericContainer<?> runningProducer = producer;
+            progress.follow("producer", controlUrl(producer), runningProducer::isRunning);
+            progress.start(progressIntervalSeconds);
             if (cooldownCelsius != null) {
                 measurementGate = startMeasurementGate(sensors, producer, cooldowns);
             }
@@ -260,20 +301,34 @@ public class PerformanceLauncher implements Callable<Integer> {
             int producerExit = waitForExit(producer, timeout);
             saveContainerLog(producer, producerOutput.resolve(CONTAINER_LOG));
             if (producerExit != 0) {
-                throw new IllegalStateException("IoT producer exited with status " + producerExit);
+                throw new IllegalStateException("IoT producer exited with status " + producerExit + "; see "
+                        + producerOutput.resolve(CONTAINER_LOG));
             }
+            status("The producer has finished; waiting for the applications to receive every message");
             for (int application = 0; application < consumers.size(); application++) {
                 GenericContainer<?> consumer = consumers.get(application);
                 int consumerExit = waitForExit(consumer, timeout);
-                saveContainerLog(consumer, applicationOutput(runOutput, workload, application).resolve(CONTAINER_LOG));
+                Path consumerLog = applicationOutput(runOutput, workload, application).resolve(CONTAINER_LOG);
+                saveContainerLog(consumer, consumerLog);
                 if (consumerExit != 0) {
-                    throw new IllegalStateException("IoT consumer exited with status " + consumerExit);
+                    throw new IllegalStateException("IoT consumer of application " + application
+                            + " exited with status " + consumerExit + "; see " + consumerLog);
                 }
             }
+            progress.report();
+            progress.close();
             // The run's end in the charts: every consumer has finished, before the profiles are processed
             workloadFinished = ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            status("Every application has received every message; verifying the device sequences");
             verifyStates(runOutput, workload, applications);
+        } catch (Exception e) {
+            status("The run failed: " + e.getMessage());
+            status("Logs: " + launcherLog + ", and each workload's " + CONTAINER_LOG);
+            throw e;
         } finally {
+            if (progress != null) {
+                progress.close();
+            }
             if (topicStatsSampler != null) {
                 topicStatsSampler.close();
             }
@@ -292,9 +347,11 @@ public class PerformanceLauncher implements Callable<Integer> {
                 saveContainerLog(consumer, applicationOutput(runOutput, workload, application).resolve(CONTAINER_LOG));
                 consumer.stop();
             }
+            status("Stopping the Pulsar cluster");
             cluster.stop();
         }
         if (profilingEnabled) {
+            status("Processing the profiles");
             JsonNode summary = loader.mapper().readTree(runOutput.resolve("producer/producer-summary.json").toFile());
             Instant measurementStart = Instant.ofEpochMilli(requiredLong(summary, "measurementStartEpochMs"));
             long lastConsumerReceiptEpochMs = Long.MIN_VALUE;
@@ -346,6 +403,27 @@ public class PerformanceLauncher implements Callable<Integer> {
                 List.copyOf(cooldowns)), loader.mapper());
         System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
         return 0;
+    }
+
+    /** Prints a status line, with the time of day, as the run goes from one phase to the next. */
+    private static void status(String message) {
+        System.out.println(STATUS_TIME.format(LocalTime.now()) + " " + message);
+    }
+
+    /** The URL of a workload container's control port, through the port Testcontainers maps on the host. */
+    private static String controlUrl(GenericContainer<?> container) {
+        return "http://" + container.getHost() + ":" + container.getMappedPort(CONTROL_PORT);
+    }
+
+    private static long warmupMessageCount(JsonNode workload) {
+        long perRound = workload.path("warmupMessages").longValue() > 0 ? workload.path("warmupMessages").longValue()
+                : workload.path("warmupSeconds").longValue() * workload.path("rate").longValue();
+        return perRound * Math.max(1, workload.path("warmupRounds").intValue());
+    }
+
+    private static long measurementMessageCount(JsonNode workload) {
+        return workload.path("numberOfMessages").longValue() > 0 ? workload.path("numberOfMessages").longValue()
+                : workload.path("durationSeconds").longValue() * workload.path("rate").longValue();
     }
 
     /** The run's name in the reports hierarchy: --name, else the scenario's output.name, else its file name. */

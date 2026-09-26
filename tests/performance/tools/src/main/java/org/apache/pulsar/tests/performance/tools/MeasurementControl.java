@@ -30,10 +30,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Lets the launcher control when the producer's measurement starts, over HTTP with the JDK's built-in server: the
- * launcher reaches the producer container's control port through the port that Testcontainers maps on the host.
- * The producer signals that every warmup round has been received, and the launcher, for example once the host has
- * cooled down, starts the measurement:
+ * The workload's control port, which the launcher reaches through the port that Testcontainers maps on the host,
+ * served with the JDK's built-in server. It streams the workload's progress, see {@link ProgressStream}, and lets
+ * the launcher control when the producer's measurement starts: the producer signals that every warmup round has
+ * been received, and the launcher, for example once the host has cooled down, starts the measurement:
  *
  * <ul>
  *   <li>{@code GET /measurement/ready?waitMillis=<ms>} waits up to that long for the producer to be ready, and
@@ -49,6 +49,7 @@ final class MeasurementControl implements AutoCloseable {
     // maxRspTime default to none); it closes connections left idle for sun.net.httpserver.idleInterval, 30 s by
     // default. A ready request waits at most this long, well within that, and the launcher asks again.
     static final long MAX_WAIT_MILLIS = TimeUnit.SECONDS.toMillis(10);
+    private static final int STOP_DELAY_SECONDS = 2;
 
     private final HttpServer server;
     private final ExecutorService executor;
@@ -75,6 +76,11 @@ final class MeasurementControl implements AutoCloseable {
         server.createContext(START_PATH, control::handleStart);
         server.start();
         return control;
+    }
+
+    /** Serves {@code stream} on {@link ProgressStream#PATH}. */
+    void serveProgress(ProgressStream stream) {
+        server.createContext(ProgressStream.PATH, stream::handle);
     }
 
     /** The port the server listens on. */
@@ -144,7 +150,8 @@ final class MeasurementControl implements AutoCloseable {
 
     @Override
     public void close() {
-        server.stop(0);
+        // A moment for the progress streams to send their last line
+        server.stop(STOP_DELAY_SECONDS);
         executor.shutdownNow();
     }
 }

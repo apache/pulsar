@@ -35,6 +35,8 @@ dependencies {
     // Writes the run and profile reports, charts and flame graphs once a run has finished
     implementation(project(":tests:performance:report-tool"))
     implementation(libs.picocli)
+    // Merges the workloads' latency intervals for the progress lines
+    implementation(libs.hdrHistogram)
     // Samples topic backlog and message counters during a run for the run report
     implementation(project(":pulsar-client-admin-original"))
     jonoffcpuAgent(libs.tooling.jonoffcpu.agent)

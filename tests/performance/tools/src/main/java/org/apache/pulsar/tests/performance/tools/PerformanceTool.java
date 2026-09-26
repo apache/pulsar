@@ -59,6 +59,11 @@ public class PerformanceTool implements Callable<Integer> {
                 description = "Shared directory for workload phase barriers (default: <output>/coordination)")
         Path coordinationDirectory;
 
+        @Option(names = "--control-port",
+                description = "Serve the progress stream, and the producer's measurement control endpoints, on "
+                        + "this port")
+        Integer controlPort;
+
         @Option(names = "--run-id",
                 description = "Shared correlation ID, required when warmup is enabled; use a new ID per run")
         String runId;

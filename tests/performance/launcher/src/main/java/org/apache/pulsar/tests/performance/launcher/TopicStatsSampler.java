@@ -22,12 +22,14 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.tests.performance.report.RunReport;
@@ -54,6 +56,14 @@ final class TopicStatsSampler implements AutoCloseable {
     private final BufferedWriter writer;
     private final ScheduledExecutorService executor;
     private int failedSamples;
+    private volatile Backlog latestBacklog;
+
+    /**
+     * The backlog of a sampling round: the sum over every topic and subscription, and the largest subscription's,
+     * summed over the topics, which is the application that is furthest behind.
+     */
+    record Backlog(long epochMs, long total, long maxSubscription) {
+    }
 
     private TopicStatsSampler(PulsarAdmin admin, List<String> topics, BufferedWriter writer) {
         this.admin = admin;
@@ -85,25 +95,45 @@ final class TopicStatsSampler implements AutoCloseable {
     private void sample() {
         // One timestamp per round, so that the topics of a round line up in the report.
         long now = System.currentTimeMillis();
+        Map<String, Long> backlogs = new HashMap<>();
+        boolean complete = true;
         for (String topic : topics) {
             try {
                 TopicStats stats = admin.topics().getStats(topic);
                 for (Map.Entry<String, ? extends SubscriptionStats> subscription : stats.getSubscriptions()
                         .entrySet()) {
+                    backlogs.merge(subscription.getKey(), subscription.getValue().getMsgBacklog(), Long::sum);
                     writer.write(now + "," + topic + "," + subscription.getKey() + ","
                             + subscription.getValue().getMsgBacklog() + "," + stats.getMsgInCounter() + ","
                             + subscription.getValue().getMsgOutCounter());
                     writer.newLine();
                 }
                 writer.flush();
+            } catch (PulsarAdminException.NotFoundException e) {
+                // The producer creates the topic with its first message to it
+                complete = false;
             } catch (Exception e) {
-                // The topic may not exist yet at the first samples; later failures are worth a line each.
+                complete = false;
+                if (executor.isShutdown()) {
+                    // close() interrupted the round
+                    return;
+                }
+                // Failures are worth a line each at first, and then one in sixty.
                 if (++failedSamples <= 3 || failedSamples % 60 == 0) {
                     System.out.println("Topic stats sample of " + topic + " failed (" + failedSamples
                             + " so far): " + e);
                 }
             }
         }
+        if (complete) {
+            latestBacklog = new Backlog(now, backlogs.values().stream().mapToLong(Long::longValue).sum(),
+                    backlogs.values().stream().mapToLong(Long::longValue).max().orElse(0));
+        }
+    }
+
+    /** The backlog of the latest round that sampled every topic, or null before there is one. */
+    Backlog latestBacklog() {
+        return latestBacklog;
     }
 
     @Override

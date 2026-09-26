@@ -35,6 +35,9 @@ Run directory: /home/user/pulsar/build/performance/2026-09-26/master/iot-telemet
 Run report: /home/user/pulsar/build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00/index.html
 ```
 
+In between, it prints the run's phases and, every 10 seconds, the workload's progress, see
+[Progress on the console](running-scenarios.md#progress-on-the-console).
+
 A profiled run also prints the directories of its off-CPU profiles and flame graphs, and its profile reports, before
 the run report. Open `index.html` in a browser; its links work there, and lead to everything else the run wrote.
 Because the report is the run directory's `index.html` and `README.md`, an HTTP server that serves the reports opens
@@ -64,6 +67,7 @@ A run that fails writes no report: the launcher stops with an error, such as `Io
 the Gradle task fails. The run directory that the launcher printed at the start still has what the run wrote before
 it failed:
 
+- `launcher.log`, the log of the launcher, with Testcontainers' log and the Pulsar containers' logs
 - `producer/container.log.txt` and `<application>/container.log.txt`, the logs of the workload containers
 - `<application>/consumer-summary.json`, with the application's unique messages, duplicates, ordering violations and
   invalid messages, and `<application>/ordering-violations.txt`, with samples of the ordering violations, when the
@@ -136,6 +140,7 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `<scenario>.yaml`, `resolved-config.yaml` | The scenario file as written, and the scenario with its inheritance and environment overrides applied, which the workloads read |
 | `run-info.json` | The run's start, host, user, project directory, git branch, whether the HEAD was detached, the commit, whether the checkout had uncommitted changes, and the Pulsar version, with the keys of `pulsar-version.properties` where they match. The launcher collects them itself, from git and `gradle.properties` in the checkout it runs from. The `host.*` keys have the host's CPU model, sockets, cores, hardware threads, memory and operating system, from a JDK Flight Recorder recording of the launcher's JVM that is stopped right away, so that they are there on every operating system, and the `docker.*` keys the Docker engine's version, CPUs, memory, operating system, kernel and architecture |
 | `run-id.txt` | The ID that correlates the producer and the consumers of the run |
+| `launcher.log` | The launcher's log: Testcontainers' log and the Pulsar containers' logs, which stay off the console |
 | `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked. A cool-down wait of 10 s or more before the measurement is cut out of the time axis |
 | `backlog.svg`, `.png` | Each subscription's backlog over the run, on the same time axis |
 | `latency-percentiles.svg`, `.png` | Latency by percentile, as HistogramLogAnalyzer plots it: publish and each application's end to end, on an axis that spreads the tail (90 %, 99 %, 99.9 %, …) |

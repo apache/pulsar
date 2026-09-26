@@ -162,11 +162,25 @@ topics, which 20 applications consume on Key_Shared subscriptions, for 20 second
 measurement at 1,000 messages per second. It restarts some of the applications' clients every 30 seconds, and checks
 that every application receives every message of every device in order.
 
-The launcher prints the run directory when it starts, and the run report when it has finished:
+The launcher prints the run directory when it starts, the phases of the run as it goes, and the run report when it
+has finished. While the workload runs, it prints the producer's and the applications' progress every 10 seconds, as
+pulsar-perf does: the messages so far, the throughput, the latency percentiles of the last 10 seconds, merged over
+every application, and the subscriptions' backlog. The logs of Testcontainers and of the Pulsar containers go to
+`launcher.log` in the run directory instead of the console:
 
 ```
 Run directory: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00
+12:00:00 Logs: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00/launcher.log
+12:00:00 Starting the Pulsar cluster: 1 broker(s), 3 bookie(s)
+12:00:23 Started the Pulsar cluster in 23 s
+12:00:23 Starting 20 application(s) with 10 client(s) each
+12:00:32 Starting the producer: 20,000 warmup and 120,000 measured message(s) at 1,000 msg/s from 10 gateway(s) to 30 topic(s)
 ...
+[01:10 measurement 48 s] Produced: 68,973 msg of 140,000 (49%) --- 1,003.3 msg/s --- 0.5 Mbit/s --- pending: 1 --- Latency: mean: 2.889 ms - med: 1.748 - 95pct: 4.215 - 99pct: 31.135 - 99.9pct: 100.223 - 99.99pct: 143.615 - Max: 155.007
+[01:10 measurement 48 s] Received: 1,384,032 msg of 2,800,000 (49%) --- 20,141.7 msg/s --- 10.3 Mbit/s --- backlog: 1,131 msg (most behind application: 65) --- Latency: mean: 4.584 ms - med: 3.001 - 95pct: 11.007 - 99pct: 26.015 - 99.9pct: 89.023 - 99.99pct: 154.111 - Max: 212.095
+...
+12:02:55 Every application has received every message; verifying the device sequences
+12:02:57 Stopping the Pulsar cluster
 Run report: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00/index.html
 ```
 
