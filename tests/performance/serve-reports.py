@@ -34,6 +34,7 @@ import http.server
 from pathlib import Path
 
 TEXT = "text/plain; charset=utf-8"
+# The same extensions as ReportsServer.TEXT_EXTENSIONS, the server of the report tool's serveReports Gradle task
 TEXT_EXTENSIONS = [".yaml", ".yml", ".csv", ".hdr", ".hgrm", ".collapsed", ".log", ".md", ".txt"]
 
 

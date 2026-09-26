@@ -56,3 +56,20 @@ tasks.register<JavaExec>("renderHdrHistograms") {
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass.set("org.apache.pulsar.tests.performance.report.HdrHistogramRenderer")
 }
+
+// Serves the reports root over HTTP. -Pperformance.reportsDir chooses the root as for the launcher's tasks, and
+// -Pperformance.reportsServer.address and -Pperformance.reportsServer.port where to listen; all three can be set in
+// ~/.gradle/gradle.properties. The loopback address by default keeps the reports off the network; reach them from
+// another machine through an SSH tunnel.
+tasks.register<JavaExec>("serveReports") {
+    group = "verification"
+    description = "Serve the performance reports over HTTP, at http://127.0.0.1:8000/ by default"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.apache.pulsar.tests.performance.report.ReportsServer")
+    val reportsDir = providers.gradleProperty("performance.reportsDir").map { rootProject.file(it) }
+        .getOrElse(rootProject.file("build/performance"))
+    args("--directory", reportsDir.absolutePath,
+        "--address", providers.gradleProperty("performance.reportsServer.address").getOrElse("127.0.0.1"),
+        "--port", providers.gradleProperty("performance.reportsServer.port").getOrElse("8000"))
+    outputs.upToDateWhen { false }
+}
