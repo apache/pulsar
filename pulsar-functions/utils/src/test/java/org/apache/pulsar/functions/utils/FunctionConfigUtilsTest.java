@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.utils;
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
 import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.GO;
 import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
@@ -829,5 +831,39 @@ public class FunctionConfigUtilsTest {
         functionConfig.setMaxMessageRetries(3);
 
         FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test
+    public void testConvertClientApi() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setInputSpecs(new HashMap<>());
+        functionConfig.setInputs(Collections.singletonList("topic://public/default/in"));
+        functionConfig.setOutput("topic://public/default/out");
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.AUTO);
+        assertThat(FunctionConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
+
+        functionConfig.setClientApi(FunctionConfig.ClientApi.V5);
+        functionDetails = FunctionConfigUtils.convert(functionConfig);
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.V5);
+        assertThat(FunctionConfigUtils.convertFromDetails(functionDetails).getClientApi())
+                .isEqualTo(FunctionConfig.ClientApi.V5);
+
+        functionConfig.setClientApi(FunctionConfig.ClientApi.V4);
+        assertThatThrownBy(() -> FunctionConfigUtils.convert(functionConfig))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("clientApi V4 cannot be used with topic 'topic://public/default/in'");
+    }
+
+    @Test
+    public void testMergeClientApi() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig,
+                createUpdatedFunctionConfig("clientApi", FunctionConfig.ClientApi.V5));
+        assertThat(mergedConfig.getClientApi()).isEqualTo(FunctionConfig.ClientApi.V5);
+
+        functionConfig.setClientApi(FunctionConfig.ClientApi.V5);
+        mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, createFunctionConfig());
+        assertThat(mergedConfig.getClientApi()).isEqualTo(FunctionConfig.ClientApi.V5);
     }
 }

@@ -40,6 +40,14 @@ dependencies {
     implementation(libs.log4j.jul)
 }
 
+// The V5 client API (through pulsar-functions-api) brings the OpenTelemetry API with its TLS factory SPI.
+// Keep it out of java-instance.jar, which is the parent classloader of user code, as with the v4 client
+// API: the API modules only name OpenTelemetry types in method signatures and never run OpenTelemetry
+// code; the client implementations that do are loaded by the instance classloader, which has it.
+configurations.named("runtimeClasspath") {
+    exclude(group = "io.opentelemetry")
+}
+
 // Build a fat JAR as java-instance.jar using the Shadow plugin.
 // Shadow handles dependency resolution lazily, avoiding configuration cache invalidation
 // that occurred with the previous manual dependsOn(runtimeClasspath) + zipTree() approach.

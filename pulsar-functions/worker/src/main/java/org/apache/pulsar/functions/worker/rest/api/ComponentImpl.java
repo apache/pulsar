@@ -85,6 +85,7 @@ import org.apache.pulsar.functions.proto.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.SinkSpec;
 import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.utils.ClientApiResolver;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
@@ -1158,6 +1159,14 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
 
                     .log("Function in trigger function has unidentified topic @ / / /");
             throw new RestException(Status.BAD_REQUEST, "Function in trigger function has unidentified topic");
+        }
+        // triggering writes the input and reads the output with the worker's v4 client
+        String scalableTopic = ClientApiResolver.isScalableTopic(inputTopicToWrite) ? inputTopicToWrite
+                : ClientApiResolver.isScalableTopic(functionMetaData.getFunctionDetails().getSink().getTopic())
+                ? functionMetaData.getFunctionDetails().getSink().getTopic() : null;
+        if (scalableTopic != null) {
+            throw new RestException(Status.BAD_REQUEST,
+                    "Triggering a function is not supported for topic:// (scalable) topics: " + scalableTopic);
         }
         try {
             worker().getBrokerAdmin().topics().getSubscriptions(inputTopicToWrite);

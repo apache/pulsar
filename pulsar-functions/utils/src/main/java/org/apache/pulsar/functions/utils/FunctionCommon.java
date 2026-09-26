@@ -177,6 +177,24 @@ public class FunctionCommon {
         throw new RuntimeException("Unrecognized runtime: " + runtime.name());
     }
 
+    public static FunctionDetails.ClientApi convertClientApi(FunctionConfig.ClientApi clientApi) {
+        if (clientApi == null) {
+            return FunctionDetails.ClientApi.AUTO;
+        }
+        return switch (clientApi) {
+            case V4 -> FunctionDetails.ClientApi.V4;
+            case V5 -> FunctionDetails.ClientApi.V5;
+        };
+    }
+
+    public static FunctionConfig.ClientApi convertClientApi(FunctionDetails.ClientApi clientApi) {
+        return switch (clientApi) {
+            case AUTO -> null;
+            case V4 -> FunctionConfig.ClientApi.V4;
+            case V5 -> FunctionConfig.ClientApi.V5;
+        };
+    }
+
     public static ProcessingGuarantees convertProcessingGuarantee(
             FunctionConfig.ProcessingGuarantees processingGuarantees) {
         for (ProcessingGuarantees type :

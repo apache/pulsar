@@ -17,14 +17,7 @@
  * under the License.
  */
 
-plugins {
-    id("pulsar.public-java-library-conventions")
-}
-
-dependencies {
-    api(libs.slog)
-    api(project(":pulsar-client-api"))
-    api(project(":pulsar-client-api-v5"))
-    api(project(":pulsar-client-admin-api"))
-    api(libs.slf4j.api)
-}
+/**
+ * Support for running Pulsar Functions and IO connectors with the V5 client.
+ */
+package org.apache.pulsar.functions.instance.v5;

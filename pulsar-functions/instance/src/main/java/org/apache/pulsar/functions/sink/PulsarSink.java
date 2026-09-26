@@ -46,6 +46,7 @@ import org.apache.pulsar.functions.instance.AbstractSinkRecord;
 import org.apache.pulsar.functions.instance.ProducerBuilderFactory;
 import org.apache.pulsar.functions.instance.ProducerCache;
 import org.apache.pulsar.functions.instance.stats.ComponentStatsManager;
+import org.apache.pulsar.functions.instance.v5.V5ProducerFactory;
 import org.apache.pulsar.functions.source.PulsarRecord;
 import org.apache.pulsar.functions.source.TopicSchema;
 import org.apache.pulsar.io.core.Sink;
@@ -55,6 +56,7 @@ import org.apache.pulsar.io.core.SinkContext;
 public class PulsarSink<T> implements Sink<T> {
 
     private final PulsarClient client;
+    private final V5ProducerFactory v5ProducerFactory;
     private final PulsarSinkConfig pulsarSinkConfig;
     private final Map<String, String> properties;
     private final ClassLoader functionClassLoader;
@@ -236,7 +238,18 @@ public class PulsarSink<T> implements Sink<T> {
 
     public PulsarSink(PulsarClient client, PulsarSinkConfig pulsarSinkConfig, Map<String, String> properties,
                       ComponentStatsManager stats, ClassLoader functionClassLoader, ProducerCache producerCache) {
+        this(client, null, pulsarSinkConfig, properties, stats, functionClassLoader, producerCache);
+    }
+
+    /**
+     * @param v5ProducerFactory creates the output producers when the component's topics use the V5 client, or
+     *                          {@code null} to create them with the v4 client
+     */
+    public PulsarSink(PulsarClient client, V5ProducerFactory v5ProducerFactory, PulsarSinkConfig pulsarSinkConfig,
+                      Map<String, String> properties, ComponentStatsManager stats, ClassLoader functionClassLoader,
+                      ProducerCache producerCache) {
         this.client = client;
+        this.v5ProducerFactory = v5ProducerFactory;
         this.pulsarSinkConfig = pulsarSinkConfig;
         this.topicSchema = new TopicSchema(client, functionClassLoader);
         this.properties = properties;
@@ -323,6 +336,9 @@ public class PulsarSink<T> implements Sink<T> {
                     .attr("topic", topicName)
                     .attr("schema", schemaToUse)
                     .log("Initializing producer");
+            if (v5ProducerFactory != null) {
+                return v5ProducerFactory.createProducer(topicName, schemaToUse, producerName, properties);
+            }
             return producerBuilderFactory.createProducerBuilder(topicName, schemaToUse, producerName)
                     .properties(properties)
                     .create();

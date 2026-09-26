@@ -46,6 +46,7 @@ import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
+import org.apache.pulsar.cli.ClientApi;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -364,6 +365,8 @@ public class CmdSources extends CmdBase {
         protected String secretsString;
         @Option(names = "--log-topic", description = "The topic to which the logs of a Pulsar Sink are produced")
         protected String logTopic;
+        @Option(names = ClientApi.OPTION_NAME, description = CmdFunctions.CLIENT_API_DESCRIPTION)
+        protected FunctionConfig.ClientApi clientApi;
         @Option(names = "--runtime-flags", description = "Any flags that you want to pass to a runtime"
                 + " (for process & Kubernetes runtime only).")
         protected String runtimeFlags;
@@ -504,6 +507,9 @@ public class CmdSources extends CmdBase {
             }
             if (null != logTopic) {
                 sourceConfig.setLogTopic(logTopic);
+            }
+            if (null != clientApi) {
+                sourceConfig.setClientApi(clientApi);
             }
             if (null != runtimeFlags) {
                 sourceConfig.setRuntimeFlags(runtimeFlags);
