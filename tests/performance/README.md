@@ -252,6 +252,9 @@ PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=5000 \
   --args='--config tests/performance/scenarios/iot-telemetry.yaml'
 ```
 
+[Environment overrides](scenarios/docs/scenario-format.md#environment-overrides) describes how a variable's name
+selects the setting it overrides.
+
 To keep a workload, write it as a scenario that extends an existing one with the settings it changes.
 [The scenarios](scenarios/README.md) lists the maintained scenarios and describes writing one.
 

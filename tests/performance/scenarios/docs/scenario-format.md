@@ -68,8 +68,9 @@ output:
 
 ## Environment overrides
 
-For a one-off change, name an existing scalar's path after the `PULSAR_PERFORMANCE_` prefix, with its elements
-separated by underscores. The prefix is in upper case or in lower case, `pulsar_performance_`, and the path in any
+For a one-off change, set an environment variable named with a prefix followed by an existing scalar's path, with
+the path's elements separated by underscores. The prefix is either `PULSAR_PERFORMANCE_` or `pulsar_performance_`;
+a variable with the prefix in any other case, such as `Pulsar_Performance_`, overrides nothing. The path is in any
 case, so that these set the same value. The loader keeps the scalar's YAML type:
 
 ```bash
@@ -78,6 +79,10 @@ PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=2000 \
   --args='--config tests/performance/scenarios/iot-telemetry.yaml'
 
 PULSAR_PERFORMANCE_workloads_iotTelemetry_rate=2000 \
+./gradlew :tests:performance:launcher:run \
+  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
+
+pulsar_performance_workloads_iottelemetry_rate=2000 \
 ./gradlew :tests:performance:launcher:run \
   --args='--config tests/performance/scenarios/iot-telemetry.yaml'
 ```

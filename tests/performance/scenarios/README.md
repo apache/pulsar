@@ -79,8 +79,9 @@ PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=5000 \
   --args='--config tests/performance/scenarios/iot-telemetry.yaml'
 ```
 
-[The scenario format](docs/scenario-format.md) describes the sections, inheritance, environment overrides and the
-warmup, and [the IoT telemetry scenario](docs/iot-telemetry.md#scenarios) the workload's settings. Add a scenario that
-others can use to this directory and to the tables above, with a guide under [`docs`](docs) when it needs one.
+[The scenario format](docs/scenario-format.md) describes the sections, inheritance,
+[environment overrides](docs/scenario-format.md#environment-overrides) and the warmup, and
+[the IoT telemetry scenario](docs/iot-telemetry.md#scenarios) the workload's settings. Add a scenario that others can
+use to this directory and to the tables above, with a guide under [`docs`](docs) when it needs one.
 
 [profiling-scenarios]: ../../integration/src/test/resources/org/apache/pulsar/tests/integration/profiling
