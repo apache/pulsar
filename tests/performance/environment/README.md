@@ -128,5 +128,26 @@ See [the performance testing guide](../README.md) for the scenarios and the `pro
 Before a run:
 
 - Keep the disk that holds Docker's data less than 90 % full. BookKeeper bookies switch to read-only mode when the
-  disk is 95 % full.
+  disk is 95 % full. `scripts/docker-cleanup.sh` frees space, see below.
 - Close applications that use the CPU, such as browsers and IDEs.
+
+## Freeing Docker disk space
+
+Every `-Pdocker.tag` leaves Pulsar images of about 750 MB behind, and Docker's pruning doesn't remove tagged images.
+`scripts/docker-cleanup.sh` removes:
+
+- stopped containers, unused networks and dangling images
+- all `apachepulsar/pulsar`, `apachepulsar/java-test-image` and `apachepulsar/pulsar-test-latest-version` images,
+  which the Gradle tasks build again from the build cache
+- images whose tag has moved to a newer image, such as a base image after a newer version has been pulled
+- build cache beyond 5 GB
+
+Check what it would remove first:
+
+```sh
+scripts/docker-cleanup.sh --dry-run
+scripts/docker-cleanup.sh
+```
+
+It doesn't need root when your user is in the `docker` group. Set `DOCKER_ORGANIZATION` when the images were built
+with `-Pdocker.organization`.
