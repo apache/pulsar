@@ -111,12 +111,27 @@ public class RunReportTest {
                 mapper);
         String report = Files.readString(file);
 
-        // The run's other files are linked, so that they can be found when the run is browsed over HTTP
+        // The title names the start, the branch, the commit and the scenario, in the report and in its HTML page,
+        // and the first paragraph links to the guide
+        assertThat(report).startsWith("# Pulsar performance test run 2026-09-25 06:42:59 lh-branch"
+                + " 0123456789ab-dirty scenario\n\nRun `run-1`, image `image:tag`. The [Pulsar performance testing"
+                + " README](" + RunReport.README_URL + ") describes the tests and how to read this report.\n");
+        assertThat(Files.readString(run.resolve("index.html"))).contains("<title>Pulsar performance test run"
+                + " 2026-09-25 06:42:59 lh-branch 0123456789ab-dirty scenario</title>");
+        // The run's other files are linked, so that they can be found when the run is browsed over HTTP, and a
+        // footer below a horizontal line repeats the title, the run ID and the link to the guide
         assertThat(report).endsWith("\n<details><summary>Files</summary>\n\n"
                 + "- [producer/producer-summary.json](producer/producer-summary.json)\n"
                 + "- [sub-0/consumer-summary.json](sub-0/consumer-summary.json)\n"
                 + "- [sub-0/container.log.txt](sub-0/container.log.txt)\n"
-                + "- [sub-1/consumer-summary.json](sub-1/consumer-summary.json)\n\n</details>\n");
+                + "- [sub-1/consumer-summary.json](sub-1/consumer-summary.json)\n\n</details>\n"
+                + "\n------------\n\nPulsar performance test run 2026-09-25 06:42:59 lh-branch 0123456789ab-dirty"
+                + " scenario · run `run-1` · [Pulsar performance testing README](" + RunReport.README_URL + ")\n");
+        String footerPage = Files.readString(run.resolve("index.html"));
+        assertThat(footerPage).contains("<hr />");
+        assertThat(footerPage.substring(footerPage.lastIndexOf("<hr />"))).contains("<p>Pulsar performance test"
+                + " run 2026-09-25 06:42:59 lh-branch 0123456789ab-dirty scenario · run <code>run-1</code> ·"
+                + " <a href=\"" + RunReport.README_URL + "\">Pulsar performance testing README</a></p>");
         assertThat(report).contains("<details><summary>HDR histogram logs and percentile distributions</summary>\n\n"
                 + "- [producer/produce-latency.hdr](producer/produce-latency.hdr) ·"
                 + " [producer/produce-latency.hgrm](producer/produce-latency.hgrm)\n"
@@ -342,6 +357,23 @@ public class RunReportTest {
                 .contains("| Git branch | `lh-branch`, a detached HEAD at a commit of this branch |\n");
         // A commit that no branch contains is named as git names it
         assertThat(atNoBranch.toString()).contains("| Git branch | `HEAD` |\n");
+    }
+
+    @Test
+    public void namesTheStartTheBranchTheCommitAndTheScenarioInTheTitle() {
+        ZonedDateTime started = ZonedDateTime.parse("2026-09-25T23:58:30+03:00");
+        String commit = "1ebd73f2652103b30483ba6ddd7ab587a605912a";
+
+        assertThat(RunReport.title("iot.yaml", new RunInfo(started, "host", "user", "", "", Path.of("/p"),
+                "lh-branch", true, commit, false, "")))
+                .isEqualTo("Pulsar performance test run 2026-09-25 23:58:30 lh-branch 1ebd73f26521 iot");
+        // A commit that no branch contains, with uncommitted changes
+        assertThat(RunReport.title("iot.yaml", new RunInfo(started, "host", "user", "", "", Path.of("/p"),
+                RunInfo.DETACHED_HEAD, true, commit, true, "")))
+                .isEqualTo("Pulsar performance test run 2026-09-25 23:58:30 1ebd73f26521-dirty iot");
+        assertThat(RunReport.title("iot.yml", new RunInfo(started, "host", "user", "", "", Path.of("/p"), "",
+                false, "", false, ""))).isEqualTo("Pulsar performance test run 2026-09-25 23:58:30 iot");
+        assertThat(RunReport.title("iot.yaml", null)).isEqualTo("Pulsar performance test run iot");
     }
 
     @Test

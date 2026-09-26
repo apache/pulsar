@@ -97,7 +97,12 @@ see [What a profiled run writes](profiling.md#what-a-profiled-run-writes).
 
 ## Reading a run report
 
-The report has these sections:
+The report's title names the run's start, the code that it used and the scenario, such as `Pulsar performance test
+run 2026-09-26 12:00:00 master 0123456789ab iot-telemetry-local`: the branch, which a commit that no branch contains
+doesn't have, and the commit, with `-dirty` when the checkout had uncommitted changes. The title tells the reports of
+different runs and revisions apart, for example in browser tabs. The first paragraph links to the guide to the
+performance tests, and a footer below a horizontal line at the end repeats the title, the run ID and that link. The
+report has these sections:
 
 - **The settings table**: the scenario, the cluster, the workload, the host's CPU temperature and frequency during
   the measurement, and where, by whom and from which commit the run was made.

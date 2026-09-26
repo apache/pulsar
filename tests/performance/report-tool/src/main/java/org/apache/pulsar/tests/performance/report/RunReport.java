@@ -68,6 +68,8 @@ public final class RunReport {
     public static final String CONTAINER_LOG = "container.log.txt";
     private static final String MEASUREMENT_RECORDING_SUFFIX = ".measurement.jfr";
     private static final DateTimeFormatter FOOTER_START = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    // The guide to the performance tests, which the report links to
+    static final String README_URL = "https://github.com/apache/pulsar/tree/master/tests/performance";
     private static final DateTimeFormatter FOOTER_END = DateTimeFormatter.ofPattern("HH:mm:ss");
 
     /**
@@ -129,6 +131,29 @@ public final class RunReport {
      * commit (marked {@code -dirty} with uncommitted changes) and the run's start and end, such as
      * {@code lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04}. The date is not repeated for the end.
      */
+    /**
+     * The report's title: the run's start, the branch, the commit and the scenario, such as "Pulsar performance test
+     * run 2026-09-26 20:35:06 lh-branch 0123456789ab iot-telemetry", so that the reports of different runs and
+     * revisions can be told apart, for example in browser tabs. A commit that no branch contains has no branch, and
+     * a commit with uncommitted changes ends in {@code -dirty}, as in the chart footer. The commit is abbreviated to
+     * 12 characters, as in the {@code detached-<commit>} directory of a commit that no branch contains; 7 are
+     * sometimes ambiguous in Pulsar's history.
+     */
+    static String title(String scenario, RunInfo info) {
+        StringBuilder title = new StringBuilder("Pulsar performance test run");
+        if (info != null) {
+            title.append(' ').append(FOOTER_START.format(info.started()));
+            if (!info.gitBranch().isEmpty() && !info.gitBranch().equals(RunInfo.DETACHED_HEAD)) {
+                title.append(' ').append(info.gitBranch());
+            }
+            if (!info.gitCommit().isEmpty()) {
+                title.append(' ').append(info.gitCommit(), 0, Math.min(12, info.gitCommit().length()))
+                        .append(info.gitDirty() ? "-dirty" : "");
+            }
+        }
+        return title.append(' ').append(scenario.replaceFirst("\\.ya?ml$", "")).toString();
+    }
+
     static String chartFooter(RunInfo info, ZonedDateTime finished) {
         if (info == null) {
             return "";
@@ -228,7 +253,7 @@ public final class RunReport {
         HostSamples hostSamples = Files.isRegularFile(hostStats) ? readHostSamples(hostStats) : null;
         HostSummary host = hostSamples != null ? summarize(hostSamples, measurementStart, measurementEnd) : null;
         StringBuilder report = new StringBuilder();
-        report.append("# Run report: ").append(run.scenario()).append("\n\n");
+        report.append("# ").append(title(run.scenario(), run.info())).append("\n\n");
         appendRun(report, runDirectory, run, producer, host);
         // The profiles come first so that a profiled run leads to its flame graphs
         appendProfiles(report, runDirectory, mapper);
@@ -245,9 +270,10 @@ public final class RunReport {
                     chartFooter(run.info(), run.finished()));
         }
         appendFiles(report, runDirectory, run.workload());
+        appendFooter(report, run);
         Path file = runDirectory.resolve(FILE_NAME);
         Files.writeString(file, report);
-        MarkdownPages.renderHtml(file, runDirectory, "Run report: " + run.scenario());
+        MarkdownPages.renderHtml(file, runDirectory, title(run.scenario(), run.info()));
         return file;
     }
 
@@ -258,7 +284,9 @@ public final class RunReport {
         // The launcher copies the scenario file and writes its resolved form into the run directory
         String scenarioName = run.scenario().replaceFirst("\\.ya?ml$", "");
         boolean resolved = Files.isRegularFile(runDirectory.resolve(RESOLVED_CONFIG));
-        report.append("Run `").append(run.runId()).append("`, image `").append(run.image()).append("`.\n\n")
+        report.append("Run `").append(run.runId()).append("`, image `").append(run.image()).append("`. The [Pulsar")
+                .append(" performance testing README](").append(README_URL).append(") describes the tests and how")
+                .append(" to read this report.\n\n")
                 .append("| Setting | Value |\n|---|---|\n")
                 .append(row("Scenario", Files.isRegularFile(runDirectory.resolve(run.scenario()))
                         ? "[" + scenarioName + "](" + run.scenario() + ")" : scenarioName))
@@ -340,6 +368,17 @@ public final class RunReport {
             }
             report.append("\n</details>\n");
         }
+    }
+
+    /**
+     * Repeats the title, the run ID and the link to the guide below a horizontal line, so that they are at hand at
+     * the end of a long report. The blank line before the dashes keeps them a line: directly below a paragraph they
+     * would make it a heading.
+     */
+    static void appendFooter(StringBuilder report, Run run) {
+        report.append("\n------------\n\n").append(title(run.scenario(), run.info())).append(" · run `")
+                .append(run.runId()).append("` · [Pulsar performance testing README](").append(README_URL)
+                .append(")\n");
     }
 
     /** A link to {@code file}, relative to the run directory, named by its path. */
