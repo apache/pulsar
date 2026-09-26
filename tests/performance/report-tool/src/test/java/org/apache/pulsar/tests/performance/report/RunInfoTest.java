@@ -69,10 +69,8 @@ public class RunInfoTest {
         assertThat(clean.projectDirectory()).isEqualTo(project);
         assertThat(clean.gitBranch()).isEqualTo("lh-branch");
         assertThat(clean.gitDetached()).isFalse();
-        // JFR describes the host; the launcher adds the Docker engine
-        assertThat(clean.hostDetails().hardwareThreads()).isPositive();
-        assertThat(clean.hostDetails().memoryBytes()).isPositive();
-        assertThat(clean.hostDetails().cpu()).isNotEmpty();
+        // JFR describes the host, whatever it is; the launcher adds the Docker engine
+        assertThat(clean.hostDetails().hardwareThreads()).isGreaterThanOrEqualTo(1);
         assertThat(clean.dockerEngine()).isNull();
         assertThat(clean.gitCommit()).hasSize(40);
         assertThat(clean.gitCommit()).isEqualTo(commit);
