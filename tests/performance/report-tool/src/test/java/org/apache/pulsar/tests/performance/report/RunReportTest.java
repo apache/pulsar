@@ -315,6 +315,43 @@ public class RunReportTest {
         assertThat(samples.backlog().get("s")[1]).isEqualTo(50.0);
     }
 
+    @Test
+    public void sumsEachSubscriptionOverItsTopics() throws IOException {
+        // Two topics consumed by the same two subscriptions; t-1 has no sample in the second round
+        Files.writeString(run.resolve(RunReport.TOPIC_STATS_FILE), RunReport.TOPIC_STATS_HEADER + "\n"
+                + "1000,t-0,a,10,0,0\n1000,t-0,b,1,0,0\n1000,t-1,a,20,0,0\n1000,t-1,b,2,0,0\n"
+                + "2000,t-0,a,30,100,70\n2000,t-0,b,3,100,97\n"
+                + "3000,t-0,a,40,200,160\n3000,t-0,b,4,200,196\n3000,t-1,a,50,300,250\n3000,t-1,b,5,300,295\n"
+                + "4000,t-0,a,0,300,300\n4000,t-0,b,0,300,300\n4000,t-1,a,0,400,400\n4000,t-1,b,0,400,400\n");
+
+        RunReport.Samples samples = RunReport.readSamples(run.resolve(RunReport.TOPIC_STATS_FILE));
+
+        assertThat(samples.backlog()).containsOnlyKeys("a", "b");
+        assertThat(samples.dispatched()).containsOnlyKeys("a", "b");
+        assertThat(samples.backlog().get("a")).containsExactly(30.0, 30.0, 90.0, 0.0);
+        assertThat(samples.backlog().get("b")).containsExactly(3.0, 3.0, 9.0, 0.0);
+        // Round 2 has t-0 only, and round 3 has t-1 without a previous sample: the sums would be partial
+        assertThat(samples.dispatched().get("a")[1]).isEqualTo(70.0);
+        assertThat(samples.dispatched().get("a")[2]).isNaN();
+        assertThat(samples.dispatched().get("a")[3]).isEqualTo(140.0 + 150.0);
+    }
+
+    @Test
+    public void reportsTheProducersMessageCounts() throws IOException {
+        // A scenario limited by duration and rate leaves the configured counts at 0
+        Files.createDirectories(run.resolve("producer"));
+        Files.writeString(run.resolve("producer/producer-summary.json"), "{\"measurementMessages\": 120000,"
+                + " \"warmupMessages\": 20000, \"measurementStartEpochMs\": " + START
+                + ", \"measurementEndEpochMs\": " + (START + 120_000) + "}");
+
+        Path file = RunReport.write(run, new RunReport.Run("scenario.yaml", "run-1", "image:tag",
+                json("{\"brokers\": 1, \"bookies\": 3}"),
+                json("{\"applicationCount\": 1, \"numberOfMessages\": 0, \"warmupMessages\": 0,"
+                        + " \"rate\": 1000}"), null, null, List.of()), mapper);
+
+        assertThat(Files.readString(file)).contains("| Messages | 120,000 measured, 20,000 warmup |");
+    }
+
     private JsonNode json(String text) throws IOException {
         return mapper.readTree(text);
     }

@@ -27,10 +27,13 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Stream;
 import org.HdrHistogram.Histogram;
@@ -226,7 +229,7 @@ public final class RunReport {
         HostSummary host = hostSamples != null ? summarize(hostSamples, measurementStart, measurementEnd) : null;
         StringBuilder report = new StringBuilder();
         report.append("# Run report: ").append(run.scenario()).append("\n\n");
-        appendRun(report, runDirectory, run, host);
+        appendRun(report, runDirectory, run, producer, host);
         // The profiles come first so that a profiled run leads to its flame graphs
         appendProfiles(report, runDirectory, mapper);
         appendCorrectness(report, run.workload(), consumers);
@@ -248,7 +251,8 @@ public final class RunReport {
         return file;
     }
 
-    private static void appendRun(StringBuilder report, Path runDirectory, Run run, HostSummary host) {
+    private static void appendRun(StringBuilder report, Path runDirectory, Run run, JsonNode producer,
+                                  HostSummary host) {
         JsonNode workload = run.workload();
         JsonNode cluster = run.cluster();
         // The launcher copies the scenario file and writes its resolved form into the run directory
@@ -272,8 +276,9 @@ public final class RunReport {
                 .append(row("Applications", workload.path("applicationCount").asInt() + " × "
                         + workload.path("clientsPerApplication").asInt() + " consumers, Key_Shared"))
                 .append(row("Messages", String.format(Locale.ROOT, "%,d measured, %,d warmup",
-                        workload.path("numberOfMessages").asLong(), workload.path("warmupMessages").asLong()
-                                * Math.max(1, workload.path("warmupRounds").asInt()))))
+                        messageCount(producer, "measurementMessages", workload.path("numberOfMessages").asLong()),
+                        messageCount(producer, "warmupMessages", workload.path("warmupMessages").asLong()
+                                * Math.max(1, workload.path("warmupRounds").asInt())))))
                 .append(row("Payload", workload.path("payloadBytes").asInt() + " bytes, batching "
                         + (workload.path("batchingEnabled").asBoolean() ? "on" : "off")))
                 .append(row("Rate limit", workload.path("rate").asLong() > 0
@@ -763,20 +768,32 @@ public final class RunReport {
         return String.join(" · ", links);
     }
 
-    /** Reads {@code topic-stats.csv} into per-round published and dispatched rates and backlogs. */
+    /**
+     * The count the producer reports, which a scenario limited by duration and rate has, rather than the configured
+     * count, which such a scenario leaves at 0; the configured count for a producer summary without it.
+     */
+    private static long messageCount(JsonNode producer, String field, long configured) {
+        return producer.has(field) ? producer.path(field).asLong() : configured;
+    }
+
+    /**
+     * Reads {@code topic-stats.csv} into per-round published and dispatched rates and backlogs. The dispatched rates
+     * and the backlogs are those of each subscription, summed over its topics: an application consumes all of its
+     * topics through one subscription, and a line for each topic and subscription would make the charts and the
+     * backlog table unreadable for many topics. {@code topic-stats.csv} keeps the values of each topic.
+     */
     static Samples readSamples(Path csv) throws IOException {
-        // epoch -> topic -> in counter; epoch -> subscription key -> [backlog, out counter]
+        // epoch -> topic -> in counter; epoch -> [topic, subscription] -> [backlog, out counter]
         TreeMap<Long, Map<String, Long>> inCounters = new TreeMap<>();
-        TreeMap<Long, Map<String, long[]>> subscriptions = new TreeMap<>();
+        TreeMap<Long, Map<List<String>, long[]>> subscriptions = new TreeMap<>();
         List<String> lines = Files.readAllLines(csv);
-        boolean singleTopic = lines.stream().skip(1).map(line -> line.split(",")[1]).distinct().count() <= 1;
         for (String line : lines.subList(1, lines.size())) {
             String[] fields = line.split(",");
             long epoch = Long.parseLong(fields[0]);
-            String key = singleTopic ? fields[2] : fields[1] + " " + fields[2];
             inCounters.computeIfAbsent(epoch, e -> new LinkedHashMap<>()).put(fields[1], Long.parseLong(fields[4]));
-            subscriptions.computeIfAbsent(epoch, e -> new TreeMap<>())
-                    .put(key, new long[] {Long.parseLong(fields[3]), Long.parseLong(fields[5])});
+            subscriptions.computeIfAbsent(epoch, e -> new HashMap<>())
+                    .put(List.of(fields[1], fields[2]), new long[] {Long.parseLong(fields[3]),
+                            Long.parseLong(fields[5])});
         }
         long[] epochs = inCounters.keySet().stream().mapToLong(Long::longValue).toArray();
         int rounds = epochs.length;
@@ -785,10 +802,11 @@ public final class RunReport {
         Map<String, double[]> dispatched = new TreeMap<>();
         Map<String, double[]> backlog = new TreeMap<>();
         for (int round = 0; round < rounds; round++) {
-            Map<String, long[]> current = subscriptions.get(epochs[round]);
-            for (Map.Entry<String, long[]> entry : current.entrySet()) {
-                backlog.computeIfAbsent(entry.getKey(), k -> nanArray(rounds))[round] = entry.getValue()[0];
-                dispatched.computeIfAbsent(entry.getKey(), k -> nanArray(rounds));
+            Map<List<String>, long[]> current = subscriptions.get(epochs[round]);
+            for (Map.Entry<List<String>, long[]> entry : current.entrySet()) {
+                double[] values = backlog.computeIfAbsent(entry.getKey().get(1), k -> nanArray(rounds));
+                values[round] = (Double.isNaN(values[round]) ? 0 : values[round]) + entry.getValue()[0];
+                dispatched.computeIfAbsent(entry.getKey().get(1), k -> nanArray(rounds));
             }
             if (round == 0) {
                 continue;
@@ -804,11 +822,23 @@ public final class RunReport {
                 // A negative delta means a counter restarted, for example after a topic was reloaded.
                 published[round] = delta >= 0 ? delta / elapsed : Double.NaN;
             }
-            Map<String, long[]> previous = subscriptions.get(epochs[round - 1]);
-            for (Map.Entry<String, long[]> entry : current.entrySet()) {
+            // A subscription's rate is known when every one of its topics has a rate, so that a partial sum isn't
+            // mistaken for a drop in the rate
+            Map<List<String>, long[]> previous = subscriptions.get(epochs[round - 1]);
+            Map<String, Double> rates = new HashMap<>();
+            Set<String> incomplete = new HashSet<>();
+            for (Map.Entry<List<String>, long[]> entry : current.entrySet()) {
+                String subscription = entry.getKey().get(1);
                 long[] before = previous.get(entry.getKey());
                 if (before != null && entry.getValue()[1] >= before[1]) {
-                    dispatched.get(entry.getKey())[round] = (entry.getValue()[1] - before[1]) / elapsed;
+                    rates.merge(subscription, (entry.getValue()[1] - before[1]) / elapsed, Double::sum);
+                } else {
+                    incomplete.add(subscription);
+                }
+            }
+            for (Map.Entry<String, Double> rate : rates.entrySet()) {
+                if (!incomplete.contains(rate.getKey())) {
+                    dispatched.get(rate.getKey())[round] = rate.getValue();
                 }
             }
         }
