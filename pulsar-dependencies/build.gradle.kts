@@ -35,7 +35,9 @@ dependencies {
     // Iterate over all library declarations in the version catalog and add them as constraints.
     // This ensures that any transitive dependency matching a catalog entry gets pinned to
     // the version we specify, regardless of what version a transitive dependency requests.
-    catalog.libraryAliases.forEach { alias ->
+    // The constraints cover Pulsar's own and its tests' dependencies: libraries that only tools
+    // use, whose aliases start with "tooling-", are left out (see gradle/libs.versions.toml).
+    catalog.libraryAliases.filterNot { it.replace('-', '.').replace('_', '.').startsWith("tooling.") }.forEach { alias ->
         catalog.findLibrary(alias).ifPresent { provider ->
             val module = provider.get().module
             if (module.name.endsWith("-bom") || module.name.endsWith("_bom") || module.name == "bom"

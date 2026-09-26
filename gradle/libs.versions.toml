@@ -21,7 +21,6 @@
 docker-jdk = "25"
 pulsar-client-python = "3.13.0"
 async-profiler = "4.5"
-jonoffcpu = "0.7.0"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
@@ -113,8 +112,6 @@ prometheus = "0.16.0"
 prometheus-jmx = "0.16.1"
 dropwizardmetrics = "4.2.39"
 hdrHistogram = "2.2.2"
-commonmark = "0.30.0"
-xchart = "4.0.4"
 perfmark = "0.27.0"
 # Auth
 jsonwebtoken = "0.13.0"
@@ -209,6 +206,11 @@ datasketches-memory = "4.1.0"
 datasketches-java = "7.0.1"
 # Shading
 shadow = "9.6.1"
+# Tooling: libraries that only tools use, such as the performance test tooling, and that are neither in Pulsar's
+# distributions nor used by its tests
+jonoffcpu = "0.7.0"
+commonmark = "0.30.0"
+xchart = "4.0.4"
 
 [libraries]
 # SLF4J
@@ -409,13 +411,6 @@ java-semver = { module = "com.github.zafarkhaja:java-semver", version.ref = "jav
 oshi-core = { module = "com.github.oshi:oshi-core-java11", version.ref = "oshi" }
 jna = { module = "net.java.dev.jna:jna", version.ref = "jna" }
 hdrHistogram = { module = "org.hdrhistogram:HdrHistogram", version.ref = "hdrHistogram" }
-jonoffcpu-agent = { module = "io.github.jonoffcpu:jonoffcpu-agent", version.ref = "jonoffcpu" }
-jonoffcpu-correlator = { module = "io.github.jonoffcpu:jonoffcpu-correlator", version.ref = "jonoffcpu" }
-jonoffcpu-jfr-converter = { module = "io.github.jonoffcpu:jonoffcpu-jfr-converter", version.ref = "jonoffcpu" }
-commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark" }
-commonmark-ext-gfm-tables = { module = "org.commonmark:commonmark-ext-gfm-tables", version.ref = "commonmark" }
-commonmark-ext-heading-anchor = { module = "org.commonmark:commonmark-ext-heading-anchor", version.ref = "commonmark" }
-xchart = { module = "org.knowm.xchart:xchart", version.ref = "xchart" }
 dropwizardmetrics-core = { module = "io.dropwizard.metrics:metrics-core", version.ref = "dropwizardmetrics" }
 dropwizardmetrics-graphite = { module = "io.dropwizard.metrics:metrics-graphite", version.ref = "dropwizardmetrics" }
 dropwizardmetrics-jvm = { module = "io.dropwizard.metrics:metrics-jvm", version.ref = "dropwizardmetrics" }
@@ -510,6 +505,15 @@ commons-configuration2 = { module = "org.apache.commons:commons-configuration2",
 bookkeeper-stats-api = { module = "org.apache.bookkeeper.stats:bookkeeper-stats-api", version.ref = "bookkeeper" }
 datasketches-memory = { module = "org.apache.datasketches:datasketches-memory", version.ref = "datasketches-memory" }
 datasketches-java = { module = "org.apache.datasketches:datasketches-java", version.ref = "datasketches-java" }
+# Tooling: libraries that only tools use. Their aliases start with "tooling-", which keeps them out of the version
+# constraints that pulsar-dependencies publishes: those cover Pulsar's own and its tests' dependencies only.
+tooling-jonoffcpu-agent = { module = "io.github.jonoffcpu:jonoffcpu-agent", version.ref = "jonoffcpu" }
+tooling-jonoffcpu-correlator = { module = "io.github.jonoffcpu:jonoffcpu-correlator", version.ref = "jonoffcpu" }
+tooling-jonoffcpu-jfr-converter = { module = "io.github.jonoffcpu:jonoffcpu-jfr-converter", version.ref = "jonoffcpu" }
+tooling-commonmark = { module = "org.commonmark:commonmark", version.ref = "commonmark" }
+tooling-commonmark-ext-gfm-tables = { module = "org.commonmark:commonmark-ext-gfm-tables", version.ref = "commonmark" }
+tooling-commonmark-ext-heading-anchor = { module = "org.commonmark:commonmark-ext-heading-anchor", version.ref = "commonmark" }
+tooling-xchart = { module = "org.knowm.xchart:xchart", version.ref = "xchart" }
 
 [plugins]
 lightproto = { id = "io.streamnative.lightproto", version.ref = "lightproto" }

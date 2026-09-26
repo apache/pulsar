@@ -37,7 +37,7 @@ dependencies {
     implementation(libs.picocli)
     // Samples topic backlog and message counters during a run for the run report
     implementation(project(":pulsar-client-admin-original"))
-    jonoffcpuAgent(libs.jonoffcpu.agent)
+    jonoffcpuAgent(libs.tooling.jonoffcpu.agent)
 }
 
 // The launcher already needs a recent JDK at run time (JfrCut uses the JDK 19+ recording writer), and the report
