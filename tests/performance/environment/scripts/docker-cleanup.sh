@@ -97,7 +97,11 @@ main() {
     fi
     docker system df
     echo
-    run docker system prune --force
+    # Not "docker system prune", which would also remove all unused build cache before the
+    # retention limit below applies
+    run docker container prune --force
+    run docker network prune --force
+    run docker image prune --force
     pulsar_images | remove_images "Pulsar images"
     untagged_images | remove_images "untagged images"
     run docker builder prune --force --reserved-space "${BUILD_CACHE_RESERVED_SPACE}"

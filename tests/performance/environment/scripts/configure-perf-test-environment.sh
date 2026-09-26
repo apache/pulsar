@@ -217,9 +217,14 @@ configure_docker_logging() {
     mv "${tmp}" "${DOCKER_DAEMON_CONFIG}"
     jq 'with_entries(select(.key | startswith("log-")))' "${DOCKER_DAEMON_CONFIG}"
 
-    # The log settings apply to containers created after Docker has been restarted
+    # The log settings apply to containers created after Docker has been restarted. Restart it only
+    # when it's known that no containers run: a failed query says nothing about them.
+    local containers
     if systemctl is-active --quiet "${DOCKER_SERVICE}"; then
-        if [[ -z "$(docker ps -q)" ]]; then
+        if ! containers="$(docker ps -q)"; then
+            echo "WARNING: Couldn't list Docker's containers, so Docker wasn't restarted. Apply the logging" \
+                "configuration with: sudo systemctl restart docker" >&2
+        elif [[ -z "${containers}" ]]; then
             echo "Restarting Docker to apply the logging configuration"
             systemctl restart "${DOCKER_SERVICE}"
         else
@@ -448,36 +453,37 @@ gradle_properties_file() {
     echo "$(getent passwd "${user}" | cut -d: -f6)/.gradle/gradle.properties"
 }
 
+# Runs a command as the user who ran sudo. The Gradle properties are the user's files, and the
+# user controls the paths to them, which may be symbolic links: reading and writing them as root
+# would let the user modify any file on the host.
+as_sudo_user() {
+    runuser -u "${SUDO_USER}" -- "$@"
+}
+
 delete_gradle_properties_block() {
     # --follow-symlinks keeps a gradle.properties that is a symlink to a dotfiles repository
-    sed -i --follow-symlinks "/^${GRADLE_PROPERTIES_BEGIN}\$/,/^${GRADLE_PROPERTIES_END}\$/d" "$1"
+    as_sudo_user sed -i --follow-symlinks "/^${GRADLE_PROPERTIES_BEGIN}\$/,/^${GRADLE_PROPERTIES_END}\$/d" "$1"
 }
 
 # The property is appended to the end of the file: the last value of a property in the file
 # takes effect, so this overrides a value set earlier in the file, and the earlier value takes
 # effect again when "stop" removes the block
 add_gradle_properties() {
-    local file user group
+    local file
     if ! file="$(gradle_properties_file)"; then
         echo "WARNING: Not run with sudo by a user, so ${GRADLE_SKIP_PROPERTY} isn't set in the" \
             "user's Gradle properties. Pass -P${GRADLE_SKIP_PROPERTY}=true to Gradle." >&2
         return
     fi
-    user="${SUDO_USER}"
-    group="$(id -gn "${user}")"
-    if [[ -f "${file}" ]]; then
+    as_sudo_user mkdir -p "$(dirname "${file}")"
+    if as_sudo_user test -f "${file}"; then
         delete_gradle_properties_block "${file}"
-        if [[ -s "${file}" && -n "$(tail -c 1 "${file}")" ]]; then
-            echo >>"${file}"
+        if as_sudo_user test -s "${file}" && [[ -n "$(as_sudo_user tail -c 1 "${file}")" ]]; then
+            echo | as_sudo_user tee -a "${file}" >/dev/null
         fi
-    else
-        if [[ ! -d "$(dirname "${file}")" ]]; then
-            command install -d -o "${user}" -g "${group}" "$(dirname "${file}")"
-        fi
-        command install -m 644 -o "${user}" -g "${group}" /dev/null "${file}"
     fi
     echo "Setting ${GRADLE_SKIP_PROPERTY}=true in ${file}"
-    cat >>"${file}" <<EOF
+    as_sudo_user tee -a "${file}" >/dev/null <<EOF
 ${GRADLE_PROPERTIES_BEGIN}
 ${GRADLE_SKIP_PROPERTY}=true
 ${GRADLE_PROPERTIES_END}
@@ -489,7 +495,7 @@ remove_gradle_properties() {
     if ! file="$(gradle_properties_file)"; then
         return
     fi
-    if [[ -f "${file}" ]] && grep -q -F -x "${GRADLE_PROPERTIES_BEGIN}" "${file}"; then
+    if as_sudo_user test -f "${file}" && as_sudo_user grep -q -F -x "${GRADLE_PROPERTIES_BEGIN}" "${file}"; then
         echo "Removing ${GRADLE_SKIP_PROPERTY} from ${file}"
         delete_gradle_properties_block "${file}"
     fi
