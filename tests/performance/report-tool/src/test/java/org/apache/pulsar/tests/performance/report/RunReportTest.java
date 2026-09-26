@@ -222,10 +222,32 @@ public class RunReportTest {
         // No fan sensor, no fan row
         assertThat(report).doesNotContain("Fastest fan");
         assertThat(report).contains("The [sampled host stats](host-stats.csv) are a CSV file.");
+        // The charts are collapsed below the table
+        assertThat(report).contains("<details><summary>CPU temperature and frequency over time</summary>\n\n"
+                + "![CPU temperature over time](host-temperature.svg)\n\n"
+                + "![CPU frequency over time](host-frequency.svg)\n\n</details>\n");
         for (String chart : new String[] {"host-temperature", "host-frequency"}) {
-            assertThat(report).contains("](" + chart + ".svg)");
             assertThat(run.resolve(chart + ".svg")).isRegularFile();
         }
+    }
+
+    @Test
+    public void rendersNoHostChartsWithoutTemperaturesOrFrequencies() throws IOException {
+        Files.createDirectories(run.resolve("producer"));
+        Files.writeString(run.resolve("producer/producer-summary.json"), "{\"measurementStartEpochMs\": " + START
+                + ", \"measurementEndEpochMs\": " + (START + 2000) + "}");
+        // Only throttle counters and a fan
+        Files.writeString(run.resolve(RunReport.HOST_STATS_FILE), RunReport.HOST_STATS_HEADER + "\n"
+                + START + ",,,,,5,5,4000\n" + (START + 1000) + ",,,,,5,5,4100\n" + (START + 2000) + ",,,,,5,5,4200\n");
+
+        String report = Files.readString(RunReport.write(run, new RunReport.Run("scenario.yaml", "run-1",
+                "image:tag", json("{\"brokers\": 1, \"bookies\": 3}"), json("{\"applicationCount\": 1}"), null,
+                null, List.of()), mapper));
+
+        assertThat(report).contains("No thermal throttling during the measurement.");
+        assertThat(report).doesNotContain("over time</summary>");
+        assertThat(run.resolve("host-temperature.svg")).doesNotExist();
+        assertThat(run.resolve("host-frequency.svg")).doesNotExist();
     }
 
     @Test

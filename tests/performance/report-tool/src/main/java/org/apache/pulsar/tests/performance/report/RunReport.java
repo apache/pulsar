@@ -592,9 +592,12 @@ public final class RunReport {
         }
         double finished = (measurementEnd - measurementStart) / 1000.0;
         List<String> charts = new ArrayList<>();
+        List<String> shown = new ArrayList<>();
         if (hasValues(samples.packageCelsius()) || hasValues(samples.coreCelsius())) {
             List<TimeSeriesRenderer.Series> temperatures = new ArrayList<>();
-            temperatures.add(new TimeSeriesRenderer.Series("CPU package", samples.packageCelsius()));
+            if (hasValues(samples.packageCelsius())) {
+                temperatures.add(new TimeSeriesRenderer.Series("CPU package", samples.packageCelsius()));
+            }
             if (hasValues(samples.coreCelsius())) {
                 temperatures.add(new TimeSeriesRenderer.Series("Hottest core", samples.coreCelsius(), true));
             }
@@ -602,6 +605,7 @@ public final class RunReport {
             TimeSeriesRenderer.render(runDirectory.resolve(TEMPERATURE_CHART), "CPU temperature", "°C", seconds,
                     temperatures, finished, footer);
             charts.add("![CPU temperature over time](" + TEMPERATURE_CHART + ".svg)");
+            shown.add("temperature");
         }
         if (hasValues(samples.meanMegaHertz())) {
             TimeSeriesRenderer.render(runDirectory.resolve(FREQUENCY_CHART), "CPU frequency", "MHz", seconds,
@@ -609,9 +613,13 @@ public final class RunReport {
                             new TimeSeriesRenderer.Series("Lowest core", samples.minMegaHertz(), true)),
                     finished, footer);
             charts.add("![CPU frequency over time](" + FREQUENCY_CHART + ".svg)");
+            shown.add("frequency");
         }
-        for (String chart : charts) {
-            report.append('\n').append(chart).append('\n');
+        // Collapsed, since the table above summarizes them; without data for any chart, there's no section
+        if (!charts.isEmpty()) {
+            report.append("\n<details><summary>CPU ").append(String.join(" and ", shown))
+                    .append(" over time</summary>\n\n").append(String.join("\n\n", charts))
+                    .append("\n\n</details>\n");
         }
     }
 
