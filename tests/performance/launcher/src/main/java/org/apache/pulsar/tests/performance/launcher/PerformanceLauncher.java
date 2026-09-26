@@ -232,7 +232,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                     + cooldownTimeoutSeconds);
         }
         loader.write(resolvedConfig, resolved);
-        status("Scenario " + config.getFileName() + ", resolved:");
+        status("Scenario " + scenarioName(resolved) + " (" + config.getFileName() + "), resolved:");
         System.out.print(indent(loader.mapper().writerWithDefaultPrettyPrinter().writeValueAsString(resolved)
                 .replaceFirst("^---\\R", "")));
         // The scenario as written, beside its resolved form, so that the run report can link both
@@ -480,9 +480,11 @@ public class PerformanceLauncher implements Callable<Integer> {
 
     /** The run's name in the reports hierarchy: --name, else the scenario's output.name, else its file name. */
     private String runName(JsonNode resolved) {
-        if (name != null && !name.isBlank()) {
-            return name;
-        }
+        return name != null && !name.isBlank() ? name : scenarioName(resolved);
+    }
+
+    /** The scenario's name: its output.name, else its file name without .yaml. */
+    private String scenarioName(JsonNode resolved) {
         String scenarioName = resolved.path("output").path("name").textValue();
         if (scenarioName != null && !scenarioName.isBlank()) {
             return scenarioName;

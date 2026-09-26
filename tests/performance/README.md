@@ -171,7 +171,7 @@ percentiles of the last 10 seconds, merged over every application, and the subsc
 ```
 Run directory: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00
 12:00:00 Logs: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00/launcher.log
-12:00:00 Scenario iot-telemetry-local.yaml, resolved:
+12:00:00 Scenario iot-telemetry-local (iot-telemetry-local.yaml), resolved:
   cluster:
     brokers: 1
     ...
