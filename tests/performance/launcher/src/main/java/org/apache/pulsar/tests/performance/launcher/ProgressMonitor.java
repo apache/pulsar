@@ -57,6 +57,7 @@ final class ProgressMonitor implements AutoCloseable {
     private static final long STREAM_INTERVAL_MILLIS = 1000;
     private static final long MAX_LATENCY_MICROS = TimeUnit.DAYS.toMicros(10);
     private static final String PRODUCER = "producer";
+    private static final long STALE_BACKLOG_SECONDS = 5;
 
     private final ObjectMapper mapper;
     private final PrintStream out;
@@ -195,8 +196,14 @@ final class ProgressMonitor implements AutoCloseable {
                 (received - lastReceived) / seconds, bitRate((received - lastReceived) / seconds)));
         TopicStatsSampler.Backlog currentBacklog = backlog.get();
         if (currentBacklog != null) {
-            receivedLine.append(String.format(Locale.ROOT, " --- backlog: %,d msg (most behind application: %,d)",
+            receivedLine.append(String.format(Locale.ROOT, " --- backlog: %,d msg (max per application: %,d",
                     currentBacklog.total(), currentBacklog.maxSubscription()));
+            // The sampler samples every second, unless the broker answers slowly; an old sample says so
+            long ageSeconds = TimeUnit.MILLISECONDS.toSeconds(System.currentTimeMillis() - currentBacklog.epochMs());
+            if (ageSeconds >= STALE_BACKLOG_SECONDS) {
+                receivedLine.append(", sampled ").append(ageSeconds).append(" s ago");
+            }
+            receivedLine.append(')');
         }
         if (finishedApplications > 0 && finishedApplications < applications) {
             receivedLine.append(" --- finished applications: ").append(finishedApplications).append('/')

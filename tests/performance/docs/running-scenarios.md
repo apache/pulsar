@@ -118,15 +118,17 @@ backlog and end-to-end latency. The prefix has the time since the producer start
 
 ```
 [01:10 measurement 48 s] Produced: 68,973 msg of 140,000 (49%) --- 1,003.3 msg/s --- 0.5 Mbit/s --- pending: 1 --- Latency: mean: 2.889 ms - med: 1.748 - 95pct: 4.215 - 99pct: 31.135 - 99.9pct: 100.223 - 99.99pct: 143.615 - Max: 155.007
-[01:10 measurement 48 s] Received: 1,384,032 msg of 2,800,000 (49%) --- 20,141.7 msg/s --- 10.3 Mbit/s --- backlog: 1,131 msg (most behind application: 65) --- Latency: mean: 4.584 ms - med: 3.001 - 95pct: 11.007 - 99pct: 26.015 - 99.9pct: 89.023 - 99.99pct: 154.111 - Max: 212.095
+[01:10 measurement 48 s] Received: 1,384,032 msg of 2,800,000 (49%) --- 20,141.7 msg/s --- 10.3 Mbit/s --- backlog: 1,131 msg (max per application: 65) --- Latency: mean: 4.584 ms - med: 3.001 - 95pct: 11.007 - 99pct: 26.015 - 99.9pct: 89.023 - 99.99pct: 154.111 - Max: 212.095
 ```
 
 - The throughput and the latencies are those of the interval since the previous lines. The received messages and
   the throughput are summed over every application, and the latencies merged over every application; they include
   the warmup, which the latency logs and the run report leave out. The bit rates count the payload only.
 - The backlog is the sum of every subscription's backlog, from the latest topic stats sample, and the largest
-  application's, summed over its topics. The lines also show duplicates and ordering violations as soon as an
-  application has any.
+  application's, summed over its topics. It includes the messages that the applications have received but whose
+  acknowledgments the broker hasn't processed yet, so it isn't zero while messages flow. When the latest sample is
+  5 seconds old or older, because the broker answers the stats requests slowly, the line says how old it is. The lines
+  also show duplicates and ordering violations as soon as an application has any.
 - The end-to-end latency is measured from the broker's publish time, which has millisecond resolution.
 
 The producer and each application stream their progress to the launcher from the control port of their container,

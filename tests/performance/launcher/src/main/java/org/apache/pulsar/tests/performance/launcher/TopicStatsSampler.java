@@ -25,9 +25,12 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
@@ -40,9 +43,10 @@ import org.apache.pulsar.tests.performance.report.RunReport;
  * per-second publish and dispatch rates from the counter deltas, because the broker's own rates refresh only once
  * per stats interval, and the sampled maximum backlog, which is not the exact peak between samples.
  *
- * <p>One sample is one REST call per topic that reads the broker's in-memory counters and its estimated backlog
- * (the default, not the precise backlog that scans the ledger), so once per second has no measurable cost next to
- * a workload of about 100,000 messages per second. A failed sample is reported and skipped; sampling never fails the
+ * <p>One sample is one REST call per topic, all topics in parallel, that reads the broker's in-memory counters and its
+ * estimated backlog (the default, not the precise backlog that scans the ledger), without the stats of the topic's
+ * publishers and consumers, so once per second has no measurable cost next to a workload of about 100,000 messages
+ * per second. A failed sample is reported and skipped; sampling never fails the
  * run.
  */
 final class TopicStatsSampler implements AutoCloseable {
@@ -97,9 +101,13 @@ final class TopicStatsSampler implements AutoCloseable {
         long now = System.currentTimeMillis();
         Map<String, Long> backlogs = new HashMap<>();
         boolean complete = true;
-        for (String topic : topics) {
+        // In parallel, so that a round takes as long as the slowest topic rather than all of them together
+        List<CompletableFuture<TopicStats>> requests = topics.stream()
+                .map(topic -> admin.topics().getStatsAsync(topic, STATS_OPTIONS)).toList();
+        for (int i = 0; i < topics.size(); i++) {
+            String topic = topics.get(i);
             try {
-                TopicStats stats = admin.topics().getStats(topic);
+                TopicStats stats = unwrap(requests.get(i));
                 for (Map.Entry<String, ? extends SubscriptionStats> subscription : stats.getSubscriptions()
                         .entrySet()) {
                     backlogs.merge(subscription.getKey(), subscription.getValue().getMsgBacklog(), Long::sum);
@@ -128,6 +136,19 @@ final class TopicStatsSampler implements AutoCloseable {
         if (complete) {
             latestBacklog = new Backlog(now, backlogs.values().stream().mapToLong(Long::longValue).sum(),
                     backlogs.values().stream().mapToLong(Long::longValue).max().orElse(0));
+        }
+    }
+
+    // The stats of a topic's publishers and consumers are the bulk of the response, over 1 MB for a topic with
+    // 20 applications of 100 consumers, and the sampler needs neither
+    private static final GetStatsOptions STATS_OPTIONS =
+            GetStatsOptions.builder().excludePublishers(true).excludeConsumers(true).build();
+
+    private static TopicStats unwrap(CompletableFuture<TopicStats> request) throws Exception {
+        try {
+            return request.get();
+        } catch (ExecutionException e) {
+            throw e.getCause() instanceof Exception cause ? cause : e;
         }
     }
 

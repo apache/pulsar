@@ -38,7 +38,7 @@ public class ProgressMonitorTest {
     public void reportsThroughputLatencyAndBacklogOfTheProducerAndTheApplications() {
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrintStream out = new PrintStream(output, true, StandardCharsets.UTF_8);
-        TopicStatsSampler.Backlog backlog = new TopicStatsSampler.Backlog(0, 1_500, 1_000);
+        TopicStatsSampler.Backlog backlog = new TopicStatsSampler.Backlog(System.currentTimeMillis(), 1_500, 1_000);
         try (ProgressMonitor monitor = new ProgressMonitor(mapper, out, 125_000, 2, () -> backlog)) {
             ObjectNode producer = line("producer", 1_000, 2_000);
             producer.put("phase", "warmup").put("sent", 1_000).put("pending", 7).put("messageCount", 4_000)
@@ -56,7 +56,20 @@ public class ProgressMonitorTest {
         assertThat(lines[0]).contains("warmup round 1/1", "Produced: 1,000 msg of 4,000 (25%)", "pending: 7",
                 "Latency: mean: 2.000 ms");
         assertThat(lines[1]).contains("Received: 1,000 msg of 8,000 (12%)",
-                "backlog: 1,500 msg (most behind application: 1,000)", "med: 10.0", "Max: 20.0");
+                "backlog: 1,500 msg (max per application: 1,000)", "med: 10.0", "Max: 20.0");
+    }
+
+    @Test
+    public void saysHowOldAnOldBacklogSampleIs() {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        PrintStream out = new PrintStream(output, true, StandardCharsets.UTF_8);
+        TopicStatsSampler.Backlog backlog =
+                new TopicStatsSampler.Backlog(System.currentTimeMillis() - 30_000, 1_241, 73);
+        try (ProgressMonitor monitor = new ProgressMonitor(mapper, out, 64, 1, () -> backlog)) {
+            monitor.report();
+        }
+        assertThat(output.toString(StandardCharsets.UTF_8))
+                .contains("backlog: 1,241 msg (max per application: 73, sampled 30 s ago)");
     }
 
     private ObjectNode line(String role, int count, long latencyMicros) {
