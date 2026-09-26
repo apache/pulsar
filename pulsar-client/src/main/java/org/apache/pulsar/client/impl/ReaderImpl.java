@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderDecryptFailListener;
@@ -208,6 +209,21 @@ public class ReaderImpl<T> implements Reader<T> {
     }
 
     @Override
+    public Messages<T> batchReadNext() throws PulsarClientException {
+        Messages<T> msg = consumer.batchReceive();
+
+        // Acknowledge message immediately because the reader is based on non-durable subscription. When it reconnects,
+        // it will specify the subscription position anyway
+        consumer.acknowledgeAsync(msg).exceptionally(ex -> {
+            log.warn().attr("messages", msg)
+               .exception(ex)
+               .log("acknowledge message cumulative fail");
+            return null;
+        });
+        return msg;
+    }
+
+    @Override
     public Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> msg = consumer.receive(timeout, unit);
 
@@ -229,6 +245,25 @@ public class ReaderImpl<T> implements Reader<T> {
             consumer.acknowledgeCumulativeAsync(msg)
                     .exceptionally(ex -> {
                         log.error().attr("messageId", msg.getMessageId())
+                                .exception(ex)
+                                .log("acknowledge message cumulative fail");
+                        return null;
+                    });
+            return msg;
+        });
+        CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
+        handler.attachToFuture(result);
+        handler.setCancelAction(() -> originalFuture.cancel(false));
+        return result;
+    }
+
+    @Override
+    public CompletableFuture<Messages<T>> batchReadNextAsync() {
+        CompletableFuture<Messages<T>> originalFuture = consumer.batchReceiveAsync();
+        CompletableFuture<Messages<T>> result = originalFuture.thenApply(msg -> {
+            consumer.acknowledgeAsync(msg)
+                    .exceptionally(ex -> {
+                        log.error()
                                 .exception(ex)
                                 .log("acknowledge message cumulative fail");
                         return null;

@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.KeySharedPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderDecryptFailListener;
@@ -183,6 +184,13 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
     }
 
     @Override
+    public Messages<T> batchReadNext() throws PulsarClientException {
+        Messages<T> msg = multiTopicsConsumer.batchReceive();
+        msg.forEach(multiTopicsConsumer::tryAcknowledgeMessage);
+        return msg;
+    }
+
+    @Override
     public Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
         Message<T> msg = multiTopicsConsumer.receive(timeout, unit);
         multiTopicsConsumer.tryAcknowledgeMessage(msg);
@@ -200,6 +208,25 @@ public class MultiTopicsReaderImpl<T> implements Reader<T> {
                                 .log("acknowledge message cumulative fail");
                         return null;
                     });
+            return msg;
+        });
+        CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
+        handler.attachToFuture(result);
+        handler.setCancelAction(() -> originalFuture.cancel(false));
+        return result;
+    }
+
+    @Override
+    public CompletableFuture<Messages<T>> batchReadNextAsync() {
+        CompletableFuture<Messages<T>> originalFuture = multiTopicsConsumer.batchReceiveAsync();
+        CompletableFuture<Messages<T>> result = originalFuture.thenApply(msg -> {
+            multiTopicsConsumer.acknowledgeAsync(msg)
+                               .exceptionally(ex -> {
+                                   log.warn()
+                                      .exception(ex)
+                                      .log("acknowledge message cumulative fail");
+                                   return null;
+                               });
             return msg;
         });
         CompletableFutureCancellationHandler handler = new CompletableFutureCancellationHandler();
