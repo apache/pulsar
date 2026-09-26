@@ -50,8 +50,42 @@ that goes into them has changed, or when the image has been removed, so the test
 
 To run the whole suite, use
 [Personal CI](../CONTRIBUTING.md#running-the-full-ci-pipeline-personal-ci).
-[Profiling an integration-test cluster](../CONTRIBUTING.md#profiling-an-integration-test-cluster) describes
-`profilingIntegrationTest`, which runs a test with async-profiler.
+
+### Profiling an integration test
+
+`profilingIntegrationTest` runs an integration test with
+[async-profiler](https://github.com/async-profiler/async-profiler) attached to the cluster's components inside their
+containers, such as the broker and the bookies, rather than to the JVM the test runs in. Any integration test can
+be profiled without changing it; name it and the components to profile:
+
+```shell
+./gradlew :tests:integration:profilingIntegrationTest --tests "<SomeIntegrationTest>" \
+  -Pinttest.asyncprofiler.components=broker,bookie
+```
+
+- `-Pinttest.asyncprofiler.components` takes `broker`, `proxy`, `functionworker`, `bookie`, `zookeeper` or `all`, and
+  defaults to `broker` for this task. `PulsarClusterSpec.profileBroker` and its siblings fall back to it, so it
+  doesn't change a test that sets those flags itself. It also enables the manual tests, so it profiles a cluster
+  through the plain `integrationTest` task too.
+- The task builds `apachepulsar/java-test-image:<tag>-asyncprofiler`, the test image with async-profiler, under a tag
+  of its own so that it never replaces the image of the other integration tests. It runs the test with retries off,
+  and always runs.
+- It relaxes the kernel's `perf_event` limits, which the `cpu` sampling engine needs, from a privileged throwaway
+  container. `-Pinttest.asyncprofiler.skipPerfEventTuning` skips that, for a host where they are already set, such as
+  one configured by [the performance testing environment setup](performance/environment/README.md), or where Docker
+  disallows privileged containers; the run continues either way, with less accurate native stacks.
+- Each profiled container writes a recording to `tests/integration/build/`, named
+  `inttest_profile_<commit>_<time>_<container>_<pid>.jfr`. The commit id, from `git rev-parse --short HEAD` or
+  `-Pgit.commit.id.abbrev=<id>`, tells apart the profiles of the revisions before and after a change.
+- `-Pinttest.asyncprofiler.opts=<agent options>` (default `event=cpu,lock=1ms,alloc=2m,jfrsync=profile`),
+  `-Pinttest.asyncprofiler.outputformat=<ext>` and `-Pinttest.asyncprofiler.dir=<dir>` change the recording.
+- `-Pdocker.wolfi` builds the images from Wolfi instead of Alpine, which makes the `GLIBC_TUNABLES` that a test sets
+  take effect.
+
+Without `--tests`, the task runs `PulsarProfilingTest`, a `pulsar-perf` workload of
+[the legacy TestNG profiling runner](performance/docs/legacy-testng-runner.md).
+[Flame graphs of other recordings](performance/docs/analyzing-profiles.md#flame-graphs-of-other-recordings) describes
+rendering flame graphs from the recordings.
 
 ## Directories
 
@@ -59,8 +93,8 @@ To run the whole suite, use
 - [`docker-images`](docker-images): the Docker images that the integration tests use, and their contents:
   - [`latest-version-image`](docker-images/latest-version-image): the `pulsar-test-latest-version` image, the Pulsar
     image with the test functions, plugins, offloaders and Go and Python function examples.
-  - [`java-test-image`](docker-images/java-test-image): the `java-test-image` image, a smaller image without the Go and
-    Python function examples.
+  - [`java-test-image`](docker-images/java-test-image): the `java-test-image` image, a smaller image without the Go
+    and Python function examples.
   - [`java-test-functions`](docker-images/java-test-functions) and
     [`java-test-plugins`](docker-images/java-test-plugins): the functions and plugins in the images.
 - [`certificate-authority`](certificate-authority/README.md): the test certificate authority and the TLS certificates

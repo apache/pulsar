@@ -156,31 +156,12 @@ to avoid distorting profiles.
 ### Micro benchmarks (JMH)
 
 For a **micro**-level question — what a single method, data structure or codec costs — write a
-[JMH](https://openjdk.org/projects/code-tools/jmh/) benchmark under `microbench/`. That is the
-preferred tool for micro benchmarks: JMH handles warm-up, dead-code elimination and measurement, none
-of which hand-written timing code gets right. [`CODING.md`](CODING.md#performance) asks for
-optimizations to be backed by evidence, and for a small self-contained change a benchmark is the
-strongest kind.
-
-```bash
-./gradlew :microbench:shadowJar                                          # build the runnable jar
-java -jar microbench/build/libs/microbench-*-benchmarks.jar -l           # list the benchmarks
-java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*<Name>.*" # run the ones that match
-```
-
-A benchmark can be profiled directly through JMH's async-profiler integration, which writes forward
-and reverse flame graphs per benchmark under `dir=`:
-
-```bash
-export LIBASYNCPROFILER_PATH=$(ls $JAVA_HOME/lib/libasyncProfiler.*)   # Corretto ships one
-java -jar microbench/build/libs/microbench-*-benchmarks.jar \
-  -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*<Name>.*"
-```
-
-See [`microbench/README.md`](microbench/README.md) for the rest: the async-profiler setup when the
-JDK does not ship one, recording a benchmark to JFR and rendering it, JSON result files for
-[JMH Visualizer](https://jmh.morethan.io/), and the `rawCommand` escape hatch for async-profiler
-options the JMH plugin does not expose.
+[JMH](https://openjdk.org/projects/code-tools/jmh/) benchmark under `microbench/`. JMH handles warm-up,
+dead-code elimination and measurement, none of which hand-written timing code gets right, and
+[`CODING.md`](CODING.md#performance) asks for optimizations to be backed by evidence: for a small
+self-contained change, a benchmark is the strongest kind. [`microbench/README.md`](microbench/README.md)
+describes building and running the benchmarks, profiling them with async-profiler and visualizing the
+results.
 
 ### Profiling tests with async-profiler
 
@@ -237,115 +218,45 @@ profile exception creation, for example (Linux only):
 
 #### Profiling an integration-test cluster
 
-The module tests above profile the JVM the tests run in. To profile the **broker, bookies and
-ZooKeeper inside the containers** of a real cluster, run:
-
-```bash
-./gradlew :tests:integration:profilingIntegrationTest
-```
-
-That one task does everything the profiling run needs: it builds
-`apachepulsar/java-test-image:latest-asyncprofiler` (the test image with async-profiler installed —
-kept under its own tag so it never replaces the image the other integration tests use), relaxes the
-kernel `perf_event` limits that the `cpu` sampling engine needs by way of a privileged throwaway
-container, and runs
-[`PulsarProfilingTest`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/PulsarProfilingTest.java)
-against it with retries off. That test drives `pulsar-perf` against a single broker.
-
-There are two variants of it, sharing everything but the client generation and the topic domain
-through
-[`AbstractPulsarProfilingTest`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/AbstractPulsarProfilingTest.java).
-`PulsarProfilingTest` — the one the task runs by default — drives a v5 scalable (`topic://`) topic
-with the `produce` / `consume` commands, and
-[`PulsarProfilingV4Test`](tests/integration/src/test/java/org/apache/pulsar/tests/integration/profiling/PulsarProfilingV4Test.java)
-drives a classic `persistent://` topic with the same commands, for which `pulsar-perf` picks the v4
-client. The pairing is not a free choice: the v4 client rejects the `topic://` domain outright, so it
-is the v4 client that goes with the classic topic. To profile that baseline instead:
-
-```bash
-./gradlew :tests:integration:profilingIntegrationTest --tests "*PulsarProfilingV4Test"
-```
-
-Both variants write into `tests/integration/build/pulsar-profiling`. The v4 run's `pulsar-perf`
-output, latency histograms, topic stats and metrics scrapes are suffixed `-v4` so the two runs can be
-told apart; the `.jfr` recordings instead carry the container name, which embeds the test class name.
-The runs are not otherwise like-for-like: scalable topics split their segments under load
-(`scalableTopicAutoScaleEnabled` defaults to true), so the v5 run profiles a topology that reshapes
-itself while the v4 run's stays fixed.
-
-A run sends a fixed 20 million messages, a bit over a minute of load at the throughput the containers
-sustain, and has to be done inside three minutes. Both `pulsar-perf` commands must then have exited
-zero, so a run that stalls or dies fails the test rather than passing as a finished profile.
-
-**Any other integration test can be profiled without being modified**, by pointing the task at it and
-naming the cluster components to attach the profiler to:
-
-```bash
-./gradlew :tests:integration:profilingIntegrationTest --tests "<SomeIntegrationTest>" \
-  -Pinttest.asyncprofiler.components=broker,bookie
-```
-
-`components` takes `broker`, `proxy`, `functionworker`, `bookie`, `zookeeper`, or `all`, and defaults
-to `broker` for this task. It is what `PulsarClusterSpec.profileBroker` and its siblings fall back to,
-so it has no effect on a test that sets those flags itself — `PulsarProfilingTest` does, which is why
-it profiles the broker whatever you pass. Every other test leaves them at their default of off, so
-without this property nothing would be profiled. Setting it also enables manual tests, so
-`-Pinttest.asyncprofiler.components=<...>` profiles a cluster through the plain `integrationTest`
-task too.
-
-Recordings land in `tests/integration/build/`, named `inttest_profile_<commit>_<time>_<container>_<pid>.jfr`
-— the commit id comes from `git rev-parse --short HEAD` so profiles taken before and after a change
-can be told apart — one file per profiled container. Tune the run with
-`-Pinttest.asyncprofiler.opts=<agent options>` (default
-`event=cpu,lock=1ms,alloc=2m,jfrsync=profile`), `-Pinttest.asyncprofiler.outputformat=<ext>`,
-`-Pinttest.asyncprofiler.dir=<dir>` and `-Pgit.commit.id.abbrev=<id>`.
-
-Two flags worth knowing: `-Pinttest.asyncprofiler.skipPerfEventTuning` skips the privileged
-container, for a host where the `perf_event` values are already set through `sysctl` or where Docker
-disallows privileged containers (the run continues either way, with less accurate native stacks).
-`-Pdocker.wolfi` builds the base image from Wolfi, which is what makes the `GLIBC_TUNABLES` the test
-sets take effect.
+The module tests above profile the JVM the tests run in. `profilingIntegrationTest` profiles the
+**broker, bookies and other components inside the containers** of an integration test's cluster, for
+any integration test and without changing it. See
+[Profiling an integration test](tests/README.md#profiling-an-integration-test).
 
 #### Profiling a performance scenario, including off-CPU time
 
-The standalone performance launcher profiles a whole scenario — a Testcontainers cluster plus its workload
-applications — with [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu), which runs async-profiler and adds
-kernel-measured **off-CPU** samples: where threads wait on locks, monitors, queues, I/O or GC, not only where they
-use CPU. Each profiled JVM gets its CPU and allocation flame graphs and an off-CPU flame graph without idle waits,
-cut to the measurement window. It needs a Linux Docker engine:
-
-```bash
-./gradlew :tests:performance:launcher:profile \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
-```
-
-See [Profiling](tests/performance/docs/profiling.md) for the requirements and the files a run writes,
-and [Analyzing profiles](tests/performance/docs/analyzing-profiles.md) for how to find what to optimize.
+The performance tests' `profile` task profiles a whole scenario — a cluster and its workload
+applications — with [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu), which runs async-profiler and
+adds kernel-measured **off-CPU** samples: where threads wait on locks, monitors, queues, I/O or GC, not
+only where they use CPU. See [Performance tests](#performance-tests).
 
 #### Performance recording analysis
 
-See [Analyzing profiles](tests/performance/docs/analyzing-profiles.md) for JFR rendering, async-profiler
-recording analysis, Jafar MCP usage and MAT MCP based memory-leak investigation, and
-[Performance testing](tests/performance/README.md) for running and comparing performance scenarios.
+[Analyzing profiles](tests/performance/docs/analyzing-profiles.md) describes rendering these recordings
+into flame graphs, opening them in JDK Mission Control or IntelliJ IDEA, analyzing them with the Jafar
+MCP server, and investigating memory leaks with the MAT MCP server.
 
 ### Integration tests
 
-Integration tests live in `tests/` (see [`tests/README.md`](tests/README.md)). They use
-[Testcontainers](https://www.testcontainers.org/) to bring up Pulsar services in Docker, so **Docker
-must be installed and running**. `integrationTest` builds the Docker test image when something that
-goes into it has changed.
+The integration tests under `tests/` start Pulsar clusters in Docker containers with
+[Testcontainers](https://testcontainers.com/) and test them with TestNG, so **Docker must be installed
+and running**. `integrationTest` builds the Docker test image when something that goes into it has
+changed. The full integration suite is heavy and slow: **in local development, always run individual
+integration tests**, selected with `--tests`, and run the **entire** set with Personal CI (below).
+[`tests/README.md`](tests/README.md) describes running them, selecting TestNG suites and groups, the test
+images and profiling a test's cluster.
 
-The full integration suite is heavy and slow. **In local development, always run individual
-integration tests** rather than the whole suite — pass `--tests` to select a class (TestNG then
-discovers it directly from the classpath):
+### Performance tests
 
-```bash
-./gradlew :tests:integration:integrationTest --tests "org.apache.pulsar.tests.integration.<TestClass>"
-```
-
-To run the **entire** integration test set, use **Personal CI** (below) rather than running it
-locally. (`integrationTest` also accepts `-PtestGroups` / `-PexcludedTestGroups` and
-`-PintegrationTestSuiteFile=<suite>.xml` to pick a specific TestNG suite.)
+[`tests/performance`](tests/performance/README.md) is for running performance test experiments: it runs
+a Pulsar cluster and its workloads in Docker on one host, as a scenario file describes them, and writes a
+report for every run with throughput, latency, delivery and ordering checks and the host's CPU state.
+Runs can be profiled, including off-CPU time, and two revisions can be compared. Everything runs from the
+command line and writes its results to files, which makes the experiments automatable, including tuning
+by AI agents (see [`tests/performance/AGENTS.md`](tests/performance/AGENTS.md)). A Linux host configured
+with [the performance testing environment setup](tests/performance/environment/README.md) gives
+consistent results. [`tests/performance/README.md`](tests/performance/README.md) is a tutorial for
+running a scenario, reading its report, profiling a run and comparing revisions.
 
 ### Running the full CI pipeline (Personal CI)
 
@@ -473,4 +384,5 @@ PRs/issues first, then ask via a GitHub issue or dev@pulsar.apache.org.
 If you use an AI coding assistant (Claude Code, Copilot, Cursor, Gemini, Codex, Aider, …), see
 [`AGENTS.md`](AGENTS.md) for the agent-facing guidance — a routing index into this guide,
 [`ARCHITECTURE.md`](ARCHITECTURE.md), [`CODING.md`](CODING.md), and [`SECURITY.md`](SECURITY.md), plus
-the guardrails that apply specifically to AI-made changes.
+the guardrails that apply specifically to AI-made changes. The integration tests, the performance tests
+and the microbenchmarks have agent guides of their own, which `AGENTS.md` links.

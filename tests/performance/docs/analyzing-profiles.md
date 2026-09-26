@@ -77,12 +77,16 @@ Profile both revisions with the same profiler options: profiling has a cost, and
 
 ## Flame graphs of other recordings
 
-The flame graphs of a standalone run are already in its run directory. Recordings made elsewhere, such as by
-[the legacy TestNG runner](legacy-testng-runner.md), which doesn't render flame graphs, or by the
-[JMH microbenchmarks](../../../microbench/README.md), need the root project's `jfrFlamegraphs` task. Point it at a
-recording or at a directory, which it searches for recordings:
+The flame graphs of a standalone run are already in its run directory. Recordings made elsewhere need the root
+project's `jfrFlamegraphs` task: those of a module's tests profiled with `-PtestAsyncProfiler` (see
+[Profiling tests with async-profiler](../../../CONTRIBUTING.md#profiling-tests-with-async-profiler)), of
+[a profiled integration test](../../README.md#profiling-an-integration-test) or
+[the legacy TestNG runner](legacy-testng-runner.md), and of the [JMH microbenchmarks](../../../microbench/README.md).
+Without `-Pjfr`, it converts every recording in `build/test-profiles`, where `-PtestAsyncProfiler` writes them;
+`-Pjfr` points it at a recording or at a directory, which it searches for recordings:
 
 ```bash
+./gradlew jfrFlamegraphs
 ./gradlew jfrFlamegraphs -Pjfr=tests/integration/build/pulsar-profiling
 ```
 

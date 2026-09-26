@@ -34,10 +34,26 @@ profiling support to the standalone launcher instead.
 ./gradlew :tests:integration:profilingIntegrationTest --tests "*PulsarProfilingV4Test"
 ```
 
-The first command profiles the v5 scalable-topic scenario. The second uses the v4 client against a classic
-`persistent://` topic. Both variants profile a single broker and write recordings and command output under
-`tests/integration/build/pulsar-profiling`. The broker's profiler options come from `-Pinttest.asyncprofiler.opts`.
-The runner doesn't render flame graphs;
+`profilingIntegrationTest` builds the test image with async-profiler, relaxes the kernel's `perf_event` limits and
+runs the test with retries off, as [Profiling an integration test](../../README.md#profiling-an-integration-test)
+describes. Both variants drive `pulsar-perf` against a single broker, and share everything but the client generation
+and the topic domain through `AbstractPulsarProfilingTest`:
+
+- `PulsarProfilingTest`, which the task runs by default, drives a v5 scalable (`topic://`) topic with the `produce`
+  and `consume` commands.
+- `PulsarProfilingV4Test` drives a classic `persistent://` topic with the same commands, for which `pulsar-perf` picks
+  the v4 client. The v4 client rejects the `topic://` domain, so the v4 client goes with the classic topic.
+
+The runs aren't like-for-like: scalable topics split their segments under load (`scalableTopicAutoScaleEnabled`
+defaults to true), so the v5 run profiles a topology that reshapes itself, while the v4 run's stays fixed. With
+[`pulsar-profiling.yaml`](../scenarios/pulsar-profiling.yaml)'s defaults, a run sends 20 million messages, a bit over
+a minute of load, and has to finish within three minutes, with both `pulsar-perf` commands exiting with zero, so that
+a run that stalls or dies fails the test rather than passing as a finished profile.
+
+Both variants write their recordings and command output under `tests/integration/build/pulsar-profiling`. The v4
+run's `pulsar-perf` output, latency histograms, topic stats and metrics scrapes are suffixed `-v4`; the recordings
+carry the container name, which embeds the test class name. The broker's profiler options come from
+`-Pinttest.asyncprofiler.opts`. The runner doesn't render flame graphs;
 [Flame graphs of other recordings](analyzing-profiles.md#flame-graphs-of-other-recordings) describes rendering them
 from its recordings.
 

@@ -21,10 +21,13 @@
 
 # Performance testing
 
-The performance tests run a Pulsar cluster and its client workloads in Docker containers on one host, as a
-[scenario](scenarios/README.md) describes them, and write a report for every run: throughput, latency, delivery and
+The performance tests are for running performance test experiments: measuring a change, comparing two revisions
+and finding what to optimize. They run a Pulsar cluster and its client workloads in Docker containers on one host, as
+a [scenario](scenarios/README.md) describes them, and write a report for every run: throughput, latency, delivery and
 ordering checks, and the host's CPU temperature. A run can also be profiled, with CPU, allocation and off-CPU flame
-graphs of the broker and the clients, which show both where threads use CPU and where they wait.
+graphs of the broker and the clients, which show both where threads use CPU and where they wait. Everything runs from
+the command line and writes its results to files, so that experiments can be automated, including tuning by AI
+agents, which [`AGENTS.md`](AGENTS.md) guides.
 
 For the performance of a single class or method, use [the JMH microbenchmarks](../../microbench/README.md) instead.
 

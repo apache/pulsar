@@ -38,6 +38,14 @@ Apache Pulsar is licensed under the Apache License 2.0, and all contributions mu
 | [`CODING.md`](CODING.md) | Coding conventions: style, async/`CompletableFuture`, concurrency, logging ([slog](https://github.com/merlimat/slog)), dependencies, backward compatibility, testing, and the review checklist. |
 | [`SECURITY.md`](SECURITY.md) | Reporting a vulnerability, disclosure hygiene, and checking exposure to an already-public CVE. |
 
+Some areas have an agent guide of their own, which routes to that area's docs; read it before working there:
+
+| Guide | Area |
+|-------|------|
+| [`tests/integration/AGENTS.md`](tests/integration/AGENTS.md) | The integration tests, which test Pulsar clusters in Docker containers. |
+| [`tests/performance/AGENTS.md`](tests/performance/AGENTS.md) | The performance tests, for running performance test experiments and automating them, including agent-based tuning. |
+| [`microbench/AGENTS.md`](microbench/AGENTS.md) | The JMH microbenchmarks, for the performance of a single class or method. |
+
 The authoritative project documentation is at <https://pulsar.apache.org>, whose source lives in the
 [`apache/pulsar-site`](https://github.com/apache/pulsar-site) repository (where documentation changes
 are contributed). The files above and the website remain the source of truth — this guide just layers
