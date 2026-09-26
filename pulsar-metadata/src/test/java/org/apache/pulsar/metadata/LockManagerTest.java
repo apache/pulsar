@@ -383,4 +383,72 @@ public class LockManagerTest extends BaseMetadataStoreTest {
             assertFalse(lock.getLockExpiredFuture().isDone());
         });
     }
+
+    /**
+     * A lock that adopts an already present record must come out valid: when the record is
+     * later deleted, the revalidation of the adopted handle re-creates it. Adoption used to
+     * leave the handle in the Init state, where revalidation is a no-op, so nothing would
+     * re-create the record and no expiry would be signalled.
+     */
+    @Test(dataProvider = "impl")
+    public void adoptedLockIsValidAndRecreatesThePathWhenDeleted(
+            String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LockManager<String> lockManager = coordinationService.getLockManager(String.class);
+
+        String key = newKey();
+        lockManager.acquireLock(key, "lock").join();
+
+        // The second acquire adopts the record the first one created, instead of failing.
+        ResourceLock<String> adopted = lockManager.acquireLock(key, "lock").join();
+        assertFalse(adopted.getLockExpiredFuture().isDone());
+
+        store.delete(key, Optional.empty()).join();
+
+        Awaitility.await().untilAsserted(() -> {
+            Optional<GetResult> val = store.get(key).join();
+            assertTrue(val.isPresent());
+            assertFalse(adopted.getLockExpiredFuture().isDone());
+        });
+    }
+
+    /**
+     * A handle that the lock manager replaced must not resurrect the path: after the
+     * replacement is released, a revalidation of the superseded handle that was still
+     * scheduled or in flight must not re-create the record.
+     */
+    @Test(dataProvider = "impl")
+    public void supersededHandleDoesNotResurrectThePath(
+            String provider, Supplier<String> urlSupplier) throws Exception {
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
+
+        @Cleanup
+        LockManager<String> lockManager = coordinationService.getLockManager(String.class);
+
+        String key = newKey();
+        ResourceLock<String> first = lockManager.acquireLock(key, "lock").join();
+        ResourceLock<String> replacement = lockManager.acquireLock(key, "lock").join();
+
+        // The replacement retired the superseded handle.
+        Awaitility.await().until(first.getLockExpiredFuture()::isDone);
+
+        replacement.release().join();
+
+        Awaitility.await()
+                .during(1, TimeUnit.SECONDS)
+                .atMost(2, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertFalse(store.get(key).join().isPresent()));
+    }
 }
