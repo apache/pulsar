@@ -10,8 +10,22 @@ details; read it before running or changing the tests.
 
 - A run takes minutes and uses the whole host. Don't start runs, or run them alongside other runs or builds, unless
   the user asked for them.
-- Before a series of runs, check the host as the README's "Before you start" describes. Configuring the host needs
-  `sudo`; ask the user to run the script rather than running it yourself.
+- Before a series of runs, check the host; this needs no root:
+
+  ```bash
+  tests/performance/environment/scripts/configure-perf-test-environment.sh validate
+  ```
+
+  It exits with 1 when a check failed, and prints the reasons to stderr:
+  - When the disk is too full, ask the user for permission to run `environment/scripts/docker-cleanup.sh`, which
+    removes the Pulsar images and unused Docker data. Show what it would remove with `--dry-run` first, and run it
+    only once the user has allowed it.
+  - When the host isn't configured, ask the user to configure it as
+    [`environment/README.md`](environment/README.md) instructs, which needs `sudo`. When you'll be running
+    experiments repeatedly, you can suggest that the user sets up the sudoers rule that
+    [`environment/README.md`](environment/README.md#running-start-and-stop-without-a-password) describes. It lets
+    you run `sudo /usr/local/sbin/configure-perf-test-environment.sh start` before the runs and `stop` after them
+    yourself, without a password; `install` still needs the user.
 - Use a run's numbers only when its report shows a valid run, as "Read the report" in the README describes, and don't
   claim a performance change from a single run: compare revisions as `docs/comparing-revisions.md` describes.
 - Find a run's results from the launcher's output, which prints the run directory and the run report. Don't commit

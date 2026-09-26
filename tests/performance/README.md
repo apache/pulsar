@@ -49,6 +49,9 @@ For the performance of a single class or method, use [the JMH microbenchmarks](.
   sudo tests/performance/environment/scripts/configure-perf-test-environment.sh stop     # after the runs
   ```
 
+  `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` checks, without root, that the
+  host is ready: that it's on AC power, has disk space and runs with the profile's settings.
+
 Run the commands in the root directory of the repository.
 
 ## Tutorial

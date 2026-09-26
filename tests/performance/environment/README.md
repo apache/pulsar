@@ -35,8 +35,9 @@ The script currently supports Debian based Linux distributions, such as Debian, 
 | `install` | Installs TuneD and `jq` (Debian based distributions), disables TuneD's dynamic tuning, installs the `performance-testing` TuneD profile, limits the size of Docker's container logs and leaves the TuneD daemon disabled. Run once, and again after the profile changes. |
 | `start` | Checks that the host is on AC power and warns when Docker's disk is 90 % full, stops `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS), activates and verifies the `performance-testing` profile and skips the `:tests:integration:tuneKernelPerfEvents` task in `~/.gradle/gradle.properties`. |
 | `stop` | Switches TuneD to the `balanced` profile, stops TuneD, starts the stopped daemons again and removes the Gradle property. |
+| `validate` | Checks that the host is ready for performance tests, see [Checking the host](#checking-the-host). Doesn't need root. |
 
-All commands run as root: `sudo scripts/configure-perf-test-environment.sh start`.
+`install`, `start` and `stop` run as root: `sudo scripts/configure-perf-test-environment.sh start`.
 
 ## What the profile changes
 
@@ -67,9 +68,9 @@ restart Docker.
 
 ### Running start and stop without a password
 
-To run `start` and `stop` from scripts, allow them in sudoers. Copy the script to a location that only root can
-write first: a sudoers rule for a script that your user can edit lets anything running as your user run any command
-as root.
+To run `start` and `stop` from scripts, or to let an AI agent that runs experiments configure the host before and
+after its runs, allow them in sudoers. Copy the script to a location that only root can write first: a sudoers rule
+for a script that your user can edit lets anything running as your user run any command as root.
 
 ```sh
 sudo install -o root -g root -m 755 scripts/configure-perf-test-environment.sh /usr/local/sbin/
@@ -134,6 +135,24 @@ Before a run:
 - Keep the disk that holds Docker's data less than 90 % full. BookKeeper bookies switch to read-only mode when the
   disk is 95 % full. `scripts/docker-cleanup.sh` frees space, see below.
 - Close applications that use the CPU, such as browsers and IDEs.
+
+## Checking the host
+
+`validate` checks, without root, that the host is ready for performance tests, for example in a script or by an AI
+agent before a series of runs:
+
+```sh
+tests/performance/environment/scripts/configure-perf-test-environment.sh validate
+```
+
+It checks that the host is on AC power, that the disk that holds Docker's data is less than 90 % full, that the
+`performance-testing` profile is active with `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS) stopped,
+and the settings the profile applies: turbo, the CPU frequency governor, swapping, perf events and Transparent Huge
+Pages. It runs every check, prints each one to stdout as `ok:` or `FAILED:`, and the reason for each failed check,
+with what to do about it, to stderr. It exits with 1 when a check failed.
+
+A failed setting check while the profile is active means that the installed profile is older than the script: run
+`install` again, then `start`.
 
 ## Freeing Docker disk space
 

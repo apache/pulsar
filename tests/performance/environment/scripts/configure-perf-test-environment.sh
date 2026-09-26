@@ -29,6 +29,11 @@
 #            ~/.gradle/gradle.properties of the user running sudo
 #   stop     switches TuneD to a balanced profile that allows power saving, stops TuneD,
 #            starts the daemons stopped by "start" again and removes the Gradle property
+#   validate checks, without root, that the host is ready for performance tests: AC power,
+#            disk space, the active TuneD profile and the settings it applies. It prints each
+#            check to stdout and the reason for each failed check to stderr, and exits with
+#            1 when a check failed, so that scripts and AI agents can check the host before
+#            running tests.
 set -euo pipefail
 
 PERF_PROFILE="performance-testing"
@@ -42,8 +47,9 @@ DOCKER_SERVICE="docker.service"
 DOCKER_DAEMON_CONFIG="/etc/docker/daemon.json"
 # Applied unless daemon.json already sets them
 DOCKER_LOG_OPTIONS='{"max-size": "100m", "max-file": "3"}'
-# BookKeeper's diskUsageWarnThreshold, bookies switch to read-only mode at 95 % by default
-DISK_USAGE_WARNING_PERCENT=90
+# BookKeeper's diskUsageWarnThreshold, bookies switch to read-only mode at 95 % by default. "start"
+# warns and "validate" fails when the disk that holds Docker's data is this full.
+DISK_USAGE_LIMIT_PERCENT=90
 # The performance-testing profile applies the kernel settings of the
 # :tests:integration:tuneKernelPerfEvents task, so "start" skips the task in the Gradle
 # properties of the user who runs the tests
@@ -52,13 +58,15 @@ GRADLE_PROPERTIES_BEGIN="# BEGIN added by configure-perf-test-environment.sh sta
 GRADLE_PROPERTIES_END="# END added by configure-perf-test-environment.sh start"
 
 usage() {
-    echo "Usage: sudo $0 install|start|stop" >&2
+    echo "Usage: sudo $0 install|start|stop, or $0 validate" >&2
 }
 
-if [[ $EUID -ne 0 ]]; then
-    echo "ERROR: Run this script as root: sudo $0 ${*}" >&2
-    exit 1
-fi
+require_root() {
+    if [[ $EUID -ne 0 ]]; then
+        echo "ERROR: Run this script as root: sudo $0 $1" >&2
+        exit 1
+    fi
+}
 
 os_id() {
     (
@@ -384,8 +392,8 @@ check_perf_profile_installed() {
     fi
 }
 
-check_ac_power() {
-    # Laptops run with lower power limits on battery
+# Laptops run with lower power limits on battery
+on_battery() {
     local supply has_battery=false on_ac=false
     for supply in /sys/class/power_supply/*; do
         case "$(cat "${supply}/type" 2>/dev/null)" in
@@ -397,21 +405,30 @@ check_ac_power() {
                 ;;
         esac
     done
-    if [[ "${has_battery}" == true && "${on_ac}" == false ]]; then
+    [[ "${has_battery}" == true && "${on_ac}" == false ]]
+}
+
+check_ac_power() {
+    if on_battery; then
         echo "ERROR: The host is running on battery. Connect it to AC power." >&2
         exit 1
     fi
 }
 
-check_disk_space() {
-    local docker_root usage
+# Prints the directory of Docker's data and how full its disk is, in percent
+docker_disk_usage() {
+    local docker_root
     docker_root="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || true)"
     docker_root="${docker_root:-/var/lib/docker}"
-    if [[ ! -d "${docker_root}" ]]; then
-        return
+    if [[ -d "${docker_root}" ]]; then
+        echo "${docker_root} $(df --output=pcent "${docker_root}" | tail -n 1 | tr -d ' %')"
     fi
-    usage="$(df --output=pcent "${docker_root}" | tail -n 1 | tr -d ' %')"
-    if ((usage >= DISK_USAGE_WARNING_PERCENT)); then
+}
+
+check_disk_space() {
+    local docker_root usage
+    read -r docker_root usage < <(docker_disk_usage) || return 0
+    if ((usage >= DISK_USAGE_LIMIT_PERCENT)); then
         echo "WARNING: The disk of ${docker_root} is ${usage} % full. BookKeeper bookies switch to" \
             "read-only mode when the disk is 95 % full." >&2
     fi
@@ -528,10 +545,165 @@ stop() {
     echo "Performance testing environment settings are no longer enforced."
 }
 
+# "validate" prints each check to stdout, and the reason for each failed check to stderr
+validation_checks=0
+validation_failures=0
+
+check_passed() {
+    validation_checks=$((validation_checks + 1))
+    echo "ok: $1"
+}
+
+check_failed() {
+    validation_checks=$((validation_checks + 1))
+    validation_failures=$((validation_failures + 1))
+    echo "FAILED: $1"
+    echo "$1: $2" >&2
+}
+
+# The selected value of a sysfs or procfs file, such as madvise in "always [madvise] never"
+setting_value() {
+    local value
+    value="$(cat "$1" 2>/dev/null)" || return 1
+    if [[ "${value}" =~ \[([^]]*)\] ]]; then
+        value="${BASH_REMATCH[1]}"
+    fi
+    echo "${value}"
+}
+
+# Checks that a setting has the value the performance-testing profile sets, when the host has it
+validate_setting() {
+    local description="$1" file="$2" expected="$3" value
+    if [[ ! -e "${file}" ]]; then
+        return
+    fi
+    value="$(setting_value "${file}")"
+    if [[ "${value}" == "${expected}" ]]; then
+        check_passed "${description} (${file} is ${expected})"
+    else
+        check_failed "${description}" "${file} is ${value}, not ${expected}. $(configure_hint)"
+    fi
+}
+
+configure_hint() {
+    echo "Configure the host as tests/performance/environment/README.md describes: 'sudo $0 install'" \
+        "installs or updates the performance-testing profile, and 'sudo $0 start' applies it."
+}
+
+validate_power() {
+    if on_battery; then
+        check_failed "on AC power" "The host is running on battery. Connect it to AC power."
+    else
+        check_passed "on AC power"
+    fi
+}
+
+validate_disk_space() {
+    local docker_root usage
+    if ! docker info >/dev/null 2>&1; then
+        check_failed "Docker is available" "Can't connect to Docker. Start it, or add the user to the docker group."
+        return
+    fi
+    if ! read -r docker_root usage < <(docker_disk_usage); then
+        check_failed "Docker's disk has space" "Docker's data directory wasn't found."
+        return
+    fi
+    if ((usage >= DISK_USAGE_LIMIT_PERCENT)); then
+        check_failed "Docker's disk is less than ${DISK_USAGE_LIMIT_PERCENT} % full" "The disk of ${docker_root} is\
+ ${usage} % full, and BookKeeper bookies switch to read-only mode when it is 95 % full. Free space, for example with\
+ tests/performance/environment/scripts/docker-cleanup.sh, which removes the Pulsar images and unused Docker data."
+    else
+        check_passed "Docker's disk is less than ${DISK_USAGE_LIMIT_PERCENT} % full (${docker_root}: ${usage} %)"
+    fi
+}
+
+validate_tuned_profile() {
+    local active_profile state
+    active_profile="$(cat /etc/tuned/active_profile 2>/dev/null || true)"
+    state="$(systemctl is-active "${TUNED_SERVICE}" 2>/dev/null || true)"
+    if [[ "${state}" == "active" && "${active_profile}" == "${PERF_PROFILE}" ]]; then
+        check_passed "the ${PERF_PROFILE} TuneD profile is active"
+    else
+        check_failed "the ${PERF_PROFILE} TuneD profile is active" \
+            "TuneD is ${state:-not installed}, and its profile is ${active_profile:-not set}. $(configure_hint)"
+    fi
+}
+
+validate_service_stopped() {
+    if ! service_exists "$1"; then
+        return
+    fi
+    if systemctl is-active --quiet "$1"; then
+        check_failed "$1 is stopped" "$1 is running, and changes CPU settings during the tests. $(configure_hint)"
+    else
+        check_passed "$1 is stopped"
+    fi
+}
+
+validate_turbo() {
+    local no_turbo=/sys/devices/system/cpu/intel_pstate/no_turbo boost=/sys/devices/system/cpu/cpufreq/boost
+    if [[ -e "${no_turbo}" ]]; then
+        validate_setting "CPU turbo is disabled" "${no_turbo}" 1
+    elif [[ -e "${boost}" ]]; then
+        validate_setting "CPU boost is disabled" "${boost}" 0
+    else
+        check_passed "CPU turbo is disabled (the host has no turbo control)"
+    fi
+}
+
+validate_governor() {
+    local governor others=()
+    for governor in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_governor; do
+        if [[ -e "${governor}" && "$(cat "${governor}")" != "performance" ]]; then
+            others+=("${governor}")
+        fi
+    done
+    if ((${#others[@]} == 0)); then
+        check_passed "the CPU frequency governor is performance"
+    else
+        check_failed "the CPU frequency governor is performance" \
+            "${#others[@]} CPUs use another governor, such as ${others[0]}: $(cat "${others[0]}"). $(configure_hint)"
+    fi
+}
+
+validate() {
+    validate_power
+    validate_disk_space
+    validate_tuned_profile
+    validate_service_stopped "${THERMALD_SERVICE}"
+    if [[ "$(os_id)" == "pop" ]]; then
+        validate_service_stopped "${SYSTEM76_POWER_SERVICE}"
+    fi
+    validate_turbo
+    validate_governor
+    validate_setting "the kernel avoids swapping" /proc/sys/vm/swappiness 1
+    validate_setting "profilers can use perf events" /proc/sys/kernel/perf_event_paranoid 1
+    validate_setting "Transparent Huge Pages are enabled for the JVM" \
+        /sys/kernel/mm/transparent_hugepage/enabled madvise
+    validate_setting "Transparent Huge Pages are compacted when the JVM touches its heap" \
+        /sys/kernel/mm/transparent_hugepage/defrag madvise
+
+    if ((validation_failures > 0)); then
+        echo "Validation failed: ${validation_failures} of ${validation_checks} checks failed." >&2
+        exit 1
+    fi
+    echo "Validation passed: ${validation_checks} checks."
+}
+
 case "${1:-}" in
-    install) install_environment ;;
-    start) start ;;
-    stop) stop ;;
+    install)
+        require_root install
+        install_environment
+        ;;
+    start)
+        require_root start
+        start
+        ;;
+    stop)
+        require_root stop
+        stop
+        ;;
+    validate) validate ;;
     *)
         usage
         exit 1
