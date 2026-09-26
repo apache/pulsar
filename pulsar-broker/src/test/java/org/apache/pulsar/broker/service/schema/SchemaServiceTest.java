@@ -30,6 +30,10 @@ import static org.testng.AssertJUnit.assertNull;
 import com.google.common.collect.Multimap;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+import com.google.protobuf.DescriptorProtos.DescriptorProto;
+import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
+import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
+import com.google.protobuf.Descriptors.FileDescriptor;
 import io.opentelemetry.api.common.Attributes;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -42,6 +46,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -52,8 +57,11 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
+import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
+import org.apache.pulsar.broker.service.schema.generated.enums.NativeLegacyEnum;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
@@ -109,6 +117,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         storage.start();
         Map<SchemaType, SchemaCompatibilityCheck> checkMap = new HashMap<>();
         checkMap.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
+        checkMap.put(SchemaType.PROTOBUF_NATIVE, new ProtobufNativeSchemaAdvancedCompatibilityCheck());
         schemaRegistryService = new SchemaRegistryServiceImpl(storage, checkMap, MockClock, pulsar);
 
         var schemaRegistryStats =
@@ -400,6 +409,103 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testAdvancedNativeHistoryAndReuse() throws Exception {
+        String id = BrokerTestUtil.newUniqueName("tenant/ns/native-topic");
+        SchemaData v1 = nativeSchema("id", 1, FieldDescriptorProto.Type.TYPE_INT32, false);
+        SchemaData v2 = nativeSchema(null, 0, null, false);
+        SchemaData v3 = nativeSchema("id", 1, FieldDescriptorProto.Type.TYPE_STRING, false);
+        putSchema(id, v1, version(0), BACKWARD_TRANSITIVE);
+        putSchema(id, v2, version(1), BACKWARD_TRANSITIVE);
+        putSchema(id, v2, version(1), BACKWARD_TRANSITIVE);
+        putSchema(id, v3, version(2), BACKWARD);
+
+        assertThat(schemaRegistryService.isCompatible(id, v3, BACKWARD)).succeedsWithin(Duration.ofSeconds(2),
+                InstanceOfAssertFactories.BOOLEAN).isTrue();
+        assertThat(schemaRegistryService.isCompatible(id, v3, BACKWARD_TRANSITIVE))
+                .failsWithin(Duration.ofSeconds(2))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(IncompatibleSchemaException.class);
+    }
+
+    @Test
+    public void testAdvancedNativeConsumerStrategyMapping() throws Exception {
+        String id = BrokerTestUtil.newUniqueName("tenant/ns/native-consumer");
+        SchemaData required = nativeSchema("id", 1, FieldDescriptorProto.Type.TYPE_INT32, true);
+        SchemaData optional = nativeSchema("id", 1, FieldDescriptorProto.Type.TYPE_INT32, false);
+        putSchema(id, required, version(0));
+        for (SchemaCompatibilityStrategy strategy : List.of(SchemaCompatibilityStrategy.BACKWARD,
+                SchemaCompatibilityStrategy.FORWARD, SchemaCompatibilityStrategy.FULL,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE,
+                SchemaCompatibilityStrategy.FORWARD_TRANSITIVE)) {
+            schemaRegistryService.checkConsumerCompatibility(id, optional, strategy).get();
+        }
+        assertThat(schemaRegistryService.checkConsumerCompatibility(id, optional,
+                SchemaCompatibilityStrategy.FULL_TRANSITIVE))
+                .failsWithin(Duration.ofSeconds(2))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(IncompatibleSchemaException.class);
+        schemaRegistryService.checkConsumerCompatibility(id, optional,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE).get();
+    }
+
+    @Test
+    public void testAdvancedNativeConsumerLatestOnlyAndMissingSchema() throws Exception {
+        String id = BrokerTestUtil.newUniqueName("tenant/ns/native-consumer-latest");
+        SchemaData v1 = nativeSchema("id", 1, FieldDescriptorProto.Type.TYPE_INT32, false);
+        SchemaData v2 = nativeSchema(null, 0, null, false);
+        SchemaData consumer = nativeSchema("id", 1, FieldDescriptorProto.Type.TYPE_STRING, false);
+        putSchema(id, v1, version(0), BACKWARD);
+        putSchema(id, v2, version(1), BACKWARD);
+        schemaRegistryService.checkConsumerCompatibility(id, consumer,
+                SchemaCompatibilityStrategy.FORWARD_TRANSITIVE).get();
+        assertThat(schemaRegistryService.checkConsumerCompatibility(id, consumer,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE))
+                .failsWithin(Duration.ofSeconds(2))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(IncompatibleSchemaException.class);
+
+        String absent = BrokerTestUtil.newUniqueName("tenant/ns/native-missing");
+        schemaRegistryService.checkConsumerCompatibility(absent, consumer,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE).get();
+        assertThat(schemaRegistryService.checkConsumerCompatibility(absent, consumer,
+                SchemaCompatibilityStrategy.BACKWARD))
+                .failsWithin(Duration.ofSeconds(2))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(NotExistSchemaException.class);
+    }
+
+    @Test
+    public void testAdvancedNativeUnsupportedHistoryEqualityShortcuts() throws Exception {
+        String id = BrokerTestUtil.newUniqueName("tenant/ns/native-legacy-enum");
+        SchemaData unsupported = SchemaData.builder().type(SchemaType.PROTOBUF_NATIVE)
+                .data(ProtobufNativeSchemaUtils.serialize(NativeLegacyEnum.Order.getDescriptor()))
+                .user(userId).timestamp(MockClock.millis()).build();
+        putSchema(id, unsupported, version(0), BACKWARD);
+        putSchema(id, unsupported, version(0), BACKWARD);
+        schemaRegistryService.checkConsumerCompatibility(id, unsupported, SchemaCompatibilityStrategy.BACKWARD).get();
+        assertThat(schemaRegistryService.checkConsumerCompatibility(id, unsupported,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE))
+                .failsWithin(Duration.ofSeconds(2))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(IncompatibleSchemaException.class);
+    }
+
+    private static SchemaData nativeSchema(String fieldName, int number, FieldDescriptorProto.Type type,
+                                           boolean required) throws Exception {
+        DescriptorProto.Builder message = DescriptorProto.newBuilder().setName("Order");
+        if (fieldName != null) {
+            message.addField(FieldDescriptorProto.newBuilder().setName(fieldName).setNumber(number).setType(type)
+                    .setLabel(required ? FieldDescriptorProto.Label.LABEL_REQUIRED
+                            : FieldDescriptorProto.Label.LABEL_OPTIONAL));
+        }
+        FileDescriptorProto file = FileDescriptorProto.newBuilder().setName("native-order.proto")
+                .setPackage("example").setSyntax("proto2").addMessageType(message).build();
+        return SchemaData.builder().type(SchemaType.PROTOBUF_NATIVE)
+                .data(ProtobufNativeSchemaUtils.serialize(FileDescriptor.buildFrom(file, new FileDescriptor[0])
+                        .findMessageTypeByName("Order"))).user(userId).timestamp(MockClock.millis()).build();
+    }
+
+    @Test
     public void testSchemaStorageFailed() throws Exception {
         conf.setSchemaRegistryStorageClassName("Unknown class name");
         try {
@@ -410,6 +516,15 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(e.getClass(), PulsarServerException.class);
             Assert.assertTrue(e.getMessage().contains("User class must be in class path"));
         }
+    }
+
+    @Test
+    public void testBrokerRejectsBothNativeCheckersAtStartup() throws Exception {
+        conf.setSchemaRegistryCompatibilityCheckers(Set.of(
+                ProtobufNativeSchemaCompatibilityCheck.class.getName(),
+                ProtobufNativeSchemaAdvancedCompatibilityCheck.class.getName()));
+        assertThatThrownBy(this::restartBroker)
+                .hasRootCauseMessage("Configure only one PROTOBUF_NATIVE compatibility checker");
     }
 
     private void putSchema(String schemaId, SchemaData schema, SchemaVersion expectedVersion) throws Exception {

@@ -18,16 +18,26 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import com.google.protobuf.DescriptorProtos.DescriptorProto;
+import com.google.protobuf.DescriptorProtos.FieldDescriptorProto;
+import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
+import com.google.protobuf.Descriptors.FileDescriptor;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.Data;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtils;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.StringSchema;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.schema.KeyValueEncodingType;
+import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -55,7 +65,51 @@ public class KeyValueSchemaCompatibilityCheckTest {
     protected void setup() {
         checkers.put(SchemaType.AVRO, new AvroSchemaCompatibilityCheck());
         checkers.put(SchemaType.JSON, new JsonSchemaCompatibilityCheck());
+        checkers.put(SchemaType.PROTOBUF_NATIVE, new ProtobufNativeSchemaAdvancedCompatibilityCheck());
         checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
+    }
+
+    @Test
+    public void testAdvancedNativeKeyAndValueDelegation() throws Exception {
+        SchemaInfo nativeInt = nativeSchemaInfo(FieldDescriptorProto.Type.TYPE_INT32);
+        SchemaInfo nativeString = nativeSchemaInfo(FieldDescriptorProto.Type.TYPE_STRING);
+        SchemaInfo other = new StringSchema().getSchemaInfo();
+        SchemaCompatibilityCheck keyValue = checkers.get(SchemaType.KEY_VALUE);
+
+        Assert.assertFalse(keyValue.isCompatible(keyValue(nativeInt, other), keyValue(nativeString, other),
+                SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertFalse(keyValue.isCompatible(keyValue(other, nativeInt), keyValue(other, nativeString),
+                SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertFalse(keyValue.isCompatible(keyValue(nativeInt, nativeInt),
+                keyValue(nativeString, nativeInt), SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertTrue(keyValue.isCompatible(keyValue(nativeInt, nativeInt),
+                keyValue(nativeInt, nativeInt), SchemaCompatibilityStrategy.FULL));
+
+        SchemaData old = keyValue(nativeInt, other);
+        SchemaData empty = keyValue(nativeSchemaInfo(null), other);
+        SchemaData proposed = keyValue(nativeString, other);
+        Assert.assertTrue(keyValue.isCompatible(empty, proposed, SchemaCompatibilityStrategy.BACKWARD));
+        Assert.assertFalse(keyValue.isCompatible(List.of(old, empty), proposed,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE));
+    }
+
+    private static SchemaData keyValue(SchemaInfo key, SchemaInfo value) {
+        return SchemaData.fromSchemaInfo(KeyValueSchemaInfo.encodeKeyValueSchemaInfo("KeyValue", key, value,
+                KeyValueEncodingType.INLINE));
+    }
+
+    private static SchemaInfo nativeSchemaInfo(FieldDescriptorProto.Type type) throws Exception {
+        DescriptorProto.Builder message = DescriptorProto.newBuilder().setName("Order");
+        if (type != null) {
+            message.addField(FieldDescriptorProto.newBuilder().setName("id").setNumber(1)
+                    .setType(type).setLabel(FieldDescriptorProto.Label.LABEL_OPTIONAL));
+        }
+        FileDescriptorProto file = FileDescriptorProto.newBuilder().setName("native-kv.proto")
+                .setPackage("example").setSyntax("proto2").addMessageType(message).build();
+        byte[] bytes = ProtobufNativeSchemaUtils.serialize(FileDescriptor.buildFrom(file, new FileDescriptor[0])
+                .findMessageTypeByName("Order"));
+        return SchemaInfoImpl.builder().name("Order").type(SchemaType.PROTOBUF_NATIVE)
+                .schema(bytes).properties(Map.of()).build();
     }
 
     @Test

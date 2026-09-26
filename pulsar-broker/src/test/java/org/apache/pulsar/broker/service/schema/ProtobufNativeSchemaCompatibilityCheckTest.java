@@ -42,7 +42,7 @@ public class ProtobufNativeSchemaCompatibilityCheckTest {
     public void testRootMessageChange() {
         ProtobufNativeSchemaCompatibilityCheck compatibilityCheck = new ProtobufNativeSchemaCompatibilityCheck();
         Assert.assertFalse(compatibilityCheck.isCompatible(schemaData2, schemaData1,
-                SchemaCompatibilityStrategy.FULL),
+                        SchemaCompatibilityStrategy.FULL),
                 "Protobuf root message isn't allow change");
     }
 

@@ -34,9 +34,15 @@ public interface SchemaRegistryService extends SchemaRegistry {
 
     static Map<SchemaType, SchemaCompatibilityCheck> getCheckers(Set<String> checkerClasses) throws Exception {
         Map<SchemaType, SchemaCompatibilityCheck> checkers = new HashMap<>();
+        boolean advancedSelected = checkerClasses.contains(
+                ProtobufNativeSchemaAdvancedCompatibilityCheck.class.getName());
         for (String className : checkerClasses) {
             SchemaCompatibilityCheck schemaCompatibilityCheck = Reflections.createInstance(className,
                     SchemaCompatibilityCheck.class, Thread.currentThread().getContextClassLoader());
+            if (advancedSelected && schemaCompatibilityCheck.getSchemaType() == SchemaType.PROTOBUF_NATIVE
+                    && checkers.containsKey(SchemaType.PROTOBUF_NATIVE)) {
+                throw new IllegalArgumentException("Multiple PROTOBUF_NATIVE compatibility checkers configured");
+            }
             checkers.put(schemaCompatibilityCheck.getSchemaType(), schemaCompatibilityCheck);
         }
         return checkers;
@@ -44,6 +50,15 @@ public interface SchemaRegistryService extends SchemaRegistry {
 
     static SchemaRegistryService create(SchemaStorage schemaStorage, Set<String> schemaRegistryCompatibilityCheckers,
                                         PulsarService pulsarService) {
+        boolean advancedSelected = schemaRegistryCompatibilityCheckers.contains(
+                ProtobufNativeSchemaAdvancedCompatibilityCheck.class.getName());
+        if (schemaRegistryCompatibilityCheckers.contains(ProtobufNativeSchemaCompatibilityCheck.class.getName())
+                && advancedSelected) {
+            throw new IllegalArgumentException("Configure only one PROTOBUF_NATIVE compatibility checker");
+        }
+        if (schemaStorage == null && advancedSelected) {
+            throw new IllegalStateException("Advanced PROTOBUF_NATIVE checker requires schema storage");
+        }
         if (schemaStorage != null) {
             try {
                 Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
@@ -62,6 +77,9 @@ public interface SchemaRegistryService extends SchemaRegistry {
                         new SchemaRegistryServiceImpl(schemaStorage, checkers, pulsarService),
                         allowLegacyJacksonFormat);
             } catch (Exception e) {
+                if (advancedSelected) {
+                    throw new IllegalStateException("Unable to initialize advanced PROTOBUF_NATIVE checker", e);
+                }
                 LOG.warn().exception(e).log("Unable to create schema registry storage, defaulting to empty storage");
             }
         }
