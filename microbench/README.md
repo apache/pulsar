@@ -151,4 +151,5 @@ The `.jfr` can also be opened in [Eclipse Mission Control](https://adoptium.net/
 IDEA, or handed to an AI agent through the
 [Jafar MCP server](https://github.com/btraceio/jafar/blob/main/jfr-mcp/README.md), which lets the
 agent query the recording directly with tools such as `jfr_diagnose` and `jfr_stackprofile` — see
-[Jafar MCP analysis](../tests/performance/docs/analyzing-profiles.md#jafar-mcp-analysis).
+[Jafar MCP analysis](../tests/performance/docs/analyzing-profiles.md#jafar-mcp-analysis), which also
+describes the jafar-perf plugin with a broader toolset.

@@ -238,7 +238,7 @@ monitors, queues, I/O or GC, not only where they use CPU. See [Performance tests
 
 [Analyzing profiles](tests/performance/docs/analyzing-profiles.md) describes rendering these recordings
 into flame graphs, opening them in JDK Mission Control or IntelliJ IDEA, analyzing them with the Jafar
-MCP server, and investigating memory leaks with the MAT MCP server.
+MCP server or its jafar-perf plugin, and investigating memory leaks with the MAT MCP server.
 
 ### Integration tests
 

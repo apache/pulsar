@@ -248,7 +248,7 @@ same experiment name, so that the runs of both land next to each other:
 - [Profiling](docs/profiling.md): the jonoffcpu profiler, its requirements and options, the files of a profiled run
   and the measurement recording.
 - [Analyzing profiles](docs/analyzing-profiles.md): finding what to optimize, comparing profiles, and the tools that
-  read the recordings, including JDK Mission Control and the Jafar MCP server.
+  read the recordings, including JDK Mission Control, the Jafar MCP server and its jafar-perf plugin.
 - [Comparing revisions](docs/comparing-revisions.md): running an A/B comparison.
 - [The performance testing environment setup](environment/README.md): configuring a Linux host for consistent
   results, and freeing Docker disk space.

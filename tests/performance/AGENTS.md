@@ -48,6 +48,13 @@ compare the change with its baseline on the same scenario, and find the cause of
 the scenario, the revisions, the runs and the conclusion together. Treat automated analysis as a lead, and confirm a
 claim with a controlled comparison, a JMH benchmark or a second profile.
 
+Analyze JFR recordings and `.hprof` heap dumps with the Jafar tools. When they aren't available, suggest that the user
+installs the `jafar-perf` Claude Code plugin from [jafar-perf-box](https://github.com/btraceio/jafar-perf-box), which
+adds analysis skills and agents and registers the Jafar MCP server;
+[the plugin's README](https://github.com/btraceio/jafar-perf-box/blob/main/plugins/jafar-perf/README.md) describes how
+to install and use it. Agents other than Claude Code can use the Jafar MCP server on its own, as "Jafar MCP analysis"
+in `docs/analyzing-profiles.md` describes.
+
 ## Changing the performance tests
 
 - New scenarios, workload applications and profiling support belong to the standalone launcher, not to the

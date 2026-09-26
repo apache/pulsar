@@ -143,6 +143,13 @@ recording. Register it once with [JBang](https://www.jbang.dev/) and JDK 25+:
 claude mcp add jafar -- jbang jfr-mcp@btraceio --stdio
 ```
 
+For a broader toolset, use the `jafar-perf` Claude Code plugin from
+[jafar-perf-box](https://github.com/btraceio/jafar-perf-box) instead. It adds skills and agents on top of the Jafar
+MCP server that guide an analysis of a recording or a heap dump from triage to a report, including comparing
+recordings and investigating memory leaks, and it registers the Jafar MCP server itself.
+[Its README](https://github.com/btraceio/jafar-perf-box/blob/main/plugins/jafar-perf/README.md) describes how to
+install and use it.
+
 Use `jfr_diagnose` and `jfr_stackprofile` first, then query further with the other Jafar tools when needed. Save the
 result beside the recording as `<recording>.analysis.md`, in addition to showing the report in the console. For a
 standalone profiled run, analyze `<recording>.measurement.jfr`: CPU samples are `jdk.ExecutionSample`,
@@ -165,4 +172,5 @@ For an `OutOfMemoryError` or suspected retention problem, analyze the resulting 
 Memory Analyzer (MAT) MCP server such as [`mcp-mat`](https://github.com/codelipenghui/mcp-mat). Use the leak suspects
 report and dominator tree first, then query paths to GC roots or OQL for the retained objects. Keep the heap dump and
 the MCP result outside the source tree when they contain sensitive workload data; record the commands, heap limits
-and the resulting conclusions in the experiment notes.
+and the resulting conclusions in the experiment notes. The [`jafar-perf` plugin](#jafar-mcp-analysis) can investigate
+memory leaks in heap dumps too.
