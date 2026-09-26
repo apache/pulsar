@@ -365,6 +365,56 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         assertNull(consumer.receive(5, TimeUnit.SECONDS));
     }
 
+    /**
+     * Verifies that pendingChunkedMessageUuidQueue does not leak entries as chunked messages
+     * complete normally. Each first chunk adds the message uuid to the queue; on completion the
+     * uuid must be removed so the queue stays in sync with chunkedMessagesMap. Without the fix the
+     * queue grew by one entry per completed chunked message unboundedly (a memory leak), since the
+     * only other removal paths (eviction/expiry) never run when maxPendingChunkedMessage is not
+     * exceeded.
+     */
+    @Test
+    public void testPendingChunkedMessageUuidQueueDoesNotLeak() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/uuidQueueNoLeak";
+        final String subName = "my-sub";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .maxPendingChunkedMessage(10)
+                .expireTimeOfIncompleteChunkedMessage(1, TimeUnit.HOURS)
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        ConsumerImpl<String> consumerImpl = (ConsumerImpl<String>) consumer;
+
+        final int numMessages = 50;
+        for (int i = 0; i < numMessages; i++) {
+            String uuid = String.valueOf(i);
+            // A complete 2-chunk message.
+            sendSingleChunk(producer, uuid, 0, 2);
+            sendSingleChunk(producer, uuid, 1, 2);
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertEquals(msg.getValue(), "chunk-" + uuid + "-0|chunk-" + uuid + "-1|");
+            consumer.acknowledge(msg);
+        }
+
+        // Every message completed and was removed from chunkedMessagesMap; the uuid queue must have
+        // been drained in lockstep and not accumulated one ghost entry per completed message.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(consumerImpl.chunkedMessagesMap.size(), 0);
+            assertEquals(consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest(), 0,
+                    "pendingChunkedMessageUuidQueue leaked entries for completed chunked messages");
+        });
+    }
+
     @Test
     public void testResendChunkMessagesWithoutAckHole() throws Exception {
         log.info().attr("method", methodName).log("Starting test");

@@ -228,6 +228,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     // it will be used to manage N outstanding chunked message buffers
     private final BlockingQueue<String> pendingChunkedMessageUuidQueue;
 
+    @VisibleForTesting
+    int getPendingChunkedMessageUuidQueueSizeForTest() {
+        return pendingChunkedMessageUuidQueue.size();
+    }
+
     private final boolean createTopicIfDoesNotExist;
     private final boolean poolMessages;
 
@@ -1534,6 +1539,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // add chunked messageId to unack-message tracker, and reduce pending-chunked-message count
                 unAckedChunkedMessageIdSequenceMap.put(msgId, chunkedMsgCtx.chunkedMessageIds);
                 pendingChunkedMessageCount--;
+                // The completed message's uuid was added to pendingChunkedMessageUuidQueue when its
+                // first chunk arrived, but is only ever removed by the eviction/expiry paths. On the
+                // normal completion path it was never removed, so the queue accumulated one entry per
+                // completed chunked message unboundedly (a memory leak for long-running consumers).
+                // Remove it here to keep the queue in sync with chunkedMessagesMap.
+                pendingChunkedMessageUuidQueue.remove(msgMetadata.getUuid());
                 chunkedMsgCtx.recycle();
             }
 
