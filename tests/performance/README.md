@@ -162,15 +162,19 @@ topics, which 20 applications consume on Key_Shared subscriptions, for 20 second
 measurement at 1,000 messages per second. It restarts some of the applications' clients every 30 seconds, and checks
 that every application receives every message of every device in order.
 
-The launcher prints the run directory when it starts, the phases of the run as it goes, and the run report when it
-has finished. While the workload runs, it prints the producer's and the applications' progress every 10 seconds, as
-pulsar-perf does: the messages so far, the throughput, the latency percentiles of the last 10 seconds, merged over
-every application, and the subscriptions' backlog. The logs of Testcontainers and of the Pulsar containers go to
+The launcher prints the run directory and the scenario's resolved configuration when it starts, the phases of the
+run as it goes, and the run report when it has finished. While the workload runs, it prints the producer's and the
+applications' progress every 10 seconds, as pulsar-perf does: the messages so far, the throughput, the latency
+percentiles of the last 10 seconds, merged over every application, and the subscriptions' backlog. The logs of Testcontainers and of the Pulsar containers go to
 `launcher.log` in the run directory instead of the console:
 
 ```
 Run directory: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00
 12:00:00 Logs: .../build/performance/2026-09-26/master/iot-telemetry-local/09-26-12-00-00/launcher.log
+12:00:00 Scenario iot-telemetry-local.yaml, resolved:
+  cluster:
+    brokers: 1
+    ...
 12:00:00 Starting the Pulsar cluster: 1 broker(s), 3 bookie(s)
 12:00:23 Started the Pulsar cluster in 23 s
 12:00:23 Starting 20 application(s) with 10 client(s) each

@@ -232,6 +232,9 @@ public class PerformanceLauncher implements Callable<Integer> {
                     + cooldownTimeoutSeconds);
         }
         loader.write(resolvedConfig, resolved);
+        status("Scenario " + config.getFileName() + ", resolved:");
+        System.out.print(indent(loader.mapper().writerWithDefaultPrettyPrinter().writeValueAsString(resolved)
+                .replaceFirst("^---\\R", "")));
         // The scenario as written, beside its resolved form, so that the run report can link both
         Files.copy(config, runOutput.resolve(config.getFileName()), StandardCopyOption.REPLACE_EXISTING);
 
@@ -468,6 +471,11 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static long measurementMessageCount(JsonNode workload) {
         return workload.path("numberOfMessages").longValue() > 0 ? workload.path("numberOfMessages").longValue()
                 : workload.path("durationSeconds").longValue() * workload.path("rate").longValue();
+    }
+
+    /** Indents every line of {@code text} by two spaces, so that a block stands out from the status lines. */
+    static String indent(String text) {
+        return text.lines().map(line -> "  " + line + System.lineSeparator()).collect(Collectors.joining());
     }
 
     /** The run's name in the reports hierarchy: --name, else the scenario's output.name, else its file name. */

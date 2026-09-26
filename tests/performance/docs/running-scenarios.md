@@ -106,7 +106,8 @@ The launcher prints the run directory when it starts, and the run report when it
 
 ## Progress on the console
 
-The launcher's console shows only the run's phases and progress: starting the cluster, the applications and the
+The launcher's console shows only the scenario's resolved configuration, with its inheritance and environment
+overrides applied, and the run's phases and progress: starting the cluster, the applications and the
 producer, waiting for the applications, verifying, and the run report. The logs of Testcontainers and of the Pulsar
 containers go to `launcher.log` in the run directory.
 
