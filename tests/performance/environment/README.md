@@ -34,7 +34,7 @@ The script currently supports Debian based Linux distributions, such as Debian, 
 |---|---|
 | `install` | Installs TuneD and `jq` (Debian based distributions), disables TuneD's dynamic tuning, installs the `performance-testing` TuneD profile, limits the size of Docker's container logs and leaves the TuneD daemon disabled. Run once, and again after the profile changes. |
 | `start` | Checks that the host is on AC power and warns when Docker's disk is 90 % full, stops `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS), activates and verifies the `performance-testing` profile and skips the `:tests:integration:tuneKernelPerfEvents` task in `~/.gradle/gradle.properties`. |
-| `stop` | Switches TuneD to the `balanced` profile, stops TuneD, starts the stopped daemons again and removes the Gradle property. |
+| `stop` | Switches TuneD to the `balanced` profile, stops TuneD, applies the system's configured dirty page limits and swappiness again, starts the stopped daemons again and removes the Gradle property. |
 | `validate` | Checks that the host is ready for performance tests, see [Checking the host](#checking-the-host). Doesn't need root. |
 
 `install`, `start` and `stop` run as root: `sudo scripts/configure-perf-test-environment.sh start`.
@@ -47,7 +47,8 @@ states limited to C1, `min_perf_pct=100`) and adds:
 - **Turbo disabled**, so that the CPU runs at a fixed base frequency. Turbo frequencies depend on the temperature and
   the power budget of the CPU, which vary between runs and within a run. Absolute throughput is lower than with
   turbo, but comparisons between runs are more reliable, and cooling down between runs matters much less.
-- `vm.swappiness=1`, NUMA balancing disabled and the dirty page limits of `latency-performance` (10 % and 3 %).
+- `vm.swappiness=1` and NUMA balancing disabled. The host's own dirty page limits are kept, and `stop` applies the
+  system's configured dirty page limits and swappiness again after TuneD has switched back.
 - The `none` I/O scheduler, the `performance` ACPI platform profile (fans and power limits of laptops) and NVMe
   Autonomous Power State Transitions disabled.
 - Settings for profiling and for `-XX:+UseTransparentHugePages`: the perf event and BPF limits, the NMI watchdog

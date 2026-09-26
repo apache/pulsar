@@ -251,7 +251,13 @@ include=latency-performance
 [cpu]
 no_turbo=1
 
+# replace=1 leaves out the sysctls of latency-performance, whose dirty-page
+# ratios would override the host's own dirty-page limits. Some distros, such as
+# Pop!_OS, configure those limits in bytes, and TuneD can't restore them when the
+# profile is deactivated: it would write back ratios of 0, which throttle every
+# write to the disk
 [sysctl]
+replace=1
 vm.swappiness=1
 kernel.numa_balancing=0
 
@@ -269,9 +275,6 @@ elevator=none
 # power state to the first request after the drive has been idle
 /sys/class/nvme/nvme*/power/pm_qos_latency_tolerance_us=0
 
-[script]
-script=${i:PROFILE_DIR}/dirty-pages.sh
-
 # Profiling and Transparent Huge Pages settings, left in place when the profile
 # is deactivated
 [profiling_and_thp]
@@ -279,21 +282,8 @@ type=script
 script=${i:PROFILE_DIR}/profiling-and-thp.sh
 EOF
 
-    cat >"${PERF_PROFILE_DIR}/dirty-pages.sh" <<'EOF'
-#!/bin/sh
-set -eu
-
-case "${1:-}" in
-    start|reload)
-        # Some Linux distros configure fixed dirty-page limits, which TuneD applies
-        # again from the system sysctl config after the latency-performance
-        # sysctls. Setting the ratios makes the kernel reset the byte limits to 0
-        # (writing 0 to the byte limits directly is rejected with EINVAL).
-        sysctl -q -w vm.dirty_ratio=10
-        sysctl -q -w vm.dirty_background_ratio=3
-        ;;
-esac
-EOF
+    # Earlier versions of the profile set the dirty-page ratios with this script
+    rm -f "${PERF_PROFILE_DIR}/dirty-pages.sh"
 
     cat >"${PERF_PROFILE_DIR}/profiling-and-thp.sh" <<'EOF'
 #!/bin/sh
@@ -325,7 +315,7 @@ case "${1:-}" in
 esac
 EOF
 
-    chmod 755 "${PERF_PROFILE_DIR}/dirty-pages.sh" "${PERF_PROFILE_DIR}/profiling-and-thp.sh"
+    chmod 755 "${PERF_PROFILE_DIR}/profiling-and-thp.sh"
 }
 
 print_perf_settings() {
@@ -537,12 +527,43 @@ restore_profile_and_stop_tuned() {
     systemctl stop "${TUNED_SERVICE}"
 }
 
+# The sysctl configuration that the system applies at boot, in the order that it applies it
+system_sysctl_config() {
+    if command -v systemd-sysctl >/dev/null; then
+        systemd-sysctl --cat-config 2>/dev/null
+    else
+        cat /usr/lib/sysctl.d/*.conf /etc/sysctl.d/*.conf /etc/sysctl.conf 2>/dev/null
+    fi
+}
+
+# TuneD saves the dirty-page ratios and the swappiness when it applies the profile, and writes them
+# back when it switches away from it. On a distro that configures byte limits for dirty pages, such
+# as Pop!_OS, the ratios read 0 while those limits are in effect, and writing 0 back also resets the
+# byte limits to 0: the kernel then throttles every write to the disk. So the system's configured
+# values of these settings are applied again, in its order, so that the last value of each wins.
+# The other sysctls, such as the profiling settings, keep the values they have.
+restore_system_memory_settings() {
+    local settings
+    settings="$(system_sysctl_config \
+        | grep -E '^[[:space:]]*vm\.(dirty_(background_)?(bytes|ratio)|swappiness)[[:space:]]*=' \
+        | tr -d '[:blank:]' || true)"
+    if [[ -z "${settings}" ]]; then
+        return
+    fi
+    echo "Applying the system's dirty-page limits and swappiness again"
+    local setting
+    while IFS= read -r setting; do
+        sysctl -q -w "${setting}"
+    done <<<"${settings}"
+}
+
 start_thermald() {
     start_service_if_exists "${THERMALD_SERVICE}"
 }
 
 stop() {
     restore_profile_and_stop_tuned
+    restore_system_memory_settings
     start_distro_specific_services
     start_thermald
     remove_gradle_properties
