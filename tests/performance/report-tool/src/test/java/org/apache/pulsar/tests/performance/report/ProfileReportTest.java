@@ -100,6 +100,12 @@ public class ProfileReportTest {
                 + "[heatmap](broker-flamegraphs/cpu-heatmap.html) | "
                 + "[collapsed](broker-flamegraphs/cpu.collapsed) |");
         assertThat(report).contains("| alloc | [flame graph](broker-flamegraphs/alloc.html) |  |  |  |");
+        // The measurement recording remains, so the report says where to open it, after the recording's sections
+        assertThat(report).endsWith("\n### Opening the recordings in JDK Mission Control\n\n"
+                + "The JFR recordings open in JDK Mission Control, whose OpenJDK distribution is [Eclipse Mission"
+                + " Control](" + ProfileReport.ECLIPSE_MISSION_CONTROL + "). The JDK's [Troubleshoot Performance"
+                + " Issues Using Flight Recorder](" + ProfileReport.JFR_TROUBLESHOOTING_GUIDE + ") guide describes"
+                + " finding performance issues in a recording with it.\n");
 
         // The HTML pages link the digest's page rather than its Markdown.
         String page = Files.readString(directory.resolve("index.html"));
@@ -138,6 +144,27 @@ public class ProfileReportTest {
         assertThat(report).doesNotContain("producer throughput");
         assertThat(report).doesNotContain("### ");
         assertThat(report).doesNotContain("| File |");
+        // No recording remains to open
+        assertThat(report).doesNotContain("Mission Control");
+    }
+
+    @Test
+    public void pointsToJdkMissionControlOnceForNumberedRecordings() throws IOException {
+        Files.writeString(directory.resolve("producer-1.jfr"), "");
+        Files.writeString(directory.resolve("producer-2.measurement.jfr"), "");
+
+        Path file = ProfileReport.write(directory, List.of(directory.resolve("producer-1.jfr"),
+                        directory.resolve("producer-2.jfr")),
+                new ProfileReport.Run("scenario.yaml", "run-5", Instant.parse("2026-09-25T00:00:00Z"),
+                        Instant.parse("2026-09-25T00:00:01Z"), 0),
+                new ObjectMapper(), directory);
+        String report = Files.readString(file);
+
+        // A section beside the numbered recordings rather than inside the last one
+        assertThat(report.split("Opening the recordings", -1)).hasSize(2);
+        assertThat(report).contains("\n## Opening the recordings in JDK Mission Control\n");
+        assertThat(Files.readString(directory.resolve("index.html")))
+                .contains("<a href=\"" + ProfileReport.ECLIPSE_MISSION_CONTROL + "\">Eclipse Mission Control</a>");
     }
 
     @Test

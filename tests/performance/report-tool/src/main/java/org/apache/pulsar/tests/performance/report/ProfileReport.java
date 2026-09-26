@@ -33,12 +33,16 @@ import java.util.Locale;
  * Writes the profile report into a directory of profiled recordings, such as {@code broker-profile/}: the run
  * it belongs to, and for each recording tables linking its files (the off-CPU digest, the JFR recordings, the capture
  * stream and the patterns used), the off-CPU flame graphs with their totals, and the CPU, allocation, lock or
- * wall-clock views that were rendered. Links are relative, so the directory can be moved or archived, and only files
- * that exist are listed.
+ * wall-clock views that were rendered, followed by where to open the JFR recordings when any remain. Links are
+ * relative, so the directory can be moved or archived, and only files that exist are listed.
  */
 public final class ProfileReport {
     // The directory's README.md, with its HTML page the directory's index.html, so that the directory opens on it
     public static final String FILE_NAME = "README.md";
+    static final String ECLIPSE_MISSION_CONTROL = "https://adoptium.net/jmc";
+    // The JDK troubleshooting guide's chapter on finding performance issues in a recording with JDK Mission Control
+    static final String JFR_TROUBLESHOOTING_GUIDE = "https://docs.oracle.com/en/java/javase/25/troubleshoot/"
+            + "troubleshoot-performance-issues-using-jfr.html#GUID-0FE29092-18B5-4BEB-8D8D-0CBA7A4FEA1D";
 
     /** The run that produced the recordings. */
     public record Run(String scenario, String runId, Instant from, Instant to, double producerMessagesPerSecond) {
@@ -99,6 +103,10 @@ public final class ProfileReport {
             appendOffCpu(report, directory, base, mapper);
             appendViews(report, directory, base);
         }
+        if (recordings.stream().anyMatch(recording -> hasJfrRecording(directory, base(recording)))) {
+            // A section of its own among numbered recordings, like the sections of a single recording otherwise
+            appendMissionControl(report, recordings.size() > 1 ? "## " : "### ");
+        }
         Path file = directory.resolve(FILE_NAME);
         Files.writeString(file, report);
         MarkdownPages.renderHtml(file, root, "Profile report: " + directory.getFileName());
@@ -138,6 +146,20 @@ public final class ProfileReport {
         if (!rows.isEmpty()) {
             report.append("\n| File | Contents |\n|---|---|\n").append(rows);
         }
+    }
+
+    // Retention may have removed both recordings, which leaves nothing to open
+    private static boolean hasJfrRecording(Path directory, String base) {
+        return Files.isRegularFile(directory.resolve(base + ".jfr"))
+                || Files.isRegularFile(directory.resolve(base + ".measurement.jfr"));
+    }
+
+    private static void appendMissionControl(StringBuilder report, String heading) {
+        report.append('\n').append(heading).append("Opening the recordings in JDK Mission Control\n\n")
+                .append("The JFR recordings open in JDK Mission Control, whose OpenJDK distribution is [Eclipse")
+                .append(" Mission Control](").append(ECLIPSE_MISSION_CONTROL).append("). The JDK's [Troubleshoot")
+                .append(" Performance Issues Using Flight Recorder](").append(JFR_TROUBLESHOOTING_GUIDE)
+                .append(") guide describes finding performance issues in a recording with it.\n");
     }
 
     private static void appendOffCpu(StringBuilder report, Path directory, String base, ObjectMapper mapper)

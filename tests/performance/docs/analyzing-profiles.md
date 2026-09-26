@@ -97,8 +97,11 @@ skipped. It doesn't render off-CPU flame graphs, which need the jonoffcpu captur
 
 ## Opening recordings in JDK Mission Control or IntelliJ IDEA
 
-The `.jfr` files open in [Eclipse Mission Control](https://adoptium.net/jmc) and IntelliJ IDEA. For a standalone
-profiled run, open `<recording>.measurement.jfr`. Don't use `jfr summary` as a measure of profile completeness:
+The `.jfr` files open in JDK Mission Control and IntelliJ IDEA. The OpenJDK distribution of JDK Mission Control is
+[Eclipse Mission Control](https://adoptium.net/jmc), and the JDK's
+[Troubleshoot Performance Issues Using Flight Recorder](https://docs.oracle.com/en/java/javase/25/troubleshoot/troubleshoot-performance-issues-using-jfr.html#GUID-0FE29092-18B5-4BEB-8D8D-0CBA7A4FEA1D)
+guide describes finding performance issues in a recording with it. For a standalone profiled run, open
+`<recording>.measurement.jfr`. Don't use `jfr summary` as a measure of profile completeness:
 async-profiler writes its CPU samples as `jdk.ExecutionSample` and its allocation samples as
 `jdk.ObjectAllocationInNewTLAB` and `jdk.ObjectAllocationOutsideTLAB` in its own chunks, which the JDK summary counts
 as zero even when the flame graphs are full.

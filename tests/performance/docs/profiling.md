@@ -121,7 +121,7 @@ component, such as `broker-profile/inttest_profile_<time>_<container>.jfr` and
 
 | File | Contents |
 |---|---|
-| `README.md`, `index.html` | The profile report. **Start here**, from the run report. One per profiled directory (`broker-profile/`, `producer/`): the run, with a link back to the run report, and for each recording links to the off-CPU digest, the flame graphs with their totals, and the heatmaps |
+| `README.md`, `index.html` | The profile report. **Start here**, from the run report. One per profiled directory (`broker-profile/`, `producer/`): the run, with a link back to the run report, and for each recording links to the off-CPU digest, the flame graphs with their totals, and the heatmaps, and how to open the JFR recordings in JDK Mission Control |
 | `<recording>.jfr` | The complete recording, unless `retainOriginalRecording: false` |
 | `<recording>.measurement.jfr` | The same cut to the measurement window, see [The measurement recording](#the-measurement-recording) |
 | `<recording>-flamegraphs/` | `cpu`, `wall`, `alloc` and `lock` views of the measurement recording, each only when its event is in the profiler options: `<view>.html`, `<view>-threads.html` (split by thread), `<view>-heatmap.html` (samples over time, for bursts and pauses) and `<view>.collapsed`. Pulsar and BookKeeper frames are highlighted |

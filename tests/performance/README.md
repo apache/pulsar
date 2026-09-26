@@ -229,6 +229,11 @@ that waited. [Profiling](docs/profiling.md) describes the
 requirements, the profiler options and the files, and [Analyzing profiles](docs/analyzing-profiles.md) how to find
 what to optimize.
 
+The JFR recordings also open in JDK Mission Control, whose OpenJDK distribution is
+[Eclipse Mission Control](https://adoptium.net/jmc). The JDK's
+[Troubleshoot Performance Issues Using Flight Recorder](https://docs.oracle.com/en/java/javase/25/troubleshoot/troubleshoot-performance-issues-using-jfr.html#GUID-0FE29092-18B5-4BEB-8D8D-0CBA7A4FEA1D)
+guide describes finding performance issues in a recording with it.
+
 ### 5. Compare two revisions
 
 To find out whether a change makes Pulsar faster, run the same scenario on the baseline and on the candidate, a few
