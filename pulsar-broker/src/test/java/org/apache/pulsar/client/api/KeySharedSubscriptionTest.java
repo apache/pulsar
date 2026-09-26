@@ -1037,7 +1037,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             existingNames.add(existing.consumerName());
             probe.addConsumer(mockBrokerConsumer(existing.consumerName())).join();
         }
-        for (int i = 0; ; i++) {
+        // Search the whole hash-key space. If no name takes over the hash once it's exhausted, an exact
+        // hash-point collision means takeover can't happen, so fail fast instead of looping.
+        int maxAttempts = selector.getKeyHashRange().getEnd();
+        for (int i = 0; i <maxAttempts ; i++) {
             String name = "takeover-" + i;
             if (!existingNames.add(name)) {
                 continue;
@@ -1050,6 +1053,9 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
             }
             probe.removeConsumer(candidate);
         }
+        fail("Could not find a consumer name to take over hash " + messageKeyHash
+                + " after exhausting the hash-key space (" + maxAttempts + "slots)");
+        return null;
     }
 
     private org.apache.pulsar.broker.service.Consumer mockBrokerConsumer(String consumerName) {
