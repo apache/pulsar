@@ -22,9 +22,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Comparator;
 import java.util.stream.Stream;
 import org.apache.pulsar.tests.performance.report.RunReport;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -127,15 +129,15 @@ public class HostStatsSamplerTest {
         write("devices/system/cpu/cpu0/cpufreq/scaling_cur_freq", "3000000");
         Path runDirectory = Files.createDirectories(sysfs.resolve("run"));
 
+        Path hostStats = runDirectory.resolve(RunReport.HOST_STATS_FILE);
         try (HostStatsSampler sampler = HostStatsSampler.start(HostStatsSampler.discover(sysfs), runDirectory)) {
             assertThat(sampler).isNotNull();
-            // The first sample is taken at once
-            Thread.sleep(200);
+            // The first sample is taken at once, after the header
+            Awaitility.await().atMost(Duration.ofSeconds(30))
+                    .untilAsserted(() -> assertThat(Files.readAllLines(hostStats)).hasSizeGreaterThanOrEqualTo(2));
         }
 
-        assertThat(Files.readAllLines(runDirectory.resolve(RunReport.HOST_STATS_FILE)))
-                .hasSizeGreaterThanOrEqualTo(2)
-                .first().isEqualTo(RunReport.HOST_STATS_HEADER);
+        assertThat(Files.readAllLines(hostStats)).first().isEqualTo(RunReport.HOST_STATS_HEADER);
     }
 
     private void write(String path, String content) throws IOException {

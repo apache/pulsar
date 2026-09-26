@@ -21,11 +21,13 @@ package org.apache.pulsar.tests.performance.tools;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import org.HdrHistogram.EncodableHistogram;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogReader;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class HdrLatencyRecorderTest {
@@ -70,7 +72,9 @@ public class HdrLatencyRecorderTest {
         try {
             HdrLatencyRecorder recorder = new HdrLatencyRecorder(output);
             recorder.recordMillis(1);
-            Thread.sleep(1_500);
+            // The first interval is written about a second later; the next value goes into the second one
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions()
+                    .untilAsserted(() -> assertThat(read(output)).hasSize(1));
             recorder.recordMillis(3);
             recorder.close();
 
