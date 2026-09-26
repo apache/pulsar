@@ -287,7 +287,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                 });
     }
 
-    synchronized CompletableFuture<Void> revalidate(T newValue) {
+    private synchronized CompletableFuture<Void> revalidate(T newValue) {
         return revalidate(newValue, true);
     }
 

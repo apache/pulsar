@@ -228,7 +228,6 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
         }
     }
 
-
     private static <T> CompletableFuture<T> failed(MetadataStoreException exception) {
         CompletableFuture<T> future = new CompletableFuture<>();
         future.completeExceptionally(exception);
@@ -262,8 +261,6 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
         fireSessionEvent(SessionEvent.SessionLost);
     }
 
-
-
     /**
      * Fires an extra {@link SessionEvent#SessionReestablished}, like the session watcher of a
      * metadata store reporting that a fresh session was established after a loss.
@@ -271,9 +268,6 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
     void fireSessionReestablished() {
         fireSessionEvent(SessionEvent.SessionReestablished);
     }
-
-
-
 
     /** Overwrites a path with an ephemeral record owned by a foreign identity. */
     synchronized void putForeignRecord(String path, String foreignIdentity, byte[] value) {
@@ -295,14 +289,10 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
         return record != null ? Optional.of(record) : Optional.empty();
     }
 
-
-
     synchronized long getRecordSession(String path) {
         Record record = records.get(path);
         return record != null ? record.ownerSessionId : Long.MIN_VALUE;
     }
-
-
 
     synchronized Long getCurrentSessionId() {
         return currentSessionId;
@@ -316,7 +306,6 @@ class FakeOxiaSessionMetadataStore extends AbstractMetadataStore {
     void setZkOwnershipSemantics(boolean zkOwnershipSemantics) {
         this.zkOwnershipSemantics = zkOwnershipSemantics;
     }
-
 
     /** Makes the next n deletes fail with a BadVersion, modeling a lost delete/re-put race. */
     void failNextDeletesWithBadVersion(int n) {
