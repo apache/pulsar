@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.github.dockerjava.api.model.Info;
+import io.github.merlimat.slog.Logger;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -40,6 +41,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -50,8 +52,11 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
@@ -130,7 +135,37 @@ public class PerformanceLauncher implements Callable<Integer> {
         if (System.getProperty("log4j2.configurationFile") == null) {
             System.setProperty("log4j2.configurationFile", LOG_CONFIGURATION);
         }
-        System.exit(new CommandLine(new PerformanceLauncher()).execute(args));
+        System.exit(new CommandLine(new PerformanceLauncher())
+                .setExecutionExceptionHandler((e, commandLine, parseResult) -> {
+                    if (!(e instanceof ReportedFailure)) {
+                        reportFailure(e);
+                    }
+                    return commandLine.getCommandSpec().exitCodeOnExecutionException();
+                })
+                .execute(args));
+    }
+
+    /**
+     * A failure that the launcher has reported already, when it happened: the launcher throws it so that the run
+     * fails without reporting it again, after it has shut the cluster down.
+     */
+    static final class ReportedFailure extends Exception {
+        ReportedFailure(Throwable cause) {
+            super(cause.getMessage(), cause);
+        }
+    }
+
+    /**
+     * Reports a failure on the console in one line, and its stack trace in the launcher's log. The console shows
+     * where the log is, and the containers' logs when the failure came from a workload.
+     */
+    static void reportFailure(Throwable e) {
+        status("The run failed: " + Objects.requireNonNullElse(e.getMessage(), e.toString()));
+        log().error().exception(e).log("The run failed");
+        String launcherLog = System.getProperty("performance.launcher.log");
+        if (launcherLog != null) {
+            status("Stack trace: " + launcherLog);
+        }
     }
 
     @Override
@@ -297,24 +332,14 @@ public class PerformanceLauncher implements Callable<Integer> {
             if (cooldownCelsius != null) {
                 measurementGate = startMeasurementGate(sensors, producer, cooldowns);
             }
-            int timeout = workload.path("consumerTimeoutSeconds").intValue() + 60;
-            int producerExit = waitForExit(producer, timeout);
-            saveContainerLog(producer, producerOutput.resolve(CONTAINER_LOG));
-            if (producerExit != 0) {
-                throw new IllegalStateException("IoT producer exited with status " + producerExit + "; see "
-                        + producerOutput.resolve(CONTAINER_LOG));
-            }
-            status("The producer has finished; waiting for the applications to receive every message");
+            List<Workload> workloads = new ArrayList<>();
+            workloads.add(new Workload("The producer", producer, producerOutput.resolve(CONTAINER_LOG)));
             for (int application = 0; application < consumers.size(); application++) {
-                GenericContainer<?> consumer = consumers.get(application);
-                int consumerExit = waitForExit(consumer, timeout);
-                Path consumerLog = applicationOutput(runOutput, workload, application).resolve(CONTAINER_LOG);
-                saveContainerLog(consumer, consumerLog);
-                if (consumerExit != 0) {
-                    throw new IllegalStateException("IoT consumer of application " + application
-                            + " exited with status " + consumerExit + "; see " + consumerLog);
-                }
+                Path applicationOutput = applicationOutput(runOutput, workload, application);
+                workloads.add(new Workload("Application " + applicationOutput.getFileName(),
+                        consumers.get(application), applicationOutput.resolve(CONTAINER_LOG)));
             }
+            awaitWorkloads(workloads, workload.path("consumerTimeoutSeconds").intValue() + 60);
             progress.report();
             progress.close();
             // The run's end in the charts: every consumer has finished, before the profiles are processed
@@ -322,33 +347,44 @@ public class PerformanceLauncher implements Callable<Integer> {
             status("Every application has received every message; verifying the device sequences");
             verifyStates(runOutput, workload, applications);
         } catch (Exception e) {
-            status("The run failed: " + e.getMessage());
-            status("Logs: " + launcherLog + ", and each workload's " + CONTAINER_LOG);
-            throw e;
+            // Reported before the shutdown, which takes a while, so that the failure is the last thing on the console
+            reportFailure(e);
+            throw new ReportedFailure(e);
         } finally {
-            if (progress != null) {
-                progress.close();
+            // A failure while shutting down is only a warning: it must not hide the run's result or its failure
+            ProgressMonitor progressToClose = progress;
+            TopicStatsSampler topicStatsToClose = topicStatsSampler;
+            Thread gateToStop = measurementGate;
+            GenericContainer<?> producerToStop = producer;
+            shutDown("stopping the progress report", () -> {
+                if (progressToClose != null) {
+                    progressToClose.close();
+                }
+            });
+            shutDown("closing the topic stats sampler", () -> {
+                if (topicStatsToClose != null) {
+                    topicStatsToClose.close();
+                }
+            });
+            shutDown("closing the host stats sampler", () -> {
+                if (hostStatsSampler != null) {
+                    hostStatsSampler.close();
+                }
+            });
+            if (gateToStop != null) {
+                gateToStop.interrupt();
             }
-            if (topicStatsSampler != null) {
-                topicStatsSampler.close();
-            }
-            if (hostStatsSampler != null) {
-                hostStatsSampler.close();
-            }
-            if (measurementGate != null) {
-                measurementGate.interrupt();
-            }
-            if (producer != null) {
-                saveContainerLog(producer, runOutput.resolve("producer").resolve(CONTAINER_LOG));
-                producer.stop();
+            if (producerToStop != null) {
+                saveContainerLog(producerToStop, runOutput.resolve("producer").resolve(CONTAINER_LOG));
+                shutDown("stopping the producer", producerToStop::stop);
             }
             for (int application = 0; application < consumers.size(); application++) {
                 GenericContainer<?> consumer = consumers.get(application);
                 saveContainerLog(consumer, applicationOutput(runOutput, workload, application).resolve(CONTAINER_LOG));
-                consumer.stop();
+                shutDown("stopping application " + application, consumer::stop);
             }
             status("Stopping the Pulsar cluster");
-            cluster.stop();
+            shutDown("stopping the Pulsar cluster", cluster::stop);
         }
         if (profilingEnabled) {
             status("Processing the profiles");
@@ -403,6 +439,14 @@ public class PerformanceLauncher implements Callable<Integer> {
                 List.copyOf(cooldowns)), loader.mapper());
         System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
         return 0;
+    }
+
+    /**
+     * The launcher's logger. It isn't a static field, because the logging reads its configuration when the first
+     * logger is created, which has to be after main() has chosen the configuration and call() has named the log file.
+     */
+    private static Logger log() {
+        return Logger.get(PerformanceLauncher.class);
     }
 
     /** Prints a status line, with the time of day, as the run goes from one phase to the next. */
@@ -696,9 +740,85 @@ public class PerformanceLauncher implements Callable<Integer> {
         return value.longValue();
     }
 
-    private static int waitForExit(GenericContainer<?> container, int timeoutSeconds) throws Exception {
-        return container.getDockerClient().waitContainerCmd(container.getContainerId()).start()
-                .awaitStatusCode(timeoutSeconds, TimeUnit.SECONDS);
+    /** A workload container, with its name on the console and the file its log is saved to. */
+    private record Workload(String name, GenericContainer<?> container, Path log) {
+    }
+
+    /**
+     * Waits until every workload has exited, and fails as soon as one exits with an error, or when they haven't
+     * finished within {@code timeoutSeconds}, with the cause from the failed workload's log.
+     */
+    private static void awaitWorkloads(List<Workload> workloads, int timeoutSeconds) throws Exception {
+        Map<Workload, CompletableFuture<Integer>> running = new LinkedHashMap<>();
+        for (Workload workload : workloads) {
+            running.put(workload, exitCode(workload.container()));
+        }
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+        while (!running.isEmpty()) {
+            try {
+                CompletableFuture.anyOf(running.values().toArray(CompletableFuture[]::new)).get(1, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                if (System.nanoTime() > deadline) {
+                    throw new IllegalStateException("The workload didn't finish within " + timeoutSeconds + " s; "
+                            + running.keySet().stream().map(Workload::name).collect(Collectors.joining(", "))
+                            + " still running");
+                }
+                continue;
+            } catch (ExecutionException e) {
+                // A failed wait is found below, with its workload
+            }
+            for (Iterator<Map.Entry<Workload, CompletableFuture<Integer>>> iterator = running.entrySet().iterator();
+                 iterator.hasNext(); ) {
+                Map.Entry<Workload, CompletableFuture<Integer>> entry = iterator.next();
+                if (!entry.getValue().isDone()) {
+                    continue;
+                }
+                iterator.remove();
+                Workload workload = entry.getKey();
+                int exitCode = entry.getValue().get();
+                saveContainerLog(workload.container(), workload.log());
+                if (exitCode != 0) {
+                    String cause = Files.isRegularFile(workload.log())
+                            ? FailureCause.of(Files.readString(workload.log())) : null;
+                    throw new IllegalStateException(workload.name() + " exited with status " + exitCode
+                            + (cause != null ? ": " + cause : "") + " (log: " + workload.log() + ")");
+                }
+                if (workload.container() == workloads.get(0).container()) {
+                    status("The producer has finished; waiting for the applications to receive every message");
+                }
+            }
+        }
+    }
+
+    /** The container's exit code, once it has exited. */
+    private static CompletableFuture<Integer> exitCode(GenericContainer<?> container) {
+        CompletableFuture<Integer> exitCode = new CompletableFuture<>();
+        Thread waiter = new Thread(() -> {
+            try {
+                exitCode.complete(container.getDockerClient().waitContainerCmd(container.getContainerId()).start()
+                        .awaitStatusCode());
+            } catch (RuntimeException e) {
+                exitCode.completeExceptionally(e);
+            }
+        }, "wait-" + container.getContainerId());
+        waiter.setDaemon(true);
+        waiter.start();
+        return exitCode;
+    }
+
+    /** A step of shutting a run down, which may fail. */
+    private interface ShutdownStep {
+        void run() throws Exception;
+    }
+
+    /** Runs a shutdown step, and reports its failure as a warning, with the stack trace in the launcher's log. */
+    private static void shutDown(String description, ShutdownStep step) {
+        try {
+            step.run();
+        } catch (Exception e) {
+            status("Warning: " + description + " failed: " + e);
+            log().warn().exception(e).attr("step", description).log("A shutdown step failed");
+        }
     }
 
     private static void saveContainerLog(GenericContainer<?> container, Path path) {

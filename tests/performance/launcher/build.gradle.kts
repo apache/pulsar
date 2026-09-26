@@ -35,6 +35,8 @@ dependencies {
     // Writes the run and profile reports, charts and flame graphs once a run has finished
     implementation(project(":tests:performance:report-tool"))
     implementation(libs.picocli)
+    // Logs the stack traces of failures to launcher.log, and the console shows them in one line
+    implementation(libs.slog)
     // Merges the workloads' latency intervals for the progress lines
     implementation(libs.hdrHistogram)
     // Samples topic backlog and message counters during a run for the run report

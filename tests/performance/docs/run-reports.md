@@ -63,9 +63,17 @@ On a machine that runs the tests for others, serve the reports root over HTTP an
 
 ### When a run fails
 
-A run that fails writes no report: the launcher stops with an error, such as `IoT consumer exited with status 1`, and
-the Gradle task fails. The run directory that the launcher printed at the start still has what the run wrote before
-it failed:
+A run that fails writes no report. The launcher stops the run as soon as the producer or an application exits with
+an error, prints the failure in one line with its cause from the container's log, then shuts the cluster down, and
+the Gradle task fails:
+
+```
+00:41:42 The run failed: Application iot-application-1 exited with status 1: IllegalStateException: Cannot restart IoT client, caused by ... (log: .../iot-application-1/container.log.txt)
+00:41:42 Stack trace: .../launcher.log
+```
+
+The stack trace is in `launcher.log`. A failure while shutting down, such as stopping a container, is only a warning.
+The run directory that the launcher printed at the start still has what the run wrote before it failed:
 
 - `launcher.log`, the log of the launcher, with Testcontainers' log and the Pulsar containers' logs
 - `producer/container.log.txt` and `<application>/container.log.txt`, the logs of the workload containers
