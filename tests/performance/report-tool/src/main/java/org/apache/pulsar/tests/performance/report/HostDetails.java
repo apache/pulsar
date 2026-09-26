@@ -18,22 +18,21 @@
  */
 package org.apache.pulsar.tests.performance.report;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordedEvent;
-import jdk.jfr.consumer.RecordingFile;
+import jdk.jfr.consumer.RecordingStream;
 
 /**
  * The hardware and the operating system of the host that the launcher runs on: the CPU's model, its sockets, cores
  * and hardware threads, the physical memory, and the operating system. They come from the events that JDK Flight
- * Recorder writes when a recording starts, of a recording of the launcher's own JVM that is stopped right away, so
- * that they are the same on every operating system that the JDK supports, including macOS.
+ * Recorder writes when a recording starts, streamed from a recording of the launcher's own JVM that is stopped right
+ * away, so that they are the same on every operating system that the JDK supports, including macOS.
  *
  * @param cpu the CPU's model, such as {@code Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz}, or empty
  * @param os the operating system, such as {@code Pop!_OS 24.04 LTS (Linux 7.1.5-76070105-generic)}
@@ -56,36 +55,33 @@ public record HostDetails(String cpu, int sockets, int cores, int hardwareThread
         int hardwareThreads = 0;
         long memory = 0;
         String osVersion = "";
-        try {
-            Path file = Files.createTempFile("host-details", ".jfr");
-            try {
-                try (Recording recording = new Recording()) {
-                    recording.enable("jdk.CPUInformation");
-                    recording.enable("jdk.PhysicalMemory");
-                    recording.enable("jdk.OSInformation");
-                    recording.start();
-                    recording.stop();
-                    recording.dump(file);
-                }
-                for (RecordedEvent event : RecordingFile.readAllEvents(file)) {
-                    switch (event.getEventType().getName()) {
-                        case "jdk.CPUInformation" -> {
-                            cpu = cpuModel(event.getString("description"), event.getString("cpu"));
-                            sockets = event.getInt("sockets");
-                            cores = event.getInt("cores");
-                            hardwareThreads = event.getInt("hwThreads");
-                        }
-                        case "jdk.PhysicalMemory" -> memory = event.getLong("totalSize");
-                        case "jdk.OSInformation" -> osVersion = event.getString("osVersion");
-                        default -> {
-                        }
-                    }
-                }
-            } finally {
-                Files.deleteIfExists(file);
-            }
+        Queue<RecordedEvent> events = new ConcurrentLinkedQueue<>();
+        try (RecordingStream stream = new RecordingStream()) {
+            stream.enable("jdk.CPUInformation");
+            stream.enable("jdk.PhysicalMemory");
+            stream.enable("jdk.OSInformation");
+            // The events are kept past the action, so the stream mustn't reuse their objects
+            stream.setReuse(false);
+            stream.onEvent(events::add);
+            stream.startAsync();
+            // The recording writes the events when it starts; stopping it waits until the stream has handled them
+            stream.stop();
         } catch (Exception | LinkageError e) {
-            // No JFR, such as in a JRE without the jdk.jfr module, or no temporary directory: the details stay empty
+            // No JFR, such as in a JRE without the jdk.jfr module: the details stay empty
+        }
+        for (RecordedEvent event : events) {
+            switch (event.getEventType().getName()) {
+                case "jdk.CPUInformation" -> {
+                    cpu = cpuModel(event.getString("description"), event.getString("cpu"));
+                    sockets = event.getInt("sockets");
+                    cores = event.getInt("cores");
+                    hardwareThreads = event.getInt("hwThreads");
+                }
+                case "jdk.PhysicalMemory" -> memory = event.getLong("totalSize");
+                case "jdk.OSInformation" -> osVersion = event.getString("osVersion");
+                default -> {
+                }
+            }
         }
         return new HostDetails(cpu, sockets, cores, hardwareThreads, memory,
                 operatingSystem(osVersion, System.getProperty("os.name", ""), System.getProperty("os.version", "")));
