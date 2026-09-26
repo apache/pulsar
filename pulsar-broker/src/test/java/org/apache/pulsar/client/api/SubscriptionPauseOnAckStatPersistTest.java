@@ -23,7 +23,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
@@ -313,9 +315,11 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         }
         Assert.assertFalse(cursor.isCursorDataFullyPersistable());
 
+        // Zero queue + no receive yet: avoid ConsumerImpl's post-subscribe Flow race with
+        // afterAckMessages() that can deliver backlog before the dispatcher is paused.
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(tpName)
                 .subscriptionName(subscription).subscriptionType(SubscriptionType.Shared)
-                .receiverQueueSize(1).enableBatchIndexAcknowledgment(true).isAckReceiptEnabled(true)
+                .receiverQueueSize(0).enableBatchIndexAcknowledgment(true).isAckReceiptEnabled(true)
                 .subscribe();
         persistentSubscription.getDispatcher().afterAckMessages(null, null);
 
@@ -324,8 +328,14 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
 
         final String specifiedMessage = "9876543210";
         producer.send(specifiedMessage);
-        Message<String> pausedReceive = consumer.receive(2, TimeUnit.SECONDS);
-        Assert.assertNull(pausedReceive);
+        CompletableFuture<Message<String>> pausedReceive = consumer.receiveAsync();
+        try {
+            pausedReceive.get(2, TimeUnit.SECONDS);
+            Assert.fail("expected timeout while dispatcher is paused");
+        } catch (TimeoutException expected) {
+            // Dispatcher should stay paused while batch-deleted index exceeds the persist cap.
+        }
+        Assert.assertFalse(pausedReceive.isDone());
 
         for (int i = 0; i < ackSets.length; i++) {
             MessageIdImpl messageId = messageIds.get(i + 1);
@@ -337,7 +347,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         cancelPendingRead(tpName, subscription);
         triggerNewReadMoreEntries(tpName, subscription);
 
-        Message<String> resumedReceive = consumer.receive(5, TimeUnit.SECONDS);
+        Message<String> resumedReceive = pausedReceive.get(5, TimeUnit.SECONDS);
         Assert.assertNotNull(resumedReceive);
         Assert.assertEquals(resumedReceive.getValue(), specifiedMessage);
 
