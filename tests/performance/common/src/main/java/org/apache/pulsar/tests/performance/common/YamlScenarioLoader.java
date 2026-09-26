@@ -25,6 +25,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -128,11 +129,14 @@ public final class YamlScenarioLoader {
 
     private void applyEnvironmentOverrides(ObjectNode root, Map<String, String> environment,
                                            String prefix, String configEnvironmentName) {
+        // The prefix in upper or lower case; the rest of the name matches the scenario's keys in any case
+        String lowerCasePrefix = prefix.toLowerCase(Locale.ROOT);
         environment.forEach((name, value) -> {
-            if (!name.startsWith(prefix) || name.equals(configEnvironmentName)) {
+            if (!(name.startsWith(prefix) || name.startsWith(lowerCasePrefix))
+                    || name.equalsIgnoreCase(configEnvironmentName)) {
                 return;
             }
-            String[] path = name.substring(prefix.length()).toLowerCase().split("_");
+            String[] path = name.substring(prefix.length()).toLowerCase(Locale.ROOT).split("_");
             ObjectNode node = root;
             int pathIndex = 0;
             while (pathIndex < path.length) {

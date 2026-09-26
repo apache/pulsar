@@ -74,6 +74,13 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
         "${providers.gradleProperty("docker.organization").getOrElse("apachepulsar")}/java-test-image:"
             + providers.gradleProperty("docker.tag").getOrElse("latest") + imageSuffix)
     environment("PERFORMANCE_PROFILER_AVAILABLE", profiler.toString())
+    // The scenario overrides, PULSAR_PERFORMANCE_<path> or pulsar_performance_<path>. The task's environment is a
+    // snapshot that the configuration cache stores and replays, so the overrides are read as providers, which makes
+    // them inputs of the cache: setting, changing or removing one reconfigures the task instead of replaying the
+    // values of the run that stored the entry.
+    val scenarioOverrides = providers.environmentVariablesPrefixedBy("PULSAR_PERFORMANCE_").get() +
+        providers.environmentVariablesPrefixedBy("pulsar_performance_").get()
+    environment(scenarioOverrides)
     systemProperty("performance.tools.dir",
         project(":tests:performance:tools").layout.buildDirectory.dir("install/pulsar-performance-tools")
             .get().asFile.absolutePath)

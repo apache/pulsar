@@ -44,4 +44,35 @@ public class YamlScenarioLoaderTest {
         assertThat(loader.select(resolved, "workload").get("clients").intValue()).isEqualTo(10);
         assertThat(loader.select(resolved, "workload").has("removed")).isFalse();
     }
+
+    @Test
+    public void matchesEnvironmentOverridesToKeysInAnyCase() throws Exception {
+        Path scenario = Files.createTempFile("scenario-case", ".yaml");
+        Files.writeString(scenario, """
+                workloads:
+                  iotTelemetry:
+                    rate: 1000
+                    clientsPerApplication: 10
+                    payloadBytes: 64
+                cluster:
+                  brokerEnvs:
+                    dbStorage_writeCacheMaxSizeMb: "64"
+                """);
+        var loader = new YamlScenarioLoader();
+        var resolved = loader.resolve(scenario, null, Map.of(
+                "PERF_WORKLOADS_IOTTELEMETRY_RATE", "5000",
+                "PERF_workloads_iotTelemetry_clientsPerApplication", "20",
+                "perf_workloads_iottelemetry_payloadbytes", "128",
+                "PERF_CLUSTER_BROKERENVS_DBSTORAGE_WRITECACHEMAXSIZEMB", "128",
+                // A prefix in neither upper nor lower case isn't an override
+                "Perf_workloads_iotTelemetry_rate", "1",
+                "perf_config", "ignored"), "PERF_", "PERF_CONFIG");
+
+        var workload = loader.select(resolved, "workloads.iotTelemetry");
+        assertThat(workload.get("rate").intValue()).isEqualTo(5000);
+        assertThat(workload.get("clientsPerApplication").intValue()).isEqualTo(20);
+        assertThat(workload.get("payloadBytes").intValue()).isEqualTo(128);
+        assertThat(loader.select(resolved, "cluster.brokerEnvs").get("dbStorage_writeCacheMaxSizeMb").textValue())
+                .isEqualTo("128");
+    }
 }
