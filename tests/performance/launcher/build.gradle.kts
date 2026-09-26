@@ -24,7 +24,7 @@ plugins {
 
 // The jonoffcpu agent JAR is mounted into profiled containers rather than loaded here, so it is
 // resolved on its own instead of joining the launcher's classpath.
-val jonoffcpuAgent: Configuration by configurations.creating {
+val jonoffcpuAgent = configurations.create("jonoffcpuAgent") {
     isCanBeConsumed = false
     isTransitive = false
 }
