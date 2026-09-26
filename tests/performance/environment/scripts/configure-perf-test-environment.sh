@@ -36,6 +36,10 @@
 #            running tests.
 set -euo pipefail
 
+# tuned-adm, sysctl and other administration commands are in the sbin directories, which aren't on the
+# PATH of every root shell, such as one started with su
+PATH="${PATH}:/usr/local/sbin:/usr/sbin:/sbin"
+
 PERF_PROFILE="performance-testing"
 PERF_PROFILE_DIR="/etc/tuned/${PERF_PROFILE}"
 RESTORE_PROFILE="${RESTORE_PROFILE:-balanced}"
@@ -354,15 +358,35 @@ print_perf_settings() {
     echo
 }
 
-install_environment() {
-    if ! is_debian_based; then
-        echo "ERROR: install supports only Debian based Linux distributions." >&2
+# The Docker logging configuration is updated with jq, which is expected on the host. Checked before
+# install changes anything
+check_jq_for_docker_logging() {
+    if service_exists "${DOCKER_SERVICE}" && ! command -v jq >/dev/null; then
+        echo "ERROR: jq, which updates Docker's logging configuration, is missing." >&2
+        echo "Install it with the distribution's package manager, and run install again." >&2
         exit 1
     fi
+}
 
+# TuneD is installed when it is missing, which needs a Debian based distribution
+install_tuned_if_missing() {
+    if command -v tuned-adm >/dev/null || service_exists "${TUNED_SERVICE}"; then
+        echo "TuneD is already installed"
+        return
+    fi
+    if ! is_debian_based; then
+        echo "ERROR: install can install TuneD only on Debian based Linux distributions." >&2
+        echo "Install TuneD with the distribution's package manager, and run install again." >&2
+        exit 1
+    fi
     echo "Installing TuneD"
     apt-get update
-    apt-get install -y tuned jq
+    apt-get install -y tuned
+}
+
+install_environment() {
+    check_jq_for_docker_logging
+    install_tuned_if_missing
 
     configure_docker_logging
     disable_tuned_dynamic_tuning
