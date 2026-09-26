@@ -36,11 +36,13 @@ import java.util.stream.Stream;
 import org.HdrHistogram.Histogram;
 
 /**
- * Writes {@code run-report.md} and its HTML page into a run directory: the scenario, correctness, throughput and
- * latency, the sampled backlog and per-second rates with their charts, and links to the profile reports.
+ * Writes the run report into a run directory: the scenario, correctness, throughput and latency, the sampled backlog
+ * and per-second rates with their charts, and links to the profile reports. The report is the run directory's
+ * {@code README.md}, and its HTML page the directory's {@code index.html}, so that a directory of runs served by an
+ * HTTP server, or pushed to a GitHub repository, opens each run on its report.
  */
 public final class RunReport {
-    public static final String FILE_NAME = "run-report.md";
+    public static final String FILE_NAME = "README.md";
     static final String LATENCY_CHART = "latency";
     static final String THROUGHPUT_CHART = "throughput";
     static final String BACKLOG_CHART = "backlog";

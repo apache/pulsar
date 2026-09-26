@@ -137,10 +137,10 @@ public class RunReportTest {
                 + " changes |");
         assertThat(report).contains("| Pulsar version | 5.0.0-SNAPSHOT |");
 
-        assertThat(report).contains("| [Broker](broker-profile/profile-report.md) | 4.7 s |"
+        assertThat(report).contains("| [Broker](broker-profile/README.md) | 4.7 s |"
                 + " [complete](broker-profile/broker.jfr) ·"
                 + " [measurement period](broker-profile/broker.measurement.jfr) |\n");
-        assertThat(report).contains("| [Producer](producer-profile/profile-report.md) | not captured |");
+        assertThat(report).contains("| [Producer](producer-profile/README.md) | not captured |");
         // The profiles follow the run's settings
         assertThat(report.indexOf("## Profiles")).isGreaterThan(report.indexOf("| Setting |"));
         assertThat(report.indexOf("## Profiles")).isLessThan(report.indexOf("## Correctness"));
@@ -178,7 +178,7 @@ public class RunReportTest {
             assertThat(Files.readString(run.resolve(chart + ".svg"))
                     ).as(chart).contains(">lh-branch@01234567-dirty 2026-09-25 06:42:59-06:46:41</text>");
         }
-        String page = Files.readString(run.resolve("run-report.html"));
+        String page = Files.readString(run.resolve("index.html"));
         assertThat(page).contains("<img src=\"throughput.svg\"");
         assertThat(page).contains("<img src=\"latency-percentiles.png\"");
     }

@@ -44,11 +44,11 @@ import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
 
 /**
- * Renders a Markdown report to an HTML page beside it, {@code report.md} to {@code report.html}, with
- * commonmark-java, so that its links can be followed in a browser. Links to other Markdown documents are rewritten
- * to their HTML pages, and absolute file paths inside the run directory, as some tools write, to paths relative to
- * the page, so that a moved or archived run keeps working links. The stylesheet is inlined so that a page is a
- * single self-contained file.
+ * Renders a Markdown report to an HTML page beside it, {@code report.md} to {@code report.html} and a directory's
+ * {@code README.md} to its {@code index.html}, with commonmark-java, so that its links can be followed in a browser.
+ * Links to other Markdown documents are rewritten to their HTML pages, and absolute file paths inside the run
+ * directory, as some tools write, to paths relative to the page, so that a moved or archived run keeps working links.
+ * The stylesheet is inlined so that a page is a single self-contained file.
  */
 public final class MarkdownPages {
     // Heading anchors give each heading a GitHub-style id, so in-page links such as #where-the-time-went work.
@@ -57,6 +57,8 @@ public final class MarkdownPages {
     private static final Parser PARSER = Parser.builder().extensions(EXTENSIONS).build();
     private static final HtmlRenderer RENDERER = HtmlRenderer.builder().extensions(EXTENSIONS).build();
     private static final String MARKDOWN_SUFFIX = ".md";
+    private static final String README = "README.md";
+    private static final String INDEX = "index.html";
     // A package: lower-case segments, each followed by a dot, before a class name. Not part of a longer name or path.
     private static final Pattern JAVA_PACKAGE = Pattern.compile("(?<![\\w$./\\\\-])(?:[a-z][a-z0-9_]*\\.)+(?=[A-Z])");
 
@@ -133,12 +135,22 @@ public final class MarkdownPages {
         return page;
     }
 
-    /** The HTML page of a Markdown file: {@code report.md} is {@code report.html}. */
+    /**
+     * The HTML page of a Markdown file: {@code report.md} is {@code report.html}, and a directory's {@code README.md}
+     * is its {@code index.html}, which HTTP servers serve for the directory.
+     */
     public static Path htmlPage(Path markdown) {
-        String name = markdown.getFileName().toString();
-        String base = name.endsWith(MARKDOWN_SUFFIX) ? name.substring(0, name.length() - MARKDOWN_SUFFIX.length())
-                : name;
-        return markdown.resolveSibling(base + ".html");
+        return markdown.resolveSibling(htmlFileName(markdown.getFileName().toString()));
+    }
+
+    private static String htmlFileName(String markdownFileName) {
+        if (markdownFileName.equals(README)) {
+            return INDEX;
+        }
+        String base = markdownFileName.endsWith(MARKDOWN_SUFFIX)
+                ? markdownFileName.substring(0, markdownFileName.length() - MARKDOWN_SUFFIX.length())
+                : markdownFileName;
+        return base + ".html";
     }
 
     /**
@@ -180,7 +192,10 @@ public final class MarkdownPages {
             }
         }
         if (path.endsWith(MARKDOWN_SUFFIX)) {
-            path = path.substring(0, path.length() - MARKDOWN_SUFFIX.length()) + ".html";
+            // A directory's README.md has its page as the directory's index.html. The link names the page rather than
+            // the directory, so that it also works when the pages are opened from the file system.
+            int fileNameStart = path.lastIndexOf('/') + 1;
+            path = path.substring(0, fileNameStart) + htmlFileName(path.substring(fileNameStart));
         }
         return path + fragment;
     }

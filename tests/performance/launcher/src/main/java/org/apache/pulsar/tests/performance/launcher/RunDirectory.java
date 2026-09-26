@@ -18,24 +18,15 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Map;
-import org.apache.pulsar.tests.performance.report.RunReport;
 
 /**
  * Where a run writes its outputs: {@code <reports root>/<yyyy-MM-dd>/<branch>/<name>/<MM-dd-HH-mm-ss>/}, so that
  * every run keeps its own directory and runs can be browsed by day, branch and experiment. The run directory
  * repeats the month and day so that a copied run directory still says when it ran. Two runs of the same name
  * started within the same second would share a directory; that is not checked.
- *
- * <p>After the report is written, {@code index.html} and {@code README.md} link to the run report, so that a
- * directory of runs can be served by an HTTP server or pushed to a GitHub repository and each run opens on its
- * report.
  */
 final class RunDirectory {
     /** The reports root relative to the project directory when none is given. */
@@ -43,9 +34,6 @@ final class RunDirectory {
 
     private static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final DateTimeFormatter RUN = DateTimeFormatter.ofPattern("MM-dd-HH-mm-ss");
-    private static final Map<String, String> INDEX_LINKS = Map.of(
-            "index.html", "run-report.html",
-            "README.md", RunReport.FILE_NAME);
 
     private RunDirectory() {
     }
@@ -78,24 +66,5 @@ final class RunDirectory {
     static String sanitize(String name) {
         String sanitized = name.replaceAll("[^A-Za-z0-9._-]", "-");
         return sanitized.isEmpty() || sanitized.chars().allMatch(c -> c == '.') ? "run" : sanitized;
-    }
-
-    /**
-     * Links {@code index.html} and {@code README.md} to the run report with relative symbolic links. Where the
-     * platform or file system has no symbolic links, the run keeps only its report files.
-     */
-    static void linkIndexes(Path runDirectory) {
-        for (Map.Entry<String, String> link : INDEX_LINKS.entrySet()) {
-            Path linkPath = runDirectory.resolve(link.getKey());
-            if (Files.exists(linkPath, LinkOption.NOFOLLOW_LINKS)
-                    || !Files.isRegularFile(runDirectory.resolve(link.getValue()))) {
-                continue;
-            }
-            try {
-                Files.createSymbolicLink(linkPath, Path.of(link.getValue()));
-            } catch (IOException | UnsupportedOperationException | SecurityException e) {
-                System.out.println("Not linking " + link.getKey() + " to " + link.getValue() + ": " + e);
-            }
-        }
     }
 }

@@ -19,35 +19,12 @@
 package org.apache.pulsar.tests.performance.launcher;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZonedDateTime;
-import java.util.Comparator;
-import java.util.stream.Stream;
-import org.testng.SkipException;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class RunDirectoryTest {
-    private Path directory;
-
-    @BeforeMethod
-    public void createDirectory() throws IOException {
-        directory = Files.createTempDirectory("run-directory-test");
-    }
-
-    @AfterMethod(alwaysRun = true)
-    public void deleteDirectory() throws IOException {
-        try (Stream<Path> paths = Files.walk(directory)) {
-            for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-                Files.delete(path);
-            }
-        }
-    }
-
     @Test
     public void laysOutRunsByDayBranchAndName() {
         Path run = RunDirectory.resolve(Path.of("/reports"), ZonedDateTime.parse("2026-09-25T06:42:59+03:00"),
@@ -70,27 +47,5 @@ public class RunDirectoryTest {
     @Test(dataProvider = "branches")
     public void namesBranchDirectories(String branch, String commit, String expected) {
         assertThat(RunDirectory.branchDirectory(branch, commit)).isEqualTo(expected);
-    }
-
-    @Test
-    public void linksIndexesToTheRunReport() throws IOException {
-        Files.writeString(directory.resolve("run-report.html"), "<html>report</html>");
-        Files.writeString(directory.resolve("run-report.md"), "# report");
-        try {
-            Files.createSymbolicLink(directory.resolve("probe"), Path.of("run-report.md"));
-            Files.delete(directory.resolve("probe"));
-        } catch (UnsupportedOperationException | IOException e) {
-            throw new SkipException("No symbolic links here: " + e);
-        }
-
-        RunDirectory.linkIndexes(directory);
-        // A second call leaves the links in place
-        RunDirectory.linkIndexes(directory);
-
-        assertThat(directory.resolve("index.html")).isSymbolicLink();
-        assertThat(Files.readSymbolicLink(directory.resolve("index.html"))).isEqualTo(Path.of("run-report.html"));
-        assertThat(directory.resolve("index.html")).hasContent("<html>report</html>");
-        assertThat(Files.readSymbolicLink(directory.resolve("README.md"))).isEqualTo(Path.of("run-report.md"));
-        assertThat(directory.resolve("README.md")).hasContent("# report");
     }
 }

@@ -30,14 +30,15 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Writes {@code profile-report.md} into a directory of profiled recordings, such as {@code broker-profile/}: the run
+ * Writes the profile report into a directory of profiled recordings, such as {@code broker-profile/}: the run
  * it belongs to, and for each recording tables linking its files (the off-CPU digest, the JFR recordings, the capture
  * stream and the patterns used), the off-CPU flame graphs with their totals, and the CPU, allocation, lock or
  * wall-clock views that were rendered. Links are relative, so the directory can be moved or archived, and only files
  * that exist are listed.
  */
 public final class ProfileReport {
-    public static final String FILE_NAME = "profile-report.md";
+    // The directory's README.md, with its HTML page the directory's index.html, so that the directory opens on it
+    public static final String FILE_NAME = "README.md";
 
     /** The run that produced the recordings. */
     public record Run(String scenario, String runId, Instant from, Instant to, double producerMessagesPerSecond) {
@@ -72,7 +73,15 @@ public final class ProfileReport {
         StringBuilder report = new StringBuilder();
         report.append("# Profile report: ").append(directory.getFileName()).append("\n\n");
         Duration window = Duration.between(run.from(), run.to());
-        report.append("Scenario `").append(run.scenario()).append("`, run `").append(run.runId()).append("`.\n")
+        report.append("Scenario `").append(run.scenario()).append("`, run `").append(run.runId()).append('`');
+        Path runDirectory = root.toAbsolutePath().normalize();
+        Path profileDirectory = directory.toAbsolutePath().normalize();
+        if (!profileDirectory.equals(runDirectory) && profileDirectory.startsWith(runDirectory)) {
+            String runReport = profileDirectory.relativize(runDirectory.resolve(RunReport.FILE_NAME)).toString()
+                    .replace('\\', '/');
+            report.append(", see [the run report](").append(runReport).append(')');
+        }
+        report.append(".\n")
                 .append("Measurement window ").append(run.from()).append(" to ").append(run.to())
                 .append(String.format(Locale.ROOT, " (%.1f s)", window.toMillis() / 1000.0));
         if (run.producerMessagesPerSecond() > 0) {

@@ -102,9 +102,25 @@ public class ProfileReportTest {
         assertThat(report).contains("| alloc | [flame graph](broker-flamegraphs/alloc.html) |  |  |  |");
 
         // The HTML pages link the digest's page rather than its Markdown.
-        String page = Files.readString(directory.resolve("profile-report.html"));
+        String page = Files.readString(directory.resolve("index.html"));
         assertThat(page).contains("<a href=\"broker-offcpu/jonoffcpu-summary.html\">");
         assertThat(offCpu.resolve("jonoffcpu-summary.html")).isRegularFile();
+    }
+
+    @Test
+    public void linksTheRunReportFromAProfileDirectoryOfTheRun() throws IOException {
+        Path profile = Files.createDirectories(directory.resolve("broker-profile"));
+
+        Path file = ProfileReport.write(profile, List.of(profile.resolve("broker.jfr")),
+                new ProfileReport.Run("scenario.yaml", "run-4", Instant.parse("2026-09-25T00:00:00Z"),
+                        Instant.parse("2026-09-25T00:00:10Z"), 0),
+                new ObjectMapper(), directory);
+
+        assertThat(file).isEqualTo(profile.resolve("README.md"));
+        assertThat(Files.readString(file))
+                .contains("Scenario `scenario.yaml`, run `run-4`, see [the run report](../README.md).");
+        assertThat(Files.readString(profile.resolve("index.html")))
+                .contains("<a href=\"../index.html\">the run report</a>");
     }
 
     @Test

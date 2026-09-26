@@ -56,6 +56,10 @@ public class MarkdownPagesTest {
                         "broker-offcpu/jonoffcpu-summary.html#capture"},
                 {"/runs/run-1/broker-profile/b.offcpu-idle-waits.txt", page, root, "b.offcpu-idle-waits.txt"},
                 {"/runs/run-1/run-report.md", page, root, "../run-report.html"},
+                {"/runs/run-1/README.md", page, root, "../index.html"},
+                {"../README.md#host", page, root, "../index.html#host"},
+                {"README.md", page, root, "index.html"},
+                {"producer/README.md", page, root, "producer/index.html"},
                 {"/elsewhere/file.txt", page, root, "/elsewhere/file.txt"},
                 {"https://github.com/jonoffcpu/jonoffcpu/README.md", page, root,
                         "https://github.com/jonoffcpu/jonoffcpu/README.md"},
@@ -67,6 +71,14 @@ public class MarkdownPagesTest {
     @Test(dataProvider = "destinations")
     public void rewritesLinksToPagesAndRunFiles(String destination, Path pageDirectory, Path root, String expected) {
         assertThat(MarkdownPages.rewrite(destination, pageDirectory, root)).isEqualTo(expected);
+    }
+
+    @Test
+    public void namesTheHtmlPageOfADirectorysReadmeIndex() {
+        assertThat(MarkdownPages.htmlPage(Path.of("/runs/run-1/README.md")))
+                .isEqualTo(Path.of("/runs/run-1/index.html"));
+        assertThat(MarkdownPages.htmlPage(Path.of("/runs/run-1/broker-profile/profile-report.md")))
+                .isEqualTo(Path.of("/runs/run-1/broker-profile/profile-report.html"));
     }
 
     @DataProvider

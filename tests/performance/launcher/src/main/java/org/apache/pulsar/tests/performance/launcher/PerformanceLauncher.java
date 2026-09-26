@@ -333,14 +333,13 @@ public class PerformanceLauncher implements Callable<Integer> {
             Map<Path, List<Path>> recordingsByDirectory = recordings.stream().sorted()
                     .collect(Collectors.groupingBy(Path::getParent, TreeMap::new, Collectors.toList()));
             for (Map.Entry<Path, List<Path>> entry : recordingsByDirectory.entrySet()) {
-                System.out.println("Profile report: "
-                        + ProfileReport.write(entry.getKey(), entry.getValue(), run, loader.mapper(), runOutput));
+                System.out.println("Profile report: " + MarkdownPages.htmlPage(
+                        ProfileReport.write(entry.getKey(), entry.getValue(), run, loader.mapper(), runOutput)));
             }
         }
         Path runReport = RunReport.write(runOutput, new RunReport.Run(config.getFileName().toString(), runId,
                 PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload, runInfo, workloadFinished,
                 List.copyOf(cooldowns)), loader.mapper());
-        RunDirectory.linkIndexes(runOutput);
         System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
         return 0;
     }
