@@ -53,6 +53,12 @@ To run the whole suite, use
 
 ### Profiling an integration test
 
+> [!NOTE]
+> For performance optimizations, use [the performance tests](performance/README.md) rather than a profiled
+> integration test. They run repeatable scenarios with a report for every run, compare two revisions, and profile
+> where threads wait as well as where they use CPU. Profiling an integration test shows what the cluster of that
+> particular test does.
+
 `profilingIntegrationTest` runs an integration test with
 [async-profiler](https://github.com/async-profiler/async-profiler) attached to the cluster's components inside their
 containers, such as the broker and the bookies, rather than to the JVM the test runs in. Any integration test can
@@ -86,6 +92,15 @@ Without `--tests`, the task runs `PulsarProfilingTest`, a `pulsar-perf` workload
 [the legacy TestNG profiling runner](performance/docs/legacy-testng-runner.md).
 [Flame graphs of other recordings](performance/docs/analyzing-profiles.md#flame-graphs-of-other-recordings) describes
 rendering flame graphs from the recordings.
+
+## Performance tests
+
+The performance tests are for running performance test experiments. They run a Pulsar cluster and its workloads in
+Docker containers on one host, as a scenario describes them, and write a report for every run: throughput, latency,
+delivery and ordering checks, and the host's CPU state. Runs can be profiled with async-profiler, JDK Flight Recorder
+and jonoffcpu's off-CPU recording at the same time, and two revisions can be compared. The experiments run from the
+command line and write their results to files, so they can be automated, including tuning by AI agents.
+[The performance testing guide](performance/README.md) is a tutorial for getting started.
 
 ## Directories
 
