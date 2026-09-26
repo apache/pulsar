@@ -38,10 +38,11 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Where, by whom and from which code a run was made: the host, the user, the project directory (which tells
- * worktrees apart), the git branch and commit, and the Pulsar version. The launcher collects it itself when a run
- * starts, so it is the same whether the launcher runs under Gradle or directly, and it describes the tree the run
- * used rather than when {@code pulsar-common} was built, as {@code pulsar-version.properties} would.
+ * Where, by whom and from which code a run was made: the host and its hardware, the Docker engine that ran the
+ * containers, the user, the project directory (which tells worktrees apart), the git branch and commit, and the
+ * Pulsar version. The launcher collects it itself when a run starts, so it is the same whether the launcher runs
+ * under Gradle or directly, and it describes the tree the run used rather than when {@code pulsar-common} was built,
+ * as {@code pulsar-version.properties} would.
  *
  * <p>On a detached HEAD, the branch is the branch that contains the commit with the fewest commits after it, so
  * that a checked-out commit's runs sit with its branch's runs; {@code gitDetached} says that the HEAD was
@@ -49,9 +50,9 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Nothing here fails a run: a value that cannot be found is empty.
  */
-public record RunInfo(ZonedDateTime started, String host, String user, String gitUserName, String gitUserEmail,
-               Path projectDirectory, String gitBranch, boolean gitDetached, String gitCommit, boolean gitDirty,
-               String version) {
+public record RunInfo(ZonedDateTime started, String host, HostDetails hostDetails, DockerEngine dockerEngine,
+               String user, String gitUserName, String gitUserEmail, Path projectDirectory, String gitBranch,
+               boolean gitDetached, String gitCommit, boolean gitDirty, String version) {
     /** What {@code git rev-parse --abbrev-ref HEAD} prints on a detached HEAD. */
     static final String DETACHED_HEAD = "HEAD";
 
@@ -62,7 +63,7 @@ public record RunInfo(ZonedDateTime started, String host, String user, String gi
     private static final ObjectMapper JSON = new ObjectMapper();
 
     /**
-     * Collects the run's information.
+     * Collects the run's information, without the Docker engine, which {@link #withDockerEngine} adds.
      *
      * @param workingDirectory a directory inside the project, where git runs
      * @param started the run's start, which also names its directories
@@ -77,11 +78,17 @@ public record RunInfo(ZonedDateTime started, String host, String user, String gi
         if (detached) {
             branch = containingBranch(projectDirectory).orElse(DETACHED_HEAD);
         }
-        return new RunInfo(started, hostName(), System.getProperty("user.name", ""),
+        return new RunInfo(started, hostName(), HostDetails.collect(), null, System.getProperty("user.name", ""),
                 git(projectDirectory, "config", "user.name"), git(projectDirectory, "config", "user.email"),
                 projectDirectory, branch, detached, commit,
                 !commit.isEmpty() && !git(projectDirectory, "status", "--porcelain").isEmpty(),
                 version(projectDirectory));
+    }
+
+    /** This information with the Docker engine that runs the containers, which is null when it is unknown. */
+    public RunInfo withDockerEngine(DockerEngine engine) {
+        return new RunInfo(started, host, hostDetails, engine, user, gitUserName, gitUserEmail, projectDirectory,
+                gitBranch, gitDetached, gitCommit, gitDirty, version);
     }
 
     /**
@@ -99,6 +106,20 @@ public record RunInfo(ZonedDateTime started, String host, String user, String gi
         values.put("git.build.user.name", gitUserName);
         values.put("git.build.user.email", gitUserEmail);
         values.put("git.build.host", host);
+        values.put("host.cpu", hostDetails.cpu());
+        values.put("host.sockets", hostDetails.sockets());
+        values.put("host.cores", hostDetails.cores());
+        values.put("host.hardwareThreads", hostDetails.hardwareThreads());
+        values.put("host.memoryBytes", hostDetails.memoryBytes());
+        values.put("host.os", hostDetails.os());
+        if (dockerEngine != null) {
+            values.put("docker.version", dockerEngine.version());
+            values.put("docker.cpus", dockerEngine.cpus());
+            values.put("docker.memoryBytes", dockerEngine.memoryBytes());
+            values.put("docker.os", dockerEngine.os());
+            values.put("docker.kernel", dockerEngine.kernel());
+            values.put("docker.architecture", dockerEngine.architecture());
+        }
         values.put("user", user);
         values.put("projectDirectory", projectDirectory.toString());
         JSON.writerWithDefaultPrettyPrinter().writeValue(directory.resolve(FILE_NAME).toFile(), values);

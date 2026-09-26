@@ -69,6 +69,11 @@ public class RunInfoTest {
         assertThat(clean.projectDirectory()).isEqualTo(project);
         assertThat(clean.gitBranch()).isEqualTo("lh-branch");
         assertThat(clean.gitDetached()).isFalse();
+        // JFR describes the host; the launcher adds the Docker engine
+        assertThat(clean.hostDetails().hardwareThreads()).isPositive();
+        assertThat(clean.hostDetails().memoryBytes()).isPositive();
+        assertThat(clean.hostDetails().cpu()).isNotEmpty();
+        assertThat(clean.dockerEngine()).isNull();
         assertThat(clean.gitCommit()).hasSize(40);
         assertThat(clean.gitCommit()).isEqualTo(commit);
         assertThat(clean.gitDirty()).isFalse();
@@ -163,9 +168,12 @@ public class RunInfoTest {
 
     @Test
     public void writesTheKeysOfPulsarVersionProperties() throws IOException {
-        RunInfo info = new RunInfo(STARTED, "perf-host", "lari", "Lari Hotari", "lari@example.com",
-                Path.of("/work/pulsar"), "lh-branch", false, "0123456789abcdef0123456789abcdef01234567", true,
-                "5.0.0-SNAPSHOT");
+        RunInfo info = new RunInfo(STARTED, "perf-host",
+                new HostDetails("Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz", 1, 8, 16, 33_256_595_456L, "Linux 7.1.5"),
+                null, "lari", "Lari Hotari", "lari@example.com", Path.of("/work/pulsar"), "lh-branch", false,
+                "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT")
+                .withDockerEngine(new DockerEngine("28.4.0", 4, 8_589_934_592L, "Docker Desktop", "6.10.14-linuxkit",
+                        "aarch64"));
 
         info.write(directory);
 
@@ -181,6 +189,18 @@ public class RunInfoTest {
         assertThat(json.path("git.build.user.name").asText()).isEqualTo("Lari Hotari");
         assertThat(json.path("git.build.user.email").asText()).isEqualTo("lari@example.com");
         assertThat(json.path("git.build.host").asText()).isEqualTo("perf-host");
+        assertThat(json.path("host.cpu").asText()).isEqualTo("Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz");
+        assertThat(json.path("host.sockets").asInt()).isEqualTo(1);
+        assertThat(json.path("host.cores").asInt()).isEqualTo(8);
+        assertThat(json.path("host.hardwareThreads").asInt()).isEqualTo(16);
+        assertThat(json.path("host.memoryBytes").asLong()).isEqualTo(33_256_595_456L);
+        assertThat(json.path("host.os").asText()).isEqualTo("Linux 7.1.5");
+        assertThat(json.path("docker.version").asText()).isEqualTo("28.4.0");
+        assertThat(json.path("docker.cpus").asInt()).isEqualTo(4);
+        assertThat(json.path("docker.memoryBytes").asLong()).isEqualTo(8_589_934_592L);
+        assertThat(json.path("docker.os").asText()).isEqualTo("Docker Desktop");
+        assertThat(json.path("docker.kernel").asText()).isEqualTo("6.10.14-linuxkit");
+        assertThat(json.path("docker.architecture").asText()).isEqualTo("aarch64");
         assertThat(json.path("user").asText()).isEqualTo("lari");
         assertThat(json.path("projectDirectory").asText()).isEqualTo("/work/pulsar");
     }

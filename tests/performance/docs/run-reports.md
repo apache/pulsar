@@ -105,7 +105,9 @@ performance tests, and a footer below a horizontal line at the end repeats the t
 report has these sections:
 
 - **The settings table**: the scenario, the cluster, the workload, the host's CPU temperature and frequency during
-  the measurement, and where, by whom and from which commit the run was made.
+  the measurement, and where, by whom and from which commit the run was made. The host row names the host's CPU,
+  cores, hardware threads, memory and operating system, and the Docker engine row the engine's version, CPUs and
+  memory, which on macOS are those of Docker Desktop's virtual machine rather than the host's.
 - **Correctness**: the unique messages, duplicates, ordering violations and invalid messages of each application.
   In a valid run, every application received every message the producer sent, warmup included, with no ordering
   violations or invalid messages. Duplicates are valid in Pulsar's at-least-once delivery, and are counted so that
@@ -132,7 +134,7 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 |---|---|
 | `README.md`, `index.html` | The run report, as Markdown and as its HTML page, with links to the run's other files. The names make HTTP servers and GitHub open a run's directory on its report |
 | `<scenario>.yaml`, `resolved-config.yaml` | The scenario file as written, and the scenario with its inheritance and environment overrides applied, which the workloads read |
-| `run-info.json` | The run's start, host, user, project directory, git branch, whether the HEAD was detached, the commit, whether the checkout had uncommitted changes, and the Pulsar version, with the keys of `pulsar-version.properties` where they match. The launcher collects them itself, from git and `gradle.properties` in the checkout it runs from |
+| `run-info.json` | The run's start, host, user, project directory, git branch, whether the HEAD was detached, the commit, whether the checkout had uncommitted changes, and the Pulsar version, with the keys of `pulsar-version.properties` where they match. The launcher collects them itself, from git and `gradle.properties` in the checkout it runs from. The `host.*` keys have the host's CPU model, sockets, cores, hardware threads, memory and operating system, from a JDK Flight Recorder recording of the launcher's JVM that is stopped right away, so that they are there on every operating system, and the `docker.*` keys the Docker engine's version, CPUs, memory, operating system, kernel and architecture |
 | `run-id.txt` | The ID that correlates the producer and the consumers of the run |
 | `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked. A cool-down wait of 10 s or more before the measurement is cut out of the time axis |
 | `backlog.svg`, `.png` | Each subscription's backlog over the run, on the same time axis |

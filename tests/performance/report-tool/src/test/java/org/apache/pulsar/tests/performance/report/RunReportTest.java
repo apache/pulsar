@@ -36,6 +36,13 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class RunReportTest {
+    // A run's information with the given git state, and no git user or host details
+    private static RunInfo runInfo(ZonedDateTime started, String branch, boolean detached, String commit,
+                                   boolean dirty, String version) {
+        return new RunInfo(started, "host", HostDetails.UNKNOWN, null, "user", "", "", Path.of("/p"), branch,
+                detached, commit, dirty, version);
+    }
+
     private static final long START = 1_790_000_000_000L;
     private final ObjectMapper mapper = new ObjectMapper();
     private Path run;
@@ -104,9 +111,13 @@ public class RunReportTest {
                         + " \"subscriptionPrefix\": \"sub-\", \"clientsPerApplication\": 20,"
                         + " \"numberOfMessages\": 400000, \"warmupMessages\": 100000,"
                         + " \"warmupRounds\": 1, \"payloadBytes\": 128, \"batchingEnabled\": false, \"rate\": 0}"),
-                new RunInfo(ZonedDateTime.parse("2026-09-25T06:42:59+03:00"), "perf-host", "lari", "Lari Hotari",
-                        "lari@example.com", Path.of("/work/pulsar/.claude/worktrees/w1"), "lh-branch", false,
-                        "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT"),
+                new RunInfo(ZonedDateTime.parse("2026-09-25T06:42:59+03:00"), "perf-host",
+                        new HostDetails("Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz", 1, 8, 16, 33_256_595_456L,
+                                "Pop!_OS 24.04 LTS (Linux 7.1.5-76070105-generic)"),
+                        new DockerEngine("28.4.0", 16, 33_256_595_456L, "Pop!_OS 24.04 LTS", "7.1.5-76070105-generic",
+                                "x86_64"),
+                        "lari", "Lari Hotari", "lari@example.com", Path.of("/work/pulsar/.claude/worktrees/w1"),
+                        "lh-branch", false, "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT"),
                 ZonedDateTime.parse("2026-09-25T06:46:41+03:00"), List.of()),
                 mapper);
         String report = Files.readString(file);
@@ -144,7 +155,12 @@ public class RunReportTest {
         assertThat(report).contains("| Scenario | [scenario](scenario.yaml) |\n");
         assertThat(report).contains("| Cluster | 1 broker(s), 3 bookies, [configuration](resolved-config.yaml) |\n");
         assertThat(report).contains("| Started | 2026-09-25T06:42:59+03:00 |");
-        assertThat(report).contains("| Host | perf-host |");
+        // The host's hardware and operating system, and the Docker engine, whose CPUs and memory are those of
+        // Docker Desktop's virtual machine on macOS
+        assertThat(report).contains("| Host | perf-host: Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz, 8 cores,"
+                + " 16 hardware threads, 31 GiB, Pop!_OS 24.04 LTS (Linux 7.1.5-76070105-generic) |\n");
+        assertThat(report).contains("| Docker engine | Docker 28.4.0, 16 CPUs, 31 GiB, Pop!_OS 24.04 LTS"
+                + " (kernel 7.1.5-76070105-generic, x86_64) |\n");
         assertThat(report).contains("| User | lari (git: Lari Hotari <lari@example.com>) |");
         assertThat(report).contains("| Project directory | `/work/pulsar/.claude/worktrees/w1` |");
         assertThat(report).contains("| Git branch | `lh-branch` |");
@@ -327,9 +343,9 @@ public class RunReportTest {
     @Test
     public void writesAShortChartFooter() {
         ZonedDateTime started = ZonedDateTime.parse("2026-09-25T23:58:30+03:00");
-        RunInfo clean = new RunInfo(started, "host", "user", "", "", Path.of("/p"), "lh-branch", false,
-                "1ebd73f2652103b30483ba6ddd7ab587a605912a", false, "5.0.0-SNAPSHOT");
-        RunInfo noGit = new RunInfo(started, "host", "user", "", "", Path.of("/p"), "", false, "", false, "");
+        RunInfo clean = runInfo(started, "lh-branch", false, "1ebd73f2652103b30483ba6ddd7ab587a605912a", false,
+                "5.0.0-SNAPSHOT");
+        RunInfo noGit = runInfo(started, "", false, "", false, "");
 
         // Past midnight the end is still only a time, in the start's zone
         assertThat(RunReport.chartFooter(clean, ZonedDateTime.parse("2026-09-25T21:02:05Z")))
@@ -343,16 +359,16 @@ public class RunReportTest {
         ZonedDateTime started = ZonedDateTime.parse("2026-09-25T23:58:30+03:00");
         String commit = "1ebd73f2652103b30483ba6ddd7ab587a605912a";
         StringBuilder onBranch = new StringBuilder();
-        RunReport.appendRunInfo(onBranch, new RunInfo(started, "host", "user", "", "", Path.of("/p"), "lh-branch",
-                false, commit, false, "5.0.0-SNAPSHOT"));
+        RunReport.appendRunInfo(onBranch, runInfo(started, "lh-branch", false, commit, false, "5.0.0-SNAPSHOT"));
         StringBuilder atBranchCommit = new StringBuilder();
-        RunReport.appendRunInfo(atBranchCommit, new RunInfo(started, "host", "user", "", "", Path.of("/p"),
-                "lh-branch", true, commit, false, "5.0.0-SNAPSHOT"));
+        RunReport.appendRunInfo(atBranchCommit, runInfo(started, "lh-branch", true, commit, false, "5.0.0-SNAPSHOT"));
         StringBuilder atNoBranch = new StringBuilder();
-        RunReport.appendRunInfo(atNoBranch, new RunInfo(started, "host", "user", "", "", Path.of("/p"),
-                RunInfo.DETACHED_HEAD, true, commit, false, "5.0.0-SNAPSHOT"));
+        RunReport.appendRunInfo(atNoBranch,
+                runInfo(started, RunInfo.DETACHED_HEAD, true, commit, false, "5.0.0-SNAPSHOT"));
 
         assertThat(onBranch.toString()).contains("| Git branch | `lh-branch` |\n");
+        // Without host details, the host is only named, and an unknown Docker engine has no row
+        assertThat(onBranch.toString()).contains("| Host | host |\n").doesNotContain("Docker engine");
         assertThat(atBranchCommit.toString())
                 .contains("| Git branch | `lh-branch`, a detached HEAD at a commit of this branch |\n");
         // A commit that no branch contains is named as git names it
@@ -364,15 +380,13 @@ public class RunReportTest {
         ZonedDateTime started = ZonedDateTime.parse("2026-09-25T23:58:30+03:00");
         String commit = "1ebd73f2652103b30483ba6ddd7ab587a605912a";
 
-        assertThat(RunReport.title("iot.yaml", new RunInfo(started, "host", "user", "", "", Path.of("/p"),
-                "lh-branch", true, commit, false, "")))
+        assertThat(RunReport.title("iot.yaml", runInfo(started, "lh-branch", true, commit, false, "")))
                 .isEqualTo("Pulsar performance test run 2026-09-25 23:58:30 lh-branch 1ebd73f26521 iot");
         // A commit that no branch contains, with uncommitted changes
-        assertThat(RunReport.title("iot.yaml", new RunInfo(started, "host", "user", "", "", Path.of("/p"),
-                RunInfo.DETACHED_HEAD, true, commit, true, "")))
+        assertThat(RunReport.title("iot.yaml", runInfo(started, RunInfo.DETACHED_HEAD, true, commit, true, "")))
                 .isEqualTo("Pulsar performance test run 2026-09-25 23:58:30 1ebd73f26521-dirty iot");
-        assertThat(RunReport.title("iot.yml", new RunInfo(started, "host", "user", "", "", Path.of("/p"), "",
-                false, "", false, ""))).isEqualTo("Pulsar performance test run 2026-09-25 23:58:30 iot");
+        assertThat(RunReport.title("iot.yml", runInfo(started, "", false, "", false, "")))
+                .isEqualTo("Pulsar performance test run 2026-09-25 23:58:30 iot");
         assertThat(RunReport.title("iot.yaml", null)).isEqualTo("Pulsar performance test run iot");
     }
 

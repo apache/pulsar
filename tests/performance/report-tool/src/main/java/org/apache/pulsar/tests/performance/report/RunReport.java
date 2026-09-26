@@ -398,9 +398,13 @@ public final class RunReport {
             user += " (git: " + info.gitUserName()
                     + (info.gitUserEmail().isEmpty() ? "" : " <" + info.gitUserEmail() + ">") + ")";
         }
+        String hostDetails = info.hostDetails().summary();
         report.append(row("Started", info.started().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME)))
-                .append(row("Host", info.host()))
-                .append(row("User", user))
+                .append(row("Host", hostDetails.isEmpty() ? info.host() : info.host() + ": " + hostDetails));
+        if (info.dockerEngine() != null) {
+            report.append(row("Docker engine", info.dockerEngine().summary()));
+        }
+        report.append(row("User", user))
                 .append(row("Project directory", code(info.projectDirectory().toString())))
                 .append(row("Git branch", code(info.gitBranch())
                         + (info.gitDetached() && !info.gitBranch().equals(RunInfo.DETACHED_HEAD)

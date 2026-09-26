@@ -22,6 +22,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.github.dockerjava.api.model.Info;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -41,6 +42,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.TreeMap;
@@ -55,12 +57,14 @@ import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
+import org.apache.pulsar.tests.performance.report.DockerEngine;
 import org.apache.pulsar.tests.performance.report.JfrFlamegraphViews;
 import org.apache.pulsar.tests.performance.report.MarkdownPages;
 import org.apache.pulsar.tests.performance.report.OffCpuFlamegraphs;
 import org.apache.pulsar.tests.performance.report.ProfileReport;
 import org.apache.pulsar.tests.performance.report.RunInfo;
 import org.apache.pulsar.tests.performance.report.RunReport;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -148,7 +152,7 @@ public class PerformanceLauncher implements Callable<Integer> {
 
         // Whole seconds, as the run directory names the start
         RunInfo runInfo = RunInfo.collect(Path.of("").toAbsolutePath(),
-                ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+                ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS)).withDockerEngine(dockerEngine());
         Path runOutput = output != null ? output : RunDirectory.resolve(
                 reportsDirectory != null ? reportsDirectory
                         : runInfo.projectDirectory().resolve(RunDirectory.DEFAULT_REPORTS_ROOT),
@@ -657,6 +661,22 @@ public class PerformanceLauncher implements Callable<Integer> {
                 result[i] = input.readLong();
             }
             return result;
+        }
+    }
+
+    /**
+     * The Docker engine that runs the containers, as {@code docker info} describes it, or null when Docker can't be
+     * asked. On macOS its CPUs and memory are those of Docker Desktop's virtual machine rather than the host's.
+     */
+    static DockerEngine dockerEngine() {
+        try {
+            Info info = DockerClientFactory.instance().getInfo();
+            return new DockerEngine(Objects.toString(info.getServerVersion(), ""),
+                    Objects.requireNonNullElse(info.getNCPU(), 0), Objects.requireNonNullElse(info.getMemTotal(), 0L),
+                    Objects.toString(info.getOperatingSystem(), ""), Objects.toString(info.getKernelVersion(), ""),
+                    Objects.toString(info.getArchitecture(), ""));
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 }
