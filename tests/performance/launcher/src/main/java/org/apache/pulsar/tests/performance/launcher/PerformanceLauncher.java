@@ -79,6 +79,7 @@ public class PerformanceLauncher implements Callable<Integer> {
     // The producer's measurement control endpoints, inside its container
     private static final int CONTROL_PORT = 8089;
     private static final String OUTPUT_MOUNT = "/performance-output";
+    static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
     private static final String CONTAINER_LOG = RunReport.CONTAINER_LOG;
 
     @Option(names = "--config", required = true)
@@ -190,6 +191,10 @@ public class PerformanceLauncher implements Callable<Integer> {
         @SuppressWarnings("unchecked")
         Map<String, String> bookkeeperEnvs =
                 loader.mapper().convertValue(clusterConfig.path("bookkeeperEnvs"), Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, String> producerEnvs = loader.mapper().convertValue(clusterConfig.path("producerEnvs"), Map.class);
+        @SuppressWarnings("unchecked")
+        Map<String, String> consumerEnvs = loader.mapper().convertValue(clusterConfig.path("consumerEnvs"), Map.class);
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
                 .numBrokers(clusterConfig.path("brokers").intValue())
@@ -223,7 +228,8 @@ public class PerformanceLauncher implements Callable<Integer> {
                 Files.createDirectories(appOutput);
                 consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                         coordinationDirectory, runId, appOutput, agentJar, offCpuOptions,
-                        consumerProfileOptions, "iot-consume", "--application-index", Integer.toString(application))
+                        consumerProfileOptions, consumerEnvs, "iot-consume", "--application-index",
+                        Integer.toString(application))
                         .waitingFor(Wait.forLogMessage(".*READY application=.*", 1)
                                 .withStartupTimeout(Duration.ofMinutes(5))));
             }
@@ -233,7 +239,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                     coordinationDirectory, runId, producerOutput, agentJar, offCpuOptions,
-                    producerProfileOptions, "iot-produce", cooldownCelsius != null
+                    producerProfileOptions, producerEnvs, "iot-produce", cooldownCelsius != null
                             ? new String[] {"--control-port", Integer.toString(CONTROL_PORT)} : new String[0]);
             if (cooldownCelsius != null) {
                 // The launcher reaches the producer's control endpoints through the port mapped on the host
@@ -533,7 +539,8 @@ public class PerformanceLauncher implements Callable<Integer> {
                                                    Path coordinationDirectory, String runId,
                                                    Path outputDirectory, Path agentJar,
                                                    Map<String, Object> offCpuOptions, String profileOptions,
-                                                   String command, String... extraArguments) throws IOException {
+                                                   Map<String, String> envs, String command,
+                                                   String... extraArguments) throws IOException {
         List<String> arguments = new ArrayList<>();
         arguments.add(TOOLS_MOUNT + "/bin/pulsar-performance-tools");
         arguments.add(command);
@@ -559,12 +566,29 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .withFileSystemBind(configFile.toString(), CONFIG_MOUNT, BindMode.READ_ONLY)
                 .withFileSystemBind(coordinationDirectory.toString(), COORDINATION_MOUNT, BindMode.READ_WRITE)
                 .withFileSystemBind(outputDirectory.toString(), OUTPUT_MOUNT, BindMode.READ_WRITE)
-                .withEnv("JAVA_TOOL_OPTIONS", javaOptions)
+                .withEnv(workloadEnvironment(javaOptions, envs))
                 .withCommand(arguments.toArray(String[]::new));
         if (profileOptions != null) {
             JonoffcpuAgent.attach(container, agentJar);
         }
         return container;
+    }
+
+    /**
+     * The environment of a workload container: the configured variables ({@code cluster.producerEnvs} or
+     * {@code cluster.consumerEnvs}) and {@code JAVA_TOOL_OPTIONS} with the launcher's JVM options. A configured
+     * {@code JAVA_TOOL_OPTIONS} is appended to the launcher's options, so that it can add or override options without
+     * dropping the heap settings or the profiling agent.
+     */
+    static Map<String, String> workloadEnvironment(String javaOptions, Map<String, String> envs) {
+        Map<String, String> environment = new LinkedHashMap<>();
+        if (envs != null) {
+            envs.forEach((name, value) -> environment.put(name, value != null ? value : ""));
+        }
+        String configured = environment.get(JAVA_TOOL_OPTIONS);
+        environment.put(JAVA_TOOL_OPTIONS,
+                configured == null || configured.isBlank() ? javaOptions : javaOptions + " " + configured);
+        return environment;
     }
 
     private static String text(JsonNode parent, String field) {

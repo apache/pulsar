@@ -186,7 +186,10 @@ Scenario YAML is a reusable configuration tree rather than a format tied to a te
 [`common`](common) resolves the tree; launchers and workload applications select the subtree they own. The
 standalone launcher uses these top-level sections:
 
-- `cluster`: the Pulsar topology and broker or BookKeeper environment settings;
+- `cluster`: the Pulsar topology and the environment variables of each kind of container: `brokerEnvs` and
+  `bookkeeperEnvs` for the broker and the bookies, and `producerEnvs` and `consumerEnvs` for the producer and the
+  consumer (application) containers of the workload, for example `GLIBC_TUNABLES`. A `JAVA_TOOL_OPTIONS` in
+  `producerEnvs` or `consumerEnvs` is appended to the launcher's JVM options for those containers;
 - `workloads`: named workload configurations, currently including `iotTelemetry`;
 - `profiling`: optional async-profiler options for the broker, producer and consumer processes, recorded through
   the [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent, plus the shared `offCpu` sampling policy; and
