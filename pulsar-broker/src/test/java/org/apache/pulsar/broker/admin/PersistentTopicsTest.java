@@ -43,6 +43,7 @@ import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -60,6 +61,7 @@ import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
@@ -108,6 +110,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
@@ -1940,6 +1943,57 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         // verify we only call getReplicatedSubscriptionStatusAsync once.
         verify(topics, times(1)).getReplicatedSubscriptionStatusAsync(any(), any());
+    }
+
+    @Test
+    public void testGetReplicatedSubscriptionStatusDoesNotLogRedirectAsError() throws Exception {
+        // A 307 means this broker does not own the partition and the caller is being sent to the one that
+        // does. That is normal routing rather than a failure, so it must not be reported at ERROR level: a
+        // broker that fans out per-partition admin calls would otherwise log a stack trace per redirect.
+        // The logger is the one inherited from PulsarWebResource, not PersistentTopicsBase: the inherited
+        // field is derived via LOG.with().build(), and slog keeps the parent's name when deriving.
+        @Cleanup
+        TestLogAppender logAppender = TestLogAppender.create(PulsarWebResource.class);
+
+        String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal
+                + "/testGetReplicatedSubscriptionStatusDoesNotLogRedirectAsError";
+        String subName = "sub_testGetReplicatedSubscriptionStatusDoesNotLogRedirectAsError";
+        TopicName partition = TopicName.get(topicName).getPartition(0);
+        admin.topics().createPartitionedTopic(topicName, 1);
+        admin.topics().createSubscription(topicName, subName, MessageId.latest);
+
+        // validateTopicOwnershipAsync() builds the redirect location from the request URI.
+        uriField.set(persistentTopics, uriInfo);
+        doReturn(URI.create(pulsar.getWebServiceAddress() + "/admin/v2/persistent/" + testTenant + "/"
+                + testNamespaceLocal + "/" + partition.getLocalName() + "/subscription/" + subName
+                + "/replicatedSubscriptionStatus")).when(uriInfo).getRequestUri();
+
+        // Pretend the partition moved to another broker between the lookup and this call.
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        doReturn(CompletableFuture.completedFuture(false))
+                .when(namespaceService).isServiceUnitOwnedAsync(partition);
+        doReturn(namespaceService).when(pulsar).getNamespaceService();
+
+        logAppender.clearEvents();
+
+        // Passing the partition name directly routes straight into
+        // internalGetReplicatedSubscriptionStatusForNonPartitionedTopic, whose handler is the one under
+        // test. The outer handler in internalGetReplicatedSubscriptionStatus is not chained to this call,
+        // so an ERROR captured here can only have come from the inner one.
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.getReplicatedSubscriptionStatus(response, testTenant, testNamespaceLocal,
+                partition.getLocalName(), subName, false);
+
+        ArgumentCaptor<WebApplicationException> captor = ArgumentCaptor.forClass(WebApplicationException.class);
+        verify(response, timeout(5000).times(1)).resume(captor.capture());
+        assertEquals(captor.getValue().getResponse().getStatus(),
+                Response.Status.TEMPORARY_REDIRECT.getStatusCode());
+
+        assertTrue(logAppender.getEvents().stream()
+                        .noneMatch(event -> event.getLevel() == Level.ERROR
+                                && event.getMessage().toString()
+                                .contains("Failed to get replicated subscription status")),
+                "A 307 redirect must not be logged at ERROR level");
     }
 
     @Test
