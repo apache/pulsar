@@ -286,6 +286,7 @@ The following table lists all current PIPs in this directory, sorted by PIP numb
 | PIP-205 | [Reactive Java client for Apache Pulsar](pip-205.md) |
 | PIP-209 | [Separate C++/Python clients to own repositories](pip-209.md) |
 | PIP-243 | [Register Jackson Java 8 support modules by default](pip-243.md) |
+| PIP-246 | [Improve PROTOBUF_NATIVE schema compatibility checks without avro-protobuf](pip-246.md) |
 | PIP-249 | [Pulsar website redesign](pip-249.md) |
 | PIP-259 | [Make the config httpMaxRequestHeaderSize of the pulsar web server to configurable](pip-259.md) |
 | PIP-261 | [Restructure Getting Started section](pip-261.md) |
