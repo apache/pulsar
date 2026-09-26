@@ -285,7 +285,8 @@ tasks.register<Test>("profilingIntegrationTest") {
 
     // Resolve the harness environment through a Provider so configuration-cache reuse tracks scenario
     // and output overrides instead of retaining an earlier profiling invocation's environment.
-    environment(providers.environmentVariablesPrefixedBy("PULSAR_PROFILING_").get())
+    environment(providers.environmentVariablesPrefixedBy("PULSAR_PROFILING_").get() +
+        providers.environmentVariablesPrefixedBy("pulsar_profiling_").get())
 
     // Build the test image that carries the profiler, and prepare the kernel for it.
     dependsOn(":tests:java-test-image:dockerBuildWithAsyncProfiler", tuneKernelPerfEvents)

@@ -72,7 +72,10 @@ Select a scenario by its name, its file name without `.yaml`, in `PULSAR_PROFILI
 scenario file of your own there, an absolute one since Gradle runs the test in the integration module's directory.
 Start with `pulsar-profiling`; omitted values keep the existing defaults. The sections correspond to the main
 components of a run: `cluster`, `load`, `profiling` and `output`. Individual scalar values can be overridden for a
-one-off run with the `PULSAR_PROFILING_` prefix and an upper-case path, for example:
+one-off run with an environment variable named with the prefix `PULSAR_PROFILING_` or `pulsar_profiling_` followed
+by the value's path, its elements separated by underscores and in any case, as
+[Environment overrides](../../scenarios/docs/scenario-format.md#environment-overrides) describes for the launcher,
+for example:
 
 ```bash
 PULSAR_PROFILING_CONFIG=pulsar-profiling \
