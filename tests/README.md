@@ -88,10 +88,9 @@ be profiled without changing it; name it and the components to profile:
 - `-Pdocker.wolfi` builds the images from Wolfi instead of Alpine, which makes the `GLIBC_TUNABLES` that a test sets
   take effect.
 
-Without `--tests`, the task runs `PulsarProfilingTest`, a `pulsar-perf` workload of
-[the legacy TestNG profiling runner](performance/docs/legacy-testng-runner.md).
-[Flame graphs of other recordings](performance/docs/analyzing-profiles.md#flame-graphs-of-other-recordings) describes
-rendering flame graphs from the recordings.
+Without `--tests`, the task runs `PulsarProfilingTest`, a `pulsar-perf` workload of the legacy TestNG profiling
+runner. [The performance testing guide](performance/README.md) leads to rendering flame graphs from the recordings
+and analyzing them, and to the legacy runner.
 
 ## Performance tests
 
@@ -115,9 +114,8 @@ command line and write their results to files, so they can be automated, includi
 - [`certificate-authority`](certificate-authority/README.md): the test certificate authority and the TLS certificates
   that the tests use.
 - [`scripts`](scripts): scripts to run before and after the integration tests.
-- [`performance`](performance/README.md): the performance test scenarios, their launcher and the guidance for
-  repeatable profiling runs. [Setting up the performance testing environment](performance/environment/README.md)
-  describes configuring a host for consistent results.
+- [`performance`](performance/README.md): the performance test scenarios, their launcher, the configuration of a
+  host for consistent results and the guidance for repeatable profiling runs.
 - [`compose`](compose/README.md): Docker Compose files that start a Pulsar cluster.
 - Tests of the packaged clients: [`pulsar-client-shade-test`](pulsar-client-shade-test),
   [`pulsar-client-admin-shade-test`](pulsar-client-admin-shade-test),

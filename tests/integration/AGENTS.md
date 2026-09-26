@@ -6,3 +6,5 @@ running or changing them.
 
 - Run single test classes with `--tests`. The full suite is heavy and slow, and runs in CI.
 - The tests need Docker. `integrationTest` builds the test image when it is out of date; don't build it separately.
+- For performance optimizations, use the performance tests rather than a profiled integration test, as
+  [`tests/performance/AGENTS.md`](../performance/AGENTS.md) guides.

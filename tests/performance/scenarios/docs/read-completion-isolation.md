@@ -105,7 +105,8 @@ Before comparing rates:
 - Report percentage changes alongside absolute values and distinguish lower-is-better metrics
   such as backlog and CPU from higher-is-better throughput.
 
-Analyze the broker recording with Jafar MCP `jfr_diagnose` and `jfr_stackprofile`, saving output
+Analyze the broker recording with an AI agent, as
+[AI agent analysis](../../docs/analyzing-profiles.md#ai-agent-analysis) describes, saving output
 beside the recording as `<filename>.jfr.analysis.md`. Compare CPU, monitor contention and thread-park
 views within the steady window. Executor queue delay need not appear as monitor contention.
 The command above omits wall-clock sampling to avoid its overhead during lock profiling.

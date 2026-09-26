@@ -247,8 +247,10 @@ same experiment name, so that the runs of both land next to each other:
   scenarios, inheritance, environment overrides and the warmup.
 - [Profiling](docs/profiling.md): the jonoffcpu profiler, its requirements and options, the files of a profiled run
   and the measurement recording.
-- [Analyzing profiles](docs/analyzing-profiles.md): finding what to optimize, comparing profiles, the tools that
-  read the recordings, including JDK Mission Control, the Jafar MCP server and its jafar-perf plugin, and
+- [Analyzing profiles](docs/analyzing-profiles.md): finding what to optimize, comparing profiles,
+  [flame graphs of other recordings](docs/analyzing-profiles.md#flame-graphs-of-other-recordings), such as those of
+  profiled tests, integration tests and benchmarks, the tools that read the recordings, including JDK Mission Control
+  and [AI agents](docs/analyzing-profiles.md#ai-agent-analysis), and
   [analyzing heap dumps](docs/analyzing-profiles.md#heap-dumps-and-memory-leaks).
 - [Comparing revisions](docs/comparing-revisions.md): running an A/B comparison.
 - [The performance testing environment setup](environment/README.md): configuring a Linux host for consistent

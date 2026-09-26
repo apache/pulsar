@@ -126,8 +126,7 @@ isolation, such as SASL's one class per worker, takes precedence.
 
 Test JVMs write heap dumps on heap exhaustion to `/tmp/java_pid<PID>.hprof`, collected by CI's
 existing failure artifacts. Set `-PtestHeapDumpPath=<existing-directory>` to use another directory.
-[Heap dumps and memory leaks](tests/performance/docs/analyzing-profiles.md#heap-dumps-and-memory-leaks)
-describes tools for analyzing them.
+[The performance testing guide](tests/performance/README.md) leads to tools for analyzing them.
 
 Failed tests are retried once by default (`testRetryCount=1`; `0` when running inside the IDE). When
 running tests locally, prefer **`-PtestRetryCount=0`** to catch failures (including flakiness) early
@@ -238,11 +237,9 @@ monitors, queues, I/O or GC, not only where they use CPU. See [Performance tests
 
 #### Performance recording analysis
 
-[Analyzing profiles](tests/performance/docs/analyzing-profiles.md) describes rendering these recordings
-into flame graphs, opening them in JDK Mission Control or IntelliJ IDEA, analyzing them with the Jafar
-MCP server or its jafar-perf plugin, and
-[investigating memory leaks in heap dumps](tests/performance/docs/analyzing-profiles.md#heap-dumps-and-memory-leaks)
-with the jafar-perf plugin or codelipenghui/mcp-mat.
+[The performance testing guide](tests/performance/README.md) leads to rendering these recordings into
+flame graphs, opening them in JDK Mission Control or IntelliJ IDEA, analyzing them with an AI agent,
+and investigating memory leaks in heap dumps.
 
 ### Integration tests
 
@@ -262,10 +259,9 @@ report for every run with throughput, latency, delivery and ordering checks and 
 Runs can be profiled with async-profiler, JDK Flight Recorder and jonoffcpu's off-CPU recording at the
 same time, and two revisions can be compared. Everything runs from the
 command line and writes its results to files, which makes the experiments automatable, including tuning
-by AI agents (see [`tests/performance/AGENTS.md`](tests/performance/AGENTS.md)). A Linux host configured
-with [the performance testing environment setup](tests/performance/environment/README.md) gives
-consistent results. [`tests/performance/README.md`](tests/performance/README.md) is a tutorial for
-running a scenario, reading its report, profiling a run and comparing revisions.
+by AI agents. [`tests/performance/README.md`](tests/performance/README.md) is a tutorial for configuring
+a Linux host for consistent results, running a scenario, reading its report, profiling a run and
+comparing revisions.
 
 ### Running the full CI pipeline (Personal CI)
 

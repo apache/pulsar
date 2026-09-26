@@ -134,7 +134,7 @@ jmc-open() {
 
 With IntelliJ IDEA's command-line launcher installed, open a recording with `idea <recording.jfr>`.
 
-## Jafar MCP analysis
+## AI agent analysis
 
 The [Jafar MCP server](https://github.com/btraceio/jafar/blob/main/jfr-mcp/README.md) lets an AI coding agent query a
 recording. Register it once with [JBang](https://www.jbang.dev/) and JDK 25+:
@@ -171,7 +171,7 @@ appropriate, or a second profile.
 For an `OutOfMemoryError` or a suspected retention problem, analyze the resulting `.hprof` heap dump with an AI agent
 through one of these tools:
 
-- The [`jafar-perf` plugin](#jafar-mcp-analysis) from jafar-perf-box supports heap dump analysis, including
+- The [`jafar-perf` plugin](#ai-agent-analysis) from jafar-perf-box supports heap dump analysis, including
   investigating memory leaks and comparing heap dumps.
 - [codelipenghui/mcp-mat](https://github.com/codelipenghui/mcp-mat), an MCP server that runs a headless Eclipse Memory
   Analyzer (MAT). Use the leak suspects report and the dominator tree first, then query paths to GC roots or OQL for
