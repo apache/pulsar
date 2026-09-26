@@ -364,9 +364,13 @@ public class PulsarCluster {
         externalServices.values().forEach(consumer);
     }
 
-    /** The proxy's HTTP service URL. */
+    /**
+     * The proxy's HTTP service URL, or a broker's when the cluster has no proxy. A broker serves the admin requests
+     * that it handles itself; one that it redirects to another broker's advertised name fails outside the cluster's
+     * network.
+     */
     public String getHttpServiceUrl() {
-        return requireProxy().getHttpServiceUrl();
+        return proxyContainer != null ? proxyContainer.getHttpServiceUrl() : getAnyBroker().getHttpServiceUrl();
     }
 
     public String getAnyBrokersHttpsServiceUrl() {
