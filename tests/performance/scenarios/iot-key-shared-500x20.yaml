@@ -17,7 +17,8 @@
 # The launcher variant of key-shared-500x20.yaml: 500 producer connections feed one topic as fast as possible
 # and one application consumes it through a twenty-member Key_Shared subscription, unbatched. Like
 # key-shared-500x20.yaml, ledgers keep a single copy: this is a broker dispatch experiment, not durable capacity
-# guidance.
+# guidance. It keeps the saturation settings that iot-telemetry-high-rate.yaml had: no rate limit, and up to
+# 100,000 messages in flight.
 
 extends: iot-telemetry-high-rate.yaml
 cluster:
@@ -28,12 +29,14 @@ cluster:
       managedLedgerDefaultAckQuorum: "1"
 workloads:
   iotTelemetry:
+    rate: 0
     measurement:
       messages: 4000000
     payload:
       size: 128
     gateways:
       producer:
+        maxOutstanding: 100000
         batchingEnabled: false
     applications:
       count: 1
