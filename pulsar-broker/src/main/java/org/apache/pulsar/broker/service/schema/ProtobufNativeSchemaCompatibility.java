@@ -46,6 +46,8 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 final class ProtobufNativeSchemaCompatibility {
     private static final int MAX_PATH_LENGTH = 768;
     private static final int MAX_DETAIL_LENGTH = 256;
+    private static final long MAX_COMPARISON_WORK = 100_000;
+    private static final long WORK_PER_GRAPH_ELEMENT = 16;
 
     private ProtobufNativeSchemaCompatibility() {
     }
@@ -55,19 +57,18 @@ final class ProtobufNativeSchemaCompatibility {
             throw incompatible("ROOT_MESSAGE_CHANGED", writer.getFullName(), 0,
                     writer.getFullName(), reader.getFullName());
         }
-        checkSupportedGraph(writer, "writer");
-        checkSupportedGraph(reader, "reader");
-
-        ArrayDeque<MessagePair> queue = new ArrayDeque<>();
-        IdentityHashMap<Descriptor, Set<Descriptor>> visited = new IdentityHashMap<>();
-        enqueue(queue, visited, writer, reader, writer.getFullName());
-        while (!queue.isEmpty()) {
-            MessagePair pair = queue.removeFirst();
-            compareMessagePair(pair, queue, visited);
+        Comparison comparison = new Comparison();
+        checkSupportedGraph(writer, "writer", comparison);
+        checkSupportedGraph(reader, "reader", comparison);
+        comparison.limit = Math.min(MAX_COMPARISON_WORK, comparison.work * WORK_PER_GRAPH_ELEMENT);
+        comparison.enqueue(writer, reader, writer.getFullName());
+        while (!comparison.queue.isEmpty()) {
+            compareMessagePair(comparison.queue.removeFirst(), comparison);
         }
     }
 
-    private static void checkSupportedGraph(Descriptor root, String side) throws IncompatibleSchemaException {
+    private static void checkSupportedGraph(Descriptor root, String side, Comparison comparison)
+            throws IncompatibleSchemaException {
         ArrayDeque<Descriptor> queue = new ArrayDeque<>();
         Set<Descriptor> visited = Collections.newSetFromMap(new IdentityHashMap<>());
         Set<EnumDescriptor> visitedEnums = Collections.newSetFromMap(new IdentityHashMap<>());
@@ -76,27 +77,23 @@ final class ProtobufNativeSchemaCompatibility {
         while (!queue.isEmpty()) {
             Descriptor message = queue.removeFirst();
             String path = message.getFullName();
-            checkLanguage(message.getFile(), side, path);
+            comparison.charge(1, path);
+            comparison.checkFile(message.getFile(), side, path);
             if (message.toProto().getExtensionRangeCount() != 0
                     || message.getOptions().getMessageSetWireFormat()) {
                 throw incompatible("UNSUPPORTED_FEATURE", path, 0, side, "extension range or MessageSet");
             }
-            checkFeatures(message.toProto().getOptions().getFeatures(), path);
-            for (Descriptor parent = message.getContainingType(); parent != null;
-                    parent = parent.getContainingType()) {
-                checkFeatures(parent.toProto().getOptions().getFeatures(), parent.getFullName());
-            }
-            for (FieldDescriptor field : sortedFields(message)) {
+            comparison.checkContainingFeatures(message);
+            for (FieldDescriptor field : comparison.sortedFields(message)) {
+                comparison.charge(1, path);
                 String fieldPath = append(path, field.getName());
                 checkFeatures(field.toProto().getOptions().getFeatures(), fieldPath);
                 if (field.getJavaType() == FieldDescriptor.JavaType.ENUM) {
                     EnumDescriptor enumType = field.getEnumType();
                     if (visitedEnums.add(enumType)) {
-                        checkLanguage(enumType.getFile(), side, fieldPath);
-                        for (Descriptor parent = enumType.getContainingType(); parent != null;
-                                parent = parent.getContainingType()) {
-                            checkFeatures(parent.toProto().getOptions().getFeatures(), parent.getFullName());
-                        }
+                        comparison.charge(1L + enumType.getValues().size(), fieldPath);
+                        comparison.checkFile(enumType.getFile(), side, fieldPath);
+                        comparison.checkContainingFeatures(enumType.getContainingType());
                         checkFeatures(enumType.toProto().getOptions().getFeatures(), fieldPath);
                         for (EnumValueDescriptor value : enumType.getValues()) {
                             checkFeatures(value.toProto().getOptions().getFeatures(), fieldPath);
@@ -113,7 +110,8 @@ final class ProtobufNativeSchemaCompatibility {
                     }
                 }
             }
-            for (OneofDescriptor oneof : sortedOneofs(message.getOneofs())) {
+            for (OneofDescriptor oneof : comparison.sortedOneofs(message)) {
+                comparison.charge(1, path);
                 checkFeatures(oneof.toProto().getOptions().getFeatures(), append(path, oneof.getName()));
             }
         }
@@ -185,12 +183,12 @@ final class ProtobufNativeSchemaCompatibility {
         return null;
     }
 
-    private static void compareMessagePair(MessagePair pair, ArrayDeque<MessagePair> queue,
-                                           IdentityHashMap<Descriptor, Set<Descriptor>> visited)
+    private static void compareMessagePair(MessagePair pair, Comparison comparison)
             throws IncompatibleSchemaException {
         Descriptor writer = pair.writer;
         Descriptor reader = pair.reader;
-        List<FieldDescriptor> readerFields = sortedFields(reader);
+        List<FieldDescriptor> readerFields = comparison.sortedFields(reader);
+        comparison.charge(3L * readerFields.size(), pair.path);
         for (FieldDescriptor readerField : readerFields) {
             FieldDescriptor sameName = writer.findFieldByName(readerField.getName());
             if (sameName != null && sameName.getNumber() != readerField.getNumber()) {
@@ -208,20 +206,25 @@ final class ProtobufNativeSchemaCompatibility {
                 }
             }
         }
-        checkOneofRelationships(pair);
+        checkOneofRelationships(pair, comparison);
         for (FieldDescriptor readerField : readerFields) {
             FieldDescriptor writerField = writer.findFieldByNumber(readerField.getNumber());
             if (writerField != null) {
-                compareField(writerField, readerField, append(pair.path, readerField.getName()), queue, visited);
+                compareField(writerField, readerField, append(pair.path, readerField.getName()), comparison);
             }
         }
     }
 
-    private static void checkOneofRelationships(MessagePair pair) throws IncompatibleSchemaException {
-        for (OneofDescriptor oneof : sortedOneofs(pair.reader.getRealOneofs())) {
+    private static void checkOneofRelationships(MessagePair pair, Comparison comparison)
+            throws IncompatibleSchemaException {
+        for (OneofDescriptor oneof : comparison.sortedOneofs(pair.reader)) {
+            comparison.charge(1, pair.path);
+            if (oneof.getFieldCount() == 1 && oneof.getField(0).getRealContainingOneof() == null) {
+                continue;
+            }
             List<FieldDescriptor> matchingWriterFields = new ArrayList<>();
-            List<FieldDescriptor> oneofFields = new ArrayList<>(oneof.getFields());
-            oneofFields.sort(Comparator.comparingInt(FieldDescriptor::getNumber));
+            List<FieldDescriptor> oneofFields = comparison.oneofFields.get(oneof);
+            comparison.charge(2L * oneofFields.size(), pair.path);
             for (FieldDescriptor readerField : oneofFields) {
                 FieldDescriptor writerField = pair.writer.findFieldByNumber(readerField.getNumber());
                 if (writerField != null) {
@@ -242,8 +245,7 @@ final class ProtobufNativeSchemaCompatibility {
     }
 
     private static void compareField(FieldDescriptor writer, FieldDescriptor reader, String path,
-                                     ArrayDeque<MessagePair> queue,
-                                     IdentityHashMap<Descriptor, Set<Descriptor>> visited)
+                                     Comparison comparison)
             throws IncompatibleSchemaException {
         if (writer.isMapField() != reader.isMapField()) {
             throw incompatible("MAP_CHANGED", path, reader.getNumber(),
@@ -267,14 +269,21 @@ final class ProtobufNativeSchemaCompatibility {
             throw incompatible("UTF8_VALIDATION_ADDED", path, reader.getNumber(), "unchecked", "checked");
         }
         if (reader.getJavaType() == FieldDescriptor.JavaType.ENUM) {
-            compareEnum(writer.getEnumType(), reader.getEnumType(), path, reader.getNumber());
+            compareEnum(writer.getEnumType(), reader.getEnumType(), path, reader.getNumber(), comparison);
         } else if (reader.getJavaType() == FieldDescriptor.JavaType.MESSAGE) {
-            enqueue(queue, visited, writer.getMessageType(), reader.getMessageType(), path);
+            comparison.enqueue(writer.getMessageType(), reader.getMessageType(), path);
         }
     }
 
-    private static void compareEnum(EnumDescriptor writer, EnumDescriptor reader, String path, int number)
+    private static void compareEnum(EnumDescriptor writer, EnumDescriptor reader, String path, int number,
+                                    Comparison comparison)
             throws IncompatibleSchemaException {
+        Set<EnumDescriptor> readers = comparison.enumPairs.computeIfAbsent(writer,
+                ignored -> Collections.newSetFromMap(new IdentityHashMap<>()));
+        if (!readers.add(reader)) {
+            return;
+        }
+        comparison.charge(1L + 2L * writer.getValues().size() + 2L * reader.getValues().size(), path);
         Map<String, Integer> writerNames = new HashMap<>();
         for (EnumValueDescriptor value : writer.getValues()) {
             writerNames.put(value.getName(), value.getNumber());
@@ -337,27 +346,79 @@ final class ProtobufNativeSchemaCompatibility {
         return field.legacyEnumFieldTreatedAsClosed();
     }
 
-    private static void enqueue(ArrayDeque<MessagePair> queue,
-                                IdentityHashMap<Descriptor, Set<Descriptor>> visited,
-                                Descriptor writer, Descriptor reader, String path) {
-        Set<Descriptor> readers = visited.computeIfAbsent(writer,
-                ignored -> Collections.newSetFromMap(new IdentityHashMap<>()));
-        if (readers.add(reader)) {
-            queue.addLast(new MessagePair(writer, reader, bounded(path, MAX_PATH_LENGTH)));
+    /** All traversal state and work accounting belongs to one direction of one historical pair. */
+    private static final class Comparison {
+        private final ArrayDeque<MessagePair> queue = new ArrayDeque<>();
+        private final IdentityHashMap<Descriptor, Set<Descriptor>> messagePairs = new IdentityHashMap<>();
+        private final IdentityHashMap<EnumDescriptor, Set<EnumDescriptor>> enumPairs = new IdentityHashMap<>();
+        private final IdentityHashMap<Descriptor, List<FieldDescriptor>> fields = new IdentityHashMap<>();
+        private final IdentityHashMap<Descriptor, List<OneofDescriptor>> oneofs = new IdentityHashMap<>();
+        private final IdentityHashMap<OneofDescriptor, List<FieldDescriptor>> oneofFields = new IdentityHashMap<>();
+        private final Set<FileDescriptor> checkedFiles = Collections.newSetFromMap(new IdentityHashMap<>());
+        private final Set<Descriptor> checkedScopes = Collections.newSetFromMap(new IdentityHashMap<>());
+        private long work;
+        private long limit = MAX_COMPARISON_WORK;
+
+        private void charge(long amount, String path) throws IncompatibleSchemaException {
+            if (amount > limit - work) {
+                throw incompatible("COMPARISON_LIMIT_EXCEEDED", path, 0,
+                        "work=" + (work + amount), "limit=" + limit);
+            }
+            work += amount;
         }
-    }
 
-    private static List<FieldDescriptor> sortedFields(Descriptor descriptor) {
-        List<FieldDescriptor> fields = new ArrayList<>(descriptor.getFields());
-        fields.sort(Comparator.comparingInt(FieldDescriptor::getNumber));
-        return fields;
-    }
+        private void enqueue(Descriptor writer, Descriptor reader, String path) throws IncompatibleSchemaException {
+            Set<Descriptor> readers = messagePairs.computeIfAbsent(writer,
+                    ignored -> Collections.newSetFromMap(new IdentityHashMap<>()));
+            if (readers.add(reader)) {
+                charge(1, path);
+                queue.addLast(new MessagePair(writer, reader, bounded(path, MAX_PATH_LENGTH)));
+            }
+        }
 
-    private static List<OneofDescriptor> sortedOneofs(List<OneofDescriptor> oneofs) {
-        List<OneofDescriptor> sorted = new ArrayList<>(oneofs);
-        sorted.sort(Comparator.comparingInt(oneof -> oneof.getFields().stream()
-                .mapToInt(FieldDescriptor::getNumber).min().orElse(Integer.MAX_VALUE)));
-        return sorted;
+        private List<FieldDescriptor> sortedFields(Descriptor descriptor) throws IncompatibleSchemaException {
+            List<FieldDescriptor> sorted = fields.get(descriptor);
+            if (sorted == null) {
+                charge(descriptor.getFields().size(), descriptor.getFullName());
+                sorted = new ArrayList<>(descriptor.getFields());
+                sorted.sort(Comparator.comparingInt(FieldDescriptor::getNumber));
+                fields.put(descriptor, sorted);
+            }
+            return sorted;
+        }
+
+        private List<OneofDescriptor> sortedOneofs(Descriptor descriptor) throws IncompatibleSchemaException {
+            List<OneofDescriptor> sorted = oneofs.get(descriptor);
+            if (sorted == null) {
+                charge(descriptor.getOneofs().size(), descriptor.getFullName());
+                sorted = new ArrayList<>(descriptor.getOneofs());
+                for (OneofDescriptor oneof : sorted) {
+                    charge(oneof.getFieldCount(), descriptor.getFullName());
+                    List<FieldDescriptor> members = new ArrayList<>(oneof.getFields());
+                    members.sort(Comparator.comparingInt(FieldDescriptor::getNumber));
+                    oneofFields.put(oneof, members);
+                }
+                sorted.sort(Comparator.comparingInt(oneof -> oneofFields.get(oneof).isEmpty()
+                        ? Integer.MAX_VALUE : oneofFields.get(oneof).get(0).getNumber()));
+                oneofs.put(descriptor, sorted);
+            }
+            return sorted;
+        }
+
+        private void checkFile(FileDescriptor file, String side, String path) throws IncompatibleSchemaException {
+            if (checkedFiles.add(file)) {
+                charge(1, path);
+                checkLanguage(file, side, path);
+            }
+        }
+
+        private void checkContainingFeatures(Descriptor descriptor) throws IncompatibleSchemaException {
+            for (Descriptor scope = descriptor; scope != null && checkedScopes.add(scope);
+                    scope = scope.getContainingType()) {
+                charge(1, scope.getFullName());
+                checkFeatures(scope.toProto().getOptions().getFeatures(), scope.getFullName());
+            }
+        }
     }
 
     private static String append(String path, String name) {

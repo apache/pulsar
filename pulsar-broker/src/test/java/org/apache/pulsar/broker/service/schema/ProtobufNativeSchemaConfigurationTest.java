@@ -76,10 +76,18 @@ public class ProtobufNativeSchemaConfigurationTest {
             assertThatThrownBy(() -> SchemaRegistryService.create(mock(SchemaStorage.class), Set.of(ADVANCED),
                     mock(PulsarService.class)))
                     .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("Unable to initialize advanced PROTOBUF_NATIVE checker");
+                    .hasMessageContaining("Unable to initialize configured schema compatibility checkers");
         } finally {
             Thread.currentThread().setContextClassLoader(original);
         }
+    }
+
+    @Test
+    public void testMisspelledCheckerDoesNotFallback() {
+        assertThatThrownBy(() -> SchemaRegistryService.create(mock(SchemaStorage.class),
+                Set.of(LEGACY + "Typo"), mock(PulsarService.class)))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Unable to initialize configured schema compatibility checkers");
     }
 
     public static class AnotherNativeChecker implements SchemaCompatibilityCheck {

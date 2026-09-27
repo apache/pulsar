@@ -59,6 +59,7 @@ import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.JavaFeaturesProto;
 import com.google.protobuf.JavaFeaturesProto.JavaFeatures;
 import com.google.protobuf.UnknownFieldSet;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -344,7 +345,7 @@ public class ProtobufNativeSchemaCompatibilityTest {
         }
         SchemaData unsupported = unsupportedEditionSchema();
         try {
-            checker.checkCompatible(unsupported, unsupported, SchemaCompatibilityStrategy.BACKWARD);
+            checker.checkCompatible(unsupported, differentEncoding(unsupported), SchemaCompatibilityStrategy.BACKWARD);
             fail("Edition 2026 must be unsupported");
         } catch (IncompatibleSchemaException e) {
             assertTrue(e.getMessage().contains("UNSUPPORTED_FEATURE"), e.getMessage());
@@ -362,7 +363,7 @@ public class ProtobufNativeSchemaCompatibilityTest {
                 .addMessageType(message("Order", field("id", 1, TYPE_INT32, LABEL_OPTIONAL))).build();
         SchemaData schema = rawSchema(file);
         try {
-            checker.checkCompatible(schema, schema, SchemaCompatibilityStrategy.BACKWARD);
+            checker.checkCompatible(schema, differentEncoding(schema), SchemaCompatibilityStrategy.BACKWARD);
             fail("Unknown wire feature must not resolve to a default");
         } catch (IncompatibleSchemaException e) {
             assertTrue(e.getMessage().contains("UNSUPPORTED_FEATURE"), e.getMessage());
@@ -392,7 +393,7 @@ public class ProtobufNativeSchemaCompatibilityTest {
         FeatureSet restored = roundTrip(descriptor).getFile().toProto().getOptions().getFeatures();
         assertThat(restored).isEqualTo(features);
         assertThat(restored.getUnknownFields().asMap()).isEmpty();
-        assertThatThrownBy(() -> checker.checkCompatible(schema(descriptor), schema(descriptor),
+        assertThatThrownBy(() -> checker.checkCompatible(schema(descriptor), differentEncoding(schema(descriptor)),
                 SchemaCompatibilityStrategy.BACKWARD))
                 .isInstanceOf(IncompatibleSchemaException.class).hasMessageContaining("UNSUPPORTED_FEATURE");
     }
@@ -403,7 +404,8 @@ public class ProtobufNativeSchemaCompatibilityTest {
                 .addDependency("missing.proto").build());
         assertThatThrownBy(() -> ProtobufNativeSchemaUtils.deserialize(schema.getData()))
                 .isInstanceOf(SchemaSerializationException.class);
-        assertThatThrownBy(() -> checker.checkCompatible(schema, schema, SchemaCompatibilityStrategy.BACKWARD))
+        assertThatThrownBy(() -> checker.checkCompatible(schema, differentEncoding(schema),
+                SchemaCompatibilityStrategy.BACKWARD))
                 .isInstanceOf(IncompatibleSchemaException.class).hasMessageContaining("UNSUPPORTED_FEATURE");
     }
 
@@ -502,6 +504,80 @@ public class ProtobufNativeSchemaCompatibilityTest {
         Descriptor writer = pairedGraph(false);
         Descriptor reader = pairedGraph(true);
         fails(writer, reader, "TYPE_CHANGED");
+    }
+
+    @Test(timeOut = 10000)
+    public void testCoprimeMessageCyclesHaveBoundedWork() throws Exception {
+        accepts(cycle(101), cycle(101));
+        accepts(cycle(5), cycle(7));
+        fails(cycle(101), cycle(103), "COMPARISON_LIMIT_EXCEEDED");
+    }
+
+    @Test
+    public void testSharedEnumPairIsComparedOnceWithinWorkBudget() throws Exception {
+        EnumDescriptorProto.Builder enumeration = EnumDescriptorProto.newBuilder().setName("State");
+        DescriptorProto.Builder message = DescriptorProto.newBuilder().setName("Order");
+        for (int i = 0; i < 256; i++) {
+            enumeration.addValue(EnumValueDescriptorProto.newBuilder().setName("VALUE_" + i).setNumber(i));
+            message.addField(field("state_" + i, i + 1, TYPE_ENUM, LABEL_OPTIONAL).toBuilder()
+                    .setTypeName(".example.State"));
+        }
+        Descriptor descriptor = root(message.build(), enumeration.build());
+        accepts(descriptor, descriptor);
+    }
+
+    @Test
+    public void testCompletedMessagePairsAreNotRevisited() throws Exception {
+        FileDescriptorProto.Builder file = FileDescriptorProto.newBuilder().setName("diamond.proto")
+                .setPackage("example").setSyntax("proto2");
+        for (int i = 0; i < 40; i++) {
+            DescriptorProto.Builder message = DescriptorProto.newBuilder().setName(i == 0 ? "Order" : "Node" + i);
+            if (i < 39) {
+                for (int number = 1; number <= 2; number++) {
+                    message.addField(field("next" + number, number, TYPE_MESSAGE, LABEL_OPTIONAL)
+                            .toBuilder().setTypeName(".example.Node" + (i + 1)));
+                }
+            }
+            file.addMessageType(message);
+        }
+        Descriptor descriptor = FileDescriptor.buildFrom(file.build(), new FileDescriptor[0])
+                .findMessageTypeByName("Order");
+        accepts(descriptor, descriptor);
+    }
+
+    @Test
+    public void testIdenticalUnsupportedSchemaPairsAreReused() throws Exception {
+        SchemaData unsupported = unsupportedEditionSchema();
+        for (SchemaCompatibilityStrategy strategy : List.of(SchemaCompatibilityStrategy.BACKWARD,
+                SchemaCompatibilityStrategy.FORWARD, SchemaCompatibilityStrategy.FULL,
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE,
+                SchemaCompatibilityStrategy.FORWARD_TRANSITIVE, SchemaCompatibilityStrategy.FULL_TRANSITIVE)) {
+            checker.checkCompatible(unsupported, unsupported, strategy);
+        }
+        assertThatThrownBy(() -> checker.checkCompatible(unsupported, unsupported,
+                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE))
+                .hasMessageContaining("ALWAYS_INCOMPATIBLE");
+        assertThatThrownBy(() -> checker.checkCompatible(unsupported, differentEncoding(unsupported),
+                SchemaCompatibilityStrategy.BACKWARD_TRANSITIVE))
+                .hasMessageContaining("UNSUPPORTED_FEATURE");
+    }
+
+    private static Descriptor cycle(int length) throws Exception {
+        FileDescriptorProto.Builder file = FileDescriptorProto.newBuilder().setName("cycle.proto")
+                .setPackage("example").setSyntax("proto2");
+        for (int i = 0; i < length; i++) {
+            String name = i == 0 ? "Order" : "Node" + i;
+            String next = i + 1 == length ? "Order" : "Node" + (i + 1);
+            file.addMessageType(message(name, field("next", 1, TYPE_MESSAGE, LABEL_OPTIONAL)
+                    .toBuilder().setTypeName(".example." + next).build()));
+        }
+        return FileDescriptor.buildFrom(file.build(), new FileDescriptor[0]).findMessageTypeByName("Order");
+    }
+
+    private static SchemaData differentEncoding(SchemaData schema) {
+        byte[] bytes = Arrays.copyOf(schema.getData(), schema.getData().length + 1);
+        bytes[bytes.length - 1] = ' ';
+        return SchemaData.builder().type(schema.getType()).data(bytes).build();
     }
 
     @Test

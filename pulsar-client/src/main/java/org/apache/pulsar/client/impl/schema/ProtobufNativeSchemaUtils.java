@@ -30,6 +30,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import lombok.CustomLog;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.protocol.schema.ProtobufNativeSchemaData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -117,21 +118,18 @@ public class ProtobufNativeSchemaUtils {
             Descriptors.FileDescriptor fileDescriptor = fileDescriptorCache.get(schemaData.getRootFileDescriptorName());
             String packagePrefix = fileDescriptor.getPackage().isEmpty() ? "" : fileDescriptor.getPackage() + ".";
             String rootName = schemaData.getRootMessageTypeName();
-            if (rootName == null || !rootName.startsWith(packagePrefix)
-                    || rootName.length() == packagePrefix.length()) {
-                throw new SchemaSerializationException("Root message is outside its descriptor package");
+            if (rootName == null || rootName.isEmpty()) {
+                throw new SchemaSerializationException("Missing root message name");
             }
-            String[] paths = rootName.substring(packagePrefix.length()).split("\\.");
-            //extract root message
-            descriptor = fileDescriptor.findMessageTypeByName(paths[0]);
-            //extract nested message
-            for (int i = 1; i < paths.length; i++) {
-                if (descriptor == null) {
-                    throw new SchemaSerializationException("Root message was not found");
-                }
-                descriptor = descriptor.findNestedTypeByName(paths[i]);
+            descriptor = findRootMessage(fileDescriptor,
+                    rootName.startsWith(packagePrefix) ? rootName.substring(packagePrefix.length()) : rootName);
+            if (descriptor == null) {
+                // Keep previously accepted root aliases readable for stored and reconnecting schemas.
+                // Canonical lookup above also fixes nested roots in files without a package.
+                descriptor = findRootMessage(fileDescriptor,
+                        StringUtils.removeFirst(rootName, fileDescriptor.getPackage()).replaceFirst("\\.", ""));
             }
-            if (descriptor == null || !descriptor.getFullName().equals(rootName)) {
+            if (descriptor == null) {
                 throw new SchemaSerializationException("Root message was not found");
             }
             log.debug().attr("size", schemaDataBytes.length)
@@ -141,6 +139,18 @@ public class ProtobufNativeSchemaUtils {
             throw new SchemaSerializationException(e);
         }
 
+        return descriptor;
+    }
+
+    private static Descriptors.Descriptor findRootMessage(Descriptors.FileDescriptor file, String name) {
+        String[] paths = name.split("\\.");
+        if (paths.length == 0) {
+            return null;
+        }
+        Descriptors.Descriptor descriptor = file.findMessageTypeByName(paths[0]);
+        for (int i = 1; descriptor != null && i < paths.length; i++) {
+            descriptor = descriptor.findNestedTypeByName(paths[i]);
+        }
         return descriptor;
     }
 

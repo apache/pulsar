@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HexFormat;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
@@ -75,15 +76,23 @@ public class ProtobufNativeSchemaAdvancedCompatibilityCheck implements SchemaCom
         }
         Descriptor proposed = null;
         for (SchemaData existingData : from) {
+            if (existingData != null && existingData.getType() == to.getType() && existingData.getData() != null
+                    && Arrays.equals(existingData.getData(), to.getData())) {
+                continue;
+            }
             if (proposed == null) {
                 proposed = deserialize(to);
             }
-            Descriptor existing = deserialize(existingData);
-            if (isBackward(strategy)) {
-                compare(existing, proposed, existingData, strategy, "BACKWARD");
-            }
-            if (isForward(strategy)) {
-                compare(proposed, existing, existingData, strategy, "FORWARD");
+            try {
+                Descriptor existing = deserialize(existingData);
+                if (isBackward(strategy)) {
+                    compare(existing, proposed, existingData, strategy, "BACKWARD");
+                }
+                if (isForward(strategy)) {
+                    compare(proposed, existing, existingData, strategy, "FORWARD");
+                }
+            } catch (IncompatibleSchemaException e) {
+                throw new SchemaComparisonException(existingData, e);
             }
         }
     }
@@ -98,11 +107,14 @@ public class ProtobufNativeSchemaAdvancedCompatibilityCheck implements SchemaCom
                     + ", existingSchemaSha256=" + fingerprint(existing.getData()) + ", ";
             String message = e.getMessage();
             throw new IncompatibleSchemaException(limit(message.substring(0, message.indexOf(':') + 1)
-                    + " " + prefix + message.substring(message.indexOf(':') + 1)), e);
+                    + " " + prefix + message.substring(message.indexOf(':') + 1).stripLeading()), e);
         }
     }
 
     private static Descriptor deserialize(SchemaData data) throws IncompatibleSchemaException {
+        if (data == null || data.getData() == null) {
+            throw new IncompatibleSchemaException("SCHEMA_RECONSTRUCTION_FAILED: missing schema data");
+        }
         try {
             return ProtobufNativeSchemaUtils.deserialize(data.getData());
         } catch (SchemaSerializationException e) {

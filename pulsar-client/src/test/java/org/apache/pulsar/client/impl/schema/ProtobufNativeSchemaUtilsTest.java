@@ -50,6 +50,19 @@ public class ProtobufNativeSchemaUtilsTest {
     }
 
     @Test
+    public void testLegacyRootNamesRemainReadable() throws Exception {
+        FileDescriptorProto file = FileDescriptorProto.newBuilder().setName("legacy.proto").setPackage("a.b")
+                .addMessageType(DescriptorProto.newBuilder().setName("Order")).build();
+        for (String rootName : List.of("a.b.Order", "Order", "aXb.Order", "a.b.Order.")) {
+            ProtobufNativeSchemaData data = ProtobufNativeSchemaData.builder()
+                    .fileDescriptorSet(FileDescriptorSet.newBuilder().addFile(file).build().toByteArray())
+                    .rootFileDescriptorName(file.getName()).rootMessageTypeName(rootName).build();
+            byte[] bytes = ObjectMapperFactory.getMapperWithIncludeAlways().writer().writeValueAsBytes(data);
+            Assert.assertEquals(ProtobufNativeSchemaUtils.deserialize(bytes).getFullName(), "a.b.Order", rootName);
+        }
+    }
+
+    @Test
     public void testUnresolvedAndCyclicImportsFailExplicitly() throws Exception {
         FileDescriptorProto missing = FileDescriptorProto.newBuilder().setName("a.proto")
                 .setPackage("example").addDependency("missing.proto")

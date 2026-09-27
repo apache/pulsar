@@ -59,9 +59,14 @@ public interface SchemaRegistryService extends SchemaRegistry {
         if (schemaStorage == null && advancedSelected) {
             throw new IllegalStateException("Advanced PROTOBUF_NATIVE checker requires schema storage");
         }
+        Map<SchemaType, SchemaCompatibilityCheck> checkers;
+        try {
+            checkers = getCheckers(schemaRegistryCompatibilityCheckers);
+        } catch (Exception e) {
+            throw new IllegalStateException("Unable to initialize configured schema compatibility checkers", e);
+        }
         if (schemaStorage != null) {
             try {
-                Map<SchemaType, SchemaCompatibilityCheck> checkers = getCheckers(schemaRegistryCompatibilityCheckers);
                 checkers.put(SchemaType.KEY_VALUE, new KeyValueSchemaCompatibilityCheck(checkers));
 
                 // PIP-464: propagate schemaJsonAllowLegacyJacksonFormat to JsonSchemaCompatibilityCheck

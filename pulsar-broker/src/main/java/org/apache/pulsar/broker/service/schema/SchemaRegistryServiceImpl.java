@@ -352,8 +352,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         SchemaHash existingHash = SchemaHash.of(existingSchemaData);
         SchemaHash newHash = SchemaHash.of(newSchema);
         if (!newHash.equals(existingHash)) {
-            compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
-                    .checkCompatible(existingSchemaData, newSchema, strategy);
+            try {
+                compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
+                        .checkCompatible(existingSchemaData, newSchema, strategy);
+            } catch (SchemaComparisonException e) {
+                throw e.withVersion(existingSchema.version);
+            }
         }
     }
 
@@ -517,6 +521,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                     .collect(Collectors.toList()), schema, strategy);
                     result.complete(null);
                 } catch (Exception e) {
+                    if (e instanceof SchemaComparisonException comparison) {
+                        for (SchemaAndMetadata existing : schemaAndMetadataList) {
+                            if (existing.schema == comparison.existingSchema()) {
+                                e = comparison.withVersion(existing.version);
+                                break;
+                            }
+                        }
+                    }
                     if (e instanceof IncompatibleSchemaException) {
                         result.completeExceptionally(e);
                     } else {
