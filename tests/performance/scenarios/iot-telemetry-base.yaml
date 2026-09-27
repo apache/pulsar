@@ -18,7 +18,7 @@
 
 # The defaults of the IoT telemetry scenarios: a workload of one gateway and one application with one pod, and the
 # cluster and the containers' memory of the medium-memory configuration, configs/iot-telemetry-medium-mem.yaml.
-# Recommended memory available to Docker: about 9 GB. The other scenarios extend it, and set the topology they model;
+# Recommended memory available to Docker: about 11 GB. The other scenarios extend it, and set the topology they model;
 # a scenario that needs a different memory configuration extends it from configs/ too, after this file.
 extends: configs/iot-telemetry-medium-mem.yaml
 workloads:

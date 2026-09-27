@@ -18,7 +18,7 @@
 
 # The medium-memory configuration of the IoT telemetry scenarios, their default, which iot-telemetry-base.yaml
 # extends: the cluster of cluster-medium-mem.yaml, and the memory of the gateways' and the applications' containers.
-# Recommended memory available to Docker: about 9 GB.
+# Recommended memory available to Docker: about 11 GB.
 extends: cluster-medium-mem.yaml
 workloads:
   iotTelemetry:

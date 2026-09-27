@@ -41,12 +41,12 @@ detail.
 
 | Scenario | What it runs | Memory configuration |
 |---|---|---|
-| [`iot-telemetry.yaml`](iot-telemetry.yaml) | **Start here.** The full topology: 100 gateways, 30 topics and 20 applications with 100 pods each, 1,000 messages per second for 120 s after a 20 s warmup | medium, about 9 GB |
-| [`iot-telemetry-base.yaml`](iot-telemetry-base.yaml) | The defaults that the other IoT scenarios extend: a workload of one gateway and one application with one pod, and the medium-memory configuration | medium, about 9 GB |
+| [`iot-telemetry.yaml`](iot-telemetry.yaml) | **Start here.** The full topology: 100 gateways, 30 topics and 20 applications with 100 pods each, 1,000 messages per second for 120 s after a 20 s warmup | medium, about 11 GB |
+| [`iot-telemetry-base.yaml`](iot-telemetry-base.yaml) | The defaults that the other IoT scenarios extend: a workload of one gateway and one application with one pod, and the medium-memory configuration | medium, about 11 GB |
 | [`iot-telemetry-small.yaml`](iot-telemetry-small.yaml) | A smaller topology: 10 gateways, 30 topics and 20 applications with 10 pods each, 1,000 messages per second for 120 s after a 20 s warmup | low, about 3 GB |
 | [`iot-telemetry-small-restarts.yaml`](iot-telemetry-small-restarts.yaml) | The smaller topology, restarting 10 % of each application's clients every 30 s | low, about 3 GB |
-| [`iot-telemetry-restarts.yaml`](iot-telemetry-restarts.yaml) | The full topology, restarting 10 % of each application's clients every 30 s | medium, about 9 GB |
-| [`iot-telemetry-high-rate.yaml`](iot-telemetry-high-rate.yaml) | Saturation: five million messages without a rate limit, from 500 preconnected producers to one topic, consumed by 5 applications with 10 pods each | high, about 14 GB |
+| [`iot-telemetry-restarts.yaml`](iot-telemetry-restarts.yaml) | The full topology, restarting 10 % of each application's clients every 30 s | medium, about 11 GB |
+| [`iot-telemetry-high-rate.yaml`](iot-telemetry-high-rate.yaml) | A high rate: five million messages at 30,000 messages per second, from 500 preconnected producers to one topic, consumed by 5 applications with 10 pods each | high, about 14 GB |
 
 ## Configurations
 
@@ -64,7 +64,7 @@ is the memory of Docker's virtual machine:
 | Configuration | Cluster | Recommended memory available to Docker |
 |---|---|---|
 | [`iot-telemetry-low-mem.yaml`](configs/iot-telemetry-low-mem.yaml) | [`cluster-low-mem.yaml`](configs/cluster-low-mem.yaml): one broker and one bookie, which holds every ledger with an ensemble, write quorum and ack quorum of 1, and heaps that the JVMs commit as they use them | about 3 GB. For checking that a scenario works on a small host; not meant for profiling. The applications' heap is sized for `iot-telemetry-small.yaml`, and the full topology runs out of it |
-| [`iot-telemetry-medium-mem.yaml`](configs/iot-telemetry-medium-mem.yaml) | [`cluster-medium-mem.yaml`](configs/cluster-medium-mem.yaml): one broker and two bookies | about 9 GB. The default, which `iot-telemetry-base.yaml` extends |
+| [`iot-telemetry-medium-mem.yaml`](configs/iot-telemetry-medium-mem.yaml) | [`cluster-medium-mem.yaml`](configs/cluster-medium-mem.yaml): one broker and two bookies | about 11 GB. The default, which `iot-telemetry-base.yaml` extends |
 | [`iot-telemetry-high-mem.yaml`](configs/iot-telemetry-high-mem.yaml) | [`cluster-high-mem.yaml`](configs/cluster-high-mem.yaml): one broker and three bookies, with a larger heap and direct memory for each | about 14 GB. For the high-rate scenarios |
 
 A scenario that needs another memory configuration than the default extends it after the scenario it builds on, as

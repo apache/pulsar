@@ -124,7 +124,7 @@ scenarios in detail.
   | Configuration | Recommended memory available to Docker | Used by |
   |---|---|---|
   | [`iot-telemetry-low-mem.yaml`](scenarios/configs/iot-telemetry-low-mem.yaml) | about 3 GB; not meant for profiling | `iot-telemetry-small.yaml` and `iot-telemetry-small-restarts.yaml` |
-  | [`iot-telemetry-medium-mem.yaml`](scenarios/configs/iot-telemetry-medium-mem.yaml) | about 9 GB | the other IoT telemetry scenarios, by default |
+  | [`iot-telemetry-medium-mem.yaml`](scenarios/configs/iot-telemetry-medium-mem.yaml) | about 11 GB | the other IoT telemetry scenarios, by default |
   | [`iot-telemetry-high-mem.yaml`](scenarios/configs/iot-telemetry-high-mem.yaml) | about 14 GB | `iot-telemetry-high-rate.yaml` |
 - **Disk space**: keep the disk that holds Docker's data less than 90 % full. BookKeeper bookies switch to read-only
   mode when it is 95 % full. [`docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) frees the space that test
@@ -176,7 +176,7 @@ which 20 applications with 100 pods each consume on Key_Shared subscriptions, fo
 seconds of measurement at 1,000 messages per second. It checks that every application receives every message of every
 device in order. It extends [`iot-telemetry-base.yaml`](scenarios/iot-telemetry-base.yaml), which holds the defaults
 of every IoT scenario: the workload's settings, with one gateway and one application with one pod, and the
-medium-memory configuration, which sets the cluster and the memory of every container and needs about 9 GB of memory
+medium-memory configuration, which sets the cluster and the memory of every container and needs about 11 GB of memory
 available to Docker. On a host with less, run the smaller topology,
 [`iot-telemetry-small.yaml`](scenarios/iot-telemetry-small.yaml), which needs about 3 GB.
 
@@ -286,8 +286,8 @@ The `profile` task runs a scenario with three recorders running at the same time
 [JDK Flight Recorder](https://docs.oracle.com/en/java/javase/25/troubleshoot/diagnostic-tools.html#GUID-D38849B6-61C7-4ED6-A395-EA4BC32A9FD6)
 records the JVM's own events into the same recording, and
 [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) records from the kernel the time each thread spent blocked. It
-needs a Linux Docker engine. The profiling scenario saturates one topic from 500 producers, and needs about 14 GB of
-memory available to Docker:
+needs a Linux Docker engine. The profiling scenario publishes 30,000 messages per second to one topic from 500
+producers, and needs about 14 GB of memory available to Docker:
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \

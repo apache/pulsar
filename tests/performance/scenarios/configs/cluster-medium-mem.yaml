@@ -17,12 +17,15 @@
 
 
 # The cluster of the medium-memory configuration, iot-telemetry-medium-mem.yaml, which the IoT telemetry scenarios use
-# by default: two bookies.
+# by default: two bookies. The broker's heap holds the Key_Shared subscriptions of the full topology,
+# iot-telemetry.yaml: 20 applications with 100 pods on 30 topics are 60,000 consumers, and each consumer has 100 points
+# on its subscription's consistent hash ring, which leaves about 2 GB of live objects. With a 2 GB heap the broker spent
+# its CPU in garbage collection, and even at 1,000 messages per second the publish latency reached seconds.
 extends: cluster-base.yaml
 cluster:
   brokers:
     env:
-      PULSAR_MEM: -Xms2g -Xmx2g -XX:MaxDirectMemorySize=1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
+      PULSAR_MEM: -Xms4g -Xmx4g -XX:MaxDirectMemorySize=1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
   bookies:
     replicas: 2
     env:

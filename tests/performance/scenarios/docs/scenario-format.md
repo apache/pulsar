@@ -143,7 +143,8 @@ files, and use environment overrides for temporary measurements rather than as t
 
 The `iotTelemetry` workload can run traffic before the measurement begins:
 
-- `warmup.seconds` with a positive `rate`, or `warmup.messages` when `rate: 0`. The two are mutually exclusive.
+- `warmup.seconds`, which needs a positive `rate`, or `warmup.messages`, with or without a rate. The two are mutually
+  exclusive.
 - `warmup.rounds` repeats that traffic, and `warmup.roundDelaySeconds` adds an idle stabilization period after each
   fully drained round, including the final round. The default is one round with no delay.
 - A round is fully drained only after every application has uniquely received its cumulative warmup message count;

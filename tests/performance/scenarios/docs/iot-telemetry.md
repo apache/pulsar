@@ -37,13 +37,16 @@ application-visible order across Key_Shared hash-range reassignment.
   configuration.
 - [`iot-telemetry-small-restarts.yaml`](../iot-telemetry-small-restarts.yaml) adds restart churn to that smaller
   topology.
-- [`iot-telemetry-high-rate.yaml`](../iot-telemetry-high-rate.yaml) removes the producer rate limit
-  and sends five million messages through 500 preconnected producers to one topic. Five applications each
-  consume with ten pods on one Key_Shared subscription. It uses the high-memory configuration.
+- [`iot-telemetry-high-rate.yaml`](../iot-telemetry-high-rate.yaml) sends five million messages at 30,000 messages
+  per second through 500 preconnected producers to one topic, with at most 10,000 in flight. Five applications each
+  consume with ten pods on one Key_Shared subscription. The rate is one that every application keeps up with on a
+  workstation whose CPU runs at a fixed base frequency: without a rate limit, the gateways publish faster than the
+  applications receive, and an application that falls behind can stall for tens of seconds. It uses the high-memory
+  configuration.
 
 Each scenario runs with a memory configuration from the scenarios' `configs` directory, which sets the cluster and
 the memory of every container: the low-memory one needs about 3 GB of memory available to Docker and isn't meant for
-profiling, the medium-memory one, the default, about 9 GB, and the high-memory one about 14 GB. See
+profiling, the medium-memory one, the default, about 11 GB, and the high-memory one about 14 GB. See
 [Memory configurations](../README.md#memory-configurations).
 
 Build the mountable workload distribution without running a cluster:
@@ -168,7 +171,7 @@ the broker's service URL itself.
 
 Use the `profile` task for a scenario that profiles a component: `profiling.broker`, `gateways` or `applications`
 with `asyncProfilerOptions`. The launcher's `--extends` option adds them to a scenario from the `profile-*` files in
-the scenarios' `configs` directory, here the broker's and the gateways' to the saturation workload:
+the scenarios' `configs` directory, here the broker's and the gateways' to the high-rate workload:
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
