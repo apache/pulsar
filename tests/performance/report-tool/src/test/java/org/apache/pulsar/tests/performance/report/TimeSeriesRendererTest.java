@@ -52,7 +52,7 @@ public class TimeSeriesRendererTest {
             assertThat(svg).contains("text-anchor=\"end\" font-size=\"10\">lh-branch@1ebd73f2 2026-09-25"
                     + " 13:35:22-13:39:04</text>");
             assertThat(svg).contains("Seconds since the measurement start");
-            assertThat(svg).contains("producers finished");
+            assertThat(svg).contains("gateways finished");
             assertThat(svg).contains(">warmup<");
             assertThat(svg).contains(">Consumers (dispatched)<");
             assertThat(Files.size(directory.resolve("throughput.png"))).isPositive();

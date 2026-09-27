@@ -38,15 +38,15 @@ Pass the launcher's options with `--args`:
 
 ```bash
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml --name my-experiment'
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --name my-experiment'
 ```
 
 ## Launcher options
 
 | Option | Description |
 |---|---|
-| `--config <file>` | The scenario file. Required. |
-| `--extends <scenario>` | Merges a scenario file on top of the scenario, as if the scenario extended it last, such as `profile-broker` to profile the broker. A relative path is looked for first in the directory of the `--config` scenario, then in the working directory, and `.yaml` may be left out; an absolute path is used as given. Repeatable, applied in order. See [Adding to a scenario on the command line](../scenarios/docs/scenario-format.md#adding-to-a-scenario-on-the-command-line). |
+| `--scenario <file>` | The scenario file. Required. |
+| `--extends <scenario>` | Merges a scenario file on top of the scenario, as if the scenario extended it last, such as `profile-broker` to profile the broker. A relative path is looked for first in the directory of the `--scenario` file, then in the working directory, and `.yaml` may be left out; an absolute path is used as given. Repeatable, applied in order. See [Adding to a scenario on the command line](../scenarios/docs/scenario-format.md#adding-to-a-scenario-on-the-command-line). |
 | `--set <path>=<value>` | Sets a value of the resolved scenario, such as `workloads.iotTelemetry.rate=5000`. Repeatable, applied in order after the environment overrides. See [Settings on the command line](../scenarios/docs/scenario-format.md#settings-on-the-command-line). |
 | `--name <name>` | The run's name in the reports hierarchy. Default: the scenario's `output.name`, or else the scenario file name without `.yaml`. |
 | `--reports-dir <dir>` | The root of the reports hierarchy. Default: `performance.reportsDir`, or else `build/performance` in the repository. |
@@ -96,7 +96,7 @@ Every run gets a directory of its own, in a hierarchy by day, git branch and nam
 
   ```bash
   ./gradlew :tests:performance:launcher:profile -Pperformance.reportsDir=/data/pulsar-reports \
-    --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --name e232-ab'
+    --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --name e232-ab'
   ```
 - The run directory is named by the run's start in local time. Two runs of the same name started within the same
   second would share it.
@@ -156,7 +156,7 @@ warmup rounds, before the first measured message:
 
 ```bash
 ./gradlew :tests:performance:launcher:run -Pperformance.cooldownTemperature=50 \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml'
 ```
 
 Pick a temperature a few degrees above the host's idle temperature, which the first samples of `host-stats.csv`

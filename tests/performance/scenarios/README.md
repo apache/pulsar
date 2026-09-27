@@ -27,7 +27,7 @@ it changes. Run a scenario from the repository root with the launcher:
 
 ```bash
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'
 ```
 
 Use the `profile` task instead of `run` for a scenario with profiling options. [The performance testing
@@ -56,13 +56,12 @@ These files add profiling to any scenario with the launcher's `--extends` option
 | File | What it adds |
 |---|---|
 | [`profile-broker.yaml`](profile-broker.yaml) | Profiles the broker |
-| [`profile-producer.yaml`](profile-producer.yaml) | Profiles the producer |
-| [`profile-application.yaml`](profile-application.yaml) | Profiles the applications' consumers |
-| [`profile-base.yaml`](profile-base.yaml) | The jonoffcpu settings that the others extend |
+| [`profile-gateways.yaml`](profile-gateways.yaml) | Profiles the gateways, the producer |
+| [`profile-applications.yaml`](profile-applications.yaml) | Profiles the applications, the consumers |
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker'
 ```
 
 ## Scenarios for the legacy TestNG runner
@@ -91,7 +90,7 @@ Run it like any other scenario. Its runs are named after the file, `iot-telemetr
 
 ```bash
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml --set workloads.iotTelemetry.rate=5000'
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --set workloads.iotTelemetry.rate=5000'
 ```
 
 [The scenario format](docs/scenario-format.md) describes the sections, inheritance,

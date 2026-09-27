@@ -32,7 +32,6 @@ import jdk.jfr.Event;
 import jdk.jfr.Name;
 import jdk.jfr.Recording;
 import jdk.jfr.consumer.RecordingFile;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class JfrCutTest {
@@ -100,23 +99,18 @@ public class JfrCutTest {
         }
     }
 
-    @Test(dataProvider = "retentionModes")
-    public void appliesIndependentRetentionOptions(boolean retainOriginal, boolean createMeasurement)
-            throws Exception {
-        Path directory = Files.createTempDirectory("jfr-retention-test");
+    @Test
+    public void cutsTheMeasurementRecordingAndKeepsTheRecording() throws Exception {
+        Path directory = Files.createTempDirectory("jfr-measurement-test");
         try {
             Path input = directory.resolve("profile.jfr");
             Instant[] interval = createRecording(input);
             Path measurement = JfrRecordingProcessor.measurementPath(input);
 
-            JfrRecordingProcessor.process(Set.of(input), interval[0], interval[1],
-                    retainOriginal, createMeasurement);
+            JfrRecordingProcessor.process(Set.of(input), interval[0], interval[1]);
 
-            assertThat(Files.exists(input)).isEqualTo(retainOriginal);
-            assertThat(Files.exists(measurement)).isEqualTo(createMeasurement);
-            if (createMeasurement) {
-                assertThat(markers(measurement)).containsExactly("measurement");
-            }
+            assertThat(input).exists();
+            assertThat(markers(measurement)).containsExactly("measurement");
         } finally {
             deleteDirectory(directory);
         }
@@ -199,16 +193,6 @@ public class JfrCutTest {
     public void derivesDefaultOutputBesideInput() {
         assertThat(JfrCut.defaultOutput(Path.of("/tmp/profile.jfr"))).isEqualTo(Path.of("/tmp/profile.cut.jfr"));
         assertThat(JfrCut.defaultOutput(Path.of("/tmp/profile"))).isEqualTo(Path.of("/tmp/profile.cut.jfr"));
-    }
-
-    @DataProvider
-    public Object[][] retentionModes() {
-        return new Object[][] {
-                {true, true},
-                {true, false},
-                {false, true},
-                {false, false}
-        };
     }
 
     private static Instant[] createRecording(Path path) throws Exception {

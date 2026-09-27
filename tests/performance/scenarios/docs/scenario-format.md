@@ -30,9 +30,11 @@ into the workload containers.
 
 - `cluster`: the Pulsar topology (`brokers`, `bookies`) and the environment variables of each kind of container:
   `brokerEnvs` and `bookkeeperEnvs` for the broker and the bookies, and `producerEnvs` and `consumerEnvs` for the
-  producer and the consumer (application) containers of the workload, for example `GLIBC_TUNABLES`. A
-  `JAVA_TOOL_OPTIONS` in `producerEnvs` or `consumerEnvs` is appended to the launcher's JVM options for those
-  containers.
+  gateways' and the applications' containers, for example `GLIBC_TUNABLES`. Their JVMs get the options of Pulsar's
+  client tools, from `conf/pulsar_env.sh` and as `bin/pulsar-perf` adds them. `PULSAR_MEM` sets a workload JVM's
+  heap and direct memory, `-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m` unless set, and `PULSAR_GC` and
+  `PULSAR_EXTRA_OPTS` apply when set. A `JAVA_TOOL_OPTIONS` there is appended to the launcher's JVM options for those
+  containers, such as the profiler agent.
 - `workloads`: named workload configurations, currently `iotTelemetry`, see
   [the IoT telemetry scenario](iot-telemetry.md). Workload-specific fields live below their workload name, so that
   another launcher or application can reuse the same file without interpreting unrelated sections. A workload command
@@ -53,8 +55,12 @@ workloads:
     rate: 1000
     clientRestartFraction: 0.1
 profiling:
-  brokerOptions: event=cpu,interval=10ms,jfrsync=profile
-  producerOptions: ~
+  broker:
+    asyncProfilerOptions: event=cpu,interval=10ms,jfrsync=profile
+    offCpuOptions:
+      admission:
+        policy: none
+  gateways: ~
 output:
   name: iot-restart-profile
 ```
@@ -74,10 +80,10 @@ the scenarios directory each profile one component.
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-producer'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-gateways'
 ```
 
-- A relative path is looked for first in the directory of the `--config` scenario, then in the working directory, and
+- A relative path is looked for first in the directory of the `--scenario` file, then in the working directory, and
   `.yaml` may be left out. An absolute path is used as given. The files can have their own `extends`, which resolve
   relative to them.
 - The option is repeatable, and the files are merged in order, after the scenario and its parents.
@@ -91,14 +97,14 @@ value's keys separated by dots, in any case:
 
 ```bash
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml --set workloads.iotTelemetry.rate=5000'
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --set workloads.iotTelemetry.rate=5000'
 ```
 
 - Every section on the path has to exist, so that a misspelled section fails the run instead of adding
   configuration. The last key may be new, such as a broker setting added with
   `--set cluster.brokerEnvs.dispatcherMaxReadBatchSize=500`.
 - A value that replaces a scalar keeps the scalar's YAML type. Any other value is parsed as YAML, so that
-  `--set 'profiling.offCpu.reasons=[blocked, runnable]'` sets a list.
+  `--set 'profiling.broker.offCpuOptions.reasons=[blocked, runnable]'` sets a list.
 - The option is repeatable, and the settings apply in order, after inheritance, `--extends` and the environment
   overrides.
 
@@ -113,15 +119,15 @@ the same value. The loader keeps the scalar's YAML type:
 ```bash
 PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=2000 \
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'
 
 PULSAR_PERFORMANCE_workloads_iotTelemetry_rate=2000 \
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'
 
 pulsar_performance_workloads_iottelemetry_rate=2000 \
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'
 ```
 
 Environment overrides are applied after inheritance. They only update paths present in the resolved tree, which
@@ -139,7 +145,7 @@ The `iotTelemetry` workload can run traffic before the measurement begins:
   producer send completions alone don't release the barrier.
 
 Warmup traffic remains part of the delivery and ordering validation. The producer throughput and the
-epoch-millisecond measurement boundaries in `producer-summary.json` cover only the measured messages. Every consumer
+epoch-millisecond measurement boundaries in `gateways-summary.json` cover only the measured messages. Every consumer
 summary records its first and last measured-message receipt. The measurement window runs from the producer's
 measurement start through the latest last receipt across all applications; the launcher uses it to cut the
 [measurement recording](../../docs/profiling.md#the-measurement-recording) of a profiled run.

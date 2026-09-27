@@ -75,7 +75,7 @@ public class ProfileReportTest {
         String report = Files.readString(file);
 
         assertThat(report).contains("Scenario `scenario.yaml`, run `run-1`.");
-        assertThat(report).contains("(40.0 s); producer throughput 102,329 msg/s.");
+        assertThat(report).contains("(40.0 s); gateways' throughput 102,329 msg/s.");
         // The files are a table with descriptive link texts; the recording's generated name is not shown
         assertThat(report).contains("| File | Contents |\n|---|---|\n"
                 + "| [Digest (off-CPU summary)](broker-offcpu/jonoffcpu-summary.md) | Start here:");
@@ -131,8 +131,8 @@ public class ProfileReportTest {
 
     @Test
     public void reportsTheRunWithoutProfilerOutputs() throws IOException {
-        Path file = ProfileReport.write(directory, List.of(directory.resolve("producer-1.jfr"),
-                        directory.resolve("producer-2.jfr")),
+        Path file = ProfileReport.write(directory, List.of(directory.resolve("profile-gateways-1.jfr"),
+                        directory.resolve("profile-gateways-2.jfr")),
                 new ProfileReport.Run("scenario.yaml", "run-2", Instant.parse("2026-09-25T00:00:00Z"),
                         Instant.parse("2026-09-25T00:00:01Z"), 0),
                 new ObjectMapper(), directory);
@@ -141,7 +141,7 @@ public class ProfileReportTest {
         // Several recordings in one directory are numbered rather than named
         assertThat(report).contains("## Recording 1\n");
         assertThat(report).contains("## Recording 2\n");
-        assertThat(report).doesNotContain("producer throughput");
+        assertThat(report).doesNotContain("gateways' throughput");
         assertThat(report).doesNotContain("### ");
         assertThat(report).doesNotContain("| File |");
         // No recording remains to open
@@ -150,11 +150,11 @@ public class ProfileReportTest {
 
     @Test
     public void pointsToJdkMissionControlOnceForNumberedRecordings() throws IOException {
-        Files.writeString(directory.resolve("producer-1.jfr"), "");
-        Files.writeString(directory.resolve("producer-2.measurement.jfr"), "");
+        Files.writeString(directory.resolve("profile-gateways-1.jfr"), "");
+        Files.writeString(directory.resolve("profile-gateways-2.measurement.jfr"), "");
 
-        Path file = ProfileReport.write(directory, List.of(directory.resolve("producer-1.jfr"),
-                        directory.resolve("producer-2.jfr")),
+        Path file = ProfileReport.write(directory, List.of(directory.resolve("profile-gateways-1.jfr"),
+                        directory.resolve("profile-gateways-2.jfr")),
                 new ProfileReport.Run("scenario.yaml", "run-5", Instant.parse("2026-09-25T00:00:00Z"),
                         Instant.parse("2026-09-25T00:00:01Z"), 0),
                 new ObjectMapper(), directory);

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -92,19 +91,24 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final int CONTROL_PORT = 8089;
     private static final String OUTPUT_MOUNT = "/performance-output";
     static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
+    static final String PULSAR_MEM = "PULSAR_MEM";
+    // A workload's heap and direct memory, unless cluster.producerEnvs or cluster.consumerEnvs set PULSAR_MEM
+    static final String WORKLOAD_MEMORY = "-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m";
     private static final String CONTAINER_LOG = RunReport.CONTAINER_LOG;
+    // The gateways' outputs, named after them as the run report names them
+    private static final String GATEWAYS_DIRECTORY = "gateways";
     // Every log goes to this file in the run directory, and the console shows only the launcher's own messages
     static final String LAUNCHER_LOG = "launcher.log";
     private static final String LOG_CONFIGURATION = "performance-launcher-log4j2.xml";
     private static final DateTimeFormatter STATUS_TIME = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.ROOT);
 
-    @Option(names = "--config", required = true)
-    Path config;
+    @Option(names = "--scenario", required = true, description = "The scenario file")
+    Path scenario;
 
     @Option(names = "--extends", paramLabel = "<scenario>",
             description = "Merge this scenario file on top of the scenario, as if the scenario extended it last, "
-                    + "such as profile-broker to profile the broker. A relative path is looked for in the --config "
-                    + "scenario's directory, then in the working directory, and .yaml may be left out; an absolute "
+                    + "such as profile-broker to profile the broker. A relative path is looked for in the --scenario "
+                    + "file's directory, then in the working directory, and .yaml may be left out; an absolute "
                     + "path is used as given. Repeatable, applied in order")
     List<Path> extendedScenarios = new ArrayList<>();
 
@@ -185,19 +189,14 @@ public class PerformanceLauncher implements Callable<Integer> {
     public Integer call() throws Exception {
         YamlScenarioLoader loader = new YamlScenarioLoader();
         List<Path> appendedScenarios = extendedScenarios.stream().map(this::appendedScenario).toList();
-        ObjectNode resolved = loader.resolve(config, appendedScenarios, null, System.getenv(), ENV_PREFIX, CONFIG_ENV);
+        ObjectNode resolved =
+                loader.resolve(scenario, appendedScenarios, null, System.getenv(), ENV_PREFIX, CONFIG_ENV);
         settings.forEach(setting -> loader.set(resolved, setting));
         ObjectNode workload = (ObjectNode) loader.select(resolved, "workloads.iotTelemetry");
         ObjectNode clusterConfig = (ObjectNode) loader.select(resolved, "cluster");
         JsonNode profiling = resolved.path("profiling");
-        String brokerProfileOptions = text(profiling, "brokerOptions");
-        String producerProfileOptions = text(profiling, "producerOptions");
-        String consumerProfileOptions = text(profiling, "consumerOptions");
-        boolean retainOriginalRecording = booleanValue(profiling, "retainOriginalRecording", true);
-        boolean createMeasurementRecording = booleanValue(profiling, "createMeasurementRecording", true);
-        Map<String, Object> offCpuOptions = offCpuOptions(loader.mapper(), profiling);
-        boolean profilingEnabled = brokerProfileOptions != null || producerProfileOptions != null
-                || consumerProfileOptions != null;
+        ProfilingSettings profilingSettings = ProfilingSettings.read(loader.mapper(), profiling);
+        boolean profilingEnabled = profilingSettings.anyProfiled();
         Path agentJar = null;
         if (profilingEnabled) {
             String configuredAgentJar = System.getProperty("performance.jonoffcpu.agent");
@@ -235,9 +234,9 @@ public class PerformanceLauncher implements Callable<Integer> {
         Files.writeString(runOutput.resolve("run-id.txt"), runId + "\n");
         Set<Path> recordingsBeforeRun = JfrRecordingProcessor.findOriginalRecordings(runOutput);
         Path brokerProfileDirectory = runOutput.resolve("broker-profile");
-        if (brokerProfileOptions != null) {
+        if (profilingSettings.broker().profiled()) {
             Files.createDirectories(brokerProfileDirectory);
-            System.setProperty("inttest.asyncprofiler.opts", brokerProfileOptions);
+            System.setProperty("inttest.asyncprofiler.opts", profilingSettings.broker().asyncProfilerOptions());
             System.setProperty("inttest.asyncprofiler.outputformat", "jfr");
         }
         Path resolvedConfig = runOutput.resolve(RunReport.RESOLVED_CONFIG);
@@ -248,13 +247,13 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
         loader.write(resolvedConfig, resolved);
         status("Scenario " + scenarioName(resolved) + " ("
-                + Stream.concat(Stream.of(config), appendedScenarios.stream())
+                + Stream.concat(Stream.of(scenario), appendedScenarios.stream())
                         .map(file -> file.getFileName().toString()).collect(Collectors.joining(" + "))
                 + (settings.isEmpty() ? "" : ", " + String.join(", ", settings)) + "), resolved:");
         System.out.print(indent(loader.mapper().writerWithDefaultPrettyPrinter().writeValueAsString(resolved)
                 .replaceFirst("^---\\R", "")));
         // The scenario as written, beside its resolved form, so that the run report can link both
-        Files.copy(config, runOutput.resolve(config.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+        Files.copy(scenario, runOutput.resolve(scenario.getFileName()), StandardCopyOption.REPLACE_EXISTING);
         for (Path appendedScenario : appendedScenarios) {
             Files.copy(appendedScenario, runOutput.resolve(appendedScenario.getFileName()),
                     StandardCopyOption.REPLACE_EXISTING);
@@ -282,10 +281,10 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .numBrokers(clusterConfig.path("brokers").intValue())
                 .numBookies(clusterConfig.path("bookies").intValue())
                 .numProxies(0)
-                .profileBroker(brokerProfileOptions != null)
+                .profileBroker(profilingSettings.broker().profiled())
                 .profileDirectory(brokerProfileDirectory.toString())
                 .jonoffcpuAgentJar(agentJar != null ? agentJar.toString() : null)
-                .jonoffcpuOptions(offCpuOptions)
+                .jonoffcpuOptions(profilingSettings.broker().offCpuOptions())
                 .brokerEnvs(brokerEnvs)
                 .bookkeeperEnvs(bookkeeperEnvs)
                 .build();
@@ -317,8 +316,8 @@ public class PerformanceLauncher implements Callable<Integer> {
                 Path appOutput = applicationOutput(runOutput, workload, application);
                 Files.createDirectories(appOutput);
                 consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
-                        coordinationDirectory, runId, appOutput, agentJar, offCpuOptions,
-                        consumerProfileOptions, consumerEnvs, "iot-consume", "--application-index",
+                        coordinationDirectory, runId, appOutput, agentJar, profilingSettings.applications(),
+                        "application", consumerEnvs, "iot-consume", "--application-index",
                         Integer.toString(application), "--control-port", Integer.toString(CONTROL_PORT))
                         .withExposedPorts(CONTROL_PORT)
                         .waitingFor(Wait.forLogMessage(".*READY application=.*", 1)
@@ -334,11 +333,11 @@ public class PerformanceLauncher implements Callable<Integer> {
                 progress.follow("application-" + application, controlUrl(consumer), consumer::isRunning);
             }
 
-            Path producerOutput = runOutput.resolve("producer");
+            Path producerOutput = runOutput.resolve(GATEWAYS_DIRECTORY);
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
-                    coordinationDirectory, runId, producerOutput, agentJar, offCpuOptions,
-                    producerProfileOptions, producerEnvs, "iot-produce", cooldownCelsius != null
+                    coordinationDirectory, runId, producerOutput, agentJar, profilingSettings.gateways(),
+                    GATEWAYS_DIRECTORY, producerEnvs, "iot-produce", cooldownCelsius != null
                             ? new String[] {"--control-port", Integer.toString(CONTROL_PORT),
                                     "--await-measurement-start"}
                             : new String[] {"--control-port", Integer.toString(CONTROL_PORT)});
@@ -400,7 +399,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 gateToStop.interrupt();
             }
             if (producerToStop != null) {
-                saveContainerLog(producerToStop, runOutput.resolve("producer").resolve(CONTAINER_LOG));
+                saveContainerLog(producerToStop, runOutput.resolve(GATEWAYS_DIRECTORY).resolve(CONTAINER_LOG));
                 shutDown("stopping the producer", producerToStop::stop);
             }
             for (int application = 0; application < consumers.size(); application++) {
@@ -413,12 +412,13 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
         if (profilingEnabled) {
             status("Processing the profiles");
-            JsonNode summary = loader.mapper().readTree(runOutput.resolve("producer/producer-summary.json").toFile());
+            JsonNode summary = loader.mapper().readTree(runOutput.resolve("gateways/gateways-summary.json").toFile());
             Instant measurementStart = Instant.ofEpochMilli(requiredLong(summary, "measurementStartEpochMs"));
             long lastConsumerReceiptEpochMs = Long.MIN_VALUE;
             for (int application = 0; application < applications; application++) {
                 JsonNode consumerSummary = loader.mapper().readTree(
-                        applicationOutput(runOutput, workload, application).resolve("consumer-summary.json").toFile());
+                        applicationOutput(runOutput, workload, application).resolve("application-summary.json")
+                                .toFile());
                 lastConsumerReceiptEpochMs = Math.max(lastConsumerReceiptEpochMs,
                         requiredLong(consumerSummary, "lastMeasurementMessageReceivedEpochMs"));
             }
@@ -432,25 +432,23 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
             // Correlate against the untouched recording first: the stream binds its size and digest, and
             // retention may delete it afterwards.
-            if (offCpuCaptureEnabled(offCpuOptions)) {
-                for (Path recording : recordings) {
+            for (Path recording : recordings) {
+                if (offCpuCaptured(loader.mapper(), recording)) {
                     Path outputDirectory = OffCpuFlamegraphs.process(recording,
                             JonoffcpuAgent.capture(recording), measurementStart, measurementEnd);
                     System.out.println("Off-CPU profile: " + outputDirectory);
                 }
             }
-            JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd,
-                    retainOriginalRecording, createMeasurementRecording);
+            JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd);
             for (Path recording : recordings) {
-                Path source = createMeasurementRecording ? JfrRecordingProcessor.measurementPath(recording)
-                        : recording;
+                Path source = JfrRecordingProcessor.measurementPath(recording);
                 Set<JfrFlamegraphViews.View> views = JfrFlamegraphViews.configuredViews(
                         asyncProfilerOptions(loader.mapper(), recording));
                 if (!views.isEmpty() && Files.isRegularFile(source)) {
                     System.out.println("Flame graphs: " + JfrFlamegraphViews.render(recording, source, views));
                 }
             }
-            ProfileReport.Run run = new ProfileReport.Run(config.getFileName().toString(), runId,
+            ProfileReport.Run run = new ProfileReport.Run(scenario.getFileName().toString(), runId,
                     measurementStart, measurementEnd, summary.path("messagesPerSecond").asDouble());
             Map<Path, List<Path>> recordingsByDirectory = recordings.stream().sorted()
                     .collect(Collectors.groupingBy(Path::getParent, TreeMap::new, Collectors.toList()));
@@ -459,7 +457,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                         ProfileReport.write(entry.getKey(), entry.getValue(), run, loader.mapper(), runOutput)));
             }
         }
-        Path runReport = RunReport.write(runOutput, new RunReport.Run(config.getFileName().toString(), runId,
+        Path runReport = RunReport.write(runOutput, new RunReport.Run(scenario.getFileName().toString(), runId,
                 PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload, runInfo, workloadFinished,
                 List.copyOf(cooldowns)), loader.mapper());
         System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
@@ -502,26 +500,26 @@ public class PerformanceLauncher implements Callable<Integer> {
 
     /**
      * The file of an --extends scenario. An absolute path is used as given. A relative one is looked for first in the
-     * directory of the --config scenario, then in the working directory, each time as given and then with .yaml added
+     * directory of the --scenario file, then in the working directory, each time as given and then with .yaml added
      * when the name has no extension.
      */
-    private Path appendedScenario(Path scenario) {
-        if (scenario.isAbsolute()) {
-            if (!Files.isRegularFile(scenario)) {
-                throw new IllegalArgumentException("No scenario file for --extends " + scenario);
+    private Path appendedScenario(Path file) {
+        if (file.isAbsolute()) {
+            if (!Files.isRegularFile(file)) {
+                throw new IllegalArgumentException("No scenario file for --extends " + file);
             }
-            return scenario;
+            return file;
         }
         List<Path> candidates = new ArrayList<>();
-        for (Path base : List.of(config.toAbsolutePath().getParent(), Path.of("").toAbsolutePath())) {
-            Path candidate = base.resolve(scenario);
+        for (Path base : List.of(scenario.toAbsolutePath().getParent(), Path.of("").toAbsolutePath())) {
+            Path candidate = base.resolve(file);
             candidates.add(candidate);
             if (!candidate.getFileName().toString().matches(".*\\.ya?ml")) {
                 candidates.add(candidate.resolveSibling(candidate.getFileName() + ".yaml"));
             }
         }
         return candidates.stream().filter(Files::isRegularFile).findFirst().orElseThrow(() ->
-                new IllegalArgumentException("No scenario file for --extends " + scenario + "; looked for "
+                new IllegalArgumentException("No scenario file for --extends " + file + "; looked for "
                         + candidates));
     }
 
@@ -536,7 +534,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         if (scenarioName != null && !scenarioName.isBlank()) {
             return scenarioName;
         }
-        String fileName = config.getFileName().toString();
+        String fileName = scenario.getFileName().toString();
         return fileName.replaceFirst("\\.ya?ml$", "");
     }
 
@@ -693,38 +691,28 @@ public class PerformanceLauncher implements Callable<Integer> {
     }
 
     /**
-     * The {@code profiling.offCpu} section as the jonoffcpu agent's {@code sampling} block. Types are kept as
-     * the scenario wrote them, so that a quoted probability such as {@code "0.010"} stays a string and is
-     * recorded in the capture metadata as spelled.
+     * Whether the agent recorded off-CPU samples beside {@code recording}, as the sampling block of the agent
+     * configuration beside it says: the admission policy {@code none} runs plain async-profiler through the same
+     * agent, leaving nothing to correlate.
      */
-    private static Map<String, Object> offCpuOptions(ObjectMapper mapper, JsonNode profiling) {
-        JsonNode section = profiling.path("offCpu");
-        if (section.isMissingNode() || section.isNull()) {
-            return Map.of();
+    private static boolean offCpuCaptured(ObjectMapper mapper, Path recording) throws IOException {
+        Path config = JonoffcpuAgent.config(recording);
+        if (!Files.isRegularFile(config)) {
+            return false;
         }
-        if (!section.isObject()) {
-            throw new IllegalArgumentException("profiling.offCpu must be the jonoffcpu agent's sampling block");
-        }
-        return mapper.convertValue(section, new TypeReference<LinkedHashMap<String, Object>>() { });
-    }
-
-    /**
-     * Whether the agent records off-CPU samples at all: the admission policy {@code none} runs plain
-     * async-profiler through the same agent, leaving nothing to correlate.
-     */
-    private static boolean offCpuCaptureEnabled(Map<String, Object> offCpuOptions) {
-        Object admission = offCpuOptions.get("admission");
-        return !(admission instanceof Map<?, ?> policy && "none".equals(policy.get("policy")));
+        return !"none".equals(mapper.readTree(config.toFile()).path("sampling").path("admission").path("policy")
+                .asText());
     }
 
     private GenericContainer<?> workloadContainer(PulsarCluster cluster, Path tools, Path configFile,
                                                    Path coordinationDirectory, String runId,
                                                    Path outputDirectory, Path agentJar,
-                                                   Map<String, Object> offCpuOptions, String profileOptions,
+                                                   ProfilingSettings.Component profiling, String component,
                                                    Map<String, String> envs, String command,
                                                    String... extraArguments) throws IOException {
         List<String> arguments = new ArrayList<>();
-        arguments.add(TOOLS_MOUNT + "/bin/pulsar-performance-tools");
+        // Starts the tools with the JVM options of Pulsar's client tools, see run-workload
+        arguments.add(TOOLS_MOUNT + "/bin/run-workload");
         arguments.add(command);
         arguments.add("--config");
         arguments.add(CONFIG_MOUNT);
@@ -735,12 +723,13 @@ public class PerformanceLauncher implements Callable<Integer> {
         arguments.add("--run-id");
         arguments.add(runId);
         arguments.addAll(List.of(extraArguments));
-        String javaOptions = "-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m";
-        if (profileOptions != null) {
+        String javaOptions = "";
+        if (profiling.profiled()) {
             // The launcher owns the recording name so that it lands inside the run directory
-            javaOptions += " -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints "
+            javaOptions = "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints "
                     + JonoffcpuAgent.writeConfig(outputDirectory, OUTPUT_MOUNT,
-                    "profile-" + command + "-" + System.currentTimeMillis(), profileOptions, offCpuOptions);
+                    "profile-" + component + "-" + System.currentTimeMillis(), profiling.asyncProfilerOptions(),
+                    profiling.offCpuOptions());
         }
         GenericContainer<?> container = new GenericContainer<>(PulsarContainer.DEFAULT_IMAGE_NAME)
                 .withNetwork(cluster.getNetwork())
@@ -750,7 +739,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .withFileSystemBind(outputDirectory.toString(), OUTPUT_MOUNT, BindMode.READ_WRITE)
                 .withEnv(workloadEnvironment(javaOptions, envs))
                 .withCommand(arguments.toArray(String[]::new));
-        if (profileOptions != null) {
+        if (profiling.profiled()) {
             JonoffcpuAgent.attach(container, agentJar);
         }
         return container;
@@ -758,24 +747,26 @@ public class PerformanceLauncher implements Callable<Integer> {
 
     /**
      * The environment of a workload container: the configured variables ({@code cluster.producerEnvs} or
-     * {@code cluster.consumerEnvs}) and {@code JAVA_TOOL_OPTIONS} with the launcher's JVM options. A configured
+     * {@code cluster.consumerEnvs}), {@code PULSAR_MEM} with the workload's heap unless they set it, and
+     * {@code JAVA_TOOL_OPTIONS} with the launcher's JVM options, such as the profiling agent. A configured
      * {@code JAVA_TOOL_OPTIONS} is appended to the launcher's options, so that it can add or override options without
-     * dropping the heap settings or the profiling agent.
+     * dropping the profiling agent.
      */
     static Map<String, String> workloadEnvironment(String javaOptions, Map<String, String> envs) {
         Map<String, String> environment = new LinkedHashMap<>();
         if (envs != null) {
             envs.forEach((name, value) -> environment.put(name, value != null ? value : ""));
         }
+        environment.putIfAbsent(PULSAR_MEM, WORKLOAD_MEMORY);
         String configured = environment.get(JAVA_TOOL_OPTIONS);
-        environment.put(JAVA_TOOL_OPTIONS,
-                configured == null || configured.isBlank() ? javaOptions : javaOptions + " " + configured);
+        String toolOptions = Stream.of(javaOptions, configured).filter(options -> options != null && !options.isBlank())
+                .collect(Collectors.joining(" "));
+        if (toolOptions.isEmpty()) {
+            environment.remove(JAVA_TOOL_OPTIONS);
+        } else {
+            environment.put(JAVA_TOOL_OPTIONS, toolOptions);
+        }
         return environment;
-    }
-
-    private static String text(JsonNode parent, String field) {
-        JsonNode value = parent.path(field);
-        return value.isTextual() && !value.textValue().isBlank() ? value.textValue() : null;
     }
 
     private static boolean booleanValue(JsonNode parent, String field, boolean defaultValue) {
@@ -895,9 +886,10 @@ public class PerformanceLauncher implements Callable<Integer> {
     }
 
     private static void verifyStates(Path output, JsonNode workload, int applications) throws Exception {
-        long[] produced = readState(output.resolve("producer/produced-state.bin"));
+        long[] produced = readState(output.resolve("gateways/gateways-state.bin"));
         for (int application = 0; application < applications; application++) {
-            long[] consumed = readState(applicationOutput(output, workload, application).resolve("consumed-state.bin"));
+            long[] consumed =
+                    readState(applicationOutput(output, workload, application).resolve("application-state.bin"));
             if (!java.util.Arrays.equals(produced, consumed)) {
                 throw new IllegalStateException("Application " + application
                         + " did not receive every device sequence");

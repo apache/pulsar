@@ -76,8 +76,8 @@ The stack trace is in `launcher.log`. A failure while shutting down, such as sto
 The run directory that the launcher printed at the start still has what the run wrote before it failed:
 
 - `launcher.log`, the log of the launcher, with Testcontainers' log and the Pulsar containers' logs
-- `producer/container.log.txt` and `<application>/container.log.txt`, the logs of the workload containers
-- `<application>/consumer-summary.json`, with the application's unique messages, duplicates, ordering violations and
+- `gateways/container.log.txt` and `<application>/container.log.txt`, the logs of the workload containers
+- `<application>/application-summary.json`, with the application's unique messages, duplicates, ordering violations and
   invalid messages, and `<application>/ordering-violations.txt`, with samples of the ordering violations, when the
   application got as far as its checks
 - `topic-stats.csv` and `host-stats.csv`, sampled until the failure
@@ -96,12 +96,12 @@ every device sequence"). A failed run isn't a valid measurement: find and fix th
 ├── throughput.svg, backlog.svg, latency-percentiles.svg, latency-timeline.svg,
 │   host-temperature.svg, host-frequency.svg    the charts, each also as PNG
 ├── topic-stats.csv, host-stats.csv    the sampled topic stats and host CPU
-├── producer/                          the producer's outputs, and its recordings in a profiled run
-├── <application>/                     one directory per consumer application, named after its subscription,
+├── gateways/                          the gateways' outputs, and their recordings in a profiled run
+├── <application>/                     one directory per application, named after its subscription,
 │                                      such as iot-application-0
 ├── broker-profile/                    the broker's recordings, flame graphs and profile report (README.md,
 │                                      index.html), in a profiled run
-└── coordination/                      the warmup barrier markers of the producer and the applications
+└── coordination/                      the warmup barrier markers of the gateways and the applications
 ```
 
 A profiled run adds the recordings, their flame graphs and a profile report to each profiled component's directory,
@@ -121,15 +121,15 @@ report has these sections:
   cores, hardware threads, memory and operating system, and the Docker engine row the engine's version, CPUs and
   memory, which on macOS are those of Docker Desktop's virtual machine rather than the host's.
 - **Correctness**: the unique messages, duplicates, ordering violations and invalid messages of each application.
-  In a valid run, every application received every message the producer sent, warmup included, with no ordering
+  In a valid run, every application received every message the gateways sent, warmup included, with no ordering
   violations or invalid messages. Duplicates are valid in Pulsar's at-least-once delivery, and are counted so that
   runs can be compared.
-- **Throughput**: the producer throughput, the delivered throughput until the slowest application received the last
-  message, the measurement's duration and how long the consumers were still draining after the producers finished.
+- **Throughput**: the gateways' throughput, the delivered throughput until the slowest application received the last
+  message, the measurement's duration and how long the applications were still receiving after the gateways finished.
 - **Latency**: the publish latency (send to acknowledgment) and each application's end-to-end latency (publish to
   consume) at percentiles from p50 to the maximum, with charts by percentile and over time.
 - **Backlog and rates**: each subscription's backlog and the per-second rates, sampled from the broker's topic
-  stats once per second while the producers run and the consumers drain. A sampled maximum is not the exact peak
+  stats once per second while the gateways publish and the applications receive. A sampled maximum is not the exact peak
   between samples.
 - **Host**: the CPU temperature, frequency and thermal throttling at the start and during the measurement, with
   their charts in a collapsed section; a chart whose values the host doesn't provide is left out. The report says so
@@ -147,29 +147,29 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `README.md`, `index.html` | The run report, as Markdown and as its HTML page, with links to the run's other files. The names make HTTP servers and GitHub open a run's directory on its report |
 | `<scenario>.yaml`, `resolved-config.yaml` | The scenario file as written, and the scenario with its inheritance and environment overrides applied, which the workloads read |
 | `run-info.json` | The run's start, host, user, project directory, git branch, whether the HEAD was detached, the commit, whether the checkout had uncommitted changes, and the Pulsar version, with the keys of `pulsar-version.properties` where they match. The launcher collects them itself, from git and `gradle.properties` in the checkout it runs from. The `host.*` keys have the host's CPU model, sockets, cores, hardware threads, memory and operating system, from a JDK Flight Recorder recording of the launcher's JVM that is stopped right away, so that they are there on every operating system, and the `docker.*` keys the Docker engine's version, CPUs, memory, operating system, kernel and architecture |
-| `run-id.txt` | The ID that correlates the producer and the consumers of the run |
+| `run-id.txt` | The ID that correlates the gateways and the applications of the run |
 | `launcher.log` | The launcher's log: Testcontainers' log and the Pulsar containers' logs, which stay off the console |
-| `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the producers' finish marked. A cool-down wait of 10 s or more before the measurement is cut out of the time axis |
+| `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the gateways' finish marked. A cool-down wait of 10 s or more before the measurement is cut out of the time axis |
 | `backlog.svg`, `.png` | Each subscription's backlog over the run, on the same time axis |
 | `latency-percentiles.svg`, `.png` | Latency by percentile, as HistogramLogAnalyzer plots it: publish and each application's end to end, on an axis that spreads the tail (90 %, 99 %, 99.9 %, …) |
 | `latency-timeline.svg`, `.png` | The maximum latency of each logged interval over the run, publish and per application |
 | `host-temperature.svg`, `.png`, `host-frequency.svg`, `.png` | The CPU package and hottest core temperature, and the mean and lowest core frequency, over the run |
 | `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
 | `host-stats.csv` | The host's CPU sampled once per second from Linux's sysfs files: package and hottest core temperature, mean and lowest core frequency, the kernel's thermal throttle counters and the fastest fan |
-| `producer/producer-summary.json` | The producer's counts and throughput, and the epoch-millisecond boundaries of the measurement |
-| `producer/produce-latency.hdr`, `.hgrm` | The publish latency log, and its percentile distribution in milliseconds, see [Latency logs](#latency-logs) |
-| `producer/produced-state.bin` | The producer's next sequence number for each device. The launcher compares it with each application's `consumed-state.bin` and fails the run when they differ, which catches messages missing at the end, where no gap shows |
-| `<application>/consumer-summary.json` | The application's unique messages, duplicates, ordering violations and invalid messages, and its first and last measured-message receipt |
-| `<application>/consume-latency.hdr`, `.hgrm` | The application's end-to-end latency log, and its percentile distribution in milliseconds |
-| `<application>/consumed-state.bin` | The application's next expected sequence number for each device |
+| `gateways/gateways-summary.json` | The gateways' counts and throughput, and the epoch-millisecond boundaries of the measurement |
+| `gateways/gateways-latency.hdr`, `.hgrm` | The publish latency log, and its percentile distribution in milliseconds, see [Latency logs](#latency-logs) |
+| `gateways/gateways-state.bin` | The gateways' next sequence number for each device. The launcher compares it with each application's `application-state.bin` and fails the run when they differ, which catches messages missing at the end, where no gap shows |
+| `<application>/application-summary.json` | The application's unique messages, duplicates, ordering violations and invalid messages, and its first and last measured-message receipt |
+| `<application>/application-latency.hdr`, `.hgrm` | The application's end-to-end latency log, and its percentile distribution in milliseconds |
+| `<application>/application-state.bin` | The application's next expected sequence number for each device |
 | `<application>/ordering-violations.txt` | Samples of the ordering violations, with the message ID, topic and receiving thread; empty in a valid run |
-| `producer/container.log.txt`, `<application>/container.log.txt` | The container's log, named `.txt` so that HTTP servers show it as text |
-| `coordination/` | The markers with which the applications tell the producer that they received a warmup round |
+| `gateways/container.log.txt`, `<application>/container.log.txt` | The container's log, named `.txt` so that HTTP servers show it as text |
+| `coordination/` | The markers with which the applications tell the gateways that they received a warmup round |
 
 ## Latency logs
 
-Every IoT run writes `producer/produce-latency.hdr` with the send-completion latency of the successfully sent
-measured messages, and one `<application>/consume-latency.hdr` per application with the broker-publish-to-listener
+Every IoT run writes `gateways/gateways-latency.hdr` with the send-completion latency of the successfully sent
+measured messages, and one `<application>/application-latency.hdr` per application with the broker-publish-to-listener
 latency of the measured messages. Both use microseconds internally and three significant digits. Warmup messages are
 tagged in the payload and excluded. The consumer captures its timestamp on listener entry and records the sample
 after payload decoding and key validation, before sequence validation and acknowledgment, so decoding and

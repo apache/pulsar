@@ -49,7 +49,7 @@ through the standalone Testcontainers launcher with:
 
 ```bash
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'
 ```
 
 The Gradle task builds the server test image and the workload distribution before launching. The launcher
@@ -72,15 +72,15 @@ one key as required for Key_Shared delivery.
 
 Warmup messages exercise the same producer, client, connection, topic and consumer paths as measured messages. They
 remain in the monotonic device sequences and end-to-end delivery checks, but are excluded from throughput. For a
-rate-limited workload, set `warmupSeconds`; for an unrestricted workload, set `warmupMessages`. Do not set both.
-The value applies to each of `warmupRounds`. Every round drains its asynchronous sends and waits until every backend
-application has uniquely received the cumulative warmup count before `warmupRoundDelaySeconds` begins. The delay
-after the final round gives background JIT compilation and other startup work time to settle before the producer
-records the measurement boundary. This is a stabilization control, not a guarantee that the JVM has completed
-compilation.
-`producer-summary.json` records the warmup and measurement counts and epoch-millisecond producer boundaries. Each
-`consumer-summary.json` records the first and last measured-message receipt as metadata. The launcher uses the
-producer start and the latest last receipt across all backend applications as the JFR measurement interval.
+rate-limited workload, set `warmupSeconds`; for an unrestricted workload, set `warmupMessages`. Do not set both. The
+value applies to each of `warmupRounds`. Every round drains its asynchronous sends and waits until every backend
+application has uniquely received the cumulative warmup count before `warmupRoundDelaySeconds` begins. The delay after
+the final round gives background JIT compilation and other startup work time to settle before the producer records the
+measurement boundary. This is a stabilization control, not a guarantee that the JVM has completed compilation.
+`gateways-summary.json` records the warmup and measurement counts and the epoch-millisecond boundaries of the
+measurement. Each `application-summary.json` records the first and last measured-message receipt as metadata. The
+launcher uses the gateways' measurement start and the latest last receipt across all backend applications as the JFR measurement
+interval.
 
 The base scenario also keeps incidental storage maintenance outside normal measurement windows. Its managed-ledger
 entry, size and time limits allow the topic and cursor ledgers to remain open throughout ordinary runs. BookKeeper
@@ -97,13 +97,13 @@ summary reports `messagesPerSecond` only for the post-warmup measurement phase a
 
 ## Profiling with jonoffcpu
 
-Use the `profile` task for a scenario that has non-empty `profiling.brokerOptions`, `producerOptions` or
-`consumerOptions`. The launcher's `--extends` option adds them to a scenario from the `profile-*` files, here the
-broker's and the producer's to the saturation workload:
+Use the `profile` task for a scenario that profiles a component: `profiling.broker`, `gateways` or `applications`
+with `asyncProfilerOptions`. The launcher's `--extends` option adds them to a scenario from the `profile-*` files,
+here the broker's and the gateways' to the saturation workload:
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-producer'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-gateways'
 ```
 
 The options are async-profiler options. The [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent runs
@@ -112,14 +112,14 @@ at the same time. [Profiling](../../docs/profiling.md) describes the requirement
 and the files each recording produces, and [Analyzing profiles](../../docs/analyzing-profiles.md) how to find what to
 optimize.
 
-Broker recordings are written under `broker-profile/`; producer and consumer recordings are written in their
-corresponding output directories. The launcher owns each recording path so recordings remain inside the run
-directory, and rejects options that set `file=`. Empty options leave that component unprofiled. The ordinary
-`run` task rejects profiling-enabled YAML rather than silently running without the agent.
+Broker recordings are written under `broker-profile/`; the gateways' and the applications' recordings are written in
+their corresponding output directories. The launcher owns each recording path so recordings remain inside the run
+directory, and rejects options that set `file=`. A component without options isn't profiled. The ordinary `run` task
+rejects profiling-enabled YAML rather than silently running without the agent.
 
-The profile scenario samples CPU every 10 ms and allocations every 2 MB in the broker and the producer, records the
+The profile files sample CPU every 10 ms and allocations every 2 MB in their component, record the
 JVM's own events with JFR's `profile` configuration (`jfrsync=profile`, see
-[Configuring profiling](../../docs/profiling.md#configuring-profiling)), and records only intervals where a thread
+[Configuring profiling](../../docs/profiling.md#configuring-profiling)), and record only intervals where a thread
 blocked (`reasons: [blocked]`), not those where it was runnable but waiting for a CPU. It ignores waits under 100 µs
 (`minOffCpuMicros: 100`) and records every wait of 10 ms or longer, sampling shorter ones in proportion to their
 length (`admission: {policy: proportional, recordAllAboveMicros: 10000}`), which bounds the recording rate by off-CPU
@@ -131,21 +131,16 @@ five-million-message run sends everything through one topic, so the topic's mana
 After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the producer's
 measurement start through the latest measured-message receipt across all backend applications. The upper boundary
 includes the full millisecond containing that receipt. This removes startup, warmup, and shutdown while retaining
-the broker and consumer work needed to deliver every measured message. The complete recording is retained by
-default. The cut recording also retains the one-time JVM, host, recording setting and runtime
-configuration events needed to describe the source JVM in JDK Mission Control. Set
-`profiling.retainOriginalRecording: false` to keep only the measurement recording, or
-`profiling.createMeasurementRecording: false` to keep only the complete recording. If cutting fails, the complete
-recording is preserved even when its retention is disabled. Setting both flags to `false` intentionally discards
-all current-run recordings. Earlier runs' recordings are left alone; each run has a directory of its own unless
-`--output` reuses one.
+the broker and consumer work needed to deliver every measured message. The complete recording is kept beside it. The
+cut recording also retains the one-time JVM, host, recording setting and runtime configuration events needed to
+describe the source JVM in JDK Mission Control.
 
 The JFR measurement window and broker-publish-to-listener latency assume synchronized producer, consumer, and
 broker clocks. Containers on one Docker host share its clock. When adapting the tools to multiple hosts,
 synchronize their clocks; no clock-skew correction is applied.
 
-The producer writes `produce-latency.hdr` containing send-to-completion latency for measured messages. Each backend
-application writes `consume-latency.hdr` containing broker-publish-to-listener latency for measured messages. Warmup
+The gateways write `gateways-latency.hdr` containing send-to-completion latency for measured messages. Each backend
+application writes `application-latency.hdr` containing broker-publish-to-listener latency for measured messages. Warmup
 messages are excluded from both histograms. The consumer captures its receipt timestamp on listener entry and
 records the sample after payload decoding and key validation, before sequence validation and acknowledgment.
 Decoding and validation time do not contribute to the latency value. Use the report tool's `renderHdrHistograms`

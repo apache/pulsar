@@ -79,7 +79,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     private static final int PERCENTILE_TICKS_PER_HALF_DISTANCE = 5;
 
     @Option(names = "--run-directory", required = true,
-            description = "IoT run directory containing producer/ and one directory per consumer application")
+            description = "IoT run directory containing gateways/ and one directory per application")
     private Path runDirectory;
 
     @Option(names = "--output-prefix",
@@ -98,9 +98,9 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         Path normalizedRun = runDirectory.toAbsolutePath().normalize();
-        Path producer = normalizedRun.resolve("producer/produce-latency.hdr");
+        Path producer = normalizedRun.resolve("gateways/gateways-latency.hdr");
         if (!Files.isRegularFile(producer)) {
-            throw new IllegalArgumentException("Producer histogram does not exist: " + producer);
+            throw new IllegalArgumentException("Gateways' latency histogram does not exist: " + producer);
         }
         // The applications' directories are named after their subscriptions, from the run's resolved scenario
         Path resolvedConfig = normalizedRun.resolve(RunReport.RESOLVED_CONFIG);
@@ -111,7 +111,7 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
         List<String> applications = new ArrayList<>();
         for (int application = 0; ; application++) {
             Path directory = RunReport.applicationDirectory(normalizedRun, workload, application);
-            Path consumer = directory.resolve("consume-latency.hdr");
+            Path consumer = directory.resolve("application-latency.hdr");
             if (!Files.isRegularFile(consumer)) {
                 break;
             }
@@ -196,8 +196,8 @@ public final class HdrHistogramRenderer implements Callable<Integer> {
     }
 
     /**
-     * Writes the log's percentile distribution in milliseconds beside it, {@code produce-latency.hdr} to
-     * {@code produce-latency.hgrm}, the text that HdrHistogram's plotFiles.html and other tools plot.
+     * Writes the log's percentile distribution in milliseconds beside it, {@code gateways-latency.hdr} to
+     * {@code gateways-latency.hgrm}, the text that HdrHistogram's plotFiles.html and other tools plot.
      *
      * @return the distribution file
      */

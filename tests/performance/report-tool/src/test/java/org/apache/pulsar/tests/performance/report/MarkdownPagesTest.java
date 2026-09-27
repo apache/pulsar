@@ -59,7 +59,7 @@ public class MarkdownPagesTest {
                 {"/runs/run-1/README.md", page, root, "../index.html"},
                 {"../README.md#host", page, root, "../index.html#host"},
                 {"README.md", page, root, "index.html"},
-                {"producer/README.md", page, root, "producer/index.html"},
+                {"gateways/README.md", page, root, "gateways/index.html"},
                 {"/elsewhere/file.txt", page, root, "/elsewhere/file.txt"},
                 {"https://github.com/jonoffcpu/jonoffcpu/README.md", page, root,
                         "https://github.com/jonoffcpu/jonoffcpu/README.md"},

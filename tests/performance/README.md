@@ -156,7 +156,7 @@ Run the IoT telemetry scenario:
 
 ```bash
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'
 ```
 
 Gradle builds the Pulsar test image and the workload applications first, when they are out of date. Then the
@@ -252,7 +252,7 @@ Try a single value with `--set`, which changes a setting of the scenario for one
 
 ```bash
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml --set workloads.iotTelemetry.rate=5000'
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --set workloads.iotTelemetry.rate=5000'
 ```
 
 [Settings on the command line](scenarios/docs/scenario-format.md#settings-on-the-command-line) describes `--set`, and
@@ -272,11 +272,11 @@ needs a Linux Docker engine. The profiling scenario saturates one topic from 500
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-producer'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-gateways'
 ```
 
 The launcher renders the flame graphs itself when the run has finished, into the run directory next to the
-recordings: the broker's under `broker-profile/`, and the producer's under `producer/`. The run report links to a
+recordings: the broker's under `broker-profile/`, and the gateways' under `gateways/`. The run report links to a
 profile report for each of them. Start from the broker's: it links to the CPU, allocation and off-CPU flame graphs,
 cut to the measurement, and to a digest that ranks the time threads spent blocked by the Pulsar or BookKeeper method
 that waited. [Profiling](docs/profiling.md) describes the
@@ -298,11 +298,11 @@ as [Before you start](#before-you-start) describes:
 ```bash
 # In the baseline worktree
 ./gradlew :tests:performance:launcher:run -Pdocker.tag=baseline \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
 
 # In the candidate worktree
 ./gradlew :tests:performance:launcher:run -Pdocker.tag=candidate \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
 ```
 
 [Comparing revisions](docs/comparing-revisions.md) describes preparing the worktrees and what to compare.

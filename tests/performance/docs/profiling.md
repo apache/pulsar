@@ -40,7 +40,7 @@ image.
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-producer'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-gateways'
 ```
 
 The `run` task rejects a scenario that has profiler options, rather than silently running it without the agent.
@@ -48,30 +48,27 @@ The `run` task rejects a scenario that has profiler options, rather than silentl
 
 ## Configuring profiling
 
-The scenario's `profiling` section configures it. The scenarios directory has it in parts that the launcher's
-`--extends` option adds to any scenario, as the example above does: `profile-broker`, `profile-producer` and
-`profile-application` each profile one component, the applications' consumers for the last, and extend
-`profile-base`, which holds the jonoffcpu settings they share. Together they make:
+The scenario's `profiling` section configures it, with settings for each component: `broker`, `gateways`, the
+producer, and `applications`, the consumers. The scenarios directory has a file for each component, which the
+launcher's `--extends` option adds to any scenario, as the example above does: `profile-broker`, `profile-gateways`
+and `profile-applications`. `profile-broker` is:
 
 ```yaml
 profiling:
-  brokerOptions: event=cpu,interval=10ms,alloc=2m,jfrsync=profile
-  producerOptions: event=cpu,interval=10ms,alloc=2m,jfrsync=profile
-  consumerOptions: ""
-  offCpu:
-    reasons: [blocked]
-    minOffCpuMicros: 100
-    admission:
-      policy: proportional
-      recordAllAboveMicros: 10000
-  retainOriginalRecording: true
-  createMeasurementRecording: true
+  broker:
+    asyncProfilerOptions: event=cpu,interval=10ms,alloc=2m,jfrsync=profile
+    offCpuOptions:
+      reasons: [blocked]
+      minOffCpuMicros: 100
+      admission:
+        policy: proportional
+        recordAllAboveMicros: 10000
 ```
 
-- `brokerOptions`, `producerOptions` and `consumerOptions` are
-  [async-profiler options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md). An
-  empty value leaves that component unprofiled. The launcher owns each recording's path, so that recordings stay
-  inside the run directory, and rejects options that set `file=`.
+- `asyncProfilerOptions` are
+  [async-profiler options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md). A
+  component without them isn't profiled. The launcher owns each recording's path, so that recordings stay inside the
+  run directory, and rejects options that set `file=`.
 - `jfrsync` chooses what JDK Flight Recorder records alongside async-profiler. `jfrsync=profile` uses the JFR
   configuration named `profile` that the JDK ships, `$JAVA_HOME/lib/jfr/profile.jfc`, which the JDK describes as a
   profiling configuration with about 2 % overhead; `jfrsync=default` uses `default.jfc`, meant for continuous use at
@@ -79,11 +76,12 @@ profiling:
   starting with `+`. A custom file's path is resolved inside the container that runs the JVM, so the file has to be
   readable there, for example built into the test image. Without `jfrsync`, the recording holds only
   async-profiler's samples.
-- `offCpu` is the agent's [`sampling` block](https://github.com/jonoffcpu/jonoffcpu#choosing-what-to-sample): which
-  switch-out reasons to record (`blocked` — the thread could not run — rather than `runnable` preemption), a minimum
-  duration, and an admission policy that records every long wait and samples short ones in proportion to their
-  length. The policy `none` records plain async-profiler through the same agent and skips the off-CPU steps.
-- `retainOriginalRecording` and `createMeasurementRecording` choose which recordings to keep, see
+- `offCpuOptions` is the agent's [`sampling` block](https://github.com/jonoffcpu/jonoffcpu#choosing-what-to-sample):
+  which switch-out reasons to record (`blocked` — the thread could not run — rather than `runnable` preemption), a
+  minimum duration, and an admission policy that records every long wait and samples short ones in proportion to their
+  length. A profiled component needs it; the policy `none` records plain async-profiler through the same agent and skips
+  the off-CPU steps, for a Docker engine whose kernel can't run jonoffcpu's collector.
+- The launcher keeps each complete recording and writes its measurement recording beside it, see
   [The measurement recording](#the-measurement-recording).
 
 ## Requirements
@@ -105,9 +103,9 @@ what a few minutes of broker capture needs; `-Pperformance.profile.maxHeapSize=.
 
 ## What a profiled run writes
 
-When the workloads have finished, the launcher processes every recording and writes the results into the run
-directory, next to the recording: the broker's under `broker-profile/`, and the producer's and consumers' in their own
-directories (`producer/`, `<application>/`). Nothing needs to be rendered by hand:
+When the workloads have finished, the launcher processes every recording and writes the results into the run directory,
+next to the recording: the broker's under `broker-profile/`, the gateways' under `gateways/`, and the applications' in
+their own directories, `<application>/`. Nothing needs to be rendered by hand:
 
 - **Flame graphs** of the measurement recording, in `<recording>-flamegraphs/`: a view for each event the profiler
   options record, CPU for `event=cpu` (or `itimer`, `ctimer`, `cpu-clock`), wall clock for `wall`, allocation for
@@ -120,12 +118,12 @@ directories (`producer/`, `<application>/`). Nothing needs to be rendered by han
 
 The launcher prints each of these directories and reports as it writes them. The recordings are named after the
 component, such as `broker-profile/inttest_profile_<time>_<container>.jfr` and
-`producer/profile-iot-produce-<time>.jfr`. For every recording `<recording>.jfr`:
+`gateways/profile-gateways-<time>.jfr`. For every recording `<recording>.jfr`:
 
 | File | Contents |
 |---|---|
-| `README.md`, `index.html` | The profile report. **Start here**, from the run report. One per profiled directory (`broker-profile/`, `producer/`): the run, with a link back to the run report, and for each recording links to the off-CPU digest, the flame graphs with their totals, and the heatmaps, and how to open the JFR recordings in JDK Mission Control |
-| `<recording>.jfr` | The complete recording, unless `retainOriginalRecording: false` |
+| `README.md`, `index.html` | The profile report. **Start here**, from the run report. One per profiled directory (`broker-profile/`, `gateways/`): the run, with a link back to the run report, and for each recording links to the off-CPU digest, the flame graphs with their totals, and the heatmaps, and how to open the JFR recordings in JDK Mission Control |
+| `<recording>.jfr` | The complete recording |
 | `<recording>.measurement.jfr` | The same cut to the measurement window, see [The measurement recording](#the-measurement-recording) |
 | `<recording>-flamegraphs/` | `cpu`, `wall`, `alloc` and `lock` views of the measurement recording, each only when its event is in the profiler options: `<view>.html`, `<view>-threads.html` (split by thread), `<view>-heatmap.html` (samples over time, for bursts and pauses) and `<view>.collapsed`. Pulsar and BookKeeper frames are highlighted |
 | `<recording>.jonoffcpu-capture.pb`, `.manifest.json`, `<recording>.jonoffcpu.yaml` | The off-CPU capture stream, its manifest, and the agent configuration the JVM was started with |
@@ -163,15 +161,6 @@ measured-message receipt across all applications, including the full millisecond
 startup, warmup and shutdown, while keeping the broker and consumer work needed to deliver every measured message.
 The one-time JVM, host, recording setting and runtime configuration events are copied from the beginning of the
 complete recording, so that JDK Mission Control can describe the source JVM.
-
-Both `profiling.retainOriginalRecording` and `profiling.createMeasurementRecording` default to `true` and apply to
-the broker, producer and consumer recordings:
-
-- `retainOriginalRecording: false` removes the complete recording after a successful cut. If cutting fails, the
-  complete recording is kept anyway.
-- `createMeasurementRecording: false` keeps only the complete recording.
-- Setting both to `false` discards all recordings of the run. Recordings of earlier runs are left alone, which
-  matters only when `--output` reuses a directory: each run in the reports hierarchy has a directory of its own.
 
 The window assumes that the producer, consumer and broker clocks agree, as they do for containers on the same
 Docker host. Multi-host experiments need synchronized clocks; the launcher doesn't estimate clock skew or correct the

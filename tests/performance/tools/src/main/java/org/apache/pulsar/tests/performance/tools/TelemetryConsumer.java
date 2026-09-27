@@ -50,7 +50,8 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         List<ClientAndConsumer> pods = new ArrayList<>(scenario.clientsPerApplication());
         AtomicBoolean stopping = new AtomicBoolean();
         AtomicReference<Throwable> restarterFailure = new AtomicReference<>();
-        HdrLatencyRecorder receiveLatency = new HdrLatencyRecorder(output.resolve("consume-latency.hdr"));
+        HdrLatencyRecorder receiveLatency = new HdrLatencyRecorder(output.resolve("application-latency.hdr"),
+                PerformanceTool.MAX_LATENCY_MICROS);
         AtomicLong firstMeasurementReceiptEpochMs = new AtomicLong();
         AtomicLong lastMeasurementReceiptEpochMs = new AtomicLong();
         int nextWarmupRound = 1;
@@ -113,9 +114,9 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             DeviceSequenceTracker.Summary summary = tracker.summary();
             phase.set("finished");
             receiveLatency.close();
-            tracker.writeState(output.resolve("consumed-state.bin"));
+            tracker.writeState(output.resolve("application-state.bin"));
             tracker.writeViolationSamples(output.resolve("ordering-violations.txt"));
-            Files.writeString(output.resolve("consumer-summary.json"), "{\n"
+            Files.writeString(output.resolve("application-summary.json"), "{\n"
                     + "  \"applicationIndex\": " + applicationIndex + ",\n"
                     + "  \"uniqueMessages\": " + summary.uniqueMessages() + ",\n"
                     + "  \"duplicates\": " + summary.duplicates() + ",\n"

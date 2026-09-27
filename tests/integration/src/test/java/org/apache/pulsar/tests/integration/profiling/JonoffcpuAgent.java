@@ -85,9 +85,9 @@ public final class JonoffcpuAgent {
         }
         if (sampling.isEmpty()) {
             // The agent has no default, so that a capture without off-CPU data is always a deliberate choice
-            throw new IllegalArgumentException("jonoffcpu needs a sampling policy; set it in the scenario's "
-                    + "profiling.offCpu section, or give it admission.policy: none to record only the "
-                    + "async-profiler events");
+            throw new IllegalArgumentException("jonoffcpu needs a sampling policy; set the profiled component's "
+                    + "offCpuOptions in the scenario's profiling section, or give it admission.policy: none to record "
+                    + "only the async-profiler events");
         }
         List<String> lines = new ArrayList<>();
         lines.add("correlationOutput: " + quote(containerDirectory + "/" + baseName + CAPTURE_SUFFIX));

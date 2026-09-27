@@ -55,7 +55,8 @@ import org.HdrHistogram.Histogram;
 final class ProgressMonitor implements AutoCloseable {
     static final String PROGRESS_PATH = "/progress";
     private static final long STREAM_INTERVAL_MILLIS = 1000;
-    private static final long MAX_LATENCY_MICROS = TimeUnit.DAYS.toMicros(10);
+    // The workloads' latency recorders' maximum
+    private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
     private static final String PRODUCER = "producer";
     private static final long STALE_BACKLOG_SECONDS = 5;
 

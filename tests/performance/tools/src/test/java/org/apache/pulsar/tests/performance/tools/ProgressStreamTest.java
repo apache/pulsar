@@ -30,18 +30,21 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.HdrHistogram.Histogram;
 import org.testng.annotations.Test;
 
 public class ProgressStreamTest {
+    private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
+
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Test(timeOut = 30_000)
     public void streamsStatusAndIntervalLatenciesUntilTheLastLine() throws Exception {
         Path log = Files.createTempFile("progress-latency", ".hdr");
         try (MeasurementControl control = MeasurementControl.start(0)) {
-            HdrLatencyRecorder latency = new HdrLatencyRecorder(log);
+            HdrLatencyRecorder latency = new HdrLatencyRecorder(log, MAX_LATENCY_MICROS);
             ProgressStream progress = new ProgressStream(latency, line -> line.put("phase", "warmup"));
             control.serveProgress(progress);
             HttpResponse<Stream<String>> response = HttpClient.newHttpClient().send(HttpRequest.newBuilder(

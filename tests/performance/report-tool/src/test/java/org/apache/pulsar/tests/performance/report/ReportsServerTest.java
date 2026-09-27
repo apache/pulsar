@@ -112,8 +112,8 @@ public class ReportsServerTest {
 
     @Test
     public void recognizesTheTextFileExtensions() {
-        assertThat(ReportsServer.isTextFile("/run/producer/produce-latency.hgrm")).isTrue();
-        assertThat(ReportsServer.isTextFile("/run/producer/container.log.txt")).isTrue();
+        assertThat(ReportsServer.isTextFile("/run/gateways/gateways-latency.hgrm")).isTrue();
+        assertThat(ReportsServer.isTextFile("/run/gateways/container.log.txt")).isTrue();
         assertThat(ReportsServer.isTextFile("/run/RUN-REPORT.MD")).isTrue();
         assertThat(ReportsServer.isTextFile("/run/broker-profile/recording.jfr")).isFalse();
         assertThat(ReportsServer.isTextFile("/run/throughput.png")).isFalse();

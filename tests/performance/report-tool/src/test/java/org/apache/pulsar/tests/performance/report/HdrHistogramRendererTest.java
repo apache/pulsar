@@ -55,9 +55,9 @@ public class HdrHistogramRendererTest {
 
     @Test
     public void plotsPercentilesAndIntervalMaximaAsSvgAndPng() throws Exception {
-        Path producer = writeLog(directory.resolve("producer/produce-latency.hdr"), 1_000, 2_000);
-        Path consumerOne = writeLog(directory.resolve("iot-application-0/consume-latency.hdr"), 2_000, 4_000);
-        Path consumerTwo = writeLog(directory.resolve("iot-application-1/consume-latency.hdr"), 4_000, 8_000);
+        Path producer = writeLog(directory.resolve("gateways/gateways-latency.hdr"), 1_000, 2_000);
+        Path consumerOne = writeLog(directory.resolve("iot-application-0/application-latency.hdr"), 2_000, 4_000);
+        Path consumerTwo = writeLog(directory.resolve("iot-application-1/application-latency.hdr"), 4_000, 8_000);
 
         List<Path> charts = HdrHistogramRenderer.render(producer, List.of(consumerOne, consumerTwo),
                 List.of("iot-application-0", "iot-application-1"),
@@ -83,7 +83,7 @@ public class HdrHistogramRendererTest {
 
     @Test
     public void readsEachIntervalsMaximum() throws Exception {
-        Path log = writeLog(directory.resolve("produce-latency.hdr"), 1_000, 2_000);
+        Path log = writeLog(directory.resolve("gateways-latency.hdr"), 1_000, 2_000);
 
         assertThat(HdrHistogramRenderer.readIntervals(log))
                 .containsExactly(new HdrHistogramRenderer.Interval(1_000, 2_000, 2_000));
@@ -91,11 +91,11 @@ public class HdrHistogramRendererTest {
 
     @Test
     public void writesThePercentileDistributionThatPlottersRead() throws Exception {
-        Path log = writeLog(directory.resolve("consume-latency.hdr"), 2_000, 4_000);
+        Path log = writeLog(directory.resolve("application-latency.hdr"), 2_000, 4_000);
 
         Path distribution = HdrHistogramRenderer.writePercentileDistribution(log);
 
-        assertThat(distribution).isEqualTo(directory.resolve("consume-latency.hgrm"));
+        assertThat(distribution).isEqualTo(directory.resolve("application-latency.hgrm"));
         String text = Files.readString(distribution);
         // HdrHistogram's percentile output, in milliseconds: value, percentile, count, 1/(1-percentile)
         assertThat(text).contains("Value     Percentile TotalCount 1/(1-Percentile)");

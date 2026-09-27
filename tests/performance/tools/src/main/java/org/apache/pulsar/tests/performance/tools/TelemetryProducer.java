@@ -66,7 +66,8 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         AtomicLong completed = new AtomicLong();
         AtomicLong warmupCompleted = new AtomicLong();
         AtomicLong measurementCompleted = new AtomicLong();
-        HdrLatencyRecorder sendLatency = new HdrLatencyRecorder(output.resolve("produce-latency.hdr"));
+        HdrLatencyRecorder sendLatency = new HdrLatencyRecorder(output.resolve("gateways-latency.hdr"),
+                PerformanceTool.MAX_LATENCY_MICROS);
         int maxOutstanding = Math.min(scenario.maxOutstanding(), scenario.deviceCount());
         Semaphore outstanding = new Semaphore(maxOutstanding);
         Set<Integer> devicesInFlight = ConcurrentHashMap.newKeySet();
@@ -220,7 +221,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             long measurementElapsedNanos = finishedNanos - measurementStartedNanos;
             sendLatency.close();
             writeState(deviceSequences);
-            Files.writeString(output.resolve("producer-summary.json"),
+            Files.writeString(output.resolve("gateways-summary.json"),
                     "{\n  \"sent\": " + completed.get()
                             + ",\n  \"warmupMessages\": " + warmupCompleted.get()
                             + ",\n  \"warmupMessagesPerRound\": " + warmupMessagesPerRound
@@ -277,7 +278,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
 
     private void writeState(long[] sequences) throws Exception {
         try (var data = new DataOutputStream(new BufferedOutputStream(
-                Files.newOutputStream(output.resolve("produced-state.bin"))))) {
+                Files.newOutputStream(output.resolve("gateways-state.bin"))))) {
             data.writeInt(STATE_VERSION);
             data.writeInt(sequences.length);
             for (long sequence : sequences) {

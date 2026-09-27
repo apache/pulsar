@@ -63,18 +63,18 @@ public class RunReportTest {
 
     @Test
     public void reportsCorrectnessThroughputLatencyAndSampledStats() throws IOException {
-        Files.createDirectories(run.resolve("producer"));
-        Files.writeString(run.resolve("producer/producer-summary.json"), "{\"measurementMessages\": 400000,"
+        Files.createDirectories(run.resolve("gateways"));
+        Files.writeString(run.resolve("gateways/gateways-summary.json"), "{\"measurementMessages\": 400000,"
                 + " \"measurementElapsedSeconds\": 4.0, \"messagesPerSecond\": 100000.0,"
                 + " \"measurementStartEpochMs\": " + START + ", \"measurementEndEpochMs\": " + (START + 4000) + "}");
-        writeHistogram(run.resolve("producer/produce-latency.hdr"), 900_000, 1_000);
+        writeHistogram(run.resolve("gateways/gateways-latency.hdr"), 900_000, 1_000);
         for (int application = 0; application < 2; application++) {
             Path consumer = Files.createDirectories(run.resolve("sub-" + application));
-            Files.writeString(consumer.resolve("consumer-summary.json"), "{\"applicationIndex\": " + application
+            Files.writeString(consumer.resolve("application-summary.json"), "{\"applicationIndex\": " + application
                     + ", \"uniqueMessages\": 500000, \"duplicates\": " + application + ", \"orderingViolations\": 0,"
                     + " \"invalidMessages\": 0, \"lastMeasurementMessageReceivedEpochMs\": "
                     + (START + 5000 + application * 1000) + "}");
-            writeHistogram(consumer.resolve("consume-latency.hdr"), 1_200_000, 1_000);
+            writeHistogram(consumer.resolve("application-latency.hdr"), 1_200_000, 1_000);
         }
         // One topic, two subscriptions: sub-1 stalls for a second in the middle of the measurement.
         StringBuilder csv = new StringBuilder(RunReport.TOPIC_STATS_HEADER).append('\n');
@@ -94,15 +94,15 @@ public class RunReportTest {
         Files.writeString(run.resolve("scenario.yaml"), "extends: base.yaml\n");
         Files.writeString(run.resolve("sub-0").resolve(RunReport.CONTAINER_LOG), "log\n");
         Files.writeString(run.resolve(RunReport.RESOLVED_CONFIG), "cluster: {}\n");
-        // The broker was profiled with off-CPU capture, the producer with async-profiler only.
+        // The broker was profiled with off-CPU capture, the gateways with async-profiler only.
         Path offCpu = Files.createDirectories(run.resolve("broker-profile/broker" + OffCpuFlamegraphs.OUTPUT_SUFFIX));
         Files.writeString(offCpu.resolve(OffCpuFlamegraphs.NO_IDLE_SLICE + ".json"),
                 "{\"totalNanos\": \"4677199858\"}");
         Files.writeString(run.resolve("broker-profile/" + ProfileReport.FILE_NAME), "");
         Files.writeString(run.resolve("broker-profile/broker.jfr"), "");
         Files.writeString(run.resolve("broker-profile/broker.measurement.jfr"), "");
-        Files.createDirectories(run.resolve("producer-profile/producer" + JfrFlamegraphViews.OUTPUT_SUFFIX));
-        Files.writeString(run.resolve("producer-profile/" + ProfileReport.FILE_NAME), "");
+        Files.createDirectories(run.resolve("gateways/profile-gateways" + JfrFlamegraphViews.OUTPUT_SUFFIX));
+        Files.writeString(run.resolve("gateways/" + ProfileReport.FILE_NAME), "");
 
         Path file = RunReport.write(run, new RunReport.Run("scenario.yaml", "run-1", "image:tag",
                 json("{\"brokers\": 1, \"bookies\": 3, \"brokerEnvs\": {\"managedLedgerDefaultEnsembleSize\": \"1\","
@@ -132,10 +132,10 @@ public class RunReportTest {
         // The run's other files are linked, so that they can be found when the run is browsed over HTTP, and a
         // footer below a horizontal line repeats the title, the run ID and the link to the guide
         assertThat(report).endsWith("\n<details><summary>Files</summary>\n\n"
-                + "- [producer/producer-summary.json](producer/producer-summary.json)\n"
-                + "- [sub-0/consumer-summary.json](sub-0/consumer-summary.json)\n"
+                + "- [gateways/gateways-summary.json](gateways/gateways-summary.json)\n"
+                + "- [sub-0/application-summary.json](sub-0/application-summary.json)\n"
                 + "- [sub-0/container.log.txt](sub-0/container.log.txt)\n"
-                + "- [sub-1/consumer-summary.json](sub-1/consumer-summary.json)\n\n</details>\n"
+                + "- [sub-1/application-summary.json](sub-1/application-summary.json)\n\n</details>\n"
                 + "\n------------\n\nPulsar performance test run 2026-09-25 06:42:59 lh-branch 0123456789ab-dirty"
                 + " scenario · run `run-1` · [Pulsar performance testing README](" + RunReport.README_URL + ")\n");
         String footerPage = Files.readString(run.resolve("index.html"));
@@ -144,13 +144,13 @@ public class RunReportTest {
                 + " run 2026-09-25 06:42:59 lh-branch 0123456789ab-dirty scenario · run <code>run-1</code> ·"
                 + " <a href=\"" + RunReport.README_URL + "\">Pulsar performance testing README</a></p>");
         assertThat(report).contains("<details><summary>HDR histogram logs and percentile distributions</summary>\n\n"
-                + "- [producer/produce-latency.hdr](producer/produce-latency.hdr) ·"
-                + " [producer/produce-latency.hgrm](producer/produce-latency.hgrm)\n"
-                + "- [sub-0/consume-latency.hdr](sub-0/consume-latency.hdr) ·"
-                + " [sub-0/consume-latency.hgrm](sub-0/consume-latency.hgrm)\n"
-                + "- [sub-1/consume-latency.hdr](sub-1/consume-latency.hdr) ·"
-                + " [sub-1/consume-latency.hgrm](sub-1/consume-latency.hgrm)\n\n</details>\n");
-        assertThat(run.resolve("sub-1/consume-latency.hgrm")).isRegularFile();
+                + "- [gateways/gateways-latency.hdr](gateways/gateways-latency.hdr) ·"
+                + " [gateways/gateways-latency.hgrm](gateways/gateways-latency.hgrm)\n"
+                + "- [sub-0/application-latency.hdr](sub-0/application-latency.hdr) ·"
+                + " [sub-0/application-latency.hgrm](sub-0/application-latency.hgrm)\n"
+                + "- [sub-1/application-latency.hdr](sub-1/application-latency.hdr) ·"
+                + " [sub-1/application-latency.hgrm](sub-1/application-latency.hgrm)\n\n</details>\n");
+        assertThat(run.resolve("sub-1/application-latency.hgrm")).isRegularFile();
         assertThat(report).contains("The [sampled topic stats](topic-stats.csv) are a CSV file.");
         assertThat(report).contains("| Scenario | [scenario](scenario.yaml) |\n");
         assertThat(report).contains("| Cluster | 1 broker(s), 3 bookies, [configuration](resolved-config.yaml) |\n");
@@ -171,17 +171,17 @@ public class RunReportTest {
         assertThat(report).contains("| [Broker](broker-profile/README.md) | 4.7 s |"
                 + " [complete](broker-profile/broker.jfr) ·"
                 + " [measurement period](broker-profile/broker.measurement.jfr) |\n");
-        assertThat(report).contains("| [Producer](producer-profile/README.md) | not captured |");
+        assertThat(report).contains("| [Gateways](gateways/README.md) | not captured |");
         // The profiles follow the run's settings
         assertThat(report.indexOf("## Profiles")).isGreaterThan(report.indexOf("| Setting |"));
         assertThat(report.indexOf("## Profiles")).isLessThan(report.indexOf("## Correctness"));
         assertThat(report).contains("| Ledger replication | E=1, W=1, A=1 |");
         assertThat(report).contains("| sub-1 | 500,000 | 1 | 0 | 0 |");
         assertThat(report).contains("**Duplicates, ordering violations or invalid messages were received.**");
-        assertThat(report).contains("| Producer throughput | 100,000 msg/s |");
+        assertThat(report).contains("| Gateways' throughput | 100,000 msg/s |");
         // 400,000 measured messages until the slower application finished 6 s after the start
         assertThat(report).contains("| 66,667 msg/s |");
-        assertThat(report).contains("| Consumers still draining after the producers finished | 2.0 s |");
+        assertThat(report).contains("| Applications still receiving after the gateways finished | 2.0 s |");
         assertThat(report).contains("| Latency (ms) | Count | Min | p50 | p90 | p99 | p99.9 | Max |\n");
         // Every observation is the same value: the minimum is the lowest value of its HDR bucket, the percentiles
         // and the maximum its highest
@@ -217,8 +217,8 @@ public class RunReportTest {
 
     @Test
     public void reportsTheHostsThermalState() throws IOException {
-        Files.createDirectories(run.resolve("producer"));
-        Files.writeString(run.resolve("producer/producer-summary.json"), "{\"measurementMessages\": 400000,"
+        Files.createDirectories(run.resolve("gateways"));
+        Files.writeString(run.resolve("gateways/gateways-summary.json"), "{\"measurementMessages\": 400000,"
                 + " \"measurementElapsedSeconds\": 4.0, \"messagesPerSecond\": 100000.0,"
                 + " \"measurementStartEpochMs\": " + START + ", \"measurementEndEpochMs\": " + (START + 4000) + "}");
         // A sample before the measurement, four within it and one after; the counters grow within it, the
@@ -265,8 +265,8 @@ public class RunReportTest {
 
     @Test
     public void rendersNoHostChartsWithoutTemperaturesOrFrequencies() throws IOException {
-        Files.createDirectories(run.resolve("producer"));
-        Files.writeString(run.resolve("producer/producer-summary.json"), "{\"measurementStartEpochMs\": " + START
+        Files.createDirectories(run.resolve("gateways"));
+        Files.writeString(run.resolve("gateways/gateways-summary.json"), "{\"measurementStartEpochMs\": " + START
                 + ", \"measurementEndEpochMs\": " + (START + 2000) + "}");
         // Only throttle counters and a fan
         Files.writeString(run.resolve(RunReport.HOST_STATS_FILE), RunReport.HOST_STATS_HEADER + "\n"
@@ -427,10 +427,10 @@ public class RunReportTest {
     }
 
     @Test
-    public void reportsTheProducersMessageCounts() throws IOException {
+    public void reportsTheGatewaysMessageCounts() throws IOException {
         // A scenario limited by duration and rate leaves the configured counts at 0
-        Files.createDirectories(run.resolve("producer"));
-        Files.writeString(run.resolve("producer/producer-summary.json"), "{\"measurementMessages\": 120000,"
+        Files.createDirectories(run.resolve("gateways"));
+        Files.writeString(run.resolve("gateways/gateways-summary.json"), "{\"measurementMessages\": 120000,"
                 + " \"warmupMessages\": 20000, \"measurementStartEpochMs\": " + START
                 + ", \"measurementEndEpochMs\": " + (START + 120_000) + "}");
 

@@ -89,7 +89,7 @@ public final class ProfileReport {
                 .append("Measurement window ").append(run.from()).append(" to ").append(run.to())
                 .append(String.format(Locale.ROOT, " (%.1f s)", window.toMillis() / 1000.0));
         if (run.producerMessagesPerSecond() > 0) {
-            report.append(String.format(Locale.ROOT, "; producer throughput %,.0f msg/s",
+            report.append(String.format(Locale.ROOT, "; gateways' throughput %,.0f msg/s",
                     run.producerMessagesPerSecond()));
         }
         report.append(".\n");

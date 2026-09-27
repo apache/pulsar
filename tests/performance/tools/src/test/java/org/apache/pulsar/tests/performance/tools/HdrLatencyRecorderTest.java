@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.HdrHistogram.EncodableHistogram;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogReader;
@@ -31,11 +32,13 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class HdrLatencyRecorderTest {
+    private static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
+
     @Test
     public void writesNoIntervalForRunWithoutMeasuredMessages() throws Exception {
         Path output = Files.createTempFile("empty-latency", ".hdr");
         try {
-            new HdrLatencyRecorder(output).close();
+            new HdrLatencyRecorder(output, MAX_LATENCY_MICROS).close();
 
             assertThat(read(output)).isEmpty();
         } finally {
@@ -48,7 +51,7 @@ public class HdrLatencyRecorderTest {
         Path output = Files.createTempFile("latency", ".hdr");
         try {
             long before = System.currentTimeMillis();
-            HdrLatencyRecorder recorder = new HdrLatencyRecorder(output);
+            HdrLatencyRecorder recorder = new HdrLatencyRecorder(output, MAX_LATENCY_MICROS);
             recorder.recordNanos(1_500_000);
             recorder.recordMillis(2);
             recorder.close();
@@ -67,10 +70,26 @@ public class HdrLatencyRecorderTest {
     }
 
     @Test
+    public void recordsALatencyAboveTheMaximumAsTheMaximum() throws Exception {
+        Path output = Files.createTempFile("capped-latency", ".hdr");
+        try {
+            HdrLatencyRecorder recorder = new HdrLatencyRecorder(output, TimeUnit.SECONDS.toMicros(1));
+            recorder.recordMillis(5_000);
+            recorder.close();
+
+            List<Histogram> intervals = read(output);
+            assertThat(intervals).hasSize(1);
+            assertThat(intervals.get(0).getMaxValue()).isBetween(999_000L, 1_001_000L);
+        } finally {
+            Files.deleteIfExists(output);
+        }
+    }
+
+    @Test
     public void leavesWarmupLatenciesOutOfTheLog() throws Exception {
         Path output = Files.createTempFile("warmup-latency", ".hdr");
         try {
-            HdrLatencyRecorder recorder = new HdrLatencyRecorder(output);
+            HdrLatencyRecorder recorder = new HdrLatencyRecorder(output, MAX_LATENCY_MICROS);
             recorder.recordMillis(2, false);
             recorder.recordMillis(4, true);
             recorder.close();
@@ -88,7 +107,7 @@ public class HdrLatencyRecorderTest {
     public void writesAnIntervalPerSecond() throws Exception {
         Path output = Files.createTempFile("latency-intervals", ".hdr");
         try {
-            HdrLatencyRecorder recorder = new HdrLatencyRecorder(output);
+            HdrLatencyRecorder recorder = new HdrLatencyRecorder(output, MAX_LATENCY_MICROS);
             recorder.recordMillis(1);
             // The first interval is written about a second later; the next value goes into the second one
             Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions()

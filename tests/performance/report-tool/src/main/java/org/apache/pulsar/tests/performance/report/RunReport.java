@@ -234,17 +234,17 @@ public final class RunReport {
     }
 
     public static Path write(Path runDirectory, Run run, ObjectMapper mapper) throws IOException {
-        JsonNode producer = mapper.readTree(runDirectory.resolve("producer/producer-summary.json").toFile());
+        JsonNode producer = mapper.readTree(runDirectory.resolve("gateways/gateways-summary.json").toFile());
         List<JsonNode> consumers = new ArrayList<>();
         List<Path> consumerHistograms = new ArrayList<>();
         for (int application = 0; ; application++) {
             Path directory = applicationDirectory(runDirectory, run.workload(), application);
-            if (!Files.isRegularFile(directory.resolve("consumer-summary.json"))) {
+            if (!Files.isRegularFile(directory.resolve("application-summary.json"))) {
                 break;
             }
-            consumers.add(mapper.readTree(directory.resolve("consumer-summary.json").toFile()));
-            if (Files.isRegularFile(directory.resolve("consume-latency.hdr"))) {
-                consumerHistograms.add(directory.resolve("consume-latency.hdr"));
+            consumers.add(mapper.readTree(directory.resolve("application-summary.json").toFile()));
+            if (Files.isRegularFile(directory.resolve("application-latency.hdr"))) {
+                consumerHistograms.add(directory.resolve("application-latency.hdr"));
             }
         }
         long measurementStart = producer.path("measurementStartEpochMs").asLong();
@@ -299,10 +299,10 @@ public final class RunReport {
                     .asText() + ", W=" + brokerEnvs.path("managedLedgerDefaultWriteQuorum").asText() + ", A="
                     + brokerEnvs.path("managedLedgerDefaultAckQuorum").asText()));
         }
-        report.append(row("Producers", workload.path("gatewayCount").asInt() + " gateways × "
+        report.append(row("Gateways", workload.path("gatewayCount").asInt() + " gateways × "
                         + workload.path("topicCount").asInt() + " topic(s)"))
                 .append(row("Applications", workload.path("applicationCount").asInt() + " × "
-                        + workload.path("clientsPerApplication").asInt() + " consumers, Key_Shared"))
+                        + workload.path("clientsPerApplication").asInt() + " clients, Key_Shared"))
                 .append(row("Messages", String.format(Locale.ROOT, "%,d measured, %,d warmup",
                         messageCount(producer, "measurementMessages", workload.path("numberOfMessages").asLong()),
                         messageCount(producer, "warmupMessages", workload.path("warmupMessages").asLong()
@@ -345,8 +345,8 @@ public final class RunReport {
     private static void appendFiles(StringBuilder report, Path runDirectory, JsonNode workload) {
         List<String> links = new ArrayList<>();
         // The scenario and its resolved configuration are linked from the settings table
-        for (String name : List.of(RunInfo.FILE_NAME, "producer/producer-summary.json",
-                "producer/" + CONTAINER_LOG)) {
+        for (String name : List.of(RunInfo.FILE_NAME, "gateways/gateways-summary.json",
+                "gateways/" + CONTAINER_LOG)) {
             Path file = runDirectory.resolve(name);
             if (Files.isRegularFile(file)) {
                 links.add(link(runDirectory, file));
@@ -354,7 +354,7 @@ public final class RunReport {
         }
         for (int application = 0; Files.isDirectory(applicationDirectory(runDirectory, workload, application));
                 application++) {
-            for (String name : List.of("consumer-summary.json", CONTAINER_LOG)) {
+            for (String name : List.of("application-summary.json", CONTAINER_LOG)) {
                 Path file = applicationDirectory(runDirectory, workload, application).resolve(name);
                 if (Files.isRegularFile(file)) {
                     links.add(link(runDirectory, file));
@@ -443,13 +443,13 @@ public final class RunReport {
         long lastReceived = consumers.stream().mapToLong(c -> c.path("lastMeasurementMessageReceivedEpochMs")
                 .asLong()).max().orElse(end);
         report.append("\n## Throughput\n\n| Measure | Value |\n|---|---:|\n")
-                .append(row("Producer throughput", String.format(Locale.ROOT, "%,.0f msg/s",
+                .append(row("Gateways' throughput", String.format(Locale.ROOT, "%,.0f msg/s",
                         producer.path("messagesPerSecond").asDouble())))
                 .append(row("Delivered throughput (until the slowest application received the last message)",
                         String.format(Locale.ROOT, "%,.0f msg/s", measured * 1000.0 / (lastReceived - start))))
                 .append(row("Measurement", String.format(Locale.ROOT, "%,d messages in %.1f s", measured,
                         producer.path("measurementElapsedSeconds").asDouble())))
-                .append(row("Consumers still draining after the producers finished",
+                .append(row("Applications still receiving after the gateways finished",
                         String.format(Locale.ROOT, "%.1f s", Math.max(0, lastReceived - end) / 1000.0)));
     }
 
@@ -475,7 +475,7 @@ public final class RunReport {
 
     private static void appendLatency(StringBuilder report, Path runDirectory, Run run, List<Path> consumers,
                                       long measurementStart) throws IOException {
-        Path publish = runDirectory.resolve("producer/produce-latency.hdr");
+        Path publish = runDirectory.resolve("gateways/gateways-latency.hdr");
         if (!Files.isRegularFile(publish) || consumers.isEmpty()) {
             return;
         }
@@ -532,13 +532,13 @@ public final class RunReport {
                 + " per-second deltas of its message counters, and a sampled maximum is not the exact peak"
                 + " between samples. The rates are those of the whole seconds within the measurement (0 to ")
                 .append(String.format(Locale.ROOT, "%.1f", finished))
-                .append(" s), leaving out its first and last second, where the producers start and finish. The")
+                .append(" s), leaving out its first and last second, where the gateways start and finish. The")
                 .append(" [sampled topic stats](").append(TOPIC_STATS_FILE).append(") are a CSV file.\n\n")
                 .append("| Measure | Median | Minimum |\n|---|---:|---:|\n")
                 .append(rateRow("Published msg/s", samples.published(), seconds, finished))
                 .append(rateRow("Dispatched msg/s, all subscriptions", totalDispatched, seconds, finished))
                 .append("\n| Subscription | Sampled maximum backlog during the measurement | At |"
-                        + " Backlog when the producers finished |\n|---|---:|---:|---:|\n");
+                        + " Backlog when the gateways finished |\n|---|---:|---:|---:|\n");
         for (Map.Entry<String, double[]> entry : samples.backlog().entrySet()) {
             double[] backlog = entry.getValue();
             int atFinish = rounds - 1;
@@ -565,13 +565,13 @@ public final class RunReport {
         }
         ChartTimeline timeline = chartTimeline(samples.epochMillis(), measurementStart, cooldowns);
         List<TimeSeriesRenderer.Series> throughput = new ArrayList<>();
-        // Dotted, so that the consumer lines it usually overlaps stay visible
-        throughput.add(new TimeSeriesRenderer.Series("Producers (published)", timeline.select(samples.published()),
+        // Dotted, so that the application lines it usually overlaps stay visible
+        throughput.add(new TimeSeriesRenderer.Series("Gateways (published)", timeline.select(samples.published()),
                 true));
         for (Map.Entry<String, double[]> entry : samples.dispatched().entrySet()) {
             // One line per subscription, named by it alone so that the legend fits
             throughput.add(new TimeSeriesRenderer.Series(samples.dispatched().size() == 1
-                    ? "Consumers (dispatched)" : entry.getKey(), timeline.select(entry.getValue())));
+                    ? "Applications (dispatched)" : entry.getKey(), timeline.select(entry.getValue())));
         }
         TimeSeriesRenderer.render(runDirectory.resolve(THROUGHPUT_CHART), "Throughput", "Messages per second",
                 timeline.seconds(), throughput, finished, timeline.cut(), footer);
@@ -798,8 +798,8 @@ public final class RunReport {
 
     /** The profiled component a profile directory belongs to: {@code broker-profile} is "Broker". */
     static String componentName(String directoryName) {
-        if (!directoryName.endsWith("-profile") && !directoryName.equals("producer")) {
-            // A consumer application's directory is named after the application, as the rest of the report names it
+        if (!directoryName.endsWith("-profile") && !directoryName.equals("gateways")) {
+            // An application's directory is named after the application, as the rest of the report names it
             return directoryName;
         }
         String name = directoryName.replaceFirst("-profile$", "").replace('-', ' ');

@@ -48,17 +48,12 @@ final class JfrRecordingProcessor {
         }
     }
 
-    static void process(Set<Path> recordings, Instant from, Instant to,
-                        boolean retainOriginal, boolean createMeasurementRecording) throws IOException {
+    /** Cuts each recording to the measurement into the measurement recording beside it, keeping the recording. */
+    static void process(Set<Path> recordings, Instant from, Instant to) throws IOException {
         IOException failure = null;
         for (Path recording : recordings) {
             try {
-                if (createMeasurementRecording) {
-                    JfrCut.cut(recording, from, to, measurementPath(recording));
-                }
-                if (!retainOriginal) {
-                    Files.delete(recording);
-                }
+                JfrCut.cut(recording, from, to, measurementPath(recording));
             } catch (IOException error) {
                 if (failure == null) {
                     failure = new IOException("Failed to process JFR recordings");

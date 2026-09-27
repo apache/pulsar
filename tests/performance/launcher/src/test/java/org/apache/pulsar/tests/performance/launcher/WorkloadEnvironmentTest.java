@@ -19,31 +19,42 @@
 package org.apache.pulsar.tests.performance.launcher;
 
 import static org.apache.pulsar.tests.performance.launcher.PerformanceLauncher.JAVA_TOOL_OPTIONS;
+import static org.apache.pulsar.tests.performance.launcher.PerformanceLauncher.PULSAR_MEM;
+import static org.apache.pulsar.tests.performance.launcher.PerformanceLauncher.WORKLOAD_MEMORY;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
 import org.testng.annotations.Test;
 
 public class WorkloadEnvironmentTest {
-    private static final String LAUNCHER_OPTIONS = "-Xms128m -Xmx512m";
+    private static final String AGENT_OPTIONS = "-javaagent:/opt/jonoffcpu/jonoffcpu-agent.jar";
 
     @Test
-    public void usesTheLauncherOptionsWithoutConfiguredVariables() {
-        assertThat(PerformanceLauncher.workloadEnvironment(LAUNCHER_OPTIONS, null))
-                .containsExactly(Map.entry(JAVA_TOOL_OPTIONS, LAUNCHER_OPTIONS));
+    public void givesTheWorkloadItsHeapWithoutConfiguredVariables() {
+        assertThat(PerformanceLauncher.workloadEnvironment("", null))
+                .containsExactly(Map.entry(PULSAR_MEM, WORKLOAD_MEMORY));
+    }
+
+    @Test
+    public void keepsAConfiguredHeap() {
+        assertThat(PerformanceLauncher.workloadEnvironment("", Map.of(PULSAR_MEM, "-Xms1g -Xmx1g")))
+                .containsExactly(Map.entry(PULSAR_MEM, "-Xms1g -Xmx1g"));
     }
 
     @Test
     public void passesTheConfiguredVariables() {
         String tunables = "glibc.malloc.hugetlb=1:glibc.malloc.arena_max=4";
-        assertThat(PerformanceLauncher.workloadEnvironment(LAUNCHER_OPTIONS, Map.of("GLIBC_TUNABLES", tunables)))
+        assertThat(PerformanceLauncher.workloadEnvironment(AGENT_OPTIONS, Map.of("GLIBC_TUNABLES", tunables)))
                 .containsEntry("GLIBC_TUNABLES", tunables)
-                .containsEntry(JAVA_TOOL_OPTIONS, LAUNCHER_OPTIONS);
+                .containsEntry(JAVA_TOOL_OPTIONS, AGENT_OPTIONS);
     }
 
     @Test
     public void appendsConfiguredJavaToolOptionsToTheLauncherOptions() {
-        assertThat(PerformanceLauncher.workloadEnvironment(LAUNCHER_OPTIONS,
+        assertThat(PerformanceLauncher.workloadEnvironment(AGENT_OPTIONS,
                 Map.of(JAVA_TOOL_OPTIONS, "-XX:+UseCompactObjectHeaders")))
-                .containsEntry(JAVA_TOOL_OPTIONS, LAUNCHER_OPTIONS + " -XX:+UseCompactObjectHeaders");
+                .containsEntry(JAVA_TOOL_OPTIONS, AGENT_OPTIONS + " -XX:+UseCompactObjectHeaders");
+        assertThat(PerformanceLauncher.workloadEnvironment("",
+                Map.of(JAVA_TOOL_OPTIONS, "-XX:+UseCompactObjectHeaders")))
+                .containsEntry(JAVA_TOOL_OPTIONS, "-XX:+UseCompactObjectHeaders");
     }
 }

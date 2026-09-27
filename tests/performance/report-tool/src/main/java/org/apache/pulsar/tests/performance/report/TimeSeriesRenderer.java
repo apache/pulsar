@@ -181,7 +181,7 @@ final class TimeSeriesRenderer {
                 graphics.setStroke(new BasicStroke(1, BasicStroke.CAP_BUTT, BasicStroke.JOIN_MITER, 10,
                         new float[] {5, 4}, 0));
                 graphics.drawLine(x, PLOT_TOP, x, PLOT_BOTTOM);
-                String label = "producers finished";
+                String label = "gateways finished";
                 graphics.drawString(label, labelOnLeft(x) ? x - 6 - graphics.getFontMetrics().stringWidth(label)
                         : x + 6, PLOT_TOP + 14);
             }
@@ -271,7 +271,7 @@ final class TimeSeriesRenderer {
                     .append("\" stroke-dasharray=\"5 4\"/>\n<text class=\"muted\" x=\"")
                     .append(labelOnLeft(x) ? x - 6 : x + 6).append("\" y=\"").append(PLOT_TOP + 14)
                     .append(labelOnLeft(x) ? "\" text-anchor=\"end" : "")
-                    .append("\" font-size=\"12\">producers finished</text>\n");
+                    .append("\" font-size=\"12\">gateways finished</text>\n");
         }
         if (cut != null) {
             // An axis break: a gap in the x axis with two short slanted strokes

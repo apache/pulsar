@@ -42,10 +42,10 @@ import org.HdrHistogram.Recorder;
  * log. The progress recorders also get the warmup's latencies, which the log leaves out.
  */
 final class HdrLatencyRecorder implements AutoCloseable {
-    private static final long MAX_LATENCY_MICROS = TimeUnit.DAYS.toMicros(10);
     private static final int SIGNIFICANT_DIGITS = 3;
     private static final long INTERVAL_MILLIS = 1000;
-    private final Recorder recorder = new Recorder(MAX_LATENCY_MICROS, SIGNIFICANT_DIGITS);
+    private final long maxLatencyMicros;
+    private final Recorder recorder;
     private final List<Recorder> progressRecorders = new CopyOnWriteArrayList<>();
     private final PrintStream output;
     private final HistogramLogWriter writer;
@@ -54,8 +54,13 @@ final class HdrLatencyRecorder implements AutoCloseable {
     private Histogram interval;
     private boolean closed;
 
-    /** Starts logging to {@code path}, which is replaced. */
-    HdrLatencyRecorder(Path path) throws IOException {
+    /**
+     * Starts logging to {@code path}, which is replaced. A latency above {@code maxLatencyMicros} is recorded as that
+     * maximum; the histograms' size grows with it.
+     */
+    HdrLatencyRecorder(Path path, long maxLatencyMicros) throws IOException {
+        this.maxLatencyMicros = maxLatencyMicros;
+        recorder = new Recorder(maxLatencyMicros, SIGNIFICANT_DIGITS);
         output = new PrintStream(Files.newOutputStream(path));
         writer = new HistogramLogWriter(output);
         writer.outputLogFormatVersion();
@@ -87,7 +92,7 @@ final class HdrLatencyRecorder implements AutoCloseable {
     }
 
     private void recordMicros(long latencyMicros, boolean measured) {
-        long value = Math.min(latencyMicros, MAX_LATENCY_MICROS);
+        long value = Math.min(latencyMicros, maxLatencyMicros);
         if (measured) {
             recorder.recordValue(value);
         }
@@ -98,7 +103,7 @@ final class HdrLatencyRecorder implements AutoCloseable {
 
     /** A recorder that gets every latency from now on, until it is removed, for a progress stream's intervals. */
     Recorder addProgressRecorder() {
-        Recorder progressRecorder = new Recorder(MAX_LATENCY_MICROS, SIGNIFICANT_DIGITS);
+        Recorder progressRecorder = new Recorder(maxLatencyMicros, SIGNIFICANT_DIGITS);
         progressRecorders.add(progressRecorder);
         return progressRecorder;
     }

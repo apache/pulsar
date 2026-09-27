@@ -80,11 +80,11 @@ several times, so that a drift of the host, such as its temperature, affects bot
 ```bash
 # In the baseline checkout
 ./gradlew :tests:performance:launcher:run -Pdocker.tag=baseline \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
 
 # In the candidate checkout
 ./gradlew :tests:performance:launcher:run -Pdocker.tag=candidate \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
 ```
 
 Keep the scenario, its settings and the profiler options identical for both revisions. Profiling has a measurement
