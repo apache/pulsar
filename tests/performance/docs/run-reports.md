@@ -231,9 +231,21 @@ Gradle properties change where it listens, on the command line with `-P` or in `
 |---|---|
 | `performance.reportsServer.bindAddress` | `127.0.0.1` |
 | `performance.reportsServer.port` | `8000` |
+| `performance.reportsServer.baseUrl` | `http://<bind address>:<port>/` |
 
 `performance.reportsServer.bindAddress=0.0.0.0` makes the server available on the network, at the machine's host name or
 IP address. The server has no authentication, so do that only on a trusted network.
+
+The launcher prints the URL of each report on the server, the run report's as `Run report URL:` and each profile
+report's as `Profile report URL:`, so that a report on another machine opens with a click in the terminal. The URL is
+the base URL with the report's path in the reports root appended, without a directory's `index.html`, which the server
+opens for the directory. `performance.reportsServer.baseUrl` sets the base URL, such as `http://192.168.1.123:8000/`
+for a server that you reach at that address; without it, it is `http://<bind address>:<port>/`, and with the bind
+address `0.0.0.0` the address of the first network interface, in the order that the operating system numbers them,
+that is up and has an IPv4 address other than a loopback or link-local one. Set `performance.reportsServer.baseUrl`
+on a host with several interfaces, such as Docker's or a VPN's, when that address isn't the one that you reach it at,
+or when you reach the server through an SSH tunnel or a proxy. `serveReports` prints the same base URL when it starts.
+A run written with `--output` outside the reports root has no URL.
 
 When the performance tests run on a separate machine, start the server there. It's reachable from your own machine
 only when `performance.reportsServer.bindAddress` is set as above, in that machine's `~/.gradle/gradle.properties` or

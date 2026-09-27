@@ -59,9 +59,10 @@ tasks.register<JavaExec>("renderHdrHistograms") {
     mainClass.set("org.apache.pulsar.tests.performance.report.HdrHistogramRenderer")
 }
 
-// Serves the reports root over HTTP. -Pperformance.reportsDir chooses the root as for the launcher's tasks, and
-// -Pperformance.reportsServer.bindAddress and -Pperformance.reportsServer.port where to listen; all three can be set in
-// ~/.gradle/gradle.properties. The loopback address by default keeps the reports off the network; reach them from
+// Serves the reports root over HTTP. -Pperformance.reportsDir chooses the root as for the launcher's tasks,
+// -Pperformance.reportsServer.bindAddress and -Pperformance.reportsServer.port where to listen, and
+// -Pperformance.reportsServer.baseUrl the URL that it prints, which the launcher's tasks print the reports' URLs with;
+// all of them can be set in ~/.gradle/gradle.properties. The loopback address by default keeps the reports off the network; reach them from
 // another machine through an SSH tunnel.
 tasks.register<JavaExec>("serveReports") {
     group = "verification"
@@ -73,5 +74,6 @@ tasks.register<JavaExec>("serveReports") {
     args("--directory", reportsDir.absolutePath,
         "--address", providers.gradleProperty("performance.reportsServer.bindAddress").getOrElse("127.0.0.1"),
         "--port", providers.gradleProperty("performance.reportsServer.port").getOrElse("8000"))
+    providers.gradleProperty("performance.reportsServer.baseUrl").orNull?.let { args("--base-url", it) }
     outputs.upToDateWhen { false }
 }

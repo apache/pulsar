@@ -211,6 +211,7 @@ Run directory: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00
 12:02:55 Every application has received every message; verifying the device sequences
 12:02:57 Stopping the Pulsar cluster
 Run report: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00/index.html
+Run report URL: http://127.0.0.1:8000/2026-09-26/master/iot-telemetry/09-26-12-00-00/
 Deleted .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00/launcher.log of the successful run; --keep-launcher-log keeps it
 ```
 
@@ -256,6 +257,7 @@ properties in `~/.gradle/gradle.properties`, or `-P` options on the command line
 | `performance.reportsDir` | `build/performance` | The reports root that it serves |
 | `performance.reportsServer.bindAddress` | `127.0.0.1` | The address that it binds to |
 | `performance.reportsServer.port` | `8000` | The port that it listens on |
+| `performance.reportsServer.baseUrl` | from the address and port | The URL that the reports are reached at, such as `http://192.168.1.123:8000/` |
 
 The default address makes the server reachable only from the machine that it runs on. When the tests run on another
 machine, run `serveReports` there, and to browse the reports from your own machine, do one of these:
@@ -265,6 +267,12 @@ machine, run `serveReports` there, and to browse the reports from your own machi
   address. The server has no authentication, so do that only on a trusted network.
 - Keep the default address and reach the server through an SSH tunnel, as
   [Browsing the reports over HTTP](docs/run-reports.md#browsing-the-reports-over-http) describes.
+
+The launcher prints each report's URL on the server beside its file, as `Run report URL:`, which opens with a click
+in most terminals. It is the base URL with the report's path in the reports root appended:
+`performance.reportsServer.baseUrl`, else `http://<bind address>:<port>/`. With the bind address `0.0.0.0`, it is the
+address of the host's first network interface with an IPv4 address; on a host with several interfaces, set
+`performance.reportsServer.baseUrl` to the one that you reach it at.
 
 [Run reports](docs/run-reports.md) describes every section and file of a run.
 

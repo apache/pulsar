@@ -76,6 +76,7 @@ import org.apache.pulsar.tests.performance.report.JfrFlamegraphViews;
 import org.apache.pulsar.tests.performance.report.MarkdownPages;
 import org.apache.pulsar.tests.performance.report.OffCpuFlamegraphs;
 import org.apache.pulsar.tests.performance.report.ProfileReport;
+import org.apache.pulsar.tests.performance.report.ReportsUrl;
 import org.apache.pulsar.tests.performance.report.RunInfo;
 import org.apache.pulsar.tests.performance.report.RunReport;
 import org.apache.pulsar.tests.performance.tools.IotScenario;
@@ -246,10 +247,10 @@ public class PerformanceLauncher implements Callable<Integer> {
         if (clusterPulsarImage != null) {
             runInfo = runInfo.withCluster(new RunInfo.Cluster(clusterPulsarImage, ""));
         }
-        Path runOutput = output != null ? output : RunDirectory.resolve(
-                reportsDirectory != null ? reportsDirectory
-                        : runInfo.projectDirectory().resolve(RunDirectory.DEFAULT_REPORTS_ROOT),
-                runInfo.started(), clusterPulsarImage != null ? RunDirectory.clusterDirectory(clusterPulsarImage)
+        Path reportsRoot = reportsDirectory != null ? reportsDirectory
+                : runInfo.projectDirectory().resolve(RunDirectory.DEFAULT_REPORTS_ROOT);
+        Path runOutput = output != null ? output : RunDirectory.resolve(reportsRoot, runInfo.started(),
+                clusterPulsarImage != null ? RunDirectory.clusterDirectory(clusterPulsarImage)
                         : RunDirectory.branchDirectory(runInfo.gitBranch(), runInfo.gitCommit()),
                 runName(resolved));
         runOutput = runOutput.toAbsolutePath().normalize();
@@ -511,18 +512,32 @@ public class PerformanceLauncher implements Callable<Integer> {
             Map<Path, List<Path>> recordingsByDirectory = recordings.stream().sorted()
                     .collect(Collectors.groupingBy(Path::getParent, TreeMap::new, Collectors.toList()));
             for (Map.Entry<Path, List<Path>> entry : recordingsByDirectory.entrySet()) {
-                System.out.println("Profile report: " + MarkdownPages.htmlPage(
-                        ProfileReport.write(entry.getKey(), entry.getValue(), run, loader.mapper(), runOutput)));
+                printReport("Profile report", MarkdownPages.htmlPage(
+                        ProfileReport.write(entry.getKey(), entry.getValue(), run, loader.mapper(), runOutput)),
+                        reportsRoot);
             }
         }
         Path runReport = RunReport.write(runOutput, new RunReport.Run(scenario.getFileName().toString(), runId,
                 PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload, runInfo, workloadFinished,
                 List.copyOf(cooldowns)), loader.mapper());
-        System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
+        printReport("Run report", MarkdownPages.htmlPage(runReport), reportsRoot);
         if (!keepLauncherLog) {
             deleteLauncherLog(launcherLog);
         }
         return 0;
+    }
+
+    /**
+     * Prints a report's page, and its URL on the reports server when the report is in the reports root: the server's
+     * base URL, as {@code performance.reportsServer.baseUrl} or its bind address and port give it, with the report's
+     * path in the root appended.
+     */
+    private static void printReport(String label, Path page, Path reportsRoot) {
+        System.out.println(label + ": " + page);
+        String baseUrl = ReportsUrl.baseUrl(System.getProperty("performance.reportsServer.baseUrl"),
+                System.getProperty("performance.reportsServer.bindAddress"),
+                Integer.getInteger("performance.reportsServer.port", ReportsUrl.DEFAULT_PORT));
+        ReportsUrl.url(baseUrl, reportsRoot, page).ifPresent(url -> System.out.println(label + " URL: " + url));
     }
 
     /**

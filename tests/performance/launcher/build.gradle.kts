@@ -100,6 +100,13 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     providers.gradleProperty("performance.reportsDir").orNull?.let {
         systemProperty("performance.reports.dir", rootProject.file(it).absolutePath)
     }
+    // The URL of the reports that :tests:performance:report-tool:serveReports serves, which the launcher prints beside
+    // the reports: -Pperformance.reportsServer.baseUrl, else the server's bind address and port
+    listOf("baseUrl", "bindAddress", "port").forEach { name ->
+        providers.gradleProperty("performance.reportsServer.$name").orNull?.let {
+            systemProperty("performance.reportsServer.$name", it)
+        }
+    }
     // Wait for the CPU package to cool down to this many °C before each run, -Pperformance.cooldownTemperature=<°C>,
     // so that runs start from comparable thermal conditions. Without it the launcher doesn't wait.
     providers.gradleProperty("performance.cooldownTemperature").orNull?.let {

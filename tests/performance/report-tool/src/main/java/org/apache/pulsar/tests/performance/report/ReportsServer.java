@@ -64,6 +64,11 @@ public final class ReportsServer implements Callable<Integer> {
     @Option(names = "--port", defaultValue = "8000", description = "The port to listen on; default: ${DEFAULT-VALUE}")
     private int port;
 
+    @Option(names = "--base-url", description = "The URL that the reports are reached at, such as "
+            + "http://192.168.1.123:8000/, which it prints; default: the address and port, or with 0.0.0.0 the "
+            + "address of the host's first network interface with an IPv4 address")
+    private String baseUrl;
+
     private ReportsServer() {
     }
 
@@ -81,7 +86,8 @@ public final class ReportsServer implements Callable<Integer> {
             throw new IllegalArgumentException(root + " is not a directory");
         }
         HttpServer server = start(root, new InetSocketAddress(address, port), System.out);
-        System.out.println("Serving " + root + " at http://" + address + ":" + server.getAddress().getPort() + "/");
+        System.out.println("Serving " + root + " at "
+                + ReportsUrl.baseUrl(baseUrl, address, server.getAddress().getPort()));
         // The server's dispatcher thread isn't a daemon thread, so it runs until the process is stopped
         return 0;
     }
