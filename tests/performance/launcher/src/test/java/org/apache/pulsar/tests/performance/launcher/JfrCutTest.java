@@ -20,14 +20,18 @@ package org.apache.pulsar.tests.performance.launcher;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 import jdk.jfr.Event;
 import jdk.jfr.Name;
 import jdk.jfr.Recording;
@@ -111,6 +115,70 @@ public class JfrCutTest {
 
             assertThat(input).exists();
             assertThat(markers(measurement)).containsExactly("measurement");
+        } finally {
+            deleteDirectory(directory);
+        }
+    }
+
+    @Test
+    public void cutsEachChunkByItsOwnClock() throws Exception {
+        // Recorded by async-profiler's jfrsync on aarch64 before its clock was aligned with the JVM's: the JDK's chunk
+        // counts ticks from the JVM's start and async-profiler's chunk from the host's boot, so a JDK 22+ reader of the
+        // whole file puts async-profiler's events 672,402 s later. Each chunk was cut to 04:41:20.000-04:41:20.200.
+        Path directory = Files.createTempDirectory("jfr-chunk-clock-test");
+        try {
+            Path input = mixedClockRecording(directory);
+            Path output = directory.resolve("output.jfr");
+
+            JfrCut.cut(input, Instant.parse("2026-09-27T04:41:20.050Z"), Instant.parse("2026-09-27T04:41:20.150Z"),
+                    output);
+
+            Map<String, Long> kept = eventCounts(output);
+            Map<String, Long> recorded = eventCounts(input);
+            // Both chunks keep the events inside the interval, and only those
+            for (String name : List.of("jdk.ThreadPark", "jdk.ExecutionSample", "profiler.SignalSample")) {
+                assertThat(kept.getOrDefault(name, 0L)).as(name).isPositive().isLessThan(recorded.get(name));
+            }
+            assertThat(JfrCut.recordingInfo(output)).isEqualTo(JfrCut.recordingInfo(input));
+        } finally {
+            deleteDirectory(directory);
+        }
+    }
+
+    @Test
+    public void findsChunksWhoseClockHasAnotherOrigin() throws Exception {
+        Path directory = Files.createTempDirectory("jfr-clock-mismatch-test");
+        try {
+            List<JfrCut.ClockMismatch> mismatches =
+                    JfrCut.clockMismatches(mixedClockRecording(directory), Duration.ofSeconds(1));
+
+            assertThat(mismatches).hasSize(1);
+            assertThat(mismatches.get(0).chunk()).isEqualTo(1);
+            assertThat(mismatches.get(0).error()).isBetween(Duration.ofSeconds(672_402), Duration.ofSeconds(672_403));
+        } finally {
+            deleteDirectory(directory);
+        }
+    }
+
+    @Test
+    public void cutsRecordingsOfSeveralChunksWithOneClock() throws Exception {
+        Path directory = Files.createTempDirectory("jfr-chunks-test");
+        try {
+            Path first = directory.resolve("first.jfr");
+            createRecording(first);
+            Path second = directory.resolve("second.jfr");
+            Instant[] interval = createRecording(second);
+            Path input = directory.resolve("input.jfr");
+            Files.write(input, Files.readAllBytes(first));
+            Files.write(input, Files.readAllBytes(second), StandardOpenOption.APPEND);
+            Path output = directory.resolve("output.jfr");
+
+            JfrCut.cut(input, interval[0], interval[1], output);
+
+            assertThat(markers(input)).containsExactly("before", "measurement", "after", "before", "measurement",
+                    "after");
+            assertThat(markers(output)).containsExactly("measurement");
+            assertThat(JfrCut.clockMismatches(input, Duration.ofSeconds(1))).isEmpty();
         } finally {
             deleteDirectory(directory);
         }
@@ -213,6 +281,22 @@ public class JfrCutTest {
             recording.dump(path);
             return new Instant[] {from, to};
         }
+    }
+
+    private static Path mixedClockRecording(Path directory) throws Exception {
+        Path recording = directory.resolve("mixed-clock-origins.jfr");
+        try (InputStream resource = JfrCutTest.class.getResourceAsStream("/jfr/mixed-clock-origins.jfr.gz")) {
+            assertThat(resource).isNotNull();
+            try (InputStream gzip = new GZIPInputStream(resource)) {
+                Files.copy(gzip, recording);
+            }
+        }
+        return recording;
+    }
+
+    private static Map<String, Long> eventCounts(Path path) throws Exception {
+        return RecordingFile.readAllEvents(path).stream()
+                .collect(Collectors.groupingBy(event -> event.getEventType().getName(), Collectors.counting()));
     }
 
     private static void marker(String marker) {

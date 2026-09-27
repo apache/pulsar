@@ -181,6 +181,14 @@ The window assumes that the gateways', the applications' and the broker's clocks
 same Docker host. Multi-host experiments need synchronized clocks; the launcher doesn't estimate clock skew or correct
 the window.
 
+A recording has a chunk of JDK Flight Recorder's events and, appended by `jfrsync`, a chunk of async-profiler's events.
+Each chunk's header states how its clock ticks convert to time, and the launcher cuts each chunk by its own header.
+JDK 22 and newer readers of a whole recording, such as `jfr print` and the jonoffcpu correlator, convert every chunk
+with the first chunk's clock instead, so async-profiler has to count ticks from the same origin as the JVM. The
+async-profiler that jonoffcpu 0.8.0 and newer bundles does, on x86 and on arm64. When a chunk's clock doesn't line up
+with the first chunk's, `launcher.log` warns about the recording: its measurement recording and flame graphs keep the
+events, but whole-recording readers, and the off-CPU correlation, place them elsewhere in time.
+
 ### Cutting a recording yourself
 
 The same cutter selects another interval from an existing recording. The task needs JDK 19 or newer, for the public
