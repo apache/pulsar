@@ -24,6 +24,12 @@
 # container's environment sets them, as in bin/pulsar-perf, so that conf/pulsar_env.sh's broker defaults, such as a
 # 2 GB heap, don't. The launcher's JAVA_TOOL_OPTIONS, such as the profiler agent, come on top.
 
+# Every file and directory that the workload creates in the mounted output directories is writable by every user.
+# The launcher writes into them too, such as an application's latency percentile distribution into the application's
+# directory, and on a Linux host, where a bind mount keeps the files' owners, it runs as another user than the
+# workload.
+umask 000
+
 PULSAR_HOME=${PULSAR_HOME:-/pulsar}
 CALLER_PULSAR_MEM="${PULSAR_MEM:-}"
 CALLER_PULSAR_GC="${PULSAR_GC:-}"
