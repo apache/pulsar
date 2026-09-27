@@ -49,7 +49,8 @@ import org.testcontainers.containers.startupcheck.OneShotStartupCheckStrategy;
  * has received every message. The dumps are written with {@code jcmd GC.heap_dump} into a directory that each
  * container has mounted from {@code heap-dumps/<component>} in the run directory, one at a time, and each is listed in
  * {@code heap-dumps/heap-dumps.csv}. A JVM that runs out of memory writes its own dump there, with the options of
- * {@link #outOfMemoryOptions()}.
+ * {@link #outOfMemoryOptions(int)}. With a gzip level, the JVMs compress the dumps as they write them, into
+ * {@code .hprof.gz} files.
  *
  * <p>A heap dump stops the JVM while it is written, and a dump of the live objects, which {@code GC.heap_dump} writes,
  * runs a full garbage collection first: a run with scheduled heap dumps is for finding what holds the memory, not for
@@ -92,6 +93,8 @@ final class HeapDumper implements AutoCloseable {
 
     private final Path directory;
     private final String image;
+    private final int gzipLevel;
+    private final String extension;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
         Thread thread = new Thread(runnable, "heap-dumps");
         thread.setDaemon(true);
@@ -104,10 +107,13 @@ final class HeapDumper implements AutoCloseable {
     /**
      * @param runDirectory the run directory, which {@link #prepare} prepared
      * @param image the image of the run's containers, which makes the dumps readable at the end
+     * @param gzipLevel the gzip level of the dumps, from 1 to 9, or 0 to write them uncompressed
      */
-    HeapDumper(Path runDirectory, String image) {
+    HeapDumper(Path runDirectory, String image, int gzipLevel) {
         this.directory = runDirectory.resolve(DIRECTORY);
         this.image = image;
+        this.gzipLevel = gzipLevel;
+        this.extension = gzipLevel > 0 ? ".hprof.gz" : ".hprof";
     }
 
     /**
@@ -135,9 +141,15 @@ final class HeapDumper implements AutoCloseable {
         }
     }
 
-    /** The JVM options that make a JVM write a heap dump into {@link #MOUNT} when it runs out of memory. */
-    static String outOfMemoryOptions() {
-        return "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=" + MOUNT;
+    /**
+     * The JVM options that make a JVM write a heap dump into {@link #MOUNT} when it runs out of memory, named
+     * {@code java_pid<pid>.hprof}, or {@code java_pid<pid>.hprof.gz} with a gzip level.
+     *
+     * @param gzipLevel the gzip level, from 1 to 9, or 0 to write the dump uncompressed
+     */
+    static String outOfMemoryOptions(int gzipLevel) {
+        return "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=" + MOUNT
+                + (gzipLevel > 0 ? " -XX:HeapDumpGzipLevel=" + gzipLevel : "");
     }
 
     /** Starts the dumps of the targets that the gateways' start begins, and the heap usage sampling. */
@@ -195,7 +207,7 @@ final class HeapDumper implements AutoCloseable {
         scheduler.shutdownNow();
         List<Path> dumps;
         try (Stream<Path> files = Files.walk(directory)) {
-            dumps = files.filter(file -> file.getFileName().toString().endsWith(".hprof")).toList();
+            dumps = files.filter(file -> isDump(file.getFileName().toString())).toList();
         } catch (IOException e) {
             return;
         }
@@ -219,6 +231,11 @@ final class HeapDumper implements AutoCloseable {
         }
     }
 
+    /** Whether a file is a heap dump, compressed or not. */
+    static boolean isDump(String fileName) {
+        return fileName.endsWith(".hprof") || fileName.endsWith(".hprof.gz");
+    }
+
     private long elapsedSeconds() {
         return TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - startNanos);
     }
@@ -233,9 +250,9 @@ final class HeapDumper implements AutoCloseable {
             if (usage == null || !isNewPeak(usage, peaks.getOrDefault(target.name(), 0L))) {
                 return;
             }
-            String file = target.name() + "-peak.hprof";
+            String file = target.name() + "-peak" + extension;
             // Written beside the previous peak dump and moved over it, so that a failed dump keeps the previous one
-            String pending = target.name() + "-peak-pending.hprof";
+            String pending = target.name() + "-peak-pending" + extension;
             long start = System.nanoTime();
             if (writeDump(target, jvm, pending)) {
                 Path component = directory.resolve(target.component());
@@ -266,7 +283,7 @@ final class HeapDumper implements AutoCloseable {
                 return;
             }
             HeapUsage usage = usage(target.container(), jvm);
-            String file = target.name() + "-" + trigger + ".hprof";
+            String file = target.name() + "-" + trigger + extension;
             long start = System.nanoTime();
             if (writeDump(target, jvm, file)) {
                 written(target, trigger, file, usage, start);
@@ -278,13 +295,22 @@ final class HeapDumper implements AutoCloseable {
 
     private boolean writeDump(Target target, Jvm jvm, String file) throws IOException, InterruptedException {
         Container.ExecResult result = target.container().execInContainer(ExecConfig.builder().user(jvm.uid())
-                .command(new String[] {"jcmd", jvm.pid(), "GC.heap_dump", MOUNT + "/" + file}).build());
+                .command(dumpCommand(jvm.pid(), MOUNT + "/" + file, gzipLevel)).build());
         if (result.getExitCode() != 0 || !result.getStdout().contains("Heap dump file created")) {
             System.out.println("Heap dumps: jcmd GC.heap_dump of " + target.name() + " failed: "
                     + (result.getStdout() + result.getStderr()).trim());
             return false;
         }
         return true;
+    }
+
+    /**
+     * The {@code jcmd} command that dumps a JVM's heap into a file, compressed with {@code -gz} at a gzip level: the
+     * JVM writes the file under the name it is given, so a compressed dump's name ends in {@code .hprof.gz}.
+     */
+    static String[] dumpCommand(String pid, String file, int gzipLevel) {
+        return gzipLevel > 0 ? new String[] {"jcmd", pid, "GC.heap_dump", "-gz=" + gzipLevel, file}
+                : new String[] {"jcmd", pid, "GC.heap_dump", file};
     }
 
     // Reports a dump on the console and lists it in the index

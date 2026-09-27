@@ -269,7 +269,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             brokerMounts.put(heapDumpDirectories.get(HeapDumpSettings.BROKER).toString(), HeapDumper.MOUNT);
         }
         if (heapDumpSettings.broker().onOutOfMemoryError()) {
-            brokerEnv = withJavaToolOptions(brokerEnv, HeapDumper.outOfMemoryOptions());
+            brokerEnv = withJavaToolOptions(brokerEnv, HeapDumper.outOfMemoryOptions(heapDumpSettings.gzipLevel()));
         }
         Path resolvedConfig = runOutput.resolve(RunReport.RESOLVED_CONFIG);
         if (cooldownCelsius != null) {
@@ -332,8 +332,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         TopicStatsSampler topicStatsSampler = null;
         ProgressMonitor progress = null;
         HostStatsSampler hostStatsSampler = startHostStatsSampler(sensors, runOutput);
-        HeapDumper heapDumper = heapDumpSettings.any() ? new HeapDumper(runOutput, PulsarContainer.DEFAULT_IMAGE_NAME)
-                : null;
+        HeapDumper heapDumper = heapDumpSettings.any()
+                ? new HeapDumper(runOutput, PulsarContainer.DEFAULT_IMAGE_NAME, heapDumpSettings.gzipLevel()) : null;
         ZonedDateTime workloadFinished;
         try {
             status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)",
@@ -356,7 +356,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             Files.createDirectories(applicationsOutput);
             consumer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig, coordinationDirectory,
                     runId, applicationsOutput, agentJar, profilingSettings.applications(), APPLICATIONS_DIRECTORY,
-                    applicationsEnv, heapDumpSettings.applications(),
+                    applicationsEnv, heapDumpSettings.applications(), heapDumpSettings.gzipLevel(),
                     heapDumpDirectories.get(HeapDumpSettings.APPLICATIONS), "iot-consume", "--control-port",
                     Integer.toString(CONTROL_PORT))
                     .withExposedPorts(CONTROL_PORT);
@@ -377,7 +377,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                     coordinationDirectory, runId, producerOutput, agentJar, profilingSettings.gateways(),
-                    GATEWAYS_DIRECTORY, gatewaysEnv, heapDumpSettings.gateways(),
+                    GATEWAYS_DIRECTORY, gatewaysEnv, heapDumpSettings.gateways(), heapDumpSettings.gzipLevel(),
                     heapDumpDirectories.get(HeapDumpSettings.GATEWAYS), "iot-produce", cooldownCelsius != null
                             ? new String[] {"--control-port", Integer.toString(CONTROL_PORT),
                                     "--await-measurement-start"}
@@ -787,7 +787,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                                                    Path outputDirectory, Path agentJar,
                                                    ProfilingSettings.Component profiling, String component,
                                                    Map<String, String> envs, HeapDumpSettings.Component heapDumps,
-                                                   Path heapDumpDirectory, String command,
+                                                   int heapDumpGzipLevel, Path heapDumpDirectory, String command,
                                                    String... extraArguments) throws IOException {
         List<String> arguments = new ArrayList<>();
         // Starts the tools with the JVM options of Pulsar's client tools, see run-workload
@@ -811,7 +811,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                     profiling.offCpuOptions());
         }
         if (heapDumps.onOutOfMemoryError()) {
-            javaOptions = (javaOptions + " " + HeapDumper.outOfMemoryOptions()).trim();
+            javaOptions = (javaOptions + " " + HeapDumper.outOfMemoryOptions(heapDumpGzipLevel)).trim();
         }
         GenericContainer<?> container = new GenericContainer<>(PulsarContainer.DEFAULT_IMAGE_NAME)
                 .withNetwork(cluster.getNetwork())

@@ -41,10 +41,12 @@ finding what holds the memory, not for measuring: its throughput and latency inc
 
 ## Settings
 
-`heapDumps` has a section for each component, `broker`, `gateways` and `applications`, with these settings:
+`heapDumps` has a section for each component, `broker`, `gateways` and `applications`, with these settings, and
+`gzipLevel` for every component's dumps:
 
 ```yaml
 heapDumps:
+  gzipLevel: 1                 # optional: compresses the dumps, from 1, the fastest, to 9; 0 or none doesn't
   broker:
     onOutOfMemoryError: true   # the JVM writes a dump when it runs out of memory
     atStart: true              # when the gateways start, which starts the traffic
@@ -66,12 +68,19 @@ heapDumps:
 - `onOutOfMemoryError` adds `-XX:+HeapDumpOnOutOfMemoryError` to the JVM's `JAVA_TOOL_OPTIONS`, after any that the
   component's `env` sets. The JVM writes the dump itself, named `java_pid<pid>.hprof`, also when the run then fails.
 - The dumps are written one at a time; a dump that is due while another is being written waits for it.
+- `gzipLevel` has the JVMs write the dumps gzip-compressed, as `.hprof.gz` files: the launcher's with
+  `jcmd GC.heap_dump -gz=<level>`, and those on `OutOfMemoryError` with `-XX:HeapDumpGzipLevel=<level>`, which JDK 17
+  and later have, so also the Java 21 of the Pulsar 4 images. Heap dumps compress well: at level 1, the dumps of a
+  small broker came to about a quarter of their size, 354 MB to 89 MB, in the 1–2 s that its uncompressed dumps took.
+  Higher levels take longer, and the JVM is stopped while it compresses. Without it, the dumps are uncompressed `.hprof` files, which the analysis tools open directly. Add
+  it to a scenario that has a `heapDumps` section on the command line, such as
+  `--extends configs/heap-dumps-broker --set heapDumps.gzipLevel=1`.
 
 ## Files
 
 Each component's dumps are in `heap-dumps/<component>/` in the run directory, named after the JVM and what triggered
 the dump, such as `heap-dumps/broker/broker-0-peak.hprof`, `broker-0-at-60s.hprof`, `broker-0-periodic-90s.hprof` and
-`broker-0-end.hprof`. `heap-dumps/heap-dumps.csv` lists every dump that the launcher wrote: when, of which JVM, what
+`broker-0-end.hprof`, or `.hprof.gz` with `gzipLevel`. `heap-dumps/heap-dumps.csv` lists every dump that the launcher wrote: when, of which JVM, what
 triggered it, the file, the heap usage and the maximum heap before the dump, in bytes, and how long the dump took.
 The run report lists the dumps in its Heap dumps section, and the launcher prints each dump as it writes it, and where
 the dumps are when the run ends, also when the run failed.
@@ -83,4 +92,5 @@ keep an eye on the disk space when a run writes many of them, and remove them wh
 ## Analyzing a heap dump
 
 [Heap dumps and memory leaks](analyzing-profiles.md#heap-dumps-and-memory-leaks) describes the tools that read heap
-dumps, including jafar-shell and AI agents.
+dumps, including jafar-shell and AI agents. jafar-shell reads uncompressed dumps only: decompress a `.hprof.gz` dump
+first, keeping the compressed one, with `gunzip -k broker-0-peak.hprof.gz`.

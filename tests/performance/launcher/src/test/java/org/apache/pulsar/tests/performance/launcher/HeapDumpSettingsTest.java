@@ -51,6 +51,26 @@ public class HeapDumpSettingsTest {
         assertThat(settings.applications().atSeconds()).containsExactly(20);
         assertThat(settings.gateways()).isEqualTo(HeapDumpSettings.Component.NONE);
         assertThat(settings.gateways().any()).isFalse();
+        // Uncompressed unless the section asks for a gzip level
+        assertThat(settings.gzipLevel()).isZero();
+    }
+
+    @Test
+    public void readsTheGzipLevelBesideTheComponents() throws Exception {
+        HeapDumpSettings settings = HeapDumpSettings.read(mapper.readTree("""
+                gzipLevel: 1
+                broker:
+                  atEnd: true
+                """));
+
+        assertThat(settings.gzipLevel()).isEqualTo(1);
+        assertThat(settings.broker().atEnd()).isTrue();
+        assertThatThrownBy(() -> HeapDumpSettings.read(mapper.readTree("gzipLevel: 10")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("heapDumps.gzipLevel must be a whole number from 0, uncompressed, to 9");
+        assertThatThrownBy(() -> HeapDumpSettings.read(mapper.readTree("gzipLevel: true")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("heapDumps.gzipLevel must be a whole number");
     }
 
     @Test
@@ -73,7 +93,7 @@ public class HeapDumpSettingsTest {
     public void rejectsWhatItCannotDo() throws Exception {
         assertThatThrownBy(() -> HeapDumpSettings.read(mapper.readTree("bookies:\n  atStart: true")))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("heapDumps.bookies isn't a component");
+                .hasMessageContaining("heapDumps.bookies isn't a component or a setting");
         assertThatThrownBy(() -> HeapDumpSettings.read(mapper.readTree("broker:\n  atPeak: true")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("heapDumps.broker.atPeak isn't a setting");
@@ -95,9 +115,12 @@ public class HeapDumpSettingsTest {
     @Test
     public void addsTheOutOfMemoryOptionsAfterTheConfiguredJavaToolOptions() {
         assertThat(PerformanceLauncher.withJavaToolOptions(Map.of("PULSAR_MEM", "-Xmx1g"),
-                HeapDumper.outOfMemoryOptions()))
+                HeapDumper.outOfMemoryOptions(0)))
                 .containsEntry("PULSAR_MEM", "-Xmx1g")
                 .containsEntry("JAVA_TOOL_OPTIONS", "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/heap-dumps");
+        // The JVM names a compressed dump java_pid<pid>.hprof.gz itself
+        assertThat(HeapDumper.outOfMemoryOptions(1)).isEqualTo(
+                "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/heap-dumps -XX:HeapDumpGzipLevel=1");
         assertThat(PerformanceLauncher.withJavaToolOptions(Map.of("JAVA_TOOL_OPTIONS", "-Dx=1"), "-Dy=2"))
                 .containsEntry("JAVA_TOOL_OPTIONS", "-Dx=1 -Dy=2");
         assertThat(PerformanceLauncher.withJavaToolOptions(null, "-Dy=2")).containsEntry("JAVA_TOOL_OPTIONS", "-Dy=2");

@@ -18,7 +18,8 @@
 # Adds heap dumps of the broker to a scenario: of its highest heap usage during the run, after every application has
 # received every message, and when it runs out of memory. A heap dump stops the JVM while it is written, so a run
 # with heap dumps is for finding what holds the memory, not for measuring. Add it with the launcher's --extends
-# option, see docs/heap-dumps.md for the other settings.
+# option, and --set heapDumps.gzipLevel=1 to write the dumps compressed; see docs/heap-dumps.md for the other
+# settings.
 heapDumps:
   broker:
     onOutOfMemoryError: true

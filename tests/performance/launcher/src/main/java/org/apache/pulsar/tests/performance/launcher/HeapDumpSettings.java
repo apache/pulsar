@@ -29,6 +29,7 @@ import java.util.Set;
  *
  * <pre>
  * heapDumps:
+ *   gzipLevel: 1
  *   broker:
  *     onOutOfMemoryError: true
  *     atStart: true
@@ -38,15 +39,20 @@ import java.util.Set;
  *     atEnd: true
  * </pre>
  *
- * <p>The times count from the start of the gateways, which starts the traffic. {@code atEnd} is after every
+ * <p>{@code gzipLevel}, from 1 to 9, has the JVMs write every dump gzip-compressed as {@code .hprof.gz}, at that level;
+ * without it, or at 0, they write {@code .hprof}. The times count from the start of the gateways, which starts the
+ * traffic. {@code atEnd} is after every
  * application has received every message, which only the broker outlives: the gateways and the applications have
  * exited by then.
  */
-record HeapDumpSettings(Component broker, Component gateways, Component applications) {
+record HeapDumpSettings(int gzipLevel, Component broker, Component gateways, Component applications) {
     static final String BROKER = "broker";
     static final String GATEWAYS = "gateways";
     static final String APPLICATIONS = "applications";
     private static final List<String> COMPONENTS = List.of(BROKER, GATEWAYS, APPLICATIONS);
+    static final String GZIP_LEVEL = "gzipLevel";
+    // The levels of the JVM's gzip compression, of jcmd GC.heap_dump -gz and -XX:HeapDumpGzipLevel
+    static final int MAX_GZIP_LEVEL = 9;
     static final String ON_OUT_OF_MEMORY_ERROR = "onOutOfMemoryError";
     static final String AT_START = "atStart";
     static final String AT_SECONDS = "atSeconds";
@@ -83,18 +89,28 @@ record HeapDumpSettings(Component broker, Component gateways, Component applicat
     /** Reads the {@code heapDumps} section, which may be missing. */
     static HeapDumpSettings read(JsonNode heapDumps) {
         if (heapDumps.isMissingNode() || heapDumps.isNull()) {
-            return new HeapDumpSettings(Component.NONE, Component.NONE, Component.NONE);
+            return new HeapDumpSettings(0, Component.NONE, Component.NONE, Component.NONE);
         }
         if (!heapDumps.isObject()) {
-            throw new IllegalArgumentException("heapDumps must be a mapping of " + COMPONENTS);
+            throw new IllegalArgumentException("heapDumps must be a mapping of " + COMPONENTS + " and " + GZIP_LEVEL);
         }
         heapDumps.fieldNames().forEachRemaining(field -> {
-            if (!COMPONENTS.contains(field)) {
-                throw new IllegalArgumentException("heapDumps." + field + " isn't a component; heapDumps has "
-                        + COMPONENTS);
+            if (!COMPONENTS.contains(field) && !GZIP_LEVEL.equals(field)) {
+                throw new IllegalArgumentException("heapDumps." + field + " isn't a component or a setting; heapDumps"
+                        + " has " + COMPONENTS + " and " + GZIP_LEVEL);
             }
         });
-        return new HeapDumpSettings(component(heapDumps, BROKER), component(heapDumps, GATEWAYS),
+        JsonNode level = heapDumps.path(GZIP_LEVEL);
+        int gzipLevel = 0;
+        if (!level.isMissingNode() && !level.isNull()) {
+            if (!level.isIntegralNumber() || !level.canConvertToInt() || level.intValue() < 0
+                    || level.intValue() > MAX_GZIP_LEVEL) {
+                throw new IllegalArgumentException("heapDumps." + GZIP_LEVEL + " must be a whole number from 0, "
+                        + "uncompressed, to " + MAX_GZIP_LEVEL);
+            }
+            gzipLevel = level.intValue();
+        }
+        return new HeapDumpSettings(gzipLevel, component(heapDumps, BROKER), component(heapDumps, GATEWAYS),
                 component(heapDumps, APPLICATIONS));
     }
 

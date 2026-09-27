@@ -57,6 +57,21 @@ public class HeapDumperTest {
     }
 
     @Test
+    public void compressesTheDumpsWithJcmdAtTheGzipLevel() {
+        assertThat(HeapDumper.dumpCommand("42", "/heap-dumps/broker-0-end.hprof", 0))
+                .containsExactly("jcmd", "42", "GC.heap_dump", "/heap-dumps/broker-0-end.hprof");
+        assertThat(HeapDumper.dumpCommand("42", "/heap-dumps/broker-0-end.hprof.gz", 6))
+                .containsExactly("jcmd", "42", "GC.heap_dump", "-gz=6", "/heap-dumps/broker-0-end.hprof.gz");
+    }
+
+    @Test
+    public void findsCompressedAndUncompressedDumps() {
+        assertThat(HeapDumper.isDump("broker-0-peak.hprof")).isTrue();
+        assertThat(HeapDumper.isDump("java_pid1.hprof.gz")).isTrue();
+        assertThat(HeapDumper.isDump("heap-dumps.csv")).isFalse();
+    }
+
+    @Test
     public void preparesADirectoryThatEveryUserCanWriteForEachComponent() throws Exception {
         Path run = Files.createTempDirectory("heap-dumps-test");
         try {

@@ -210,7 +210,9 @@ appropriate, or a second profile.
 
 For an `OutOfMemoryError`, a suspected retention problem or a heap that fills up, analyze an `.hprof` heap dump. The
 performance tests' launcher writes heap dumps of the broker, the gateways and the applications when they run out of
-memory, at the highest heap usage and at given times, see [Heap dumps](heap-dumps.md). These tools read them:
+memory, at the highest heap usage and at given times, see [Heap dumps](heap-dumps.md). A compressed `.hprof.gz` dump
+needs decompressing first for jafar-shell, which reads uncompressed dumps only: `gunzip -k <dump>.hprof.gz`. These
+tools read them:
 
 - [jafar-shell](#interactive-analysis-with-jafar-shell), interactively or from a script. [The heap dump quick
   start](https://github.com/btraceio/jafar/blob/main/doc/hdump-shell-quickstart.md) describes its HdumpPath queries,
