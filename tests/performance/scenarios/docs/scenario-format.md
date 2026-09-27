@@ -28,19 +28,17 @@ into the workload containers.
 
 ## Sections
 
-- `cluster`: the Pulsar topology and the environment variables of each kind of container. `brokers` and `bookies`
-  each have `replicas`, the number of containers, and `env`, their environment variables, such as Pulsar settings and
-  `PULSAR_MEM`; `producerEnvs` and `consumerEnvs` are the environment variables of the gateways' and the
-  applications' containers, for example `GLIBC_TUNABLES`. Their JVMs get the options of Pulsar's
-  client tools, from `conf/pulsar_env.sh` and as `bin/pulsar-perf` adds them. `PULSAR_MEM` sets a workload JVM's
-  heap and direct memory, `-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m` unless set, and `PULSAR_GC` and
-  `PULSAR_EXTRA_OPTS` apply when set. A `JAVA_TOOL_OPTIONS` there is appended to the launcher's JVM options for those
-  containers, such as the profiler agent.
-- `workloads`: named workload configurations, currently `iotTelemetry`, see
-  [the IoT telemetry scenario](iot-telemetry.md). Workload-specific fields live below their workload name, so that
-  another launcher or application can reuse the same file without interpreting unrelated sections. A workload command
-  can select its subtree with `--config-path`.
-- `profiling`: optional profiler options for the broker, producer and consumer processes, see
+- `cluster`: the Pulsar topology. `brokers` and `bookies` each have `replicas`, the number of containers, and `env`,
+  their environment variables, such as Pulsar settings and `PULSAR_MEM`.
+- `workloads`: named workload configurations, currently `iotTelemetry`, see [the IoT telemetry
+  scenario](iot-telemetry.md#settings). Its `gateways.env` and `applications.env` are the environment variables of the
+  gateways' and the applications' containers, such as `PULSAR_MEM`, which sets the JVM's heap and direct memory, or
+  `GLIBC_TUNABLES`. Their JVMs get the options of Pulsar's client tools, from `conf/pulsar_env.sh` and as
+  `bin/pulsar-perf` adds them; `PULSAR_GC` and `PULSAR_EXTRA_OPTS` apply when set, and a `JAVA_TOOL_OPTIONS` is appended
+  to the launcher's JVM options, such as the profiler agent. Workload-specific fields live below their workload name, so
+  that another launcher or application can reuse the same file without interpreting unrelated sections. A workload
+  command can select its subtree with `--config-path`.
+- `profiling`: optional profiler options for the broker, the gateways and the applications, see
   [Profiling](../../docs/profiling.md#configuring-profiling).
 - `output`: optional; `output.name` names the scenario's runs in the reports hierarchy instead of the file name, see
   [Where runs are written](../../docs/running-scenarios.md#where-runs-are-written).
@@ -146,13 +144,14 @@ The `iotTelemetry` workload can run traffic before the measurement begins:
 - `warmup.rounds` repeats that traffic, and `warmup.roundDelaySeconds` adds an idle stabilization period after each
   fully drained round, including the final round. The default is one round with no delay.
 - A round is fully drained only after every application has uniquely received its cumulative warmup message count;
-  producer send completions alone don't release the barrier.
+  the gateways' send completions alone don't release the barrier.
 
-Warmup traffic remains part of the delivery and ordering validation. The producer throughput and the
-epoch-millisecond measurement boundaries in `gateways-summary.json` cover only the measured messages. Every consumer
-summary records its first and last measured-message receipt. The measurement window runs from the producer's
-measurement start through the latest last receipt across all applications; the launcher uses it to cut the
+Warmup traffic remains part of the delivery and ordering validation. The gateways' throughput and the
+epoch-millisecond measurement boundaries in `gateways-summary.json` cover only the measured messages. Every
+application's summary records its first and last measured-message receipt. The measurement window runs from the
+gateways' measurement start through the latest last receipt across all applications; the launcher uses it to cut the
 [measurement recording](../../docs/profiling.md#the-measurement-recording) of a profiled run.
 
-The window assumes that the producer, consumer and broker clocks agree, as they do for containers on the same Docker
-host. Multi-host experiments need synchronized clocks; the launcher doesn't estimate clock skew or correct the window.
+The window assumes that the gateways', the applications' and the broker's clocks agree, as they do for containers on the
+same Docker host. Multi-host experiments need synchronized clocks; the launcher doesn't estimate clock skew or correct
+the window.

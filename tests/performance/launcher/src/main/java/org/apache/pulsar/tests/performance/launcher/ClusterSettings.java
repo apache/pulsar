@@ -27,8 +27,8 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * A scenario's {@code cluster} section: the replicas and the environment of the brokers and of the bookies, and the
- * environment of the workload containers.
+ * A scenario's {@code cluster} section: the replicas and the environment of the brokers and of the bookies. The
+ * workload's containers have their environment in the workload's section.
  *
  * <pre>
  * cluster:
@@ -42,13 +42,10 @@ import java.util.Set;
  *       journalMaxSizeMB: "8192"
  * </pre>
  */
-record ClusterSettings(Component brokers, Component bookies, Map<String, String> producerEnvs,
-                       Map<String, String> consumerEnvs) {
+record ClusterSettings(Component brokers, Component bookies) {
     static final String BROKERS = "brokers";
     static final String BOOKIES = "bookies";
-    private static final String PRODUCER_ENVS = "producerEnvs";
-    private static final String CONSUMER_ENVS = "consumerEnvs";
-    private static final List<String> KEYS = List.of(BROKERS, BOOKIES, PRODUCER_ENVS, CONSUMER_ENVS);
+    private static final List<String> KEYS = List.of(BROKERS, BOOKIES);
     private static final String REPLICAS = "replicas";
     private static final String ENV = "env";
     private static final Set<String> COMPONENT_KEYS = Set.of(REPLICAS, ENV);
@@ -74,9 +71,7 @@ record ClusterSettings(Component brokers, Component bookies, Map<String, String>
                         + ", and brokers and bookies each have " + REPLICAS + " and " + ENV);
             }
         });
-        return new ClusterSettings(component(mapper, cluster, BROKERS), component(mapper, cluster, BOOKIES),
-                env(mapper, cluster.path(PRODUCER_ENVS), "cluster." + PRODUCER_ENVS),
-                env(mapper, cluster.path(CONSUMER_ENVS), "cluster." + CONSUMER_ENVS));
+        return new ClusterSettings(component(mapper, cluster, BROKERS), component(mapper, cluster, BOOKIES));
     }
 
     private static Component component(ObjectMapper mapper, JsonNode cluster, String name) {
@@ -99,7 +94,8 @@ record ClusterSettings(Component brokers, Component bookies, Map<String, String>
         return new Component(replicas.intValue(), env(mapper, section.path(ENV), "cluster." + name + "." + ENV));
     }
 
-    private static Map<String, String> env(ObjectMapper mapper, JsonNode env, String path) {
+    /** An {@code env} mapping of environment variables, empty when missing; {@code path} names it in errors. */
+    static Map<String, String> env(ObjectMapper mapper, JsonNode env, String path) {
         if (env.isMissingNode() || env.isNull()) {
             return Map.of();
         }

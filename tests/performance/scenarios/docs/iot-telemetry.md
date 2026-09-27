@@ -7,11 +7,11 @@ gateways and fanning out to independent applications:
 - one stable binary device ID key and a monotonic per-device counter in each 64-byte message;
 - a 20-second warmup followed by 1,000 measured messages/second for 120 seconds;
 - 20 applications, each using its own Key_Shared subscription across 100 isolated client instances;
-- shared PIP-234 client resources within each producer or application process; and
+- shared PIP-234 client resources within the gateways' process and within each application's; and
 - broker-side producer deduplication with stable, unique producer names and explicit producer sequence IDs.
 
 Producer names identify the gateway and topic. Consumer names identify the application and pod slot. These
-identities are deterministic and are reused after a simulated client restart, so deduplication and consumer
+identities are deterministic and are reused after a simulated pod restart, so deduplication and consumer
 diagnostics continue to refer to the same logical endpoint.
 
 Only one send per device is in flight. A later message may use another gateway, but it is submitted only
@@ -21,7 +21,7 @@ cross-connection ordering failures.
 Each application owns one sequence tracker shared by its simulated pods. The ordered path uses a bounded
 array indexed by device ID. Sparse pending sets are created only when a gap is observed. Duplicate delivery
 is counted and accepted; a first delivery above the expected device sequence is an ordering violation.
-Producer and consumer state arrays are persisted at the end, so the launcher also detects missing tail
+The gateways' and the applications' state arrays are persisted at the end, so the launcher also detects missing tail
 messages that never expose a gap. The tracker remains alive while clients are restarted, which validates
 application-visible order across Key_Shared hash-range reassignment.
 
@@ -38,7 +38,7 @@ application-visible order across Key_Shared hash-range reassignment.
   topology.
 - [`iot-telemetry-high-rate.yaml`](../iot-telemetry-high-rate.yaml) removes the producer rate limit
   and sends five million messages through 500 preconnected producers to one topic. Five applications each
-  consume with ten isolated clients on one Key_Shared subscription.
+  consume with ten pods on one Key_Shared subscription.
 
 Build the mountable workload distribution without running a cluster:
 
@@ -58,13 +58,14 @@ The Gradle task builds the server test image and the workload distribution befor
 resolves YAML inheritance and `PULSAR_PERFORMANCE_` environment overrides, writes `resolved-config.yaml`
 to the run directory, and mounts that resolved file and the application distribution into each container.
 The `iot-produce` and `iot-consume` commands accept `--config-path` when a different subtree is desired.
-Without warmup, direct tool invocations need only `--config` and `--output` (plus `--application-index` for a
-consumer). With warmup, pass the same fresh `--run-id` to the producer and every consumer. The launcher generates
+Without warmup, direct tool invocations need only `--config` and `--output` (plus `--application-index` for an
+application). With warmup, pass the same fresh `--run-id` to the `iot-produce` process and every `iot-consume`
+process. The launcher generates
 this correlation ID automatically and saves it in `run-id.txt`. Barrier markers include the ID so markers left
 by an earlier run cannot release a new run's barrier.
 
-`--coordination-directory` is optional and defaults to `<output>/coordination`. If producer and consumer outputs
-are in different directories, pass a common shared coordination directory explicitly. For example, generate
+`--coordination-directory` is optional and defaults to `<output>/coordination`. If the gateways' and the applications'
+outputs are in different directories, pass a common shared coordination directory explicitly. For example, generate
 `RUN_ID=$(uuidgen)` once and use `--run-id "$RUN_ID" --coordination-directory /tmp/iot-coordination` for every tool
 process in that run. Reusing the directory is fine; use a new run ID for each invocation of the workload.
 
@@ -77,7 +78,7 @@ remain in the monotonic device sequences and end-to-end delivery checks, but are
 rate-limited workload, set `warmup.seconds`; for an unrestricted workload, set `warmup.messages`. Do not set both. The
 value applies to each of `warmup.rounds`. Every round drains its asynchronous sends and waits until every backend
 application has uniquely received the cumulative warmup count before `warmup.roundDelaySeconds` begins. The delay after
-the final round gives background JIT compilation and other startup work time to settle before the producer records the
+the final round gives background JIT compilation and other startup work time to settle before the gateways record the
 measurement boundary. This is a stabilization control, not a guarantee that the JVM has completed compilation.
 `gateways-summary.json` records the warmup and measurement counts and the epoch-millisecond boundaries of the
 measurement. Each `application-summary.json` records the first and last measured-message receipt as metadata. The
@@ -93,8 +94,8 @@ separate scenario with normal or deliberately short limits when measuring rollov
 or long-running storage behavior. BookKeeper entry-log flushing and disk-space checks remain enabled.
 
 Set `rate: 0` together with a positive `measurement.messages` to remove producer pacing. Set
-`gateways.producer.precreate: true` to open every gateway/topic producer before throughput timing begins. The producer
-summary reports `messagesPerSecond` only for the post-warmup measurement phase and retains
+`gateways.producer.precreate: true` to open every gateway/topic producer before throughput timing begins. The gateways'
+summary, `gateways-summary.json`, reports `messagesPerSecond` only for the post-warmup measurement phase and retains
 `wholeRunMessagesPerSecond` as startup and warmup context.
 
 ## Settings
@@ -128,6 +129,8 @@ workloads:
         maxOutstanding: 20000  # messages in flight across the gateways
         batchingEnabled: true
         precreate: false       # open every producer before the first message
+      env:                     # the gateways' container, which runs every gateway
+        PULSAR_MEM: -Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m
     topics:
       count: 30
       prefix: persistent://public/default/iot-telemetry-
@@ -138,6 +141,8 @@ workloads:
       client:                  # each application's Pulsar clients
         ioThreads: 8
         listenerThreads: 16
+      env:                     # each application's container, which runs its pods
+        PULSAR_MEM: -Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m
     behaviors:
       podRestarts:             # each application restarts this fraction of its pods every intervalSeconds
         intervalSeconds: 0
@@ -182,20 +187,20 @@ the run report, `index.html`, the broker's profile report, the off-CPU digest it
 five-million-message run sends everything through one topic, so the topic's managed-ledger thread
 (`BookKeeperClientWorker-OrderedExecutor-*`) is the serial stage to watch.
 
-After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the producer's
+After every profiled process exits, the launcher writes a sibling `.measurement.jfr` spanning the gateways'
 measurement start through the latest measured-message receipt across all backend applications. The upper boundary
 includes the full millisecond containing that receipt. This removes startup, warmup, and shutdown while retaining
-the broker and consumer work needed to deliver every measured message. The complete recording is kept beside it. The
+the broker and application work needed to deliver every measured message. The complete recording is kept beside it. The
 cut recording also retains the one-time JVM, host, recording setting and runtime configuration events needed to
 describe the source JVM in JDK Mission Control.
 
-The JFR measurement window and broker-publish-to-listener latency assume synchronized producer, consumer, and
+The JFR measurement window and broker-publish-to-listener latency assume synchronized gateway, application and
 broker clocks. Containers on one Docker host share its clock. When adapting the tools to multiple hosts,
 synchronize their clocks; no clock-skew correction is applied.
 
 The gateways write `gateways-latency.hdr` containing send-to-completion latency for measured messages. Each backend
 application writes `application-latency.hdr` containing broker-publish-to-listener latency for measured messages. Warmup
-messages are excluded from both histograms. The consumer captures its receipt timestamp on listener entry and
+messages are excluded from both histograms. Each application captures its receipt timestamp on listener entry and
 records the sample after payload decoding and key validation, before sequence validation and acknowledgment.
 Decoding and validation time do not contribute to the latency value. Use the report tool's `renderHdrHistograms`
 Gradle task to plot the publish latency and each application's end-to-end latency by percentile and over time
@@ -206,7 +211,7 @@ as SVG and PNG; see [Latency logs](../../docs/run-reports.md#latency-logs) for t
 A successful run sends the configured message count and reports the same number of unique messages for every
 application. It must report zero invalid messages and zero ordering violations. Duplicate deliveries are valid
 for Pulsar's at-least-once delivery model and are counted separately so comparisons can detect changes in their
-frequency. The persisted producer and consumer state checks for missing tail messages after all clients stop.
+frequency. The persisted gateway and application state checks for missing tail messages after all clients stop.
 
 Key_Shared scenarios use the key-based producer batcher. It keeps every batch to one key so the broker can
 route all messages for a device through the same Key_Shared hash range. Changing the batcher changes the

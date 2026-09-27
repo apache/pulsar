@@ -43,6 +43,16 @@ image.
   --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-gateways'
 ```
 
+The example profiles the broker and the gateways. To study the performance of Pulsar's Java client, profile the
+gateways and the applications, which are its producers and consumers under the workload:
+
+```bash
+./gradlew :tests:performance:launcher:profile \
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --extends profile-gateways --extends profile-applications'
+```
+
+Each application runs in a container of its own, so `profile-applications` records a profile for every application.
+
 The `run` task rejects a scenario that has profiler options, rather than silently running it without the agent.
 [Analyzing profiles](analyzing-profiles.md) describes how to find what to optimize from the recordings.
 
@@ -51,7 +61,8 @@ The `run` task rejects a scenario that has profiler options, rather than silentl
 The scenario's `profiling` section configures it, with settings for each component: `broker`, `gateways`, the
 producer, and `applications`, the consumers. The scenarios directory has a file for each component, which the
 launcher's `--extends` option adds to any scenario, as the example above does: `profile-broker`, `profile-gateways`
-and `profile-applications`. `profile-broker` is:
+and `profile-applications`. [`profile-broker.yaml`](../scenarios/profile-broker.yaml), an example of the settings,
+is:
 
 ```yaml
 profiling:
@@ -156,15 +167,15 @@ run it again over the retained capture and recording with `--audit full` to repr
 ## The measurement recording
 
 After every profiled process exits, the launcher writes a sibling of each recording whose name ends in
-`.measurement.jfr`. It contains the events from the producer's recorded measurement start through the latest
+`.measurement.jfr`. It contains the events from the gateways' recorded measurement start through the latest
 measured-message receipt across all applications, including the full millisecond of that receipt. This leaves out
-startup, warmup and shutdown, while keeping the broker and consumer work needed to deliver every measured message.
+startup, warmup and shutdown, while keeping the broker and application work needed to deliver every measured message.
 The one-time JVM, host, recording setting and runtime configuration events are copied from the beginning of the
 complete recording, so that JDK Mission Control can describe the source JVM.
 
-The window assumes that the producer, consumer and broker clocks agree, as they do for containers on the same
-Docker host. Multi-host experiments need synchronized clocks; the launcher doesn't estimate clock skew or correct the
-window.
+The window assumes that the gateways', the applications' and the broker's clocks agree, as they do for containers on the
+same Docker host. Multi-host experiments need synchronized clocks; the launcher doesn't estimate clock skew or correct
+the window.
 
 ### Cutting a recording yourself
 

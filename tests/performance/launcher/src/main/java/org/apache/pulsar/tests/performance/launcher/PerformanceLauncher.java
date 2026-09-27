@@ -92,7 +92,7 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String OUTPUT_MOUNT = "/performance-output";
     static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
     static final String PULSAR_MEM = "PULSAR_MEM";
-    // A workload's heap and direct memory, unless cluster.producerEnvs or cluster.consumerEnvs set PULSAR_MEM
+    // A workload's heap and direct memory, unless the workload's gateways.env or applications.env set PULSAR_MEM
     static final String WORKLOAD_MEMORY = "-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m";
     private static final String CONTAINER_LOG = RunReport.CONTAINER_LOG;
     // The gateways' outputs, named after them as the run report names them
@@ -269,8 +269,10 @@ public class PerformanceLauncher implements Callable<Integer> {
                     "Build the performance tools distribution first: " + resolvedToolsDirectory);
         }
 
-        Map<String, String> producerEnvs = clusterSettings.producerEnvs();
-        Map<String, String> consumerEnvs = clusterSettings.consumerEnvs();
+        Map<String, String> gatewaysEnv = ClusterSettings.env(loader.mapper(), workload.path("gateways").path("env"),
+                "workloads.iotTelemetry.gateways.env");
+        Map<String, String> applicationsEnv = ClusterSettings.env(loader.mapper(),
+                workload.path("applications").path("env"), "workloads.iotTelemetry.applications.env");
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
                 .numBrokers(clusterSettings.brokers().replicas())
@@ -312,7 +314,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 Files.createDirectories(appOutput);
                 consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                         coordinationDirectory, runId, appOutput, agentJar, profilingSettings.applications(),
-                        "application", consumerEnvs, "iot-consume", "--application-index",
+                        "application", applicationsEnv, "iot-consume", "--application-index",
                         Integer.toString(application), "--control-port", Integer.toString(CONTROL_PORT))
                         .withExposedPorts(CONTROL_PORT)
                         .waitingFor(Wait.forLogMessage(".*READY application=.*", 1)
@@ -333,7 +335,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                     coordinationDirectory, runId, producerOutput, agentJar, profilingSettings.gateways(),
-                    GATEWAYS_DIRECTORY, producerEnvs, "iot-produce", cooldownCelsius != null
+                    GATEWAYS_DIRECTORY, gatewaysEnv, "iot-produce", cooldownCelsius != null
                             ? new String[] {"--control-port", Integer.toString(CONTROL_PORT),
                                     "--await-measurement-start"}
                             : new String[] {"--control-port", Integer.toString(CONTROL_PORT)});
@@ -341,7 +343,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             producer.withExposedPorts(CONTROL_PORT)
                     .waitingFor(Wait.forLogMessage(".*CONTROL_READY.*", 1)
                             .withStartupTimeout(Duration.ofMinutes(5)));
-            status(String.format(Locale.ROOT, "Starting the producer: %,d warmup and %,d measured message(s) at "
+            status(String.format(Locale.ROOT, "Starting the gateways: %,d warmup and %,d measured message(s) at "
                             + "%,d msg/s from %d gateway(s) to %d topic(s)",
                     warmupMessageCount(workload), measurementMessageCount(workload), workload.path("rate").intValue(),
                     workload.path("gateways").path("count").intValue(),
@@ -354,7 +356,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 measurementGate = startMeasurementGate(sensors, producer, cooldowns);
             }
             List<Workload> workloads = new ArrayList<>();
-            workloads.add(new Workload("The producer", producer, producerOutput.resolve(CONTAINER_LOG)));
+            workloads.add(new Workload("The gateways", producer, producerOutput.resolve(CONTAINER_LOG)));
             for (int application = 0; application < consumers.size(); application++) {
                 Path applicationOutput = applicationOutput(runOutput, workload, application);
                 workloads.add(new Workload("Application " + applicationOutput.getFileName(),
@@ -745,8 +747,8 @@ public class PerformanceLauncher implements Callable<Integer> {
     }
 
     /**
-     * The environment of a workload container: the configured variables ({@code cluster.producerEnvs} or
-     * {@code cluster.consumerEnvs}), {@code PULSAR_MEM} with the workload's heap unless they set it, and
+     * The environment of a workload container: the configured variables (the workload's {@code gateways.env} or
+     * {@code applications.env}), {@code PULSAR_MEM} with the workload's heap unless they set it, and
      * {@code JAVA_TOOL_OPTIONS} with the launcher's JVM options, such as the profiling agent. A configured
      * {@code JAVA_TOOL_OPTIONS} is appended to the launcher's options, so that it can add or override options without
      * dropping the profiling agent.
@@ -831,7 +833,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                             + (cause != null ? ": " + cause : "") + " (log: " + workload.log() + ")");
                 }
                 if (workload.container() == workloads.get(0).container()) {
-                    status("The producer has finished; waiting for the applications to receive every message");
+                    status("The gateways have finished; waiting for the applications to receive every message");
                 }
             }
         }

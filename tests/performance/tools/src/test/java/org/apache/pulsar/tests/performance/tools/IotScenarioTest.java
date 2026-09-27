@@ -136,8 +136,8 @@ public class IotScenarioTest {
                 new IotScenario.Warmup(warmupSeconds, warmupMessages, warmupRounds, warmupRoundDelaySeconds),
                 new IotScenario.Measurement(120, numberOfMessages), rate, new IotScenario.Payload(64),
                 new IotScenario.Devices(1_000),
-                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true)),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true), null),
                 new IotScenario.Topics(2, "persistent://public/default/iot-"),
-                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2)), null, timeoutSeconds);
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2), null), null, timeoutSeconds);
     }
 }

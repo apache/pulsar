@@ -43,11 +43,10 @@ detail.
 |---|---|
 | [`iot-telemetry.yaml`](iot-telemetry.yaml) | **Start here.** The full topology: 100 gateways, 30 topics and 20 applications with 100 pods each, 1,000 messages per second for 120 s after a 20 s warmup |
 | [`iot-telemetry-base.yaml`](iot-telemetry-base.yaml) | The defaults that the other IoT scenarios extend: the cluster, and a workload of one gateway and one application with one pod |
-| [`iot-telemetry-small.yaml`](iot-telemetry-small.yaml) | A smaller topology: 10 gateways, 30 topics and 20 applications with 10 clients each, 1,000 messages per second for 120 s after a 20 s warmup |
+| [`iot-telemetry-small.yaml`](iot-telemetry-small.yaml) | A smaller topology: 10 gateways, 30 topics and 20 applications with 10 pods each, 1,000 messages per second for 120 s after a 20 s warmup |
 | [`iot-telemetry-small-restarts.yaml`](iot-telemetry-small-restarts.yaml) | The smaller topology, restarting 10 % of each application's clients every 30 s |
 | [`iot-telemetry-restarts.yaml`](iot-telemetry-restarts.yaml) | The full topology, restarting 10 % of each application's clients every 30 s |
-| [`iot-telemetry-high-rate.yaml`](iot-telemetry-high-rate.yaml) | Saturation: five million messages without a rate limit, from 500 preconnected producers to one topic, consumed by 5 applications with 10 clients each |
-| [`iot-telemetry-high-rate-dedup-snapshot-100k.yaml`](iot-telemetry-high-rate-dedup-snapshot-100k.yaml) | A diagnostic variation of the saturation workload with a deduplication snapshot every 100,000 entries |
+| [`iot-telemetry-high-rate.yaml`](iot-telemetry-high-rate.yaml) | Saturation: five million messages without a rate limit, from 500 preconnected producers to one topic, consumed by 5 applications with 10 pods each |
 
 ## Profiles
 

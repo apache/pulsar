@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.performance.tools;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Configuration selected from the {@code workloads.iotTelemetry} scenario subtree.
@@ -60,8 +61,13 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
     public record Devices(int count) {
     }
 
-    /** The gateways, each a Pulsar client with a producer per topic. */
-    public record Gateways(int count, Producer producer) {
+    /**
+     * The gateways, each a Pulsar client with a producer per topic, in one container.
+     *
+     * @param env the environment variables of the gateways' container, which the launcher sets, such as
+     *            {@code PULSAR_MEM}
+     */
+    public record Gateways(int count, Producer producer, Map<String, String> env) {
     }
 
     /**
@@ -81,9 +87,13 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
     /**
      * The applications, each consuming every topic on a Key_Shared subscription of its own, named
      * {@code <subscriptionPrefix><index>}, through {@code podsPerApplication} pods, each a Pulsar client with a
-     * consumer.
+     * consumer, in a container of its own.
+     *
+     * @param env the environment variables of each application's container, which the launcher sets, such as
+     *            {@code PULSAR_MEM}
      */
-    public record Applications(int count, int podsPerApplication, String subscriptionPrefix, Client client) {
+    public record Applications(int count, int podsPerApplication, String subscriptionPrefix, Client client,
+                               Map<String, String> env) {
     }
 
     /** The applications' client settings. */

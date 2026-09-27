@@ -110,12 +110,12 @@ The launcher prints the run directory when it starts, and the run report when it
 
 The launcher's console shows only the scenario's resolved configuration, with its inheritance and environment
 overrides applied, and the run's phases and progress: starting the cluster, the applications and the
-producer, waiting for the applications, verifying, and the run report. The logs of Testcontainers and of the Pulsar
+gateways, waiting for the applications, verifying, and the run report. The logs of Testcontainers and of the Pulsar
 containers go to `launcher.log` in the run directory.
 
 While the workload runs, the launcher prints two lines every `--progress-interval` seconds, as pulsar-perf does:
-the producer's messages, throughput, pending sends and publish latency, and the applications' messages, throughput,
-backlog and end-to-end latency. The prefix has the time since the producer started and the producer's phase, such as
+the gateways' messages, throughput, pending sends and publish latency, and the applications' messages, throughput,
+backlog and end-to-end latency. The prefix has the time since the gateways started and the gateways' phase, such as
 `warmup round 1/1` or `measurement 47 s`:
 
 ```
@@ -133,7 +133,7 @@ backlog and end-to-end latency. The prefix has the time since the producer start
   also show duplicates and ordering violations as soon as an application has any.
 - The end-to-end latency is measured from the broker's publish time, which has millisecond resolution.
 
-The producer and each application stream their progress to the launcher from the control port of their container,
+The gateways and each application stream their progress to the launcher from the control port of their container,
 `GET /progress` on port 8089, as newline-delimited JSON: a line per second with the phase, cumulative counters and the
 second's latencies as a compressed HdrHistogram of microseconds, which the launcher merges.
 
@@ -164,6 +164,6 @@ show. `--cooldown-timeout <seconds>` bounds each wait; the run goes on after it,
 temperature. The workloads' timeouts are extended by the cool-down timeout, so that a wait before the measurement
 doesn't fail them. Both waits and their durations are in the run report.
 
-For the wait before the measurement, the producer serves two HTTP endpoints with the JDK's built-in server, which
+For the wait before the measurement, the gateways serve two HTTP endpoints with the JDK's built-in server, which
 the launcher reaches through the port Testcontainers maps on the host: `GET /measurement/ready?waitMillis=<ms>`
 answers as soon as every warmup round has been received, and `POST /measurement/start` starts the measurement.

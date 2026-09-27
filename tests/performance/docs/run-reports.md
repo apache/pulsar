@@ -63,7 +63,7 @@ On a machine that runs the tests for others, serve the reports root over HTTP an
 
 ### When a run fails
 
-A run that fails writes no report. The launcher stops the run as soon as the producer or an application exits with
+A run that fails writes no report. The launcher stops the run as soon as the gateways or an application exits with
 an error, prints the failure in one line with its cause from the container's log, then shuts the cluster down, and
 the Gradle task fails:
 
@@ -82,7 +82,7 @@ The run directory that the launcher printed at the start still has what the run 
   application got as far as its checks
 - `topic-stats.csv` and `host-stats.csv`, sampled until the failure
 
-A consumer exits with an error when it found ordering violations or invalid messages, or didn't receive every
+An application exits with an error when it found ordering violations or invalid messages, or didn't receive every
 message, and the launcher fails a run when an application's state shows that it missed messages ("did not receive
 every device sequence"). A failed run isn't a valid measurement: find and fix the cause, and run it again.
 
@@ -171,7 +171,7 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 Every IoT run writes `gateways/gateways-latency.hdr` with the send-completion latency of the successfully sent
 measured messages, and one `<application>/application-latency.hdr` per application with the broker-publish-to-listener
 latency of the measured messages. Both use microseconds internally and three significant digits. Warmup messages are
-tagged in the payload and excluded. The consumer captures its timestamp on listener entry and records the sample
+tagged in the payload and excluded. Each application captures its timestamp on listener entry and records the sample
 after payload decoding and key validation, before sequence validation and acknowledgment, so decoding and
 validation time are excluded from the latency.
 
@@ -191,8 +191,8 @@ it; `--output-prefix /path/to/name` changes them. The `.hdr` interval logs also 
 distributions in HdrHistogram's [plotFiles.html](https://hdrhistogram.github.io/HdrHistogram/plotFiles.html), for
 interactive comparisons across runs.
 
-The broker-publish-to-listener latency assumes that the producer, consumer and broker clocks agree, as they do for
-containers on the same Docker host.
+The broker-publish-to-listener latency assumes that the gateways', the applications' and the broker's clocks agree, as
+they do for containers on the same Docker host.
 
 ## Browsing the reports over HTTP
 

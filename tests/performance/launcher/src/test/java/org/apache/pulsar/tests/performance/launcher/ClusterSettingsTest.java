@@ -37,8 +37,6 @@ public class ClusterSettingsTest {
                     managedLedgerMaxEntriesPerLedger: 100000000
                 bookies:
                   replicas: 3
-                producerEnvs:
-                  GLIBC_TUNABLES: glibc.malloc.arena_max=4
                 """));
 
         assertThat(settings.brokers().replicas()).isEqualTo(2);
@@ -46,8 +44,6 @@ public class ClusterSettingsTest {
                 .containsEntry("managedLedgerMaxEntriesPerLedger", "100000000");
         assertThat(settings.bookies().replicas()).isEqualTo(3);
         assertThat(settings.bookies().env()).isEmpty();
-        assertThat(settings.producerEnvs()).containsEntry("GLIBC_TUNABLES", "glibc.malloc.arena_max=4");
-        assertThat(settings.consumerEnvs()).isEmpty();
     }
 
     @Test
@@ -61,6 +57,9 @@ public class ClusterSettingsTest {
         assertThatThrownBy(() -> ClusterSettings.read(mapper, mapper.readTree("brokers: {replicas: 1}\n"
                 + "bookies: {replicas: 3}\nbrokerEnvs: {}"))).isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("cluster.brokerEnvs isn't a setting");
+        assertThatThrownBy(() -> ClusterSettings.read(mapper, mapper.readTree("brokers: {replicas: 1}\n"
+                + "bookies: {replicas: 3}\nproducerEnvs: {}"))).isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("cluster.producerEnvs isn't a setting");
         assertThatThrownBy(() -> ClusterSettings.read(mapper, mapper.readTree("workloads: {}").path("cluster")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("needs a cluster section");

@@ -88,20 +88,20 @@ the run report are written for the IoT domain.
 |---|---|
 | Device | A device ID, which is the message key. `devices.count` sets the number of devices |
 | Telemetry message | A message with the device ID, the device's sequence number and the send time, `payload.size` bytes long |
-| Gateway | A Pulsar client in the producer container, with a producer named `iot-gateway-<gateway>-topic-<topic>` for each topic. `gateways.count` sets the number of gateways; their clients share I/O threads and memory, as the clients of one process can since PIP-234 |
+| Gateway | A Pulsar client in the gateways' container, with a producer named `iot-gateway-<gateway>-topic-<topic>` for each topic. `gateways.count` sets the number of gateways; their clients share I/O threads and memory, as the clients of one process can since PIP-234 |
 | Topics | `topics.count` topics; a device's messages always go to the same topic, the device ID modulo `topics.count` |
 | Application | A Key_Shared subscription on every topic, named `iot-application-<index>`, in a container of its own. `applications.count` sets the number of applications |
 | Pod | A Pulsar client with a consumer of the application's subscription, named `iot-application-<index>-pod-<pod>`. `applications.podsPerApplication` sets the number of pods per application |
 
-- The producer sends each message from a random device through a random gateway, at `rate` messages per second, or as
-  fast as it can when the rate is 0. It keeps one message per device in flight, as a device waits for its message to
+- The gateways send each message from a random device through a random gateway, at `rate` messages per second, or as
+  fast as they can when the rate is 0. It keeps one message per device in flight, as a device waits for its message to
   be acknowledged, so that a device's messages reach Pulsar in order even through different gateways. The producers
   batch messages by key, and the broker deduplicates them by producer name and sequence ID.
 - `behaviors.podRestarts` restarts some of each application's pods periodically, which moves devices between the pods
   mid-stream.
 - Each application tracks the sequence of every device: it counts ordering violations, invalid messages and
   duplicates, which at-least-once delivery allows. At the end, the launcher compares each application's last
-  sequence per device with the producer's, which catches messages missing at the end. A run fails when a check
+  sequence per device with the gateways', which catches messages missing at the end. A run fails when a check
   fails.
 - Warmup messages take the same path as the measured ones before the measurement starts, and the delivery checks
   include them.
@@ -162,27 +162,29 @@ Run the IoT telemetry scenario:
 Gradle builds the Pulsar test image and the workload applications first, when they are out of date. Then the
 launcher starts a cluster of one broker and three bookies, and runs the workload:
 [`iot-telemetry.yaml`](scenarios/iot-telemetry.yaml) sends keyed telemetry messages from 100 gateways to 30 topics,
-which 20 applications with 100 clients each consume on Key_Shared subscriptions, for 20 seconds of warmup and 120
+which 20 applications with 100 pods each consume on Key_Shared subscriptions, for 20 seconds of warmup and 120
 seconds of measurement at 1,000 messages per second. It checks that every application receives every message of every
-device in order.
+device in order. It extends [`iot-telemetry-base.yaml`](scenarios/iot-telemetry-base.yaml), which holds the defaults
+of every IoT scenario: the cluster and the workload's settings, with one gateway and one application with one pod.
 
 The launcher prints the run directory and the scenario's resolved configuration when it starts, the phases of the
-run as it goes, and the run report when it has finished. While the workload runs, it prints the producer's and the
+run as it goes, and the run report when it has finished. While the workload runs, it prints the gateways' and the
 applications' progress every 10 seconds, as pulsar-perf does: the messages so far, the throughput, the latency
-percentiles of the last 10 seconds, merged over every application, and the subscriptions' backlog. The logs of Testcontainers and of the Pulsar containers go to
-`launcher.log` in the run directory instead of the console:
+percentiles of the last 10 seconds, merged over every application, and the subscriptions' backlog. The logs of
+Testcontainers and of the Pulsar containers go to `launcher.log` in the run directory instead of the console:
 
 ```
 Run directory: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00
 12:00:00 Logs: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00/launcher.log
 12:00:00 Scenario iot-telemetry (iot-telemetry.yaml), resolved:
   cluster:
-    brokers: 1
-    ...
+    brokers:
+      replicas: 1
+      ...
 12:00:00 Starting the Pulsar cluster: 1 broker(s), 3 bookie(s)
 12:00:23 Started the Pulsar cluster in 23 s
-12:00:23 Starting 20 application(s) with 10 client(s) each
-12:00:32 Starting the producer: 20,000 warmup and 120,000 measured message(s) at 1,000 msg/s from 10 gateway(s) to 30 topic(s)
+12:00:23 Starting 20 application(s) with 100 pod(s) each
+12:00:32 Starting the gateways: 20,000 warmup and 120,000 measured message(s) at 1,000 msg/s from 100 gateway(s) to 30 topic(s)
 ...
 [01:21 measurement 47 s] Produced: 67,816 msg of 140,000 (48%) --- 1,020.0 msg/s --- 0.5 Mbit/s --- pending: 3 --- Latency: mean: 65.769 ms - med: 6.271 - 95pct: 342.783 - 99pct: 504.063 - 99.9pct: 744.447 - 99.99pct: 802.815 - Max: 814.591
 [01:21 measurement 47 s] Received: 1,354,097 msg of 2,800,000 (48%) --- 20,048.9 msg/s --- 10.3 Mbit/s --- backlog: 1,081 msg (max per application: 65) --- Latency: mean: 80.588 ms - med: 13.007 - 95pct: 383.231 - 99pct: 550.399 - 99.9pct: 776.191 - 99.99pct: 874.495 - Max: 921.087
@@ -212,7 +214,7 @@ Markdown. Read it from the top:
 
 1. **Correctness**: every application should have received every message, with no ordering violations and no
    invalid messages. A run that fails these checks isn't a valid measurement.
-2. **Throughput** and **Latency**: the producer and delivered throughput, and the publish and end-to-end latency
+2. **Throughput** and **Latency**: the gateways' and the delivered throughput, and the publish and end-to-end latency
    percentiles, with charts over the run.
 3. **Host**: the CPU temperature and frequency during the measurement. The report says in bold when the CPU
    throttled; such a run isn't comparable to one that didn't throttle.
@@ -279,9 +281,14 @@ The launcher renders the flame graphs itself when the run has finished, into the
 recordings: the broker's under `broker-profile/`, and the gateways' under `gateways/`. The run report links to a
 profile report for each of them. Start from the broker's: it links to the CPU, allocation and off-CPU flame graphs,
 cut to the measurement, and to a digest that ranks the time threads spent blocked by the Pulsar or BookKeeper method
-that waited. [Profiling](docs/profiling.md) describes the
-requirements, the profiler options and the files, and [Analyzing profiles](docs/analyzing-profiles.md) how to find
-what to optimize.
+that waited.
+
+Each of the scenarios directory's profile files profiles one component: `profile-broker`, `profile-gateways` and
+`profile-applications`; [`profile-broker.yaml`](scenarios/profile-broker.yaml) is an example of the settings. To study
+the performance of Pulsar's Java client, profile the gateways and the applications, which are its producers and
+consumers under the workload, with `--extends profile-gateways --extends profile-applications`.
+[Profiling](docs/profiling.md) describes the requirements, the profiler options and the files, and
+[Analyzing profiles](docs/analyzing-profiles.md) how to find what to optimize.
 
 The JFR recordings also open in JDK Mission Control, whose OpenJDK distribution is
 [Eclipse Mission Control](https://adoptium.net/jmc). The JDK's
