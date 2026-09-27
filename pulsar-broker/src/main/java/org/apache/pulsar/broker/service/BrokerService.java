@@ -1400,14 +1400,15 @@ public class BrokerService implements Closeable {
                         }
                     }
                 });
-                context.trace("topic-exists", checkNonPartitionedTopicExists(topicName)).thenAccept(exists -> {
+                context.trace(TopicLoadingTracePoints.TOPIC_EXISTS, checkNonPartitionedTopicExists(topicName))
+                        .thenAccept(exists -> {
                     if (!exists && !createIfMissing) {
                         topicFuture.complete(Optional.empty());
                         return;
                     }
                     // The topic level policies are not needed now, but the meaning of calling
                     // "getTopicPoliciesBypassSystemTopic" will wait for system topic policies initialization.
-                    final var systemTopicLoadFuture = context.trace("local-topic-policies",
+                    final var systemTopicLoadFuture = context.trace(TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES,
                             getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY));
                     systemTopicLoadFuture.thenRun(() -> {
                         final var inserted = new MutableBoolean(false);
@@ -2082,11 +2083,12 @@ public class BrokerService implements Closeable {
         final var topic = context.getTopicName().toString();
         final var topicFuture = context.getTopicFuture();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        context.trace("ownership", checkTopicNsOwnership(topic))
+        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic))
                 .thenRun(() -> {
                     final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
 
-                    LatencyTracer.TracePoint queueTrace = context.startTrace("max-concurrent-loading-limitation");
+                    LatencyTracer.TracePoint queueTrace = context.startTrace(
+                            TopicLoadingTracePoints.MAX_CONCURRENT_LOADING_LIMITATION);
                     if (topicLoadSemaphore.tryAcquire()) {
                         context.finishTrace(queueTrace, null);
                         checkOwnershipAndCreatePersistentTopic(context);
@@ -2148,7 +2150,7 @@ public class BrokerService implements Closeable {
         final var topic = topicName.toString();
         final var topicFuture = context.getTopicFuture();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        context.trace("ownership", checkTopicNsOwnership(topic)).thenRun(() -> {
+        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic)).thenRun(() -> {
             CompletableFuture<Map<String, String>> propertiesFuture;
             if (context.getProperties() == null) {
                 //Read properties from storage when loading topic.
@@ -2156,7 +2158,7 @@ public class BrokerService implements Closeable {
             } else {
                 propertiesFuture = CompletableFuture.completedFuture(context.getProperties());
             }
-            context.trace("properties", propertiesFuture)
+            context.trace(TopicLoadingTracePoints.PROPERTIES, propertiesFuture)
                     .thenAccept(finalProperties -> {
                 context.setProperties(finalProperties);
                 //TODO add topicName in properties?
@@ -2185,16 +2187,17 @@ public class BrokerService implements Closeable {
         }
 
         CompletableFuture<Void> maxTopicsCheck = createIfMissing
-                ? context.trace("max-topics-per-namespace", checkMaxTopicsPerNamespace(topicName))
+                ? context.trace(TopicLoadingTracePoints.MAX_TOPICS_PER_NAMESPACE, checkMaxTopicsPerNamespace(topicName))
                 : CompletableFuture.completedFuture(null);
 
-        CompletableFuture<Void> isTopicAlreadyMigrated = context.trace("check-topic-already-migrated",
-                checkTopicAlreadyMigrated(topicName));
-        maxTopicsCheck.thenCompose(__ -> context.trace("validate-topic-consistency",
+        CompletableFuture<Void> isTopicAlreadyMigrated = context.trace(
+                TopicLoadingTracePoints.CHECK_TOPIC_ALREADY_MIGRATED, checkTopicAlreadyMigrated(topicName));
+        maxTopicsCheck.thenCompose(__ -> context.trace(TopicLoadingTracePoints.VALIDATE_TOPIC_CONSISTENCY,
                         validateTopicConsistency(topicName)))
                 .thenCompose(__ -> isTopicAlreadyMigrated)
-                .thenCompose(__ -> context.trace("ml-config", getManagedLedgerConfig(topicName, context)))
-                .thenCombine(context.trace("topic-exists",
+                .thenCompose(__ -> context.trace(TopicLoadingTracePoints.ML_CONFIG,
+                        getManagedLedgerConfig(topicName, context)))
+                .thenCombine(context.trace(TopicLoadingTracePoints.TOPIC_EXISTS,
                         pulsar().getNamespaceService().checkTopicExistsAsync(topicName)).thenApply(n -> {
                             boolean found = n.isExists();
                             n.recycle();
@@ -2256,7 +2259,7 @@ public class BrokerService implements Closeable {
                 loggerContextBuilder.attr("topic", topicName.toString());
             }
             managedLedgerConfig.setLoggerContext(loggerContextBuilder.build());
-            final LatencyTracer.TracePoint openMlTracePoint = context.startTrace("open-ml");
+            final LatencyTracer.TracePoint openMlTracePoint = context.startTrace(TopicLoadingTracePoints.OPEN_ML);
             managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
                     new OpenLedgerCallback() {
                         @Override
@@ -2267,12 +2270,13 @@ public class BrokerService implements Closeable {
                                         ? new SystemTopic(topic, ledger, BrokerService.this)
                                         : newTopic(topic, ledger, BrokerService.this, PersistentTopic.class);
                                 persistentTopic.setCreateFuture(topicFuture);
-                                context.trace("init", persistentTopic.initialize(context))
-                                        .thenCompose(__ -> context.trace("pre-create-compacted-sub",
+                                context.trace(TopicLoadingTracePoints.INIT, persistentTopic.initialize(context))
+                                        .thenCompose(__ -> context.trace(
+                                                TopicLoadingTracePoints.PRE_CREATE_COMPACTED_SUB,
                                                 persistentTopic.preCreateSubscriptionForCompactionIfNeeded()))
-                                        .thenCompose(__ -> context.trace("replication",
+                                        .thenCompose(__ -> context.trace(TopicLoadingTracePoints.REPLICATION,
                                                 persistentTopic.initializeCheckReplication()))
-                                        .thenCompose(v -> context.trace("deduplication",
+                                        .thenCompose(v -> context.trace(TopicLoadingTracePoints.DEDUPLICATION,
                                                 persistentTopic.checkDeduplicationStatus()))
                                         .thenRun(() -> {
                                             final var latency = context.getSnapshot();
@@ -2394,18 +2398,18 @@ public class BrokerService implements Closeable {
         LocalPoliciesResources lpr = pulsar.getPulsarResources().getLocalPolicies();
         final CompletableFuture<Optional<TopicPolicies>> topicPoliciesFuture =
                 context == null ? getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY)
-                        : context.trace("local-topic-policies",
+                        : context.trace(TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES,
                                 getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY));
         final CompletableFuture<Optional<TopicPolicies>> globalTopicPoliciesFuture =
                 context == null ? getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.GLOBAL_ONLY)
-                        : context.trace("global-topic-policies",
+                        : context.trace(TopicLoadingTracePoints.GLOBAL_TOPIC_POLICIES,
                                 getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.GLOBAL_ONLY));
         final CompletableFuture<Optional<Policies>> nsPolicies = context == null
                 ? nsr.getPoliciesAsync(namespace)
-                : context.trace("namespace-policies", nsr.getPoliciesAsync(namespace));
+                : context.trace(TopicLoadingTracePoints.NAMESPACE_POLICIES, nsr.getPoliciesAsync(namespace));
         final CompletableFuture<Optional<LocalPolicies>> lcPolicies = context == null
                 ? lpr.getLocalPoliciesAsync(namespace)
-                : context.trace("local-policies", lpr.getLocalPoliciesAsync(namespace));
+                : context.trace(TopicLoadingTracePoints.LOCAL_POLICIES, lpr.getLocalPoliciesAsync(namespace));
         return topicPoliciesFuture.thenCombine(globalTopicPoliciesFuture, (topicP, globalTopicP) -> {
             return new ImmutablePair<>(topicP, globalTopicP);
         }).thenCombine(nsPolicies, (topicPoliciesPair, np) -> {
@@ -3894,7 +3898,7 @@ public class BrokerService implements Closeable {
         topicLoadingContext.finishTrace(queuedPoint, null);
         final String topic = topicLoadingContext.getTopicName().toString();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        topicLoadingContext.trace("ownership", checkTopicNsOwnership(topic)).thenRun(() -> {
+        topicLoadingContext.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic)).thenRun(() -> {
             CompletableFuture<Optional<Topic>> pendingFuture = topicLoadingContext.getTopicFuture();
             final Semaphore topicLoadSemaphore = topicLoadRequestSemaphore.get();
             final boolean acquiredPermit = topicLoadSemaphore.tryAcquire();

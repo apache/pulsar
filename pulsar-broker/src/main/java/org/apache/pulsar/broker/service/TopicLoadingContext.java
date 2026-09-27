@@ -124,23 +124,30 @@ public class TopicLoadingContext extends LatencyTracer {
 
     private static TopicLoadFailureReason getTimeoutReason(String pendingStep) {
         return switch (pendingStep) {
-            case "namespace-policies", "local-policies" -> TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES;
-            case "local-topic-policies", "global-topic-policies" -> TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES;
-            case "open-ml" -> TopicLoadFailureReason.TIMEOUT_LOAD_ML;
-            case "init", "pre-create-compacted-sub", "replication" -> TopicLoadFailureReason.TIMEOUT_INIT;
-            case "deduplication" -> TopicLoadFailureReason.TIMEOUT_DEDUP;
+            case TopicLoadingTracePoints.NAMESPACE_POLICIES, TopicLoadingTracePoints.LOCAL_POLICIES ->
+                    TopicLoadFailureReason.TIMEOUT_LOAD_NAMESPACE_POLICIES;
+            case TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES, TopicLoadingTracePoints.GLOBAL_TOPIC_POLICIES ->
+                    TopicLoadFailureReason.TIMEOUT_LOAD_TOPIC_POLICIES;
+            case TopicLoadingTracePoints.OPEN_ML -> TopicLoadFailureReason.TIMEOUT_LOAD_ML;
+            case TopicLoadingTracePoints.INIT, TopicLoadingTracePoints.PRE_CREATE_COMPACTED_SUB,
+                    TopicLoadingTracePoints.REPLICATION -> TopicLoadFailureReason.TIMEOUT_INIT;
+            case TopicLoadingTracePoints.DEDUPLICATION -> TopicLoadFailureReason.TIMEOUT_DEDUP;
             default -> null;
         };
     }
 
     private static TopicLoadFailureReason getFailureReason(String pendingStep) {
         return switch (pendingStep) {
-            case "namespace-policies", "local-policies" -> TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES;
-            case "local-topic-policies", "global-topic-policies" -> TopicLoadFailureReason.FAILED_LOAD_TOPIC_POLICIES;
-            case "open-ml" -> TopicLoadFailureReason.FAILED_LOAD_ML;
-            case "ownership", "2nd-ownership" -> TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP;
-            case "topic-exists", "properties" -> TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE;
-            case "init", "pre-create-compacted-sub", "replication", "deduplication" ->
+            case TopicLoadingTracePoints.NAMESPACE_POLICIES, TopicLoadingTracePoints.LOCAL_POLICIES ->
+                    TopicLoadFailureReason.FAILED_LOAD_NAMESPACE_POLICIES;
+            case TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES, TopicLoadingTracePoints.GLOBAL_TOPIC_POLICIES ->
+                    TopicLoadFailureReason.FAILED_LOAD_TOPIC_POLICIES;
+            case TopicLoadingTracePoints.OPEN_ML -> TopicLoadFailureReason.FAILED_LOAD_ML;
+            case TopicLoadingTracePoints.OWNERSHIP -> TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP;
+            case TopicLoadingTracePoints.TOPIC_EXISTS, TopicLoadingTracePoints.PROPERTIES ->
+                    TopicLoadFailureReason.FAILED_ACCESS_METADATA_STORE;
+            case TopicLoadingTracePoints.INIT, TopicLoadingTracePoints.PRE_CREATE_COMPACTED_SUB,
+                    TopicLoadingTracePoints.REPLICATION, TopicLoadingTracePoints.DEDUPLICATION ->
                     TopicLoadFailureReason.FAILED_INIT;
             default -> null;
         };
