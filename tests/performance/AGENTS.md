@@ -46,7 +46,7 @@ describes.
     you run `sudo /usr/local/sbin/configure-perf-test-environment.sh start` before the runs and `stop` after them
     yourself, without a password; `install` still needs the user.
 - Check that the host has the memory that the scenario's memory configuration needs available to Docker, which on
-  macOS and Windows is the memory of Docker's virtual machine: about 3 GB for the low-memory configuration, 8 GB for
+  macOS and Windows is the memory of Docker's virtual machine: about 3 GB for the low-memory configuration, 9 GB for
   the default medium-memory one and 14 GB for the high-memory one, see
   [Memory configurations](scenarios/README.md#memory-configurations). When it hasn't, tell the user rather than
   starting the run. Don't profile a scenario that uses the low-memory configuration.

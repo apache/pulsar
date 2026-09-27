@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -330,12 +332,17 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             }
         }
 
+        // All at the same time: one after another, an application's 100 pods take more than a second to close
         private void closePods() throws Exception {
             synchronized (pods) {
-                for (ClientAndConsumer pod : pods) {
-                    pod.close();
+                try {
+                    CompletableFuture.allOf(pods.stream().map(ClientAndConsumer::closeAsync)
+                            .toArray(CompletableFuture[]::new)).get();
+                } catch (ExecutionException e) {
+                    throw e.getCause() instanceof Exception cause ? cause : e;
+                } finally {
+                    pods.clear();
                 }
-                pods.clear();
             }
         }
 
@@ -416,6 +423,16 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         public void close() throws Exception {
             consumer.close();
             client.close();
+        }
+
+        /** Closes the consumer, then the client, also when closing the consumer failed. */
+        CompletableFuture<Void> closeAsync() {
+            return consumer.closeAsync().handle((ignored, consumerFailure) -> consumerFailure)
+                    .thenCompose(consumerFailure -> client.closeAsync().thenRun(() -> {
+                        if (consumerFailure != null) {
+                            throw new CompletionException(consumerFailure);
+                        }
+                    }));
         }
     }
 }

@@ -43,7 +43,7 @@ application-visible order across Key_Shared hash-range reassignment.
 
 Each scenario runs with a memory configuration from the scenarios' `configs` directory, which sets the cluster and
 the memory of every container: the low-memory one needs about 3 GB of memory available to Docker and isn't meant for
-profiling, the medium-memory one, the default, about 8 GB, and the high-memory one about 14 GB. See
+profiling, the medium-memory one, the default, about 9 GB, and the high-memory one about 14 GB. See
 [Memory configurations](../README.md#memory-configurations).
 
 Build the mountable workload distribution without running a cluster:

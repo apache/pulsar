@@ -124,7 +124,7 @@ scenarios in detail.
   | Configuration | Recommended memory available to Docker | Used by |
   |---|---|---|
   | [`iot-telemetry-low-mem.yaml`](scenarios/configs/iot-telemetry-low-mem.yaml) | about 3 GB; not meant for profiling | `iot-telemetry-small.yaml` and `iot-telemetry-small-restarts.yaml` |
-  | [`iot-telemetry-medium-mem.yaml`](scenarios/configs/iot-telemetry-medium-mem.yaml) | about 8 GB | the other IoT telemetry scenarios, by default |
+  | [`iot-telemetry-medium-mem.yaml`](scenarios/configs/iot-telemetry-medium-mem.yaml) | about 9 GB | the other IoT telemetry scenarios, by default |
   | [`iot-telemetry-high-mem.yaml`](scenarios/configs/iot-telemetry-high-mem.yaml) | about 14 GB | `iot-telemetry-high-rate.yaml` |
 - **Disk space**: keep the disk that holds Docker's data less than 90 % full. BookKeeper bookies switch to read-only
   mode when it is 95 % full. [`docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) frees the space that test
@@ -176,7 +176,7 @@ which 20 applications with 100 pods each consume on Key_Shared subscriptions, fo
 seconds of measurement at 1,000 messages per second. It checks that every application receives every message of every
 device in order. It extends [`iot-telemetry-base.yaml`](scenarios/iot-telemetry-base.yaml), which holds the defaults
 of every IoT scenario: the workload's settings, with one gateway and one application with one pod, and the
-medium-memory configuration, which sets the cluster and the memory of every container and needs about 8 GB of memory
+medium-memory configuration, which sets the cluster and the memory of every container and needs about 9 GB of memory
 available to Docker. On a host with less, run the smaller topology,
 [`iot-telemetry-small.yaml`](scenarios/iot-telemetry-small.yaml), which needs about 3 GB.
 
@@ -197,7 +197,10 @@ Run directory: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00
 12:00:00 Starting the Pulsar cluster: 1 broker(s), 2 bookie(s)
 12:00:23 Started the Pulsar cluster in 23 s
 12:00:23 Starting 20 application(s) with 100 pod(s) each
-12:00:32 Starting the gateways: 20,000 warmup and 120,000 measured message(s) at 1,000 msg/s from 100 gateway(s) to 30 topic(s)
+12:00:29 The applications have opened 1,107 of 2,000 pods
+12:00:34 The applications have opened 1,784 of 2,000 pods
+12:00:38 Started the applications in 15 s
+12:00:38 Starting the gateways: 20,000 warmup and 120,000 measured message(s) at 1,000 msg/s from 100 gateway(s) to 30 topic(s)
 ...
 [01:21 measurement 47 s] Produced: 67,816 msg of 140,000 (48%) --- 1,020.0 msg/s --- 0.5 Mbit/s --- pending: 3 --- Latency: mean: 65.769 ms - med: 6.271 - 95pct: 342.783 - 99pct: 504.063 - 99.9pct: 744.447 - 99.99pct: 802.815 - Max: 814.591
 [01:21 measurement 47 s] Received: 1,354,097 msg of 2,800,000 (48%) --- 20,048.9 msg/s --- 10.3 Mbit/s --- backlog: 1,081 msg (max per application: 65) --- Latency: mean: 80.588 ms - med: 13.007 - 95pct: 383.231 - 99pct: 550.399 - 99.9pct: 776.191 - 99.99pct: 874.495 - Max: 921.087
