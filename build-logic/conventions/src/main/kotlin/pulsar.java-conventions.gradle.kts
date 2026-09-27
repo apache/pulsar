@@ -17,12 +17,53 @@
  * under the License.
  */
 
+import java.io.File
+
 plugins {
     `java-library`
     id("pulsar.code-quality-conventions")
 }
 
 val catalog = the<VersionCatalogsExtension>().named("libs")
+
+// Versions for dependencies injected by the component-metadata rules below, captured as plain
+// strings so the rule closures stay configuration-cache compatible (and so the injected deps carry
+// explicit versions rather than relying on the alignment platform being on every classpath).
+val jakartaActivationApiVersion = catalog.findVersion("jakarta-activation").get().requiredVersion
+val angusActivationVersion = catalog.findVersion("angus-activation").get().requiredVersion
+
+// Internal version-alignment platform bucket.
+// The enforced platform (:pulsar-dependencies) must align the build's OWN resolution but must NOT
+// leak into the published apiElements/runtimeElements variants: an enforcedPlatform recorded in
+// published Gradle Module Metadata forces Pulsar's internal versions onto downstream Gradle
+// consumers and strips their ability to override (Gradle's platforms docs warn against using
+// enforcedPlatform on a component intended for consumption). Declaring it on a non-consumable,
+// non-resolvable bucket that only the resolvable build classpaths extend keeps full build-time
+// alignment (and feeds versionMapping for POM versions) while leaving it out of publication.
+// Consumers get the separate, non-enforced pulsar-bom for version recommendations instead.
+val internalPlatform = configurations.create("internalPlatform") {
+    isCanBeConsumed = false
+    isCanBeResolved = false
+    description = "Enforced version-alignment platform for build resolution only; never published."
+}
+// Wire the alignment platform onto the build's resolvable classpaths by name. These configurations
+// are created by the Java plugin before this convention's body runs, so the name match reliably
+// fires for them. (Matching on the mutable isCanBeResolved/isCanBeConsumed flags is NOT reliable for
+// configurations created later via `configurations.creating {}` — their flags are set inside the
+// creation block, after a flag-based configureEach predicate has already evaluated the legacy
+// defaults.) The consumable variants apiElements/runtimeElements are intentionally not listed, so
+// the enforced platform stays out of published Gradle Module Metadata. Custom resolvable
+// configurations that collect artifacts and need the same alignment (notably the distributions'
+// `distLib`, which feeds the binary distribution checked by checkBinaryLicense) extend
+// `internalPlatform` explicitly where they are declared.
+val platformAlignedClasspaths = setOf(
+    "compileClasspath", "runtimeClasspath",
+    "testCompileClasspath", "testRuntimeClasspath",
+    "annotationProcessor", "testAnnotationProcessor",
+)
+configurations.matching { it.name in platformAlignedClasspaths }.configureEach {
+    extendsFrom(internalPlatform)
+}
 
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
@@ -31,11 +72,6 @@ tasks.withType<JavaCompile>().configureEach {
 }
 
 configurations.all {
-    // Exclude the old SLF4J 1.x bridge pulled in by bookkeeper-server.
-    // Pulsar uses SLF4J 2.x with log4j-slf4j2-impl; having both causes
-    // NoSuchMethodError in Log4jLoggerFactory at test startup.
-    exclude(group = "org.apache.logging.log4j", module = "log4j-slf4j-impl")
-
     // Force Jackson version to match the version catalog. Transitive dependencies
     // (e.g. from jackson-bom) can pull in newer versions that break API compatibility
     // (EnumResolver.constructUsingToString signature changed in 2.19+).
@@ -50,36 +86,80 @@ configurations.all {
     }
 }
 
-// Exclude bc-fips from modules that don't need it. bc-fips's CryptoServicesRegistrar
-// conflicts with bcprov-jdk18on's version — having both causes NoSuchMethodError.
-// Only the FIPS-specific modules and modules with explicit FIPS tests should have it.
-val modulesUsingBcFips = setOf(
-    "bcfips", "bcfips-include-test",
-    "pulsar-common", "pulsar-broker-common",
-)
-if (project.name !in modulesUsingBcFips) {
-    configurations.all {
-        exclude(group = "org.bouncycastle", module = "bc-fips")
-    }
-}
-
 dependencies {
-    // Exclude all BouncyCastle from bookkeeper-server (matches Maven parent POM exclusion).
-    // BookKeeper's bc-fips transitive dependency contains a CryptoServicesRegistrar that
-    // conflicts with the non-FIPS version in bcprov-jdk18on. Pulsar manages its own BC deps.
+    // Strip conflicting transitive dependencies from bookkeeper-server at the source. Handling them
+    // here (rather than with a build-wide `configurations.all { exclude(...) }`) keeps them off the
+    // classpath without leaking a per-dependency <exclusion> onto every dependency in every
+    // published POM.
+    //   - All BouncyCastle: BookKeeper's transitive bc-fips bundles a CryptoServicesRegistrar that
+    //     conflicts with the non-FIPS bcprov-jdk18on. Pulsar manages its own BC deps; the FIPS
+    //     modules (bcfips, pulsar-common/pulsar-broker-common tests) declare bc-fips directly.
+    //   - log4j-slf4j-impl: the SLF4J 1.x bridge conflicts with Pulsar's SLF4J 2.x setup
+    //     (log4j-slf4j2-impl), causing NoSuchMethodError in Log4jLoggerFactory at startup.
     components {
         withModule("org.apache.bookkeeper:bookkeeper-server") {
             allVariants {
                 withDependencies {
-                    removeAll { it.group == "org.bouncycastle" }
+                    removeAll {
+                        it.group == "org.bouncycastle" ||
+                            (it.group == "org.apache.logging.log4j" && it.name == "log4j-slf4j-impl")
+                    }
+                }
+            }
+        }
+        // com.sun.activation:jakarta.activation bundles the jakarta.activation API classes together
+        // with the implementation and was not republished past 2.0.x, so it conflicts with
+        // jakarta.activation:jakarta.activation-api 2.1.x. Replace it everywhere with the API artifact
+        // plus the Eclipse Angus implementation (the EE10 successor). async-http-client still depends
+        // on it (https://github.com/AsyncHttpClient/async-http-client/issues/2190) and this rule also
+        // guards against any future dependency pulling it in. The replacements carry explicit catalog
+        // versions so they resolve on any classpath without relying on the alignment platform being
+        // present (e.g. the protobuf plugin's *ProtoPath configurations do not extend it).
+        all {
+            allVariants {
+                withDependencies {
+                    if (removeAll { it.group == "com.sun.activation" && it.name == "jakarta.activation" }) {
+                        add("jakarta.activation:jakarta.activation-api:$jakartaActivationApiVersion")
+                        add("org.eclipse.angus:angus-activation:$angusActivationVersion")
+                    }
+                }
+            }
+        }
+        // async-http-client depends on the classic io.netty:netty-codec module, which in Netty 4.2
+        // is an empty backwards-compatibility aggregator that only adds the unused
+        // netty-codec-marshalling and netty-codec-protobuf modules to the classpath. The codec
+        // modules async-http-client actually needs (netty-codec-base, netty-codec-compression)
+        // come in through its netty-codec-http dependency.
+        withModule("org.asynchttpclient:async-http-client") {
+            allVariants {
+                withDependencies {
+                    removeAll { it.group == "io.netty" && it.name == "netty-codec" }
+                }
+            }
+        }
+        // libthrift is a transitive dependency of distributedlog-core.
+        // libthrift 0.23.0 upgraded to jakarta.* and HttpComponents 5 deps for its HTTP/servlet
+        // transports, which distributedlog-core does not use (only TJSON/TMemory serialization is needed).
+        // Add a component metadata rule to exclude the unnecessary dependencies.
+        withModule("org.apache.thrift:libthrift") {
+            allVariants {
+                withDependencies {
+                    removeAll {
+                        (it.group == "jakarta.annotation" && it.name == "jakarta.annotation-api") ||
+                        (it.group == "jakarta.servlet" && it.name == "jakarta.servlet-api") ||
+                        it.group == "org.apache.httpcomponents.client5" ||
+                        it.group == "org.apache.httpcomponents.core5"
+                    }
                 }
             }
         }
     }
 
-    // Enforced platform pins all dependency versions from the version catalog.
-    // This is the Gradle equivalent of Maven's dependencyManagement section.
-    "implementation"(enforcedPlatform(project(":pulsar-dependencies")))
+    // Enforced platform pins all dependency versions from the version catalog (the Gradle
+    // equivalent of Maven's dependencyManagement). Declared on the internal, non-published
+    // `internalPlatform` bucket (see above) so it aligns the build's resolvable classpaths
+    // without leaking the enforced platform into published apiElements/runtimeElements metadata.
+    "internalPlatform"(enforcedPlatform(project(":pulsar-dependencies")))
 
     // Resolve lz4-java capability conflict: at.yawk.lz4:lz4-java (used by Pulsar) and
     // org.lz4:lz4-java (used by kafka-clients) both provide the org.lz4:lz4-java capability.
@@ -115,11 +195,19 @@ dependencies {
     "testImplementation"(catalog.findLibrary("awaitility").get())
     "testImplementation"(catalog.findLibrary("system-lambda").get())
     "testImplementation"(catalog.findLibrary("slf4j-api").get())
+    // log4j-jul is needed at test runtime to support the JUL bridge JVM argument below
+    "testRuntimeOnly"(catalog.findLibrary("log4j-jul").get())
 }
 
 // Allow overriding the JDK used for running tests via -PtestJavaVersion=17
 val testJavaVersion = providers.gradleProperty("testJavaVersion").map { it.toInt() }
 val javaToolchains = extensions.getByType<JavaToolchainService>()
+// Effective Java major version used to run tests: the -PtestJavaVersion override when set,
+// otherwise the JVM running Gradle.
+val testJavaMajorVersion = testJavaVersion.orNull ?: JavaVersion.current().majorVersion.toInt()
+val asyncProfilerEnabled = providers.gradleProperty("testAsyncProfiler")
+    .map { it.isBlank() || it.toBoolean() }
+    .getOrElse(false)
 
 tasks.withType<Test>().configureEach {
     testJavaVersion.orNull?.let { version ->
@@ -128,12 +216,13 @@ tasks.withType<Test>().configureEach {
         })
     }
     useTestNG {
+        // Group classes and factory instances so their fixtures are released promptly.
+        isPreserveOrder = true
+        isGroupByInstances = true
         listeners.addAll(listOf(
             "org.apache.pulsar.tests.PulsarTestListener",
             "org.apache.pulsar.tests.AnnotationListener",
             "org.apache.pulsar.tests.FailFastNotifier",
-            "org.apache.pulsar.tests.MockitoCleanupListener",
-            "org.apache.pulsar.tests.FastThreadLocalCleanupListener",
             "org.apache.pulsar.tests.ThreadLeakDetectorListener",
             "org.apache.pulsar.tests.SingletonCleanerListener",
         ))
@@ -151,13 +240,39 @@ tasks.withType<Test>().configureEach {
         showExceptions = true
         showCauses = true
     }
-    maxHeapSize = "1300m"
-    maxParallelForks = 4
+    maxHeapSize = providers.gradleProperty("testMaxHeapSize").getOrElse("1300m")
+    maxParallelForks = providers.gradleProperty("testMaxParallelForks").map { it.toInt() }.getOrElse(4)
+    forkEvery = providers.gradleProperty("testForkEvery").map { it.toLong() }.getOrElse(0L)
     val failFastValue = providers.gradleProperty("testFailFast").getOrElse("true").toBoolean()
     failFast = failFastValue
-    systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse("1"))
+    val ideaActive = providers.systemProperty("idea.active").map { it.toBoolean() }.getOrElse(false)
+    val defaultTestRetryCount = if (ideaActive) "0" else "1"
+    systemProperty("testRetryCount", providers.gradleProperty("testRetryCount").getOrElse(defaultTestRetryCount))
     systemProperty("testFailFast", failFastValue.toString())
+    // Restore the test leak detector defaults from the Maven build. CI's report_netty_leaks
+    // step handles report vs. fail_on_leak after collecting the dumps from all test JVMs.
+    val nettyLeakDetectionEnabled =
+        providers.environmentVariable("NETTY_LEAK_DETECTION").getOrElse("report") != "off" && !asyncProfilerEnabled
+    if (nettyLeakDetectionEnabled) {
+        systemProperty("io.netty.customResourceLeakDetector", "org.apache.pulsar.tests.ExtendedNettyLeakDetector")
+        systemProperty("org.apache.pulsar.tests.ExtendedNettyLeakDetector.exitJvmOnLeak",
+            providers.gradleProperty("testExitJvmOnLeak").getOrElse("false"))
+        systemProperty("org.apache.pulsar.tests.ExtendedNettyLeakDetector.exitJvmDelayMillis",
+            providers.gradleProperty("testExitJvmOnLeakDelayMillis").getOrElse("1000"))
+        systemProperty("io.netty.leakDetection.level",
+            providers.gradleProperty("testLeakDetectionLevel").getOrElse("paranoid"))
+        // Track every allocation with less overhead by recording only acquire/release operations.
+        systemProperty("io.netty.leakDetection.targetRecords", "16")
+        systemProperty("io.netty.leakDetection.acquireAndReleaseOnly", "true")
+        systemProperty("io.netty.leakDetection.samplingInterval", "32")
+        // Process weak references promptly when the test listener triggers leak detection.
+        jvmArgs("-XX:+UnlockExperimentalVMOptions", "-XX:ReferencesPerThread=0", "-XX:+ParallelRefProcEnabled")
+    } else {
+        systemProperty("io.netty.leakDetection.level", "disabled")
+    }
     jvmArgs(
+        "-XX:+HeapDumpOnOutOfMemoryError",
+        "-XX:HeapDumpPath=${providers.gradleProperty("testHeapDumpPath").getOrElse("/tmp")}",
         "--add-opens", "java.base/jdk.internal.loader=ALL-UNNAMED",
         "--add-opens", "java.base/java.lang=ALL-UNNAMED",
         "--add-opens", "java.base/java.io=ALL-UNNAMED",
@@ -171,15 +286,139 @@ tasks.withType<Test>().configureEach {
         "-XX:+EnableDynamicAgentLoading",
         "-Xshare:off",
         "-Dio.netty.tryReflectionSetAccessible=true",
-        "-Dpulsar.allocator.pooled=true",
+        "-Dpulsar.allocator.type=pooled",
         "-Dpulsar.allocator.exit_on_oom=false",
         "-Dpulsar.allocator.out_of_memory_policy=FallbackToHeap",
         "-Dpulsar.test.preventExit=true",
+        // Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+        // (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration
+        "-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager",
+        // Force IPv4 to match Pulsar's runtime scripts (bin/pulsar, bin/bookkeeper). BookKeeper's
+        // BookieId validation rejects IPv6 zone identifiers (e.g. fe80::1%lo0), so on hosts where the
+        // loopback interface resolves to an IPv6 link-local address (notably macOS) bookies bound to
+        // loopback would otherwise fail to start.
+        "-Djava.net.preferIPv4Stack=true",
     )
+    // Deliberately no org.apache.avro.SERIALIZABLE_* system properties here. Avro 1.12.2 (AVRO-4189)
+    // only reflects over classes that are explicitly trusted, and Pulsar declares them where the
+    // application hands over a class: building a schema from a class trusts it and everything the
+    // derived schema references. Granting the whole Pulsar namespace here would give every test a
+    // safety net that production does not have, so a path that fails to declare something would pass
+    // in CI and fail for users.
+    if (testJavaMajorVersion >= 24) {
+        // Netty loads its native libraries (epoll, io_uring, tcnative) through
+        // java.lang.System::loadLibrary, which is a restricted method as of Java 24. Without this
+        // every test JVM that touches a Netty native transport prints a multi-line warning to
+        // stderr, which is noise in test output and breaks assertions on empty stderr.
+        jvmArgs("--enable-native-access=ALL-UNNAMED")
+    }
+}
+
+// Run tests under async-profiler, enabled with the single property `-PtestAsyncProfiler`
+// (see CONTRIBUTING.md). The `test.asyncprofiler.*` properties below only tune the defaults and keep
+// the names of the `testAsyncProfiler` Maven profile that the 4.x branches use. This is a second
+// `configureEach` block so that it overrides the settings above, and so that the environment
+// variable and JDK lookups it does stay out of the configuration cache inputs when profiling is off.
+if (asyncProfilerEnabled) {
+    // Locate the agent library: an explicit -Ptest.asyncprofiler.libpath wins, then the
+    // LIBASYNCPROFILER_PATH environment variable (the variable microbench/README.md already uses for
+    // profiling JMH benchmarks), and finally the copy that Amazon Corretto ships inside the JDK that
+    // runs the tests.
+    val testJvmHome = testJavaVersion
+        .flatMap { version ->
+            javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(version)) }
+                .map { it.metadata.installationPath.asFile.absolutePath }
+        }
+        .orElse(providers.systemProperty("java.home"))
+    val libraryPath = providers.gradleProperty("test.asyncprofiler.libpath")
+        .orElse(providers.environmentVariable("LIBASYNCPROFILER_PATH"))
+        .orElse(testJvmHome.map { jvmHome ->
+            sequenceOf("libasyncProfiler.so", "libasyncProfiler.dylib")
+                .map { File(jvmHome, "lib/$it") }
+                .firstOrNull(File::isFile)
+                ?.absolutePath
+        })
+        .orNull
+    if (libraryPath == null || !File(libraryPath).isFile) {
+        throw GradleException(
+            "-PtestAsyncProfiler is set but the async-profiler agent library "
+                + (libraryPath?.let { "'$it' does not exist" } ?: "could not be located")
+                + ". Set the LIBASYNCPROFILER_PATH environment variable (or "
+                + "-Ptest.asyncprofiler.libpath) to the full path of libasyncProfiler.so (Linux) or "
+                + "libasyncProfiler.dylib (macOS). Amazon Corretto ships one in \$JAVA_HOME/lib; "
+                + "otherwise install async-profiler from "
+                + "https://github.com/async-profiler/async-profiler/releases."
+        )
+    }
+    // itimer is the only CPU sampling engine available outside Linux; on Linux the perf_events based
+    // "cpu" engine produces the most accurate method profile.
+    // https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md
+    val defaultEvent =
+        if (providers.systemProperty("os.name").get().startsWith("Linux")) "cpu" else "itimer"
+    val event = providers.gradleProperty("test.asyncprofiler.event").getOrElse(defaultEvent)
+    // "all" (async-profiler 4.1+) adds wall clock, allocation, lock and native profiling on top of
+    // the CPU engine that `event` selects.
+    val profilerOptions = providers.gradleProperty("test.asyncprofiler.opts")
+        .getOrElse("event=$event,all,alloc=2m,jfrsync=profile")
+    // async-profiler derives the output format from the file name extension (jfr, html, collapsed,
+    // folded), but only when nothing in `opts` already selects one — and the default `jfrsync` does.
+    // Changing this to html therefore also means overriding test.asyncprofiler.opts, otherwise the
+    // file is a JFR recording with an .html name.
+    val outputFormat = providers.gradleProperty("test.asyncprofiler.outputformat").getOrElse("jfr")
+    val outputDir = providers.gradleProperty("test.asyncprofiler.dir")
+        .map { rootProject.file(it) }
+        .getOrElse(rootProject.layout.buildDirectory.dir("test-profiles").get().asFile)
+
+    tasks.withType<Test>().configureEach {
+        val taskPath = path
+        // async-profiler expands %t (start timestamp) and %p (pid) itself, which keeps the profiles
+        // of separate runs, and of separate forks of one run, apart.
+        val baseName = "test_profile_" + taskPath.removePrefix(":").replace(':', '-')
+        val profileFile = File(outputDir, "${baseName}_%t_%p.$outputFormat")
+        val logFile = File(outputDir, "$baseName.log")
+
+        jvmArgs(
+            // DebugNonSafepoints is a diagnostic option. It makes the profiler's stack traces of
+            // JIT compiled frames accurate.
+            "-XX:+UnlockDiagnosticVMOptions",
+            "-XX:+DebugNonSafepoints",
+            "-agentpath:$libraryPath=start,$profilerOptions,quiet,file=$profileFile",
+        )
+        // Logging to the console distorts the profile, so send log4j2 output to a file next to it.
+        systemProperty("pulsar.test.logging.appender", "FILE")
+        systemProperty("pulsar.test.logging.file", logFile.absolutePath)
+        // The tests worth profiling are often the manual ones — long-running, load-generating cases
+        // that ManualTestUtil skips unless this is set. Profiling one is exactly the situation they
+        // exist for, so asking for a profile enables them. See ManualTestUtil.
+        systemProperty("pulsar.test.enableManualTest", "true")
+        // One test JVM at a time and no retries, so that a run produces a single comparable profile.
+        maxParallelForks = 1
+        forkEvery = 0
+        systemProperty("testRetryCount", "0")
+        // A profiling run has to actually run the tests, even when the task is up-to-date. Don't
+        // "fix" this by declaring inputs: the point is to re-run, not to track a missing input. The
+        // profiler settings are not task inputs, so a profiling run would otherwise also store a
+        // build cache entry under the same key as an ordinary run.
+        outputs.upToDateWhen { false }
+        outputs.cacheIf("test runs under async-profiler are never cached") { false }
+        doFirst {
+            // async-profiler does not create the directory it writes the profile into.
+            outputDir.mkdirs()
+            val test = this as Test
+            // Pre-touch a fixed size heap so that heap growth and GC resizing don't distort the
+            // profile. This is read at execution time because a module may change maxHeapSize after
+            // this convention has run, and because Gradle folds a jvmArgs("-Xmx...") into it.
+            if (test.minHeapSize == null) {
+                test.minHeapSize = test.maxHeapSize
+                test.jvmArgs("-XX:+AlwaysPreTouch")
+            }
+            test.logger.lifecycle("Profiling {} with async-profiler into {}", taskPath, profileFile)
+        }
+    }
 }
 
 // Expose test classes for cross-module test dependencies (Maven test-jar equivalent)
-val testJar by tasks.registering(Jar::class) {
+val testJar = tasks.register<Jar>("testJar") {
     archiveClassifier.set("tests")
     from(project.the<SourceSetContainer>()["test"].output)
 }

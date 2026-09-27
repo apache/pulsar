@@ -168,6 +168,69 @@ public class SameAuthParamsLookupAutoClusterFailoverTest {
     }
 
     /**
+     * Reproduces the bug fixed by resetting state of higher-priority-than-target indices on
+     * recovery. The check loop only probes indices 0..currentPulsarServiceIndex, so if a
+     * higher index was left in a transient state (e.g., PreFail from a single timed-out
+     * probe) at the moment of recovery, it would stay there forever because no future probe
+     * ever visits it.
+     *
+     * <p>Scenario: failover 0 -> 2 (state[2]=Healthy). url1 recovers and is about to trigger
+     * recovery 2 -> 1. On the same check cycle that promotes state[1] to Healthy, url2 sees
+     * one transient probe failure that flips state[2] from Healthy to PreFail. The recovery
+     * fires (current 2 -> 1) and from that point on the loop only probes indices 0 and 1.
+     *
+     * <p>Without the fix, state[2] stays at PreFail forever. With the fix, state[2] is
+     * reset to Healthy when the recovery transition runs.
+     */
+    @Test(timeOut = 30000)
+    public void testRecoveryResetsHigherIndexStaleState() throws Exception {
+        // url0 down, url1 down, url2 up.
+        setLookupResult(URL0, false);
+        setLookupResult(URL1, false);
+        setLookupResult(URL2, true);
+
+        // Pre-set state[0]=Failed and trigger failover 0 -> 2.
+        runOnExecutor(() -> {
+            stateArray[0] = PulsarServiceState.Failed;
+            counterArray[0].setValue(0);
+        });
+        runCheckCycle();
+        runOnExecutor(() -> {
+            assertEquals(failover.getCurrentPulsarServiceIndex(), 2);
+            assertEquals(stateArray[1], PulsarServiceState.Failed);
+            assertEquals(stateArray[2], PulsarServiceState.Healthy);
+        });
+
+        // url1 becomes healthy; first check cycle moves state[1] Failed -> PreRecover.
+        setLookupResult(URL1, true);
+        runCheckCycle();
+        runOnExecutor(() -> {
+            assertEquals(failover.getCurrentPulsarServiceIndex(), 2);
+            assertEquals(stateArray[1], PulsarServiceState.PreRecover);
+            assertEquals(stateArray[2], PulsarServiceState.Healthy);
+        });
+
+        // On the cycle that completes recovery (state[1] PreRecover -> Healthy and triggers
+        // updateServiceUrl(1)), inject a single failed probe at url2 so state[2] flips
+        // Healthy -> PreFail just before the index transition.
+        setLookupResult(URL2, false);
+        runCheckCycle();
+
+        // After recovery to index 1:
+        //   - With the fix:    state[2] is reset to Healthy on the transition.
+        //   - Without the fix: state[2] is stuck at PreFail forever — the check loop now
+        //                      only iterates 0..1 and never visits index 2 again.
+        runOnExecutor(() -> {
+            assertEquals(failover.getCurrentPulsarServiceIndex(), 1);
+            assertEquals(stateArray[1], PulsarServiceState.Healthy);
+            assertEquals(stateArray[2], PulsarServiceState.Healthy,
+                    "state[2] should be reset to Healthy on recovery, not stuck at PreFail");
+            assertEquals(counterArray[2].intValue(), 0,
+                    "counter[2] should be reset to 0 on recovery");
+        });
+    }
+
+    /**
      * Verifies that recovery still works correctly for a service that was marked Failed
      * by findFailoverTo, once that service becomes available again.
      */

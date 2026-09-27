@@ -28,4 +28,5 @@ dependencies {
     compileOnly(project(":pulsar-broker"))
     compileOnly(libs.netty.transport)
     compileOnly(libs.javax.servlet.api)
+    compileOnly(libs.jakarta.servlet.api)
 }

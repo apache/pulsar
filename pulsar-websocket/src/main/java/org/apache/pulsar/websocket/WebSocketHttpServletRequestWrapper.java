@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.websocket;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 
 /**
  * WebSocket HttpServletRequest wrapper.

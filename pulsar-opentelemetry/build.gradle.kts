@@ -26,7 +26,7 @@ dependencies {
     implementation(libs.opentelemetry.exporter.otlp)
     implementation(libs.opentelemetry.exporter.prometheus)
     implementation(libs.opentelemetry.sdk)
-    implementation(libs.opentelemetry.sdk.extension.autoconfigure)
+    api(libs.opentelemetry.sdk.extension.autoconfigure)
     implementation(libs.opentelemetry.instrumentation.resources)
     implementation(libs.opentelemetry.semconv)
     implementation(libs.opentelemetry.instrumentation.runtime.telemetry)

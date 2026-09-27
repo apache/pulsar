@@ -23,10 +23,41 @@ plugins {
 }
 
 dependencies {
-    implementation(project(":pulsar-client-api"))
-    implementation(project(":pulsar-client-original"))
+    // Bundled into the shaded jar (kept on the runtime classpath so shadowJar packs them):
+    implementation(project(":pulsar-client-original")) {
+        // fastutil is bundled via :pulsar-client-fastutil-minimized, which packs only the
+        // (unrelocated) fastutil classes actually used instead of the full ~25MB jar.
+        exclude(group = "it.unimi.dsi", module = "fastutil")
+    }
+    implementation(project(":pulsar-client-fastutil-minimized"))
     implementation(project(":pulsar-client-admin-original"))
     implementation(project(":pulsar-client-messagecrypto-bc"))
+
+    // Non-bundled dependencies for the dependency-reduced published POM/GMM — union of the client
+    // and admin shaded sets. Logging is slf4j + slog only — never log4j (the log4j entries below are
+    // test-only and never reach the publication). `shadowApi` -> compile scope, `shadow` -> runtime
+    // scope (see pulsar.client-shade-conventions). compile = exposed in the public API a consumer
+    // compiles against (the *-api modules, OpenTelemetry via ClientBuilder/Stats); runtime = used
+    // only internally by the bundled code (BouncyCastle, the unshaded Jackson annotations, the OTel
+    // incubator, slog/slf4j logging, jspecify CLASS-retention annotations).
+    //
+    // protobuf-java is intentionally NOT published (it was `provided` in the pre-Gradle Maven build):
+    // consumers using Schema.PROTOBUF / PROTOBUF_NATIVE must add protobuf-java themselves.
+    "shadowApi"(project(":pulsar-client-api"))
+    "shadowApi"(project(":pulsar-client-admin-api"))
+    // PIP-478: see the note in pulsar-client-shaded — the bundled classes surface these three API
+    // modules on their exported ABI, and a plugin author compiles against the same coordinates.
+    "shadowApi"(project(":pulsar-client-api-v5"))
+    "shadowApi"(project(":pulsar-tls-factory-api"))
+    "shadowApi"(project(":pulsar-http-client-api"))
+    "shadowApi"(libs.opentelemetry.api)
+    "shadow"(libs.jackson.annotations)
+    "shadow"(libs.bcprov.jdk18on)
+    "shadow"(libs.bcpkix.jdk18on)
+    "shadow"(libs.opentelemetry.api.incubator)
+    "shadow"(libs.slog)
+    "shadow"(libs.slf4j.api)
+    "shadow"(libs.jspecify)
 
     testImplementation(libs.log4j.api)
     testImplementation(libs.log4j.core)

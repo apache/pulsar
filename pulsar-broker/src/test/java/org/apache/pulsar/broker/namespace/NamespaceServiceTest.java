@@ -375,7 +375,10 @@ public class NamespaceServiceTest extends BrokerTestBase {
         final String candidateBroker2 = "localhost:3000";
         String broker2Url = "pulsar://localhost:6660";
         LoadReport lr = new LoadReport("http://" + candidateBroker1, null, broker1Url, null);
-        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker2, null, broker2Url, null);
+        lr.setName(candidateBroker1);
+        LocalBrokerData ld =
+                new LocalBrokerData(candidateBroker2, "http://" + candidateBroker2, null, broker2Url, null);
+
         String path1 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker1);
         String path2 = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker2);
 
@@ -412,7 +415,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         Map<String, AdvertisedListener> advertisedListeners = new HashMap<>();
         advertisedListeners.put(listener, AdvertisedListener.builder()
                 .brokerServiceUrl(new URI(listenerUrl)).brokerServiceUrlTls(new URI(listenerUrlTls)).build());
-        LocalBrokerData ld = new LocalBrokerData("http://" + candidateBroker,
+        LocalBrokerData ld = new LocalBrokerData(candidateBroker, "http://" + candidateBroker,
                 null, brokerUrl, null, advertisedListeners);
         String path = String.format("%s/%s", LoadManager.LOADBALANCE_BROKERS_ROOT, candidateBroker);
 
@@ -423,8 +426,9 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         LookupResult noListener = pulsar.getNamespaceService()
                 .createLookupResult(candidateBroker, false, null).get();
+        LookupOptions options = LookupOptions.builder().advertisedListenerName(listener).build();
         LookupResult withListener = pulsar.getNamespaceService()
-                .createLookupResult(candidateBroker, false, listener).get();
+                .createLookupResult(candidateBroker, false, options).get();
 
         Assert.assertEquals(noListener.getLookupData().getBrokerUrl(), brokerUrl);
         Assert.assertEquals(withListener.getLookupData().getBrokerUrl(), listenerUrl);
@@ -545,6 +549,35 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
 
     @SuppressWarnings("deprecation")
+    @Test
+    public void testSplitCompletesWhenReleasingTheOldBundleStalls() throws Exception {
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        OwnershipCache realOwnershipCache = namespaceService.getOwnershipCache();
+        OwnershipCache ownershipCache = spy(realOwnershipCache);
+        // The old bundle's release is queued behind an acquire that never settles (e.g. metadata store unreachable)
+        doReturn(new CompletableFuture<Void>()).when(ownershipCache).removeOwnership(any(NamespaceBundle.class));
+        namespaceService.setOwnershipCache(ownershipCache);
+
+        int originalTimeout = conf.getMetadataStoreOperationTimeoutSeconds();
+        conf.setMetadataStoreOperationTimeoutSeconds(2);
+        try {
+            NamespaceName nsname = NamespaceName.get("prop/ns-split-release-stalls");
+            admin.namespaces().createNamespace(nsname.toString());
+            TopicName topicName = TopicName.get("persistent://" + nsname + "/topic-1");
+            NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
+            NamespaceBundle bundle = bundles.findBundle(topicName);
+            ownershipCache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+
+            // The split itself succeeded; a release that never settles must not hold the split's completion
+            // hostage, it is bounded by the metadata operation timeout and then logged.
+            namespaceService.splitAndOwnBundle(bundle, false,
+                    NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_ALGO, null).get(30, TimeUnit.SECONDS);
+        } finally {
+            conf.setMetadataStoreOperationTimeoutSeconds(originalTimeout);
+            namespaceService.setOwnershipCache(realOwnershipCache);
+        }
+    }
+
     @Test
     public void testSplitBundleAndRemoveOldBundleFromOwnerShipCache() throws Exception {
         OwnershipCache ownershipCache = spy(pulsar.getNamespaceService().getOwnershipCache());
@@ -699,7 +732,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         LoadManager loadManager = pulsar.getLoadManager().get();
         Awaitility.await().untilAsserted(() -> {
             BundleData targetBundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
-                    .getBundleDataOrDefault(namespace + "/" + bundle);
+                    .getBundleDataOrDefaultAsync(namespace + "/" + bundle).join();
             assertEquals(targetBundleData.getTopics(), 10);
         });
 

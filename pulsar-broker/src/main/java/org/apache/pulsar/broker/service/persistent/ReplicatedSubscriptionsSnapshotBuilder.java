@@ -47,6 +47,7 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
 
     private final boolean needTwoRounds;
     private boolean firstRoundComplete;
+    private boolean finalSnapshotMarkerPending;
 
     private long startTimeMillis;
     private final long timeoutMillis;
@@ -115,15 +116,33 @@ public class ReplicatedSubscriptionsSnapshotBuilder {
             return;
         }
 
+        if (finalSnapshotMarkerPending) {
+            return;
+        }
+
+        finalSnapshotMarkerPending = true;
         log.debug()
                 .attr("snapshotId", snapshotId)
                 .log("Snapshot is complete");
         // Snapshot is now complete, store it in the local topic
         Position p = position;
-        controller.writeMarker(
+        controller.writeMarkerAndGetPosition(
                 Markers.newReplicatedSubscriptionsSnapshot(snapshotId, controller.localCluster(),
-                        p.getLedgerId(), p.getEntryId(), responses));
-        controller.snapshotCompleted(snapshotId);
+                        p.getLedgerId(), p.getEntryId(), responses))
+                .whenComplete((ignored, exception) -> {
+                    if (exception != null) {
+                        synchronized (ReplicatedSubscriptionsSnapshotBuilder.this) {
+                            finalSnapshotMarkerPending = false;
+                        }
+                        log.debug()
+                                .attr("snapshotId", snapshotId)
+                                .exception(exception)
+                                .log("Failed to publish completed snapshot marker");
+                        return;
+                    }
+
+                    controller.snapshotCompleted(snapshotId);
+                });
 
     }
 

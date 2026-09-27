@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiFunction;
@@ -33,6 +32,7 @@ import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.apache.pulsar.common.util.PulsarExecutors;
 
 @CustomLog
 public class ExecutorProvider {
@@ -88,7 +88,7 @@ public class ExecutorProvider {
     }
 
     protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
-       return Executors.newSingleThreadExecutor(threadFactory);
+        return PulsarExecutors.newSingleThreadExecutor(threadFactory);
     }
 
     public ExecutorService getExecutor() {

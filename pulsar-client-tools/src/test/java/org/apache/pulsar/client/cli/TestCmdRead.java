@@ -19,11 +19,7 @@
 package org.apache.pulsar.client.cli;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -31,11 +27,11 @@ public class TestCmdRead {
 
     @DataProvider(name = "startMessageIds")
     public Object[][] startMessageIds() {
+        // The V5-based reader (CheckpointConsumer) only accepts latest / earliest; the
+        // <ledgerId>:<entryId> form is no longer supported, so it is not exercised here.
         return new Object[][] {
             { "latest", "latest" },
             { "earliest", "earliest" },
-            { "10:0", "CAoQADAA" },
-            { "10:1", "CAoQATAA" },
         };
     }
 
@@ -51,19 +47,4 @@ public class TestCmdRead {
         assertEquals(cmdRead.getWebSocketReadUri(topicNameV2),
                 "ws://localhost:8080/ws/v2/reader/persistent/public/default/t2?messageId=" + msgIdQueryParam);
     }
-
-    @Test
-    public void testParseMessageId() {
-        assertEquals(CmdRead.parseMessageId("latest"), MessageId.latest);
-        assertEquals(CmdRead.parseMessageId("earliest"), MessageId.earliest);
-        assertEquals(CmdRead.parseMessageId("20:-1"), new MessageIdImpl(20, -1, -1));
-        assertEquals(CmdRead.parseMessageId("30:0"), new MessageIdImpl(30, 0, -1));
-        try {
-            CmdRead.parseMessageId("invalid");
-            fail("Should fail to parse invalid message ID");
-        } catch (Throwable t) {
-            assertTrue(t instanceof IllegalArgumentException);
-        }
-    }
-
 }

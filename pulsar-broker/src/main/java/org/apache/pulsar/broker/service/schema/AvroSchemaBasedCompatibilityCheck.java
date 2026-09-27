@@ -52,14 +52,10 @@ abstract class AvroSchemaBasedCompatibilityCheck implements SchemaCompatibilityC
         checkArgument(from != null, "check compatibility list is null");
         try {
             for (SchemaData schemaData : from) {
-                Schema.Parser parser =
-                        new Schema.Parser(StructSchemaDataValidator.COMPATIBLE_NAME_VALIDATOR);
-                parser.setValidateDefaults(false);
-                fromList.addFirst(parser.parse(new String(schemaData.getData(), UTF_8)));
+                fromList.addFirst(StructSchemaDataValidator.parseAvroSchema(
+                        new String(schemaData.getData(), UTF_8), false));
             }
-            Schema.Parser parser = new Schema.Parser(StructSchemaDataValidator.COMPATIBLE_NAME_VALIDATOR);
-            parser.setValidateDefaults(false);
-            Schema toSchema = parser.parse(new String(to.getData(), UTF_8));
+            Schema toSchema = StructSchemaDataValidator.parseAvroSchema(new String(to.getData(), UTF_8), false);
             SchemaValidator schemaValidator = createSchemaValidator(strategy);
             schemaValidator.validate(toSchema, fromList);
         } catch (SchemaParseException e) {

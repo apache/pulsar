@@ -87,6 +87,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
     // in the future.
     private void checkConnectionStatus() {
         try {
+            long checkedSessionId = zk.getSessionId();
             CompletableFuture<Watcher.Event.KeeperState> future = new CompletableFuture<>();
             zk.exists("/", false, (StatCallback) (rc, path, ctx, stat) -> {
                 switch (KeeperException.Code.get(rc)) {
@@ -112,7 +113,7 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
                 zkClientState = Watcher.Event.KeeperState.Disconnected;
             }
 
-            checkState(zkClientState);
+            checkStateIfSameSession(checkedSessionId, zkClientState);
         } catch (RejectedExecutionException | InterruptedException e) {
             task.cancel(true);
         } catch (Throwable t) {
@@ -128,6 +129,24 @@ public class ZKSessionWatcher implements AutoCloseable, Watcher {
 
     synchronized void setSessionInvalid() {
         currentStatus = SessionEvent.SessionLost;
+    }
+
+    // PulsarZooKeeperClient publishes the new ZooKeeper instance before forwarding the corresponding session event to
+    // watcherManager, so zk.set(newZk) happens-before this watcher observes the new-session event. Keep the session-id
+    // check and state transition in the same synchronized section to prevent stale async probes from racing with that
+    // event and overwriting the state of the newly established session.
+    private synchronized void checkStateIfSameSession(long checkedSessionId,
+                                                      Watcher.Event.KeeperState zkClientState) {
+        long currentSessionId = zk.getSessionId();
+        if (checkedSessionId != currentSessionId) {
+            log.warn()
+                    .attr("checkedSessionId", checkedSessionId)
+                    .attr("currentSessionId", currentSessionId)
+                    .attr("zkClientState", zkClientState)
+                    .log("Ignoring ZooKeeper session state from a stale session");
+            return;
+        }
+        checkState(zkClientState);
     }
 
     private synchronized void checkState(Watcher.Event.KeeperState zkClientState) {

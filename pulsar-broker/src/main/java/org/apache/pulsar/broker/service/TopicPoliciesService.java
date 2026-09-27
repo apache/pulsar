@@ -96,6 +96,15 @@ public interface TopicPoliciesService extends AutoCloseable {
     default void close() throws Exception {
     }
 
+
+    /**
+     * @implNote This method is never called unless by the default implementation of
+     * {@link TopicPoliciesService#registerListenerAsync(TopicName, TopicPolicyListener)}, which is actually called
+     * internally. This method is only retained for backward compatibility on custom implementations.
+     */
+    @Deprecated
+    boolean registerListener(TopicName topicName, TopicPolicyListener listener);
+
     /**
      * Registers a listener for topic policies updates.
      *
@@ -106,10 +115,10 @@ public interface TopicPoliciesService extends AutoCloseable {
      * guaranteed to be received by the listener.
      * In summary, the listener is guaranteed to receive only the latest value.
      * </p>
-     *
-     * @return true if the listener is registered successfully
      */
-    boolean registerListener(TopicName topicName, TopicPolicyListener listener);
+    default CompletableFuture<Boolean> registerListenerAsync(TopicName topicName, TopicPolicyListener listener) {
+        return CompletableFuture.completedFuture(registerListener(topicName, listener));
+    }
 
     /**
      * Unregister the topic policies listener.

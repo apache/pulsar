@@ -61,6 +61,9 @@ set "PULSAR_CLASSPATH=%PULSAR_CLASSPATH%;%PULSAR_LOG_CONF_DIR%"
 
 set "OPTS=%OPTS% -Dlog4j.configurationFile="%PULSAR_LOG_CONF_BASENAME%""
 set "OPTS=-Djava.net.preferIPv4Stack=true %OPTS%"
+REM Bridge java.util.logging (JUL) to Log4j2 so that JUL logs from third-party libraries
+REM (Jersey, gRPC, Guava, etc.) are bridged into the Log4j2 configuration (conf/log4j2.yaml)
+set "OPTS=-Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager %OPTS%"
 
 REM Allow Netty to use reflection access
 set "OPTS=%OPTS% -Dio.netty.tryReflectionSetAccessible=true"
@@ -71,6 +74,12 @@ if %JAVA_MAJOR_VERSION% GTR 23 (
   REM Also required for enabling unsafe memory access for Netty since 4.1.121.Final
   set "OPTS=--sun-misc-unsafe-memory-access=allow %OPTS%"
 )
+
+REM Use compact object headers (JEP 519, https://openjdk.org/jeps/519), which shrink object headers from 12 to 8 bytes
+REM and so reduce heap usage and improve cache locality. They are a product feature since JDK 25 and the default from
+REM JDK 27 on (JEP 534, https://openjdk.org/jeps/534). The option is prepended so that the configured options can
+REM override it with -XX:-UseCompactObjectHeaders.
+if %JAVA_MAJOR_VERSION% GEQ 25 if %JAVA_MAJOR_VERSION% LEQ 26 set "OPTS=-XX:+UseCompactObjectHeaders %OPTS%"
 
 if %JAVA_MAJOR_VERSION% GTR 8 (
   set "OPTS=%OPTS% --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED"

@@ -116,7 +116,7 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
      * subsequent {@code Snapshot} / {@code Diff} flows through {@link #setListener}.
      */
     CompletableFuture<List<String>> start() {
-        v4Client.getConnectionToServiceUrl()
+        v4Client.getAnyBrokerProxyConnection()
                 .thenAccept(this::attach)
                 .exceptionally(ex -> {
                     initialSnapshotFuture.completeExceptionally(ex);
@@ -264,7 +264,7 @@ final class ScalableTopicsWatcher implements ScalableTopicsWatcherSession, AutoC
         if (closed) {
             return;
         }
-        v4Client.getConnectionToServiceUrl()
+        v4Client.getAnyBrokerProxyConnection()
                 .thenAccept(newCnx -> {
                     if (closed) {
                         return;

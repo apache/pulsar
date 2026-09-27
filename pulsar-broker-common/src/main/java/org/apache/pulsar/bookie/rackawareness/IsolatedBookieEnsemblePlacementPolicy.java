@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.bookie.rackawareness;
 
+import static java.util.Collections.emptySet;
 import static org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping.METADATA_STORE_INSTANCE;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
@@ -28,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
@@ -66,6 +68,22 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
 
     private volatile BookiesRackConfiguration cachedRackConfiguration = null;
 
+    /**
+     * Completes once the rack configuration load started by
+     * {@link #initialize(ClientConfiguration, Optional, HashedWheelTimer, FeatureProvider, StatsLogger,
+     * BookieAddressResolver)} has been applied to {@link #cachedRackConfiguration}, and completes exceptionally
+     * when that load failed. Until it completes no isolation is applied at all, so tests must wait for this future
+     * before asserting on placement decisions.
+     *
+     * <p>It deliberately excludes the {@code exceptionally} stage that keeps initialization going on a failed
+     * load: a test awaiting this future must see the real failure rather than proceed against a still-null
+     * {@link #cachedRackConfiguration}, which looks exactly like the race this future exists to close.
+     */
+    @Getter
+    @VisibleForTesting
+    private volatile CompletableFuture<Void> initialRackConfigurationLoadFuture =
+            CompletableFuture.completedFuture(null);
+
     public IsolatedBookieEnsemblePlacementPolicy() {
         super();
     }
@@ -90,12 +108,16 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             }
             // Only add the bookieMappingCache if we have defined an isolation group
             bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).thenAccept(opt -> opt.ifPresent(
-                            bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration))
-                    .exceptionally(e -> {
-                        log.warn("Failed to load bookies rack configuration while initialize the PlacementPolicy.");
-                        return null;
-                    });
+            CompletableFuture<Void> rackConfigurationLoad = bookieMappingCache
+                    .get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).thenAccept(opt -> opt.ifPresent(
+                            bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration));
+            // Initialization continues when the load fails; isolation is simply not applied until a later refresh.
+            rackConfigurationLoad.exceptionally(e -> {
+                log.warn().exception(e)
+                        .log("Failed to load bookies rack configuration while initialize the PlacementPolicy.");
+                return null;
+            });
+            initialRackConfigurationLoadFuture = rackConfigurationLoad;
         }
         if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
             String secondaryIsolationGroupsString = ConfigurationStringUtil
@@ -166,11 +188,13 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         return Optional.empty();
     }
 
-    private static Pair<Set<String>, Set<String>> getIsolationGroup(
+    @VisibleForTesting
+    Pair<Set<String>, Set<String>> getIsolationGroup(
             EnsemblePlacementPolicyConfig ensemblePlacementPolicyConfig) {
-        MutablePair<Set<String>, Set<String>> pair = new MutablePair<>();
-        String className = IsolatedBookieEnsemblePlacementPolicy.class.getName();
-        if (ensemblePlacementPolicyConfig.getPolicyClass().getName().equals(className)) {
+        // Retain compatibility with ZkIsolatedBookieEnsemblePlacementPolicy
+        Class<?> policyClass = ensemblePlacementPolicyConfig.getPolicyClass();
+        if (IsolatedBookieEnsemblePlacementPolicy.class.isAssignableFrom(policyClass)) {
+            MutablePair<Set<String>, Set<String>> pair = new MutablePair<>(emptySet(), emptySet());
             Map<String, Object> properties = ensemblePlacementPolicyConfig.getProperties();
             String primaryIsolationGroupString = ConfigurationStringUtil
                     .castToString(properties.getOrDefault(ISOLATION_BOOKIE_GROUPS, ""));
@@ -178,21 +202,23 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     .castToString(properties.getOrDefault(SECONDARY_ISOLATION_BOOKIE_GROUPS, ""));
             if (!primaryIsolationGroupString.isEmpty()) {
                 pair.setLeft(Sets.newHashSet(primaryIsolationGroupString.split(",")));
-            } else {
-                pair.setLeft(Collections.emptySet());
             }
             if (!secondaryIsolationGroupString.isEmpty()) {
                 pair.setRight(Sets.newHashSet(secondaryIsolationGroupString.split(",")));
-            } else {
-                pair.setRight(Collections.emptySet());
             }
+            return pair;
+        } else {
+            log.info()
+                    .attr("policyClass", ensemblePlacementPolicyConfig.getPolicyClass().getName())
+                    .log("The ensemble placement policy class is not compatible with "
+                            + "IsolatedBookieEnsemblePlacementPolicy, fallback to use defaultIsolationGroups");
+            return defaultIsolationGroups;
         }
-        return pair;
     }
 
     @VisibleForTesting
     Set<BookieId> getExcludedBookiesWithIsolationGroups(int ensembleSize,
-        Pair<Set<String>, Set<String>> isolationGroups) {
+                                                        Pair<Set<String>, Set<String>> isolationGroups) {
         Set<BookieId> excludedBookies = new HashSet<>();
         if (isolationGroups != null && isolationGroups.getLeft().contains(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP)) {
             return excludedBookies;
@@ -215,8 +241,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                     return excludedBookies;
                 }
                 int totalAvailableBookiesInPrimaryGroup = 0;
-                Set<String> primaryIsolationGroup = Collections.emptySet();
-                Set<String> secondaryIsolationGroup = Collections.emptySet();
+                Set<String> primaryIsolationGroup = emptySet();
+                Set<String> secondaryIsolationGroup = emptySet();
                 Set<BookieId> primaryGroupBookies = new HashSet<>();
                 if (isolationGroups != null) {
                     primaryIsolationGroup = isolationGroups.getLeft();

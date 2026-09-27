@@ -18,12 +18,21 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.delayed.bucket.BookkeeperBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.proto.DelayedIndex;
@@ -230,4 +239,32 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
         FutureUtil.waitForAll(futures).join();
     }
 
+    @Test
+    public void testParseSnapshotMetadataEntryMaterializesLazyBytes() {
+        long ts = System.currentTimeMillis();
+        SnapshotSegmentMetadata segmentMetadata = new SnapshotSegmentMetadata();
+        segmentMetadata.setMinScheduleTimestamp(ts);
+        segmentMetadata.setMaxScheduleTimestamp(ts);
+        segmentMetadata.putDelayedIndexBitMap(100L, "payload-1".getBytes(StandardCharsets.UTF_8));
+        segmentMetadata.putDelayedIndexBitMap(200L, "payload-2".getBytes(StandardCharsets.UTF_8));
+        SnapshotMetadata original = new SnapshotMetadata();
+        original.addMetadata().copyFrom(segmentMetadata);
+
+        ByteBuf buffer = Unpooled.wrappedBuffer(original.toByteArray());
+        assertEquals(buffer.refCnt(), 1);
+
+        LedgerEntry entry = mock(LedgerEntry.class);
+        when(entry.getEntryBuffer()).thenReturn(buffer);
+
+        SnapshotMetadata parsed = bucketSnapshotStorage.parseSnapshotMetadataEntry(entry);
+        assertEquals(buffer.refCnt(), 0);
+
+        AtomicInteger entryCount = new AtomicInteger();
+        parsed.getMetadataAt(0).forEachDelayedIndexBitMap((k, v) -> {
+            assertNotNull(v);
+            assertTrue(v.length > 0);
+            entryCount.incrementAndGet();
+        });
+        assertEquals(entryCount.get(), 2);
+    }
 }

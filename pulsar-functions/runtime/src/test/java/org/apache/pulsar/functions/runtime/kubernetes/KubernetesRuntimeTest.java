@@ -344,6 +344,29 @@ public class KubernetesRuntimeTest {
     }
 
     @Test
+    public void testGetServiceUrl() throws Exception {
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
+        InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
+
+        KubernetesRuntime container1 = factory.createContainer(
+            config, userJarFile, userJarFile, null, null, 30L);
+        assertEquals(container1.getServiceUrl("my-job", "my-namespace", 0),
+            "my-job-0.my-job.my-namespace.svc.cluster.local");
+
+        KubernetesRuntimeFactory factory2 = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
+        java.lang.reflect.Field field = KubernetesRuntimeFactory.class.getDeclaredField(
+            "kubernetesServiceDomainSuffix");
+        field.setAccessible(true);
+        field.set(factory2, "custom.gateway.internal");
+
+        KubernetesRuntime container2 = factory2.createContainer(
+            config, userJarFile, userJarFile, null, null, 30L);
+        assertEquals(container2.getServiceUrl("my-job", "my-namespace", 0),
+            "my-job-0.my-job.my-namespace.custom.gateway.internal");
+    }
+
+
+    @Test
     public void testRamPadding() throws Exception {
         verifyRamPadding(0, 1000, 1000);
         verifyRamPadding(5, 1000, 1050);
@@ -462,14 +485,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 53;
-            portArg = 40;
-            metricsPortArg = 42;
+            totalArgs = 54;
+            portArg = 41;
+            metricsPortArg = 43;
         } else {
             extraDepsEnv = "";
-            portArg = 39;
-            metricsPortArg = 41;
-            totalArgs = 52;
+            portArg = 40;
+            metricsPortArg = 42;
+            totalArgs = 53;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -497,6 +520,7 @@ public class KubernetesRuntimeTest {
                 + extraDepsEnv
                 + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
                 + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.xml"
+                + " -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"
                 + " -Dlog4j2.contextSelector=org.apache.logging.log4j.core.selector.BasicContextSelector "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/"
                 + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())

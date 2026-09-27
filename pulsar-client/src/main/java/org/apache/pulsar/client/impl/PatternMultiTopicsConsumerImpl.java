@@ -367,6 +367,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                             removedPartitionedTopicsForLog.add(String.format("%s with %s partitions",
                                     groupedTopicRemoved, partitions));
                             partitionedTopics.remove(groupedTopicRemoved, partitions);
+                            removeTopicMessagesFromUnackedTracker(groupedTopicRemoved);
                         }
                     }
                 }

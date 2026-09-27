@@ -138,12 +138,12 @@ EOF
 
 chmod +x "${genScript}"
 
-echo "Running protoc in Docker (golang:1.24-alpine)..."
+echo "Running protoc in Docker (golang:1.25-alpine)..."
 docker run --rm \
   -v "${protoDefinitions}:/proto:ro" \
   -v "${outDir}:/out" \
   -v "${genScript}:/generate_pb.sh:ro" \
-  golang:1.24-alpine \
+  golang:1.25-alpine \
   /generate_pb.sh
 
 # Revision of the last commit that touched any .proto file in the proto directory

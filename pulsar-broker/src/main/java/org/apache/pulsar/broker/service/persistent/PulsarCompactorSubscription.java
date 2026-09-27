@@ -112,7 +112,7 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
             return null;
         });
 
-        if (topic.getManagedLedger().isTerminated() && cursor.getNumberOfEntriesInBacklog(false) == 0) {
+        if (topic.getManagedLedger().isTerminated() && !cursor.hasBacklog(false)) {
             // Notify all consumer that the end of topic was reached
             checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
         }

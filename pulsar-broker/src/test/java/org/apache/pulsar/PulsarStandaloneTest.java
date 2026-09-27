@@ -123,7 +123,11 @@ public class PulsarStandaloneTest {
 
         String topic = "test-get-topic-bundle-range";
         admin.topics().createNonPartitionedTopic(topic);
-        assertEquals(admin.lookups().getBundleRange(topic), "0xc0000000_0xffffffff");
+        // public/default is created with the default number of bundles (32); crc32 of the full topic name is
+        // 0xca437fb1, which falls into the 26th of the 32 equally sized ranges
+        assertEquals(admin.namespaces().getBundles("public/default").getNumBundles(),
+                standalone.getConfig().getDefaultNumberOfNamespaceBundles());
+        assertEquals(admin.lookups().getBundleRange(topic), "0xc8000000_0xd0000000");
 
         standalone.close();
         cleanDirectory(bkDir);

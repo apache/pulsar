@@ -39,15 +39,15 @@ public class CmdGenerateDocumentation extends BaseGenerateDocumentation {
         } else if (ServiceConfiguration.class.getName().equals(className)) {
             return generateDocByFieldContext(className, "Broker");
         } else if (ClientConfigurationData.class.getName().equals(className)) {
-            return generateDocByApiModelProperty(className, "Client");
+            return generateDocBySchema(className, "Client");
         } else if (WebSocketProxyConfiguration.class.getName().equals(className)) {
             return generateDocByFieldContext(className, "WebSocket");
         } else if (ProducerConfigurationData.class.getName().equals(className)) {
-            return generateDocByApiModelProperty(className, "Producer");
+            return generateDocBySchema(className, "Producer");
         } else if (ConsumerConfigurationData.class.getName().equals(className)) {
-            return generateDocByApiModelProperty(className, "Consumer");
+            return generateDocBySchema(className, "Consumer");
         } else if (ReaderConfigurationData.class.getName().equals(className)) {
-            return generateDocByApiModelProperty(className, "Reader");
+            return generateDocBySchema(className, "Reader");
         } else {
             return "Class [" + className + "] not found";
         }

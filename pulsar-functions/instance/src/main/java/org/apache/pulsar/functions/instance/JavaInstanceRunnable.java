@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,6 +52,7 @@ import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -561,10 +563,32 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         // check record is valid
         if (record == null) {
             throw new IllegalArgumentException("The record returned by the source cannot be null");
-        } else if (record.getValue() == null) {
-            throw new IllegalArgumentException("The value in the record returned by the source cannot be null");
+        }
+        // Eagerly access the value here so a malformed/poison message surfaces with enough
+        // context (message id, topic, key, schema version) to be located and skipped, instead
+        // of bubbling up as an opaque crash that names no message.
+        try {
+            if (record.getValue() == null) {
+                throw new IllegalArgumentException("The value in the record returned by the source cannot be null");
+            }
+        } catch (Exception e) {
+            logInputValueDecodeFailure(record, e);
+            throw e;
         }
         return record;
+    }
+
+    private void logInputValueDecodeFailure(Record<?> record, Exception e) {
+        log.warn()
+                .attr("topic", record.getTopicName().orElse(null))
+                .attr("messageId", record.getMessage().map(m -> String.valueOf(m.getMessageId())).orElse(null))
+                .attr("partitionKey", record.getKey().orElse(null))
+                .attr("schemaVersion", record.getMessage()
+                        .map(Message::getSchemaVersion)
+                        .map(sv -> HexFormat.of().formatHex(sv))
+                        .orElse(null))
+                .exception(e)
+                .log("Failed to decode the value of the input message; the message cannot be processed");
     }
 
     /**

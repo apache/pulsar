@@ -18,57 +18,59 @@
  */
 package org.apache.pulsar.broker.admin.v2;
 
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
-import java.io.OutputStream;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.StreamingOutput;
 import java.util.Collection;
 import java.util.Map;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.StreamingOutput;
 import org.apache.pulsar.broker.admin.impl.BrokerStatsBase;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 
 @Path("/broker-stats")
-@Api(value = "/broker-stats", description = "Stats for broker", tags = "broker-stats")
+@Tag(name = "broker-stats", description = "Stats for broker")
 @Produces(MediaType.APPLICATION_JSON)
 @SuppressWarnings("deprecation")
 public class BrokerStats extends BrokerStatsBase {
 
     @GET
     @Path("/topics")
-    @ApiOperation(
-            value = "Get all the topic stats by namespace",
-            response = OutputStream.class,
-            responseContainer = "OutputStream")
-    // https://github.com/swagger-api/swagger-ui/issues/558
-    // map
-    // support
-    // missing
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    @Operation(
+            summary = "Get all the topic stats by namespace")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Get all the topic stats by namespace",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(type = "object", description = "Nested JSON object:"
+                                    + " namespace -> bundle range -> persistent/non-persistent -> topic -> stats"))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission") })
     public StreamingOutput getTopics2() throws Exception {
         return super.getTopics2();
     }
 
     @GET
     @Path("/broker-resource-availability/{tenant}/{namespace}")
-    @ApiOperation(value = "Broker availability report", notes = "This API gives the current broker availability in "
-            + "percent, each resource percentage usage is calculated and then"
+    @Operation(summary = "Broker availability report",
+            description = "This API gives the current broker availability in "
+            + "percent, each resource percentage usage is calculated and then "
             + "sum of all of the resource usage percent is called broker-resource-availability"
-            + "<br/><br/>THIS API IS ONLY FOR USE BY TESTING FOR CONFIRMING NAMESPACE ALLOCATION ALGORITHM",
-            response = ResourceUnit.class, responseContainer = "Map")
+            + "<br/><br/>THIS API IS ONLY FOR USE BY TESTING FOR CONFIRMING NAMESPACE ALLOCATION ALGORITHM")
     @ApiResponses(value = {
-            @ApiResponse(code = 200, message = "Returns broker resource availability as Map<Long, List<ResourceUnit>>."
+            @ApiResponse(responseCode = "200",
+                    description = "Returns broker resource availability as Map<Long, List<ResourceUnit>>."
                     + "Since `ResourceUnit` is an interface, its specific content is not determinable via class "
                     + "reflection. Refer to the source code or interface tests for detailed type definitions.",
-            response = Map.class),
-            @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Load-manager doesn't support operation") })
+            content = @Content(schema = @Schema(type = "object",
+                    additionalPropertiesSchema = ResourceUnit.class))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "409", description = "Load-manager doesn't support operation") })
     public Map<Long, Collection<ResourceUnit>> getBrokerResourceAvailability(@PathParam("tenant") String tenant,
         @PathParam("namespace") String namespace) {
         validateNamespaceName(tenant, namespace);

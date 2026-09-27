@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.auth.oauth2.protocol;
 
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -28,8 +29,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.asynchttpclient.AsyncHttpClient;
-import org.asynchttpclient.Response;
+import org.apache.pulsar.http.HttpRequest;
+import org.apache.pulsar.http.HttpResponse;
+import org.apache.pulsar.http.PulsarHttpClient;
 
 /**
  * A client for an OAuth 2.0 token endpoint.
@@ -37,16 +39,17 @@ import org.asynchttpclient.Response;
 public class TokenClient implements ClientCredentialsExchanger {
 
     private final URL tokenUrl;
-    private final AsyncHttpClient httpClient;
+    private final PulsarHttpClient httpClient;
 
-    public TokenClient(URL tokenUrl, AsyncHttpClient httpClient) {
+    public TokenClient(URL tokenUrl, PulsarHttpClient httpClient) {
         this.httpClient = httpClient;
         this.tokenUrl = tokenUrl;
     }
 
     @Override
     public void close() throws Exception {
-        httpClient.close();
+        // The PulsarHttpClient is owned and closed by the OAuth2 flow (FlowBase) that created it and shares
+        // it with the metadata resolver; nothing to release here.
     }
 
     /**
@@ -89,28 +92,24 @@ public class TokenClient implements ClientCredentialsExchanger {
             throws TokenExchangeException, IOException {
         String body = buildClientCredentialsBody(req);
         try {
+            HttpRequest request = HttpRequest.builder(HttpRequest.Method.POST, URI.create(tokenUrl.toString()))
+                    .header("Accept", "application/json")
+                    .body(new HttpRequest.Bytes(body.getBytes(StandardCharsets.UTF_8),
+                            "application/x-www-form-urlencoded"))
+                    .build();
+            HttpResponse res = httpClient.execute(request).get();
 
-            Response res = httpClient.preparePost(tokenUrl.toString())
-                    .setHeader("Accept", "application/json")
-                    .setHeader("Content-Type", "application/x-www-form-urlencoded")
-                    .setBody(body)
-                    .execute()
-                    .get();
-
-            switch (res.getStatusCode()) {
+            switch (res.statusCode()) {
                 case 200:
-                    return ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                            TokenResult.class);
+                    return ObjectMapperFactory.getMapper().reader().readValue(res.body(), TokenResult.class);
 
                 case 400: // Bad request
                 case 401: // Unauthorized
                     throw new TokenExchangeException(
-                            ObjectMapperFactory.getMapper().reader().readValue(res.getResponseBodyAsBytes(),
-                                    TokenError.class));
+                            ObjectMapperFactory.getMapper().reader().readValue(res.body(), TokenError.class));
 
                 default:
-                    throw new IOException(
-                            "Failed to perform HTTP request. res: " + res.getStatusCode() + " " + res.getStatusText());
+                    throw new IOException("Failed to perform HTTP request. res: " + res.statusCode());
             }
 
 

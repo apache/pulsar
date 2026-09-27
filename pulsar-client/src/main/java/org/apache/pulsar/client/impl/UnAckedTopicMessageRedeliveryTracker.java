@@ -42,9 +42,8 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
                 Entry<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>> entry = iterator.next();
                 UnackMessageIdWrapper messageIdWrapper = entry.getKey();
                 MessageId messageId = messageIdWrapper.getMessageId();
-                if (messageId instanceof TopicMessageId
-                        && ((TopicMessageId) messageId).getOwnerTopic().contains(topicName)) {
-                    HashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap.get(messageIdWrapper);
+                if (messageId instanceof TopicMessageId topicMessageId
+                        && topicMessageId.hasSameBasePartitionedTopic(topicName)) {
                     entry.getValue().remove(messageIdWrapper);
                     iterator.remove();
                     messageIdWrapper.recycle();
@@ -53,11 +52,11 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
             }
 
             Iterator<MessageId> iteratorAckTimeOut = ackTimeoutMessages.keySet().iterator();
-            while (iterator.hasNext()) {
+            while (iteratorAckTimeOut.hasNext()) {
                 MessageId messageId = iteratorAckTimeOut.next();
-                if (messageId instanceof TopicMessageId
-                        && ((TopicMessageId) messageId).getOwnerTopic().contains(topicName)) {
-                    iterator.remove();
+                if (messageId instanceof TopicMessageId topicMessageId
+                        && topicMessageId.hasSameBasePartitionedTopic(topicName)) {
+                    iteratorAckTimeOut.remove();
                     removed++;
                 }
             }

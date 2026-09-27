@@ -101,12 +101,13 @@ public class CommandsScalableTopicTest {
                 .addParentId(0L);
         dag.addSegmentBroker().setSegmentId(2L).setBrokerUrl("pulsar://broker-a:6650");
 
-        ByteBuf frame = Commands.newScalableTopicUpdate(77L, dag);
+        ByteBuf frame = Commands.newScalableTopicUpdate(77L, "topic://t/n/x", dag);
         BaseCommand cmd = parseFrame(frame);
 
         assertEquals(cmd.getType(), BaseCommand.Type.SCALABLE_TOPIC_UPDATE);
         assertTrue(cmd.hasScalableTopicUpdate());
         assertEquals(cmd.getScalableTopicUpdate().getSessionId(), 77L);
+        assertEquals(cmd.getScalableTopicUpdate().getResolvedTopicName(), "topic://t/n/x");
         assertFalse(cmd.getScalableTopicUpdate().hasError(),
                 "successful update must not carry an error field");
 
@@ -133,6 +134,27 @@ public class CommandsScalableTopicTest {
     }
 
     @Test
+    public void testNewScalableTopicUpdateWithNullResolvedTopicNameLeavesFieldUnset() {
+        // resolved_topic_name is optional on the wire; a null must serialise cleanly with
+        // the field unset rather than NPE in the lightproto setter.
+        ScalableTopicDAG dag = new ScalableTopicDAG().setEpoch(1L);
+        dag.addSegment()
+                .setSegmentId(0L)
+                .setHashStart(0x0000)
+                .setHashEnd(0xFFFF)
+                .setState(SegmentState.ACTIVE)
+                .setCreatedAtEpoch(0L)
+                .setCreatedAtMs(System.currentTimeMillis());
+
+        ByteBuf frame = Commands.newScalableTopicUpdate(5L, null, dag);
+        BaseCommand cmd = parseFrame(frame);
+
+        assertEquals(cmd.getScalableTopicUpdate().getSessionId(), 5L);
+        assertFalse(cmd.getScalableTopicUpdate().hasResolvedTopicName(),
+                "null resolvedTopicName must leave the optional field unset");
+    }
+
+    @Test
     public void testNewScalableTopicError() {
         ByteBuf frame = Commands.newScalableTopicError(15L, ServerError.TopicNotFound,
                 "Scalable topic not found: topic://t/n/x");
@@ -145,6 +167,15 @@ public class CommandsScalableTopicTest {
         assertEquals(cmd.getScalableTopicUpdate().getError(), ServerError.TopicNotFound);
         assertEquals(cmd.getScalableTopicUpdate().getMessage(),
                 "Scalable topic not found: topic://t/n/x");
+    }
+
+    @Test
+    public void testNewScalableTopicUnsubscribe() {
+        BaseCommand cmd = parseFrame(Commands.newScalableTopicUnsubscribe(42L, 7L));
+        assertEquals(cmd.getType(), BaseCommand.Type.SCALABLE_TOPIC_UNSUBSCRIBE);
+        assertTrue(cmd.hasScalableTopicUnsubscribe());
+        assertEquals(cmd.getScalableTopicUnsubscribe().getRequestId(), 42L);
+        assertEquals(cmd.getScalableTopicUnsubscribe().getConsumerId(), 7L);
     }
 
     @Test

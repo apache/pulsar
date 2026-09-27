@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.v5;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.MessageId;
 
@@ -84,8 +85,15 @@ final class MessageV5<T> implements Message<T> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public T value() {
-        return v4Message.getValue();
+        Object value = v4Message.getValue();
+        // The v4 AUTO_CONSUME / generic schemas decode into a v4 GenericRecord; surface it through
+        // the v5 API as a v5 GenericRecord. All other values pass through unchanged.
+        if (value instanceof GenericRecord) {
+            return (T) GenericRecordV5.convert(value);
+        }
+        return (T) value;
     }
 
     @Override

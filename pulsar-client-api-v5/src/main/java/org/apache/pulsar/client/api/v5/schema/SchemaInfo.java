@@ -52,4 +52,22 @@ public interface SchemaInfo {
      * @return an unmodifiable map of schema property key-value pairs
      */
     Map<String, String> properties();
+
+    /**
+     * Build a {@link SchemaInfo} from its components. Useful for constructing a generic schema
+     * from a raw definition (e.g. an Avro/JSON schema document) via {@link Schema#generic}.
+     *
+     * @param name       the schema name
+     * @param type       the schema type
+     * @param schema     the raw schema definition bytes (e.g. Avro schema JSON); may be {@code null}
+     * @param properties additional schema properties; may be {@code null}
+     * @return an immutable {@link SchemaInfo}
+     */
+    static SchemaInfo of(String name, SchemaType type, byte[] schema, Map<String, String> properties) {
+        return new SchemaInfoRecord(
+                name,
+                type,
+                schema == null ? new byte[0] : schema.clone(),
+                properties == null ? Map.of() : Map.copyOf(properties));
+    }
 }

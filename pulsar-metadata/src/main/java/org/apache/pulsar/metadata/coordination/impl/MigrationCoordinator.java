@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.coordination.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.oxia.client.api.AsyncOxiaClient;
 import io.oxia.client.api.options.defs.OptionOverrideModificationsCount;
 import io.oxia.client.api.options.defs.OptionOverrideVersionId;
@@ -38,6 +39,7 @@ import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.common.migration.MigrationState;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -53,12 +55,21 @@ public class MigrationCoordinator {
     private final String targetUrl;
     private final AsyncOxiaClient oxiaClient;
     private final MetadataCache<MigrationState> migrationStateCache;
+    private final Duration preparationTimeout;
 
     private static final int MAX_PENDING_OPS = 1000;
+    private static final Duration DEFAULT_PREPARATION_TIMEOUT = Duration.ofSeconds(60);
 
     public MigrationCoordinator(MetadataStore sourceStore, String targetUrl) throws MetadataStoreException {
+        this(sourceStore, targetUrl, DEFAULT_PREPARATION_TIMEOUT);
+    }
+
+    @VisibleForTesting
+    public MigrationCoordinator(MetadataStore sourceStore, String targetUrl, Duration preparationTimeout)
+            throws MetadataStoreException {
         this.sourceStore = sourceStore;
         this.targetUrl = targetUrl;
+        this.preparationTimeout = preparationTimeout;
         this.migrationStateCache = sourceStore.getMetadataCache(MigrationState.class);
 
         if (!targetUrl.startsWith("oxia://")) {
@@ -78,10 +89,11 @@ public class MigrationCoordinator {
         log.info().attr("source", sourceStore.getClass().getSimpleName()).log("Source (current)");
         log.info().attr("target", targetUrl).log("Target");
 
-        try {
-            // 1. Create migration flag
-            setInitialMigrationPhase();
+        // 1. Create migration flag. If another migration is already in progress, this fails without
+        // affecting the existing migration state.
+        setInitialMigrationPhase();
 
+        try {
             // 2. Wait for participants to prepare
             waitForPreparation();
 
@@ -102,10 +114,30 @@ public class MigrationCoordinator {
 
     private void setInitialMigrationPhase() throws MetadataStoreException {
         try {
+            Optional<GetResult> existing = sourceStore.get(MigrationState.MIGRATION_FLAG_PATH).get();
+            Optional<Long> expectedVersion;
+            if (existing.isEmpty()) {
+                // Create-only, to guard against concurrent migration starts
+                expectedVersion = Optional.of(-1L);
+            } else {
+                MigrationState currentState = ObjectMapperFactory.getMapper().reader()
+                        .readValue(existing.get().getValue(), MigrationState.class);
+                expectedVersion = switch (currentState.getPhase()) {
+                    // A leftover flag from a failed (or never started) migration can be replaced. The
+                    // expected version guards against concurrent migration starts.
+                    case NOT_STARTED, FAILED -> Optional.of(existing.get().getStat().getVersion());
+                    case PREPARATION, COPYING -> throw new MetadataStoreException(
+                            "Migration is already in progress (phase: " + currentState.getPhase() + ")");
+                    case COMPLETED -> throw new MetadataStoreException("Migration has already been completed");
+                };
+            }
+
             sourceStore.put(MigrationState.MIGRATION_FLAG_PATH,
                     ObjectMapperFactory.getMapper().writer()
                             .writeValueAsBytes(new MigrationState(MigrationPhase.PREPARATION, targetUrl)),
-                    Optional.of(-1L)).get();
+                    expectedVersion).get();
+        } catch (MetadataStoreException e) {
+            throw e;
         } catch (Exception e) {
             throw new MetadataStoreException(e);
         }
@@ -123,24 +155,28 @@ public class MigrationCoordinator {
     private void waitForPreparation() throws Exception {
         log.info("Waiting for all participants to prepare...");
 
-        long startTime = System.currentTimeMillis();
+        long deadline = System.currentTimeMillis() + preparationTimeout.toMillis();
         Backoff backoff = Backoff.builder()
                 .initialDelay(Duration.ofMillis(100))
                 .mandatoryStop(Duration.ofSeconds(60))
                 .maxBackoff(Duration.ofSeconds(60)).build();
-        while (System.currentTimeMillis() - startTime < 60_000) {
+        while (true) {
             List<String> pending = sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).get();
             if (pending.isEmpty()) {
                 log.info("All migration participants ready");
                 return;
             }
 
+            if (System.currentTimeMillis() >= deadline) {
+                log.error().attr("pendingParticipants", pending)
+                        .log("Failed to wait for all participants to prepare");
+                throw new MetadataStoreException(
+                        "Timed out waiting for migration participants to prepare: " + pending);
+            }
+
             log.info().attr("pending", pending).log("Waiting for participants to prepare");
             Thread.sleep(backoff.next().toMillis());
         }
-
-        log.error().attr("pendingParticipants", sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).get())
-                .log("Failed to wait for all participants to prepare");
     }
 
     private void copyPersistentData() throws Exception {
@@ -162,6 +198,13 @@ public class MigrationCoordinator {
                 } else {
                     break;
                 }
+            }
+
+            if (path.equals(MigrationState.COORDINATOR_PATH)
+                    || path.startsWith(MigrationState.COORDINATOR_PATH + "/")) {
+                // The migration coordination state is only meaningful in the source store. Copying it
+                // would leave a permanently stale migration flag in the target store.
+                continue;
             }
 
             semaphore.acquire();

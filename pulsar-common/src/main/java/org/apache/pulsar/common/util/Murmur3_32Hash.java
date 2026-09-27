@@ -53,6 +53,17 @@ public class Murmur3_32Hash implements Hash {
         return makeHash0(b) & Integer.MAX_VALUE;
     }
 
+    /**
+     * The raw, signed 32-bit MurmurHash3 of {@code b}, <i>without</i> the sign-bit masking that
+     * {@link #makeHash(byte[])} applies. Useful when both 16-bit halves of the hash are needed as
+     * independent, full-range fields — e.g. PIP-486 routes scalable-topic segments on the high half
+     * and entry-buckets on the low half. ({@link #makeHash(byte[])} clears bit 31, which would make
+     * the high half only span [0, 0x7FFF].)
+     */
+    public static int makeRawHash(byte[] b) {
+        return instance.makeHash0(b);
+    }
+
     private int makeHash0(byte[] bytes) {
         int len = bytes.length;
         int reminder = len % CHUNK_SIZE;

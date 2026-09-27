@@ -19,6 +19,12 @@
 package org.apache.pulsar.common.configuration;
 
 import com.google.common.annotations.VisibleForTesting;
+import jakarta.servlet.ServletContext;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response.Status;
 import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadInfo;
@@ -27,12 +33,6 @@ import java.time.Clock;
 import java.util.Arrays;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.servlet.ServletContext;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response.Status;
 import lombok.CustomLog;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 

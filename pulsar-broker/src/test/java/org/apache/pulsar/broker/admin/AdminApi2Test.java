@@ -28,6 +28,7 @@ import static org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnl
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -42,7 +43,8 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.grpc.netty.shaded.io.netty.util.concurrent.FastThreadLocal;
-import java.lang.reflect.Field;
+import jakarta.ws.rs.NotAcceptableException;
+import jakarta.ws.rs.core.Response.Status;
 import java.net.URI;
 import java.net.URL;
 import java.net.http.HttpClient;
@@ -65,13 +67,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.ws.rs.NotAcceptableException;
-import javax.ws.rs.core.Response.Status;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Data;
-import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -1450,6 +1451,42 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetInternalStatsWithProperties() throws Exception {
+        final var namespace = newUniqueName(defaultTenant + "/ns2");
+        final var topicName = "persistent://" + namespace + "/testGetInternalStatsWithProperties";
+        admin.namespaces().createNamespace(namespace);
+
+        final var topicProperties = Map.of("key1", "value1", "key2", "value2");
+        admin.topics().createNonPartitionedTopic(topicName, topicProperties);
+
+        var stats = admin.topics().getInternalStats(topicName);
+        assertEquals(stats.properties, topicProperties);
+
+        var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get()
+                .orElseThrow();
+        final var future = new CompletableFuture<Map<String, String>>();
+        persistentTopic.getManagedLedger().asyncSetProperty("new-key", "new-value",
+                new AsyncCallbacks.UpdatePropertiesCallback() {
+                    @Override
+                    public void updatePropertiesComplete(Map<String, String> properties, Object ctx) {
+                        future.complete(properties);
+                    }
+
+                    @Override
+                    public void updatePropertiesFailed(ManagedLedgerException exception, Object ctx) {
+                        future.completeExceptionally(exception);
+                    }
+                }, null);
+        assertEquals(future.get(), Map.of("key1", "value1", "key2", "value2", "new-key", "new-value"));
+
+        admin.namespaces().unload(namespace);
+        persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, true).get()
+                .orElseThrow();
+        stats = admin.topics().getInternalStats(topicName);
+        assertEquals(stats.properties, Map.of("key1", "value1", "key2", "value2", "new-key", "new-value"));
+    }
+
+    @Test
     public void testNonPersistentTopics() throws Exception {
         final String namespace = newUniqueName(defaultTenant + "/ns2");
         final String topicName = "non-persistent://" + namespace + "/topic";
@@ -2528,6 +2565,54 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
             assertTrue(ex.getCause() instanceof NotAcceptableException);
         }
     }
+
+    @Test
+    public void testAutoTopicCreationOverrideNonPartitionedDefaultNumPartitionsIgnored() throws Exception {
+        String tenantName = newUniqueName("prop-xyz2");
+        String namespaceName = tenantName + "/ns-" + System.currentTimeMillis();
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant(tenantName, tenantInfo);
+        admin.namespaces().createNamespace(namespaceName, Set.of("test"));
+
+        AutoTopicCreationOverride overridePolicy = AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType(TopicType.NON_PARTITIONED.toString())
+                .defaultNumPartitions(1)
+                .build();
+        admin.namespaces().setAutoTopicCreation(namespaceName, overridePolicy);
+
+        AutoTopicCreationOverride storedPolicy = admin.namespaces().getAutoTopicCreation(namespaceName);
+        assertTrue(storedPolicy.isAllowAutoTopicCreation());
+        assertEquals(storedPolicy.getTopicType(), TopicType.NON_PARTITIONED.toString());
+        assertEquals(storedPolicy.getDefaultNumPartitions(), Integer.valueOf(1));
+
+        String topicName = "persistent://" + namespaceName + "/auto-topic-" + UUID.randomUUID();
+        pulsarClient.newProducer().topic(topicName).create().close();
+
+        assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 0);
+    }
+
+    @Test
+    public void testAutoTopicCreationOverrideNonPartitionedDefaultNumPartitionsRejected() throws Exception {
+        String tenantName = newUniqueName("prop-xyz2");
+        String namespaceName = tenantName + "/ns-" + System.currentTimeMillis();
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant(tenantName, tenantInfo);
+        admin.namespaces().createNamespace(namespaceName, Set.of("test"));
+
+        AutoTopicCreationOverride overridePolicy = AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType(TopicType.NON_PARTITIONED.toString())
+                .defaultNumPartitions(5)
+                .build();
+        try {
+            admin.namespaces().setAutoTopicCreation(namespaceName, overridePolicy);
+            fail("Should have failed");
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), Status.PRECONDITION_FAILED.getStatusCode());
+        }
+    }
+
     @Test
     public void testMaxTopicsPerNamespace() throws Exception {
         restartClusterAfterTest();
@@ -3455,41 +3540,49 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final String namespace = newUniqueName(defaultTenant + "/ns");
         admin.namespaces().createNamespace(namespace, Set.of("test"));
         final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
-        pulsarClient.newProducer().topic(topic).create().close();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        producer.send("message".getBytes());
         TopicName topicName = TopicName.get(topic);
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(topic).get().get();
         PersistentTopic mockTopic = spy(persistentTopic);
+        doReturn(CompletableFuture.completedFuture(null))
+                .when(mockTopic).triggerCompactionWithCheckHasMoreMessages();
         mockTopic.checkCompaction();
         // Disabled by default
-        verify(mockTopic, times(0)).triggerCompaction();
+        verify(mockTopic, times(0)).triggerCompactionWithCheckHasMoreMessages();
         // Set namespace-level policy
         admin.namespaces().setCompactionThreshold(namespace, 1);
         Awaitility.await().untilAsserted(() ->
                 assertNotNull(admin.namespaces().getCompactionThreshold(namespace)));
-        ManagedLedger managedLedger = persistentTopic.getManagedLedger();
-        Field field = managedLedger.getClass().getDeclaredField("totalSize");
-        field.setAccessible(true);
-        field.setLong(managedLedger, 1000L);
+        Awaitility.await().untilAsserted(() -> assertTrue(persistentTopic.isCompactionEnabled()));
 
-        mockTopic.checkCompaction();
-        verify(mockTopic, times(1)).triggerCompaction();
+        Awaitility.await().untilAsserted(() -> {
+            mockTopic.checkCompaction();
+            verify(mockTopic, times(1)).triggerCompactionWithCheckHasMoreMessages();
+        });
         //Set topic-level policy
         admin.topics().setCompactionThreshold(topic, 0);
         Awaitility.await().untilAsserted(() -> assertNotNull(admin.topics().getCompactionThreshold(topic)));
+        Awaitility.await().untilAsserted(() -> assertFalse(persistentTopic.isCompactionEnabled()));
         mockTopic.checkCompaction();
-        verify(mockTopic, times(1)).triggerCompaction();
+        verify(mockTopic, times(1)).triggerCompactionWithCheckHasMoreMessages();
         // Remove topic-level policy
         admin.topics().removeCompactionThreshold(topic);
         Awaitility.await().untilAsserted(() -> assertNull(admin.topics().getCompactionThreshold(topic)));
-        mockTopic.checkCompaction();
-        verify(mockTopic, times(2)).triggerCompaction();
+        Awaitility.await().untilAsserted(() -> assertTrue(persistentTopic.isCompactionEnabled()));
+        Awaitility.await().untilAsserted(() -> {
+            mockTopic.checkCompaction();
+            verify(mockTopic, times(2)).triggerCompactionWithCheckHasMoreMessages();
+        });
         // Remove namespace-level policy
         admin.namespaces().removeCompactionThreshold(namespace);
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin.namespaces().getCompactionThreshold(namespace)));
+        Awaitility.await().untilAsserted(() -> assertFalse(persistentTopic.isCompactionEnabled()));
         mockTopic.checkCompaction();
-        verify(mockTopic, times(2)).triggerCompaction();
+        verify(mockTopic, times(2)).triggerCompactionWithCheckHasMoreMessages();
     }
 
     @Test

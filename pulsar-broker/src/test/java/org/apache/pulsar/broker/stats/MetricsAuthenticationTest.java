@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.stats;
 
 import com.google.common.collect.Sets;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.core.Response;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -54,7 +54,7 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
         conf.setAuthenticateMetricsEndpoint(true);
         super.internalSetup();
         @Cleanup
-        Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        Client client = jakarta.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         Response r = client.target(this.pulsar.getWebServiceAddress()).path("/metrics").request().get();
         Assert.assertEquals(r.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
     }
@@ -63,7 +63,7 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
     void testGetMetricsByDefault() throws Exception {
         super.internalSetup();
         @Cleanup
-        Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        Client client = jakarta.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         Response r = client.target(this.pulsar.getWebServiceAddress()).path("/metrics").request().get();
         Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
     }

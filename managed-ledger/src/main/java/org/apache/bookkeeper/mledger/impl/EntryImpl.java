@@ -57,8 +57,10 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     ByteBuf data;
     private EntryReadCountHandler readCountHandler;
     private boolean decreaseReadCountOnRelease = true;
+    // Cache readers publish metadata lazily; entry copies must see a fully initialized instance.
     @Getter @Setter
-    private MessageMetadata messageMetadata;
+    private volatile MessageMetadata messageMetadata;
+    private boolean messageMetadataInitializationFailed;
 
     private Runnable onDeallocate;
 
@@ -69,6 +71,11 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.data = ledgerEntry.getEntryBuffer();
         entry.data.retain();
         entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        // Reset the lazily-cached position LAST, after the id assignments: a recycled object can
+        // carry a stale Position materialized by a getPosition() call that raced past the recycle
+        // (deallocation nulls the field, but a late reader re-materializes it from the reset ids
+        // as (-1, -1)), and any racy lazy rebuild must observe the fresh legitimate ids.
+        entry.position = null;
         entry.setRefCnt(1);
         return entry;
     }
@@ -107,6 +114,8 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.entryId = entryId;
         entry.data = Unpooled.wrappedBuffer(data);
         entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        // Reset the lazily-cached position: see create(LedgerEntry, int).
+        entry.position = null;
         entry.setRefCnt(1);
         return entry;
     }
@@ -122,6 +131,8 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.data = data;
         entry.data.retain();
         entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        // Reset the lazily-cached position: see create(LedgerEntry, int).
+        entry.position = null;
         entry.setRefCnt(1);
         return entry;
     }
@@ -290,6 +301,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         readCountHandler = null;
         decreaseReadCountOnRelease = true;
         messageMetadata = null;
+        messageMetadataInitializationFailed = false;
         recyclerHandle.recycle(this);
     }
 
@@ -308,12 +320,14 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     }
 
     public synchronized void initializeMessageMetadataIfNeeded(String managedLedgerName) {
-        if (messageMetadata == null) {
+        if (messageMetadata == null && !messageMetadataInitializationFailed) {
             try {
                 MessageMetadata msgMetadata = new MessageMetadata();
                 Commands.parseMessageMetadata(data.duplicate(), msgMetadata);
                 this.messageMetadata = msgMetadata;
             } catch (Throwable t) {
+                // The entry bytes are immutable; another cache reader cannot make a failed parse succeed.
+                messageMetadataInitializationFailed = true;
                 log.warn().attr("managedLedgerName", managedLedgerName)
                         .attr("ledgerId", ledgerId)
                         .attr("entryId", entryId)

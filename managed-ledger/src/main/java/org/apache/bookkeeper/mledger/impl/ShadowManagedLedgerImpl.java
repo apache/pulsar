@@ -163,7 +163,14 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                     }
                 });
                 //open ledger in readonly mode.
-                bookKeeper.asyncOpenLedgerNoRecovery(lastLedgerId, digestType, config.getPassword(), opencb, null);
+                bookKeeper.newOpenLedgerOp()
+                        .withRecovery(false)
+                        .withLedgerId(lastLedgerId)
+                        .withDigestType(config.getDigestType())
+                        .withPassword(config.getPassword())
+                        .withOrderingKey(name)
+                        .execute()
+                        .whenComplete((rh, ex) -> completeOpenCallback(log, lastLedgerId, opencb, rh, ex));
 
             }
 
@@ -344,9 +351,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         if (lastLedgerId != null && !(currentLedger != null && currentLedger.getId() == lastLedgerId)) {
             ledgers.put(lastLedgerId, newLedgerInfos.get(lastLedgerId));
             mbean.startDataLedgerOpenOp();
-            //open ledger in readonly mode.
-            bookKeeper.asyncOpenLedgerNoRecovery(lastLedgerId, digestType, config.getPassword(),
-                    (rc, lh, ctx1) -> executor.execute(() -> {
+            AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> executor.execute(() -> {
                         mbean.endDataLedgerOpenOp();
                         log.debug().attr("name", name).attr("ledgerId", lastLedgerId).log("Opened new source ledger");
                         if (rc == BKException.Code.OK) {
@@ -371,7 +376,16 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                                     .attr("errorMessage", BKException.getMessage(rc))
                                     .log("Failed to open source ledger");
                         }
-                    }), null);
+                    });
+            //open ledger in readonly mode.
+            bookKeeper.newOpenLedgerOp()
+                    .withRecovery(false)
+                    .withLedgerId(lastLedgerId)
+                    .withDigestType(config.getDigestType())
+                    .withPassword(config.getPassword())
+                    .withOrderingKey(name)
+                    .execute()
+                    .whenComplete((rh, ex) -> completeOpenCallback(log, lastLedgerId, opencb, rh, ex));
         }
 
         //handle old ledgers deleted.

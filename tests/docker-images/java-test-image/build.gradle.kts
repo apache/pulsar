@@ -21,6 +21,7 @@ val pulsarVersion = project.version.toString()
 val dockerOrganization = providers.gradleProperty("docker.organization").getOrElse("apachepulsar")
 val dockerTag = providers.gradleProperty("docker.tag").getOrElse("latest")
 val dockerPlatforms = providers.gradleProperty("docker.platforms").getOrElse("")
+val dockerInstallAsyncProfiler = providers.gradleProperty("docker.install.asyncprofiler").getOrElse("false")
 
 // Ensure the parent project is configured before resolving cross-project task references.
 // Required for --configure-on-demand: the Kotlin DSL needs parent ClassLoaderScopes to be locked.
@@ -29,12 +30,12 @@ evaluationDependsOn(":docker")
 // Resolvable configurations for cross-project artifact dependencies.
 // Using configurations instead of direct task references (project().tasks.named())
 // ensures compatibility with Gradle's configure-on-demand feature.
-val testFunctionsJar by configurations.creating {
+val testFunctionsJar = configurations.create("testFunctionsJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
 }
-val buildtoolsJar by configurations.creating {
+val buildtoolsJar = configurations.create("buildtoolsJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
@@ -46,7 +47,7 @@ dependencies {
 }
 
 // Prepare the build context in build/target/
-val prepareBuildContext by tasks.registering(Sync::class) {
+val prepareBuildContext = tasks.register<Sync>("prepareBuildContext") {
     // Copy scripts from docker/pulsar/scripts and latest-version-image/scripts
     from("${rootDir}/docker/pulsar/scripts") {
         into("scripts")
@@ -78,28 +79,45 @@ val prepareBuildContext by tasks.registering(Sync::class) {
     into("${projectDir}/target")
 }
 
-val dockerBuild by tasks.registering(Exec::class) {
-    group = "docker"
-    description = "Build the java-test-image Docker image"
+fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler: String) =
+    tasks.register<Exec>(taskName) {
+        group = "docker"
 
-    dependsOn(":docker:pulsar-docker-image:dockerBuild", prepareBuildContext)
+        dependsOn(":docker:pulsar-docker-image:dockerBuild", prepareBuildContext)
 
-    val imageName = "${dockerOrganization}/java-test-image:${dockerTag}"
-    val pulsarImage = "${dockerOrganization}/pulsar:${dockerTag}"
+        val imageName = "${dockerOrganization}/java-test-image:${imageTag}"
+        val pulsarImage = "${dockerOrganization}/pulsar:${dockerTag}"
+        val asyncProfilerVersion = libs.versions.async.profiler.get()
 
-    workingDir = projectDir
+        workingDir = projectDir
 
-    val args = mutableListOf(
-        "docker", "build",
-        "-t", imageName,
-        "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
-    )
+        val args = mutableListOf(
+            "docker", "build",
+            "-t", imageName,
+            "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
+            "--build-arg", "INSTALL_ASYNC_PROFILER=${installAsyncProfiler}",
+            "--build-arg", "ASYNC_PROFILER_VERSION=${asyncProfilerVersion}"
+        )
 
-    if (dockerPlatforms.isNotEmpty()) {
-        args.addAll(listOf("--platform", dockerPlatforms))
+        if (dockerPlatforms.isNotEmpty()) {
+            args.addAll(listOf("--platform", dockerPlatforms))
+        }
+
+        args.add(".")
+
+        commandLine(args)
     }
 
-    args.add(".")
+val dockerBuild = registerDockerBuild("dockerBuild", dockerTag, dockerInstallAsyncProfiler)
+dockerBuild.configure {
+    description = "Build the java-test-image Docker image"
+}
 
-    commandLine(args)
+// A separate image so that a profiling run never replaces the image the other integration tests use,
+// and so that the async-profiler download stays out of the ordinary (and CI) test image build.
+// :tests:integration:profilingIntegrationTest builds and uses this one.
+val dockerBuildWithAsyncProfiler =
+    registerDockerBuild("dockerBuildWithAsyncProfiler", "${dockerTag}-asyncprofiler", "true")
+dockerBuildWithAsyncProfiler.configure {
+    description = "Build the java-test-image Docker image with async-profiler installed"
 }

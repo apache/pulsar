@@ -29,6 +29,7 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
 import io.prometheus.client.hotspot.DefaultExports;
+import jakarta.servlet.Servlet;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -38,7 +39,6 @@ import java.util.Date;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
-import javax.servlet.Servlet;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.logging.log4j.LogManager;
@@ -47,6 +47,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletUtils;
 import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServletWithClassLoader;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -64,10 +65,10 @@ import org.apache.pulsar.websocket.WebSocketMultiTopicConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
-import org.eclipse.jetty.ee8.proxy.ProxyServlet;
-import org.eclipse.jetty.ee8.servlet.ServletHolder;
-import org.eclipse.jetty.ee8.websocket.server.JettyWebSocketServlet;
-import org.eclipse.jetty.ee8.websocket.server.config.JettyWebSocketServletContainerInitializer;
+import org.eclipse.jetty.ee10.proxy.ProxyServlet;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee10.websocket.server.config.JettyWebSocketServletContainerInitializer;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -277,8 +278,9 @@ public class ProxyServiceStarter {
 
         // create proxy service
         proxyService = new ProxyService(config, authenticationService, proxyClientAuthentication);
-        // create a web-service
-        server = new WebServer(config, authenticationService);
+        // create a web-service (PIP-478: share the proxy's OpenTelemetry root so the WEB-purpose TLS factory
+        // emits pulsar.tls.reload instead of a no-op)
+        server = new WebServer(config, authenticationService, proxyService.getOpenTelemetry().getOpenTelemetry());
 
         if (!embeddedMode) {
             Runtime.getRuntime().addShutdownHook(new Thread(this::close));
@@ -391,8 +393,12 @@ public class ProxyServiceStarter {
             }
         }
 
+        // PIP-478: thread the proxy's OpenTelemetry root so the admin handler's BROKER_CLIENT TLS factory
+        // emits pulsar.tls.reload (no-op when no ProxyService is available, e.g. in tests).
+        io.opentelemetry.api.OpenTelemetry telemetryRoot = service != null
+                ? service.getOpenTelemetry().getOpenTelemetry() : io.opentelemetry.api.OpenTelemetry.noop();
         AdminProxyHandler adminProxyHandler = new AdminProxyHandler(config, discoveryProvider,
-                proxyClientAuthentication);
+                proxyClientAuthentication, telemetryRoot);
         ServletHolder servletHolder = new ServletHolder(adminProxyHandler);
         server.addServlet("/admin", servletHolder);
         server.addServlet("/lookup", servletHolder);
@@ -413,50 +419,31 @@ public class ProxyServiceStarter {
                     service.getProxyAdditionalServlets().getServlets().values();
             for (AdditionalServletWithClassLoader servletWithClassLoader : additionalServletCollection) {
                 servletWithClassLoader.loadConfig(config);
-                switch (servletWithClassLoader.getServletType()) {
-                    case JAVAX_SERVLET -> {
-                        Object servletInstance = servletWithClassLoader.getServletInstance();
-                        if (!(servletInstance instanceof javax.servlet.Servlet)) {
-                            log.error()
-                                    .attr("servletWithClassLoader", servletWithClassLoader)
-                                    .attr("servletInstance", servletInstance.getClass().getName())
-                                    .attr("servletWithClassLoader", servletWithClassLoader.getServletType())
-                                    .log("AdditionalServletWithClassLoader has invalid"
-                                            + " servlet instance type. Skipping.");
-                            try {
-                                servletWithClassLoader.close();
-                            } catch (Exception e) {
-                                log.error()
-                                        .attr("servletWithClassLoader", servletWithClassLoader)
-                                        .exception(e)
-                                        .log("Failed to close servlet");
-                            }
-                            continue;
-                        }
-                        ServletHolder additionalServletHolder =
-                                new ServletHolder((Servlet) servletInstance);
-                        server.addServlet(servletWithClassLoader.getBasePath(), additionalServletHolder,
-                                Collections.emptyList(), config.isAuthenticationEnabled());
-                        log.info()
-                                .attr("servletWithClassLoader", servletWithClassLoader.getBasePath())
-                                .log("proxy add additional servlet basePath");
-                    }
-                    default -> {
+                // Legacy javax.servlet handlers are adapted to jakarta.servlet so that every additional servlet
+                // is registered in the same Jetty environment and goes through the proxy filter chain (PIP-472).
+                Servlet servlet;
+                try {
+                    servlet = AdditionalServletUtils.toJakartaServlet(servletWithClassLoader);
+                } catch (IllegalArgumentException e) {
+                    log.error()
+                            .attr("servletWithClassLoader", servletWithClassLoader)
+                            .exception(e)
+                            .log("AdditionalServletWithClassLoader has an unusable servlet instance. Skipping.");
+                    try {
+                        servletWithClassLoader.close();
+                    } catch (Exception closeException) {
                         log.error()
                                 .attr("servletWithClassLoader", servletWithClassLoader)
-                                .attr("servletWithClassLoader", servletWithClassLoader.getServletType())
-                                .log("AdditionalServletWithClassLoader has unsupported servlet type . Skipping");
-                        try {
-                            servletWithClassLoader.close();
-                        } catch (Exception e) {
-                            log.error()
-                                    .attr("servletWithClassLoader", servletWithClassLoader)
-                                    .exception(e)
-                                    .log("Failed to close servlet");
-                        }
-                        continue;
+                                .exception(closeException)
+                                .log("Failed to close servlet");
                     }
+                    continue;
                 }
+                server.addServlet(servletWithClassLoader.getBasePath(), new ServletHolder(servlet),
+                        Collections.emptyList(), config.isAuthenticationEnabled());
+                log.info()
+                        .attr("servletWithClassLoader", servletWithClassLoader.getBasePath())
+                        .log("proxy add additional servlet basePath");
             }
         }
 

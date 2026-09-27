@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.HashSet;
 import java.util.Set;
 import lombok.AllArgsConstructor;
@@ -32,13 +31,13 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-@ApiModel(value = "TenantInfo", description = "Information of adminRoles and allowedClusters for tenant")
+@Schema(name = "TenantInfo", description = "Information of adminRoles and allowedClusters for tenant")
 public class TenantInfoImpl implements TenantInfo {
     /**
      * List of role enabled as admin for this tenant.
      */
-    @ApiModelProperty(
-            value = "Comma separated list of auth principal allowed to administrate the tenant.",
+    @Schema(
+            description = "Comma separated list of auth principals allowed to administrate the tenant.",
             name = "adminRoles"
     )
     private Set<String> adminRoles;
@@ -46,8 +45,8 @@ public class TenantInfoImpl implements TenantInfo {
     /**
      * List of clusters this tenant is restricted on.
      */
-    @ApiModelProperty(
-            value = "Comma separated allowed clusters.",
+    @Schema(
+            description = "Comma separated allowed clusters.",
             name = "allowedClusters"
     )
     private Set<String> allowedClusters;

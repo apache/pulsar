@@ -73,10 +73,13 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
 
         // Use invalid domain name as identifier and instead make sure the advertised listeners work as intended
         conf.setAdvertisedAddress(advertisedAddress);
+        // let it be detected from advertised listeners
+        conf.setInternalListenerName(null);
+        // set advertised listeners
         conf.setAdvertisedListeners(
                 "public:pulsar://localhost:" + pulsarPort
-                        + ",public_http:http://localhost:" + httpPort
-                        + ",public_https:https://localhost:" + httpsPort);
+                        + ",public:http://localhost:" + httpPort
+                        + ",public:https://localhost:" + httpsPort);
         conf.setBrokerServicePort(Optional.of(pulsarPort));
         conf.setWebServicePort(Optional.of(httpPort));
     }

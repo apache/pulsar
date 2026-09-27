@@ -30,19 +30,24 @@ DEST_PATH="$(cd "$DEST_PATH" && pwd)"
 
 pushd $(dirname "$0")
 PULSAR_PATH=$(git rev-parse --show-toplevel)
-VERSION=`./get-project-version.py`
+VERSION=$(./get-pulsar-version.sh)
 popd
 
-pushd "$(dirname "$0")/.."
+# Source release: archive the committed tree (HEAD). git archive includes every
+# tracked file, which covers the Gradle wrapper, build-logic, settings.gradle.kts,
+# gradle.properties and all module build files needed to build Pulsar from source.
+pushd "$PULSAR_PATH"
 git archive --format=tar.gz --output="$DEST_PATH/apache-pulsar-$VERSION-src.tar.gz" --prefix="apache-pulsar-$VERSION-src/" HEAD
 popd
 
-cp $PULSAR_PATH/distribution/server/target/apache-pulsar-$VERSION-bin.tar.gz $DEST_PATH
-cp $PULSAR_PATH/distribution/offloaders/target/apache-pulsar-offloaders-$VERSION-bin.tar.gz $DEST_PATH
-cp $PULSAR_PATH/distribution/shell/target/apache-pulsar-shell-$VERSION-bin.tar.gz $DEST_PATH
-cp $PULSAR_PATH/distribution/shell/target/apache-pulsar-shell-$VERSION-bin.zip $DEST_PATH
+# Binary distributions are produced by the Gradle build under build/distributions
+# (e.g. ./gradlew assemble, or the individual *DistTar / *DistZip tasks).
+cp $PULSAR_PATH/distribution/server/build/distributions/apache-pulsar-$VERSION-bin.tar.gz $DEST_PATH
+cp $PULSAR_PATH/distribution/offloaders/build/distributions/apache-pulsar-offloaders-$VERSION-bin.tar.gz $DEST_PATH
+cp $PULSAR_PATH/distribution/shell/build/distributions/apache-pulsar-shell-$VERSION-bin.tar.gz $DEST_PATH
+cp $PULSAR_PATH/distribution/shell/build/distributions/apache-pulsar-shell-$VERSION-bin.zip $DEST_PATH
 
-cp -r $PULSAR_PATH/distribution/io/target/apache-pulsar-io-connectors-$VERSION-bin $DEST_PATH/connectors
+# Note: IO connectors are no longer staged here — pulsar-connectors is released separately.
 
 # Sign all files
 cd $DEST_PATH

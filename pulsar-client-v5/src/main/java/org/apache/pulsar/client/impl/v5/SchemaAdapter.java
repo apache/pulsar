@@ -55,6 +55,19 @@ final class SchemaAdapter {
     }
 
     /**
+     * Convert a v5 SchemaInfo into a v4 SchemaInfo. Used to build v4 generic schemas from a
+     * v5-supplied definition. The schema-type enum names are identical across v4 and v5.
+     */
+    static org.apache.pulsar.common.schema.SchemaInfo toV4SchemaInfo(SchemaInfo v5Info) {
+        return SchemaInfoImpl.builder()
+                .name(v5Info.name())
+                .type(org.apache.pulsar.common.schema.SchemaType.valueOf(v5Info.type().name()))
+                .schema(v5Info.schema())
+                .properties(v5Info.properties())
+                .build();
+    }
+
+    /**
      * Wraps a v4 Schema as a v5 Schema.
      */
     private static final class V5SchemaWrapper<T> implements Schema<T> {

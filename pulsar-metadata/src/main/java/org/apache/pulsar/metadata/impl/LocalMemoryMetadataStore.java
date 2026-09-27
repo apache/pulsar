@@ -137,6 +137,10 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 if (key.indexOf('/', relStart) >= 0) {
                     return;
                 }
+                if (isSequenceCounterChild(key.substring(relStart))) {
+                    // Sidecar bookkeeping for SequenceKeysDeltas — not a user record.
+                    return;
+                }
                 snapshot.add(new GetResult(
                         value.data,
                         new Stat(key, value.version, value.createdTimestamp, value.modifiedTimestamp,

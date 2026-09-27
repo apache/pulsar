@@ -83,6 +83,39 @@ public class PulsarClientException extends IOException {
         public AuthenticationException(String message) {
             super(message);
         }
+
+        public AuthenticationException(Throwable cause) {
+            super(cause);
+        }
+    }
+
+    /**
+     * Transient failure while acquiring a credential (token endpoint timeout, ZTS unavailable).
+     * The caller may retry; the connection layer treats it like a network error.
+     */
+    public static final class GettingAuthenticationDataException extends PulsarClientException {
+        public GettingAuthenticationDataException(String message) {
+            super(message);
+        }
+
+        public GettingAuthenticationDataException(Throwable cause) {
+            super(cause);
+        }
+    }
+
+    /**
+     * The requested authentication capability is not supported by the plugin (used by the legacy v4
+     * adapter when a wrapped v4 provider returns null/false from the corresponding {@code hasData*}
+     * method).
+     */
+    public static final class UnsupportedAuthenticationException extends PulsarClientException {
+        public UnsupportedAuthenticationException(String message) {
+            super(message);
+        }
+
+        public UnsupportedAuthenticationException(Throwable cause) {
+            super(cause);
+        }
     }
 
     public static final class AuthorizationException extends PulsarClientException {

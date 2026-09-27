@@ -86,7 +86,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     public EntryCache getEntryCache(ManagedLedger ml) {
         if (maxSize == 0) {
             // Cache is disabled
-            return new EntryCacheDisabled((ManagedLedgerImpl) ml);
+            return new EntryCacheDisabled((ManagedLedgerImpl) ml, inflightReadsLimiter);
         }
 
         EntryCache newEntryCache =
@@ -142,9 +142,9 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
             while (evictionCompletionFuture == null) {
                 evictionCompletionFuture = evictionInProgress.get();
                 if (evictionCompletionFuture == null) {
-                    evictionCompletionFuture = evictionInProgress.updateAndGet(
-                            currentValue -> currentValue == null ? new CompletableFuture<>() : null);
-                    if (evictionCompletionFuture != null) {
+                    CompletableFuture<Void> newEvictionFuture = new CompletableFuture<>();
+                    if (evictionInProgress.compareAndSet(null, newEvictionFuture)) {
+                        evictionCompletionFuture = newEvictionFuture;
                         triggerEvictionToMakeSpace(evictionCompletionFuture);
                     }
                 }

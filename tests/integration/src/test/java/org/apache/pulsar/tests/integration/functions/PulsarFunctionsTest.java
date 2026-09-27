@@ -410,6 +410,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             submitFunction(
                     runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_FUNCTION_PYTHON_FILE,
                     EXCEPTION_PYTHON_CLASS, schema, null);
+        } else if (runtime == Runtime.GO) {
+            submitFunction(
+                    runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_GO_FILE,
+                    null, schema, null);
         } else {
             submitFunction(
                     runtime, inputTopicName, outputTopicName, functionName, null, EXCEPTION_JAVA_CLASS, schema, null);
@@ -1377,9 +1381,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     private void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts, int parallelism)
             throws Exception {
+        // Each status check starts the admin CLI; allow for startup and command completion on busy CI runners.
         Awaitility.await()
                 .pollInterval(Duration.ofSeconds(1))
-                .atMost(Duration.ofSeconds(15))
+                .atMost(Duration.ofSeconds(30))
                 .ignoreExceptions()
                 .untilAsserted(() ->
                         doGetFunctionStatus(functionName, numMessages, checkRestarts, parallelism));

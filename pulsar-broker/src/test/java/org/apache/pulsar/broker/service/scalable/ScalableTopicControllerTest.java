@@ -24,35 +24,51 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.ConsumerRegistration;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.resources.SubscriptionMetadata;
 import org.apache.pulsar.broker.resources.SubscriptionType;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.GetStatsOptions;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
+import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -79,6 +95,7 @@ public class ScalableTopicControllerTest {
 
     private BrokerService brokerService;
     private PulsarService pulsar;
+    private NamespaceService namespaceService;
     private PulsarAdmin admin;
     private Topics topics;
     private ScalableTopics scalableTopics;
@@ -98,7 +115,7 @@ public class ScalableTopicControllerTest {
 
         // Seed the topic's initial metadata so initialize() has something to load.
         ScalableTopicMetadata metadata =
-                ScalableTopicController.createInitialMetadata(INITIAL_SEGMENTS, Map.of());
+                ScalableTopicController.createInitialMetadata(INITIAL_SEGMENTS, 4, Map.of());
         resources.createScalableTopicAsync(topicName, metadata).get();
 
         // --- Mock the BrokerService / PulsarService / PulsarAdmin chain ---
@@ -119,7 +136,7 @@ public class ScalableTopicControllerTest {
 
         // Default: all admin ops succeed.
         when(topics.getSubscriptionsAsync(anyString()))
-                .thenReturn(CompletableFuture.completedFuture(java.util.List.of()));
+                .thenReturn(CompletableFuture.completedFuture(List.of()));
         when(scalableTopics.createSegmentAsync(anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
         when(scalableTopics.terminateSegmentAsync(anyString()))
@@ -129,7 +146,24 @@ public class ScalableTopicControllerTest {
         when(scalableTopics.deleteSegmentSubscriptionAsync(anyString(), anyString()))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
+        // Stats: no segment is owned locally, so every segment's stats come back through the
+        // (mocked) segment-stats admin endpoint.
+        namespaceService = mock(NamespaceService.class);
+        when(pulsar.getNamespaceService()).thenReturn(namespaceService);
+        when(namespaceService.isServiceUnitOwnedAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(false));
+        when(scalableTopics.getSegmentStatsAsync(anyString(), anyLong()))
+                .thenAnswer(inv -> CompletableFuture.completedFuture(segmentTopicStats()));
+
         controller = newController(topicName);
+    }
+
+    /** The stats every mocked segment reports: owned by {@code segment-owner}, 1.5 msg/s in. */
+    private static SegmentTopicStats segmentTopicStats() {
+        SegmentTopicStats stats = new SegmentTopicStats();
+        stats.setOwnerBroker("segment-owner");
+        stats.setMsgRateIn(1.5);
+        return stats;
     }
 
     @AfterMethod(alwaysRun = true)
@@ -266,7 +300,7 @@ public class ScalableTopicControllerTest {
         assertThrows(IllegalStateException.class,
                 () -> controller.registerConsumer(
                         "sub", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)));
-        assertThrows(IllegalStateException.class, () -> controller.unregisterConsumer("sub", "c1"));
+        assertThrows(IllegalStateException.class, () -> controller.unregisterConsumer("sub", "c1", 1L));
     }
 
     // --- Consumer registration ---
@@ -306,16 +340,16 @@ public class ScalableTopicControllerTest {
         controller.registerConsumer("sub-a", "c2", 2L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
         assertEquals(resources.listConsumersAsync(topicName, "sub-a").get().size(), 2);
 
-        controller.unregisterConsumer("sub-a", "c1").get();
+        controller.unregisterConsumer("sub-a", "c1", 1L).get();
         assertEquals(resources.listConsumersAsync(topicName, "sub-a").get(),
-                java.util.List.of("c2"));
+                List.of("c2"));
     }
 
     @Test
     public void testUnregisterConsumerUnknownSubscriptionIsNoop() throws Exception {
         controller.initialize().get();
         // No subscription 'ghost' exists; call should complete without error.
-        controller.unregisterConsumer("ghost", "c1").get();
+        controller.unregisterConsumer("ghost", "c1", 1L).get();
     }
 
     @Test
@@ -443,13 +477,18 @@ public class ScalableTopicControllerTest {
         controller.initialize().get();
         ScalableTopicStats stats = controller.getStats().get();
 
-        assertEquals(stats.getEpoch(), 0);
-        assertEquals(stats.getTotalSegments(), INITIAL_SEGMENTS);
-        assertEquals(stats.getActiveSegments(), INITIAL_SEGMENTS);
-        assertEquals(stats.getSealedSegments(), 0);
-        assertEquals(stats.getSegments().size(), INITIAL_SEGMENTS);
-        // No subscriptions registered yet.
-        assertEquals(stats.getSubscriptions().size(), 0);
+        assertEquals(stats.getLayout().getEpoch(), 0);
+        assertEquals(stats.getLayout().getSegments().size(), INITIAL_SEGMENTS);
+        // Every segment's stats were collected through the admin endpoint and folded in.
+        for (ScalableTopicStats.LayoutSegment segment : stats.getLayout().getSegments().values()) {
+            assertTrue(segment.isActive());
+            assertEquals(segment.getOwnerBroker(), "segment-owner");
+        }
+        assertEquals(stats.getMsgRateIn(), 1.5 * INITIAL_SEGMENTS);
+        verify(scalableTopics, times(INITIAL_SEGMENTS)).getSegmentStatsAsync(eq(topicName.toString()), anyLong());
+        // No subscriptions or producers yet.
+        assertTrue(stats.getSubscriptions().isEmpty());
+        assertTrue(stats.getProducers().isEmpty());
     }
 
     @Test
@@ -460,24 +499,111 @@ public class ScalableTopicControllerTest {
         controller.createSubscription("sub-b", SubscriptionType.QUEUE).get();
         controller.registerConsumer("sub-a", "c1", 1L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
         controller.registerConsumer("sub-a", "c2", 2L, ScalableConsumerType.STREAM, mock(TransportCnx.class)).get();
+        // c2 drops its connection: within the grace period it stays registered, disconnected.
+        controller.onConsumerDisconnect("sub-a", "c2");
 
         ScalableTopicStats stats = controller.getStats().get();
 
-        assertEquals(stats.getEpoch(), 1);
-        assertEquals(stats.getTotalSegments(), INITIAL_SEGMENTS + 2,
+        Map<Long, ScalableTopicStats.LayoutSegment> segments = stats.getLayout().getSegments();
+        assertEquals(stats.getLayout().getEpoch(), 1);
+        assertEquals(segments.size(), INITIAL_SEGMENTS + 2,
                 "split adds two children, keeps parent as sealed");
-        assertEquals(stats.getActiveSegments(), INITIAL_SEGMENTS + 1);
-        assertEquals(stats.getSealedSegments(), 1);
-        assertEquals(stats.getSubscriptions().size(), 2);
-        assertEquals(stats.getSubscriptions().get("sub-a").consumerCount(), 2);
-        assertEquals(stats.getSubscriptions().get("sub-b").consumerCount(), 0);
+        assertEquals(segments.values().stream().filter(ScalableTopicStats.LayoutSegment::isSealed).count(), 1);
+
+        // The DAG edges of the split are reported on both sides.
+        long child1 = INITIAL_SEGMENTS;
+        long child2 = INITIAL_SEGMENTS + 1;
+        ScalableTopicStats.LayoutSegment parent = segments.get(0L);
+        assertTrue(parent.isSealed());
+        assertEquals(parent.getChildIds(), List.of(child1, child2));
+        assertEquals(segments.get(child1).getParentIds(), List.of(0L));
+        assertTrue(segments.get(child2).isActive());
+
+        assertEquals(stats.getSubscriptions().keySet(), Set.of("sub-a", "sub-b"));
+        ScalableTopicStats.SubscriptionStats subA = stats.getSubscriptions().get("sub-a");
+        assertEquals(subA.getType(), ScalableSubscriptionType.STREAM);
+        assertEquals(subA.getConsumers().size(), 2);
+        Map<String, ScalableTopicStats.ConsumerStats> byName = new HashMap<>();
+        Set<Long> assigned = new HashSet<>();
+        for (ScalableTopicStats.ConsumerStats consumer : subA.getConsumers()) {
+            byName.put(consumer.getConsumerName(), consumer);
+            assigned.addAll(consumer.getSegmentIds());
+        }
+        assertTrue(byName.get("c1").isConnected());
+        assertFalse(byName.get("c2").isConnected(), "a consumer in its grace period is listed as disconnected");
+        assertTrue(assigned.containsAll(List.of(1L, 2L, 3L)),
+                "the untouched active segments are assigned across the consumers, got " + assigned);
+
+        ScalableTopicStats.SubscriptionStats subB = stats.getSubscriptions().get("sub-b");
+        assertEquals(subB.getType(), ScalableSubscriptionType.QUEUE);
+        assertTrue(subB.getConsumers().isEmpty());
+    }
+
+    /** The backing topic name of a segment of the test topic, as the controller computes it. */
+    private String backingTopicOf(long segmentId) throws Exception {
+        return SegmentTopicName.backingTopicName(topicName,
+                controller.getLayout().get().getAllSegments().get(segmentId));
+    }
+
+    @Test
+    public void testGetStatsReadsLocallyOwnedSegmentsDirectly() throws Exception {
+        controller.initialize().get();
+        // Segment 1 is owned by this broker: its stats are read from the loaded topic, and
+        // the admin endpoint is not involved for it.
+        String local = backingTopicOf(1);
+        when(namespaceService.isServiceUnitOwnedAsync(TopicName.get(local)))
+                .thenReturn(CompletableFuture.completedFuture(true));
+        Topic localTopic = mock(Topic.class);
+        TopicStatsImpl localStats = new TopicStatsImpl();
+        localStats.ownerBroker = BROKER_ID;
+        localStats.msgRateIn = 7;
+        doReturn(CompletableFuture.completedFuture(localStats))
+                .when(localTopic).asyncGetStats(any(GetStatsOptions.class));
+        when(brokerService.getTopicIfExists(local))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(localTopic)));
+
+        ScalableTopicStats stats = controller.getStats().get();
+
+        assertEquals(stats.getLayout().getSegments().get(1L).getOwnerBroker(), BROKER_ID);
+        assertEquals(stats.getLayout().getSegments().get(0L).getOwnerBroker(), "segment-owner");
+        assertEquals(stats.getMsgRateIn(), 7 + 1.5 * (INITIAL_SEGMENTS - 1));
+        verify(scalableTopics, never()).getSegmentStatsAsync(topicName.toString(), 1L);
+        verify(scalableTopics, times(INITIAL_SEGMENTS - 1))
+                .getSegmentStatsAsync(eq(topicName.toString()), anyLong());
+    }
+
+    @Test
+    public void testGetStatsToleratesSegmentFetchFailures() throws Exception {
+        controller.initialize().get();
+        String topic = topicName.toString();
+        // Segment 0: the owner says the backing topic doesn't exist (never materialized or
+        // already pruned). Segment 1: the owner is unreachable. Segment 2: owned here but not
+        // loaded. Segment 3: healthy.
+        when(scalableTopics.getSegmentStatsAsync(topic, 0L))
+                .thenReturn(FutureUtil.failedFuture(new PulsarAdminException.NotFoundException(
+                        new RuntimeException("gone"), "Segment topic not found", 404)));
+        when(scalableTopics.getSegmentStatsAsync(topic, 1L))
+                .thenReturn(FutureUtil.failedFuture(new RuntimeException("connection refused")));
+        when(namespaceService.isServiceUnitOwnedAsync(TopicName.get(backingTopicOf(2))))
+                .thenReturn(CompletableFuture.completedFuture(true));
+
+        ScalableTopicStats stats = controller.getStats().get();
+
+        Map<Long, ScalableTopicStats.LayoutSegment> segments = stats.getLayout().getSegments();
+        assertEquals(segments.size(), INITIAL_SEGMENTS, "every segment keeps its layout entry");
+        for (long id : List.of(0L, 1L, 2L)) {
+            assertNull(segments.get(id).getOwnerBroker(), "segment " + id + " has no stats, so no owner");
+            assertEquals(segments.get(id).getState(), "ACTIVE");
+        }
+        assertEquals(segments.get(3L).getOwnerBroker(), "segment-owner");
+        assertEquals(stats.getMsgRateIn(), 1.5, "only the healthy segment contributes to the aggregates");
     }
 
     // --- createInitialMetadata ---
 
     @Test
     public void testCreateInitialMetadataDefaults() {
-        ScalableTopicMetadata md = ScalableTopicController.createInitialMetadata(4, Map.of());
+        ScalableTopicMetadata md = ScalableTopicController.createInitialMetadata(4, 4, Map.of());
         assertEquals(md.getEpoch(), 0);
         assertEquals(md.getNextSegmentId(), 4);
         assertEquals(md.getSegments().size(), 4);
@@ -486,7 +612,7 @@ public class ScalableTopicControllerTest {
     @Test
     public void testCreateInitialMetadataRejectsZeroSegments() {
         assertThrows(IllegalArgumentException.class,
-                () -> ScalableTopicController.createInitialMetadata(0, Map.of()));
+                () -> ScalableTopicController.createInitialMetadata(0, 4, Map.of()));
     }
 
     // --- close / lifecycle ---
@@ -537,21 +663,21 @@ public class ScalableTopicControllerTest {
                 0L,
                 org.apache.pulsar.common.scalable.HashRange.of(0x0000, 0x3FFF),
                 org.apache.pulsar.common.scalable.SegmentState.SEALED,
-                java.util.List.of(), java.util.List.of(3L),
+                List.of(), List.of(3L),
                 /*createdAtEpoch*/ 0, /*sealedAtEpoch*/ 1,
-                /*createdAtMs*/ t0, /*sealedAtMs*/ t1);
+                /*createdAtMs*/ t0, /*sealedAtMs*/ t1, null, /*entryBucketSplits*/ List.of());
         org.apache.pulsar.common.scalable.SegmentInfo seg1 = new org.apache.pulsar.common.scalable.SegmentInfo(
                 1L,
                 org.apache.pulsar.common.scalable.HashRange.of(0x4000, 0x7FFF),
                 org.apache.pulsar.common.scalable.SegmentState.ACTIVE,
-                java.util.List.of(), java.util.List.of(),
-                0, -1, t1, -1);
+                List.of(), List.of(),
+                0, -1, t1, -1, null, /*entryBucketSplits*/ List.of());
         org.apache.pulsar.common.scalable.SegmentInfo seg2 = new org.apache.pulsar.common.scalable.SegmentInfo(
                 2L,
                 org.apache.pulsar.common.scalable.HashRange.of(0x8000, 0xFFFF),
                 org.apache.pulsar.common.scalable.SegmentState.ACTIVE,
-                java.util.List.of(), java.util.List.of(),
-                0, -1, t3, -1);
+                List.of(), List.of(),
+                0, -1, t3, -1, null, /*entryBucketSplits*/ List.of());
 
         TopicName seekTopic = TopicName.get("topic://tenant/ns/seek-topic");
         ScalableTopicMetadata md = ScalableTopicMetadata.builder()
@@ -693,6 +819,10 @@ public class ScalableTopicControllerTest {
         controller.splitSegment(0).get();
         assertEquals(controller.sealedSegmentCount(), sealedBefore + 1);
 
+        // Give the doomed segment a load record, as the owning broker's reporter would.
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new org.apache.pulsar.common.scalable.SegmentLoadStats(1, 1, 1, 1)).get();
+
         // Tick at the seal time — retention not yet elapsed; nothing pruned.
         controller.runGcTickAsync().get();
         assertTrue(controller.getLayout().get().getAllSegments().containsKey(0L),
@@ -705,6 +835,9 @@ public class ScalableTopicControllerTest {
                 "tick past retention must prune the sealed segment");
         // Backing topic delete was issued via the segment-aware admin call.
         verify(scalableTopics).deleteSegmentAsync(anyString(), anyBoolean());
+        // The pruned segment's load record is deleted along with it.
+        assertFalse(resources.getSegmentLoadAsync(topicName, 0).get().isPresent(),
+                "prune must delete the segment's load record");
     }
 
     /**
@@ -810,5 +943,73 @@ public class ScalableTopicControllerTest {
         ConsumerRegistration a = new ConsumerRegistration();
         ConsumerRegistration b = new ConsumerRegistration();
         assertEquals(a, b);
+    }
+
+    // --- createMigratedMetadata (PIP-475 regular-to-scalable migration) ---
+
+    @Test
+    public void testCreateMigratedMetadataForPartitionedTopic() {
+        // 3-partition source → 3 sealed legacy parents (ids 0..2, full range, wrapping
+        // each -partition-K) + 3 active range-based children (ids 3..5, full fan-in).
+        TopicName base = TopicName.get("persistent://tenant/ns/my-topic");
+        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 3, 4);
+
+        assertEquals(md.getEpoch(), 0L);
+        assertEquals(md.getNextSegmentId(), 6L);
+        assertEquals(md.getSegments().size(), 6);
+
+        // Parents 0..2: sealed legacy, full hash range, children = [3,4,5], no parents.
+        for (int k = 0; k < 3; k++) {
+            org.apache.pulsar.common.scalable.SegmentInfo parent = md.getSegments().get((long) k);
+            assertTrue(parent.isSealed(), "parent " + k + " must be sealed");
+            assertTrue(parent.isLegacy(), "parent " + k + " must be a legacy segment");
+            assertEquals(parent.legacyTopicName(),
+                    "persistent://tenant/ns/my-topic-partition-" + k);
+            assertEquals(parent.hashRange().start(), 0x0000);
+            assertEquals(parent.hashRange().end(), org.apache.pulsar.common.scalable.HashRange.MAX_HASH);
+            assertTrue(parent.parentIds().isEmpty());
+            assertEquals(parent.childIds(), List.of(3L, 4L, 5L));
+        }
+
+        // Children 3..5: active, range-based tiling, parents = [0,1,2], not legacy.
+        int expectedWidth = (org.apache.pulsar.common.scalable.HashRange.MAX_HASH + 1) / 3;
+        for (int j = 0; j < 3; j++) {
+            long id = 3 + j;
+            org.apache.pulsar.common.scalable.SegmentInfo child = md.getSegments().get(id);
+            assertTrue(child.isActive(), "child " + id + " must be active");
+            assertFalse(child.isLegacy(), "child " + id + " must be a regular segment");
+            assertEquals(child.parentIds(), List.of(0L, 1L, 2L));
+            assertTrue(child.childIds().isEmpty());
+            int expectedStart = j * expectedWidth;
+            assertEquals(child.hashRange().start(), expectedStart);
+        }
+        // Children tile the full space: first starts at 0, last ends at MAX_HASH.
+        assertEquals(md.getSegments().get(3L).hashRange().start(), 0x0000);
+        assertEquals(md.getSegments().get(5L).hashRange().end(),
+                org.apache.pulsar.common.scalable.HashRange.MAX_HASH);
+    }
+
+    @Test
+    public void testCreateMigratedMetadataForNonPartitionedTopic() {
+        // Non-partitioned source (partitions <= 0) → 1 sealed legacy parent wrapping the
+        // base persistent:// topic + 1 active child covering the full range.
+        TopicName base = TopicName.get("persistent://tenant/ns/np-topic");
+        ScalableTopicMetadata md = ScalableTopicController.createMigratedMetadata(base, 0, 4);
+
+        assertEquals(md.getNextSegmentId(), 2L);
+        assertEquals(md.getSegments().size(), 2);
+
+        org.apache.pulsar.common.scalable.SegmentInfo parent = md.getSegments().get(0L);
+        assertTrue(parent.isSealed());
+        assertTrue(parent.isLegacy());
+        assertEquals(parent.legacyTopicName(), "persistent://tenant/ns/np-topic");
+        assertEquals(parent.childIds(), List.of(1L));
+
+        org.apache.pulsar.common.scalable.SegmentInfo child = md.getSegments().get(1L);
+        assertTrue(child.isActive());
+        assertFalse(child.isLegacy());
+        assertEquals(child.parentIds(), List.of(0L));
+        assertEquals(child.hashRange().start(), 0x0000);
+        assertEquals(child.hashRange().end(), org.apache.pulsar.common.scalable.HashRange.MAX_HASH);
     }
 }

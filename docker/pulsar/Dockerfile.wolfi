@@ -73,6 +73,9 @@ FROM busybox AS offloaders
 ARG PULSAR_OFFLOADER_TARBALL
 ADD ${PULSAR_OFFLOADER_TARBALL} /
 RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
+# Exclude the filesystem (Hadoop) offloader: it pulls in hadoop-common and bloats the image by ~50MB.
+# It remains available in the apache-pulsar-offloaders distribution tarball for users who need it.
+RUN rm -f /offloaders/tiered-storage-file-system-*.nar
 
 ## Create final stage
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
@@ -104,7 +107,7 @@ ARG PULSAR_CLIENT_PYTHON_VERSION
 RUN pip3 install --break-system-packages --no-cache-dir \
     --only-binary \
     grpcio==1.78.0 \
-    protobuf==6.33.5 \
+    protobuf==6.33.6 \
     pulsar-client[all]==${PULSAR_CLIENT_PYTHON_VERSION} \
     kazoo \
     pyyaml

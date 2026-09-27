@@ -189,6 +189,15 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
             }
         }
         bucketSnapshots.clear();
-        executorService.shutdownNow();
+        // Gracefully shutdown: allow pending tasks to complete
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 }

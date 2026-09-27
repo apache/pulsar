@@ -19,8 +19,6 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -41,10 +39,10 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.functions.FunctionConfig;
-import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ClassLoaderUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -259,23 +257,16 @@ public class PulsarFunctionTlsTest {
 
             log.info().attr("function", functionName).log("Start test function");
 
-            int finalI = i;
-            // Wait for a leader to be ready and create the function.
-            // The createFunctionWithUrl call is included in the retry loop because a leadership
-            // transition can happen between the leader check and the actual API call, causing
-            // a 503 "Leader not yet ready" error.
             final PulsarAdmin createAdmin = pulsarAdmins[i];
-            Awaitility.await().atMost(1, TimeUnit.MINUTES).pollInterval(1, TimeUnit.SECONDS).untilAsserted(() -> {
-                final PulsarWorkerService workerService = ((PulsarWorkerService) fnWorkerServices[finalI]);
-                final LeaderService leaderService = workerService.getLeaderService();
-                assertNotNull(leaderService);
-                if (!leaderService.isLeader()) {
-                    final WorkerInfo workerInfo = workerService.getMembershipManager().getLeader();
-                    assertTrue(workerInfo != null
-                            && !workerInfo.getWorkerId().equals(workerService.getWorkerConfig().getWorkerId()));
-                }
-                createAdmin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
-            });
+            // During function-worker leadership election/switchover, the coordination topic can already point to
+            // the new leader while that worker is still finishing its leader initialization. In that short window
+            // the internal /functions/leader request returns a transient 503 "Leader not yet ready", so retry only
+            // that condition and let all other failures surface immediately.
+            Awaitility.await().atMost(1, TimeUnit.MINUTES)
+                    .pollInterval(1, TimeUnit.SECONDS)
+                    .ignoreExceptionsMatching(PulsarFunctionTlsTest::isLeaderNotReady)
+                    .untilAsserted(() -> createAdmin.functions()
+                            .createFunctionWithUrl(functionConfig, jarFilePathUrl));
 
             // Function creation is not strongly consistent, so this test can fail with a get that is too eager and
             // does not have retries.
@@ -291,6 +282,14 @@ public class PulsarFunctionTlsTest {
             pulsarAdmins[i].functions().deleteFunction(config.getTenant(), config.getNamespace(), config.getName());
         }
     }
+
+    private static boolean isLeaderNotReady(Throwable e) {
+        return e instanceof PulsarAdminException
+                && ((PulsarAdminException) e).getStatusCode() == 503
+                && String.valueOf(((PulsarAdminException) e).getHttpError())
+                        .contains("Leader not yet ready");
+    }
+
     @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(

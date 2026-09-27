@@ -347,9 +347,11 @@ public class PulsarStandalone implements AutoCloseable {
 
         //create default namespace
         createNameSpace(cluster, TopicName.PUBLIC_TENANT,
-                NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE));
+                NamespaceName.get(TopicName.PUBLIC_TENANT, TopicName.DEFAULT_NAMESPACE),
+                config.getDefaultNumberOfNamespaceBundles());
         //create pulsar system namespace
-        createNameSpace(cluster, SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE);
+        createNameSpace(cluster, SYSTEM_NAMESPACE.getTenant(), SYSTEM_NAMESPACE,
+                config.getDefaultNumberOfSystemNamespaceBundles());
         if (config.isTransactionCoordinatorEnabled()) {
             NamespaceResources.PartitionedTopicResources partitionedTopicResources =
                     broker.getPulsarResources().getNamespaceResources().getPartitionedTopicResources();
@@ -364,7 +366,8 @@ public class PulsarStandalone implements AutoCloseable {
         log.debug("--- setup completed ---");
     }
 
-    private void createNameSpace(String cluster, String publicTenant, NamespaceName ns) throws Exception {
+    private void createNameSpace(String cluster, String publicTenant, NamespaceName ns, int numBundles)
+            throws Exception {
         PulsarAdmin admin = broker.getAdminClient();
         try {
             final List<String> clusters = admin.clusters().getClusters();
@@ -385,7 +388,7 @@ public class PulsarStandalone implements AutoCloseable {
             }
             final List<String> namespaces = admin.namespaces().getNamespaces(publicTenant);
             if (!namespaces.contains(ns.toString())) {
-                admin.namespaces().createNamespace(ns.toString(), config.getDefaultNumberOfNamespaceBundles());
+                admin.namespaces().createNamespace(ns.toString(), numBundles);
             }
         } catch (PulsarAdminException e) {
             log.error()

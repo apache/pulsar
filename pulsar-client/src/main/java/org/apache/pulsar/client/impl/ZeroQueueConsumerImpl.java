@@ -170,8 +170,10 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                             .log("Calling message listener for unqueued message");
                 waitingOnListenerForZeroQueueSize = true;
                 trackMessage(message);
-                unAckedMessageTracker.add(
-                        MessageIdAdvUtils.discardBatch(message.getMessageId()), message.getRedeliveryCount());
+                if (isAckTimeoutTrackingEnabled()) {
+                    unAckedMessageTracker.add(
+                            MessageIdAdvUtils.discardBatch(message.getMessageId()), message.getRedeliveryCount());
+                }
                 if (decryptFailListener != null
                         && message.getEncryptionCtx().isPresent()
                         && message.getEncryptionCtx().get().isEncrypted()
@@ -197,7 +199,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
 
     @Override
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
-                                            int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
+                                            int redeliveryCount, long[] ackSet, ByteBuf uncompressedPayload,
                                             MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
                                             boolean isEncrypted) {
 

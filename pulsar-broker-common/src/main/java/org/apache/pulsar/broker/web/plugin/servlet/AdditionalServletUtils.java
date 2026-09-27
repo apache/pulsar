@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.web.plugin.servlet;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import jakarta.servlet.Servlet;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
@@ -28,6 +29,8 @@ import java.nio.file.Paths;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.felix.http.jakartawrappers.ServletWrapper;
+import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet.AdditionalServletType;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -151,6 +154,42 @@ public class AdditionalServletUtils {
             rethrowIOException(t);
             return null;
         }
+    }
+
+    /**
+     * Adapts the servlet instance of an additional servlet to {@code jakarta.servlet.Servlet}, the servlet API
+     * of the single Jetty environment the broker and the proxy run.
+     *
+     * <p>Servlets declaring {@link AdditionalServletType#JAKARTA_SERVLET} are returned as they are. Servlets
+     * declaring {@link AdditionalServletType#JAVAX_SERVLET} implement the legacy {@code javax.servlet.Servlet}
+     * interface and are adapted with the Apache Felix {@link ServletWrapper}. Registering both flavours in the
+     * same environment is what lets every additional servlet go through the broker/proxy filter chain, which is
+     * {@code jakarta.servlet}-typed (PIP-472).
+     *
+     * @param additionalServlet the additional servlet whose servlet instance should be adapted
+     * @return the servlet instance as a {@code jakarta.servlet.Servlet}
+     * @throws IllegalArgumentException if the servlet instance doesn't implement the servlet interface required
+     *         by the {@link AdditionalServlet#getServletType() servlet type} the additional servlet declares
+     */
+    public Servlet toJakartaServlet(AdditionalServlet additionalServlet) {
+        AdditionalServletType servletType = additionalServlet.getServletType();
+        Object servletInstance = additionalServlet.getServletInstance();
+        switch (servletType) {
+            case JAVAX_SERVLET -> {
+                if (servletInstance instanceof javax.servlet.Servlet javaxServlet) {
+                    return new ServletWrapper(javaxServlet);
+                }
+            }
+            case JAKARTA_SERVLET -> {
+                if (servletInstance instanceof Servlet jakartaServlet) {
+                    return jakartaServlet;
+                }
+            }
+            default -> throw new IllegalArgumentException("Unsupported additional servlet type " + servletType);
+        }
+        throw new IllegalArgumentException("Additional servlet instance of type "
+                + (servletInstance == null ? "null" : servletInstance.getClass().getName())
+                + " doesn't implement the servlet interface required by the declared servlet type " + servletType);
     }
 
     private void rethrowIOException(Throwable cause)

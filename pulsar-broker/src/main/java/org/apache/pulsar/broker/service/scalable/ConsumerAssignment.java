@@ -37,10 +37,20 @@ public record ConsumerAssignment(
 
     /**
      * A single segment assignment for a consumer.
+     *
+     * @param bucketRanges PIP-486 entry-bucket hash ranges this consumer owns within the segment.
+     *                     Empty means the consumer owns the whole segment (single bucket) and
+     *                     subscribes {@code Shared}; non-empty means the segment is shared by bucket
+     *                     and the consumer subscribes {@code Key_Shared} STICKY with exactly these ranges.
      */
     public record AssignedSegment(
             long segmentId,
             HashRange hashRange,
-            String underlyingTopicName
-    ) {}
+            String underlyingTopicName,
+            List<HashRange> bucketRanges
+    ) {
+        public AssignedSegment {
+            bucketRanges = List.copyOf(bucketRanges);
+        }
+    }
 }

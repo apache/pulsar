@@ -20,10 +20,12 @@ package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
@@ -31,7 +33,9 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
 
@@ -48,6 +52,14 @@ import org.testng.annotations.Test;
  * {@code findByIndex}; native-index stores (Oxia) consult the index directly.
  */
 public class MetadataCacheSecondaryIndexTest extends BaseMetadataStoreTest {
+
+    /** Convenience: drive the streaming {@link MetadataStore#scanByIndex} as a point lookup. */
+    private static List<GetResult> findByIndex(MetadataStore store, String prefix, String indexName,
+                                                String key, Predicate<GetResult> filter) {
+        List<GetResult> out = new ArrayList<>();
+        store.scanByIndex(prefix, indexName, key, key, filter, ScanConsumer.collectInto(out)).join();
+        return out;
+    }
 
     @Data
     @AllArgsConstructor
@@ -105,14 +117,14 @@ public class MetadataCacheSecondaryIndexTest extends BaseMetadataStoreTest {
                 v -> Map.of("by-owner", v.getOwner(), "by-team", v.getTeam())).join();
 
         // Owner=alice should return r1 + r2.
-        List<GetResult> aliceOwned = store.findByIndex(basePath, "by-owner", "alice",
-                matchOwner("alice")).join();
+        List<GetResult> aliceOwned = findByIndex(store, basePath, "by-owner", "alice",
+                matchOwner("alice"));
         assertEquals(aliceOwned.size(), 2);
 
         // Team=platform should return r1 + r3.
         Set<String> platformPaths = new HashSet<>();
-        for (GetResult r : store.findByIndex(basePath, "by-team", "platform",
-                matchTeam("platform")).join()) {
+        for (GetResult r : findByIndex(store, basePath, "by-team", "platform",
+                matchTeam("platform"))) {
             platformPaths.add(r.getStat().getPath());
         }
         assertEquals(platformPaths, Set.of(basePath + "/r1", basePath + "/r3"));
@@ -131,18 +143,18 @@ public class MetadataCacheSecondaryIndexTest extends BaseMetadataStoreTest {
                 v -> Map.of("by-owner", v.getOwner());
 
         cache.create(basePath + "/r1", new IndexedValue("alice", "platform"), extractor).join();
-        assertEquals(store.findByIndex(basePath, "by-owner", "alice", matchOwner("alice"))
-                .join().size(), 1);
+        assertEquals(findByIndex(store, basePath, "by-owner", "alice", matchOwner("alice"))
+                .size(), 1);
 
         // Reassign owner via update — the new owner becomes the queryable one and the
         // old owner's lookup must no longer surface this record.
         cache.readModifyUpdate(basePath + "/r1", current -> new IndexedValue("bob", current.getTeam()),
                 extractor).join();
 
-        assertEquals(store.findByIndex(basePath, "by-owner", "bob", matchOwner("bob"))
-                .join().size(), 1);
-        assertEquals(store.findByIndex(basePath, "by-owner", "alice", matchOwner("alice"))
-                .join().size(), 0);
+        assertEquals(findByIndex(store, basePath, "by-owner", "bob", matchOwner("bob"))
+                .size(), 1);
+        assertEquals(findByIndex(store, basePath, "by-owner", "alice", matchOwner("alice"))
+                .size(), 0);
     }
 
     @Test(dataProvider = "impl")
@@ -161,6 +173,6 @@ public class MetadataCacheSecondaryIndexTest extends BaseMetadataStoreTest {
 
         assertTrue(cache.get(path).join().isPresent());
         // No index registered, so a lookup with the would-be index name returns nothing.
-        assertEquals(store.findByIndex(path, "by-owner", "alice", r -> false).join().size(), 0);
+        assertEquals(findByIndex(store, path, "by-owner", "alice", r -> false).size(), 0);
     }
 }

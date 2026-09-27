@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import lombok.AllArgsConstructor;
@@ -28,14 +27,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ProxyProtocol;
-import org.apache.pulsar.common.util.DefaultPulsarSslFactory;
 import org.apache.pulsar.common.util.URIPreconditions;
 
 /**
  * The configuration data for a cluster.
  */
-@ApiModel(
-        value = "ClusterData",
+@Schema(
+        name = "ClusterData",
         description = "The configuration data for a cluster"
 )
 @Data
@@ -43,147 +41,177 @@ import org.apache.pulsar.common.util.URIPreconditions;
 @NoArgsConstructor
 @CustomLog
 public final class ClusterDataImpl implements  ClusterData, Cloneable {
-    @ApiModelProperty(
+    @Schema(
             name = "serviceUrl",
-            value = "The HTTP rest service URL (for admin operations)",
+            description = "The HTTP rest service URL (for admin operations)",
             example = "http://pulsar.example.com:8080"
     )
     private String serviceUrl;
-    @ApiModelProperty(
+    @Schema(
             name = "serviceUrlTls",
-            value = "The HTTPS rest service URL (for admin operations)",
+            description = "The HTTPS rest service URL (for admin operations)",
             example = "https://pulsar.example.com:8443"
     )
     private String serviceUrlTls;
-    @ApiModelProperty(
+    @Schema(
             name = "brokerServiceUrl",
-            value = "The broker service url (for produce and consume operations)",
+            description = "The broker service url (for produce and consume operations)",
             example = "pulsar://pulsar.example.com:6650"
     )
     private String brokerServiceUrl;
-    @ApiModelProperty(
+    @Schema(
             name = "brokerServiceUrlTls",
-            value = "The secured broker service url (for produce and consume operations)",
+            description = "The secured broker service url (for produce and consume operations)",
             example = "pulsar+ssl://pulsar.example.com:6651"
     )
     private String brokerServiceUrlTls;
-    @ApiModelProperty(
+    @Schema(
             name = "proxyServiceUrl",
-            value = "Proxy-service url when client would like to connect to broker via proxy.",
+            description = "Proxy-service url when client would like to connect to broker via proxy.",
             example = "pulsar+ssl://ats-proxy.example.com:4443 or "
                     + "pulsar://ats-proxy.example.com:4080"
     )
     private String proxyServiceUrl;
-    @ApiModelProperty(
+    @Schema(
         name = "authenticationPlugin",
-        value = "Authentication plugin when client would like to connect to cluster.",
+        description = "Authentication plugin when client would like to connect to cluster.",
         example = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
     )
     private String authenticationPlugin;
-    @ApiModelProperty(
+    @Schema(
         name = "authenticationParameters",
-        value = "Authentication parameters when client would like to connect to cluster."
+        description = "Authentication parameters when client would like to connect to cluster."
     )
     private String authenticationParameters;
-    @ApiModelProperty(
+    @Schema(
             name = "proxyProtocol",
-            value = "protocol to decide type of proxy routing eg: SNI-routing",
+            description = "Protocol to decide the type of proxy routing, e.g. SNI-routing",
             example = "SNI"
     )
     private ProxyProtocol proxyProtocol;
 
     // For given Cluster1(us-west1, us-east1) and Cluster2(us-west2, us-east2)
     // Peer: [us-west1 -> us-west2] and [us-east1 -> us-east2]
-    @ApiModelProperty(
+    @Schema(
             name = "peerClusterNames",
-            value = "A set of peer cluster names"
+            description = "A set of peer cluster names"
     )
     private LinkedHashSet<String> peerClusterNames;
 
-    @ApiModelProperty(
+    @Schema(
         name = "brokerClientTlsEnabled",
-        value = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
+        description = "Enable TLS when talking with other brokers in the same cluster (admin operation)"
                 + " or different clusters (replication)"
     )
     private boolean brokerClientTlsEnabled;
-    @ApiModelProperty(
+    @Schema(
         name = "tlsAllowInsecureConnection",
-        value = "Allow TLS connections to servers whose certificate cannot"
+        description = "Allow TLS connections to servers whose certificate cannot"
                 + " be verified to have been signed by a trusted certificate"
                 + " authority."
     )
     private boolean tlsAllowInsecureConnection;
-    @ApiModelProperty(
+    @Schema(
         name = "brokerClientTlsEnabledWithKeyStore",
-        value = "Whether internal client use KeyStore type to authenticate with other Pulsar brokers"
+        description = "Whether the internal client uses KeyStore type to authenticate with other Pulsar brokers"
     )
     private boolean brokerClientTlsEnabledWithKeyStore;
-    @ApiModelProperty(
+    @Schema(
         name = "brokerClientTlsTrustStoreType",
-        value = "TLS TrustStore type configuration for internal client: JKS, PKCS12"
+        description = "TLS TrustStore type configuration for internal client: JKS, PKCS12"
                 + " used by the internal client to authenticate with Pulsar brokers",
         example = "JKS"
     )
     private String brokerClientTlsTrustStoreType;
-    @ApiModelProperty(
+    @Schema(
         name = "brokerClientTlsTrustStore",
-        value = "TLS TrustStore path for internal client"
+        description = "TLS TrustStore path for internal client"
                 + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStore;
-    @ApiModelProperty(
+    @Schema(
         name = "brokerClientTlsTrustStorePassword",
-        value = "TLS TrustStore password for internal client"
+        description = "TLS TrustStore password for internal client"
                 + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsTrustStorePassword;
-    @ApiModelProperty(
+    @Schema(
             name = "brokerClientTlsKeyStoreType",
-            value = "TLS KeyStore type configuration for internal client: JKS, PKCS12,"
+            description = "TLS KeyStore type configuration for internal client: JKS, PKCS12,"
                     + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsKeyStoreType;
-    @ApiModelProperty(
+    @Schema(
             name = "brokerClientTlsKeyStore",
-            value = "TLS KeyStore path for internal client, "
+            description = "TLS KeyStore path for internal client,"
                     + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsKeyStore;
-    @ApiModelProperty(
+    @Schema(
             name = "brokerClientTlsKeyStorePassword",
-            value = "TLS KeyStore password for internal client, "
+            description = "TLS KeyStore password for internal client,"
                     + " used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientTlsKeyStorePassword;
-    @ApiModelProperty(
+    @Schema(
             name = "brokerClientTrustCertsFilePath",
-            value = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
+            description = "Path for the trusted TLS certificate file for outgoing connection to a server (broker)"
     )
     private String brokerClientTrustCertsFilePath;
-    @ApiModelProperty(
+    @Schema(
             name = "brokerClientKeyFilePath",
-            value = "TLS private key file for internal client, "
+            description = "TLS private key file for internal client, "
                     + "used by the internal client to authenticate with Pulsar brokers")
     private String brokerClientKeyFilePath;
-    @ApiModelProperty(
+    @Schema(
             name = "brokerClientCertificateFilePath",
-            value = "TLS certificate file for internal client, "
+            description = "TLS certificate file for internal client, "
                     + "used by the internal client to authenticate with Pulsar brokers"
     )
     private String brokerClientCertificateFilePath;
-    @ApiModelProperty(
+    @Schema(
+            name = "brokerClientTlsFactoryClassName",
+            description = "PulsarTlsFactory class name for outbound connections to this cluster — the two legs "
+                    + "configured from this cluster entry: the binary-protocol replication client and the "
+                    + "cross-cluster admin (HTTPS) client. It does not reach the peer-cluster lookup client, "
+                    + "which is broker-level throughout (as in 4.x). Blank inherits the broker-level "
+                    + "brokerClientTlsFactoryClassName."
+    )
+    private String brokerClientTlsFactoryClassName;
+    @Schema(
+            name = "brokerClientTlsFactoryConfig",
+            description = "Configuration passed to brokerClientTlsFactoryClassName as its init params (JSON "
+                    + "object or key=value list). Follows brokerClientTlsFactoryClassName rather "
+                    + "than inheriting on its own: used verbatim when this cluster names a "
+                    + "factory, ignored otherwise."
+    )
+    private String brokerClientTlsFactoryConfig;
+    /**
+     * @deprecated since 5.0.0: the PIP-337 SSL factory plugin is removed (PIP-478). Retained in the cluster
+     *     metadata schema for wire/metadata compatibility, but a configured value is ignored with a WARN.
+     *     Use {@code brokerClientTlsFactoryClassName} instead.
+     */
+    @Deprecated
+    @Schema(
             name = "brokerClientSslFactoryPlugin",
-            value = "SSL Factory plugin used by internal client to generate the SSL Context and Engine"
+            description = "Deprecated (PIP-478): removed in Pulsar 5.0. Retained for metadata compatibility but "
+                    + "ignored (with a WARN); use brokerClientTlsFactoryClassName instead."
     )
     private String brokerClientSslFactoryPlugin;
-    @ApiModelProperty(
+    /**
+     * @deprecated since 5.0.0: the PIP-337 SSL factory plugin is removed (PIP-478). Retained for metadata
+     *     compatibility but ignored.
+     */
+    @Deprecated
+    @Schema(
             name = "brokerClientSslFactoryPluginParams",
-            value = "Parameters used by the internal client's SSL factory plugin to generate the SSL Context and Engine"
+            description = "Deprecated (PIP-478): removed in Pulsar 5.0. Retained for metadata compatibility but "
+                    + "ignored."
     )
     private String brokerClientSslFactoryPluginParams;
-    @ApiModelProperty(
+    @Schema(
             name = "listenerName",
-            value = "listenerName when client would like to connect to cluster",
+            description = "listenerName when client would like to connect to cluster",
             example = ""
     )
     private String listenerName;
@@ -216,6 +244,8 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                 .brokerClientTrustCertsFilePath(brokerClientTrustCertsFilePath)
                 .brokerClientCertificateFilePath(brokerClientCertificateFilePath)
                 .brokerClientKeyFilePath(brokerClientKeyFilePath)
+                .brokerClientTlsFactoryClassName(brokerClientTlsFactoryClassName)
+                .brokerClientTlsFactoryConfig(brokerClientTlsFactoryConfig)
                 .brokerClientSslFactoryPlugin(brokerClientSslFactoryPlugin)
                 .brokerClientSslFactoryPluginParams(brokerClientSslFactoryPluginParams)
                 .listenerName(listenerName);
@@ -244,7 +274,9 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         private String brokerClientCertificateFilePath;
         private String brokerClientKeyFilePath;
         private String brokerClientTrustCertsFilePath;
-        private String brokerClientSslFactoryPlugin = DefaultPulsarSslFactory.class.getName();
+        private String brokerClientTlsFactoryClassName;
+        private String brokerClientTlsFactoryConfig;
+        private String brokerClientSslFactoryPlugin;
         private String brokerClientSslFactoryPluginParams;
         private String listenerName;
 
@@ -362,12 +394,26 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
         }
 
         @Override
+        @Deprecated
         public ClusterDataImplBuilder brokerClientSslFactoryPlugin(String sslFactoryPlugin) {
             this.brokerClientSslFactoryPlugin = sslFactoryPlugin;
             return this;
         }
 
         @Override
+        public ClusterDataImplBuilder brokerClientTlsFactoryClassName(String tlsFactoryClassName) {
+            this.brokerClientTlsFactoryClassName = tlsFactoryClassName;
+            return this;
+        }
+
+        @Override
+        public ClusterDataImplBuilder brokerClientTlsFactoryConfig(String tlsFactoryConfig) {
+            this.brokerClientTlsFactoryConfig = tlsFactoryConfig;
+            return this;
+        }
+
+        @Override
+        @Deprecated
         public ClusterDataImplBuilder brokerClientSslFactoryPluginParams(String sslFactoryPluginParams) {
             this.brokerClientSslFactoryPluginParams = sslFactoryPluginParams;
             return this;
@@ -401,6 +447,8 @@ public final class ClusterDataImpl implements  ClusterData, Cloneable {
                     brokerClientTrustCertsFilePath,
                     brokerClientKeyFilePath,
                     brokerClientCertificateFilePath,
+                    brokerClientTlsFactoryClassName,
+                    brokerClientTlsFactoryConfig,
                     brokerClientSslFactoryPlugin,
                     brokerClientSslFactoryPluginParams,
                     listenerName);

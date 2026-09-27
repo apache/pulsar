@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.common.util.netty;
 
-import static org.mockito.Mockito.when;
 import io.netty.channel.Channel;
 import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.DefaultEventLoop;
+import io.netty.channel.local.LocalChannel;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.AfterTest;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.BeforeTest;
@@ -39,7 +38,6 @@ import org.testng.annotations.Test;
  */
 public class ChannelFuturesTest {
 
-    @Mock
     private Channel channel;
 
     private DefaultEventLoop eventLoop;
@@ -54,16 +52,24 @@ public class ChannelFuturesTest {
     @AfterTest(alwaysRun = true)
     public void shutdownEventLoop() throws InterruptedException {
         if (eventLoop != null) {
-            eventLoop.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS).await(100);
+            eventLoop.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS).sync();
         }
     }
 
     @BeforeMethod
-    public void setup() {
-        MockitoAnnotations.openMocks(this);
-        when(channel.eventLoop()).thenReturn(eventLoop);
-
+    public void setup() throws InterruptedException {
+        channel = new LocalChannel();
+        eventLoop.register(channel).sync();
         channelFuture = new DefaultChannelPromise(channel);
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void closeChannel() throws InterruptedException {
+        if (channel != null) {
+            channel.close().sync();
+            channelFuture = null;
+            channel = null;
+        }
     }
 
     @Test

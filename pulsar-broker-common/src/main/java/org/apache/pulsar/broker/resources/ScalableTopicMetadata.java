@@ -24,6 +24,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 
 /**
@@ -51,4 +52,10 @@ public class ScalableTopicMetadata {
     /** User-defined topic properties. */
     @Builder.Default
     private Map<String, String> properties = Map.of();
+
+    /**
+     * Per-topic auto split/merge policy override (PIP-483). {@code null} means no override:
+     * the namespace policy and then the broker configuration apply.
+     */
+    private AutoScalePolicyOverride autoScalePolicy;
 }

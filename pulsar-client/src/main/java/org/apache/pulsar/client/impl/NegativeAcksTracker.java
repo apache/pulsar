@@ -23,11 +23,14 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.opentelemetry.api.trace.Span;
+import it.unimi.dsi.fastutil.longs.Long2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
+import it.unimi.dsi.fastutil.longs.LongBidirectionalIterator;
 import java.io.Closeable;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
@@ -36,8 +39,6 @@ import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
 import org.apache.pulsar.client.api.TraceableMessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.apache.pulsar.common.util.collections.Long2ObjectMap;
-import org.apache.pulsar.common.util.collections.Long2ObjectOpenHashMap;
 import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 @CustomLog
@@ -45,8 +46,8 @@ class NegativeAcksTracker implements Closeable {
 
     // timestamp -> ledgerId -> entryId, no need to batch index, if different messages have
     // different timestamp, there will be multiple entries in the map
-    // TreeMap -> LongOpenHashMap -> Roaring64Bitmap
-    private TreeMap<Long, Long2ObjectMap<Roaring64Bitmap>> nackedMessages = null;
+    // RB Tree -> LongOpenHashMap -> Roaring64Bitmap
+    private Long2ObjectSortedMap<Long2ObjectMap<Roaring64Bitmap>> nackedMessages = null;
     private final Long2ObjectMap<Long2ObjectMap<MessageId>> nackedMessageIds = new Long2ObjectOpenHashMap<>();
 
     private final ConsumerBase<?> consumer;
@@ -86,7 +87,9 @@ class NegativeAcksTracker implements Closeable {
                 }
 
                 Long2ObjectMap<Roaring64Bitmap> ledgerMap = nackedMessages.get(timestamp);
-                ledgerMap.forEach((ledgerId, entrySet) -> {
+                for (Long2ObjectMap.Entry<Roaring64Bitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
+                    long ledgerId = ledgerEntry.getLongKey();
+                    Roaring64Bitmap entrySet = ledgerEntry.getValue();
                     entrySet.forEach(entryId -> {
                         MessageId msgId = null;
                         Long2ObjectMap<MessageId> entryMap = nackedMessageIds.get(ledgerId);
@@ -102,13 +105,13 @@ class NegativeAcksTracker implements Closeable {
                         addChunkedMessageIdsAndRemoveFromSequenceMap(msgId, messagesToRedeliver, this.consumer);
                         messagesToRedeliver.add(msgId);
                     });
-                });
+                }
             }
 
             // remove entries from the nackedMessages map
-            Iterator<Long> iterator = nackedMessages.keySet().iterator();
+            LongBidirectionalIterator iterator = nackedMessages.keySet().iterator();
             while (iterator.hasNext()) {
-                long timestamp = iterator.next();
+                long timestamp = iterator.nextLong();
                 if (timestamp <= currentTimestamp) {
                     iterator.remove();
                 } else {
@@ -118,7 +121,7 @@ class NegativeAcksTracker implements Closeable {
 
             // Schedule the next redelivery if there are still messages to redeliver
             if (!nackedMessages.isEmpty()) {
-                long nextTriggerTimestamp = nackedMessages.firstKey();
+                long nextTriggerTimestamp = nackedMessages.firstLongKey();
                 long delayMs = Math.max(nextTriggerTimestamp - currentTimestamp, 0);
                 if (delayMs > 0) {
                     this.timeout = timer.newTimeout(this::triggerRedelivery, delayMs, TimeUnit.MILLISECONDS);
@@ -164,7 +167,7 @@ class NegativeAcksTracker implements Closeable {
         }
 
         if (nackedMessages == null) {
-            nackedMessages = new TreeMap<>();
+            nackedMessages = new Long2ObjectAVLTreeMap<>();
         }
 
         long backoffMs;

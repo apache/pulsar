@@ -21,6 +21,11 @@ package org.apache.pulsar.broker.admin;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
+import jakarta.servlet.ServletContext;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -34,11 +39,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.servlet.ServletContext;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
@@ -56,6 +56,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -244,6 +245,29 @@ public abstract class AdminResource extends PulsarWebResource {
                     .attr("topic", topic)
                     .log("Invalid topic name");
             throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
+        }
+    }
+
+    /**
+     * Validates that a topic can be created.
+     *
+     * <p>This is the single source of truth for topic-creation name validation shared by every admin create
+     * endpoint (persistent, non-persistent and scalable topics). Rejecting here keeps topics which could never be
+     * reached (e.g. because clients trim topic names) from being created. The transaction-internal-name rule is
+     * gated on {@link TopicDomain#persistent} so it stays specific to persistent topics, while the whitespace
+     * validation applies uniformly to all topic types.
+     */
+    protected void validateCreateTopic(TopicName topicName) {
+        if (topicName.getDomain() == TopicDomain.persistent
+                && SystemTopicNames.isTransactionInternalName(topicName)) {
+            log.warn().attr("topic", topicName).log("Forbidden to create transaction internal topic");
+            throw new RestException(Status.BAD_REQUEST, "Cannot create topic in system topic format!");
+        }
+        try {
+            TopicName.validateTopicNameForCreation(topicName);
+        } catch (IllegalArgumentException e) {
+            log.warn().attr("topic", topicName).log("Forbidden to create topic with an invalid name");
+            throw new RestException(Status.PRECONDITION_FAILED, e.getMessage());
         }
     }
 

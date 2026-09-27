@@ -29,10 +29,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
+import org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.MessageId;
@@ -48,6 +50,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
 import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 import org.apache.pulsar.common.util.Backoff;
 
 /**
@@ -78,14 +81,14 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
      */
     private final ConcurrentHashMap<Long, CompletableFuture<org.apache.pulsar.client.api.Consumer<T>>>
             segmentConsumers = new ConcurrentHashMap<>();
-    private final LinkedTransferQueue<MessageV5<T>> messageQueue = new LinkedTransferQueue<>();
+    private final V5ReceiveQueue<T> receiveQueue;
     /**
      * Where each per-segment receive loop deposits a freshly-arrived message. Defaults
-     * to enqueueing on {@link #messageQueue} for the user's {@link #receive()} to pull;
+     * to enqueueing on {@link #receiveQueue} for the user's {@link #receive()} to pull;
      * the multi-topic wrapper overrides this to forward directly into its shared
      * multiplexed queue, so no per-topic pump thread is needed.
      */
-    private final java.util.function.Consumer<MessageV5<T>> messageSink;
+    private final MessageSink<T> messageSink;
 
     /**
      * V5-layer DLQ. Owned at the V5 consumer (not per-segment) so a single producer
@@ -115,7 +118,7 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
                                   Schema<T> v5Schema,
                                   ConsumerConfigurationData<T> consumerConf,
                                   DagWatchClient dagWatch,
-                                  java.util.function.Consumer<MessageV5<T>> messageSink,
+                                  MessageSink<T> messageSink,
                                   DeadLetterPolicy dlqPolicy) {
         this.client = client;
         this.v5Schema = v5Schema;
@@ -126,10 +129,13 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
         this.subscriptionName = consumerConf.getSubscriptionName();
         this.dlqPolicy = dlqPolicy;
         this.dlqTopic = dlqPolicy == null ? null : resolveDlqTopic(dlqPolicy);
-        // Default sink enqueues on the local messageQueue for receive()/receive(timeout).
+        // Default sink enqueues on the local receiveQueue for receive()/receive(timeout).
         // Multi-topic mode passes a sink that forwards into the shared mux instead — no
         // per-topic pump thread needed.
-        this.messageSink = messageSink != null ? messageSink : messageQueue::add;
+        this.receiveQueue = new V5ReceiveQueue<>(
+                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer(),
+                consumerConf.getReceiverQueueSize());
+        this.messageSink = messageSink != null ? messageSink : receiveQueue::offer;
         this.log = LOG.with().attr("topic", topicName).attr("subscription", subscriptionName).build();
         this.asyncView = new AsyncQueueConsumerV5<>(this);
     }
@@ -177,7 +183,7 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
             ConsumerConfigurationData<T> consumerConf,
             DagWatchClient dagWatch,
             ClientSegmentLayout initialLayout,
-            java.util.function.Consumer<MessageV5<T>> messageSink,
+            MessageSink<T> messageSink,
             DeadLetterPolicy dlqPolicy) {
         ScalableQueueConsumer<T> consumer = new ScalableQueueConsumer<>(
                 client, v5Schema, consumerConf, dagWatch, messageSink, dlqPolicy);
@@ -208,22 +214,12 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
 
     @Override
     public Message<T> receive() throws PulsarClientException {
-        try {
-            return messageQueue.take();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return receiveQueue.take();
     }
 
     @Override
     public Message<T> receive(Duration timeout) throws PulsarClientException {
-        try {
-            return messageQueue.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return receiveQueue.poll(timeout);
     }
 
     @Override
@@ -280,18 +276,13 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
 
     @Override
     public CompletableFuture<Message<T>> receiveAsync() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return receive();
-            } catch (PulsarClientException e) {
-                throw new CompletionException(e);
-            }
-        });
+        return receiveQueue.receiveAsync();
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
         closed = true;
+        receiveQueue.close();
         dagWatch.close();
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -422,8 +413,18 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
         var segConf = consumerConf.clone();
         segConf.getTopicNames().clear();
         segConf.setTopicsPattern(null);
-        segConf.getTopicNames().add(segment.segmentTopicName());
+        // Legacy segments wrap an externally managed persistent:// topic; regular ones use the
+        // computed segment:// URI. attachTopicName() collapses both into the right URI.
+        segConf.getTopicNames().add(segment.attachTopicName());
         segConf.setSubscriptionType(SubscriptionType.Shared);
+        // Only legacy segments wrap a persistent:// topic that the regular-to-scalable
+        // migration pre-check inspects, so mark just those connections as V5-managed —
+        // connections to real segment:// topics are never examined.
+        if (segment.isLegacy()) {
+            segConf.getProperties().put(
+                    ScalableTopicConstants.V5_MANAGED_METADATA_KEY,
+                    ScalableTopicConstants.V5_MANAGED_METADATA_VALUE);
+        }
         if (consumerConf.getConsumerName() != null) {
             segConf.setConsumerName(consumerConf.getConsumerName() + "-seg-" + segment.segmentId());
         }
@@ -434,43 +435,62 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
                 });
     }
 
-    private void startReceiveLoop(org.apache.pulsar.client.api.Consumer<T> v4Consumer, long segmentId) {
-        v4Consumer.receiveAsync().thenAccept(v4Msg -> {
-            if (shouldGoToDlq(v4Msg)) {
-                forwardToDlq(v4Msg, v4Consumer);
-            } else {
-                messageSink.accept(new MessageV5<>(v4Msg, segmentId));
-            }
-            if (!closed) {
-                startReceiveLoop(v4Consumer, segmentId);
-            }
-        }).exceptionally(ex -> {
-            Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null ? ce.getCause() : ex;
-            if (closed
-                    || cause instanceof org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException) {
-                // The whole consumer is shutting down or the v4 consumer was closed
-                // externally; stop the receive loop without touching the map.
+    private void startReceiveLoop(Consumer<T> v4Consumer, long segmentId) {
+        // One completion stage avoids an extra future and callback per received message.
+        v4Consumer.receiveAsync().handle((v4Msg, ex) -> {
+            if (ex != null) {
+                handleReceiveFailure(v4Consumer, segmentId, ex);
                 return null;
             }
-            if (cause instanceof org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedException) {
-                // Segment is sealed and fully drained server-side. Close the v4
-                // consumer and drop it from the map — any further ack on a message
-                // already pulled from this segment is a no-op (the cursor is at the
-                // end and the entry is gone).
-                log.info().attr("segmentId", segmentId)
-                        .log("Sealed segment drained, closing v4 consumer");
-                segmentConsumers.remove(segmentId);
-                v4Consumer.closeAsync();
-                return null;
+            try {
+                CompletableFuture<Void> ready;
+                if (shouldGoToDlq(v4Msg)) {
+                    forwardToDlq(v4Msg, v4Consumer);
+                    // DLQ-forwarded messages never enter the receive buffer — nothing to wait on.
+                    ready = CompletableFuture.completedFuture(null);
+                } else {
+                    ready = messageSink.accept(new MessageV5<>(v4Msg, segmentId));
+                }
+                // Re-arm only once the sink has room, so a slow consumer pauses this segment's
+                // receive loop (and the v4 flow-control permits) instead of buffering unboundedly.
+                ready.thenRun(() -> {
+                    if (!closed) {
+                        startReceiveLoop(v4Consumer, segmentId);
+                    }
+                });
+            } catch (Throwable error) {
+                // Preserve the previous completion chain's handling of failures thrown by the sink.
+                handleReceiveFailure(v4Consumer, segmentId, error);
             }
-            log.warn().attr("segmentId", segmentId)
-                    .exception(ex).log("Error receiving from segment, retrying");
-            // Hop to the v4 client's internal executor so repeated synchronous failures
-            // don't grow the stack unboundedly.
-            client.v4Client().getInternalExecutorService()
-                    .execute(() -> startReceiveLoop(v4Consumer, segmentId));
             return null;
         });
+    }
+
+    private void handleReceiveFailure(Consumer<T> v4Consumer, long segmentId, Throwable ex) {
+        Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null ? ce.getCause() : ex;
+        if (closed
+                || cause instanceof AlreadyClosedException) {
+            // The whole consumer is shutting down or the v4 consumer was closed
+            // externally; stop the receive loop without touching the map.
+            return;
+        }
+        if (cause instanceof TopicTerminatedException) {
+            // Segment is sealed and fully drained server-side. Close the v4
+            // consumer and drop it from the map — any further ack on a message
+            // already pulled from this segment is a no-op (the cursor is at the
+            // end and the entry is gone).
+            log.info().attr("segmentId", segmentId)
+                    .log("Sealed segment drained, closing v4 consumer");
+            segmentConsumers.remove(segmentId);
+            v4Consumer.closeAsync();
+            return;
+        }
+        log.warn().attr("segmentId", segmentId)
+                .exception(ex).log("Error receiving from segment, retrying");
+        // Hop to the v4 client's internal executor so repeated synchronous failures
+        // don't grow the stack unboundedly.
+        client.v4Client().getInternalExecutorService()
+                .execute(() -> startReceiveLoop(v4Consumer, segmentId));
     }
 
     // --- DLQ ---
@@ -529,6 +549,9 @@ final class ScalableQueueConsumer<T> implements QueueConsumerImpl<T>, DagWatchCl
             if (dlqProducerFuture == null) {
                 dlqProducerFuture = client.newProducer(Schema.bytes())
                         .topic(dlqTopic)
+                        // Forwarding runs on the client's own threads, which must not block on the
+                        // memory limit: a rejected send is retried on the next redelivery instead.
+                        .blockIfQueueFull(false)
                         .createAsync();
             }
             return dlqProducerFuture;

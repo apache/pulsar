@@ -150,6 +150,14 @@ public interface TransactionBuffer {
     boolean isTxnAborted(TxnID txnID, Position readPosition);
 
     /**
+     * Check if the transaction is still ongoing (not committed and not aborted).
+     *
+     * @param txnID {@link TxnID} the transaction id.
+     * @return whether the txn is ongoing (uncommitted).
+     */
+    boolean isTxnOngoing(TxnID txnID);
+
+    /**
      * Sync max read position for normal publish.
      * @param position {@link Position} the position to sync.
      * @param isMarkerMessage whether the message is marker message.

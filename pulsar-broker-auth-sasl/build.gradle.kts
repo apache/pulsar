@@ -31,13 +31,13 @@ tasks.withType<Test> {
 dependencies {
     implementation(libs.slog)
     implementation(project(":pulsar-broker"))
-    implementation(project(":pulsar-broker-common"))
+    api(project(":pulsar-broker-common"))
     implementation(project(":pulsar-common"))
     implementation(libs.guava)
     implementation(libs.caffeine)
     implementation(libs.commons.lang3)
     implementation(libs.commons.codec)
-    implementation(libs.javax.servlet.api)
+    api(libs.jakarta.servlet.api)
     implementation(libs.simpleclient.caffeine)
 
     testImplementation(libs.commons.io)

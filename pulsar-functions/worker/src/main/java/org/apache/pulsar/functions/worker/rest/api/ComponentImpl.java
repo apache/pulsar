@@ -26,6 +26,11 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.createPkgTempFile
 import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 import com.google.common.base.Utf8;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.StreamingOutput;
+import jakarta.ws.rs.core.UriBuilder;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -45,11 +50,6 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.StreamingOutput;
-import javax.ws.rs.core.UriBuilder;
 import lombok.CustomLog;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -1926,7 +1926,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         if (isNotBlank(functionPkgUrl)) {
             componentPackageFile = getPackageFile(componentType, functionPkgUrl);
         } else if (existingPackagePath.startsWith(Utils.FILE) || existingPackagePath.startsWith(Utils.HTTP)) {
-            if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, functionPkgUrl)) {
+            if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, existingPackagePath)) {
                 throw new IllegalArgumentException("Function Package url is not valid."
                         + "supported url (http/https/file)");
             }
@@ -1935,7 +1935,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             } catch (Exception e) {
                 throw new IllegalArgumentException(String.format("Encountered error \"%s\" "
                                 + "when getting %s package from %s", e.getMessage(),
-                        ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                        ComponentTypeUtils.toString(componentType), existingPackagePath));
             }
         } else if (Utils.hasPackageTypePrefix(existingPackagePath)) {
             componentPackageFile = getPackageFile(componentType, existingPackagePath);

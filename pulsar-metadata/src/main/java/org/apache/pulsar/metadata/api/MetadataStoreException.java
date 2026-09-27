@@ -172,6 +172,14 @@ public class MetadataStoreException extends IOException {
         }
     }
 
+    public static class NotEmptyException extends MetadataStoreException {
+        private static final long serialVersionUID = 1L;
+
+        public NotEmptyException(String path) {
+            super("Key '" + path + "' has children");
+        }
+    }
+
     public static MetadataStoreException unwrap(Throwable t) {
         if (t instanceof MetadataStoreException) {
             return (MetadataStoreException) t;
