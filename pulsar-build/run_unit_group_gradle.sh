@@ -168,7 +168,8 @@ function test_group_protobufv3() {
     :pulsar-client-original:test \
     --tests "org.apache.pulsar.client.api.ProtobufSchemaApiSignatureTest" \
     --tests "org.apache.pulsar.client.impl.schema.ProtobufSchemaTest" \
-    --tests "org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaTest"
+    --tests "org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaTest" \
+    --tests "org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtilsTest"
   gradle_test \
     -PprotobufVersion=3.25.5 \
     :pulsar-functions:pulsar-functions-instance:test \
