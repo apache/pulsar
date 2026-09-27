@@ -35,12 +35,6 @@ dependencyResolutionManagement {
                 includeGroupByRegex("io\\.confluent(\\..*)?")
             }
         }
-        // A jonoffcpu snapshot published with publishToMavenLocal, until the release that has its fixes
-        mavenLocal {
-            content {
-                includeGroup("io.github.jonoffcpu")
-            }
-        }
     }
 
     // override docker-jdk version with -PdockerJavaVersion=21|25|26
