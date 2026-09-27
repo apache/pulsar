@@ -14,21 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 # The launcher variant of key-shared-500x20.yaml: 500 producer connections feed one topic as fast as possible
 # and one application consumes it through a twenty-member Key_Shared subscription, unbatched. Like
 # key-shared-500x20.yaml, ledgers keep a single copy: this is a broker dispatch experiment, not durable capacity
 # guidance.
+
 extends: iot-telemetry-high-rate.yaml
 cluster:
-  brokerEnvs:
-    managedLedgerDefaultEnsembleSize: "1"
-    managedLedgerDefaultWriteQuorum: "1"
-    managedLedgerDefaultAckQuorum: "1"
+  brokers:
+    env:
+      managedLedgerDefaultEnsembleSize: "1"
+      managedLedgerDefaultWriteQuorum: "1"
+      managedLedgerDefaultAckQuorum: "1"
 workloads:
   iotTelemetry:
-    numberOfMessages: 4000000
-    payloadBytes: 128
-    batchingEnabled: false
-    applicationCount: 1
-    clientsPerApplication: 20
+    measurement:
+      messages: 4000000
+    payload:
+      size: 128
+    gateways:
+      producer:
+        batchingEnabled: false
+    applications:
+      count: 1
+      podsPerApplication: 20
