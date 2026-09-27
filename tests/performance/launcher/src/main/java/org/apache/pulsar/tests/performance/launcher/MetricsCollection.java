@@ -210,7 +210,10 @@ final class MetricsCollection implements AutoCloseable {
         for (Grafana.Panel panel : panels) {
             panelsNode.addObject().put("title", panel.title())
                     .put("file", PANELS_DIRECTORY + "/" + panel.name() + ".png")
-                    .put("url", Grafana.panelUrl(baseUrl, panel, cluster, start, end));
+                    .put("url", Grafana.panelUrl(baseUrl, panel, cluster, start, end))
+                    // The dashboard that the panel is on, over the run, to see the panel among the others
+                    .put("dashboard", panel.dashboard().title())
+                    .put("dashboardUrl", Grafana.dashboardUrl(baseUrl, panel.dashboard(), cluster, start, end));
         }
         mapper.writerWithDefaultPrettyPrinter().writeValue(runDirectory.resolve(RunReport.METRICS_FILE).toFile(),
                 metrics);

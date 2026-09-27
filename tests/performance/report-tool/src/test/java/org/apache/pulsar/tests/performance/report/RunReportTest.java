@@ -460,7 +460,8 @@ public class RunReportTest {
                 {"cluster": "run", "intervalSeconds": 5, "grafanaDashboard": "http://grafana/",
                  "dashboards": [{"title": "Pulsar / Messaging", "url": "http://grafana/d/messaging"}],
                  "panels": [{"title": "Publish rate", "file": "grafana-panels/publish-rate.png",
-                             "url": "http://grafana/d/messaging?viewPanel=16"},
+                             "url": "http://grafana/d/messaging?viewPanel=16", "dashboard": "Pulsar / Messaging",
+                             "dashboardUrl": "http://grafana/d/messaging"},
                             {"title": "Backlog", "file": "grafana-panels/backlog.png"}]}
                 """);
         StringBuilder report = new StringBuilder();
@@ -470,6 +471,9 @@ public class RunReportTest {
         assertThat(report.toString())
                 .contains("over the run: [Pulsar / Messaging](http://grafana/d/messaging).")
                 .contains("[![Publish rate](grafana-panels/publish-rate.png)](http://grafana/d/messaging?viewPanel=16)")
+                // Below the panel, links to it and to the dashboard that it is on
+                .contains("\n[Publish rate](http://grafana/d/messaging?viewPanel=16)"
+                        + " · [Pulsar / Messaging dashboard](http://grafana/d/messaging)\n")
                 // Its image is missing
                 .doesNotContain("Backlog");
         Files.writeString(run.resolve(RunReport.METRICS_FILE), "{not json");

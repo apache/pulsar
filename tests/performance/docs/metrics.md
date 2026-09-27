@@ -136,8 +136,8 @@ API, so they stay with the metrics.
 
 The launcher renders these panels of the run, over the time that it was scraped and with its events marked, as PNG
 images into `grafana-panels/` in the run directory, and the run report's Metrics section shows them. Grafana's image
-renderer renders PNG only, not SVG. A panel's image links to the panel in Grafana, and the section links each
-dashboard over the run:
+renderer renders PNG only, not SVG. A panel's image links to the panel in Grafana, and the line below it links to the
+panel and to the dashboard that it is on, both with the run's cluster and time range:
 
 | Dashboard | Panels |
 |---|---|
@@ -174,7 +174,7 @@ and Grafana directly:
 | `events` | The run's events, each with its `name`, `description` and `epochMs` |
 | `victoriaMetrics` | Its `url`, its Prometheus API, `prometheusApi`, its URL on the host that ran the run, `localUrl`, and its UI, `ui` |
 | `grafana` | Its `url`, its URL on the host that ran the run, `localUrl`, the `user` and `password` of its API, its VictoriaMetrics data source, `dataSourceUid`, and the tag of the runs' annotations, `annotationTag` |
-| `grafanaDashboard`, `dashboards`, `panels` | The link to the run on the Pulsar / Messaging dashboard, the dashboards of the report's panels over the run, and the rendered panels, each with its `title`, `file` and `url` |
+| `grafanaDashboard`, `dashboards`, `panels` | The link to the run on the Pulsar / Messaging dashboard, the dashboards of the report's panels over the run, and the rendered panels, each with its `title`, `file` and `url`, and the `dashboard` that it is on with its `dashboardUrl` over the run |
 
 For example, the broker's publish rate over the run, with VictoriaMetrics' Prometheus API:
 

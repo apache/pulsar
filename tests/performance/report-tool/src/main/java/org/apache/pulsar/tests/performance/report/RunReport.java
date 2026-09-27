@@ -427,11 +427,19 @@ public final class RunReport {
         for (JsonNode panel : metrics.path("panels")) {
             String image = panel.path("file").asText();
             if (!image.isEmpty() && Files.isRegularFile(runDirectory.resolve(image))) {
-                String markdownImage = "![" + panel.path("title").asText() + "](" + image + ")";
+                String title = panel.path("title").asText();
+                String markdownImage = "![" + title + "](" + image + ")";
                 String url = panel.path("url").asText();
                 // A panel opens in Grafana
                 panels.append('\n').append(url.isEmpty() ? markdownImage : "[" + markdownImage + "](" + url + ")")
                         .append('\n');
+                // Below it, the panel and the dashboard that it is on, both over the run
+                String dashboardUrl = panel.path("dashboardUrl").asText();
+                if (!url.isEmpty() && !dashboardUrl.isEmpty()) {
+                    panels.append("\n[").append(title).append("](").append(url).append(") · [")
+                            .append(panel.path("dashboard").asText()).append(" dashboard](").append(dashboardUrl)
+                            .append(")\n");
+                }
             }
         }
         if (!panels.isEmpty()) {
