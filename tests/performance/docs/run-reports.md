@@ -289,6 +289,20 @@ Host perf-host-pulsar-perf
 `ssh perf-host-pulsar-perf` keeps the tunnel open until you stop it with Ctrl-C, and `ssh perf-host` still opens a
 shell as before.
 
+The tunnel prints nothing while it works. It prints a line only when something fails:
+
+- When a service isn't running on the remote machine, such as Grafana while the metrics stack is down, the browser's
+  request fails, and ssh prints a line such as `channel 3: open failed: connect failed: Connection refused` for each
+  connection it couldn't forward.
+- When a local port is already in use on your own machine, such as by another tunnel or a local Grafana, ssh prints
+  `bind [127.0.0.1]:3000: Address already in use`. When it can't listen on the port at all, it also prints `Could not
+  request local forwarding.`, and with `ExitOnForwardFailure yes` it exits instead of running without that port.
+
+Add `-v` to see the forwarding itself: `ssh -v perf-host-pulsar-perf`, or `ssh -v -N -L …`, logs each forwarded port
+when the tunnel starts, as `debug1: Local connections to LOCALHOST:8000 forwarded to remote address 127.0.0.1:8000`,
+and each connection through it, as `debug1: Connection to port 8000 forwarding to 127.0.0.1 port 8000 requested.`,
+together with ssh's other debug messages.
+
 [`serve-reports.py`](../serve-reports.py) does the same with Python's built-in server, without Gradle:
 `tests/performance/serve-reports.py [directory] [--bind <address>] [--port <port>]`. It reads
 `performance.reportsDir` from `~/.gradle/gradle.properties` when no directory is given.
