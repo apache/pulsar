@@ -165,9 +165,9 @@ public class PerformanceLauncher implements Callable<Integer> {
     boolean keepLauncherLog;
 
     @Option(names = "--metrics", negatable = true, defaultValue = "${sys:performance.metrics:-true}",
-            fallbackValue = "true", description = "Have VictoriaMetrics scrape the brokers' metrics during the run, "
-                    + "the default: the running metrics stack's, or else the stack started for the run. "
-                    + "--no-metrics doesn't. See docs/metrics.md")
+            fallbackValue = "true", description = "Have VictoriaMetrics scrape the metrics of the brokers, the "
+                    + "bookies and ZooKeeper during the run, the default: the running metrics stack's, or else the "
+                    + "stack started for the run. --no-metrics doesn't. See docs/metrics.md")
     boolean metrics;
 
     @Option(names = "--sysfs", defaultValue = "/sys", hidden = true)

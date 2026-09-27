@@ -174,11 +174,11 @@ public class RunReportTest {
                 + " changes |");
         assertThat(report).contains("| Pulsar version | 5.0.0-SNAPSHOT |");
 
-        assertThat(report).contains("| [Broker](broker-profile/README.md) | 4.7 s |"
+        assertThat(report).contains("| Broker | [profile report](broker-profile/README.md) | 4.7 s |"
                 + " [complete](broker-profile/broker.jfr) ·"
                 + " [measurement period](broker-profile/broker.measurement.jfr) |\n");
-        assertThat(report).contains("| [Gateways](gateways/README.md) | not captured |");
-        assertThat(report).contains("| [Applications](applications/README.md) | not captured |");
+        assertThat(report).contains("| Gateways | [profile report](gateways/README.md) | not captured |");
+        assertThat(report).contains("| Applications | [profile report](applications/README.md) | not captured |");
         // The profiles follow the run's settings
         assertThat(report.indexOf("## Profiles")).isGreaterThan(report.indexOf("| Setting |"));
         assertThat(report.indexOf("## Profiles")).isLessThan(report.indexOf("## Correctness"));
@@ -411,6 +411,23 @@ public class RunReportTest {
                 .contains("| Git branch | `lh-branch`, a detached HEAD at a commit of this branch |\n");
         // A commit that no branch contains is named as git names it
         assertThat(atNoBranch.toString()).contains("| Git branch | `HEAD` |\n");
+    }
+
+    @Test
+    public void linksAProfilesReportsDirectly() throws IOException {
+        Path profile = Files.createDirectories(run.resolve("broker-profile"));
+        Path offCpu = Files.createDirectories(profile.resolve("recording-offcpu"));
+        Files.writeString(offCpu.resolve("jonoffcpu-summary.md"), "# Digest");
+        Files.writeString(offCpu.resolve("offcpu-no-idle.html"), "");
+        Path flameGraphs = Files.createDirectories(profile.resolve("recording-flamegraphs"));
+        Files.writeString(flameGraphs.resolve("cpu.html"), "");
+
+        assertThat(RunReport.reportLinks("broker-profile", profile)).isEqualTo(
+                "[profile report](broker-profile/README.md)"
+                        + " · [jonoffcpu report](broker-profile/recording-offcpu/jonoffcpu-summary.md)"
+                        + " · [off-CPU flame graph](broker-profile/recording-offcpu/offcpu-no-idle.html)"
+                        // A profile without allocation sampling has no allocation flame graph
+                        + " · [CPU flame graph](broker-profile/recording-flamegraphs/cpu.html)");
     }
 
     @Test

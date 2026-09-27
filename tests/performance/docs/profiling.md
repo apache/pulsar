@@ -101,7 +101,12 @@ profiling:
 
 ## Requirements
 
-- A Linux Docker engine whose kernel has BTF (`/sys/kernel/btf/vmlinux`), which recent distribution kernels have.
+- A Docker engine whose kernel has BTF (`/sys/kernel/btf/vmlinux`), which recent Linux distribution kernels have.
+  Profiling with async-profiler, jonoffcpu and JDK Flight Recorder works on Linux and on macOS, and was also tested on
+  macOS arm64 with the [OrbStack](https://orbstack.dev/) Docker engine, whose Linux virtual machine has BTF. For
+  measurements, Linux x86_64 is recommended: it is Pulsar's main target platform, and dedicated hardware configured
+  with [the performance testing environment setup](../environment/README.md) has no noisy neighbours and less thermal
+  and power throttling and CPU frequency variance than a virtual machine or a laptop's default power management.
 - The relaxed perf event and BPF sysctls. The `profile` task depends on `:tests:integration:tuneKernelPerfEvents`,
   which writes them from a throwaway privileged container; `-Pinttest.asyncprofiler.skipPerfEventTuning` skips it
   where they are already set. `configure-perf-test-environment.sh start` from
@@ -129,7 +134,9 @@ under `applications/`. Nothing needs to be rendered by hand:
   policy is `none`.
 - **A profile report** in each profiled component's directory, `README.md` with its HTML page `index.html`, which
   links to both with their totals. Its names make an HTTP server or GitHub open the directory on the report. The run
-  report links to the profile reports, so the run's `index.html` leads to every flame graph of the run.
+  report's Profiles section links each profile's reports directly: its profile report, its jonoffcpu report, which is
+  the digest, and its off-CPU, CPU and allocation flame graphs, so the run's `index.html` leads to every flame graph of
+  the run.
 
 The launcher prints each of these directories and reports as it writes them. The recordings are named after the
 component, such as `broker-profile/inttest_profile_<time>_<container>.jfr` and

@@ -13,14 +13,46 @@ real deployments use together and checks their delivery guarantees, so its impro
 real-world use. Express experiments and new scenarios in the domain's terms, as "How the tests work" in the README
 describes.
 
+## Quick reference
+
+Run the commands in the repository's root directory:
+
+| Task | Command |
+|---|---|
+| Check the host, without root | `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` |
+| The launcher's options | `./gradlew :tests:performance:launcher:run --args='--help'` |
+| Run a scenario | `./gradlew :tests:performance:launcher:run --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'` |
+| Change a setting for one run | add `--set workloads.iotTelemetry.rate=5000` to `--args` |
+| Group the runs of an experiment | add `--name <experiment>` to `--args` |
+| Profile a run | `./gradlew :tests:performance:launcher:profile --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/profile-broker'` |
+| Build a revision's images apart from another's | `-Pdocker.tag=<revision>` before `--args` |
+| Set the reports root for every checkout | `mkdir -p ~/.gradle && echo "performance.reportsDir=$HOME/pulsar-performance-reports" >> ~/.gradle/gradle.properties` |
+| Set the reports root for one command | `-Pperformance.reportsDir=<absolute directory>` |
+| Find the newest run | `ls -dt <reports root>/*/*/*/*/ \| head -n 1`, with `build/performance` as the reports root when none is set |
+| Serve the reports over HTTP | `./gradlew :tests:performance:report-tool:serveReports`, at <http://127.0.0.1:8000/> |
+| Start and stop the metrics stack, VictoriaMetrics and Grafana | `./gradlew :tests:performance:metrics:up`, `./gradlew :tests:performance:metrics:down` |
+| Keep `launcher.log` of a successful run | `-Pperformance.keepLauncherLog` |
+| Run without collecting metrics | `-Pperformance.metrics=false` |
+
+A run's directory has its report, `README.md` and `index.html`, what the launcher printed, `console.log.txt`, and,
+when it collected metrics, `metrics.json`. [Running scenarios](docs/running-scenarios.md) lists every launcher option
+and Gradle property.
+
 ## Running experiments
 
 - A run takes minutes and uses the whole host. Don't start runs, or run them alongside other runs or builds, unless
   the user asked for them.
-- The performance tests are designed to run on a Linux host. They also run on macOS and on Windows with WSL 2,
-  since the cluster and the workloads run in Docker containers, but there Docker runs in a virtual machine that
-  shares the host's CPUs, memory, disk and network with the host operating system, which schedules them, so the
-  results aren't representative of a Linux deployment and vary more between runs. Use such runs to check that a
+- The performance tests run on Linux and on macOS, and should on Windows with WSL 2 too, since the cluster and the
+  workloads run in Linux containers. Profiling with async-profiler, jonoffcpu's off-CPU profiling and JDK Flight
+  Recorder works on both Linux and macOS, and was also tested on macOS arm64 with the
+  [OrbStack](https://orbstack.dev/) Docker engine; [Docker Desktop](https://www.docker.com/products/docker-desktop/) and
+  [Podman Desktop](https://podman-desktop.io/) are untested, see the tested Docker engines in the README's
+  [Before you start](README.md#before-you-start). Linux
+  x86_64 is recommended for measurements: it is Pulsar's main target platform, and on dedicated hardware configured
+  for performance testing a run has no noisy neighbours and less thermal and power throttling and CPU frequency
+  variance. On macOS and Windows, Docker runs in a virtual machine that shares the host's CPUs, memory, disk and
+  network with the host operating system, which schedules them, so the results aren't representative of a Linux
+  deployment and vary more between runs. Use such runs to check that a
   scenario works, or for large effects, and say that a result comes from a non-Linux host when reporting it; don't
   compare revisions on one, and never compare runs made on different hosts.
 - On a Linux host, `configure-perf-test-environment.sh` reduces the run-to-run variance: it fixes the CPU frequency and
@@ -45,10 +77,10 @@ describes.
     [`environment/README.md`](environment/README.md#running-start-and-stop-without-a-password) describes. It lets
     you run `sudo /usr/local/sbin/configure-perf-test-environment.sh start` before the runs and `stop` after them
     yourself, without a password; `install` still needs the user.
-- Check that the host has the memory that the scenario's memory configuration needs available to Docker, which on
-  macOS and Windows is the memory of Docker's virtual machine: about 3 GB for the low-memory configuration, 11 GB for
-  the default medium-memory one and 14 GB for the high-memory one, see
-  [Memory configurations](scenarios/README.md#memory-configurations). When it hasn't, tell the user rather than
+- 32 GB of RAM on the host is recommended, although testing may be possible with less. Check that the host has the
+  memory that the scenario's memory configuration needs available to Docker, which on macOS and Windows is the memory
+  of Docker's virtual machine: about 3 GB for the low-memory configuration, 11 GB for the default medium-memory one
+  and 14 GB for the high-memory one, see [Memory configurations](scenarios/README.md#memory-configurations). When it hasn't, tell the user rather than
   starting the run. Don't profile a scenario that uses the low-memory configuration.
 - Use a run's numbers only when its report shows a valid run, as "Read the report" in the README describes, and don't
   claim a performance change from a single run: compare revisions as `docs/comparing-revisions.md` describes.
@@ -111,10 +143,15 @@ personal fork or another fork.
   `baseline-throughput.svg` and `candidate-throughput.svg`, before attaching them.
 - Give each image an alt text that says what the chart shows and for which revision:
   `--attach './candidate-throughput.svg#Throughput with the change'`.
-- `gh` appends an attachment to the end of the description, unless the description references the file, such as
-  `![Throughput with the change](./candidate-throughput.svg)`, in which case it points that reference at the uploaded
-  file. Put the references where the charts belong, or, after attaching the files, move the image tags that `gh`
-  added by editing the description, for example with `gh pr view --json body` and `gh pr edit --body-file`.
+- `gh` appends an attachment to the end of the description, unless the description references the file with a
+  Markdown image, such as `![Throughput with the change](candidate-throughput.svg)`, in which case it points that
+  reference at the uploaded file. Put the references where the charts belong, such as in a table with a column for
+  the baseline and one for the change.
+- Then turn each Markdown image into an HTML image with a width, wrapped in a link to the uploaded file, by editing the
+  description, for example with `gh pr view --json body` and `gh pr edit --body-file`:
+  `<a href="<uploaded URL>"><img src="<uploaded URL>" alt="Throughput with the change" width="480"></a>`. Markdown
+  images don't show properly in a table's columns, and the link lets the reader open a chart at its full size, which
+  clicking an image doesn't do otherwise.
 - The charts don't replace the numbers: state the medians of the measures and their changes in the text, as
   [Compare](docs/comparing-revisions.md#compare) describes.
 

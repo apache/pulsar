@@ -924,10 +924,10 @@ public final class RunReport {
         if (profileReports.isEmpty()) {
             return;
         }
-        report.append("\n## Profiles\n\nEach profile report has the off-CPU digest, which ranks where threads were"
-                + " blocked, the off-CPU flame graphs, and the CPU, allocation and other flame graphs, split by thread"
-                + " and as heatmaps over time.\n\n| Profile report | Blocked off-CPU time (without idle waits)"
-                + " | JFR recordings |\n|---|---:|---|\n");
+        report.append("\n## Profiles\n\nThe jonoffcpu report is the off-CPU digest, which ranks where threads were"
+                + " blocked. Each profile report has it too, with the off-CPU flame graphs, and the CPU, allocation and"
+                + " other flame graphs, split by thread and as heatmaps over time.\n\n| Profile | Reports"
+                + " | Blocked off-CPU time (without idle waits) | JFR recordings |\n|---|---|---:|---|\n");
         for (Path profileReport : profileReports) {
             Path directory = profileReport.getParent();
             double blockedSeconds = 0;
@@ -944,9 +944,8 @@ public final class RunReport {
                 }
             }
             String name = directory.getFileName().toString();
-            report.append("| [").append(componentName(name)).append("](").append(name).append("/")
-                    .append(ProfileReport.FILE_NAME)
-                    .append(") | ")
+            report.append("| ").append(componentName(name)).append(" | ").append(reportLinks(name, directory))
+                    .append(" | ")
                     // Without off-CPU capture, the profile has only its JFR views.
                     .append(offCpuCaptured ? String.format(Locale.ROOT, "%.1f s", blockedSeconds) : "not captured")
                     .append(" | ").append(recordingLinks(name, directory)).append(" |\n");
@@ -961,6 +960,45 @@ public final class RunReport {
         }
         String name = directoryName.replaceFirst("-profile$", "").replace('-', ' ');
         return name.isEmpty() ? directoryName : Character.toUpperCase(name.charAt(0)) + name.substring(1);
+    }
+
+    /**
+     * The links to a profile's reports, so that they are a click away from the run report: the profile report, the
+     * jonoffcpu report, which is the off-CPU digest, and the main flame graphs, of those that the profile has.
+     */
+    static String reportLinks(String name, Path directory) throws IOException {
+        List<String> links = new ArrayList<>();
+        links.add("[profile report](" + name + "/" + ProfileReport.FILE_NAME + ")");
+        List<Path> outputs;
+        try (Stream<Path> files = Files.list(directory)) {
+            outputs = files.filter(Files::isDirectory).sorted().toList();
+        }
+        // One of each for a profile with one recording, which is the usual case; numbered for more
+        List<Path> offCpu = outputs.stream()
+                .filter(path -> path.getFileName().toString().endsWith(OffCpuFlamegraphs.OUTPUT_SUFFIX)).toList();
+        List<Path> flameGraphs = outputs.stream()
+                .filter(path -> path.getFileName().toString().endsWith(JfrFlamegraphViews.OUTPUT_SUFFIX)).toList();
+        for (int i = 0; i < offCpu.size(); i++) {
+            String suffix = offCpu.size() > 1 ? " " + (i + 1) : "";
+            addLink(links, "jonoffcpu report" + suffix, name, directory, offCpu.get(i), OffCpuFlamegraphs.SUMMARY_FILE);
+            addLink(links, "off-CPU flame graph" + suffix, name, directory, offCpu.get(i),
+                    OffCpuFlamegraphs.NO_IDLE_SLICE + ".html");
+        }
+        for (int i = 0; i < flameGraphs.size(); i++) {
+            String suffix = flameGraphs.size() > 1 ? " " + (i + 1) : "";
+            addLink(links, "CPU flame graph" + suffix, name, directory, flameGraphs.get(i), "cpu.html");
+            addLink(links, "allocation flame graph" + suffix, name, directory, flameGraphs.get(i), "alloc.html");
+        }
+        return String.join(" · ", links);
+    }
+
+    // A link to a file of a profile's output directory, when the file exists
+    private static void addLink(List<String> links, String text, String name, Path directory, Path output,
+                                String file) {
+        if (Files.isRegularFile(output.resolve(file))) {
+            links.add("[" + text + "](" + name + "/" + directory.relativize(output).toString().replace('\\', '/')
+                    + "/" + file + ")");
+        }
     }
 
     // Direct downloads of a profile's recordings: each complete recording and its measurement cut, where kept

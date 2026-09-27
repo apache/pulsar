@@ -111,14 +111,26 @@ scenarios in detail.
 
 ## Before you start
 
-- **A host with Docker**: most hosts that run Docker can run the workloads, macOS and Windows with WSL 2 included, since
-  the cluster and the workloads run in containers. jonoffcpu's off-CPU profiling needs kernel features that not every
-  Docker implementation's kernel has; there, profile with async-profiler and JDK Flight Recorder only, see
-  [Profiling](docs/profiling.md#configuring-profiling). For consistent results, use a Linux host configured for low
-  run-to-run variance, as *Recommended: A Linux host configured for consistent results* below describes.
-- **Memory**: a scenario's memory configuration sets the heap and direct memory of the cluster's and the workloads'
-  JVMs, and so the memory that the host has to have available to Docker, which on macOS and Windows is the memory of
-  Docker's virtual machine. The IoT telemetry scenarios use the medium-memory configuration by default; see
+- **A host with Docker**: the cluster and the workloads run in Linux containers, so the tests run on Linux and on
+  macOS, and should on Windows with WSL 2 too. Both Linux and macOS work, including profiling with async-profiler,
+  jonoffcpu's off-CPU profiling and JDK Flight Recorder, which were also tested on macOS arm64 with the
+  [OrbStack](https://orbstack.dev/) Docker engine. Linux x86_64 is recommended: it is Pulsar's main target platform,
+  and on dedicated hardware configured for performance testing a run has no noisy neighbours, such as the host
+  operating system that shares a virtual machine's CPUs, and less thermal and power throttling and CPU frequency
+  variance, as *Recommended: A Linux host configured for consistent results* below describes. jonoffcpu's off-CPU
+  profiling needs a kernel with BTF, which not every Docker engine's kernel has; there, profile with async-profiler
+  and JDK Flight Recorder only, see [Profiling](docs/profiling.md#requirements). The tooling was tested with these
+  Docker engines:
+
+  | Docker engine | Host | Status |
+  |---|---|---|
+  | [Docker Engine](https://docs.docker.com/engine/) | Pop!_OS 24.04 (Ubuntu-based) Linux, x86_64, 32 GB RAM | Tested: runs, profiling and metrics |
+  | [OrbStack](https://orbstack.dev/) | macOS, Apple M3 Max (arm64), 36 GB RAM, with a 20 GB memory limit for OrbStack | Tested: runs, and profiling with async-profiler, jonoffcpu and JDK Flight Recorder |
+  | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | | Untested |
+  | [Podman Desktop](https://podman-desktop.io/) | | Untested |
+- **Memory**: 32 GB of RAM on the host is recommended, although testing may be possible with less. A scenario's memory
+  configuration sets the heap and direct memory of the cluster's and the workloads' JVMs, and so the memory that the
+  host has to have available to Docker, which on macOS and Windows is the memory of Docker's virtual machine. The IoT telemetry scenarios use the medium-memory configuration by default; see
   [Memory configurations](scenarios/README.md#memory-configurations):
 
   | Configuration | Recommended memory available to Docker | Used by |
@@ -200,17 +212,21 @@ Run directory: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00
       ...
 12:00:00 Starting the Pulsar cluster: 1 broker(s), 2 bookie(s)
 12:00:23 Started the Pulsar cluster in 23 s
-12:00:23 Starting 20 application(s) with 100 pod(s) each
-12:00:29 The applications have opened 1,107 of 2,000 pods
-12:00:34 The applications have opened 1,784 of 2,000 pods
-12:00:38 Started the applications in 15 s
-12:00:38 Starting the gateways: 20,000 warmup and 120,000 measured message(s) at 1,000 msg/s from 100 gateway(s) to 30 topic(s)
+12:00:23 Metrics: starting the metrics stack for this run, since it doesn't run
+12:00:34 Metrics: VictoriaMetrics scrapes the brokers, the bookies and ZooKeeper every 5 s, as the cluster 2026-09-26/master/iot-telemetry/09-26-12-00-00
+12:00:34 Starting 20 application(s) with 100 pod(s) each
+12:00:40 The applications have opened 1,107 of 2,000 pods
+12:00:45 The applications have opened 1,784 of 2,000 pods
+12:00:49 Started the applications in 15 s
+12:00:49 Starting the gateways: 20,000 warmup and 120,000 measured message(s) at 1,000 msg/s from 100 gateway(s) to 30 topic(s)
 ...
 [01:12 measurement 40 s] Produced: 60,548 msg of 140,000 (43%) --- 1,000.9 msg/s --- 0.5 Mbit/s --- pending: 1 --- Latency: mean: 2.038 ms - med: 1.392 - 95pct: 5.463 - 99pct: 11.647 - 99.9pct: 22.079 - 99.99pct: 28.031 - Max: 28.063
 [01:12 measurement 40 s] Received: 1,215,940 msg of 2,800,000 (43%) --- 20,016.4 msg/s --- 10.2 Mbit/s --- backlog: 1,161 msg (max per application: 66) --- Latency: mean: 5.361 ms - med: 2.000 - 95pct: 16.007 - 99pct: 40.031 - 99.9pct: 70.015 - 99.99pct: 81.023 - Max: 94.015
 ...
-12:02:55 Every application has received every message; verifying the device sequences
-12:02:57 Stopping the Pulsar cluster
+12:03:26 The gateways have finished; waiting for the applications to receive every message
+12:03:34 Every application has received every message; verifying the device sequences
+12:03:51 Metrics in Grafana: http://127.0.0.1:3000/d/EetmjdhnA/pulsar-messaging?orgId=1&var-cluster=2026-09-26%2Fmaster%2Fiot-telemetry%2F09-26-12-00-00&from=...&to=... (start the metrics stack with ./gradlew :tests:performance:metrics:up to view it)
+12:03:52 Stopping the Pulsar cluster
 Run report: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00/index.html
 Run report URL: http://127.0.0.1:8000/2026-09-26/master/iot-telemetry/09-26-12-00-00/
 Deleted .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00/launcher.log of the successful run; --keep-launcher-log keeps it
@@ -311,7 +327,8 @@ The `profile` task runs a scenario with three recorders running at the same time
 [JDK Flight Recorder](https://docs.oracle.com/en/java/javase/25/troubleshoot/diagnostic-tools.html#GUID-D38849B6-61C7-4ED6-A395-EA4BC32A9FD6)
 records the JVM's own events into the same recording, and
 [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) records from the kernel the time each thread spent blocked. It
-needs a Linux Docker engine. The profiling scenario publishes 30,000 messages per second to one topic from 500
+needs a Docker engine whose kernel has BTF, such as a Linux host's or [OrbStack](https://orbstack.dev/)'s on macOS, see
+[Requirements](docs/profiling.md#requirements). The profiling scenario publishes 30,000 messages per second to one topic from 500
 producers, and needs about 14 GB of memory available to Docker:
 
 ```bash
@@ -320,10 +337,10 @@ producers, and needs about 14 GB of memory available to Docker:
 ```
 
 The launcher renders the flame graphs itself when the run has finished, into the run directory next to the
-recordings: the broker's under `broker-profile/`, and the gateways' under `gateways/`. The run report links to a
-profile report for each of them. Start from the broker's: it links to the CPU, allocation and off-CPU flame graphs,
-cut to the measurement, and to a digest that ranks the time threads spent blocked by the Pulsar or BookKeeper method
-that waited.
+recordings: the broker's under `broker-profile/`, and the gateways' under `gateways/`. The run report's Profiles
+section links each of them directly: its profile report, its jonoffcpu report, and its off-CPU, CPU and allocation
+flame graphs, cut to the measurement. Start from the broker's jonoffcpu report, a digest that ranks the time threads
+spent blocked by the Pulsar or BookKeeper method that waited.
 
 Each of the profile files in the scenarios' `configs` directory profiles one component: `configs/profile-broker`,
 `configs/profile-gateways` and `configs/profile-applications`;
