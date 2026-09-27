@@ -202,8 +202,8 @@ Run directory: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00
 12:00:38 Started the applications in 15 s
 12:00:38 Starting the gateways: 20,000 warmup and 120,000 measured message(s) at 1,000 msg/s from 100 gateway(s) to 30 topic(s)
 ...
-[01:21 measurement 47 s] Produced: 67,816 msg of 140,000 (48%) --- 1,020.0 msg/s --- 0.5 Mbit/s --- pending: 3 --- Latency: mean: 65.769 ms - med: 6.271 - 95pct: 342.783 - 99pct: 504.063 - 99.9pct: 744.447 - 99.99pct: 802.815 - Max: 814.591
-[01:21 measurement 47 s] Received: 1,354,097 msg of 2,800,000 (48%) --- 20,048.9 msg/s --- 10.3 Mbit/s --- backlog: 1,081 msg (max per application: 65) --- Latency: mean: 80.588 ms - med: 13.007 - 95pct: 383.231 - 99pct: 550.399 - 99.9pct: 776.191 - 99.99pct: 874.495 - Max: 921.087
+[01:12 measurement 40 s] Produced: 60,548 msg of 140,000 (43%) --- 1,000.9 msg/s --- 0.5 Mbit/s --- pending: 1 --- Latency: mean: 2.038 ms - med: 1.392 - 95pct: 5.463 - 99pct: 11.647 - 99.9pct: 22.079 - 99.99pct: 28.031 - Max: 28.063
+[01:12 measurement 40 s] Received: 1,215,940 msg of 2,800,000 (43%) --- 20,016.4 msg/s --- 10.2 Mbit/s --- backlog: 1,161 msg (max per application: 66) --- Latency: mean: 5.361 ms - med: 2.000 - 95pct: 16.007 - 99pct: 40.031 - 99.9pct: 70.015 - 99.99pct: 81.023 - Max: 94.015
 ...
 12:02:55 Every application has received every message; verifying the device sequences
 12:02:57 Stopping the Pulsar cluster
