@@ -47,7 +47,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
         IotScenario scenario = scenario();
         Files.createDirectories(output);
         DeviceSequenceTracker tracker = new DeviceSequenceTracker(scenario.deviceCount());
-        List<ClientAndConsumer> pods = new ArrayList<>(scenario.clientsPerApplication());
+        List<ClientAndConsumer> pods = new ArrayList<>(scenario.podsPerApplication());
         AtomicBoolean stopping = new AtomicBoolean();
         AtomicReference<Throwable> restarterFailure = new AtomicReference<>();
         HdrLatencyRecorder receiveLatency = new HdrLatencyRecorder(output.resolve("application-latency.hdr"),
@@ -74,15 +74,16 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             control.serveProgress(progress);
         }
 
-        PulsarClientSharedResources sharedResources = SharedClientResources.create(scenario);
+        PulsarClientSharedResources sharedResources = SharedClientResources.create(
+                scenario.applications().client().ioThreads(), scenario.applications().client().listenerThreads());
         try {
-            for (int pod = 0; pod < scenario.clientsPerApplication(); pod++) {
+            for (int pod = 0; pod < scenario.podsPerApplication(); pod++) {
                 pods.add(createPod(scenario, sharedResources, tracker, receiveLatency,
                         firstMeasurementReceiptEpochMs, lastMeasurementReceiptEpochMs, pod));
             }
             phase.set("receiving");
             System.out.println("READY application=" + applicationIndex + " clients=" + pods.size());
-            if (scenario.clientRestartIntervalSeconds() > 0 && scenario.clientRestartFraction() > 0) {
+            if (scenario.behaviors().podRestarts().enabled()) {
                 restarter = new Thread(() -> restartClients(scenario, sharedResources, tracker, pods, stopping,
                                 restarterFailure, receiveLatency, firstMeasurementReceiptEpochMs,
                                 lastMeasurementReceiptEpochMs),
@@ -90,7 +91,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 restarter.start();
             }
 
-            long deadline = System.nanoTime() + Duration.ofSeconds(scenario.consumerTimeoutSeconds()).toNanos();
+            long deadline = System.nanoTime() + Duration.ofSeconds(scenario.timeoutSeconds()).toNanos();
             while (tracker.uniqueMessages() < scenario.messageCount() && System.nanoTime() < deadline) {
                 if (restarterFailure.get() != null) {
                     throw new IllegalStateException("Cannot restart IoT client", restarterFailure.get());
@@ -156,7 +157,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 .build();
         try {
             Consumer<byte[]> consumer = client.newConsumer(Schema.BYTES)
-                    .topics(scenario.topics())
+                    .topics(scenario.topicNames())
                     .subscriptionName(scenario.subscriptionName(applicationIndex))
                     .consumerName("iot-application-" + applicationIndex + "-pod-" + podIndex)
                     .subscriptionType(SubscriptionType.Key_Shared)
@@ -199,10 +200,10 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                                 HdrLatencyRecorder receiveLatency, AtomicLong firstMeasurementReceiptEpochMs,
                                 AtomicLong lastMeasurementReceiptEpochMs) {
         int restartCount = Math.max(1,
-                (int) Math.ceil(scenario.clientsPerApplication() * scenario.clientRestartFraction()));
+                (int) Math.ceil(scenario.podsPerApplication() * scenario.behaviors().podRestarts().fraction()));
         while (!stopping.get()) {
             try {
-                Thread.sleep(TimeUnit.SECONDS.toMillis(scenario.clientRestartIntervalSeconds()));
+                Thread.sleep(TimeUnit.SECONDS.toMillis(scenario.behaviors().podRestarts().intervalSeconds()));
                 for (int i = 0; i < restartCount && !stopping.get(); i++) {
                     int index = ThreadLocalRandom.current().nextInt(pods.size());
                     synchronized (pods) {

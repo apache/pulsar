@@ -20,25 +20,37 @@
 # applications each consume through a ten-member Key_Shared subscription.
 extends: iot-telemetry.yaml
 cluster:
-  brokerEnvs:
-    PULSAR_MEM: -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g
-  bookkeeperEnvs:
-    PULSAR_MEM: -Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g
+  brokers:
+    env:
+      PULSAR_MEM: -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g
+  bookies:
+    env:
+      PULSAR_MEM: -Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g
 workloads:
   iotTelemetry:
     rate: 0
-    warmupSeconds: 0
-    warmupMessages: 500000
-    warmupRounds: 2
-    warmupRoundDelaySeconds: 5
-    numberOfMessages: 5000000
-    deviceCount: 1000000
-    gatewayCount: 500
-    topicCount: 1
-    applicationCount: 5
-    clientsPerApplication: 10
-    ioThreads: 16
-    listenerThreads: 16
-    maxOutstanding: 100000
-    precreateProducers: true
-    consumerTimeoutSeconds: 600
+    warmup:
+      seconds: 0
+      messages: 500000
+      rounds: 2
+      roundDelaySeconds: 5
+    measurement:
+      messages: 5000000
+    timeoutSeconds: 600
+    devices:
+      count: 1000000
+    gateways:
+      count: 500
+      producer:
+        ioThreads: 16
+        listenerThreads: 16
+        maxOutstanding: 100000
+        precreate: true
+    topics:
+      count: 1
+    applications:
+      count: 5
+      podsPerApplication: 10
+      client:
+        ioThreads: 16
+        listenerThreads: 16

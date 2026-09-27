@@ -86,8 +86,9 @@ public class YamlScenarioLoaderTest {
                     batchingEnabled: true
                     topicPrefix: persistent://public/default/iot-
                 cluster:
-                  brokerEnvs:
-                    PULSAR_MEM: -Xmx2g
+                  brokers:
+                    env:
+                      PULSAR_MEM: -Xmx2g
                 profiling:
                   offCpu:
                     reasons: [blocked]
@@ -98,7 +99,7 @@ public class YamlScenarioLoaderTest {
         loader.set(resolved, "workloads.iotTelemetry.rate=5000");
         loader.set(resolved, "WORKLOADS.iottelemetry.batchingEnabled=false");
         loader.set(resolved, "workloads.iotTelemetry.topicPrefix=persistent://tenant/ns/iot-");
-        loader.set(resolved, "cluster.brokerEnvs.dispatcherMaxReadBatchSize=500");
+        loader.set(resolved, "cluster.brokers.env.dispatcherMaxReadBatchSize=500");
         loader.set(resolved, "profiling.offCpu.reasons=[blocked, runnable]");
 
         var workload = loader.select(resolved, "workloads.iotTelemetry");
@@ -106,7 +107,7 @@ public class YamlScenarioLoaderTest {
         assertThat(workload.get("rate").intValue()).isEqualTo(5000);
         assertThat(workload.get("batchingEnabled").booleanValue()).isFalse();
         assertThat(workload.get("topicPrefix").textValue()).isEqualTo("persistent://tenant/ns/iot-");
-        assertThat(loader.select(resolved, "cluster.brokerEnvs").get("dispatcherMaxReadBatchSize").intValue())
+        assertThat(loader.select(resolved, "cluster.brokers.env").get("dispatcherMaxReadBatchSize").intValue())
                 .isEqualTo(500);
         assertThat(loader.select(resolved, "profiling.offCpu").get("reasons").toString())
                 .isEqualTo("[\"blocked\",\"runnable\"]");
@@ -128,15 +129,16 @@ public class YamlScenarioLoaderTest {
                     clientsPerApplication: 10
                     payloadBytes: 64
                 cluster:
-                  brokerEnvs:
-                    dbStorage_writeCacheMaxSizeMb: "64"
+                  brokers:
+                    env:
+                      dbStorage_writeCacheMaxSizeMb: "64"
                 """);
         var loader = new YamlScenarioLoader();
         var resolved = loader.resolve(scenario, null, Map.of(
                 "PERF_WORKLOADS_IOTTELEMETRY_RATE", "5000",
                 "PERF_workloads_iotTelemetry_clientsPerApplication", "20",
                 "perf_workloads_iottelemetry_payloadbytes", "128",
-                "PERF_CLUSTER_BROKERENVS_DBSTORAGE_WRITECACHEMAXSIZEMB", "128",
+                "PERF_CLUSTER_BROKERS_ENV_DBSTORAGE_WRITECACHEMAXSIZEMB", "128",
                 // A prefix in neither upper nor lower case isn't an override
                 "Perf_workloads_iotTelemetry_rate", "1",
                 "perf_config", "ignored"), "PERF_", "PERF_CONFIG");
@@ -145,7 +147,7 @@ public class YamlScenarioLoaderTest {
         assertThat(workload.get("rate").intValue()).isEqualTo(5000);
         assertThat(workload.get("clientsPerApplication").intValue()).isEqualTo(20);
         assertThat(workload.get("payloadBytes").intValue()).isEqualTo(128);
-        assertThat(loader.select(resolved, "cluster.brokerEnvs").get("dbStorage_writeCacheMaxSizeMb").textValue())
+        assertThat(loader.select(resolved, "cluster.brokers.env").get("dbStorage_writeCacheMaxSizeMb").textValue())
                 .isEqualTo("128");
     }
 }

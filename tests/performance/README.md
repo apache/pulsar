@@ -86,19 +86,19 @@ the run report are written for the IoT domain.
 
 | Domain | Simulation |
 |---|---|
-| Device | A device ID, which is the message key. `deviceCount` sets the number of devices |
-| Telemetry message | A message with the device ID, the device's sequence number and the send time, `payloadBytes` long |
-| Gateway | A Pulsar client in the producer container, with a producer named `iot-gateway-<gateway>-topic-<topic>` for each topic. `gatewayCount` sets the number of gateways; their clients share I/O threads and memory, as the clients of one process can since PIP-234 |
-| Topics | `topicCount` topics; a device's messages always go to the same topic, the device ID modulo `topicCount` |
-| Application | A Key_Shared subscription on every topic, named `iot-application-<index>`, in a container of its own. `applicationCount` sets the number of applications |
-| Pod | A Pulsar client with a consumer of the application's subscription, named `iot-application-<index>-pod-<pod>`. `clientsPerApplication` sets the number of pods per application |
+| Device | A device ID, which is the message key. `devices.count` sets the number of devices |
+| Telemetry message | A message with the device ID, the device's sequence number and the send time, `payload.size` bytes long |
+| Gateway | A Pulsar client in the producer container, with a producer named `iot-gateway-<gateway>-topic-<topic>` for each topic. `gateways.count` sets the number of gateways; their clients share I/O threads and memory, as the clients of one process can since PIP-234 |
+| Topics | `topics.count` topics; a device's messages always go to the same topic, the device ID modulo `topics.count` |
+| Application | A Key_Shared subscription on every topic, named `iot-application-<index>`, in a container of its own. `applications.count` sets the number of applications |
+| Pod | A Pulsar client with a consumer of the application's subscription, named `iot-application-<index>-pod-<pod>`. `applications.podsPerApplication` sets the number of pods per application |
 
 - The producer sends each message from a random device through a random gateway, at `rate` messages per second, or as
   fast as it can when the rate is 0. It keeps one message per device in flight, as a device waits for its message to
   be acknowledged, so that a device's messages reach Pulsar in order even through different gateways. The producers
   batch messages by key, and the broker deduplicates them by producer name and sequence ID.
-- `clientRestartFraction` and `clientRestartIntervalSeconds` restart some of each application's pods periodically,
-  which moves devices between the pods mid-stream.
+- `behaviors.podRestarts` restarts some of each application's pods periodically, which moves devices between the pods
+  mid-stream.
 - Each application tracks the sequence of every device: it counts ordering violations, invalid messages and
   duplicates, which at-least-once delivery allows. At the end, the launcher compares each application's last
   sequence per device with the producer's, which catches messages missing at the end. A run fails when a check

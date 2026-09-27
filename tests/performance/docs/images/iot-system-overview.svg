@@ -126,7 +126,7 @@
   <path class="flow" d="M700,295 L788,312"/>
   <text class="heading" x="930" y="410" text-anchor="middle">Applications</text>
   <text class="small" x="930" y="430" text-anchor="middle">applicationCount, each with</text>
-  <text class="small" x="930" y="446" text-anchor="middle">clientsPerApplication pods</text>
+  <text class="small" x="930" y="446" text-anchor="middle">podsPerApplication pods</text>
 
   <!-- The guarantees the runs check -->
   <text class="note" x="40" y="490">• One message per device is in flight, so a device's messages stay in order even when they take different gateways.</text>

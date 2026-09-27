@@ -193,9 +193,11 @@ public class PerformanceLauncher implements Callable<Integer> {
                 loader.resolve(scenario, appendedScenarios, null, System.getenv(), ENV_PREFIX, CONFIG_ENV);
         settings.forEach(setting -> loader.set(resolved, setting));
         ObjectNode workload = (ObjectNode) loader.select(resolved, "workloads.iotTelemetry");
-        ObjectNode clusterConfig = (ObjectNode) loader.select(resolved, "cluster");
         JsonNode profiling = resolved.path("profiling");
         ProfilingSettings profilingSettings = ProfilingSettings.read(loader.mapper(), profiling);
+        ClusterSettings clusterSettings = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
+        // The cluster as the scenario wrote it, for the run report
+        ObjectNode clusterConfig = (ObjectNode) resolved.get("cluster");
         boolean profilingEnabled = profilingSettings.anyProfiled();
         Path agentJar = null;
         if (profilingEnabled) {
@@ -207,7 +209,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
             agentJar = Path.of(configuredAgentJar).toAbsolutePath().normalize();
         }
-        int applications = workload.path("applicationCount").intValue();
+        int applications = workload.path("applications").path("count").intValue();
         String runId = UUID.randomUUID().toString();
         String clusterName = "iot-" + ProcessHandle.current().pid();
         workload.put("serviceUrl", "pulsar://" + clusterName + "-pulsar-broker-0:6650");
@@ -242,7 +244,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         Path resolvedConfig = runOutput.resolve(RunReport.RESOLVED_CONFIG);
         if (cooldownCelsius != null) {
             // The workloads wait while the host cools down before the measurement; give them the time for it
-            workload.put("consumerTimeoutSeconds", workload.path("consumerTimeoutSeconds").intValue()
+            workload.put("timeoutSeconds", workload.path("timeoutSeconds").intValue()
                     + cooldownTimeoutSeconds);
         }
         loader.write(resolvedConfig, resolved);
@@ -267,26 +269,19 @@ public class PerformanceLauncher implements Callable<Integer> {
                     "Build the performance tools distribution first: " + resolvedToolsDirectory);
         }
 
-        @SuppressWarnings("unchecked")
-        Map<String, String> brokerEnvs = loader.mapper().convertValue(clusterConfig.path("brokerEnvs"), Map.class);
-        @SuppressWarnings("unchecked")
-        Map<String, String> bookkeeperEnvs =
-                loader.mapper().convertValue(clusterConfig.path("bookkeeperEnvs"), Map.class);
-        @SuppressWarnings("unchecked")
-        Map<String, String> producerEnvs = loader.mapper().convertValue(clusterConfig.path("producerEnvs"), Map.class);
-        @SuppressWarnings("unchecked")
-        Map<String, String> consumerEnvs = loader.mapper().convertValue(clusterConfig.path("consumerEnvs"), Map.class);
+        Map<String, String> producerEnvs = clusterSettings.producerEnvs();
+        Map<String, String> consumerEnvs = clusterSettings.consumerEnvs();
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
-                .numBrokers(clusterConfig.path("brokers").intValue())
-                .numBookies(clusterConfig.path("bookies").intValue())
+                .numBrokers(clusterSettings.brokers().replicas())
+                .numBookies(clusterSettings.bookies().replicas())
                 .numProxies(0)
                 .profileBroker(profilingSettings.broker().profiled())
                 .profileDirectory(brokerProfileDirectory.toString())
                 .jonoffcpuAgentJar(agentJar != null ? agentJar.toString() : null)
                 .jonoffcpuOptions(profilingSettings.broker().offCpuOptions())
-                .brokerEnvs(brokerEnvs)
-                .bookkeeperEnvs(bookkeeperEnvs)
+                .brokerEnvs(clusterSettings.brokers().env())
+                .bookkeeperEnvs(clusterSettings.bookies().env())
                 .build();
 
         HostStatsSampler.Sensors sensors = HostStatsSampler.discover(sysfs);
@@ -310,8 +305,8 @@ public class PerformanceLauncher implements Callable<Integer> {
             cluster.start();
             status(String.format(Locale.ROOT, "Started the Pulsar cluster in %.0f s",
                     (System.nanoTime() - clusterStart) / 1e9));
-            status(String.format(Locale.ROOT, "Starting %d application(s) with %d client(s) each",
-                    applications, workload.path("clientsPerApplication").intValue()));
+            status(String.format(Locale.ROOT, "Starting %d application(s) with %d pod(s) each",
+                    applications, workload.path("applications").path("podsPerApplication").intValue()));
             for (int application = 0; application < applications; application++) {
                 Path appOutput = applicationOutput(runOutput, workload, application);
                 Files.createDirectories(appOutput);
@@ -326,7 +321,8 @@ public class PerformanceLauncher implements Callable<Integer> {
             Startables.deepStart(consumers.stream()).join();
             topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput);
             TopicStatsSampler backlogSource = topicStatsSampler;
-            progress = new ProgressMonitor(loader.mapper(), System.out, workload.path("payloadBytes").intValue(),
+            progress = new ProgressMonitor(loader.mapper(), System.out,
+                    workload.path("payload").path("size").intValue(),
                     applications, () -> backlogSource != null ? backlogSource.latestBacklog() : null);
             for (int application = 0; application < applications; application++) {
                 GenericContainer<?> consumer = consumers.get(application);
@@ -348,7 +344,8 @@ public class PerformanceLauncher implements Callable<Integer> {
             status(String.format(Locale.ROOT, "Starting the producer: %,d warmup and %,d measured message(s) at "
                             + "%,d msg/s from %d gateway(s) to %d topic(s)",
                     warmupMessageCount(workload), measurementMessageCount(workload), workload.path("rate").intValue(),
-                    workload.path("gatewayCount").intValue(), workload.path("topicCount").intValue()));
+                    workload.path("gateways").path("count").intValue(),
+                    workload.path("topics").path("count").intValue()));
             producer.start();
             GenericContainer<?> runningProducer = producer;
             progress.follow("producer", controlUrl(producer), runningProducer::isRunning);
@@ -363,7 +360,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 workloads.add(new Workload("Application " + applicationOutput.getFileName(),
                         consumers.get(application), applicationOutput.resolve(CONTAINER_LOG)));
             }
-            awaitWorkloads(workloads, workload.path("consumerTimeoutSeconds").intValue() + 60);
+            awaitWorkloads(workloads, workload.path("timeoutSeconds").intValue() + 60);
             progress.report();
             progress.close();
             // The run's end in the charts: every consumer has finished, before the profiles are processed
@@ -483,14 +480,16 @@ public class PerformanceLauncher implements Callable<Integer> {
     }
 
     private static long warmupMessageCount(JsonNode workload) {
-        long perRound = workload.path("warmupMessages").longValue() > 0 ? workload.path("warmupMessages").longValue()
-                : workload.path("warmupSeconds").longValue() * workload.path("rate").longValue();
-        return perRound * Math.max(1, workload.path("warmupRounds").intValue());
+        JsonNode warmup = workload.path("warmup");
+        long perRound = warmup.path("messages").longValue() > 0 ? warmup.path("messages").longValue()
+                : warmup.path("seconds").longValue() * workload.path("rate").longValue();
+        return perRound * Math.max(1, warmup.path("rounds").intValue());
     }
 
     private static long measurementMessageCount(JsonNode workload) {
-        return workload.path("numberOfMessages").longValue() > 0 ? workload.path("numberOfMessages").longValue()
-                : workload.path("durationSeconds").longValue() * workload.path("rate").longValue();
+        JsonNode measurement = workload.path("measurement");
+        return measurement.path("messages").longValue() > 0 ? measurement.path("messages").longValue()
+                : measurement.path("seconds").longValue() * workload.path("rate").longValue();
     }
 
     /** Indents every line of {@code text} by two spaces, so that a block stands out from the status lines. */
@@ -544,8 +543,8 @@ public class PerformanceLauncher implements Callable<Integer> {
      */
     private static TopicStatsSampler startTopicStatsSampler(PulsarCluster cluster, JsonNode workload,
                                                             Path runOutput) {
-        String prefix = workload.path("topicPrefix").textValue();
-        List<String> topics = IntStream.range(0, workload.path("topicCount").intValue())
+        String prefix = workload.path("topics").path("prefix").textValue();
+        List<String> topics = IntStream.range(0, workload.path("topics").path("count").intValue())
                 .mapToObj(topic -> prefix + topic).toList();
         try {
             return TopicStatsSampler.start(cluster.getAnyBroker().getHttpServiceUrl(), topics, runOutput);

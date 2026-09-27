@@ -41,7 +41,8 @@ detail.
 
 | Scenario | What it runs |
 |---|---|
-| [`iot-telemetry.yaml`](iot-telemetry.yaml) | **Start here.** The full topology: 100 gateways, 30 topics and 20 applications with 100 clients each, 1,000 messages per second for 120 s after a 20 s warmup. The base of the other IoT scenarios |
+| [`iot-telemetry.yaml`](iot-telemetry.yaml) | **Start here.** The full topology: 100 gateways, 30 topics and 20 applications with 100 pods each, 1,000 messages per second for 120 s after a 20 s warmup |
+| [`iot-telemetry-base.yaml`](iot-telemetry-base.yaml) | The defaults that the other IoT scenarios extend: the cluster, and a workload of one gateway and one application with one pod |
 | [`iot-telemetry-small.yaml`](iot-telemetry-small.yaml) | A smaller topology: 10 gateways, 30 topics and 20 applications with 10 clients each, 1,000 messages per second for 120 s after a 20 s warmup |
 | [`iot-telemetry-small-restarts.yaml`](iot-telemetry-small-restarts.yaml) | The smaller topology, restarting 10 % of each application's clients every 30 s |
 | [`iot-telemetry-restarts.yaml`](iot-telemetry-restarts.yaml) | The full topology, restarting 10 % of each application's clients every 30 s |
@@ -82,7 +83,8 @@ extends: iot-telemetry-small.yaml
 workloads:
   iotTelemetry:
     rate: 5000
-    payloadBytes: 1024
+    payload:
+      size: 1024
 ```
 
 Run it like any other scenario. Its runs are named after the file, `iot-telemetry-small-5k`, unless it sets

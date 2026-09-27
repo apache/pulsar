@@ -36,6 +36,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class RunReportTest {
+    private static final String CLUSTER = "{\"brokers\": {\"replicas\": 1}, \"bookies\": {\"replicas\": 3}}";
     // A run's information with the given git state, and no git user or host details
     private static RunInfo runInfo(ZonedDateTime started, String branch, boolean detached, String commit,
                                    boolean dirty, String version) {
@@ -105,12 +106,14 @@ public class RunReportTest {
         Files.writeString(run.resolve("gateways/" + ProfileReport.FILE_NAME), "");
 
         Path file = RunReport.write(run, new RunReport.Run("scenario.yaml", "run-1", "image:tag",
-                json("{\"brokers\": 1, \"bookies\": 3, \"brokerEnvs\": {\"managedLedgerDefaultEnsembleSize\": \"1\","
-                        + " \"managedLedgerDefaultWriteQuorum\": \"1\", \"managedLedgerDefaultAckQuorum\": \"1\"}}"),
-                json("{\"gatewayCount\": 500, \"topicCount\": 1, \"applicationCount\": 2,"
-                        + " \"subscriptionPrefix\": \"sub-\", \"clientsPerApplication\": 20,"
-                        + " \"numberOfMessages\": 400000, \"warmupMessages\": 100000,"
-                        + " \"warmupRounds\": 1, \"payloadBytes\": 128, \"batchingEnabled\": false, \"rate\": 0}"),
+                json("{\"brokers\": {\"replicas\": 1, \"env\": {\"managedLedgerDefaultEnsembleSize\": \"1\","
+                        + " \"managedLedgerDefaultWriteQuorum\": \"1\", \"managedLedgerDefaultAckQuorum\": \"1\"}},"
+                        + " \"bookies\": {\"replicas\": 3}}"),
+                json("{\"gateways\": {\"count\": 500, \"producer\": {\"batchingEnabled\": false}},"
+                        + " \"topics\": {\"count\": 1}, \"applications\": {\"count\": 2,"
+                        + " \"subscriptionPrefix\": \"sub-\", \"podsPerApplication\": 20},"
+                        + " \"measurement\": {\"messages\": 400000}, \"warmup\": {\"messages\": 100000, \"rounds\": 1},"
+                        + " \"payload\": {\"size\": 128}, \"rate\": 0}"),
                 new RunInfo(ZonedDateTime.parse("2026-09-25T06:42:59+03:00"), "perf-host",
                         new HostDetails("Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz", 1, 8, 16, 33_256_595_456L,
                                 "Pop!_OS 24.04 LTS (Linux 7.1.5-76070105-generic)"),
@@ -232,7 +235,7 @@ public class RunReportTest {
                 + (START + 6000) + ",60.0,61.0,3600,3200,150,1010,\n");
 
         Path file = RunReport.write(run, new RunReport.Run("scenario.yaml", "run-1", "image:tag",
-                json("{\"brokers\": 1, \"bookies\": 3}"), json("{\"applicationCount\": 1}"), null, null,
+                json(CLUSTER), json("{\"applications\": {\"count\": 1}}"), null, null,
                 List.of(new RunReport.Cooldown(RunReport.Cooldown.BEFORE_RUN, 50.0, 78.0, 49.5, 95.0, true,
                                 START - 200_000, START - 105_000),
                         new RunReport.Cooldown(RunReport.Cooldown.BEFORE_MEASUREMENT, 50.0, 71.0, 58.0, 600.0,
@@ -273,7 +276,7 @@ public class RunReportTest {
                 + START + ",,,,,5,5,4000\n" + (START + 1000) + ",,,,,5,5,4100\n" + (START + 2000) + ",,,,,5,5,4200\n");
 
         String report = Files.readString(RunReport.write(run, new RunReport.Run("scenario.yaml", "run-1",
-                "image:tag", json("{\"brokers\": 1, \"bookies\": 3}"), json("{\"applicationCount\": 1}"), null,
+                "image:tag", json(CLUSTER), json("{\"applications\": {\"count\": 1}}"), null,
                 null, List.of()), mapper));
 
         assertThat(report).contains("No thermal throttling during the measurement.");
@@ -435,8 +438,9 @@ public class RunReportTest {
                 + ", \"measurementEndEpochMs\": " + (START + 120_000) + "}");
 
         Path file = RunReport.write(run, new RunReport.Run("scenario.yaml", "run-1", "image:tag",
-                json("{\"brokers\": 1, \"bookies\": 3}"),
-                json("{\"applicationCount\": 1, \"numberOfMessages\": 0, \"warmupMessages\": 0,"
+                json(CLUSTER),
+                json("{\"applications\": {\"count\": 1}, \"measurement\": {\"messages\": 0},"
+                        + " \"warmup\": {\"messages\": 0},"
                         + " \"rate\": 1000}"), null, null, List.of()), mapper);
 
         assertThat(Files.readString(file)).contains("| Messages | 120,000 measured, 20,000 warmup |");

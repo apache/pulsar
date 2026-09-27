@@ -21,17 +21,18 @@ package org.apache.pulsar.tests.performance.tools;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 
 final class SharedClientResources {
-    static PulsarClientSharedResources create(IotScenario scenario) {
+    /** The resources that a workload's clients share, sized by its I/O and listener threads. */
+    static PulsarClientSharedResources create(int ioThreads, int listenerThreads) {
         return PulsarClientSharedResources.builder()
-                .configureEventLoop(config -> config.numberOfThreads(scenario.ioThreads()))
+                .configureEventLoop(config -> config.numberOfThreads(ioThreads))
                 .configureThreadPool(PulsarClientSharedResources.SharedResource.ListenerExecutor,
-                        config -> config.numberOfThreads(scenario.listenerThreads()))
+                        config -> config.numberOfThreads(listenerThreads))
                 .configureThreadPool(PulsarClientSharedResources.SharedResource.InternalExecutor,
-                        config -> config.numberOfThreads(scenario.ioThreads()))
+                        config -> config.numberOfThreads(ioThreads))
                 .configureThreadPool(PulsarClientSharedResources.SharedResource.ScheduledExecutor,
-                        config -> config.numberOfThreads(Math.min(2, scenario.ioThreads())))
+                        config -> config.numberOfThreads(Math.min(2, ioThreads)))
                 .configureThreadPool(PulsarClientSharedResources.SharedResource.LookupExecutor,
-                        config -> config.numberOfThreads(Math.min(2, scenario.ioThreads())))
+                        config -> config.numberOfThreads(Math.min(2, ioThreads)))
                 .build();
     }
 

@@ -1,0 +1,85 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# The defaults of the IoT telemetry scenarios: the cluster, and a workload of one gateway and one application with
+# one pod. The other scenarios extend it, and set the topology they model.
+cluster:
+  brokers:
+    replicas: 1
+    env:
+      brokerDeduplicationEnabled: "true"
+      # Keep storage-maintenance boundaries outside ordinary warmup and measurement windows.
+      # These are benchmark settings, not production sizing recommendations.
+      managedLedgerMaxEntriesPerLedger: "100000000"
+      managedLedgerMinLedgerRolloverTimeMinutes: "60"
+      managedLedgerMaxLedgerRolloverTimeMinutes: "1440"
+      managedLedgerMaxSizePerLedgerMbytes: "16384"
+      managedLedgerCursorMaxEntriesPerLedger: "100000000"
+      managedLedgerCursorRolloverTimeInSeconds: "86400"
+      PULSAR_MEM: -Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g
+  bookies:
+    replicas: 3
+    env:
+      # The containers are ephemeral, so postpone reclamation and compaction until after the run.
+      journalMaxSizeMB: "8192"
+      gcWaitTime: "86400000"
+      gcOverreplicatedLedgerWaitTime: "86400000"
+      minorCompactionInterval: "-1"
+      majorCompactionInterval: "-1"
+      PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=512m
+workloads:
+  iotTelemetry:
+    # Warmup traffic is validated but excluded from throughput and the exported measurement window.
+    warmup:
+      seconds: 20
+      messages: 0
+      rounds: 1
+      roundDelaySeconds: 0
+    measurement:
+      seconds: 120
+      messages: 0
+    rate: 1000
+    payload:
+      size: 64
+    # The longest the workload may run; the applications stop waiting for messages after it, and the run fails
+    timeoutSeconds: 240
+    devices:
+      count: 300000
+    gateways:
+      count: 1
+      producer:
+        ioThreads: 8
+        listenerThreads: 16
+        maxOutstanding: 20000
+        batchingEnabled: true
+        precreate: false
+    topics:
+      count: 30
+      prefix: persistent://public/default/iot-telemetry-
+    applications:
+      count: 1
+      podsPerApplication: 1
+      subscriptionPrefix: iot-application-
+      client:
+        ioThreads: 8
+        listenerThreads: 16
+    behaviors:
+      # Each application restarts this fraction of its pods every intervalSeconds; 0 never
+      podRestarts:
+        intervalSeconds: 0
+        fraction: 0.0

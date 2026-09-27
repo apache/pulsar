@@ -68,7 +68,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         AtomicLong measurementCompleted = new AtomicLong();
         HdrLatencyRecorder sendLatency = new HdrLatencyRecorder(output.resolve("gateways-latency.hdr"),
                 PerformanceTool.MAX_LATENCY_MICROS);
-        int maxOutstanding = Math.min(scenario.maxOutstanding(), scenario.deviceCount());
+        int maxOutstanding = Math.min(scenario.gateways().producer().maxOutstanding(), scenario.deviceCount());
         Semaphore outstanding = new Semaphore(maxOutstanding);
         Set<Integer> devicesInFlight = ConcurrentHashMap.newKeySet();
 
@@ -92,7 +92,8 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             control.serveProgress(progress);
             System.out.println("CONTROL_READY port=" + control.port());
         }
-        PulsarClientSharedResources sharedResources = SharedClientResources.create(scenario);
+        PulsarClientSharedResources sharedResources = SharedClientResources.create(
+                scenario.gateways().producer().ioThreads(), scenario.gateways().producer().listenerThreads());
         try {
             for (int gateway = 0; gateway < scenario.gatewayCount(); gateway++) {
                 clients.add(PulsarClient.builder()
@@ -100,7 +101,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                         .sharedResources(sharedResources)
                         .build());
             }
-            if (scenario.precreateProducers()) {
+            if (scenario.gateways().producer().precreate()) {
                 for (int gateway = 0; gateway < scenario.gatewayCount(); gateway++) {
                     for (int topic = 0; topic < scenario.topicCount(); topic++) {
                         int producerIndex = gateway * scenario.topicCount() + topic;
@@ -114,7 +115,7 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             long nextSend = System.nanoTime();
             long startedNanos = nextSend;
             long runDeadlineNanos = startedNanos
-                    + TimeUnit.SECONDS.toNanos(scenario.consumerTimeoutSeconds());
+                    + TimeUnit.SECONDS.toNanos(scenario.timeoutSeconds());
             long warmupMessageCount = scenario.warmupMessageCount();
             long warmupMessagesPerRound = scenario.warmupMessageCountPerRound();
             long measurementStartedNanos = -1;
@@ -267,10 +268,10 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
     private Producer<byte[]> createProducer(IotScenario scenario, List<PulsarClient> clients,
                                             int gateway, int topic) throws Exception {
         return clients.get(gateway).newProducer()
-                .topic(scenario.topics().get(topic))
+                .topic(scenario.topicNames().get(topic))
                 .producerName("iot-gateway-" + gateway + "-topic-" + topic)
                 .batcherBuilder(BatcherBuilder.KEY_BASED)
-                .enableBatching(scenario.batchingEnabled())
+                .enableBatching(scenario.gateways().producer().batchingEnabled())
                 .blockIfQueueFull(true)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .create();

@@ -290,25 +290,28 @@ public final class RunReport {
                 .append("| Setting | Value |\n|---|---|\n")
                 .append(row("Scenario", Files.isRegularFile(runDirectory.resolve(run.scenario()))
                         ? "[" + scenarioName + "](" + run.scenario() + ")" : scenarioName))
-                .append(row("Cluster", cluster.path("brokers").asInt() + " broker(s), "
-                        + cluster.path("bookies").asInt() + " bookies"
+                .append(row("Cluster", cluster.path("brokers").path("replicas").asInt() + " broker(s), "
+                        + cluster.path("bookies").path("replicas").asInt() + " bookies"
                         + (resolved ? ", [configuration](" + RESOLVED_CONFIG + ")" : "")));
-        JsonNode brokerEnvs = cluster.path("brokerEnvs");
+        JsonNode brokerEnvs = cluster.path("brokers").path("env");
         if (brokerEnvs.has("managedLedgerDefaultEnsembleSize")) {
             report.append(row("Ledger replication", "E=" + brokerEnvs.path("managedLedgerDefaultEnsembleSize")
                     .asText() + ", W=" + brokerEnvs.path("managedLedgerDefaultWriteQuorum").asText() + ", A="
                     + brokerEnvs.path("managedLedgerDefaultAckQuorum").asText()));
         }
-        report.append(row("Gateways", workload.path("gatewayCount").asInt() + " gateways × "
-                        + workload.path("topicCount").asInt() + " topic(s)"))
-                .append(row("Applications", workload.path("applicationCount").asInt() + " × "
-                        + workload.path("clientsPerApplication").asInt() + " clients, Key_Shared"))
+        report.append(row("Gateways", workload.path("gateways").path("count").asInt() + " gateway(s) × "
+                        + workload.path("topics").path("count").asInt() + " topic(s)"))
+                .append(row("Applications", workload.path("applications").path("count").asInt() + " × "
+                        + workload.path("applications").path("podsPerApplication").asInt()
+                        + " pods, Key_Shared"))
                 .append(row("Messages", String.format(Locale.ROOT, "%,d measured, %,d warmup",
-                        messageCount(producer, "measurementMessages", workload.path("numberOfMessages").asLong()),
-                        messageCount(producer, "warmupMessages", workload.path("warmupMessages").asLong()
-                                * Math.max(1, workload.path("warmupRounds").asInt())))))
-                .append(row("Payload", workload.path("payloadBytes").asInt() + " bytes, batching "
-                        + (workload.path("batchingEnabled").asBoolean() ? "on" : "off")))
+                        messageCount(producer, "measurementMessages",
+                                workload.path("measurement").path("messages").asLong()),
+                        messageCount(producer, "warmupMessages", workload.path("warmup").path("messages").asLong()
+                                * Math.max(1, workload.path("warmup").path("rounds").asInt())))))
+                .append(row("Payload", workload.path("payload").path("size").asInt() + " bytes, batching "
+                        + (workload.path("gateways").path("producer").path("batchingEnabled").asBoolean()
+                        ? "on" : "off")))
                 .append(row("Rate limit", workload.path("rate").asLong() > 0
                         ? String.format(Locale.ROOT, "%,d msg/s", workload.path("rate").asLong()) : "none"));
         if (host != null) {
@@ -454,12 +457,12 @@ public final class RunReport {
     }
 
     /**
-     * An application's name: its subscription, the workload's {@code subscriptionPrefix} and its index, such as
-     * {@code iot-application-0}, as the throughput and backlog charts name it. Each application consumes through
-     * {@code clientsPerApplication} consumers that record into one latency log.
+     * An application's name: its subscription, the workload's {@code applications.subscriptionPrefix} and its index,
+     * such as {@code iot-application-0}, as the throughput and backlog charts name it. Each application consumes
+     * through {@code applications.podsPerApplication} pods that record into one latency log.
      */
     public static String applicationName(JsonNode workload, int index) {
-        String prefix = workload.path("subscriptionPrefix").asText("");
+        String prefix = workload.path("applications").path("subscriptionPrefix").asText("");
         return (prefix.isEmpty() ? "application-" : prefix) + index;
     }
 

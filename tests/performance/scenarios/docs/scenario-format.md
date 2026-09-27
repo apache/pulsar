@@ -28,9 +28,10 @@ into the workload containers.
 
 ## Sections
 
-- `cluster`: the Pulsar topology (`brokers`, `bookies`) and the environment variables of each kind of container:
-  `brokerEnvs` and `bookkeeperEnvs` for the broker and the bookies, and `producerEnvs` and `consumerEnvs` for the
-  gateways' and the applications' containers, for example `GLIBC_TUNABLES`. Their JVMs get the options of Pulsar's
+- `cluster`: the Pulsar topology and the environment variables of each kind of container. `brokers` and `bookies`
+  each have `replicas`, the number of containers, and `env`, their environment variables, such as Pulsar settings and
+  `PULSAR_MEM`; `producerEnvs` and `consumerEnvs` are the environment variables of the gateways' and the
+  applications' containers, for example `GLIBC_TUNABLES`. Their JVMs get the options of Pulsar's
   client tools, from `conf/pulsar_env.sh` and as `bin/pulsar-perf` adds them. `PULSAR_MEM` sets a workload JVM's
   heap and direct memory, `-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m` unless set, and `PULSAR_GC` and
   `PULSAR_EXTRA_OPTS` apply when set. A `JAVA_TOOL_OPTIONS` there is appended to the launcher's JVM options for those
@@ -53,7 +54,10 @@ extends: [cluster.yaml, workloads/iot-base.yaml]
 workloads:
   iotTelemetry:
     rate: 1000
-    clientRestartFraction: 0.1
+    behaviors:
+      podRestarts:
+        intervalSeconds: 30
+        fraction: 0.1
 profiling:
   broker:
     asyncProfilerOptions: event=cpu,interval=10ms,jfrsync=profile
@@ -102,7 +106,7 @@ value's keys separated by dots, in any case:
 
 - Every section on the path has to exist, so that a misspelled section fails the run instead of adding
   configuration. The last key may be new, such as a broker setting added with
-  `--set cluster.brokerEnvs.dispatcherMaxReadBatchSize=500`.
+  `--set cluster.brokers.env.dispatcherMaxReadBatchSize=500`.
 - A value that replaces a scalar keeps the scalar's YAML type. Any other value is parsed as YAML, so that
   `--set 'profiling.broker.offCpuOptions.reasons=[blocked, runnable]'` sets a list.
 - The option is repeatable, and the settings apply in order, after inheritance, `--extends` and the environment
@@ -138,8 +142,8 @@ files, and use environment overrides for temporary measurements rather than as t
 
 The `iotTelemetry` workload can run traffic before the measurement begins:
 
-- `warmupSeconds` with a positive `rate`, or `warmupMessages` when `rate: 0`. The two are mutually exclusive.
-- `warmupRounds` repeats that traffic, and `warmupRoundDelaySeconds` adds an idle stabilization period after each
+- `warmup.seconds` with a positive `rate`, or `warmup.messages` when `rate: 0`. The two are mutually exclusive.
+- `warmup.rounds` repeats that traffic, and `warmup.roundDelaySeconds` adds an idle stabilization period after each
   fully drained round, including the final round. The default is one round with no delay.
 - A round is fully drained only after every application has uniquely received its cumulative warmup message count;
   producer send completions alone don't release the barrier.

@@ -72,7 +72,7 @@ public final class YamlScenarioLoader {
      * Sets the value at a dotted path of a resolved scenario, {@code <path>=<value>}, such as
      * {@code workloads.iotTelemetry.rate=5000}. The path's keys match in any case, and every section on the path has
      * to exist, so that a misspelled section fails instead of adding configuration; the last key may be new, such as
-     * a setting added to {@code cluster.brokerEnvs}. A value replacing a scalar keeps its type; any other value is
+     * a setting added to {@code cluster.brokers.env}. A value replacing a scalar keeps its type; any other value is
      * parsed as YAML, so that {@code [blocked]} sets a list.
      */
     public void set(ObjectNode root, String assignment) {

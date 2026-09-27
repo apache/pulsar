@@ -20,5 +20,6 @@
 # the default 1,000-entry interval expires while another snapshot is still in flight.
 extends: iot-telemetry-high-rate.yaml
 cluster:
-  brokerEnvs:
-    brokerDeduplicationEntriesInterval: "100000"
+  brokers:
+    env:
+      brokerDeduplicationEntriesInterval: "100000"

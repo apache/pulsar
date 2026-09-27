@@ -20,8 +20,15 @@
 extends: iot-telemetry.yaml
 workloads:
   iotTelemetry:
-    deviceCount: 100000
-    gatewayCount: 10
-    clientsPerApplication: 10
-    ioThreads: 4
-    listenerThreads: 8
+    devices:
+      count: 100000
+    gateways:
+      count: 10
+      producer:
+        ioThreads: 4
+        listenerThreads: 8
+    applications:
+      podsPerApplication: 10
+      client:
+        ioThreads: 4
+        listenerThreads: 8

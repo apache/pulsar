@@ -27,11 +27,13 @@ application-visible order across Key_Shared hash-range reassignment.
 
 ## Scenarios
 
+- [`iot-telemetry-base.yaml`](../iot-telemetry-base.yaml) has the defaults that the others extend, with one gateway
+  and one application with one pod.
 - [`iot-telemetry.yaml`](../iot-telemetry.yaml) is the full topology without churn.
 - [`iot-telemetry-restarts.yaml`](../iot-telemetry-restarts.yaml) restarts 10% of each application's
-  clients every 30 seconds.
+  pods every 30 seconds.
 - [`iot-telemetry-small.yaml`](../iot-telemetry-small.yaml) keeps the 20-way fanout,
-  30 topics and 1,000 msg/s rate, but uses 10 gateways and 10 clients per application.
+  30 topics and 1,000 msg/s rate, but uses 10 gateways and 10 pods per application.
 - [`iot-telemetry-small-restarts.yaml`](../iot-telemetry-small-restarts.yaml) adds restart churn to that smaller
   topology.
 - [`iot-telemetry-high-rate.yaml`](../iot-telemetry-high-rate.yaml) removes the producer rate limit
@@ -66,21 +68,21 @@ are in different directories, pass a common shared coordination directory explic
 `RUN_ID=$(uuidgen)` once and use `--run-id "$RUN_ID" --coordination-directory /tmp/iot-coordination` for every tool
 process in that run. Reusing the directory is fine; use a new run ID for each invocation of the workload.
 
-Set `batchingEnabled` in the workload section to compare batched and unbatched keyed messages without
+Set `gateways.producer.batchingEnabled` in the workload section to compare batched and unbatched keyed messages without
 changing the tool implementation. Batched runs use `BatcherBuilder.KEY_BASED`, which keeps each batch to
 one key as required for Key_Shared delivery.
 
 Warmup messages exercise the same producer, client, connection, topic and consumer paths as measured messages. They
 remain in the monotonic device sequences and end-to-end delivery checks, but are excluded from throughput. For a
-rate-limited workload, set `warmupSeconds`; for an unrestricted workload, set `warmupMessages`. Do not set both. The
-value applies to each of `warmupRounds`. Every round drains its asynchronous sends and waits until every backend
-application has uniquely received the cumulative warmup count before `warmupRoundDelaySeconds` begins. The delay after
+rate-limited workload, set `warmup.seconds`; for an unrestricted workload, set `warmup.messages`. Do not set both. The
+value applies to each of `warmup.rounds`. Every round drains its asynchronous sends and waits until every backend
+application has uniquely received the cumulative warmup count before `warmup.roundDelaySeconds` begins. The delay after
 the final round gives background JIT compilation and other startup work time to settle before the producer records the
 measurement boundary. This is a stabilization control, not a guarantee that the JVM has completed compilation.
 `gateways-summary.json` records the warmup and measurement counts and the epoch-millisecond boundaries of the
 measurement. Each `application-summary.json` records the first and last measured-message receipt as metadata. The
-launcher uses the gateways' measurement start and the latest last receipt across all backend applications as the JFR measurement
-interval.
+launcher uses the gateways' measurement start and the latest last receipt across all backend applications as the JFR
+measurement interval.
 
 The base scenario also keeps incidental storage maintenance outside normal measurement windows. Its managed-ledger
 entry, size and time limits allow the topic and cursor ledgers to remain open throughout ordinary runs. BookKeeper
@@ -90,10 +92,62 @@ the broker messaging path; they are benchmark controls rather than production si
 separate scenario with normal or deliberately short limits when measuring rollover, recovery, deletion, compaction,
 or long-running storage behavior. BookKeeper entry-log flushing and disk-space checks remain enabled.
 
-Set `rate: 0` together with a positive `numberOfMessages` to remove producer pacing. Set
-`precreateProducers: true` to open every gateway/topic producer before throughput timing begins. The producer
+Set `rate: 0` together with a positive `measurement.messages` to remove producer pacing. Set
+`gateways.producer.precreate: true` to open every gateway/topic producer before throughput timing begins. The producer
 summary reports `messagesPerSecond` only for the post-warmup measurement phase and retains
 `wholeRunMessagesPerSecond` as startup and warmup context.
+
+## Settings
+
+The workload's settings are under `workloads.iotTelemetry`. [`iot-telemetry-base.yaml`](../iot-telemetry-base.yaml)
+has the defaults, with one gateway and one application with one pod, and [`iot-telemetry.yaml`](../iot-telemetry.yaml)
+sets the full topology's counts:
+
+```yaml
+workloads:
+  iotTelemetry:
+    warmup:                    # traffic before the measurement, see above
+      seconds: 20
+      messages: 0
+      rounds: 1
+      roundDelaySeconds: 0
+    measurement:               # seconds at the rate, unless messages sets the measured messages
+      seconds: 120
+      messages: 0
+    rate: 1000                 # messages per second; 0 sends as fast as possible
+    payload:
+      size: 64                 # bytes, the device's ID, sequence and send time included
+    timeoutSeconds: 240        # the longest the workload may run
+    devices:
+      count: 300000
+    gateways:
+      count: 100
+      producer:                # the gateways' Pulsar clients and producers
+        ioThreads: 8
+        listenerThreads: 16
+        maxOutstanding: 20000  # messages in flight across the gateways
+        batchingEnabled: true
+        precreate: false       # open every producer before the first message
+    topics:
+      count: 30
+      prefix: persistent://public/default/iot-telemetry-
+    applications:
+      count: 20
+      podsPerApplication: 100
+      subscriptionPrefix: iot-application-
+      client:                  # each application's Pulsar clients
+        ioThreads: 8
+        listenerThreads: 16
+    behaviors:
+      podRestarts:             # each application restarts this fraction of its pods every intervalSeconds
+        intervalSeconds: 0
+        fraction: 0.0
+```
+
+`timeoutSeconds` bounds the whole workload: the applications stop waiting for messages after it and the run fails,
+the gateways give up waiting for a warmup round or the measurement's start, and the launcher waits for the containers
+a minute longer. It has to be at least the time that the warmup rounds, their delays and the measurement need at the
+rate. The launcher sets the broker's service URL itself.
 
 ## Profiling with jonoffcpu
 

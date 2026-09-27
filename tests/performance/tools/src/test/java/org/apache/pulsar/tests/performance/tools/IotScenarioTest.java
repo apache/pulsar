@@ -114,11 +114,8 @@ public class IotScenarioTest {
 
     @Test
     public void includesRateLimitedMessageWarmupInMinimumRuntime() {
-        assertThatThrownBy(() -> new IotScenario(
-                "pulsar://localhost:6650", "persistent://public/default/iot-", "app-",
-                120, 0, 1_001, 3, 2,
-                100, 1_000, 64, 1_000, 10, 2, 1, 2,
-                2, 2, 100, true, true, 158, 0, 0))
+        // 11 s for each of the 3 warmup rounds of 1,001 messages at 100 msg/s, 2 s between them and 120 s measured
+        assertThatThrownBy(() -> scenario(0, 1_001, 3, 2, 100, 1_000, 158))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -128,9 +125,19 @@ public class IotScenarioTest {
 
     private static IotScenario scenario(int warmupSeconds, long warmupMessages, int warmupRounds,
                                         int warmupRoundDelaySeconds, int rate, long numberOfMessages) {
-        return new IotScenario("pulsar://localhost:6650", "persistent://public/default/iot-", "app-",
-                120, warmupSeconds, warmupMessages, warmupRounds, warmupRoundDelaySeconds,
-                rate, numberOfMessages, 64, 1_000, 10, 2, 1, 2,
-                2, 2, 100, true, true, 300, 0, 0);
+        return scenario(warmupSeconds, warmupMessages, warmupRounds, warmupRoundDelaySeconds, rate, numberOfMessages,
+                300);
+    }
+
+    private static IotScenario scenario(int warmupSeconds, long warmupMessages, int warmupRounds,
+                                        int warmupRoundDelaySeconds, int rate, long numberOfMessages,
+                                        int timeoutSeconds) {
+        return new IotScenario("pulsar://localhost:6650",
+                new IotScenario.Warmup(warmupSeconds, warmupMessages, warmupRounds, warmupRoundDelaySeconds),
+                new IotScenario.Measurement(120, numberOfMessages), rate, new IotScenario.Payload(64),
+                new IotScenario.Devices(1_000),
+                new IotScenario.Gateways(10, new IotScenario.Producer(2, 2, 100, true, true)),
+                new IotScenario.Topics(2, "persistent://public/default/iot-"),
+                new IotScenario.Applications(1, 2, "app-", new IotScenario.Client(2, 2)), null, timeoutSeconds);
     }
 }
