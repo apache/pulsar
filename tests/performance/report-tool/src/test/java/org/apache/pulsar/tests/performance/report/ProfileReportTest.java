@@ -79,23 +79,32 @@ public class ProfileReportTest {
         // The files are a table with descriptive link texts; the recording's generated name is not shown
         assertThat(report).contains("| File | Contents |\n|---|---|\n"
                 + "| **[jonoffcpu report (off-CPU summary)](broker-offcpu/jonoffcpu-summary.md)**"
-                + " | **[Start here](broker-offcpu/jonoffcpu-summary.md)**: the blocked time");
+                + " | **[Start here](broker-offcpu/jonoffcpu-summary.md)**: the methods where the threads of");
         assertThat(report).contains("| [JFR recording for the measurement period](broker.measurement.jfr) |");
         assertThat(report).contains("| [Off-CPU capture stream](broker.jonoffcpu-capture.pb) |");
         assertThat(report).contains("| [Idle-wait patterns](broker-offcpu/offcpu-idle-waits.txt) |");
         assertThat(report).doesNotContain("(broker.jfr)");
         assertThat(report).doesNotContain("## broker");
-        assertThat(report).contains("| [All off-CPU time](broker-offcpu/offcpu.html) | 3,843.0 | 1,000 |  |");
+        // The section says what the flame graphs show, with how the time is split collapsed below the table
+        assertThat(report).contains("### Off-CPU flame graphs: where threads waited\n\njonoffcpu's off-CPU capture"
+                + " records the time the threads of the profiled process weren't running on a CPU.");
+        assertThat(report).contains("<details><summary>How the off-CPU time is split</summary>");
+        // The blocked time comes first, and the flame graphs of all off-CPU time last
         assertThat(report).contains(
-                "| [Without idle waits](broker-offcpu/offcpu-no-idle.html) | 4.7 | 207 | 3,838.6 |  |");
+                "|---|---:|---:|---:|---:|\n| [Blocked time](broker-offcpu/offcpu-no-idle.html) | 4.7 | 207"
+                        + " | 3,838.6 |  |");
         // Stacks without an application frame are left out of the app-root flame graphs and counted apart
-        assertThat(report).contains("| [Without idle waits, from the application's first frame]"
+        assertThat(report).contains("| [Blocked time, from where threads entered Pulsar or BookKeeper code]"
                 + "(broker-offcpu/offcpu-no-idle-app-root.html) | 2.3 | 180 | 3,838.6 | 2.4 |");
+        assertThat(report).contains(
+                "| [All off-CPU time, with idle waits](broker-offcpu/offcpu.html) | 3,843.0 | 1,000 |  |");
         assertThat(report).doesNotContain("[no application frame]");
         // Slices that were not rendered are left out rather than linked.
         assertThat(report).doesNotContain(OffCpuFlamegraphs.APP_ROOT_SLICE + ".html");
         // Only the rendered views are named; this recording has no lock or wall-clock view.
-        assertThat(report).contains("### CPU and allocation views\n");
+        assertThat(report).contains("### async-profiler flame graphs: CPU and allocation\n");
+        assertThat(report).contains(" into the JFR recording: the CPU flame graph shows where they used the CPU and the"
+                + " allocation flame graph shows where they allocated memory.");
         assertThat(report).contains("| cpu | [flame graph](broker-flamegraphs/cpu.html) | "
                 + "[by thread](broker-flamegraphs/cpu-threads.html) | "
                 + "[heatmap](broker-flamegraphs/cpu-heatmap.html) | "
@@ -182,7 +191,7 @@ public class ProfileReportTest {
         String report = Files.readString(file);
 
         assertThat(report).doesNotContain("Off-CPU");
-        assertThat(report).contains("### CPU, allocation and lock views\n");
+        assertThat(report).contains("### async-profiler flame graphs: CPU, allocation and lock\n");
         assertThat(report).contains("| lock | [flame graph](broker-flamegraphs/lock.html) |");
     }
 
@@ -192,6 +201,15 @@ public class ProfileReportTest {
         assertThat(ProfileReport.inProse(List.of("CPU", "allocation"))).isEqualTo("CPU and allocation");
         assertThat(ProfileReport.inProse(List.of("CPU", "wall-clock", "allocation", "lock")))
                 .isEqualTo("CPU, wall-clock, allocation and lock");
+    }
+
+    @Test
+    public void namesTheProfiledProcess() {
+        assertThat(ProfileReport.processName(Path.of("run", "broker-profile"))).isEqualTo("the broker");
+        assertThat(ProfileReport.processName(Path.of("run", "gateways"))).isEqualTo("the gateways' Pulsar clients");
+        assertThat(ProfileReport.processName(Path.of("run", RunReport.APPLICATIONS_DIRECTORY)))
+                .isEqualTo("the applications' Pulsar clients");
+        assertThat(ProfileReport.processName(Path.of("run", "other"))).isEqualTo("the profiled process");
     }
 
     private static void writeSlice(Path offCpu, String slice, String json) throws IOException {

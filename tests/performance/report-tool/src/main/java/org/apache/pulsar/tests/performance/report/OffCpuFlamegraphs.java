@@ -162,14 +162,14 @@ public final class OffCpuFlamegraphs {
             // Rooted as the digest's tables are: dispatch frames hidden, then each stack starts at the application
             List<String> appRoot = List.of("--hide-from", JVM_DISPATCH_PRESET, "--hide-from", dispatchHide.toString(),
                     "--root-at", APPLICATION_ROOT, "--root-at-unmatched", "hide");
-            renderSlice(profile, ALL_SLICE, "Off-CPU time " + name, List.of());
-            renderSlice(profile, NO_IDLE_SLICE, "Off-CPU time without idle waits " + name, noIdle);
-            renderSlice(profile, APP_ROOT_SLICE, "Off-CPU time from the application's first frame " + name,
-                    appRoot);
+            renderSlice(profile, ALL_SLICE, "All off-CPU time " + name, List.of());
+            renderSlice(profile, NO_IDLE_SLICE, "Blocked time " + name, noIdle);
+            renderSlice(profile, APP_ROOT_SLICE,
+                    "All off-CPU time from where threads entered Pulsar or BookKeeper code " + name, appRoot);
             List<String> noIdleAppRoot = new ArrayList<>(noIdle);
             noIdleAppRoot.addAll(appRoot);
             renderSlice(profile, NO_IDLE_APP_ROOT_SLICE,
-                    "Off-CPU time without idle waits from the application's first frame " + name, noIdleAppRoot);
+                    "Blocked time from where threads entered Pulsar or BookKeeper code " + name, noIdleAppRoot);
         }
         return outputDirectory;
     }

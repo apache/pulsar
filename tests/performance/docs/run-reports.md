@@ -156,8 +156,8 @@ report has these sections:
   [Heap dumps](heap-dumps.md).
 
 A profiled run's report has a Profiles section, which links each profile's reports directly: its jonoffcpu report
-(off-CPU summary), which is the off-CPU digest, its profile report, and its off-CPU, CPU and allocation flame graphs,
-see
+(off-CPU summary), which is the off-CPU digest, its profile report, and its blocked time, CPU and allocation flame
+graphs, see
 [Profiling](profiling.md#what-a-profiled-run-writes).
 Every Markdown report the launcher writes, including the profile reports and the off-CPU digests, has an HTML page
 beside it, rendered with [commonmark-java](https://github.com/commonmark/commonmark-java).

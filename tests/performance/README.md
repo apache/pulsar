@@ -338,9 +338,9 @@ producers, and needs about 14 GB of memory available to Docker:
 
 The launcher renders the flame graphs itself when the run has finished, into the run directory next to the
 recordings: the broker's under `broker-profile/`, and the gateways' under `gateways/`. The run report's Profiles
-section links each of them directly: its jonoffcpu report (off-CPU summary), its profile report, and its off-CPU,
-CPU and allocation flame graphs, cut to the measurement. The broker's jonoffcpu report is a digest that ranks the time
-threads spent blocked by the Pulsar or BookKeeper method that waited. The off-CPU flame graphs show the same blocked
+section links each of them directly: its jonoffcpu report (off-CPU summary), its profile report, and its blocked
+time, CPU and allocation flame graphs, cut to the measurement. The broker's jonoffcpu report is a digest that ranks the
+time threads spent blocked by the Pulsar or BookKeeper method that waited. The blocked time flame graphs show the same
 time as call trees, to inspect visually which code paths lead to the blocking methods.
 
 Each of the profile files in the scenarios' `configs` directory profiles one component: `configs/profile-broker`,

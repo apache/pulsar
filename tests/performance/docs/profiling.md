@@ -135,8 +135,8 @@ under `applications/`. Nothing needs to be rendered by hand:
 - **A profile report** in each profiled component's directory, `README.md` with its HTML page `index.html`, which
   links to both with their totals. Its names make an HTTP server or GitHub open the directory on the report. The run
   report's Profiles section links each profile's reports directly: its jonoffcpu report (off-CPU summary), which is
-  the digest, its profile report, and its off-CPU, CPU and allocation flame graphs, so the run's `index.html` leads to
-  every flame graph of the run.
+  the digest, its profile report, and its blocked time, CPU and allocation flame graphs, so the run's `index.html`
+  leads to every flame graph of the run.
 
 The launcher prints each of these directories and reports as it writes them. The recordings are named after the
 component, such as `broker-profile/inttest_profile_<time>_<container>.jfr` and
@@ -150,9 +150,9 @@ component, such as `broker-profile/inttest_profile_<time>_<container>.jfr` and
 | `<recording>-flamegraphs/` | `cpu`, `wall`, `alloc` and `lock` views of the measurement recording, each only when its event is in the profiler options: `<view>.html`, `<view>-threads.html` (split by thread), `<view>-heatmap.html` (samples over time, for bursts and pauses) and `<view>.collapsed`. Pulsar and BookKeeper frames are highlighted |
 | `<recording>.jonoffcpu-capture.pb`, `.manifest.json`, `<recording>.jonoffcpu.yaml` | The off-CPU capture stream, its manifest, and the agent configuration the JVM was started with |
 | `<recording>-offcpu/jonoffcpu-summary.md`, `.json` | The off-CPU digest: the blocked time ranked by the application method that waited, by application root and by application method, where the time went and the capture coverage, leaving out the idle waits of `offcpu-idle-waits.txt` |
-| `<recording>-offcpu/offcpu-no-idle.html` | Off-CPU flame graph of the measurement window without threads that were only waiting for work |
-| `<recording>-offcpu/offcpu-no-idle-app-root.html` | The same with each stack starting at its first Pulsar or BookKeeper frame once executor and Netty dispatch frames are hidden, so the same code reached from different thread pools or event loops is one tree |
-| `<recording>-offcpu/offcpu.html`, `offcpu-app-root.html` | Every blocked interval, idle waiting included, as is and from the first application frame |
+| `<recording>-offcpu/offcpu-no-idle.html` | The blocked time flame graph of the measurement window: where the profiled process, the broker or a Pulsar client, waited while it had work to do, such as on a lock, a monitor or I/O, without the threads that were only waiting for work |
+| `<recording>-offcpu/offcpu-no-idle-app-root.html` | The blocked time from where threads entered Pulsar or BookKeeper code: each stack starts at its first Pulsar or BookKeeper frame once executor and Netty dispatch frames are hidden, so the same code reached from different thread pools or event loops is one tree |
+| `<recording>-offcpu/offcpu.html`, `offcpu-app-root.html` | All off-CPU time, idle waits included, as is and from where threads entered Pulsar or BookKeeper code |
 | `<recording>-offcpu/*.collapsed`, `*.json` | The same slices as collapsed stacks (full names, microseconds) and the summary of each, including the time the idle filter removed |
 | `<recording>-offcpu/offcpu-idle-waits.txt`, `<recording>.offcpu-idle-waits.txt` | The idle-wait patterns the run used; the copy beside the recording is the one the digest's reproduce commands name |
 | `<recording>-offcpu/offcpu-dispatch-hide.txt`, `<recording>.offcpu-dispatch-hide.txt` | The BookKeeper and Pulsar frames that only dispatch work (executors running a task, Pulsar's inbound Netty handlers), hidden with jonoffcpu's `jvm-dispatch` preset in the digest and the app-root flame graphs |
@@ -162,7 +162,8 @@ component, such as `broker-profile/inttest_profile_<time>_<container>.jfr` and
 ### Idle waits
 
 In a broker, over 99 % of off-CPU time is threads waiting for work: Netty event loops in `epollWait`, executor
-workers waiting for a task, JDK and HotSpot service threads. `offcpu-no-idle` leaves those out with the patterns in
+workers waiting for a task, JDK and HotSpot service threads. The blocked time flame graphs, `offcpu-no-idle` and
+`offcpu-no-idle-app-root`, leave those out with the patterns in
 the report tool resource `offcpu-idle-waits.txt`. Each pattern names the wait itself rather than the thread's run
 loop, so a lock taken while running a task stays in. What remains is lock and monitor contention, safepoints, GC
 phases and I/O. The digest leaves out the same idle waits.

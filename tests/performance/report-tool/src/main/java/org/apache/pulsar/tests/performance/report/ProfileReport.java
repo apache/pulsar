@@ -51,14 +51,29 @@ public final class ProfileReport {
     private record Slice(String name, String label, boolean idleLeftOut) {
     }
 
+    // The blocked time first: the time that can limit throughput, where the process waited while it had work
     private static final List<Slice> SLICES = List.of(
-            new Slice(OffCpuFlamegraphs.ALL_SLICE, "All off-CPU time", false),
-            new Slice(OffCpuFlamegraphs.NO_IDLE_SLICE, "Without idle waits", true),
-            new Slice(OffCpuFlamegraphs.APP_ROOT_SLICE, "From the application's first frame", false),
+            new Slice(OffCpuFlamegraphs.NO_IDLE_SLICE, "Blocked time", true),
             new Slice(OffCpuFlamegraphs.NO_IDLE_APP_ROOT_SLICE,
-                    "Without idle waits, from the application's first frame", true));
+                    "Blocked time, from where threads entered Pulsar or BookKeeper code", true),
+            new Slice(OffCpuFlamegraphs.ALL_SLICE, "All off-CPU time, with idle waits", false),
+            new Slice(OffCpuFlamegraphs.APP_ROOT_SLICE,
+                    "All off-CPU time, from where threads entered Pulsar or BookKeeper code", false));
 
     private ProfileReport() {
+    }
+
+    /** The profiled process, as the report's text names it: {@code broker-profile} is "the broker". */
+    static String processName(Path directory) {
+        String name = directory.getFileName().toString();
+        if (name.startsWith("broker")) {
+            return "the broker";
+        } else if (name.equals("gateways")) {
+            return "the gateways' Pulsar clients";
+        } else if (name.equals(RunReport.APPLICATIONS_DIRECTORY)) {
+            return "the applications' Pulsar clients";
+        }
+        return "the profiled process";
     }
 
     /**
@@ -128,9 +143,11 @@ public final class ProfileReport {
         StringBuilder rows = new StringBuilder();
         for (String[] file : new String[][] {
                 // The place to start reading a profile, so it stands out, and its description links it too
-                {digest, "**jonoffcpu report (off-CPU summary)**", "**[Start here](" + digest + ")**: the blocked"
-                        + " time ranked by the application method that waited, where the time went and the capture's"
-                        + " coverage"},
+                {digest, "**jonoffcpu report (off-CPU summary)**", "**[Start here](" + digest + ")**: the"
+                        + " methods where the threads of " + processName(directory) + " blocked, what they blocked on"
+                        + " and for how long, ranked by their blocked time, which points to the contention that can"
+                        + " limit throughput; the blocked time flame graphs below show the code paths that lead to"
+                        + " them"},
                 {base + ".jfr", "JFR recording", "The complete recording, for JDK Mission Control or the converter"},
                 {base + ".measurement.jfr", "JFR recording for the measurement period", "Cut to the measurement"
                         + " window; the CPU, allocation, lock and wall-clock views are rendered from it"},
@@ -174,7 +191,17 @@ public final class ProfileReport {
         if (!Files.isDirectory(directory.resolve(offCpu))) {
             return;
         }
-        report.append("\n### Off-CPU time\n\n");
+        report.append("\n### Off-CPU flame graphs: where threads waited\n\n");
+        String process = processName(directory);
+        report.append("jonoffcpu's off-CPU capture records the time the threads of ").append(process)
+                .append(" weren't running on a CPU. These flame graphs show which code paths the threads were in")
+                .append(" during that time, as call trees drawn like async-profiler's, but a box's width is off-CPU")
+                .append(" time instead of a count of samples: the wider a path, the more time threads spent stopped")
+                .append(" in it. The blocked time flame graphs show where ").append(process)
+                .append(" waited while it had work to do, such as on a lock, a monitor or I/O, which is the waiting")
+                .append(" that can limit throughput; the jonoffcpu report ranks the same time by the method that")
+                .append(" waited. The flame graphs of all off-CPU time also show the threads that were idle, waiting")
+                .append(" for new work.\n\n");
         report.append("| Flame graph | Off-CPU s | Intervals | Left out as idle s | Left out without an application"
                 + " frame s |\n|---|---:|---:|---:|---:|\n");
         for (Slice slice : SLICES) {
@@ -191,11 +218,25 @@ public final class ProfileReport {
                     .append(" | ").append(seconds(totals.path("rootAtUnmatchedHidden").path("totalNanos")))
                     .append(" |\n");
         }
-        report.append("\nThe application's first frame is the root-most frame matching `")
-                .append(OffCpuFlamegraphs.APPLICATION_ROOT).append("` once the dispatch frames are hidden; stacks")
-                .append(" without one, such as the JVM's own threads, are left out of those flame")
-                .append(" graphs and counted in the last column, and the digest ranks them by thread pool. Each flame")
-                .append(" graph has a `.collapsed` file with full names and a `.json` summary beside it.\n");
+        report.append("\n<details><summary>How the off-CPU time is split</summary>\n\n")
+                .append("- The width of a box is the observed off-CPU time of the waits that the capture recorded.")
+                .append(" The scenario's off-CPU sampling policy can record long waits in full and only a share of")
+                .append(" the short ones, so the observed time under-weights short waits; jonoffcpu's correlator")
+                .append(" estimates the time of all waits with `--weights estimated`, as the guide to analyzing")
+                .append(" profiles shows for comparing two runs.\n")
+                .append("- The blocked time leaves out the idle waits, the threads that waited for new work, such as")
+                .append(" Netty event loops in `epollWait` and executor workers waiting for a task. The patterns in `")
+                .append(OffCpuFlamegraphs.IDLE_WAITS_FILE).append("` recognize them, and the \"Left out as idle\"")
+                .append(" column is their time.\n")
+                .append("- The flame graphs from where threads entered Pulsar or BookKeeper code start each stack")
+                .append(" at its")
+                .append(" root-most frame matching `").append(OffCpuFlamegraphs.APPLICATION_ROOT).append("`, once the")
+                .append(" frames that only dispatch work (`").append(OffCpuFlamegraphs.DISPATCH_HIDE_FILE)
+                .append("`) are hidden, so that the same code reached from different thread pools joins into one")
+                .append(" tree. Stacks without such a frame, such as the JVM's own threads, are left out of them and")
+                .append(" counted in the last column; the jonoffcpu report ranks them by thread pool.\n")
+                .append("- Each flame graph has a `.collapsed` file with full names and a `.json` summary beside")
+                .append(" it.\n\n</details>\n");
     }
 
     private static void appendViews(StringBuilder report, Path directory, String base) {
@@ -205,12 +246,19 @@ public final class ProfileReport {
         }
         StringBuilder rows = new StringBuilder();
         List<String> rendered = new ArrayList<>();
+        List<String> shows = new ArrayList<>();
         for (JfrFlamegraphViews.View view : JfrFlamegraphViews.View.values()) {
             String label = view.label();
             if (!Files.isRegularFile(directory.resolve(views).resolve(label + ".html"))) {
                 continue;
             }
             rendered.add(view.description());
+            shows.add(switch (view) {
+                case CPU -> "the CPU flame graph shows where they used the CPU";
+                case WALL -> "the wall-clock flame graph shows where they spent their time, running or not";
+                case ALLOC -> "the allocation flame graph shows where they allocated memory";
+                case LOCK -> "the lock flame graph shows where they waited to acquire Java locks";
+            });
             rows.append("| ").append(label).append(" | ")
                     .append(link(directory, views, label + ".html", "flame graph")).append(" | ")
                     .append(link(directory, views, label + JfrFlamegraphViews.THREADS_SUFFIX + ".html",
@@ -220,8 +268,12 @@ public final class ProfileReport {
                     .append(link(directory, views, label + ".collapsed", "collapsed")).append(" |\n");
         }
         if (!rows.isEmpty()) {
-            report.append("\n### ").append(capitalize(inProse(rendered)))
-                    .append(rendered.size() == 1 ? " view\n\n" : " views\n\n")
+            // Unlike the off-CPU flame graphs, these come from the samples in the JFR recording
+            report.append("\n### async-profiler flame graphs: ").append(inProse(rendered)).append("\n\n")
+                    .append("async-profiler, which the jonoffcpu agent runs in the process, sampled the threads of ")
+                    .append(processName(directory)).append(" into the JFR recording: ").append(inProse(shows))
+                    .append(". Each view is also split by thread, and shown over time as a heatmap for bursts and")
+                    .append(" pauses.\n\n")
                     .append("| View | Flame graph | By thread | Over time | Stacks |\n|---|---|---|---|---|\n")
                     .append(rows);
         }
@@ -233,10 +285,6 @@ public final class ProfileReport {
             return String.join("", items);
         }
         return String.join(", ", items.subList(0, items.size() - 1)) + " and " + items.get(items.size() - 1);
-    }
-
-    private static String capitalize(String text) {
-        return text.isEmpty() ? text : Character.toUpperCase(text.charAt(0)) + text.substring(1);
     }
 
     private static String link(Path directory, String subdirectory, String file, String text) {

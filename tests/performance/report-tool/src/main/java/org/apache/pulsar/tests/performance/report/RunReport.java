@@ -924,10 +924,14 @@ public final class RunReport {
         if (profileReports.isEmpty()) {
             return;
         }
-        report.append("\n## Profiles\n\nThe jonoffcpu report (off-CPU summary) ranks where threads were blocked."
-                + " Each profile report links it too, with the off-CPU flame graphs, and the CPU,"
-                + " allocation and other flame graphs, split by thread and as heatmaps over time.\n\n| Profile"
-                + " | Reports | Blocked off-CPU time (without idle waits) | JFR recordings |\n|---|---|---:|---|\n");
+        report.append("\n## Profiles\n\njonoffcpu profiles each process, the broker or a Pulsar client, in two ways:"
+                + " its off-CPU capture shows where threads waited while they weren't running on a CPU, and"
+                + " async-profiler's samples show where they ran on the CPU and allocated memory. The jonoffcpu report"
+                + " (off-CPU summary) ranks the methods where the threads blocked while they had work to do, such as on"
+                + " a lock, a monitor or I/O, and the blocked time flame graph shows the code paths that lead to them."
+                + " Each profile report links all of the profile's flame graphs, with async-profiler's also split by"
+                + " thread and as heatmaps over time.\n\n| Profile | Reports | Blocked time | JFR recordings"
+                + " |\n|---|---|---:|---|\n");
         for (Path profileReport : profileReports) {
             Path directory = profileReport.getParent();
             double blockedSeconds = 0;
@@ -984,7 +988,7 @@ public final class RunReport {
             String suffix = offCpu.size() > 1 ? " " + (i + 1) : "";
             addLink(digests, "jonoffcpu report (off-CPU summary)" + suffix, name, directory, offCpu.get(i),
                     OffCpuFlamegraphs.SUMMARY_FILE);
-            addLink(links, "off-CPU flame graph" + suffix, name, directory, offCpu.get(i),
+            addLink(links, "blocked time flame graph" + suffix, name, directory, offCpu.get(i),
                     OffCpuFlamegraphs.NO_IDLE_SLICE + ".html");
         }
         for (int i = 0; i < flameGraphs.size(); i++) {

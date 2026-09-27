@@ -426,7 +426,7 @@ public class RunReportTest {
                 // The jonoffcpu report comes first, in bold, as the place to start
                 "**[jonoffcpu report (off-CPU summary)](broker-profile/recording-offcpu/jonoffcpu-summary.md)**"
                         + " · [profile report](broker-profile/README.md)"
-                        + " · [off-CPU flame graph](broker-profile/recording-offcpu/offcpu-no-idle.html)"
+                        + " · [blocked time flame graph](broker-profile/recording-offcpu/offcpu-no-idle.html)"
                         // A profile without allocation sampling has no allocation flame graph
                         + " · [CPU flame graph](broker-profile/recording-flamegraphs/cpu.html)");
     }
