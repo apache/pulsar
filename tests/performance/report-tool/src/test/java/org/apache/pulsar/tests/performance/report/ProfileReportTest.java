@@ -103,8 +103,9 @@ public class ProfileReportTest {
         assertThat(report).doesNotContain(OffCpuFlamegraphs.APP_ROOT_SLICE + ".html");
         // Only the rendered views are named; this recording has no lock or wall-clock view.
         assertThat(report).contains("### async-profiler flame graphs: CPU and allocation\n");
-        assertThat(report).contains(" into the JFR recording: the CPU flame graph shows where they used the CPU and the"
-                + " allocation flame graph shows where they allocated memory.");
+        // Each view says what its widths count: allocation weighs bytes, not samples
+        assertThat(report).contains(" into the JFR recording: the CPU flame graph shows where they used the CPU (width:"
+                + " samples) and the allocation flame graph shows where they allocated memory (width: bytes).");
         assertThat(report).contains("| cpu | [flame graph](broker-flamegraphs/cpu.html) | "
                 + "[by thread](broker-flamegraphs/cpu-threads.html) | "
                 + "[heatmap](broker-flamegraphs/cpu-heatmap.html) | "

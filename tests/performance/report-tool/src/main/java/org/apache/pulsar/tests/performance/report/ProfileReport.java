@@ -195,9 +195,9 @@ public final class ProfileReport {
         String process = processName(directory);
         report.append("jonoffcpu's off-CPU capture records the time the threads of ").append(process)
                 .append(" weren't running on a CPU. These flame graphs show which code paths the threads were in")
-                .append(" during that time, as call trees drawn like async-profiler's, but a box's width is off-CPU")
-                .append(" time instead of a count of samples: the wider a path, the more time threads spent stopped")
-                .append(" in it. The blocked time flame graphs show where ").append(process)
+                .append(" during that time, as call trees where a box's width is off-CPU time: the wider a path, the")
+                .append(" more time threads spent stopped in it. The blocked time flame graphs show where ")
+                .append(process)
                 .append(" waited while it had work to do, such as on a lock, a monitor or I/O, which is the waiting")
                 .append(" that can limit throughput; the jonoffcpu report ranks the same time by the method that")
                 .append(" waited. The flame graphs of all off-CPU time also show the threads that were idle, waiting")
@@ -221,9 +221,9 @@ public final class ProfileReport {
         report.append("\n<details><summary>How the off-CPU time is split</summary>\n\n")
                 .append("- The width of a box is the observed off-CPU time of the waits that the capture recorded.")
                 .append(" The scenario's off-CPU sampling policy can record long waits in full and only a share of")
-                .append(" the short ones, so the observed time under-weights short waits; jonoffcpu's correlator")
-                .append(" estimates the time of all waits with `--weights estimated`, as the guide to analyzing")
-                .append(" profiles shows for comparing two runs.\n")
+                .append(" the short ones, so the observed time under-weights short waits; the correlator's")
+                .append(" `--weights estimated` corrects for that sampling. Waits shorter than the policy's minimum")
+                .append(" aren't recorded at all.\n")
                 .append("- The blocked time leaves out the idle waits, the threads that waited for new work, such as")
                 .append(" Netty event loops in `epollWait` and executor workers waiting for a task. The patterns in `")
                 .append(OffCpuFlamegraphs.IDLE_WAITS_FILE).append("` recognize them, and the \"Left out as idle\"")
@@ -253,11 +253,14 @@ public final class ProfileReport {
                 continue;
             }
             rendered.add(view.description());
+            // What each view shows, and what its widths count: samples, or the bytes and time that --total weighs
             shows.add(switch (view) {
-                case CPU -> "the CPU flame graph shows where they used the CPU";
-                case WALL -> "the wall-clock flame graph shows where they spent their time, running or not";
-                case ALLOC -> "the allocation flame graph shows where they allocated memory";
-                case LOCK -> "the lock flame graph shows where they waited to acquire Java locks";
+                case CPU -> "the CPU flame graph shows where they used the CPU (width: samples)";
+                case WALL -> "the wall-clock flame graph shows where they spent their time, running or not (width:"
+                        + " samples)";
+                case ALLOC -> "the allocation flame graph shows where they allocated memory (width: bytes)";
+                case LOCK -> "the lock flame graph shows where they waited to enter Java monitors or were parked,"
+                        + " which includes threads waiting idle for work (width: time)";
             });
             rows.append("| ").append(label).append(" | ")
                     .append(link(directory, views, label + ".html", "flame graph")).append(" | ")
