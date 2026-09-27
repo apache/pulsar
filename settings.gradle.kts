@@ -270,6 +270,8 @@ include("tests:performance:report-tool")
 project(":tests:performance:report-tool").projectDir = file("tests/performance/report-tool")
 include("tests:performance:launcher")
 project(":tests:performance:launcher").projectDir = file("tests/performance/launcher")
+include("tests:performance:metrics")
+project(":tests:performance:metrics").projectDir = file("tests/performance/metrics")
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Shade test modules

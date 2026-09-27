@@ -54,6 +54,7 @@ Pass the launcher's options with `--args`:
 | `--cooldown-temperature <°C>` | Waits for the CPU package to cool down to this temperature before starting, see [Host temperature and cool-down](#host-temperature-and-cool-down). Default: `performance.cooldownTemperature`, or else no wait. |
 | `--cooldown-timeout <seconds>` | The longest wait for `--cooldown-temperature`. Default: 600. |
 | `--progress-interval <seconds>` | How often to print the workload's progress, see [Progress on the console](#progress-on-the-console). Default: 10. |
+| `--no-metrics` | Collects no metrics of the brokers, the bookies and ZooKeeper, which a run collects by default, see [Metrics](metrics.md). Default: `performance.metrics`, or else collect them. |
 | `--keep-launcher-log` | Keeps `launcher.log` when the run succeeds. Without it, a successful run deletes the log, since the containers' logs make it large; a failed run keeps it. Default: `performance.keepLauncherLog`, or else a successful run deletes it. |
 | `--tools-directory <dir>` | The installed workload applications. The Gradle tasks pass it. |
 
@@ -65,6 +66,7 @@ Pass these with `-P` on the command line, or set them in `~/.gradle/gradle.prope
 |---|---|
 | `performance.reportsDir` | The root of the reports hierarchy, relative to the repository root or absolute. Use an absolute path in `~/.gradle/gradle.properties`, since a relative one resolves in each checkout. |
 | `performance.cooldownTemperature` | The default of `--cooldown-temperature`. |
+| `performance.metrics`, `performance.metrics.bindAddress`, `performance.metrics.grafanaUrl` | Whether runs collect metrics, `true` by default, where the metrics stack is published, and the URL of its Grafana, see [Metrics](metrics.md#settings). |
 | `performance.keepLauncherLog` | Keeps `launcher.log` of successful runs, as `--keep-launcher-log` does. The property alone, or with `true`, keeps it. |
 | `performance.reportsServer.bindAddress`, `performance.reportsServer.port` | Where `:tests:performance:report-tool:serveReports` listens, `127.0.0.1` and `8000` by default, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |
 | `performance.reportsServer.baseUrl` | The URL of the reports server, such as `http://192.168.1.123:8000/`, with which the launcher prints each report's URL. Default: `http://<bind address>:<port>/`, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |

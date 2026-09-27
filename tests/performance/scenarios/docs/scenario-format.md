@@ -43,6 +43,8 @@ into the workload containers.
   [Profiling](../../docs/profiling.md#configuring-profiling).
 - `heapDumps`: optional heap dumps of the broker, the gateways and the applications, when they run out of memory, at
   the highest heap usage and at given times, see [Heap dumps](../../docs/heap-dumps.md).
+- `metrics`: optional; `metrics.intervalSeconds`, 5 by default, is how often VictoriaMetrics scrapes the metrics of
+  the brokers, the bookies and ZooKeeper, and the period of the broker's stats, see [Metrics](../../docs/metrics.md).
 - `output`: optional; `output.name` names the scenario's runs in the reports hierarchy instead of the file name, see
   [Where runs are written](../../docs/running-scenarios.md#where-runs-are-written).
 

@@ -36,6 +36,8 @@ dependencies {
     implementation(project(":tests:performance:report-tool"))
     // Checks the workload's settings with the workloads' own model before a cluster starts
     implementation(project(":tests:performance:tools"))
+    // Collects the brokers' metrics into the metrics stack's VictoriaMetrics during a run
+    implementation(project(":tests:performance:metrics"))
     implementation(libs.picocli)
     // Logs the stack traces of failures to launcher.log, and the console shows them in one line
     implementation(libs.slog)
@@ -99,6 +101,14 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     // absolute). Without it the launcher writes to build/performance in the project directory it finds.
     providers.gradleProperty("performance.reportsDir").orNull?.let {
         systemProperty("performance.reports.dir", rootProject.file(it).absolutePath)
+    }
+    // The metrics stack that collects the brokers' metrics, see tests/performance/docs/metrics.md: its compose file,
+    // to start VictoriaMetrics for a run when the stack doesn't run, and -Pperformance.metrics=false to collect none,
+    // -Pperformance.metrics.bindAddress and -Pperformance.metrics.grafanaUrl as for its start task
+    systemProperty("performance.metrics.composeFile",
+        project(":tests:performance:metrics").layout.projectDirectory.file("compose.yaml").asFile.absolutePath)
+    listOf("metrics", "metrics.bindAddress", "metrics.grafanaUrl").forEach { name ->
+        providers.gradleProperty("performance.$name").orNull?.let { systemProperty("performance.$name", it) }
     }
     // The URL of the reports that :tests:performance:report-tool:serveReports serves, which the launcher prints beside
     // the reports: -Pperformance.reportsServer.baseUrl, else the server's bind address and port

@@ -161,6 +161,12 @@ public class PerformanceLauncher implements Callable<Integer> {
                     + "a failed run keeps it")
     boolean keepLauncherLog;
 
+    @Option(names = "--metrics", negatable = true, defaultValue = "${sys:performance.metrics:-true}",
+            fallbackValue = "true", description = "Have VictoriaMetrics scrape the brokers' metrics during the run, "
+                    + "the default: the running metrics stack's, or else the stack started for the run. "
+                    + "--no-metrics doesn't. See docs/metrics.md")
+    boolean metrics;
+
     @Option(names = "--sysfs", defaultValue = "/sys", hidden = true)
     Path sysfs;
 
@@ -213,6 +219,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         ProfilingSettings profilingSettings = ProfilingSettings.read(loader.mapper(), profiling);
         ClusterSettings clusterSettings = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
         HeapDumpSettings heapDumpSettings = HeapDumpSettings.read(resolved.path("heapDumps"));
+        MetricsSettings metricsSettings = MetricsSettings.read(resolved.path("metrics"));
         // The cluster as the scenario wrote it, for the run report
         ObjectNode clusterConfig = (ObjectNode) resolved.get("cluster");
         boolean profilingEnabled = profilingSettings.anyProfiled();
@@ -274,7 +281,9 @@ public class PerformanceLauncher implements Callable<Integer> {
             System.setProperty("inttest.asyncprofiler.outputformat", "jfr");
         }
         Map<String, Path> heapDumpDirectories = heapDumpSettings.any() ? HeapDumper.prepare(runOutput) : Map.of();
-        Map<String, String> brokerEnv = clusterSettings.brokers().env();
+        // The brokers update the stats that their metrics show every metrics interval, also when no metrics are
+        // collected, so that runs with and without them are alike
+        Map<String, String> brokerEnv = metricsSettings.withBrokerStatsSettings(clusterSettings.brokers().env());
         Map<String, String> brokerMounts = new LinkedHashMap<>();
         if (heapDumpSettings.broker().any()) {
             brokerMounts.put(heapDumpDirectories.get(HeapDumpSettings.BROKER).toString(), HeapDumper.MOUNT);
@@ -326,7 +335,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .clusterImage(clusterImage)
                 .brokerEnvs(brokerEnv)
                 .brokerMountFiles(brokerMounts)
-                .bookkeeperEnvs(clusterSettings.bookies().env())
+                .bookkeeperEnvs(metricsSettings.withBookieStatsSettings(clusterSettings.bookies().env()))
                 .build();
 
         HostStatsSampler.Sensors sensors = HostStatsSampler.discover(sysfs);
@@ -345,6 +354,10 @@ public class PerformanceLauncher implements Callable<Integer> {
         HostStatsSampler hostStatsSampler = startHostStatsSampler(sensors, runOutput);
         HeapDumper heapDumper = heapDumpSettings.any()
                 ? new HeapDumper(runOutput, PulsarContainer.DEFAULT_IMAGE_NAME, heapDumpSettings.gzipLevel()) : null;
+        MetricsCollection metricsCollection = null;
+        Instant gatewaysStarted = null;
+        String metricsBindAddress = System.getProperty("performance.metrics.bindAddress",
+                ReportsUrl.DEFAULT_BIND_ADDRESS);
         ZonedDateTime workloadFinished;
         try {
             status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)",
@@ -359,6 +372,12 @@ public class PerformanceLauncher implements Callable<Integer> {
                 runInfo.write(runOutput);
                 status("The cluster runs Pulsar " + (clusterVersion.isEmpty() ? "of unknown version" : clusterVersion)
                         + " from " + clusterPulsarImage);
+            }
+            if (metrics) {
+                String composeFile = System.getProperty("performance.metrics.composeFile");
+                metricsCollection = MetricsCollection.start(cluster, composeFile != null ? Path.of(composeFile) : null,
+                        metricsBindAddress, MetricsCollection.clusterLabel(reportsRoot, runOutput), runId,
+                        metricsSettings, PerformanceLauncher::status);
             }
             status(String.format(Locale.ROOT, "Starting %d application(s) with %d pod(s) each",
                     applications, workload.path("applications").path("podsPerApplication").intValue()));
@@ -401,6 +420,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                     workload.path("gateways").path("count").intValue(),
                     workload.path("topics").path("count").intValue()));
             startWorkload(producer, ".*CONTROL_READY.*", "The gateways", producerOutput.resolve(CONTAINER_LOG));
+            gatewaysStarted = Instant.now();
             GenericContainer<?> runningProducer = producer;
             if (heapDumper != null) {
                 heapDumper.start(heapDumpTargets(cluster, heapDumpSettings, producer, consumer));
@@ -423,6 +443,21 @@ public class PerformanceLauncher implements Callable<Integer> {
             workloadFinished = ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             status("Every application has received every message; verifying the device sequences");
             verifyStates(runOutput, workload, applications);
+            if (metricsCollection != null) {
+                // The metrics are an addition to the run, which doesn't fail with them
+                try {
+                    String dashboard = metricsCollection.finish(runOutput,
+                            runEvents(loader.mapper(), runOutput, workload, applications, gatewaysStarted),
+                            System.getProperty("performance.metrics.grafanaUrl"), metricsBindAddress,
+                            PerformanceLauncher::status);
+                    status("Metrics in Grafana: " + dashboard + (metricsCollection.startedStack()
+                            ? " (start the metrics stack with ./gradlew :tests:performance:metrics:up to view it)"
+                            : ""));
+                } catch (IOException | RuntimeException e) {
+                    status("Metrics: couldn't finish collecting them: " + e.getMessage());
+                    log().warn().exception(e).log("Finishing the metrics collection failed");
+                }
+            }
         } catch (Exception e) {
             // Reported before the shutdown, which takes a while, so that the failure is the last thing on the console
             reportFailure(e);
@@ -466,6 +501,12 @@ public class PerformanceLauncher implements Callable<Integer> {
                 saveContainerLog(consumerToStop, applicationsOutput.resolve(CONTAINER_LOG));
                 shutDown("stopping the applications", consumerToStop::stop);
             }
+            MetricsCollection metricsToClose = metricsCollection;
+            shutDown("stopping the metrics collection", () -> {
+                if (metricsToClose != null) {
+                    metricsToClose.close();
+                }
+            });
             status("Stopping the Pulsar cluster");
             shutDown("stopping the Pulsar cluster", cluster::stop);
         }
@@ -525,6 +566,37 @@ public class PerformanceLauncher implements Callable<Integer> {
             deleteLauncherLog(launcherLog);
         }
         return 0;
+    }
+
+    /**
+     * The run's events for Grafana's annotations: the gateways' start, which starts the warmup, the measurement's
+     * start, the gateways' finish, and the applications' finish, when they had received every message.
+     */
+    static List<MetricsCollection.Event> runEvents(ObjectMapper mapper, Path runOutput, JsonNode workload,
+                                                   int applications, Instant gatewaysStarted) throws IOException {
+        List<MetricsCollection.Event> events = new ArrayList<>();
+        if (gatewaysStarted != null) {
+            events.add(new MetricsCollection.Event("gateways-started",
+                    "Gateways started: the producers publish, the warmup starts", gatewaysStarted));
+        }
+        JsonNode gateways = mapper.readTree(runOutput.resolve("gateways/gateways-summary.json").toFile());
+        events.add(new MetricsCollection.Event("warmup-finished", "Warmup finished: the measurement starts",
+                Instant.ofEpochMilli(requiredLong(gateways, "measurementStartEpochMs"))));
+        events.add(new MetricsCollection.Event("gateways-finished",
+                "Gateways finished: the producers have published every message",
+                Instant.ofEpochMilli(requiredLong(gateways, "measurementEndEpochMs"))));
+        long lastReceived = Long.MIN_VALUE;
+        for (int application = 0; application < applications; application++) {
+            JsonNode summary = mapper.readTree(applicationOutput(runOutput, workload, application)
+                    .resolve("application-summary.json").toFile());
+            lastReceived = Math.max(lastReceived, requiredLong(summary, "lastMeasurementMessageReceivedEpochMs"));
+        }
+        if (lastReceived != Long.MIN_VALUE) {
+            events.add(new MetricsCollection.Event("applications-finished",
+                    "Applications finished: the consumers have received every message",
+                    Instant.ofEpochMilli(lastReceived)));
+        }
+        return events;
     }
 
     /**

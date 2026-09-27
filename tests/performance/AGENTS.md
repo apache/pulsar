@@ -79,6 +79,16 @@ When a component's memory is in question, such as a heap that fills up, backlogs
 `--extends configs/heap-dumps-broker`, as [Heap dumps](docs/heap-dumps.md) describes, and don't use that run's numbers:
 the dumps stop the JVM.
 
+A run collects the metrics of its brokers, bookies and ZooKeeper into VictoriaMetrics, as [Metrics](docs/metrics.md)
+describes. To look at them, or at a run's metrics over time beyond the run report's charts, the metrics stack has to
+run: `./gradlew :tests:performance:metrics:up` starts it in the background, and `./gradlew
+:tests:performance:metrics:down` stops it. Stop only a stack that you started, and ask the user before stopping one
+that was running. `metrics.json` in the run directory has what you need
+to drill down, as [metrics.json](docs/metrics.md#metricsjson) describes: VictoriaMetrics' Prometheus API, the run's
+label selector, time range, jobs and instances, and Grafana's URL, API credentials and data source. Query
+VictoriaMetrics with it, and render a Grafana panel as a PNG image through Grafana's API, as
+[Rendering panels as images](docs/metrics.md#rendering-panels-as-images) describes.
+
 ## Pull requests for performance improvements
 
 When the user asks you to create a pull request, or update one, for a performance improvement that was tested with
@@ -115,4 +125,5 @@ personal fork or another fork.
 - Keep the docs in sync with the code: when you change a launcher option, a Gradle property, a scenario key or the
   files a run writes, update the page that documents it.
 - Run the unit tests with `./gradlew :tests:performance:common:test :tests:performance:tools:test
-  :tests:performance:launcher:test :tests:performance:report-tool:test`. None of them starts a cluster.
+  :tests:performance:launcher:test :tests:performance:report-tool:test :tests:performance:metrics:test`. None of them
+  starts a cluster or the metrics stack.

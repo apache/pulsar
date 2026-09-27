@@ -414,6 +414,53 @@ public class RunReportTest {
     }
 
     @Test
+    public void linksTheRunsMetricsInGrafana() throws IOException {
+        Files.writeString(run.resolve(RunReport.METRICS_FILE), """
+                {"cluster": "2026-09-27/master/iot-telemetry/09-27-12-00-00", "intervalSeconds": 5,
+                 "grafanaDashboard": "http://127.0.0.1:3000/d/EetmjdhnA/pulsar-messaging?var-cluster=x"}
+                """);
+        StringBuilder report = new StringBuilder();
+
+        RunReport.appendMetrics(report, run, mapper);
+
+        assertThat(report.toString())
+                .contains("## Metrics")
+                .contains("every 5 s, with the cluster label `2026-09-27/master/iot-telemetry/09-27-12-00-00`")
+                .contains("[the run on the Pulsar / Messaging dashboard]"
+                        + "(http://127.0.0.1:3000/d/EetmjdhnA/pulsar-messaging?var-cluster=x)");
+        // A run without metrics has no section
+        StringBuilder none = new StringBuilder();
+        RunReport.appendMetrics(none, Files.createTempDirectory("no-metrics"), mapper);
+        assertThat(none.toString()).isEmpty();
+    }
+
+    @Test
+    public void showsTheRenderedPanelsThatExistAndSurvivesAnUnreadableMetricsFile() throws IOException {
+        Files.createDirectories(run.resolve("grafana-panels"));
+        Files.write(run.resolve("grafana-panels/publish-rate.png"), new byte[] {1});
+        Files.writeString(run.resolve(RunReport.METRICS_FILE), """
+                {"cluster": "run", "intervalSeconds": 5, "grafanaDashboard": "http://grafana/",
+                 "dashboards": [{"title": "Pulsar / Messaging", "url": "http://grafana/d/messaging"}],
+                 "panels": [{"title": "Publish rate", "file": "grafana-panels/publish-rate.png",
+                             "url": "http://grafana/d/messaging?viewPanel=16"},
+                            {"title": "Backlog", "file": "grafana-panels/backlog.png"}]}
+                """);
+        StringBuilder report = new StringBuilder();
+
+        RunReport.appendMetrics(report, run, mapper);
+
+        assertThat(report.toString())
+                .contains("over the run: [Pulsar / Messaging](http://grafana/d/messaging).")
+                .contains("[![Publish rate](grafana-panels/publish-rate.png)](http://grafana/d/messaging?viewPanel=16)")
+                // Its image is missing
+                .doesNotContain("Backlog");
+        Files.writeString(run.resolve(RunReport.METRICS_FILE), "{not json");
+        StringBuilder unreadable = new StringBuilder();
+        RunReport.appendMetrics(unreadable, run, mapper);
+        assertThat(unreadable.toString()).isEmpty();
+    }
+
+    @Test
     public void listsEachHeapDumpOnceAsItsLastRowDescribesIt() throws IOException {
         Path dumps = Files.createDirectories(run.resolve("heap-dumps/broker"));
         Files.write(dumps.resolve("broker-0-peak.hprof"), new byte[3 << 20]);

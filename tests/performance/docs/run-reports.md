@@ -113,6 +113,8 @@ didn't receive every message, and the launcher fails a run when an application's
 ├── broker-profile/                    the broker's recordings, flame graphs and profile report (README.md,
 │                                      index.html), in a profiled run
 ├── heap-dumps/                        the heap dumps, when the scenario asks for them, see heap-dumps.md
+├── metrics.json                       the run's metrics in VictoriaMetrics and Grafana, see metrics.md
+├── grafana-panels/                    panels of Grafana's dashboards over the run, as PNG images
 └── coordination/                      the warmup barrier markers of the gateways and the applications
 ```
 
@@ -147,6 +149,9 @@ report has these sections:
   their charts in a collapsed section; a chart whose values the host doesn't provide is left out. The report says so
   in bold when the CPU throttled during the measurement, and that throttling is unknown when the host has no thermal
   throttle counters. A host that isn't Linux isn't sampled.
+- **Metrics**, when the run collected them: the scrape interval, the run's `cluster` label in VictoriaMetrics, links to
+  the run on Grafana's dashboards, and panels of the dashboards over the run with its events marked, each linking to
+  the panel in Grafana, see [Metrics](metrics.md).
 - **Heap dumps**, when the scenario asked for them: each dump, with the heap usage before it and its size, see
   [Heap dumps](heap-dumps.md).
 
@@ -162,6 +167,8 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `<scenario>.yaml`, `resolved-config.yaml` | The scenario file as written, and the scenario with its inheritance and environment overrides applied, which the workloads read |
 | `run-info.json` | The run's start, host, user, project directory, git branch, whether the HEAD was detached, the commit, whether the checkout had uncommitted changes, and the Pulsar version, with the keys of `pulsar-version.properties` where they match. The launcher collects them itself, from git and `gradle.properties` in the checkout it runs from. The `host.*` keys have the host's CPU model, sockets, cores, hardware threads, memory and operating system, from a JDK Flight Recorder recording of the launcher's JVM that is stopped right away, so that they are there on every operating system, and the `docker.*` keys the Docker engine's version, CPUs, memory, operating system, kernel and architecture. When the cluster ran a released Pulsar, `cluster.pulsarImage` and `cluster.version` name its image and the version that the brokers reported, see [Comparing with a released Pulsar](comparing-revisions.md#comparing-with-a-released-pulsar) |
 | `run-id.txt` | The ID that correlates the gateways and the applications of the run |
+| `metrics.json` | The run's metrics in VictoriaMetrics and Grafana: its `cluster` label and selector, the scrape interval, the time range, the jobs, the events, and the URLs, credentials and data source to query them with, see [metrics.json](metrics.md#metricsjson) |
+| `grafana-panels/*.png` | Panels of Grafana's dashboards over the run, which the report shows, see [Panels in the run report](metrics.md#panels-in-the-run-report) |
 | `console.log.txt` | What the launcher printed on the console, from the run directory to the run report, or to the failure. Every run keeps it |
 | `launcher.log` | The launcher's log: Testcontainers' log and the Pulsar containers' logs, which stay off the console. It is written during the run, and a successful run deletes it at the end, since the containers' logs make it large, unless `--keep-launcher-log` or `-Pperformance.keepLauncherLog` keeps it; a failed run keeps it |
 | `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the gateways' finish marked. A cool-down wait of 10 s or more before the measurement is cut out of the time axis |

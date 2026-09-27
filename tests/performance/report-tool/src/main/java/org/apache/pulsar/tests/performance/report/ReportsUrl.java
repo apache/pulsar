@@ -96,7 +96,8 @@ public final class ReportsUrl {
         }
     }
 
-    static boolean isWildcard(String address) {
+    /** Whether an address is the wildcard address that binds to every interface. */
+    public static boolean isWildcard(String address) {
         return address.equals("0.0.0.0") || address.equals("::") || address.equals("[::]");
     }
 

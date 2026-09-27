@@ -276,6 +276,18 @@ address of the host's first network interface with an IPv4 address; on a host wi
 
 [Run reports](docs/run-reports.md) describes every section and file of a run.
 
+To see a run's broker, bookie and ZooKeeper metrics on Grafana's Pulsar dashboards, start the metrics stack, before or
+after the run, which keeps running in the background until `./gradlew :tests:performance:metrics:down` stops it:
+
+```bash
+./gradlew :tests:performance:metrics:up
+```
+
+A run collects its metrics into the stack, or starts the stack for itself when it doesn't run. At its end, it marks
+its events in Grafana, such as the end of the warmup, renders panels of the dashboards into its report, and prints a
+link to the run in Grafana, `Metrics in Grafana:`, which opens while the stack runs. [Metrics](docs/metrics.md)
+describes the stack, what a run collects, and `metrics.json`, with which scripts and agents query the run's metrics.
+
 ### 3. Change the workload
 
 Try a single value with `--set`, which changes a setting of the scenario for one run:
@@ -372,6 +384,8 @@ details.
   scenarios, inheritance, environment overrides and the warmup.
 - [Profiling](docs/profiling.md): the jonoffcpu profiler, its requirements and options, the files of a profiled run
   and the measurement recording.
+- [Metrics](docs/metrics.md): the metrics stack, VictoriaMetrics and Grafana with the Pulsar dashboards, which collects
+  the metrics of the brokers, the bookies and ZooKeeper during runs, and renders Grafana's panels as images.
 - [Heap dumps](docs/heap-dumps.md): heap dumps of the broker, the gateways and the applications when they run out of
   memory, at the highest heap usage and at given times.
 - [Analyzing profiles](docs/analyzing-profiles.md): finding what to optimize, comparing profiles,
@@ -393,6 +407,7 @@ details.
 | [`launcher`](launcher) | The standalone launcher, which runs a scenario's cluster and workloads with Testcontainers and collects the run |
 | [`tools`](tools) | The workload applications, which run in the workload containers |
 | [`common`](common) | The scenario loader, shared by the launcher and the workload applications |
+| [`metrics`](metrics) | The metrics stack, VictoriaMetrics and Grafana, which Docker Compose runs from its compose file, and the collection of a run's metrics |
 | [`report-tool`](report-tool) | Writes the run and profile reports, charts and flame graphs, and serves the reports over HTTP |
 | [`environment`](environment/README.md) | Scripts that configure the host for performance testing and free Docker disk space |
 | [`docs`](docs) | The reference documentation |

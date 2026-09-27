@@ -21,6 +21,10 @@
 # Recommended memory available to Docker: about 11 GB. The other scenarios extend it, and set the topology they model;
 # a scenario that needs a different memory configuration extends it from configs/ too, after this file.
 extends: configs/iot-telemetry-medium-mem.yaml
+# How often VictoriaMetrics scrapes the brokers' metrics, and the brokers update the stats that the metrics show, see
+# docs/metrics.md
+metrics:
+  intervalSeconds: 5
 workloads:
   iotTelemetry:
     # Warmup traffic is validated but excluded from throughput and the exported measurement window.

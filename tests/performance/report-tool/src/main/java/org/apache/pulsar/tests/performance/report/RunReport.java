@@ -49,6 +49,8 @@ public final class RunReport {
     /** The launcher's heap dump directory in the run directory, and the list of the dumps in it. */
     static final String HEAP_DUMPS_DIRECTORY = "heap-dumps";
     static final String HEAP_DUMPS_INDEX = "heap-dumps.csv";
+    /** The launcher's description of the broker metrics that VictoriaMetrics collected of the run. */
+    public static final String METRICS_FILE = "metrics.json";
     static final String LATENCY_CHART = "latency";
     static final String THROUGHPUT_CHART = "throughput";
     static final String BACKLOG_CHART = "backlog";
@@ -304,6 +306,7 @@ public final class RunReport {
             appendHost(report, runDirectory, hostSamples, host, run.cooldowns(), measurementStart, measurementEnd,
                     chartFooter(run.info(), run.finished()));
         }
+        appendMetrics(report, runDirectory, mapper);
         appendHeapDumps(report, runDirectory);
         appendFiles(report, runDirectory, run.workload());
         appendFooter(report, run);
@@ -388,6 +391,55 @@ public final class RunReport {
      * The heap dumps that the launcher wrote, as {@code heap-dumps/heap-dumps.csv} lists them: each file that still
      * exists once, as its last row describes it, since a peak dump replaces the previous one under the same name.
      */
+    /**
+     * The metrics that VictoriaMetrics collected of the run, as the launcher's {@code metrics.json} describes them,
+     * with the link to the run in Grafana and the panels of Grafana's dashboards that the launcher rendered. A run
+     * without metrics, which doesn't have the file, or with a file that can't be read, has no Metrics section, and a
+     * panel whose image is missing is left out.
+     */
+    static void appendMetrics(StringBuilder report, Path runDirectory, ObjectMapper mapper) {
+        Path file = runDirectory.resolve(METRICS_FILE);
+        if (!Files.isRegularFile(file)) {
+            return;
+        }
+        JsonNode metrics;
+        try {
+            metrics = mapper.readTree(file.toFile());
+        } catch (IOException e) {
+            return;
+        }
+        report.append("\n## Metrics\n\nVictoriaMetrics scraped the metrics of the brokers, the bookies and ZooKeeper "
+                        + "every ")
+                .append(metrics.path("intervalSeconds").asInt()).append(" s, with the cluster label `")
+                .append(metrics.path("cluster").asText()).append("`: [the run on the Pulsar / Messaging dashboard](")
+                .append(metrics.path("grafanaDashboard").asText())
+                .append("), which opens while the metrics stack runs. Its other dashboards choose the run by that "
+                        + "cluster.\n");
+        List<String> dashboards = new ArrayList<>();
+        for (JsonNode dashboard : metrics.path("dashboards")) {
+            dashboards.add("[" + dashboard.path("title").asText() + "](" + dashboard.path("url").asText() + ")");
+        }
+        if (!dashboards.isEmpty()) {
+            report.append("\nThe dashboards of the panels below, over the run: ").append(String.join(", ", dashboards))
+                    .append(".\n");
+        }
+        StringBuilder panels = new StringBuilder();
+        for (JsonNode panel : metrics.path("panels")) {
+            String image = panel.path("file").asText();
+            if (!image.isEmpty() && Files.isRegularFile(runDirectory.resolve(image))) {
+                String markdownImage = "![" + panel.path("title").asText() + "](" + image + ")";
+                String url = panel.path("url").asText();
+                // A panel opens in Grafana
+                panels.append('\n').append(url.isEmpty() ? markdownImage : "[" + markdownImage + "](" + url + ")")
+                        .append('\n');
+            }
+        }
+        if (!panels.isEmpty()) {
+            report.append("\nPanels of Grafana's dashboards over the run, with its events marked: the gateways' start, "
+                    + "the end of the warmup, the gateways' finish and the applications' finish.\n").append(panels);
+        }
+    }
+
     static void appendHeapDumps(StringBuilder report, Path runDirectory) throws IOException {
         Path index = runDirectory.resolve(HEAP_DUMPS_DIRECTORY).resolve(HEAP_DUMPS_INDEX);
         if (!Files.isRegularFile(index)) {
@@ -428,7 +480,7 @@ public final class RunReport {
     private static void appendFiles(StringBuilder report, Path runDirectory, JsonNode workload) {
         List<String> links = new ArrayList<>();
         // The scenario and its resolved configuration are linked from the settings table
-        for (String name : List.of(CONSOLE_LOG, RunInfo.FILE_NAME, "gateways/gateways-summary.json",
+        for (String name : List.of(CONSOLE_LOG, RunInfo.FILE_NAME, METRICS_FILE, "gateways/gateways-summary.json",
                 "gateways/" + CONTAINER_LOG, APPLICATIONS_DIRECTORY + "/" + CONTAINER_LOG)) {
             Path file = runDirectory.resolve(name);
             if (Files.isRegularFile(file)) {
