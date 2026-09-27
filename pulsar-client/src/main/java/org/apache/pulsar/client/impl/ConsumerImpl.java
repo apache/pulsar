@@ -1534,6 +1534,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         .log("Ignoring message from before the startMessageId");
 
                 uncompressedPayload.release();
+                // This message is dropped instead of being delivered to the application, so its
+                // outstanding flow-control permit is never returned via messageProcessed(). Return
+                // it here to avoid leaking a permit for the boundary message that a seek/startMessageId
+                // caused to be re-dispatched. (For a chunked message the non-last chunks were already
+                // credited at the top of this method; this repays the single remaining permit.)
+                increaseAvailablePermits(cnx);
                 return;
             }
 
