@@ -124,10 +124,12 @@ public final class ProfileReport {
     // The digest, the recordings and the patterns the off-CPU outputs used; retention may have removed some
     private static void appendFiles(StringBuilder report, Path directory, String base) {
         String offCpu = base + OffCpuFlamegraphs.OUTPUT_SUFFIX + "/";
+        String digest = offCpu + OffCpuFlamegraphs.SUMMARY_FILE;
         StringBuilder rows = new StringBuilder();
         for (String[] file : new String[][] {
-                {offCpu + OffCpuFlamegraphs.SUMMARY_FILE, "Digest (off-CPU summary)", "Start here: the blocked time"
-                        + " ranked by the application method that waited, where the time went and the capture's"
+                // The place to start reading a profile, so it stands out, and its description links it too
+                {digest, "**jonoffcpu report (off-CPU summary)**", "**[Start here](" + digest + ")**: the blocked"
+                        + " time ranked by the application method that waited, where the time went and the capture's"
                         + " coverage"},
                 {base + ".jfr", "JFR recording", "The complete recording, for JDK Mission Control or the converter"},
                 {base + ".measurement.jfr", "JFR recording for the measurement period", "Cut to the measurement"
@@ -139,8 +141,12 @@ public final class ProfileReport {
                 {offCpu + OffCpuFlamegraphs.DISPATCH_HIDE_FILE, "Dispatch frames", "Frames that only dispatch work,"
                         + " hidden with jonoffcpu's `jvm-dispatch` preset before stacks start at the application"}}) {
             if (Files.isRegularFile(directory.resolve(file[0]))) {
-                rows.append("| [").append(file[1]).append("](").append(file[0]).append(") | ").append(file[2])
-                        .append(" |\n");
+                // A bold name makes the whole link bold: **[name](file)**
+                String text = file[1];
+                String link = text.startsWith("**")
+                        ? "**[" + text.substring(2, text.length() - 2) + "](" + file[0] + ")**"
+                        : "[" + text + "](" + file[0] + ")";
+                rows.append("| ").append(link).append(" | ").append(file[2]).append(" |\n");
             }
         }
         if (!rows.isEmpty()) {

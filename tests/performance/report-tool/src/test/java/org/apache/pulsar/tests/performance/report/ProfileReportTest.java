@@ -78,7 +78,8 @@ public class ProfileReportTest {
         assertThat(report).contains("(40.0 s); gateways' throughput 102,329 msg/s.");
         // The files are a table with descriptive link texts; the recording's generated name is not shown
         assertThat(report).contains("| File | Contents |\n|---|---|\n"
-                + "| [Digest (off-CPU summary)](broker-offcpu/jonoffcpu-summary.md) | Start here:");
+                + "| **[jonoffcpu report (off-CPU summary)](broker-offcpu/jonoffcpu-summary.md)**"
+                + " | **[Start here](broker-offcpu/jonoffcpu-summary.md)**: the blocked time");
         assertThat(report).contains("| [JFR recording for the measurement period](broker.measurement.jfr) |");
         assertThat(report).contains("| [Off-CPU capture stream](broker.jonoffcpu-capture.pb) |");
         assertThat(report).contains("| [Idle-wait patterns](broker-offcpu/offcpu-idle-waits.txt) |");

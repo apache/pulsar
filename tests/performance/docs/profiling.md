@@ -134,9 +134,9 @@ under `applications/`. Nothing needs to be rendered by hand:
   policy is `none`.
 - **A profile report** in each profiled component's directory, `README.md` with its HTML page `index.html`, which
   links to both with their totals. Its names make an HTTP server or GitHub open the directory on the report. The run
-  report's Profiles section links each profile's reports directly: its profile report, its jonoffcpu report, which is
-  the digest, and its off-CPU, CPU and allocation flame graphs, so the run's `index.html` leads to every flame graph of
-  the run.
+  report's Profiles section links each profile's reports directly: its jonoffcpu report (off-CPU summary), which is
+  the digest, its profile report, and its off-CPU, CPU and allocation flame graphs, so the run's `index.html` leads to
+  every flame graph of the run.
 
 The launcher prints each of these directories and reports as it writes them. The recordings are named after the
 component, such as `broker-profile/inttest_profile_<time>_<container>.jfr` and

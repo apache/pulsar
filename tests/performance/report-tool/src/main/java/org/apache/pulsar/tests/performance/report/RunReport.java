@@ -924,10 +924,10 @@ public final class RunReport {
         if (profileReports.isEmpty()) {
             return;
         }
-        report.append("\n## Profiles\n\nThe jonoffcpu report is the off-CPU digest, which ranks where threads were"
-                + " blocked. Each profile report has it too, with the off-CPU flame graphs, and the CPU, allocation and"
-                + " other flame graphs, split by thread and as heatmaps over time.\n\n| Profile | Reports"
-                + " | Blocked off-CPU time (without idle waits) | JFR recordings |\n|---|---|---:|---|\n");
+        report.append("\n## Profiles\n\nThe jonoffcpu report (off-CPU summary) ranks where threads were blocked."
+                + " Each profile report links it too, with the off-CPU flame graphs, and the CPU,"
+                + " allocation and other flame graphs, split by thread and as heatmaps over time.\n\n| Profile"
+                + " | Reports | Blocked off-CPU time (without idle waits) | JFR recordings |\n|---|---|---:|---|\n");
         for (Path profileReport : profileReports) {
             Path directory = profileReport.getParent();
             double blockedSeconds = 0;
@@ -963,10 +963,12 @@ public final class RunReport {
     }
 
     /**
-     * The links to a profile's reports, so that they are a click away from the run report: the profile report, the
-     * jonoffcpu report, which is the off-CPU digest, and the main flame graphs, of those that the profile has.
+     * The links to a profile's reports, so that they are a click away from the run report: the jonoffcpu report
+     * (off-CPU summary), in bold as the place to start, the profile report and the main flame graphs, of those that
+     * the profile has.
      */
     static String reportLinks(String name, Path directory) throws IOException {
+        List<String> digests = new ArrayList<>();
         List<String> links = new ArrayList<>();
         links.add("[profile report](" + name + "/" + ProfileReport.FILE_NAME + ")");
         List<Path> outputs;
@@ -980,7 +982,8 @@ public final class RunReport {
                 .filter(path -> path.getFileName().toString().endsWith(JfrFlamegraphViews.OUTPUT_SUFFIX)).toList();
         for (int i = 0; i < offCpu.size(); i++) {
             String suffix = offCpu.size() > 1 ? " " + (i + 1) : "";
-            addLink(links, "jonoffcpu report" + suffix, name, directory, offCpu.get(i), OffCpuFlamegraphs.SUMMARY_FILE);
+            addLink(digests, "jonoffcpu report (off-CPU summary)" + suffix, name, directory, offCpu.get(i),
+                    OffCpuFlamegraphs.SUMMARY_FILE);
             addLink(links, "off-CPU flame graph" + suffix, name, directory, offCpu.get(i),
                     OffCpuFlamegraphs.NO_IDLE_SLICE + ".html");
         }
@@ -989,7 +992,10 @@ public final class RunReport {
             addLink(links, "CPU flame graph" + suffix, name, directory, flameGraphs.get(i), "cpu.html");
             addLink(links, "allocation flame graph" + suffix, name, directory, flameGraphs.get(i), "alloc.html");
         }
-        return String.join(" · ", links);
+        List<String> all = new ArrayList<>();
+        digests.forEach(digest -> all.add("**" + digest + "**"));
+        all.addAll(links);
+        return String.join(" · ", all);
     }
 
     // A link to a file of a profile's output directory, when the file exists

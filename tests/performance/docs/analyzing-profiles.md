@@ -29,7 +29,9 @@ to optimize, and the other tools that read the recordings.
 ## Finding what to optimize
 
 1. Open the run report, `index.html`, then the broker's profile report and the digest it links to,
-   `offcpu-no-idle-app-root.html` and `cpu.html`. A single thread that is busy all the time — the `-threads` views
+   `offcpu-no-idle-app-root.html` and `cpu.html`. The digest ranks the blocked time by the method that waited; the
+   off-CPU flame graph, `offcpu-no-idle-app-root.html`, shows the same blocked time as call trees, to inspect visually
+   which code paths lead to the blocking methods. A single thread that is busy all the time — the `-threads` views
    show it — is a serial bottleneck that no amount of other headroom helps. The heatmaps show whether CPU or
    allocation comes in bursts or stalls.
 2. Rank the blocked time by the deepest Pulsar or BookKeeper frame of each stack and the lock or wait below it. This

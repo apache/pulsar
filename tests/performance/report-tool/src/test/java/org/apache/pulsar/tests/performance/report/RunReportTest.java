@@ -423,8 +423,9 @@ public class RunReportTest {
         Files.writeString(flameGraphs.resolve("cpu.html"), "");
 
         assertThat(RunReport.reportLinks("broker-profile", profile)).isEqualTo(
-                "[profile report](broker-profile/README.md)"
-                        + " · [jonoffcpu report](broker-profile/recording-offcpu/jonoffcpu-summary.md)"
+                // The jonoffcpu report comes first, in bold, as the place to start
+                "**[jonoffcpu report (off-CPU summary)](broker-profile/recording-offcpu/jonoffcpu-summary.md)**"
+                        + " · [profile report](broker-profile/README.md)"
                         + " · [off-CPU flame graph](broker-profile/recording-offcpu/offcpu-no-idle.html)"
                         // A profile without allocation sampling has no allocation flame graph
                         + " · [CPU flame graph](broker-profile/recording-flamegraphs/cpu.html)");
