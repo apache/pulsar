@@ -39,6 +39,8 @@ dependencies {
     implementation(libs.picocli)
     // Logs the stack traces of failures to launcher.log, and the console shows them in one line
     implementation(libs.slog)
+    // Stops the logging, which closes launcher.log, before a successful run deletes it
+    implementation(libs.log4j.api)
     // Merges the workloads' latency intervals for the progress lines
     implementation(libs.hdrHistogram)
     // Samples topic backlog and message counters during a run for the run report
@@ -102,6 +104,12 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     // so that runs start from comparable thermal conditions. Without it the launcher doesn't wait.
     providers.gradleProperty("performance.cooldownTemperature").orNull?.let {
         systemProperty("performance.cooldown.temperature", it)
+    }
+    // Keep launcher.log of a successful run, -Pperformance.keepLauncherLog. Without it the launcher deletes the log
+    // when the run succeeds, since the containers' logs make it large; a failed run always keeps it. The property
+    // alone, or with true, keeps it.
+    providers.gradleProperty("performance.keepLauncherLog").orNull?.let {
+        systemProperty("performance.keepLauncherLog", (it.isEmpty() || it.toBoolean()).toString())
     }
     // The cluster runs a released Pulsar, -Pperformance.clusterPulsarImage=<image> such as apachepulsar/pulsar:4.0.13,
     // in a test image that :tests:java-test-image:dockerBuildCluster builds on it, with the same tag: ZooKeeper, the

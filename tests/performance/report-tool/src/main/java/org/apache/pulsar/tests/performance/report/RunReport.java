@@ -69,6 +69,8 @@ public final class RunReport {
             "epochMillis,packageCelsius,coreCelsius,meanMHz,minMHz,coreThrottles,packageThrottles,fanRpm";
     // .txt, so that an HTTP server such as Python's shows the log as text instead of offering a download
     public static final String CONTAINER_LOG = "container.log.txt";
+    /** What the launcher printed on the console, from the run directory's creation to the end. */
+    public static final String CONSOLE_LOG = "console.log.txt";
     /**
      * The applications' outputs: their container's log and profile, and a directory per application, see
      * {@link #applicationDirectory}.
@@ -426,7 +428,7 @@ public final class RunReport {
     private static void appendFiles(StringBuilder report, Path runDirectory, JsonNode workload) {
         List<String> links = new ArrayList<>();
         // The scenario and its resolved configuration are linked from the settings table
-        for (String name : List.of(RunInfo.FILE_NAME, "gateways/gateways-summary.json",
+        for (String name : List.of(CONSOLE_LOG, RunInfo.FILE_NAME, "gateways/gateways-summary.json",
                 "gateways/" + CONTAINER_LOG, APPLICATIONS_DIRECTORY + "/" + CONTAINER_LOG)) {
             Path file = runDirectory.resolve(name);
             if (Files.isRegularFile(file)) {

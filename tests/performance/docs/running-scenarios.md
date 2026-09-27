@@ -54,6 +54,7 @@ Pass the launcher's options with `--args`:
 | `--cooldown-temperature <°C>` | Waits for the CPU package to cool down to this temperature before starting, see [Host temperature and cool-down](#host-temperature-and-cool-down). Default: `performance.cooldownTemperature`, or else no wait. |
 | `--cooldown-timeout <seconds>` | The longest wait for `--cooldown-temperature`. Default: 600. |
 | `--progress-interval <seconds>` | How often to print the workload's progress, see [Progress on the console](#progress-on-the-console). Default: 10. |
+| `--keep-launcher-log` | Keeps `launcher.log` when the run succeeds. Without it, a successful run deletes the log, since the containers' logs make it large; a failed run keeps it. Default: `performance.keepLauncherLog`, or else a successful run deletes it. |
 | `--tools-directory <dir>` | The installed workload applications. The Gradle tasks pass it. |
 
 ## Gradle properties
@@ -64,6 +65,7 @@ Pass these with `-P` on the command line, or set them in `~/.gradle/gradle.prope
 |---|---|
 | `performance.reportsDir` | The root of the reports hierarchy, relative to the repository root or absolute. Use an absolute path in `~/.gradle/gradle.properties`, since a relative one resolves in each checkout. |
 | `performance.cooldownTemperature` | The default of `--cooldown-temperature`. |
+| `performance.keepLauncherLog` | Keeps `launcher.log` of successful runs, as `--keep-launcher-log` does. The property alone, or with `true`, keeps it. |
 | `performance.reportsServer.bindAddress`, `performance.reportsServer.port` | Where `:tests:performance:report-tool:serveReports` listens, `127.0.0.1` and `8000` by default, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |
 | `performance.profile.maxHeapSize` | The heap of the `profile` task, which correlates the off-CPU captures. Default: `4g`. |
 | `performance.clusterPulsarImage` | A released Pulsar image for the cluster, such as `apachepulsar/pulsar:4.0.13` or `apachepulsar/pulsar:latest`, to test that release instead of the checkout. The tasks build the test image on it, which needs an Alpine-based Pulsar image, and use it for ZooKeeper, the bookies and the brokers; the workloads, and so the Pulsar client, stay on the checkout's image. See [Comparing with a released Pulsar](comparing-revisions.md#comparing-with-a-released-pulsar). |
@@ -114,7 +116,10 @@ The launcher prints the run directory when it starts, and the run report when it
 The launcher's console shows only the scenario's resolved configuration, with its inheritance and environment
 overrides applied, and the run's phases and progress: starting the cluster, the applications and the
 gateways, waiting for the applications, verifying, and the run report. The logs of Testcontainers and of the Pulsar
-containers go to `launcher.log` in the run directory.
+containers go to `launcher.log` in the run directory, which you can follow with `tail -f` during the run. A successful
+run deletes it at the end, since the containers' logs make it large; a failed run keeps it, and `--keep-launcher-log`
+keeps it also after a successful run. What the launcher prints on the console goes also to `console.log.txt` in the
+run directory, which every run keeps.
 
 While the applications start, the launcher shows how many of their pods are open, every 5 seconds while the number
 grows:

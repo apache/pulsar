@@ -27,6 +27,8 @@ import io.github.merlimat.slog.Logger;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -60,6 +62,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -150,6 +153,12 @@ public class PerformanceLauncher implements Callable<Integer> {
     @Option(names = "--progress-interval", defaultValue = "10",
             description = "Report the workload's throughput, latency and backlog every this many seconds")
     int progressIntervalSeconds;
+
+    @Option(names = "--keep-launcher-log", defaultValue = "${sys:performance.keepLauncherLog:-false}",
+            description = "Keep launcher.log when the run succeeds; without it, a successful run deletes it, since the "
+                    + "containers' logs make it large. It is written during the run, so that it can be followed, and "
+                    + "a failed run keeps it")
+    boolean keepLauncherLog;
 
     @Option(names = "--sysfs", defaultValue = "/sys", hidden = true)
     Path sysfs;
@@ -245,6 +254,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 runName(resolved));
         runOutput = runOutput.toAbsolutePath().normalize();
         Files.createDirectories(runOutput);
+        copyConsoleTo(runOutput.resolve(RunReport.CONSOLE_LOG));
         System.out.println("Run directory: " + runOutput);
         Path launcherLog = runOutput.resolve(LAUNCHER_LOG);
         // Before anything logs, which is when the logging reads its configuration
@@ -509,7 +519,51 @@ public class PerformanceLauncher implements Callable<Integer> {
                 PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload, runInfo, workloadFinished,
                 List.copyOf(cooldowns)), loader.mapper());
         System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
+        if (!keepLauncherLog) {
+            deleteLauncherLog(launcherLog);
+        }
         return 0;
+    }
+
+    /**
+     * Copies what the launcher prints on the console from now on into {@code file}, which the run keeps also when it
+     * deletes {@code launcher.log}. Each write goes to the file as it happens, so that it can be followed during the
+     * run and has everything up to a failure.
+     */
+    private static void copyConsoleTo(Path file) throws IOException {
+        PrintStream console = System.out;
+        OutputStream copy = Files.newOutputStream(file);
+        System.setOut(new PrintStream(new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                console.write(b);
+                copy.write(b);
+            }
+
+            @Override
+            public void write(byte[] bytes, int offset, int length) throws IOException {
+                console.write(bytes, offset, length);
+                copy.write(bytes, offset, length);
+            }
+
+            @Override
+            public void flush() throws IOException {
+                console.flush();
+                copy.flush();
+            }
+        }, true, console.charset()));
+    }
+
+    // Stops the logging first, which closes the log file and frees its space, and keeps anything from writing it again
+    private static void deleteLauncherLog(Path launcherLog) {
+        LogManager.shutdown();
+        try {
+            if (Files.deleteIfExists(launcherLog)) {
+                System.out.println("Deleted " + launcherLog + " of the successful run; --keep-launcher-log keeps it");
+            }
+        } catch (IOException e) {
+            System.out.println("Couldn't delete " + launcherLog + ": " + e);
+        }
     }
 
     // The version that a broker reports, or empty when it doesn't answer; it names a release such as latest, which

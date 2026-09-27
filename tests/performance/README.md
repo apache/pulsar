@@ -184,7 +184,10 @@ The launcher prints the run directory and the scenario's resolved configuration 
 run as it goes, and the run report when it has finished. While the workload runs, it prints the gateways' and the
 applications' progress every 10 seconds, as pulsar-perf does: the messages so far, the throughput, the latency
 percentiles of the last 10 seconds, merged over every application, and the subscriptions' backlog. The logs of
-Testcontainers and of the Pulsar containers go to `launcher.log` in the run directory instead of the console:
+Testcontainers and of the Pulsar containers go to `launcher.log` in the run directory instead of the console. A
+successful run deletes the log at the end, since the containers' logs make it large, unless you pass
+`-Pperformance.keepLauncherLog`; a failed run keeps it. What the launcher prints on the console, as below, is kept in
+`console.log.txt` in the run directory:
 
 ```
 Run directory: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00
@@ -208,6 +211,7 @@ Run directory: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00
 12:02:55 Every application has received every message; verifying the device sequences
 12:02:57 Stopping the Pulsar cluster
 Run report: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00/index.html
+Deleted .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00-00/launcher.log of the successful run; --keep-launcher-log keeps it
 ```
 
 Every run gets a directory of its own under the reports root, by day, git branch, scenario and start time:

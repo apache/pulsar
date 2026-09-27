@@ -84,6 +84,7 @@ The same holds while a container starts: it fails the run as soon as it exits, o
 The stack trace is in `launcher.log`. A failure while shutting down, such as stopping a container, is only a warning.
 The run directory that the launcher printed at the start still has what the run wrote before it failed:
 
+- `console.log.txt`, what the launcher printed on the console, up to the failure
 - `launcher.log`, the log of the launcher, with Testcontainers' log and the Pulsar containers' logs
 - `gateways/container.log.txt` and `applications/container.log.txt`, the logs of the workload containers
 - `applications/<application>/application-summary.json`, with the application's unique messages, duplicates, ordering
@@ -161,7 +162,8 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `<scenario>.yaml`, `resolved-config.yaml` | The scenario file as written, and the scenario with its inheritance and environment overrides applied, which the workloads read |
 | `run-info.json` | The run's start, host, user, project directory, git branch, whether the HEAD was detached, the commit, whether the checkout had uncommitted changes, and the Pulsar version, with the keys of `pulsar-version.properties` where they match. The launcher collects them itself, from git and `gradle.properties` in the checkout it runs from. The `host.*` keys have the host's CPU model, sockets, cores, hardware threads, memory and operating system, from a JDK Flight Recorder recording of the launcher's JVM that is stopped right away, so that they are there on every operating system, and the `docker.*` keys the Docker engine's version, CPUs, memory, operating system, kernel and architecture. When the cluster ran a released Pulsar, `cluster.pulsarImage` and `cluster.version` name its image and the version that the brokers reported, see [Comparing with a released Pulsar](comparing-revisions.md#comparing-with-a-released-pulsar) |
 | `run-id.txt` | The ID that correlates the gateways and the applications of the run |
-| `launcher.log` | The launcher's log: Testcontainers' log and the Pulsar containers' logs, which stay off the console |
+| `console.log.txt` | What the launcher printed on the console, from the run directory to the run report, or to the failure. Every run keeps it |
+| `launcher.log` | The launcher's log: Testcontainers' log and the Pulsar containers' logs, which stay off the console. It is written during the run, and a successful run deletes it at the end, since the containers' logs make it large, unless `--keep-launcher-log` or `-Pperformance.keepLauncherLog` keeps it; a failed run keeps it |
 | `throughput.svg`, `.png` | Messages published and dispatched per second over the run, warmup included and the gateways' finish marked. A cool-down wait of 10 s or more before the measurement is cut out of the time axis |
 | `backlog.svg`, `.png` | Each subscription's backlog over the run, on the same time axis |
 | `latency-percentiles.svg`, `.png` | Latency by percentile, as HistogramLogAnalyzer plots it: publish and each application's end to end, on an axis that spreads the tail (90 %, 99 %, 99.9 %, …) |
