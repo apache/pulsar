@@ -63,12 +63,12 @@ On a machine that runs the tests for others, serve the reports root over HTTP an
 
 ### When a run fails
 
-A run that fails writes no report. The launcher stops the run as soon as the gateways or an application exits with
-an error, prints the failure in one line with its cause from the container's log, then shuts the cluster down, and
-the Gradle task fails:
+A run that fails writes no report. The launcher stops the run as soon as the gateways' or the applications' container
+exits with an error, prints the failure in one line with its cause from the container's log, then shuts the cluster
+down, and the Gradle task fails:
 
 ```
-00:41:42 The run failed: Application iot-application-1 exited with status 1: IllegalStateException: Cannot restart IoT client, caused by ... (log: .../iot-application-1/container.log.txt)
+00:41:42 The run failed: The applications exited with status 1: IllegalStateException: Cannot restart IoT client, caused by ... (log: .../applications/container.log.txt)
 00:41:42 Stack trace: .../launcher.log
 ```
 
@@ -76,15 +76,15 @@ The stack trace is in `launcher.log`. A failure while shutting down, such as sto
 The run directory that the launcher printed at the start still has what the run wrote before it failed:
 
 - `launcher.log`, the log of the launcher, with Testcontainers' log and the Pulsar containers' logs
-- `gateways/container.log.txt` and `<application>/container.log.txt`, the logs of the workload containers
-- `<application>/application-summary.json`, with the application's unique messages, duplicates, ordering violations and
-  invalid messages, and `<application>/ordering-violations.txt`, with samples of the ordering violations, when the
-  application got as far as its checks
+- `gateways/container.log.txt` and `applications/container.log.txt`, the logs of the workload containers
+- `applications/<application>/application-summary.json`, with the application's unique messages, duplicates, ordering
+  violations and invalid messages, and `applications/<application>/ordering-violations.txt`, with samples of the
+  ordering violations, when the application got as far as its checks
 - `topic-stats.csv` and `host-stats.csv`, sampled until the failure
 
-An application exits with an error when it found ordering violations or invalid messages, or didn't receive every
-message, and the launcher fails a run when an application's state shows that it missed messages ("did not receive
-every device sequence"). A failed run isn't a valid measurement: find and fix the cause, and run it again.
+The applications' container exits with an error when an application found ordering violations or invalid messages, or
+didn't receive every message, and the launcher fails a run when an application's state shows that it missed messages
+("did not receive every device sequence"). A failed run isn't a valid measurement: find and fix the cause, and run it again.
 
 ## Layout of a run directory
 
@@ -97,7 +97,8 @@ every device sequence"). A failed run isn't a valid measurement: find and fix th
 │   host-temperature.svg, host-frequency.svg    the charts, each also as PNG
 ├── topic-stats.csv, host-stats.csv    the sampled topic stats and host CPU
 ├── gateways/                          the gateways' outputs, and their recordings in a profiled run
-├── <application>/                     one directory per application, named after its subscription,
+├── applications/                      the applications' container log, and their recordings in a profiled run
+│   └── <application>/                 one directory per application, named after its subscription,
 │                                      such as iot-application-0
 ├── broker-profile/                    the broker's recordings, flame graphs and profile report (README.md,
 │                                      index.html), in a profiled run
@@ -159,21 +160,21 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `gateways/gateways-summary.json` | The gateways' counts and throughput, and the epoch-millisecond boundaries of the measurement |
 | `gateways/gateways-latency.hdr`, `.hgrm` | The publish latency log, and its percentile distribution in milliseconds, see [Latency logs](#latency-logs) |
 | `gateways/gateways-state.bin` | The gateways' next sequence number for each device. The launcher compares it with each application's `application-state.bin` and fails the run when they differ, which catches messages missing at the end, where no gap shows |
-| `<application>/application-summary.json` | The application's unique messages, duplicates, ordering violations and invalid messages, and its first and last measured-message receipt |
-| `<application>/application-latency.hdr`, `.hgrm` | The application's end-to-end latency log, and its percentile distribution in milliseconds |
-| `<application>/application-state.bin` | The application's next expected sequence number for each device |
-| `<application>/ordering-violations.txt` | Samples of the ordering violations, with the message ID, topic and receiving thread; empty in a valid run |
-| `gateways/container.log.txt`, `<application>/container.log.txt` | The container's log, named `.txt` so that HTTP servers show it as text |
+| `applications/<application>/application-summary.json` | The application's unique messages, duplicates, ordering violations and invalid messages, and its first and last measured-message receipt |
+| `applications/<application>/application-latency.hdr`, `.hgrm` | The application's end-to-end latency log, and its percentile distribution in milliseconds |
+| `applications/<application>/application-state.bin` | The application's next expected sequence number for each device |
+| `applications/<application>/ordering-violations.txt` | Samples of the ordering violations, with the message ID, topic and receiving thread; empty in a valid run |
+| `gateways/container.log.txt`, `applications/container.log.txt` | The container's log, named `.txt` so that HTTP servers show it as text |
 | `coordination/` | The markers with which the applications tell the gateways that they received a warmup round |
 
 ## Latency logs
 
 Every IoT run writes `gateways/gateways-latency.hdr` with the send-completion latency of the successfully sent
-measured messages, and one `<application>/application-latency.hdr` per application with the broker-publish-to-listener
-latency of the measured messages. Both use microseconds internally and three significant digits. Warmup messages are
-tagged in the payload and excluded. Each application captures its timestamp on listener entry and records the sample
-after payload decoding and key validation, before sequence validation and acknowledgment, so decoding and
-validation time are excluded from the latency.
+measured messages, and one `applications/<application>/application-latency.hdr` per application with the
+broker-publish-to-listener latency of the measured messages. Both use microseconds internally and three significant
+digits. Warmup messages are tagged in the payload and excluded. Each application captures its timestamp on listener
+entry and records the sample after payload decoding and key validation, before sequence validation and acknowledgment,
+so decoding and validation time are excluded from the latency.
 
 The run report plots these logs as HistogramLogAnalyzer does, with [XChart](https://knowm.org/open-source/xchart/):
 the latency by percentile and the maximum latency of each logged interval, with the publish latency and each

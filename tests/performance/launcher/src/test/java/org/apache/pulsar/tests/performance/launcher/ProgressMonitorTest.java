@@ -44,10 +44,13 @@ public class ProgressMonitorTest {
             producer.put("phase", "warmup").put("sent", 1_000).put("pending", 7).put("messageCount", 4_000)
                     .put("warmupRound", 0).put("warmupRounds", 1);
             monitor.accept("producer", producer);
-            for (int application = 0; application < 2; application++) {
-                ObjectNode consumer = line("consumer", 500, 10_000 * (application + 1));
-                consumer.put("phase", "receiving").put("received", 500).put("messageCount", 4_000);
-                monitor.accept("application-" + application, consumer);
+            // Two lines of the applications' container, which sums its two applications' counts and merges their
+            // latencies
+            for (long latencyMicros : new long[] {10_000, 20_000}) {
+                ObjectNode consumer = line("consumer", 500, latencyMicros);
+                consumer.put("phase", "receiving").put("applications", 2).put("finishedApplications", 1)
+                        .put("received", 1_000).put("messageCount", 8_000);
+                monitor.accept("applications", consumer);
             }
             monitor.report();
         }
@@ -56,7 +59,8 @@ public class ProgressMonitorTest {
         assertThat(lines[0]).contains("warmup round 1/1", "Produced: 1,000 msg of 4,000 (25%)", "pending: 7",
                 "Latency: mean: 2.000 ms");
         assertThat(lines[1]).contains("Received: 1,000 msg of 8,000 (12%)",
-                "backlog: 1,500 msg (max per application: 1,000)", "med: 10.0", "Max: 20.0");
+                "backlog: 1,500 msg (max per application: 1,000)", "finished applications: 1/2", "med: 10.0",
+                "Max: 20.0");
     }
 
     @Test

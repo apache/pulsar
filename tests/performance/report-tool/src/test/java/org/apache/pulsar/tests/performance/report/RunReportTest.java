@@ -70,7 +70,7 @@ public class RunReportTest {
                 + " \"measurementStartEpochMs\": " + START + ", \"measurementEndEpochMs\": " + (START + 4000) + "}");
         writeHistogram(run.resolve("gateways/gateways-latency.hdr"), 900_000, 1_000);
         for (int application = 0; application < 2; application++) {
-            Path consumer = Files.createDirectories(run.resolve("sub-" + application));
+            Path consumer = Files.createDirectories(run.resolve("applications/sub-" + application));
             Files.writeString(consumer.resolve("application-summary.json"), "{\"applicationIndex\": " + application
                     + ", \"uniqueMessages\": 500000, \"duplicates\": " + application + ", \"orderingViolations\": 0,"
                     + " \"invalidMessages\": 0, \"lastMeasurementMessageReceivedEpochMs\": "
@@ -93,7 +93,7 @@ public class RunReportTest {
         }
         Files.writeString(run.resolve(RunReport.TOPIC_STATS_FILE), csv);
         Files.writeString(run.resolve("scenario.yaml"), "extends: base.yaml\n");
-        Files.writeString(run.resolve("sub-0").resolve(RunReport.CONTAINER_LOG), "log\n");
+        Files.writeString(run.resolve("applications").resolve(RunReport.CONTAINER_LOG), "log\n");
         Files.writeString(run.resolve(RunReport.RESOLVED_CONFIG), "cluster: {}\n");
         // The broker was profiled with off-CPU capture, the gateways with async-profiler only.
         Path offCpu = Files.createDirectories(run.resolve("broker-profile/broker" + OffCpuFlamegraphs.OUTPUT_SUFFIX));
@@ -104,6 +104,7 @@ public class RunReportTest {
         Files.writeString(run.resolve("broker-profile/broker.measurement.jfr"), "");
         Files.createDirectories(run.resolve("gateways/profile-gateways" + JfrFlamegraphViews.OUTPUT_SUFFIX));
         Files.writeString(run.resolve("gateways/" + ProfileReport.FILE_NAME), "");
+        Files.writeString(run.resolve("applications/" + ProfileReport.FILE_NAME), "");
 
         Path file = RunReport.write(run, new RunReport.Run("scenario.yaml", "run-1", "image:tag",
                 json("{\"brokers\": {\"replicas\": 1, \"env\": {\"managedLedgerDefaultEnsembleSize\": \"1\","
@@ -136,9 +137,10 @@ public class RunReportTest {
         // footer below a horizontal line repeats the title, the run ID and the link to the guide
         assertThat(report).endsWith("\n<details><summary>Files</summary>\n\n"
                 + "- [gateways/gateways-summary.json](gateways/gateways-summary.json)\n"
-                + "- [sub-0/application-summary.json](sub-0/application-summary.json)\n"
-                + "- [sub-0/container.log.txt](sub-0/container.log.txt)\n"
-                + "- [sub-1/application-summary.json](sub-1/application-summary.json)\n\n</details>\n"
+                + "- [applications/container.log.txt](applications/container.log.txt)\n"
+                + "- [applications/sub-0/application-summary.json](applications/sub-0/application-summary.json)\n"
+                + "- [applications/sub-1/application-summary.json](applications/sub-1/application-summary.json)\n\n"
+                + "</details>\n"
                 + "\n------------\n\nPulsar performance test run 2026-09-25 06:42:59 lh-branch 0123456789ab-dirty"
                 + " scenario · run `run-1` · [Pulsar performance testing README](" + RunReport.README_URL + ")\n");
         String footerPage = Files.readString(run.resolve("index.html"));
@@ -149,11 +151,12 @@ public class RunReportTest {
         assertThat(report).contains("<details><summary>HDR histogram logs and percentile distributions</summary>\n\n"
                 + "- [gateways/gateways-latency.hdr](gateways/gateways-latency.hdr) ·"
                 + " [gateways/gateways-latency.hgrm](gateways/gateways-latency.hgrm)\n"
-                + "- [sub-0/application-latency.hdr](sub-0/application-latency.hdr) ·"
-                + " [sub-0/application-latency.hgrm](sub-0/application-latency.hgrm)\n"
-                + "- [sub-1/application-latency.hdr](sub-1/application-latency.hdr) ·"
-                + " [sub-1/application-latency.hgrm](sub-1/application-latency.hgrm)\n\n</details>\n");
-        assertThat(run.resolve("sub-1/application-latency.hgrm")).isRegularFile();
+                + "- [applications/sub-0/application-latency.hdr](applications/sub-0/application-latency.hdr) ·"
+                + " [applications/sub-0/application-latency.hgrm](applications/sub-0/application-latency.hgrm)\n"
+                + "- [applications/sub-1/application-latency.hdr](applications/sub-1/application-latency.hdr) ·"
+                + " [applications/sub-1/application-latency.hgrm](applications/sub-1/application-latency.hgrm)\n\n"
+                + "</details>\n");
+        assertThat(run.resolve("applications/sub-1/application-latency.hgrm")).isRegularFile();
         assertThat(report).contains("The [sampled topic stats](topic-stats.csv) are a CSV file.");
         assertThat(report).contains("| Scenario | [scenario](scenario.yaml) |\n");
         assertThat(report).contains("| Cluster | 1 broker(s), 3 bookies, [configuration](resolved-config.yaml) |\n");
@@ -175,6 +178,7 @@ public class RunReportTest {
                 + " [complete](broker-profile/broker.jfr) ·"
                 + " [measurement period](broker-profile/broker.measurement.jfr) |\n");
         assertThat(report).contains("| [Gateways](gateways/README.md) | not captured |");
+        assertThat(report).contains("| [Applications](applications/README.md) | not captured |");
         // The profiles follow the run's settings
         assertThat(report.indexOf("## Profiles")).isGreaterThan(report.indexOf("| Setting |"));
         assertThat(report.indexOf("## Profiles")).isLessThan(report.indexOf("## Correctness"));

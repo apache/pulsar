@@ -16,21 +16,14 @@
 # under the License.
 
 
-# Keeps the 20-way fanout, 30 topics and rate while scaling gateway and pod connections by 10. It uses the low-memory
-# configuration, configs/iot-telemetry-low-mem.yaml: recommended memory available to Docker about 3 GB, and not meant
-# for profiling.
-extends: [iot-telemetry.yaml, configs/iot-telemetry-low-mem.yaml]
-workloads:
-  iotTelemetry:
-    devices:
-      count: 100000
-    gateways:
-      count: 10
-      producer:
-        ioThreads: 4
-        listenerThreads: 8
-    applications:
-      podsPerApplication: 10
-      client:
-        ioThreads: 4
-        listenerThreads: 8
+# The cluster of the medium-memory configuration, iot-telemetry-medium-mem.yaml, which the IoT telemetry scenarios use
+# by default: two bookies.
+extends: cluster-base.yaml
+cluster:
+  brokers:
+    env:
+      PULSAR_MEM: -Xms2g -Xmx2g -XX:MaxDirectMemorySize=1g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
+  bookies:
+    replicas: 2
+    env:
+      PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=512m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch

@@ -16,21 +16,18 @@
 # under the License.
 
 
-# Keeps the 20-way fanout, 30 topics and rate while scaling gateway and pod connections by 10. It uses the low-memory
-# configuration, configs/iot-telemetry-low-mem.yaml: recommended memory available to Docker about 3 GB, and not meant
-# for profiling.
-extends: [iot-telemetry.yaml, configs/iot-telemetry-low-mem.yaml]
-workloads:
-  iotTelemetry:
-    devices:
-      count: 100000
-    gateways:
-      count: 10
-      producer:
-        ioThreads: 4
-        listenerThreads: 8
-    applications:
-      podsPerApplication: 10
-      client:
-        ioThreads: 4
-        listenerThreads: 8
+# The cluster of the low-memory configuration, iot-telemetry-low-mem.yaml: one bookie, and heaps that the JVMs commit
+# as they use them. It isn't meant for profiling.
+extends: cluster-base.yaml
+cluster:
+  brokers:
+    env:
+      PULSAR_MEM: -Xmx512m -XX:MaxDirectMemorySize=512m
+      # One bookie holds every ledger: Pulsar's defaults, an ensemble, write quorum and ack quorum of 2, need two
+      managedLedgerDefaultEnsembleSize: "1"
+      managedLedgerDefaultWriteQuorum: "1"
+      managedLedgerDefaultAckQuorum: "1"
+  bookies:
+    replicas: 1
+    env:
+      PULSAR_MEM: -Xmx512m -XX:MaxDirectMemorySize=512m

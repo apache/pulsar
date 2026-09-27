@@ -104,8 +104,16 @@ final class HdrLatencyRecorder implements AutoCloseable {
     /** A recorder that gets every latency from now on, until it is removed, for a progress stream's intervals. */
     Recorder addProgressRecorder() {
         Recorder progressRecorder = new Recorder(maxLatencyMicros, SIGNIFICANT_DIGITS);
-        progressRecorders.add(progressRecorder);
+        addProgressRecorder(progressRecorder);
         return progressRecorder;
+    }
+
+    /**
+     * Records every latency from now on into {@code progressRecorder} too, until it is removed. Several recorders
+     * can share one, since a {@link Recorder} takes values from several threads.
+     */
+    void addProgressRecorder(Recorder progressRecorder) {
+        progressRecorders.add(progressRecorder);
     }
 
     void removeProgressRecorder(Recorder progressRecorder) {

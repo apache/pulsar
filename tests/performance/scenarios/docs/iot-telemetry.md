@@ -28,17 +28,23 @@ application-visible order across Key_Shared hash-range reassignment.
 ## Scenarios
 
 - [`iot-telemetry-base.yaml`](../iot-telemetry-base.yaml) has the defaults that the others extend, with one gateway
-  and one application with one pod.
+  and one application with one pod, and the medium-memory configuration.
 - [`iot-telemetry.yaml`](../iot-telemetry.yaml) is the full topology without churn.
 - [`iot-telemetry-restarts.yaml`](../iot-telemetry-restarts.yaml) restarts 10% of each application's
   pods every 30 seconds.
 - [`iot-telemetry-small.yaml`](../iot-telemetry-small.yaml) keeps the 20-way fanout,
-  30 topics and 1,000 msg/s rate, but uses 10 gateways and 10 pods per application.
+  30 topics and 1,000 msg/s rate, but uses 10 gateways and 10 pods per application, with the low-memory
+  configuration.
 - [`iot-telemetry-small-restarts.yaml`](../iot-telemetry-small-restarts.yaml) adds restart churn to that smaller
   topology.
 - [`iot-telemetry-high-rate.yaml`](../iot-telemetry-high-rate.yaml) removes the producer rate limit
   and sends five million messages through 500 preconnected producers to one topic. Five applications each
-  consume with ten pods on one Key_Shared subscription.
+  consume with ten pods on one Key_Shared subscription. It uses the high-memory configuration.
+
+Each scenario runs with a memory configuration from the scenarios' `configs` directory, which sets the cluster and
+the memory of every container: the low-memory one needs about 3 GB of memory available to Docker and isn't meant for
+profiling, the medium-memory one, the default, about 8 GB, and the high-memory one about 14 GB. See
+[Memory configurations](../README.md#memory-configurations).
 
 Build the mountable workload distribution without running a cluster:
 
@@ -58,9 +64,9 @@ The Gradle task builds the server test image and the workload distribution befor
 resolves YAML inheritance and `PULSAR_PERFORMANCE_` environment overrides, writes `resolved-config.yaml`
 to the run directory, and mounts that resolved file and the application distribution into each container.
 The `iot-produce` and `iot-consume` commands accept `--config-path` when a different subtree is desired.
-Without warmup, direct tool invocations need only `--config` and `--output` (plus `--application-index` for an
-application). With warmup, pass the same fresh `--run-id` to the `iot-produce` process and every `iot-consume`
-process. The launcher generates
+Without warmup, direct tool invocations need only `--config` and `--output`. `iot-consume` runs every application,
+each writing into a directory named after its subscription in `--output`. With warmup, pass the same fresh `--run-id`
+to the `iot-produce` and the `iot-consume` process. The launcher generates
 this correlation ID automatically and saves it in `run-id.txt`. Barrier markers include the ID so markers left
 by an earlier run cannot release a new run's barrier.
 
@@ -85,7 +91,8 @@ measurement. Each `application-summary.json` records the first and last measured
 launcher uses the gateways' measurement start and the latest last receipt across all backend applications as the JFR
 measurement interval.
 
-The base scenario also keeps incidental storage maintenance outside normal measurement windows. Its managed-ledger
+The cluster, [`configs/cluster-base.yaml`](../configs/cluster-base.yaml), which every memory configuration extends,
+also keeps incidental storage maintenance outside normal measurement windows. Its managed-ledger
 entry, size and time limits allow the topic and cursor ledgers to remain open throughout ordinary runs. BookKeeper
 ledger garbage collection waits for one day, entry-log compaction is disabled, and the journal size limit is raised.
 The test containers are ephemeral, so delayed reclamation cannot accumulate between runs. These settings isolate
@@ -101,8 +108,9 @@ summary, `gateways-summary.json`, reports `messagesPerSecond` only for the post-
 ## Settings
 
 The workload's settings are under `workloads.iotTelemetry`. [`iot-telemetry-base.yaml`](../iot-telemetry-base.yaml)
-has the defaults, with one gateway and one application with one pod, and [`iot-telemetry.yaml`](../iot-telemetry.yaml)
-sets the full topology's counts:
+has the defaults, with one gateway and one application with one pod, [`iot-telemetry.yaml`](../iot-telemetry.yaml)
+sets the full topology's counts, and the memory configuration, here the default medium-memory one, sets the
+containers' `env`:
 
 ```yaml
 workloads:
@@ -129,20 +137,20 @@ workloads:
         maxOutstanding: 20000  # messages in flight across the gateways
         batchingEnabled: true
         precreate: false       # open every producer before the first message
-      env:                     # the gateways' container, which runs every gateway
-        PULSAR_MEM: -Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m
+      env:                     # the gateways' container, which runs every gateway; from the memory configuration
+        PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
     topics:
       count: 30
       prefix: persistent://public/default/iot-telemetry-
-    applications:
+    applications:              # each a Key_Shared subscription, consumed through its pods
       count: 20
-      podsPerApplication: 100
+      podsPerApplication: 100  # a Pulsar client with a consumer of the subscription each
       subscriptionPrefix: iot-application-
-      client:                  # each application's Pulsar clients
+      client:                  # the client resources that every pod's client shares
         ioThreads: 8
         listenerThreads: 16
-      env:                     # each application's container, which runs its pods
-        PULSAR_MEM: -Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m
+      env:                     # the applications' container, which runs every application; from the memory configuration
+        PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
     behaviors:
       podRestarts:             # each application restarts this fraction of its pods every intervalSeconds
         intervalSeconds: 0
@@ -157,12 +165,12 @@ rate. The launcher sets the broker's service URL itself.
 ## Profiling with jonoffcpu
 
 Use the `profile` task for a scenario that profiles a component: `profiling.broker`, `gateways` or `applications`
-with `asyncProfilerOptions`. The launcher's `--extends` option adds them to a scenario from the `profile-*` files,
-here the broker's and the gateways' to the saturation workload:
+with `asyncProfilerOptions`. The launcher's `--extends` option adds them to a scenario from the `profile-*` files in
+the scenarios' `configs` directory, here the broker's and the gateways' to the saturation workload:
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-gateways'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/profile-broker --extends configs/profile-gateways'
 ```
 
 The options are async-profiler options. The [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent runs
@@ -171,8 +179,8 @@ at the same time. [Profiling](../../docs/profiling.md) describes the requirement
 and the files each recording produces, and [Analyzing profiles](../../docs/analyzing-profiles.md) how to find what to
 optimize.
 
-Broker recordings are written under `broker-profile/`; the gateways' and the applications' recordings are written in
-their corresponding output directories. The launcher owns each recording path so recordings remain inside the run
+Broker recordings are written under `broker-profile/`, the gateways' under `gateways/` and the applications' under
+`applications/`. The launcher owns each recording path so recordings remain inside the run
 directory, and rejects options that set `file=`. A component without options isn't profiled. The ordinary `run` task
 rejects profiling-enabled YAML rather than silently running without the agent.
 
@@ -217,7 +225,7 @@ Key_Shared scenarios use the key-based producer batcher. It keeps every batch to
 route all messages for a device through the same Key_Shared hash range. Changing the batcher changes the
 ordering contract exercised by the scenario and should not be mixed into a performance comparison.
 
-The full topology opens 100 gateway clients and 2,000 isolated application clients. Across 30 topics and 20
-applications, this creates 60,000 internal topic consumers. Scenario files specify a 2 GiB broker heap and
-direct-memory limit to accommodate that topology. Keep those limits and the resolved scenario configuration
-constant when comparing broker revisions.
+The full topology opens 100 gateway clients and 2,000 application clients, all in the applications' container. Across
+30 topics and 20 applications, this creates 60,000 internal topic consumers. The medium-memory configuration gives the
+broker a 2 GiB heap and 1 GiB of direct memory to accommodate that topology. Keep the memory configuration and the
+resolved scenario configuration constant when comparing broker revisions.

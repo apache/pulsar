@@ -55,6 +55,13 @@ application {
     mainClass.set("org.apache.pulsar.tests.performance.launcher.PerformanceLauncher")
 }
 
+// ScenarioFilesTest resolves the scenario files that the performance tests ship, so that changing one reruns the tests
+tasks.named<Test>("test") {
+    inputs.dir(layout.projectDirectory.dir("../scenarios"))
+        .withPropertyName("scenarios")
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
 // Profiled containers use the glibc-based Wolfi image: on musl every native frame reads as the unsymbolized
 // /lib/ld-musl-x86_64.so.1, which hides what the JVM's own threads were waiting in. -Pinttest.testImageVariant=alpine
 // profiles on the same Alpine image as every other run instead.

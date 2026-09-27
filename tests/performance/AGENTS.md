@@ -45,6 +45,11 @@ describes.
     [`environment/README.md`](environment/README.md#running-start-and-stop-without-a-password) describes. It lets
     you run `sudo /usr/local/sbin/configure-perf-test-environment.sh start` before the runs and `stop` after them
     yourself, without a password; `install` still needs the user.
+- Check that the host has the memory that the scenario's memory configuration needs available to Docker, which on
+  macOS and Windows is the memory of Docker's virtual machine: about 3 GB for the low-memory configuration, 8 GB for
+  the default medium-memory one and 14 GB for the high-memory one, see
+  [Memory configurations](scenarios/README.md#memory-configurations). When it hasn't, tell the user rather than
+  starting the run. Don't profile a scenario that uses the low-memory configuration.
 - Use a run's numbers only when its report shows a valid run, as "Read the report" in the README describes, and don't
   claim a performance change from a single run: compare revisions as `docs/comparing-revisions.md` describes.
 - Find a run's results from the launcher's output, which prints the run directory and the run report. A run that

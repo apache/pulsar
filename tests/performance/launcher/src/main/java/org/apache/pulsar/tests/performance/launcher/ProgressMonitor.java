@@ -47,10 +47,11 @@ import org.HdrHistogram.Histogram;
  * Reports a run's progress on the console, as pulsar-perf does: every interval, a line for the producer and a line
  * for the applications with their throughput, latency percentiles and the subscriptions' backlog.
  *
- * <p>The producer and each application stream their progress from their control port as newline-delimited JSON,
- * a line per second with cumulative counters and the second's latencies as an HdrHistogram, see the tools'
- * {@code ProgressStream}. The monitor merges the histograms of every application, and derives the rates from the
- * counters, so that its lines cover exactly the time between them.
+ * <p>The gateways' and the applications' containers stream their progress from their control port as
+ * newline-delimited JSON, a line per second with cumulative counters and the second's latencies as an HdrHistogram,
+ * see the tools' {@code ProgressStream}; the applications' lines sum their applications' counters and merge their
+ * latencies, and count the applications that have finished. The monitor derives the rates from the counters, so that
+ * its lines cover exactly the time between them.
  */
 final class ProgressMonitor implements AutoCloseable {
     static final String PROGRESS_PATH = "/progress";
@@ -175,9 +176,7 @@ final class ProgressMonitor implements AutoCloseable {
                 receivedTarget += line.path("messageCount").asLong();
                 duplicates += line.path("duplicates").asLong();
                 orderingViolations += line.path("orderingViolations").asLong();
-                if ("finished".equals(line.path("phase").asText())) {
-                    finishedApplications++;
-                }
+                finishedApplications += line.path("finishedApplications").asInt();
             }
         }
         String prefix = String.format(Locale.ROOT, "[%s] ", phase(producer));

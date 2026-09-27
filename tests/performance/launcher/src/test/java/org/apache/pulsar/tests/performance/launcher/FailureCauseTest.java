@@ -26,7 +26,7 @@ public class FailureCauseTest {
     public void namesTheFailureItsDeepestMessageAndItsRootCause() {
         String log = """
                 Picked up JAVA_TOOL_OPTIONS: -Xms128m -Xmx512m
-                READY application=0 clients=10
+                READY applications=1 clients=10
                 java.lang.IllegalStateException: Cannot restart IoT client
                 \tat org.apache.pulsar.tests.performance.tools.TelemetryConsumer.call(TelemetryConsumer.java:77)
                 Caused by: org.apache.pulsar.client.api.PulsarClientException: \
@@ -60,7 +60,7 @@ public class FailureCauseTest {
 
     @Test
     public void fallsBackToTheLastLineWithoutAnException() {
-        assertThat(FailureCause.of("READY application=0 clients=10\nReceived 99 of 100 messages\n\n"))
+        assertThat(FailureCause.of("READY applications=1 clients=10\nReceived 99 of 100 messages\n\n"))
                 .isEqualTo("Received 99 of 100 messages");
         assertThat(FailureCause.of("")).isNull();
     }

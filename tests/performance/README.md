@@ -90,8 +90,8 @@ the run report are written for the IoT domain.
 | Telemetry message | A message with the device ID, the device's sequence number and the send time, `payload.size` bytes long |
 | Gateway | A Pulsar client in the gateways' container, with a producer named `iot-gateway-<gateway>-topic-<topic>` for each topic. `gateways.count` sets the number of gateways; their clients share I/O threads and memory, as the clients of one process can since PIP-234 |
 | Topics | `topics.count` topics; a device's messages always go to the same topic, the device ID modulo `topics.count` |
-| Application | A Key_Shared subscription on every topic, named `iot-application-<index>`, in a container of its own. `applications.count` sets the number of applications |
-| Pod | A Pulsar client with a consumer of the application's subscription, named `iot-application-<index>-pod-<pod>`. `applications.podsPerApplication` sets the number of pods per application |
+| Application | A Key_Shared subscription on every topic, named `iot-application-<index>`, in the applications' container, which runs every application as the gateways' container runs every gateway. `applications.count` sets the number of applications; they differ only in their subscription |
+| Pod | A Pulsar client in the applications' container, with a consumer of the application's subscription, named `iot-application-<index>-pod-<pod>`. `applications.podsPerApplication` sets the number of pods per application; the clients of every application's pods share I/O threads and memory, as the gateways' clients do |
 
 - The gateways send each message from a random device through a random gateway, at `rate` messages per second, or as
   fast as they can when the rate is 0. It keeps one message per device in flight, as a device waits for its message to
@@ -116,6 +116,16 @@ scenarios in detail.
   Docker implementation's kernel has; there, profile with async-profiler and JDK Flight Recorder only, see
   [Profiling](docs/profiling.md#configuring-profiling). For consistent results, use a Linux host configured for low
   run-to-run variance, as *Recommended: A Linux host configured for consistent results* below describes.
+- **Memory**: a scenario's memory configuration sets the heap and direct memory of the cluster's and the workloads'
+  JVMs, and so the memory that the host has to have available to Docker, which on macOS and Windows is the memory of
+  Docker's virtual machine. The IoT telemetry scenarios use the medium-memory configuration by default; see
+  [Memory configurations](scenarios/README.md#memory-configurations):
+
+  | Configuration | Recommended memory available to Docker | Used by |
+  |---|---|---|
+  | [`iot-telemetry-low-mem.yaml`](scenarios/configs/iot-telemetry-low-mem.yaml) | about 3 GB; not meant for profiling | `iot-telemetry-small.yaml` and `iot-telemetry-small-restarts.yaml` |
+  | [`iot-telemetry-medium-mem.yaml`](scenarios/configs/iot-telemetry-medium-mem.yaml) | about 8 GB | the other IoT telemetry scenarios, by default |
+  | [`iot-telemetry-high-mem.yaml`](scenarios/configs/iot-telemetry-high-mem.yaml) | about 14 GB | `iot-telemetry-high-rate.yaml` |
 - **Disk space**: keep the disk that holds Docker's data less than 90 % full. BookKeeper bookies switch to read-only
   mode when it is 95 % full. [`docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) frees the space that test
   runs and image builds use up.
@@ -160,12 +170,15 @@ Run the IoT telemetry scenario:
 ```
 
 Gradle builds the Pulsar test image and the workload applications first, when they are out of date. Then the
-launcher starts a cluster of one broker and three bookies, and runs the workload:
+launcher starts a cluster of one broker and two bookies, and runs the workload:
 [`iot-telemetry.yaml`](scenarios/iot-telemetry.yaml) sends keyed telemetry messages from 100 gateways to 30 topics,
 which 20 applications with 100 pods each consume on Key_Shared subscriptions, for 20 seconds of warmup and 120
 seconds of measurement at 1,000 messages per second. It checks that every application receives every message of every
 device in order. It extends [`iot-telemetry-base.yaml`](scenarios/iot-telemetry-base.yaml), which holds the defaults
-of every IoT scenario: the cluster and the workload's settings, with one gateway and one application with one pod.
+of every IoT scenario: the workload's settings, with one gateway and one application with one pod, and the
+medium-memory configuration, which sets the cluster and the memory of every container and needs about 8 GB of memory
+available to Docker. On a host with less, run the smaller topology,
+[`iot-telemetry-small.yaml`](scenarios/iot-telemetry-small.yaml), which needs about 3 GB.
 
 The launcher prints the run directory and the scenario's resolved configuration when it starts, the phases of the
 run as it goes, and the run report when it has finished. While the workload runs, it prints the gateways' and the
@@ -181,7 +194,7 @@ Run directory: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00
     brokers:
       replicas: 1
       ...
-12:00:00 Starting the Pulsar cluster: 1 broker(s), 3 bookie(s)
+12:00:00 Starting the Pulsar cluster: 1 broker(s), 2 bookie(s)
 12:00:23 Started the Pulsar cluster in 23 s
 12:00:23 Starting 20 application(s) with 100 pod(s) each
 12:00:32 Starting the gateways: 20,000 warmup and 120,000 measured message(s) at 1,000 msg/s from 100 gateway(s) to 30 topic(s)
@@ -270,11 +283,12 @@ The `profile` task runs a scenario with three recorders running at the same time
 [JDK Flight Recorder](https://docs.oracle.com/en/java/javase/25/troubleshoot/diagnostic-tools.html#GUID-D38849B6-61C7-4ED6-A395-EA4BC32A9FD6)
 records the JVM's own events into the same recording, and
 [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) records from the kernel the time each thread spent blocked. It
-needs a Linux Docker engine. The profiling scenario saturates one topic from 500 producers:
+needs a Linux Docker engine. The profiling scenario saturates one topic from 500 producers, and needs about 14 GB of
+memory available to Docker:
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-gateways'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/profile-broker --extends configs/profile-gateways'
 ```
 
 The launcher renders the flame graphs itself when the run has finished, into the run directory next to the
@@ -283,10 +297,12 @@ profile report for each of them. Start from the broker's: it links to the CPU, a
 cut to the measurement, and to a digest that ranks the time threads spent blocked by the Pulsar or BookKeeper method
 that waited.
 
-Each of the scenarios directory's profile files profiles one component: `profile-broker`, `profile-gateways` and
-`profile-applications`; [`profile-broker.yaml`](scenarios/profile-broker.yaml) is an example of the settings. To study
-the performance of Pulsar's Java client, profile the gateways and the applications, which are its producers and
-consumers under the workload, with `--extends profile-gateways --extends profile-applications`.
+Each of the profile files in the scenarios' `configs` directory profiles one component: `configs/profile-broker`,
+`configs/profile-gateways` and `configs/profile-applications`;
+[`profile-broker.yaml`](scenarios/configs/profile-broker.yaml) is an example of the settings. To study the performance
+of Pulsar's Java client, profile the gateways and the applications, which are its producers and consumers under the
+workload, with `--extends configs/profile-gateways --extends configs/profile-applications`. Don't profile a scenario
+that uses the low-memory configuration, such as `iot-telemetry-small.yaml`.
 [Profiling](docs/profiling.md) describes the requirements, the profiler options and the files, and
 [Analyzing profiles](docs/analyzing-profiles.md) how to find what to optimize.
 

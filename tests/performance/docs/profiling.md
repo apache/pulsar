@@ -40,7 +40,7 @@ image.
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-gateways'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/profile-broker --extends configs/profile-gateways'
 ```
 
 The example profiles the broker and the gateways. To study the performance of Pulsar's Java client, profile the
@@ -48,21 +48,25 @@ gateways and the applications, which are its producers and consumers under the w
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --extends profile-gateways --extends profile-applications'
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --extends configs/profile-gateways --extends configs/profile-applications'
 ```
 
-Each application runs in a container of its own, so `profile-applications` records a profile for every application.
+Every application runs in the applications' container, so `profile-applications` records one profile of all of them,
+as `profile-gateways` records one of all the gateways.
 
-The `run` task rejects a scenario that has profiler options, rather than silently running it without the agent.
+Profile a scenario with the medium- or the high-memory configuration, not one with the low-memory configuration, such
+as `iot-telemetry-small.yaml`, which isn't meant for profiling, see
+[Memory configurations](../scenarios/README.md#memory-configurations). The `run` task rejects a scenario that has
+profiler options, rather than silently running it without the agent.
 [Analyzing profiles](analyzing-profiles.md) describes how to find what to optimize from the recordings.
 
 ## Configuring profiling
 
 The scenario's `profiling` section configures it, with settings for each component: `broker`, `gateways`, the
-producer, and `applications`, the consumers. The scenarios directory has a file for each component, which the
-launcher's `--extends` option adds to any scenario, as the example above does: `profile-broker`, `profile-gateways`
-and `profile-applications`. [`profile-broker.yaml`](../scenarios/profile-broker.yaml), an example of the settings,
-is:
+producer, and `applications`, the consumers. The scenarios' `configs` directory has a file for each component, which
+the launcher's `--extends` option adds to any scenario, as the example above does: `configs/profile-broker`,
+`configs/profile-gateways` and `configs/profile-applications`.
+[`profile-broker.yaml`](../scenarios/configs/profile-broker.yaml), an example of the settings, is:
 
 ```yaml
 profiling:
@@ -115,8 +119,8 @@ what a few minutes of broker capture needs; `-Pperformance.profile.maxHeapSize=.
 ## What a profiled run writes
 
 When the workloads have finished, the launcher processes every recording and writes the results into the run directory,
-next to the recording: the broker's under `broker-profile/`, the gateways' under `gateways/`, and the applications' in
-their own directories, `<application>/`. Nothing needs to be rendered by hand:
+next to the recording: the broker's under `broker-profile/`, the gateways' under `gateways/`, and the applications'
+under `applications/`. Nothing needs to be rendered by hand:
 
 - **Flame graphs** of the measurement recording, in `<recording>-flamegraphs/`: a view for each event the profiler
   options record, CPU for `event=cpu` (or `itimer`, `ctimer`, `cpu-clock`), wall clock for `wall`, allocation for

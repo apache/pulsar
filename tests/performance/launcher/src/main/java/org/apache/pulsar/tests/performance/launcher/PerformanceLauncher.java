@@ -75,7 +75,6 @@ import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.lifecycle.Startables;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -97,6 +96,8 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String CONTAINER_LOG = RunReport.CONTAINER_LOG;
     // The gateways' outputs, named after them as the run report names them
     private static final String GATEWAYS_DIRECTORY = "gateways";
+    // The applications' outputs: their container's, and a directory per application
+    private static final String APPLICATIONS_DIRECTORY = RunReport.APPLICATIONS_DIRECTORY;
     // Every log goes to this file in the run directory, and the console shows only the launcher's own messages
     static final String LAUNCHER_LOG = "launcher.log";
     private static final String LOG_CONFIGURATION = "performance-launcher-log4j2.xml";
@@ -107,7 +108,8 @@ public class PerformanceLauncher implements Callable<Integer> {
 
     @Option(names = "--extends", paramLabel = "<scenario>",
             description = "Merge this scenario file on top of the scenario, as if the scenario extended it last, "
-                    + "such as profile-broker to profile the broker. A relative path is looked for in the --scenario "
+                    + "such as configs/profile-broker to profile the broker or configs/iot-telemetry-high-mem to give "
+                    + "it more memory. A relative path is looked for in the --scenario "
                     + "file's directory, then in the working directory, and .yaml may be left out; an absolute "
                     + "path is used as given. Repeatable, applied in order")
     List<Path> extendedScenarios = new ArrayList<>();
@@ -294,7 +296,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
         Thread measurementGate = null;
         PulsarCluster cluster = PulsarCluster.forSpec(spec);
-        List<GenericContainer<?>> consumers = new ArrayList<>(applications);
+        Path applicationsOutput = runOutput.resolve(APPLICATIONS_DIRECTORY);
+        GenericContainer<?> consumer = null;
         GenericContainer<?> producer = null;
         TopicStatsSampler topicStatsSampler = null;
         ProgressMonitor progress = null;
@@ -309,27 +312,23 @@ public class PerformanceLauncher implements Callable<Integer> {
                     (System.nanoTime() - clusterStart) / 1e9));
             status(String.format(Locale.ROOT, "Starting %d application(s) with %d pod(s) each",
                     applications, workload.path("applications").path("podsPerApplication").intValue()));
-            for (int application = 0; application < applications; application++) {
-                Path appOutput = applicationOutput(runOutput, workload, application);
-                Files.createDirectories(appOutput);
-                consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
-                        coordinationDirectory, runId, appOutput, agentJar, profilingSettings.applications(),
-                        "application", applicationsEnv, "iot-consume", "--application-index",
-                        Integer.toString(application), "--control-port", Integer.toString(CONTROL_PORT))
-                        .withExposedPorts(CONTROL_PORT)
-                        .waitingFor(Wait.forLogMessage(".*READY application=.*", 1)
-                                .withStartupTimeout(Duration.ofMinutes(5))));
-            }
-            Startables.deepStart(consumers.stream()).join();
+            // One container runs every application, as one runs every gateway; each application writes into its
+            // directory in the applications' directory
+            Files.createDirectories(applicationsOutput);
+            consumer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig, coordinationDirectory,
+                    runId, applicationsOutput, agentJar, profilingSettings.applications(), APPLICATIONS_DIRECTORY,
+                    applicationsEnv, "iot-consume", "--control-port", Integer.toString(CONTROL_PORT))
+                    .withExposedPorts(CONTROL_PORT)
+                    .waitingFor(Wait.forLogMessage(".*READY applications=.*", 1)
+                            .withStartupTimeout(Duration.ofMinutes(5)));
+            consumer.start();
             topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput);
             TopicStatsSampler backlogSource = topicStatsSampler;
             progress = new ProgressMonitor(loader.mapper(), System.out,
                     workload.path("payload").path("size").intValue(),
                     applications, () -> backlogSource != null ? backlogSource.latestBacklog() : null);
-            for (int application = 0; application < applications; application++) {
-                GenericContainer<?> consumer = consumers.get(application);
-                progress.follow("application-" + application, controlUrl(consumer), consumer::isRunning);
-            }
+            GenericContainer<?> runningConsumer = consumer;
+            progress.follow(APPLICATIONS_DIRECTORY, controlUrl(consumer), runningConsumer::isRunning);
 
             Path producerOutput = runOutput.resolve(GATEWAYS_DIRECTORY);
             Files.createDirectories(producerOutput);
@@ -357,11 +356,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             }
             List<Workload> workloads = new ArrayList<>();
             workloads.add(new Workload("The gateways", producer, producerOutput.resolve(CONTAINER_LOG)));
-            for (int application = 0; application < consumers.size(); application++) {
-                Path applicationOutput = applicationOutput(runOutput, workload, application);
-                workloads.add(new Workload("Application " + applicationOutput.getFileName(),
-                        consumers.get(application), applicationOutput.resolve(CONTAINER_LOG)));
-            }
+            workloads.add(new Workload("The applications", consumer, applicationsOutput.resolve(CONTAINER_LOG)));
             awaitWorkloads(workloads, workload.path("timeoutSeconds").intValue() + 60);
             progress.report();
             progress.close();
@@ -379,6 +374,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             TopicStatsSampler topicStatsToClose = topicStatsSampler;
             Thread gateToStop = measurementGate;
             GenericContainer<?> producerToStop = producer;
+            GenericContainer<?> consumerToStop = consumer;
             shutDown("stopping the progress report", () -> {
                 if (progressToClose != null) {
                     progressToClose.close();
@@ -401,10 +397,9 @@ public class PerformanceLauncher implements Callable<Integer> {
                 saveContainerLog(producerToStop, runOutput.resolve(GATEWAYS_DIRECTORY).resolve(CONTAINER_LOG));
                 shutDown("stopping the producer", producerToStop::stop);
             }
-            for (int application = 0; application < consumers.size(); application++) {
-                GenericContainer<?> consumer = consumers.get(application);
-                saveContainerLog(consumer, applicationOutput(runOutput, workload, application).resolve(CONTAINER_LOG));
-                shutDown("stopping application " + application, consumer::stop);
+            if (consumerToStop != null) {
+                saveContainerLog(consumerToStop, applicationsOutput.resolve(CONTAINER_LOG));
+                shutDown("stopping the applications", consumerToStop::stop);
             }
             status("Stopping the Pulsar cluster");
             shutDown("stopping the Pulsar cluster", cluster::stop);

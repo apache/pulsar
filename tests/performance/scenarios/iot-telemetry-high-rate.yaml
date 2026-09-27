@@ -17,15 +17,9 @@
 
 
 # Saturation workload: 500 producer connections feed one topic as fast as possible. Five independent
-# applications each consume through a ten-member Key_Shared subscription.
-extends: iot-telemetry.yaml
-cluster:
-  brokers:
-    env:
-      PULSAR_MEM: -Xms4g -Xmx4g -XX:MaxDirectMemorySize=4g
-  bookies:
-    env:
-      PULSAR_MEM: -Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g
+# applications each consume through a ten-member Key_Shared subscription. It uses the high-memory configuration,
+# configs/iot-telemetry-high-mem.yaml: recommended memory available to Docker about 14 GB.
+extends: [iot-telemetry.yaml, configs/iot-telemetry-high-mem.yaml]
 workloads:
   iotTelemetry:
     rate: 0

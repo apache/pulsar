@@ -38,9 +38,6 @@ public class IotScenarioTest {
             for (String command : new String[] {"iot-produce", "iot-consume"}) {
                 List<String> arguments = new ArrayList<>(List.of(command, "--config", config.toString(),
                         "--output", "results"));
-                if (command.equals("iot-consume")) {
-                    arguments.addAll(List.of("--application-index", "0"));
-                }
                 var parsed = new CommandLine(new PerformanceTool()).parseArgs(arguments.toArray(String[]::new));
                 var tool = (PerformanceTool.ScenarioCommand) parsed.subcommand().commandSpec().userObject();
                 assertThat(tool.coordinationDirectory()).isEqualTo(Path.of("results/coordination"));

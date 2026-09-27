@@ -85,18 +85,20 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
     }
 
     /**
-     * The applications, each consuming every topic on a Key_Shared subscription of its own, named
-     * {@code <subscriptionPrefix><index>}, through {@code podsPerApplication} pods, each a Pulsar client with a
-     * consumer, in a container of its own.
+     * The applications, in one container, as the gateways are. Each application is a Key_Shared subscription of its
+     * own on every topic, named {@code <subscriptionPrefix><index>}, consumed through {@code podsPerApplication}
+     * pods, each a Pulsar client with a consumer of the subscription; the applications differ only in their
+     * subscription.
      *
-     * @param env the environment variables of each application's container, which the launcher sets, such as
+     * @param client the client resources that every pod's client shares
+     * @param env the environment variables of the applications' container, which the launcher sets, such as
      *            {@code PULSAR_MEM}
      */
     public record Applications(int count, int podsPerApplication, String subscriptionPrefix, Client client,
                                Map<String, String> env) {
     }
 
-    /** The applications' client settings. */
+    /** The applications' client resources: the event loop's and the listener thread pool's threads. */
     public record Client(int ioThreads, int listenerThreads) {
     }
 

@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -42,7 +43,8 @@ import org.HdrHistogram.Recorder;
  * <p>Each line has the workload's status, which the command fills in, such as its phase and cumulative message
  * counts, and the latencies recorded in the interval as a compressed, base64-encoded HdrHistogram of microseconds,
  * so that the launcher can merge the intervals of every application. Each stream records the latencies into its
- * own recorder, which leaves the latency log untouched.
+ * own recorder, which leaves the latency logs untouched; with several latency logs, such as one per application, the
+ * stream's intervals merge them.
  */
 final class ProgressStream {
     static final String PATH = "/progress";
@@ -51,7 +53,7 @@ final class ProgressStream {
     private static final long MAX_INTERVAL_MILLIS = TimeUnit.MINUTES.toMillis(1);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private final HdrLatencyRecorder latency;
+    private final List<HdrLatencyRecorder> latencies;
     private final Consumer<ObjectNode> status;
     private final CountDownLatch finished = new CountDownLatch(1);
 
@@ -60,7 +62,18 @@ final class ProgressStream {
      * @param status fills in a line's status fields; it is called from the stream's threads
      */
     ProgressStream(HdrLatencyRecorder latency, Consumer<ObjectNode> status) {
-        this.latency = latency;
+        this(List.of(latency), status);
+    }
+
+    /**
+     * @param latencies the latencies to report, merged
+     * @param status fills in a line's status fields; it is called from the stream's threads
+     */
+    ProgressStream(List<HdrLatencyRecorder> latencies, Consumer<ObjectNode> status) {
+        if (latencies.isEmpty()) {
+            throw new IllegalArgumentException("A progress stream needs a latency log");
+        }
+        this.latencies = List.copyOf(latencies);
         this.status = status;
     }
 
@@ -82,7 +95,10 @@ final class ProgressStream {
                 return;
             }
         }
-        Recorder recorder = latency.addProgressRecorder();
+        Recorder recorder = latencies.get(0).addProgressRecorder();
+        for (HdrLatencyRecorder latency : latencies.subList(1, latencies.size())) {
+            latency.addProgressRecorder(recorder);
+        }
         try (exchange) {
             exchange.getResponseHeaders().set("Content-Type", "application/x-ndjson");
             // Chunked, as the stream has no length
@@ -104,7 +120,9 @@ final class ProgressStream {
         } catch (IOException e) {
             // The launcher went away; it reconnects when it wants the progress again
         } finally {
-            latency.removeProgressRecorder(recorder);
+            for (HdrLatencyRecorder latency : latencies) {
+                latency.removeProgressRecorder(recorder);
+            }
         }
     }
 

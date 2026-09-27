@@ -29,7 +29,8 @@ into the workload containers.
 ## Sections
 
 - `cluster`: the Pulsar topology. `brokers` and `bookies` each have `replicas`, the number of containers, and `env`,
-  their environment variables, such as Pulsar settings and `PULSAR_MEM`.
+  their environment variables, such as Pulsar settings and `PULSAR_MEM`. The IoT telemetry scenarios get it from a
+  [memory configuration](../README.md#memory-configurations), which also sets the workload containers' `PULSAR_MEM`.
 - `workloads`: named workload configurations, currently `iotTelemetry`, see [the IoT telemetry
   scenario](iot-telemetry.md#settings). Its `gateways.env` and `applications.env` are the environment variables of the
   gateways' and the applications' containers, such as `PULSAR_MEM`, which sets the JVM's heap and direct memory, or
@@ -48,7 +49,7 @@ into the workload containers.
 A top-level `extends` entry inherits one file or an ordered list of files:
 
 ```yaml
-extends: [cluster.yaml, workloads/iot-base.yaml]
+extends: [iot-telemetry.yaml, configs/iot-telemetry-high-mem.yaml]
 workloads:
   iotTelemetry:
     rate: 1000
@@ -68,7 +69,8 @@ output:
 ```
 
 - Each inherited path is resolved relative to the file that declares it; absolute paths also work. Keep inherited
-  files together.
+  files together: the scenarios in the scenarios directory, and the configurations that they combine in its
+  [`configs`](../configs) directory.
 - Parents can inherit other files recursively. Parents are applied in list order, and the current file last.
 - Mappings merge recursively, while scalar values and lists replace earlier values. An explicit YAML `null` or `~`
   removes an inherited entry.
@@ -77,12 +79,13 @@ output:
 ## Adding to a scenario on the command line
 
 The launcher's `--extends <scenario>` option merges a file on top of the scenario, as if the scenario's `extends`
-listed it last, without writing a new scenario. It is how profiling is added to a scenario: the `profile-*` files in
-the scenarios directory each profile one component.
+listed it last, without writing a new scenario. It is how profiling, or another memory configuration, is added to a
+scenario: the `profile-*` files in the scenarios' `configs` directory each profile one component, and the
+`iot-telemetry-*-mem` files there set the cluster and the memory, see [Configurations](../README.md#configurations).
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-gateways'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/profile-broker --extends configs/profile-gateways'
 ```
 
 - A relative path is looked for first in the directory of the `--scenario` file, then in the working directory, and

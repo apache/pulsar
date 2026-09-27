@@ -15,10 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Profiles the applications, the consumers of the telemetry. Add it to a scenario with the launcher's --extends
-# profile-applications option, and run the scenario with the profile task.
+# Profiles the gateways, the producer that publishes the telemetry. Add it to a scenario with the launcher's --extends
+# configs/profile-gateways option, and run the scenario with the profile task.
 profiling:
-  applications:
+  gateways:
     # async-profiler options, recorded through the jonoffcpu agent. No wall-clock or lock event: CPU and allocation
     # data share one JFR recording, and waiting time comes from the kernel instead.
     asyncProfilerOptions: event=cpu,interval=10ms,alloc=2m,jfrsync=profile

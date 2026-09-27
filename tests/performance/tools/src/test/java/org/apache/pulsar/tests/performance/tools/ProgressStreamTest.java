@@ -30,6 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.HdrHistogram.Histogram;
@@ -85,6 +86,49 @@ public class ProgressStreamTest {
             latency.close();
         } finally {
             Files.deleteIfExists(log);
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void mergesTheLatenciesOfSeveralLogs() throws Exception {
+        Path firstLog = Files.createTempFile("progress-latency", ".hdr");
+        Path secondLog = Files.createTempFile("progress-latency", ".hdr");
+        try (MeasurementControl control = MeasurementControl.start(0)) {
+            HdrLatencyRecorder first = new HdrLatencyRecorder(firstLog, MAX_LATENCY_MICROS);
+            HdrLatencyRecorder second = new HdrLatencyRecorder(secondLog, MAX_LATENCY_MICROS);
+            ProgressStream progress = new ProgressStream(List.of(first, second), line -> { });
+            control.serveProgress(progress);
+            HttpResponse<Stream<String>> response = HttpClient.newHttpClient().send(HttpRequest.newBuilder(
+                            URI.create("http://127.0.0.1:" + control.port() + ProgressStream.PATH
+                                    + "?intervalMillis=100")).GET().build(),
+                    HttpResponse.BodyHandlers.ofLines());
+            try (Stream<String> lines = response.body()) {
+                Iterator<String> iterator = lines.iterator();
+                // The first line is written once the stream has registered its recorder with both logs
+                mapper.readTree(iterator.next());
+                first.recordMillis(2, true);
+                second.recordMillis(4, true);
+                long streamed = 0;
+                Histogram merged = new Histogram(3);
+                while (streamed < 2) {
+                    JsonNode line = mapper.readTree(iterator.next());
+                    streamed += line.path("latency").path("count").asLong();
+                    merged.add(Histogram.decodeFromCompressedByteBuffer(ByteBuffer.wrap(
+                            Base64.getDecoder().decode(line.path("latency").path("histogram").asText())), 0));
+                }
+                assertThat(merged.getTotalCount()).isEqualTo(2);
+                assertThat(merged.getMinValue()).isBetween(1_999L, 2_001L);
+                assertThat(merged.getMaxValue()).isBetween(3_999L, 4_003L);
+                progress.finish();
+                while (iterator.hasNext()) {
+                    iterator.next();
+                }
+            }
+            first.close();
+            second.close();
+        } finally {
+            Files.deleteIfExists(firstLog);
+            Files.deleteIfExists(secondLog);
         }
     }
 }

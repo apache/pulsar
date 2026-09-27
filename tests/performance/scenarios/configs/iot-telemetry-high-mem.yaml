@@ -16,21 +16,18 @@
 # under the License.
 
 
-# Keeps the 20-way fanout, 30 topics and rate while scaling gateway and pod connections by 10. It uses the low-memory
-# configuration, configs/iot-telemetry-low-mem.yaml: recommended memory available to Docker about 3 GB, and not meant
-# for profiling.
-extends: [iot-telemetry.yaml, configs/iot-telemetry-low-mem.yaml]
+# The high-memory configuration of the IoT telemetry scenarios, for the high-rate scenarios: the cluster of
+# cluster-high-mem.yaml, and the memory of the gateways' and the applications' containers. Recommended memory available
+# to Docker: about 14 GB.
+extends: cluster-high-mem.yaml
 workloads:
   iotTelemetry:
-    devices:
-      count: 100000
     gateways:
-      count: 10
-      producer:
-        ioThreads: 4
-        listenerThreads: 8
+      # The environment of the gateways' container. PULSAR_MEM sets the JVM's heap and direct memory.
+      env:
+        PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
     applications:
-      podsPerApplication: 10
-      client:
-        ioThreads: 4
-        listenerThreads: 8
+      # The environment of the applications' container. PULSAR_MEM sets the JVM's heap and direct memory, which every
+      # application shares.
+      env:
+        PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch

@@ -16,32 +16,11 @@
 # under the License.
 
 
-# The defaults of the IoT telemetry scenarios: the cluster, and a workload of one gateway and one application with
-# one pod. The other scenarios extend it, and set the topology they model.
-cluster:
-  brokers:
-    replicas: 1
-    env:
-      PULSAR_MEM: -Xms2g -Xmx2g -XX:MaxDirectMemorySize=2g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
-      brokerDeduplicationEnabled: "true"
-      # Keep storage-maintenance boundaries outside ordinary warmup and measurement windows.
-      # These are benchmark settings, not production sizing recommendations.
-      managedLedgerMaxEntriesPerLedger: "100000000"
-      managedLedgerMinLedgerRolloverTimeMinutes: "60"
-      managedLedgerMaxLedgerRolloverTimeMinutes: "1440"
-      managedLedgerMaxSizePerLedgerMbytes: "16384"
-      managedLedgerCursorMaxEntriesPerLedger: "100000000"
-      managedLedgerCursorRolloverTimeInSeconds: "86400"
-  bookies:
-    replicas: 3
-    env:
-      PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=512m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
-      # The containers are ephemeral, so postpone reclamation and compaction until after the run.
-      journalMaxSizeMB: "8192"
-      gcWaitTime: "86400000"
-      gcOverreplicatedLedgerWaitTime: "86400000"
-      minorCompactionInterval: "-1"
-      majorCompactionInterval: "-1"
+# The defaults of the IoT telemetry scenarios: a workload of one gateway and one application with one pod, and the
+# cluster and the containers' memory of the medium-memory configuration, configs/iot-telemetry-medium-mem.yaml.
+# Recommended memory available to Docker: about 8 GB. The other scenarios extend it, and set the topology they model;
+# a scenario that needs a different memory configuration extends it from configs/ too, after this file.
+extends: configs/iot-telemetry-medium-mem.yaml
 workloads:
   iotTelemetry:
     # Warmup traffic is validated but excluded from throughput and the exported measurement window.
@@ -68,22 +47,19 @@ workloads:
         maxOutstanding: 20000
         batchingEnabled: true
         precreate: false
-      # The environment of the gateways' container. PULSAR_MEM sets the JVM's heap and direct memory.
-      env:
-        PULSAR_MEM: -Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m
     topics:
       count: 30
       prefix: persistent://public/default/iot-telemetry-
+    # Each application is a Key_Shared subscription of its own, consumed through its pods, each a Pulsar client with a
+    # consumer. One container runs every application, as one runs every gateway.
     applications:
       count: 1
       podsPerApplication: 1
       subscriptionPrefix: iot-application-
+      # The client resources that every pod's Pulsar client shares
       client:
         ioThreads: 8
         listenerThreads: 16
-      # The environment of each application's container. PULSAR_MEM sets the JVM's heap and direct memory.
-      env:
-        PULSAR_MEM: -Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m
     behaviors:
       # Each application restarts this fraction of its pods every intervalSeconds; 0 never
       podRestarts:

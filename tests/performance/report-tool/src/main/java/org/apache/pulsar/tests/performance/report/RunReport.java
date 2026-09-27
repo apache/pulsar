@@ -66,6 +66,11 @@ public final class RunReport {
             "epochMillis,packageCelsius,coreCelsius,meanMHz,minMHz,coreThrottles,packageThrottles,fanRpm";
     // .txt, so that an HTTP server such as Python's shows the log as text instead of offering a download
     public static final String CONTAINER_LOG = "container.log.txt";
+    /**
+     * The applications' outputs: their container's log and profile, and a directory per application, see
+     * {@link #applicationDirectory}.
+     */
+    public static final String APPLICATIONS_DIRECTORY = "applications";
     private static final String MEASUREMENT_RECORDING_SUFFIX = ".measurement.jfr";
     private static final DateTimeFormatter FOOTER_START = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     // The guide to the performance tests, which the report links to
@@ -349,7 +354,7 @@ public final class RunReport {
         List<String> links = new ArrayList<>();
         // The scenario and its resolved configuration are linked from the settings table
         for (String name : List.of(RunInfo.FILE_NAME, "gateways/gateways-summary.json",
-                "gateways/" + CONTAINER_LOG)) {
+                "gateways/" + CONTAINER_LOG, APPLICATIONS_DIRECTORY + "/" + CONTAINER_LOG)) {
             Path file = runDirectory.resolve(name);
             if (Files.isRegularFile(file)) {
                 links.add(link(runDirectory, file));
@@ -357,11 +362,9 @@ public final class RunReport {
         }
         for (int application = 0; Files.isDirectory(applicationDirectory(runDirectory, workload, application));
                 application++) {
-            for (String name : List.of("application-summary.json", CONTAINER_LOG)) {
-                Path file = applicationDirectory(runDirectory, workload, application).resolve(name);
-                if (Files.isRegularFile(file)) {
-                    links.add(link(runDirectory, file));
-                }
+            Path file = applicationDirectory(runDirectory, workload, application).resolve("application-summary.json");
+            if (Files.isRegularFile(file)) {
+                links.add(link(runDirectory, file));
             }
         }
         if (!links.isEmpty()) {
@@ -466,9 +469,13 @@ public final class RunReport {
         return (prefix.isEmpty() ? "application-" : prefix) + index;
     }
 
-    /** Where an application's outputs are: a directory named after the application, such as iot-application-0/. */
+    /**
+     * Where an application's outputs are: a directory named after the application in the applications' directory,
+     * such as applications/iot-application-0/. The applications' container writes it, naming it after the
+     * application's subscription, which is the same name.
+     */
     public static Path applicationDirectory(Path runDirectory, JsonNode workload, int index) {
-        return runDirectory.resolve(applicationName(workload, index));
+        return runDirectory.resolve(APPLICATIONS_DIRECTORY).resolve(applicationName(workload, index));
     }
 
     // The application a log belongs to, from the directory it is in
@@ -801,8 +808,8 @@ public final class RunReport {
 
     /** The profiled component a profile directory belongs to: {@code broker-profile} is "Broker". */
     static String componentName(String directoryName) {
-        if (!directoryName.endsWith("-profile") && !directoryName.equals("gateways")) {
-            // An application's directory is named after the application, as the rest of the report names it
+        if (!directoryName.endsWith("-profile") && !directoryName.equals("gateways")
+                && !directoryName.equals(APPLICATIONS_DIRECTORY)) {
             return directoryName;
         }
         String name = directoryName.replaceFirst("-profile$", "").replace('-', ' ');

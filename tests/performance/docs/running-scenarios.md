@@ -22,7 +22,7 @@
 # Running scenarios
 
 The standalone launcher runs a scenario: it starts the Testcontainers cluster that the scenario describes, runs the
-workload applications in containers of their own, collects their outputs into a run directory, and calls the report
+gateways and the applications in a container each, collects their outputs into a run directory, and calls the report
 tool to write the run report. Run it through Gradle from the repository root, which builds the Pulsar test image and
 the workload applications first when they are out of date.
 
@@ -46,7 +46,7 @@ Pass the launcher's options with `--args`:
 | Option | Description |
 |---|---|
 | `--scenario <file>` | The scenario file. Required. |
-| `--extends <scenario>` | Merges a scenario file on top of the scenario, as if the scenario extended it last, such as `profile-broker` to profile the broker. A relative path is looked for first in the directory of the `--scenario` file, then in the working directory, and `.yaml` may be left out; an absolute path is used as given. Repeatable, applied in order. See [Adding to a scenario on the command line](../scenarios/docs/scenario-format.md#adding-to-a-scenario-on-the-command-line). |
+| `--extends <scenario>` | Merges a scenario file on top of the scenario, as if the scenario extended it last, such as `configs/profile-broker` to profile the broker or `configs/iot-telemetry-high-mem` to give the scenario more memory. A relative path is looked for first in the directory of the `--scenario` file, then in the working directory, and `.yaml` may be left out; an absolute path is used as given. Repeatable, applied in order. See [Adding to a scenario on the command line](../scenarios/docs/scenario-format.md#adding-to-a-scenario-on-the-command-line). |
 | `--set <path>=<value>` | Sets a value of the resolved scenario, such as `workloads.iotTelemetry.rate=5000`. Repeatable, applied in order after the environment overrides. See [Settings on the command line](../scenarios/docs/scenario-format.md#settings-on-the-command-line). |
 | `--name <name>` | The run's name in the reports hierarchy. Default: the scenario's `output.name`, or else the scenario file name without `.yaml`. |
 | `--reports-dir <dir>` | The root of the reports hierarchy. Default: `performance.reportsDir`, or else `build/performance` in the repository. |
@@ -96,7 +96,7 @@ Every run gets a directory of its own, in a hierarchy by day, git branch and nam
 
   ```bash
   ./gradlew :tests:performance:launcher:profile -Pperformance.reportsDir=/data/pulsar-reports \
-    --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --name e232-ab'
+    --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/profile-broker --name e232-ab'
   ```
 - The run directory is named by the run's start in local time. Two runs of the same name started within the same
   second would share it.
@@ -133,9 +133,10 @@ backlog and end-to-end latency. The prefix has the time since the gateways start
   also show duplicates and ordering violations as soon as an application has any.
 - The end-to-end latency is measured from the broker's publish time, which has millisecond resolution.
 
-The gateways and each application stream their progress to the launcher from the control port of their container,
+The gateways' and the applications' containers stream their progress to the launcher from their control port,
 `GET /progress` on port 8089, as newline-delimited JSON: a line per second with the phase, cumulative counters and the
-second's latencies as a compressed HdrHistogram of microseconds, which the launcher merges.
+second's latencies as a compressed HdrHistogram of microseconds, which the launcher merges. The applications' lines
+sum their applications' counters, merge their latencies, and count the applications that have finished.
 
 ## Host temperature and cool-down
 
