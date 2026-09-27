@@ -94,6 +94,18 @@ configuration, not the low-memory one.
   --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/profile-broker'
 ```
 
+### Heap dumps
+
+[`heap-dumps-broker.yaml`](configs/heap-dumps-broker.yaml) adds heap dumps of the broker to any scenario: at its
+highest heap usage, after every application has received every message, and when it runs out of memory. A heap dump
+stops the JVM while it is written, so such a run is for finding what holds the memory, not for measuring. [Heap
+dumps](../docs/heap-dumps.md) describes the other settings, such as dumps at given times and of the other components.
+
+```bash
+./gradlew :tests:performance:launcher:run \
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --extends configs/heap-dumps-broker'
+```
+
 ## Scenarios for the legacy TestNG runner
 
 The scenarios of [the legacy TestNG profiling runner](../docs/legacy-testng-runner/README.md#scenario-files), which runs

@@ -41,6 +41,8 @@ into the workload containers.
   command can select its subtree with `--config-path`.
 - `profiling`: optional profiler options for the broker, the gateways and the applications, see
   [Profiling](../../docs/profiling.md#configuring-profiling).
+- `heapDumps`: optional heap dumps of the broker, the gateways and the applications, when they run out of memory, at
+  the highest heap usage and at given times, see [Heap dumps](../../docs/heap-dumps.md).
 - `output`: optional; `output.name` names the scenario's runs in the reports hierarchy instead of the file name, see
   [Where runs are written](../../docs/running-scenarios.md#where-runs-are-written).
 

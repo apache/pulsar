@@ -202,6 +202,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         JsonNode profiling = resolved.path("profiling");
         ProfilingSettings profilingSettings = ProfilingSettings.read(loader.mapper(), profiling);
         ClusterSettings clusterSettings = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
+        HeapDumpSettings heapDumpSettings = HeapDumpSettings.read(resolved.path("heapDumps"));
         // The cluster as the scenario wrote it, for the run report
         ObjectNode clusterConfig = (ObjectNode) resolved.get("cluster");
         boolean profilingEnabled = profilingSettings.anyProfiled();
@@ -261,6 +262,15 @@ public class PerformanceLauncher implements Callable<Integer> {
             System.setProperty("inttest.asyncprofiler.opts", profilingSettings.broker().asyncProfilerOptions());
             System.setProperty("inttest.asyncprofiler.outputformat", "jfr");
         }
+        Map<String, Path> heapDumpDirectories = heapDumpSettings.any() ? HeapDumper.prepare(runOutput) : Map.of();
+        Map<String, String> brokerEnv = clusterSettings.brokers().env();
+        Map<String, String> brokerMounts = new LinkedHashMap<>();
+        if (heapDumpSettings.broker().any()) {
+            brokerMounts.put(heapDumpDirectories.get(HeapDumpSettings.BROKER).toString(), HeapDumper.MOUNT);
+        }
+        if (heapDumpSettings.broker().onOutOfMemoryError()) {
+            brokerEnv = withJavaToolOptions(brokerEnv, HeapDumper.outOfMemoryOptions());
+        }
         Path resolvedConfig = runOutput.resolve(RunReport.RESOLVED_CONFIG);
         if (cooldownCelsius != null) {
             // The workloads wait while the host cools down before the measurement; give them the time for it
@@ -303,7 +313,8 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .jonoffcpuAgentJar(agentJar != null ? agentJar.toString() : null)
                 .jonoffcpuOptions(profilingSettings.broker().offCpuOptions())
                 .clusterImage(clusterImage)
-                .brokerEnvs(clusterSettings.brokers().env())
+                .brokerEnvs(brokerEnv)
+                .brokerMountFiles(brokerMounts)
                 .bookkeeperEnvs(clusterSettings.bookies().env())
                 .build();
 
@@ -321,6 +332,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         TopicStatsSampler topicStatsSampler = null;
         ProgressMonitor progress = null;
         HostStatsSampler hostStatsSampler = startHostStatsSampler(sensors, runOutput);
+        HeapDumper heapDumper = heapDumpSettings.any() ? new HeapDumper(runOutput, PulsarContainer.DEFAULT_IMAGE_NAME)
+                : null;
         ZonedDateTime workloadFinished;
         try {
             status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)",
@@ -343,7 +356,9 @@ public class PerformanceLauncher implements Callable<Integer> {
             Files.createDirectories(applicationsOutput);
             consumer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig, coordinationDirectory,
                     runId, applicationsOutput, agentJar, profilingSettings.applications(), APPLICATIONS_DIRECTORY,
-                    applicationsEnv, "iot-consume", "--control-port", Integer.toString(CONTROL_PORT))
+                    applicationsEnv, heapDumpSettings.applications(),
+                    heapDumpDirectories.get(HeapDumpSettings.APPLICATIONS), "iot-consume", "--control-port",
+                    Integer.toString(CONTROL_PORT))
                     .withExposedPorts(CONTROL_PORT);
             long applicationsStart = System.nanoTime();
             startWorkload(consumer, ".*READY applications=.*", "The applications",
@@ -362,7 +377,8 @@ public class PerformanceLauncher implements Callable<Integer> {
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                     coordinationDirectory, runId, producerOutput, agentJar, profilingSettings.gateways(),
-                    GATEWAYS_DIRECTORY, gatewaysEnv, "iot-produce", cooldownCelsius != null
+                    GATEWAYS_DIRECTORY, gatewaysEnv, heapDumpSettings.gateways(),
+                    heapDumpDirectories.get(HeapDumpSettings.GATEWAYS), "iot-produce", cooldownCelsius != null
                             ? new String[] {"--control-port", Integer.toString(CONTROL_PORT),
                                     "--await-measurement-start"}
                             : new String[] {"--control-port", Integer.toString(CONTROL_PORT)});
@@ -375,6 +391,9 @@ public class PerformanceLauncher implements Callable<Integer> {
                     workload.path("topics").path("count").intValue()));
             startWorkload(producer, ".*CONTROL_READY.*", "The gateways", producerOutput.resolve(CONTAINER_LOG));
             GenericContainer<?> runningProducer = producer;
+            if (heapDumper != null) {
+                heapDumper.start(heapDumpTargets(cluster, heapDumpSettings, producer, consumer));
+            }
             progress.follow("producer", controlUrl(producer), runningProducer::isRunning);
             progress.start(progressIntervalSeconds);
             if (cooldownCelsius != null) {
@@ -386,6 +405,9 @@ public class PerformanceLauncher implements Callable<Integer> {
             awaitWorkloads(workloads, workload.path("timeoutSeconds").intValue() + 60);
             progress.report();
             progress.close();
+            if (heapDumper != null) {
+                heapDumper.end();
+            }
             // The run's end in the charts: every consumer has finished, before the profiles are processed
             workloadFinished = ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS);
             status("Every application has received every message; verifying the device sequences");
@@ -401,6 +423,12 @@ public class PerformanceLauncher implements Callable<Integer> {
             Thread gateToStop = measurementGate;
             GenericContainer<?> producerToStop = producer;
             GenericContainer<?> consumerToStop = consumer;
+            // First, so that no dump is being written into a container that stops
+            shutDown("finishing the heap dumps", () -> {
+                if (heapDumper != null) {
+                    heapDumper.close();
+                }
+            });
             shutDown("stopping the progress report", () -> {
                 if (progressToClose != null) {
                     progressToClose.close();
@@ -758,7 +786,8 @@ public class PerformanceLauncher implements Callable<Integer> {
                                                    Path coordinationDirectory, String runId,
                                                    Path outputDirectory, Path agentJar,
                                                    ProfilingSettings.Component profiling, String component,
-                                                   Map<String, String> envs, String command,
+                                                   Map<String, String> envs, HeapDumpSettings.Component heapDumps,
+                                                   Path heapDumpDirectory, String command,
                                                    String... extraArguments) throws IOException {
         List<String> arguments = new ArrayList<>();
         // Starts the tools with the JVM options of Pulsar's client tools, see run-workload
@@ -781,6 +810,9 @@ public class PerformanceLauncher implements Callable<Integer> {
                     "profile-" + component + "-" + System.currentTimeMillis(), profiling.asyncProfilerOptions(),
                     profiling.offCpuOptions());
         }
+        if (heapDumps.onOutOfMemoryError()) {
+            javaOptions = (javaOptions + " " + HeapDumper.outOfMemoryOptions()).trim();
+        }
         GenericContainer<?> container = new GenericContainer<>(PulsarContainer.DEFAULT_IMAGE_NAME)
                 .withNetwork(cluster.getNetwork())
                 .withFileSystemBind(tools.toString(), TOOLS_MOUNT, BindMode.READ_ONLY)
@@ -792,7 +824,35 @@ public class PerformanceLauncher implements Callable<Integer> {
         if (profiling.profiled()) {
             JonoffcpuAgent.attach(container, agentJar);
         }
+        if (heapDumps.any()) {
+            container.withFileSystemBind(heapDumpDirectory.toString(), HeapDumper.MOUNT, BindMode.READ_WRITE);
+        }
         return container;
+    }
+
+    /** The JVMs whose heap the launcher dumps during the run: each broker, the gateways and the applications. */
+    static List<HeapDumper.Target> heapDumpTargets(PulsarCluster cluster, HeapDumpSettings settings,
+                                                   GenericContainer<?> producer, GenericContainer<?> consumer) {
+        List<HeapDumper.Target> targets = new ArrayList<>();
+        int index = 0;
+        for (GenericContainer<?> broker : cluster.getBrokers()) {
+            targets.add(new HeapDumper.Target(HeapDumpSettings.BROKER + "-" + index++, HeapDumpSettings.BROKER,
+                    settings.broker(), broker));
+        }
+        targets.add(new HeapDumper.Target(HeapDumpSettings.GATEWAYS, HeapDumpSettings.GATEWAYS, settings.gateways(),
+                producer));
+        targets.add(new HeapDumper.Target(HeapDumpSettings.APPLICATIONS, HeapDumpSettings.APPLICATIONS,
+                settings.applications(), consumer));
+        return targets;
+    }
+
+    /** An environment with options added to its {@code JAVA_TOOL_OPTIONS}, after any it has. */
+    static Map<String, String> withJavaToolOptions(Map<String, String> env, String options) {
+        Map<String, String> environment = new LinkedHashMap<>(env != null ? env : Map.of());
+        String configured = environment.get(JAVA_TOOL_OPTIONS);
+        environment.put(JAVA_TOOL_OPTIONS, configured == null || configured.isBlank() ? options
+                : configured + " " + options);
+        return environment;
     }
 
     /**

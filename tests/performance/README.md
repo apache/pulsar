@@ -360,6 +360,8 @@ details.
   scenarios, inheritance, environment overrides and the warmup.
 - [Profiling](docs/profiling.md): the jonoffcpu profiler, its requirements and options, the files of a profiled run
   and the measurement recording.
+- [Heap dumps](docs/heap-dumps.md): heap dumps of the broker, the gateways and the applications when they run out of
+  memory, at the highest heap usage and at given times.
 - [Analyzing profiles](docs/analyzing-profiles.md): finding what to optimize, comparing profiles,
   [flame graphs of other recordings](docs/analyzing-profiles.md#flame-graphs-of-other-recordings), such as those of
   profiled tests, integration tests and benchmarks, the tools that read the recordings, including JDK Mission Control

@@ -46,6 +46,9 @@ import org.HdrHistogram.Histogram;
  */
 public final class RunReport {
     public static final String FILE_NAME = "README.md";
+    /** The launcher's heap dump directory in the run directory, and the list of the dumps in it. */
+    static final String HEAP_DUMPS_DIRECTORY = "heap-dumps";
+    static final String HEAP_DUMPS_INDEX = "heap-dumps.csv";
     static final String LATENCY_CHART = "latency";
     static final String THROUGHPUT_CHART = "throughput";
     static final String BACKLOG_CHART = "backlog";
@@ -299,6 +302,7 @@ public final class RunReport {
             appendHost(report, runDirectory, hostSamples, host, run.cooldowns(), measurementStart, measurementEnd,
                     chartFooter(run.info(), run.finished()));
         }
+        appendHeapDumps(report, runDirectory);
         appendFiles(report, runDirectory, run.workload());
         appendFooter(report, run);
         Path file = runDirectory.resolve(FILE_NAME);
@@ -378,6 +382,47 @@ public final class RunReport {
     }
 
     // The run's own records, collapsed at the end, for a reader who browses the run directory, for example over HTTP
+    /**
+     * The heap dumps that the launcher wrote, as {@code heap-dumps/heap-dumps.csv} lists them: each file that still
+     * exists once, as its last row describes it, since a peak dump replaces the previous one under the same name.
+     */
+    static void appendHeapDumps(StringBuilder report, Path runDirectory) throws IOException {
+        Path index = runDirectory.resolve(HEAP_DUMPS_DIRECTORY).resolve(HEAP_DUMPS_INDEX);
+        if (!Files.isRegularFile(index)) {
+            return;
+        }
+        Map<String, String[]> dumps = new LinkedHashMap<>();
+        List<String> lines = Files.readAllLines(index);
+        for (String line : lines.subList(Math.min(1, lines.size()), lines.size())) {
+            String[] fields = line.split(",", -1);
+            if (fields.length == 7) {
+                dumps.remove(fields[3]);
+                dumps.put(fields[3], fields);
+            }
+        }
+        StringBuilder rows = new StringBuilder();
+        for (String[] dump : dumps.values()) {
+            Path file = runDirectory.resolve(HEAP_DUMPS_DIRECTORY).resolve(dump[3]);
+            if (!Files.isRegularFile(file)) {
+                continue;
+            }
+            long used = Long.parseLong(dump[4]);
+            long max = Long.parseLong(dump[5]);
+            rows.append("| [").append(dump[1]).append(", ").append(dump[2]).append("](").append(HEAP_DUMPS_DIRECTORY)
+                    .append('/').append(dump[3]).append(") | ")
+                    .append(used < 0 ? "" : String.format(Locale.ROOT, "%,d MB", used >> 20))
+                    .append(max > 0 ? String.format(Locale.ROOT, " of %,d MB", max >> 20) : "").append(" | ")
+                    .append(String.format(Locale.ROOT, "%,d MB", Files.size(file) >> 20)).append(" |\n");
+        }
+        if (!rows.isEmpty()) {
+            report.append("\n## Heap dumps\n\nWritten while the JVM was stopped, so the run's numbers include the"
+                            + " pauses. The heap usage is as the JVM reported it just before the dump, garbage"
+                            + " included; the dump holds the live objects.\n\n"
+                            + "| Heap dump | Heap used | File size |\n|---|---|---:|\n")
+                    .append(rows);
+        }
+    }
+
     private static void appendFiles(StringBuilder report, Path runDirectory, JsonNode workload) {
         List<String> links = new ArrayList<>();
         // The scenario and its resolved configuration are linked from the settings table

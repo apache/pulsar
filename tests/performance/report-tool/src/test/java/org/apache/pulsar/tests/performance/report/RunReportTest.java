@@ -414,6 +414,34 @@ public class RunReportTest {
     }
 
     @Test
+    public void listsEachHeapDumpOnceAsItsLastRowDescribesIt() throws IOException {
+        Path dumps = Files.createDirectories(run.resolve("heap-dumps/broker"));
+        Files.write(dumps.resolve("broker-0-peak.hprof"), new byte[3 << 20]);
+        Files.write(dumps.resolve("broker-0-at-30s.hprof"), new byte[1 << 20]);
+        // A peak dump replaced by a later one under the same name, and a dump whose file was removed since
+        Files.writeString(run.resolve("heap-dumps/heap-dumps.csv"), """
+                epochMillis,target,trigger,file,usedBytes,maxBytes,dumpMillis
+                1000,broker-0,peak,broker/broker-0-peak.hprof,2147483648,4294967296,0
+                2000,broker-0,at-30s,broker/broker-0-at-30s.hprof,1073741824,4294967296,850
+                3000,broker-0,peak,broker/broker-0-peak.hprof,3221225472,4294967296,0
+                4000,broker-0,end,broker/broker-0-end.hprof,1073741824,4294967296,900
+                """);
+        StringBuilder report = new StringBuilder();
+
+        RunReport.appendHeapDumps(report, run);
+
+        assertThat(report.toString()).contains("## Heap dumps\n")
+                .contains("| [broker-0, at-30s](heap-dumps/broker/broker-0-at-30s.hprof) | 1,024 MB of 4,096 MB |"
+                        + " 1 MB |\n| [broker-0, peak](heap-dumps/broker/broker-0-peak.hprof) | 3,072 MB of 4,096 MB |"
+                        + " 3 MB |\n")
+                .doesNotContain("end.hprof");
+        // Without dumps, no section
+        StringBuilder empty = new StringBuilder();
+        RunReport.appendHeapDumps(empty, Files.createDirectories(run.resolve("other")));
+        assertThat(empty.toString()).isEmpty();
+    }
+
+    @Test
     public void namesTheStartTheBranchTheCommitAndTheScenarioInTheTitle() {
         ZonedDateTime started = ZonedDateTime.parse("2026-09-25T23:58:30+03:00");
         String commit = "1ebd73f2652103b30483ba6ddd7ab587a605912a";

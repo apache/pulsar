@@ -137,6 +137,43 @@ jmc-open() {
 
 With IntelliJ IDEA's command-line launcher installed, open a recording with `idea <recording.jfr>`.
 
+## Interactive analysis with jafar-shell
+
+[jafar-shell](https://github.com/btraceio/jafar) is an interactive shell for JFR recordings and heap dumps, and also
+pprof and OpenTelemetry profiles, with a query language for each: JfrPath for recordings and HdumpPath for heap dumps.
+It is the newer version of jfr-shell, which reads only JFR recordings, and replaces it. Install it with
+[JBang](https://www.jbang.dev/):
+
+```bash
+jbang app install jafar-shell@btraceio
+```
+
+Heap dump support is in Jafar's main branch and not yet in every release. When `jafar-shell` opens an `.hprof` as a
+JFR recording and fails, build it from source and install the build instead:
+
+```bash
+git clone https://github.com/btraceio/jafar.git && cd jafar
+./gradlew :jafar-shell:shadowJar
+jbang app install --force --name jafar-shell jafar-shell/build/libs/jafar-shell-*-all.jar
+```
+
+Open a recording or a heap dump with `jafar-shell <file>`, and run queries with `show`, for example on a broker's
+measurement recording:
+
+```
+jfr> show events/jdk.ExecutionSample | groupBy(sampledThread/javaName) | top(5, count)
+```
+
+The shell also reads its commands from standard input, so that a script or an agent can run queries without the
+interactive prompt:
+
+```bash
+printf 'show events/jdk.ExecutionSample | count()\nexit\n' | jafar-shell -q <recording>.measurement.jfr
+```
+
+[The heap dump quick start](https://github.com/btraceio/jafar/blob/main/doc/hdump-shell-quickstart.md) and
+[the JFR shell tutorial](https://github.com/btraceio/jafar/blob/main/doc/cli/Tutorial.md) describe the queries.
+
 ## AI agent analysis
 
 The [Jafar MCP server](https://github.com/btraceio/jafar/blob/main/jfr-mcp/README.md) lets an AI coding agent query a
@@ -171,10 +208,25 @@ appropriate, or a second profile.
 
 ## Heap dumps and memory leaks
 
-For an `OutOfMemoryError` or a suspected retention problem, analyze the resulting `.hprof` heap dump with an AI agent
-through one of these tools:
+For an `OutOfMemoryError`, a suspected retention problem or a heap that fills up, analyze an `.hprof` heap dump. The
+performance tests' launcher writes heap dumps of the broker, the gateways and the applications when they run out of
+memory, at the highest heap usage and at given times, see [Heap dumps](heap-dumps.md). These tools read them:
 
-- The [`jafar-perf` plugin](#ai-agent-analysis) from jafar-perf-box supports heap dump analysis, including
+- [jafar-shell](#interactive-analysis-with-jafar-shell), interactively or from a script. [The heap dump quick
+  start](https://github.com/btraceio/jafar/blob/main/doc/hdump-shell-quickstart.md) describes its HdumpPath queries,
+  from the classes with the most instances to retained sizes, dominators, paths to GC roots and built-in leak
+  detectors. Prefix each query with `show` in the shell:
+
+  ```
+  hdump> show classes | top(10, instanceCount)
+  hdump> show objects | dominators(groupBy="class") | head(10)
+  hdump> show checkLeaks(detector="growing-collections")
+  ```
+
+  For example, a dump of a broker with thousands of Key_Shared consumers shows that the subscriptions' consistent
+  hash rings, the `ConsistentHashingStickyKeyConsumerSelector` instances and their `TreeMap` entries, retain most of
+  its heap.
+- The [`jafar-perf` plugin](#ai-agent-analysis) from jafar-perf-box lets an AI agent analyze heap dumps, including
   investigating memory leaks and comparing heap dumps.
 - [codelipenghui/mcp-mat](https://github.com/codelipenghui/mcp-mat), an MCP server that runs a headless Eclipse Memory
   Analyzer (MAT). Use the leak suspects report and the dominator tree first, then query paths to GC roots or OQL for

@@ -70,7 +70,14 @@ adds analysis skills and agents and registers the Jafar MCP server;
 [the plugin's README](https://github.com/btraceio/jafar-perf-box/blob/main/plugins/jafar-perf/README.md) describes how
 to install and use it. Agents other than Claude Code can use the Jafar MCP server on its own, as
 [AI agent analysis](docs/analyzing-profiles.md#ai-agent-analysis) describes. For heap dumps, see also
-[Heap dumps and memory leaks](docs/analyzing-profiles.md#heap-dumps-and-memory-leaks).
+[Heap dumps and memory leaks](docs/analyzing-profiles.md#heap-dumps-and-memory-leaks). To run queries yourself, use
+jafar-shell, which reads its commands from standard input, as
+[Interactive analysis with jafar-shell](docs/analyzing-profiles.md#interactive-analysis-with-jafar-shell) describes.
+
+When a component's memory is in question, such as a heap that fills up, backlogs that grow at a modest rate, or an
+`OutOfMemoryError`, capture heap dumps with the scenario's `heapDumps` settings, such as
+`--extends configs/heap-dumps-broker`, as [Heap dumps](docs/heap-dumps.md) describes, and don't use that run's numbers:
+the dumps stop the JVM.
 
 ## Pull requests for performance improvements
 

@@ -111,6 +111,7 @@ didn't receive every message, and the launcher fails a run when an application's
 │                                      such as iot-application-0
 ├── broker-profile/                    the broker's recordings, flame graphs and profile report (README.md,
 │                                      index.html), in a profiled run
+├── heap-dumps/                        the heap dumps, when the scenario asks for them, see heap-dumps.md
 └── coordination/                      the warmup barrier markers of the gateways and the applications
 ```
 
@@ -145,6 +146,8 @@ report has these sections:
   their charts in a collapsed section; a chart whose values the host doesn't provide is left out. The report says so
   in bold when the CPU throttled during the measurement, and that throttling is unknown when the host has no thermal
   throttle counters. A host that isn't Linux isn't sampled.
+- **Heap dumps**, when the scenario asked for them: each dump, with the heap usage before it and its size, see
+  [Heap dumps](heap-dumps.md).
 
 A profiled run's report also links to the profile reports, see [Profiling](profiling.md#what-a-profiled-run-writes).
 Every Markdown report the launcher writes, including the profile reports and the off-CPU digests, has an HTML page
