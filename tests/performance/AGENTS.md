@@ -96,6 +96,15 @@ compare the change with its baseline on the same scenario, and find the cause of
 the scenario, the revisions, the runs and the conclusion together. Treat automated analysis as a lead, and confirm a
 claim with a controlled comparison, a JMH benchmark or a second profile.
 
+For the time that threads spent blocked, look first at a profile's jonoffcpu report,
+`<recording>-offcpu/jonoffcpu-summary.md`. It is text, a digest that ranks the methods of the Pulsar broker's or the
+Pulsar client's code where threads blocked, what they blocked on and for how long, see
+[What a profiled run writes](docs/profiling.md#what-a-profiled-run-writes). For the full call trees behind it, read
+the collapsed stacks beside it rather than the flame graphs, whose HTML pages need a browser to render:
+`offcpu-no-idle.collapsed` has the blocked time and `offcpu-no-idle-app-root.collapsed` the same from where threads
+entered Pulsar or BookKeeper code, one stack per line with its frames separated by `;` and its time in microseconds
+at the end. The async-profiler views have collapsed stacks too, such as `<recording>-flamegraphs/cpu.collapsed`.
+
 Analyze JFR recordings and `.hprof` heap dumps with the Jafar tools. When they aren't available, suggest that the user
 installs the `jafar-perf` Claude Code plugin from [jafar-perf-box](https://github.com/btraceio/jafar-perf-box), which
 adds analysis skills and agents and registers the Jafar MCP server;
