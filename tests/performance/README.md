@@ -333,6 +333,23 @@ as [Before you start](#before-you-start) describes:
 
 [Comparing revisions](docs/comparing-revisions.md) describes preparing the worktrees and what to compare.
 
+To compare with a released Pulsar instead, run the baseline from the same checkout with
+`-Pperformance.clusterPulsarImage`, which runs ZooKeeper, the bookies and the brokers on an Alpine-based Pulsar image,
+such as the latest release or a particular one. The workloads, and so the Pulsar client, stay on the checkout:
+
+```bash
+# The latest release
+./gradlew :tests:performance:launcher:run -Pperformance.clusterPulsarImage=apachepulsar/pulsar:latest \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
+
+# A particular release
+./gradlew :tests:performance:launcher:run -Pperformance.clusterPulsarImage=apachepulsar/pulsar:4.0.13 \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name my-change-ab'
+```
+
+[Comparing with a released Pulsar](docs/comparing-revisions.md#comparing-with-a-released-pulsar) describes the
+details.
+
 ## Reference
 
 - [Running scenarios](docs/running-scenarios.md): the Gradle tasks, the launcher's options and Gradle properties,

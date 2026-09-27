@@ -96,11 +96,18 @@ To compare a released Pulsar with the checkout, run the baseline with `-Pperform
 from the same checkout:
 
 ```bash
+# The latest release, or a particular one such as apachepulsar/pulsar:4.0.13
+./gradlew :tests:performance:launcher:run -Pperformance.clusterPulsarImage=apachepulsar/pulsar:latest \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name release-ab'
 ./gradlew :tests:performance:launcher:run -Pperformance.clusterPulsarImage=apachepulsar/pulsar:4.0.13 \
-  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name pulsar-4.0-ab'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name release-ab'
+# The checkout
 ./gradlew :tests:performance:launcher:run \
-  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name pulsar-4.0-ab'
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name release-ab'
 ```
+
+With `latest`, the report and `run-info.json` name the version that the brokers reported, such as 4.1.1, but the
+runs go under `pulsar-latest`, which gathers the runs of different releases as `latest` moves.
 
 - The tasks build the test image on the release's image, pulling it first, since a tag such as `latest` moves. The
   test image's Dockerfile installs packages with `apk`, so the release's image has to be Alpine-based, as
