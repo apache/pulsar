@@ -78,8 +78,9 @@ public final class MetricsCommand {
             System.out.println("Grafana: " + Grafana.baseUrl(options.grafanaUrl, options.bindAddress) + " (log in as "
                     + MetricsStack.GRAFANA_USER + ", password " + MetricsStack.GRAFANA_PASSWORD
                     + ", to edit; viewing needs no login)");
-            System.out.println("VictoriaMetrics: "
-                    + ReportsUrl.baseUrl(null, options.bindAddress, MetricsStack.VICTORIAMETRICS_PORT) + "vmui/");
+            String victoriaMetrics = ReportsUrl.baseUrl(null, options.bindAddress, MetricsStack.VICTORIAMETRICS_PORT);
+            System.out.println("VictoriaMetrics: " + victoriaMetrics + "vmui/?#/metrics (browse the metrics), "
+                    + victoriaMetrics + "vmui (PromQL queries)");
             System.out.println("Runs send their metrics here. It keeps running, also across restarts of Docker, until "
                     + "./gradlew :tests:performance:metrics:down stops it; the metrics and Grafana's settings stay in "
                     + "the Docker volumes " + String.join(" and ", MetricsStack.VOLUMES));

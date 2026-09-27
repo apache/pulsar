@@ -25,7 +25,9 @@ takes for an image format), collapsed stacks and logs as downloads. This server 
 recordings and capture streams stay downloads.
 
 It binds to the loopback interface by default, so that it is reachable only from the machine itself or through an
-SSH tunnel (ssh -N -L 8000:127.0.0.1:8000 perf-host).
+SSH tunnel, which can forward the metrics stack's Grafana and VictoriaMetrics too
+(ssh -N -L 8000:127.0.0.1:8000 -L 3000:127.0.0.1:3000 -L 8428:127.0.0.1:8428 perf-host), as
+docs/run-reports.md describes.
 """
 
 import argparse

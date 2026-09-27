@@ -42,7 +42,7 @@ Start VictoriaMetrics and Grafana, with Grafana's image renderer, in the backgro
 Starting VictoriaMetrics and Grafana; the first start pulls the images, and sets up Grafana
 ...
 Grafana: http://127.0.0.1:3000/ (log in as admin, password pulsar-performance, to edit; viewing needs no login)
-VictoriaMetrics: http://127.0.0.1:8428/vmui/
+VictoriaMetrics: http://127.0.0.1:8428/vmui/?#/metrics (browse the metrics), http://127.0.0.1:8428/vmui (PromQL queries)
 Runs send their metrics here. It keeps running, also across restarts of Docker, until ./gradlew :tests:performance:metrics:down stops it; the metrics and Grafana's settings stay in the Docker volumes pulsar-performance-victoriametrics-data and pulsar-performance-grafana-data
 ```
 
@@ -61,6 +61,14 @@ docker compose --file tests/performance/metrics/compose.yaml --project-name puls
 ```
 
 Grafana's user is `admin` with the password `pulsar-performance`, and viewing the dashboards needs no login.
+
+Beyond Grafana's dashboards, VictoriaMetrics' web UI, vmui, shows any metric that it has collected:
+<http://127.0.0.1:8428/vmui/?#/metrics> browses the metrics by name, and <http://127.0.0.1:8428/vmui> runs PromQL
+queries and graphs their results.
+
+When the stack runs on another machine, reach Grafana and VictoriaMetrics from your own machine through the SSH tunnel
+that [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http) describes, which forwards their
+ports together with the reports server's.
 
 The first start pulls the images, about 1 GB, most of it the image renderer's browser, and sets Grafana up in its empty
 volume: the VictoriaMetrics data source, the Prometheus data source plugin, which the slim Grafana image leaves out,

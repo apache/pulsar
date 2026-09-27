@@ -258,15 +258,36 @@ A run written with `--output` outside the reports root has no URL.
 
 When the performance tests run on a separate machine, start the server there. It's reachable from your own machine
 only when `performance.reportsServer.bindAddress` is set as above, in that machine's `~/.gradle/gradle.properties` or
-with `-P`, or through an SSH tunnel with the default address. The tunnel forwards a local port to that loopback
-address over the encrypted SSH connection:
+with `-P`, or through an SSH tunnel with the default address. The tunnel forwards local ports to those loopback
+addresses over the encrypted SSH connection. This one forwards the reports server, and Grafana and VictoriaMetrics of
+the [metrics stack](metrics.md), which also listen on the loopback address by default:
 
 ```bash
 # On your own machine
-ssh -N -L 8000:127.0.0.1:8000 perf-host
+ssh -N -L 8000:127.0.0.1:8000 -L 3000:127.0.0.1:3000 -L 8428:127.0.0.1:8428 perf-host
 ```
 
-Then open <http://127.0.0.1:8000/> on your own machine.
+Then open <http://127.0.0.1:8000/> for the reports and <http://127.0.0.1:3000/> for Grafana on your own machine, and
+VictoriaMetrics' web UI, vmui, at <http://127.0.0.1:8428/vmui/?#/metrics> to browse the metrics or at
+<http://127.0.0.1:8428/vmui> for PromQL queries. The URLs that the launcher prints, such as
+`Run report URL:` and `Metrics in Grafana:`, open through the tunnel too, since they use the same addresses.
+
+To open the tunnel with `ssh perf-host-pulsar-perf`, add a host to `~/.ssh/config` on your own machine:
+
+```
+Host perf-host-pulsar-perf
+    HostName perf-host
+    # Only forward the ports, without a remote shell, as -N does (OpenSSH 8.7 or later)
+    SessionType none
+    # Fail instead of running without a tunnel when a local port is already in use
+    ExitOnForwardFailure yes
+    LocalForward 8000 127.0.0.1:8000
+    LocalForward 3000 127.0.0.1:3000
+    LocalForward 8428 127.0.0.1:8428
+```
+
+`ssh perf-host-pulsar-perf` keeps the tunnel open until you stop it with Ctrl-C, and `ssh perf-host` still opens a
+shell as before.
 
 [`serve-reports.py`](../serve-reports.py) does the same with Python's built-in server, without Gradle:
 `tests/performance/serve-reports.py [directory] [--bind <address>] [--port <port>]`. It reads
