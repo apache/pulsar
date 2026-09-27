@@ -32,11 +32,13 @@ workloads:
     measurement:
       seconds: 120
       messages: 0
+    # The longest the workload may run: at least the warmup and the measurement at the rate, 140 s here, with room for
+    # startup and for the applications to catch up. The applications stop waiting for messages after it, and the run
+    # fails; the launcher rejects a timeout shorter than the warmup and the measurement before it starts a cluster.
+    timeoutSeconds: 240
     rate: 1000
     payload:
       size: 64
-    # The longest the workload may run; the applications stop waiting for messages after it, and the run fails
-    timeoutSeconds: 240
     devices:
       count: 300000
     gateways:

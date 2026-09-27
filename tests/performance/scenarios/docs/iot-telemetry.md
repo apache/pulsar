@@ -123,10 +123,10 @@ workloads:
     measurement:               # seconds at the rate, unless messages sets the measured messages
       seconds: 120
       messages: 0
+    timeoutSeconds: 240        # the longest the workload may run, at least the warmup and the measurement
     rate: 1000                 # messages per second; 0 sends as fast as possible
     payload:
       size: 64                 # bytes, the device's ID, sequence and send time included
-    timeoutSeconds: 240        # the longest the workload may run
     devices:
       count: 300000
     gateways:
@@ -160,7 +160,9 @@ workloads:
 `timeoutSeconds` bounds the whole workload: the applications stop waiting for messages after it and the run fails,
 the gateways give up waiting for a warmup round or the measurement's start, and the launcher waits for the containers
 a minute longer. It has to be at least the time that the warmup rounds, their delays and the measurement need at the
-rate. The launcher sets the broker's service URL itself.
+rate, and should leave room for startup and for the applications to catch up. The launcher checks the workload's
+settings before it starts a cluster, and rejects a shorter timeout with the time the workload needs. The launcher sets
+the broker's service URL itself.
 
 ## Profiling with jonoffcpu
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -71,6 +72,7 @@ import org.apache.pulsar.tests.performance.report.OffCpuFlamegraphs;
 import org.apache.pulsar.tests.performance.report.ProfileReport;
 import org.apache.pulsar.tests.performance.report.RunInfo;
 import org.apache.pulsar.tests.performance.report.RunReport;
+import org.apache.pulsar.tests.performance.tools.IotScenario;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
@@ -214,6 +216,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         String runId = UUID.randomUUID().toString();
         String clusterName = "iot-" + ProcessHandle.current().pid();
         workload.put("serviceUrl", "pulsar://" + clusterName + "-pulsar-broker-0:6650");
+        checkWorkload(loader.mapper(), workload);
 
         // Whole seconds, as the run directory names the start
         RunInfo runInfo = RunInfo.collect(Path.of("").toAbsolutePath(),
@@ -463,6 +466,19 @@ public class PerformanceLauncher implements Callable<Integer> {
      */
     private static Logger log() {
         return Logger.get(PerformanceLauncher.class);
+    }
+
+    /**
+     * Checks the workload's settings as the gateways and the applications read them, so that an invalid scenario
+     * fails before a cluster starts instead of in the workload containers.
+     */
+    static void checkWorkload(ObjectMapper mapper, JsonNode workload) {
+        try {
+            mapper.treeToValue(workload, IotScenario.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException(e.getCause() instanceof IllegalArgumentException invalid
+                    ? invalid.getMessage() : "Invalid workloads.iotTelemetry: " + e.getOriginalMessage(), e);
+        }
     }
 
     /** Prints a status line, with the time of day, as the run goes from one phase to the next. */

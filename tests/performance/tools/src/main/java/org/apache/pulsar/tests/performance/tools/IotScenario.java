@@ -20,6 +20,7 @@ package org.apache.pulsar.tests.performance.tools;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -156,19 +157,45 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
                         Math.multiplyExact((long) warmupRoundDelaySeconds, warmupRounds)));
         Producer producer = gateways.producer();
         Client client = applications.client();
-        if (durationSeconds < 1 || warmupSeconds < 0 || warmupMessages < 0 || warmupRounds < 1
-                || warmupRoundDelaySeconds < 0
-                || (warmupSeconds > 0 && warmupMessages > 0)
-                || (warmupSeconds > 0 && rate == 0)
-                || rate < 0 || numberOfMessages < 0
-                || (rate == 0 && numberOfMessages == 0) || payload.size() < TelemetryMessage.HEADER_BYTES
-                || devices.count() < 1 || gateways.count() < 1 || topics.count() < 1 || applications.count() < 1
-                || applications.podsPerApplication() < 1 || producer.ioThreads() < 1
-                || producer.listenerThreads() < 1 || client.ioThreads() < 1 || client.listenerThreads() < 1
-                || producer.maxOutstanding() < 1 || timeoutSeconds < minimumRuntimeSeconds
-                || behaviors.podRestarts().intervalSeconds() < 0 || behaviors.podRestarts().fraction() < 0
-                || behaviors.podRestarts().fraction() > 1) {
-            throw new IllegalArgumentException("IoT scenario counts and sizes are invalid");
+        PodRestarts podRestarts = behaviors.podRestarts();
+        require(durationSeconds >= 1, "measurement.seconds must be at least 1");
+        require(warmupSeconds >= 0 && warmupMessages >= 0 && warmupRoundDelaySeconds >= 0,
+                "warmup.seconds, warmup.messages and warmup.roundDelaySeconds must not be negative");
+        require(warmupRounds >= 1, "warmup.rounds must be at least 1");
+        require(warmupSeconds == 0 || warmupMessages == 0, "Set warmup.seconds or warmup.messages, not both");
+        require(warmupSeconds == 0 || rate > 0, "warmup.seconds needs a rate; without one, set warmup.messages");
+        require(rate >= 0 && numberOfMessages >= 0, "rate and measurement.messages must not be negative");
+        require(rate > 0 || numberOfMessages > 0, "Without a rate, set measurement.messages");
+        require(payload.size() >= TelemetryMessage.HEADER_BYTES,
+                "payload.size must be at least " + TelemetryMessage.HEADER_BYTES + " bytes, the message header");
+        require(devices.count() >= 1 && gateways.count() >= 1 && topics.count() >= 1 && applications.count() >= 1
+                        && applications.podsPerApplication() >= 1,
+                "devices.count, gateways.count, topics.count, applications.count and "
+                        + "applications.podsPerApplication must be at least 1");
+        require(producer.ioThreads() >= 1 && producer.listenerThreads() >= 1 && client.ioThreads() >= 1
+                        && client.listenerThreads() >= 1,
+                "The gateways' and the applications' ioThreads and listenerThreads must be at least 1");
+        require(producer.maxOutstanding() >= 1, "gateways.producer.maxOutstanding must be at least 1");
+        if (timeoutSeconds < minimumRuntimeSeconds) {
+            long warmupTotalSeconds = minimumRuntimeSeconds - durationSeconds;
+            throw new IllegalArgumentException(String.format(Locale.ROOT, "Invalid IoT scenario: timeoutSeconds is %d,"
+                            + " but the workload needs %d s: %d s of warmup (%d round(s) of %d s%s) and %d s of"
+                            + " measurement%s. The applications stop waiting at the timeout, so set timeoutSeconds to"
+                            + " at least %d, and better about %d, which leaves room for startup and for the"
+                            + " applications to catch up.",
+                    timeoutSeconds, minimumRuntimeSeconds, warmupTotalSeconds, warmupRounds, warmupRuntimeSeconds,
+                    warmupRoundDelaySeconds > 0 ? String.format(Locale.ROOT, " and a %d s delay after each",
+                            warmupRoundDelaySeconds) : "",
+                    durationSeconds, rate > 0 ? String.format(Locale.ROOT, " at %,d msg/s", rate) : "",
+                    minimumRuntimeSeconds, minimumRuntimeSeconds + Math.max(100, minimumRuntimeSeconds / 5)));
+        }
+        require(podRestarts.intervalSeconds() >= 0 && podRestarts.fraction() >= 0 && podRestarts.fraction() <= 1,
+                "behaviors.podRestarts.intervalSeconds must not be negative, and fraction must be from 0 to 1");
+    }
+
+    private static void require(boolean condition, String message) {
+        if (!condition) {
+            throw new IllegalArgumentException("Invalid IoT scenario: " + message);
         }
     }
 

@@ -33,8 +33,9 @@ import org.testng.annotations.Test;
 
 /**
  * Resolves the scenario files that the performance tests ship, as the launcher does, so that a broken inheritance, such
- * as a memory configuration that no longer reaches the cluster's settings, or a ledger ensemble that the cluster's
- * bookies can't hold, fails here rather than in a run.
+ * as a memory configuration that no longer reaches the cluster's settings, a ledger ensemble that the cluster's
+ * bookies can't hold, or a workload that the gateways and the applications would reject, such as a timeout shorter than
+ * the warmup and the measurement, fails here rather than in a run.
  */
 public class ScenarioFilesTest {
     // The tests run in the launcher's project directory
@@ -74,6 +75,25 @@ public class ScenarioFilesTest {
             assertThat(workload.path(component).path("env").path(PerformanceLauncher.PULSAR_MEM).isTextual())
                     .as(component + ".env." + PerformanceLauncher.PULSAR_MEM).isTrue();
         }
+        checkWorkload(resolved);
+    }
+
+    @Test(dataProvider = "scenarios")
+    public void acceptsEveryConfigurationOnTopOfTheScenario(String scenario) throws IOException {
+        // What --extends adds: a memory configuration or a profile, which must leave a valid workload
+        try (Stream<Path> files = Files.list(CONFIGS)) {
+            for (Path configuration : files.filter(file -> file.getFileName().toString().matches(
+                    "(iot-telemetry-.*-mem|profile-.*)\\.yaml")).sorted().toList()) {
+                checkWorkload(resolve(SCENARIOS.resolve(scenario), List.of(configuration)));
+            }
+        }
+    }
+
+    // The workload's settings as the launcher checks them before it starts a cluster, with the service URL it sets
+    private void checkWorkload(ObjectNode resolved) {
+        ObjectNode workload = (ObjectNode) loader.select(resolved, "workloads.iotTelemetry").deepCopy();
+        workload.put("serviceUrl", "pulsar://broker:6650");
+        PerformanceLauncher.checkWorkload(loader.mapper(), workload);
     }
 
     // A ledger replication setting of the brokers, or the default in Pulsar's conf/broker.conf, 2, when unset

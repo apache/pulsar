@@ -34,6 +34,8 @@ dependencies {
     implementation(project(path = ":tests:integration", configuration = "testJar"))
     // Writes the run and profile reports, charts and flame graphs once a run has finished
     implementation(project(":tests:performance:report-tool"))
+    // Checks the workload's settings with the workloads' own model before a cluster starts
+    implementation(project(":tests:performance:tools"))
     implementation(libs.picocli)
     // Logs the stack traces of failures to launcher.log, and the console shows them in one line
     implementation(libs.slog)

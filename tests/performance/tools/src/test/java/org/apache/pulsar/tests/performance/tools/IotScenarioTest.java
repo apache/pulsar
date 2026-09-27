@@ -113,7 +113,10 @@ public class IotScenarioTest {
     public void includesRateLimitedMessageWarmupInMinimumRuntime() {
         // 11 s for each of the 3 warmup rounds of 1,001 messages at 100 msg/s, 2 s between them and 120 s measured
         assertThatThrownBy(() -> scenario(0, 1_001, 3, 2, 100, 1_000, 158))
-                .isInstanceOf(IllegalArgumentException.class);
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("timeoutSeconds is 158, but the workload needs 159 s: 39 s of warmup"
+                        + " (3 round(s) of 11 s and a 2 s delay after each) and 120 s of measurement at 100 msg/s")
+                .hasMessageContaining("set timeoutSeconds to at least 159, and better about 259");
     }
 
     private static IotScenario scenario(int warmupSeconds, long warmupMessages, int rate, long numberOfMessages) {
