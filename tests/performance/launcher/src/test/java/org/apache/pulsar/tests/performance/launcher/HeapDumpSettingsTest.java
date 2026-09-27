@@ -113,16 +113,17 @@ public class HeapDumpSettingsTest {
     }
 
     @Test
-    public void addsTheOutOfMemoryOptionsAfterTheConfiguredJavaToolOptions() {
-        assertThat(PerformanceLauncher.withJavaToolOptions(Map.of("PULSAR_MEM", "-Xmx1g"),
+    public void addsTheOutOfMemoryOptionsAfterTheConfiguredOptions() {
+        assertThat(PerformanceLauncher.withJvmOptions(Map.of("PULSAR_MEM", "-Xmx1g"), "PULSAR_EXTRA_OPTS",
                 HeapDumper.outOfMemoryOptions(0)))
                 .containsEntry("PULSAR_MEM", "-Xmx1g")
-                .containsEntry("JAVA_TOOL_OPTIONS", "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/heap-dumps");
+                .containsEntry("PULSAR_EXTRA_OPTS", "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/heap-dumps");
         // The JVM names a compressed dump java_pid<pid>.hprof.gz itself
         assertThat(HeapDumper.outOfMemoryOptions(1)).isEqualTo(
                 "-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/heap-dumps -XX:HeapDumpGzipLevel=1");
-        assertThat(PerformanceLauncher.withJavaToolOptions(Map.of("JAVA_TOOL_OPTIONS", "-Dx=1"), "-Dy=2"))
-                .containsEntry("JAVA_TOOL_OPTIONS", "-Dx=1 -Dy=2");
-        assertThat(PerformanceLauncher.withJavaToolOptions(null, "-Dy=2")).containsEntry("JAVA_TOOL_OPTIONS", "-Dy=2");
+        assertThat(PerformanceLauncher.withJvmOptions(Map.of("PULSAR_EXTRA_OPTS", "-Dx=1"), "PULSAR_EXTRA_OPTS",
+                "-Dy=2")).containsEntry("PULSAR_EXTRA_OPTS", "-Dx=1 -Dy=2");
+        assertThat(PerformanceLauncher.withJvmOptions(null, "PULSAR_EXTRA_OPTS", "-Dy=2"))
+                .containsEntry("PULSAR_EXTRA_OPTS", "-Dy=2");
     }
 }

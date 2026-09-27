@@ -19,8 +19,12 @@
 package org.apache.pulsar.tests.performance.launcher;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import org.testcontainers.containers.ContainerLaunchException;
 import org.testng.annotations.Test;
 
 public class WorkloadStartupTest {
@@ -43,5 +47,22 @@ public class WorkloadStartupTest {
         assertThat(startup.output()).startsWith("SLF4J(W): No SLF4J providers were found.\n")
                 .endsWith("READY applications=20 clients=2000\n");
         assertThat(startup.failure()).isNull();
+    }
+
+    @Test
+    public void failsWhenOutputKeepsComingWithoutProgress() {
+        WorkloadStartup startup = new WorkloadStartup(".*READY applications=.*", message -> { });
+        // Each poll takes a second, and returns a warning of a retry rather than progress
+        AtomicLong nanos = new AtomicLong();
+        WorkloadStartup.Frames retries = () -> {
+            nanos.addAndGet(TimeUnit.SECONDS.toNanos(1));
+            return "WARN Connection refused, retrying\n";
+        };
+
+        assertThatThrownBy(() -> startup.awaitReady(retries, () -> true, nanos::get))
+                .isInstanceOf(ContainerLaunchException.class)
+                .hasMessageContaining("made no progress for 60 s");
+        assertThat(startup.failure()).startsWith("made no progress for 60 s");
+        assertThat(nanos.get()).isLessThanOrEqualTo(TimeUnit.SECONDS.toNanos(62));
     }
 }

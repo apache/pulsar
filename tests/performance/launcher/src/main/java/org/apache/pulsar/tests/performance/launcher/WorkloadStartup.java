@@ -23,7 +23,9 @@ import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
+import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
 import org.testcontainers.containers.ContainerLaunchException;
 import org.testcontainers.containers.output.FrameConsumerResultCallback;
@@ -74,34 +76,49 @@ final class WorkloadStartup extends AbstractWaitStrategy {
             callback.addConsumer(OutputFrame.OutputType.STDERR, collector);
             waitStrategyTarget.getDockerClient().logContainerCmd(waitStrategyTarget.getContainerId())
                     .withFollowStream(true).withSince(0).withStdOut(true).withStdErr(true).exec(callback);
-            long stalledAt = System.nanoTime() + STALL_TIMEOUT.toNanos();
-            while (true) {
-                String frame = frames.poll(POLL_MILLIS, TimeUnit.MILLISECONDS);
-                if (frame != null) {
-                    Line line = accept(frame);
-                    if (line == Line.READY) {
-                        return;
-                    }
-                    if (line == Line.PROGRESS) {
-                        stalledAt = System.nanoTime() + STALL_TIMEOUT.toNanos();
-                    }
-                } else if (!waitStrategyTarget.isRunning()) {
-                    // The output that the container wrote before it exited may still be on its way
-                    for (String rest; (rest = frames.poll(POLL_MILLIS, TimeUnit.MILLISECONDS)) != null; ) {
-                        if (accept(rest) == Line.READY) {
-                            return;
-                        }
-                    }
-                    throw fail("exited with status " + exitCode() + causeSuffix());
-                } else if (System.nanoTime() > stalledAt) {
-                    throw fail("made no progress for " + STALL_TIMEOUT.toSeconds() + " s" + causeSuffix());
-                }
-            }
+            awaitReady(() -> frames.poll(POLL_MILLIS, TimeUnit.MILLISECONDS), waitStrategyTarget::isRunning,
+                    System::nanoTime);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw fail("was interrupted while starting");
         } catch (IOException e) {
             throw new ContainerLaunchException("Couldn't follow the container's log", e);
+        }
+    }
+
+    /** The next frame of the container's output, or null when none came within a poll. */
+    interface Frames {
+        String poll() throws InterruptedException;
+    }
+
+    /**
+     * Waits for the ready line: fails when the container exits, and when it hasn't made progress for
+     * {@link #STALL_TIMEOUT}, also while it keeps writing other output, such as the warnings of retries.
+     */
+    void awaitReady(Frames frames, BooleanSupplier running, LongSupplier nanoTime) throws InterruptedException {
+        long stalledAt = nanoTime.getAsLong() + STALL_TIMEOUT.toNanos();
+        while (true) {
+            String frame = frames.poll();
+            if (frame != null) {
+                Line line = accept(frame);
+                if (line == Line.READY) {
+                    return;
+                }
+                if (line == Line.PROGRESS) {
+                    stalledAt = nanoTime.getAsLong() + STALL_TIMEOUT.toNanos();
+                }
+            } else if (!running.getAsBoolean()) {
+                // The output that the container wrote before it exited may still be on its way
+                for (String rest; (rest = frames.poll()) != null; ) {
+                    if (accept(rest) == Line.READY) {
+                        return;
+                    }
+                }
+                throw fail("exited with status " + exitCode() + causeSuffix());
+            }
+            if (nanoTime.getAsLong() > stalledAt) {
+                throw fail("made no progress for " + STALL_TIMEOUT.toSeconds() + " s" + causeSuffix());
+            }
         }
     }
 

@@ -232,5 +232,6 @@ ordering contract exercised by the scenario and should not be mixed into a perfo
 
 The full topology opens 100 gateway clients and 2,000 application clients, all in the applications' container. Across
 30 topics and 20 applications, this creates 60,000 internal topic consumers. The medium-memory configuration gives the
-broker a 2 GiB heap and 1 GiB of direct memory to accommodate that topology. Keep the memory configuration and the
+broker a 4 GiB heap and 1 GiB of direct memory to accommodate that topology: the consumers' Key_Shared hash rings hold
+about 2 GB of live objects, and with a 2 GiB heap the broker spends its CPU in garbage collection. Keep the memory configuration and the
 resolved scenario configuration constant when comparing broker revisions.

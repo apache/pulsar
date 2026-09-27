@@ -66,6 +66,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -99,6 +100,8 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String OUTPUT_MOUNT = "/performance-output";
     static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
     static final String PULSAR_MEM = "PULSAR_MEM";
+    // The JVM options that Pulsar's scripts put last on a Pulsar component's command line
+    static final String PULSAR_EXTRA_OPTS = "PULSAR_EXTRA_OPTS";
     // A workload's heap and direct memory, unless the workload's gateways.env or applications.env set PULSAR_MEM
     static final String WORKLOAD_MEMORY = "-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m";
     private static final String CONTAINER_LOG = RunReport.CONTAINER_LOG;
@@ -289,7 +292,10 @@ public class PerformanceLauncher implements Callable<Integer> {
             brokerMounts.put(heapDumpDirectories.get(HeapDumpSettings.BROKER).toString(), HeapDumper.MOUNT);
         }
         if (heapDumpSettings.broker().onOutOfMemoryError()) {
-            brokerEnv = withJavaToolOptions(brokerEnv, HeapDumper.outOfMemoryOptions(heapDumpSettings.gzipLevel()));
+            // The test image's scripts put -XX:HeapDumpPath=/var/log/pulsar into the broker's command line, which the
+            // broker's extra options come after
+            brokerEnv = withJvmOptions(brokerEnv, PULSAR_EXTRA_OPTS,
+                    HeapDumper.outOfMemoryOptions(heapDumpSettings.gzipLevel()));
         }
         Path resolvedConfig = runOutput.resolve(RunReport.RESOLVED_CONFIG);
         if (cooldownCelsius != null) {
@@ -767,7 +773,12 @@ public class PerformanceLauncher implements Callable<Integer> {
         List<String> topics = IntStream.range(0, workload.path("topics").path("count").intValue())
                 .mapToObj(topic -> prefix + topic).toList();
         try {
-            return TopicStatsSampler.start(cluster.getAnyBroker().getHttpServiceUrl(), topics, runOutput);
+            // Each broker, by its name in the cluster's network, which Docker names the container with a leading slash
+            Map<String, String> brokerHttpUrls = new LinkedHashMap<>();
+            for (BrokerContainer broker : cluster.getBrokers()) {
+                brokerHttpUrls.put(broker.getContainerName().replaceFirst("^/", ""), broker.getHttpServiceUrl());
+            }
+            return TopicStatsSampler.start(brokerHttpUrls, topics, runOutput);
         } catch (Exception e) {
             System.out.println("Topic stats sampling is off for this run: " + e);
             return null;
@@ -987,12 +998,11 @@ public class PerformanceLauncher implements Callable<Integer> {
         return targets;
     }
 
-    /** An environment with options added to its {@code JAVA_TOOL_OPTIONS}, after any it has. */
-    static Map<String, String> withJavaToolOptions(Map<String, String> env, String options) {
+    /** An environment with options added to a variable of JVM options, such as {@code PULSAR_EXTRA_OPTS}. */
+    static Map<String, String> withJvmOptions(Map<String, String> env, String variable, String options) {
         Map<String, String> environment = new LinkedHashMap<>(env != null ? env : Map.of());
-        String configured = environment.get(JAVA_TOOL_OPTIONS);
-        environment.put(JAVA_TOOL_OPTIONS, configured == null || configured.isBlank() ? options
-                : configured + " " + options);
+        String configured = environment.get(variable);
+        environment.put(variable, configured == null || configured.isBlank() ? options : configured + " " + options);
         return environment;
     }
 

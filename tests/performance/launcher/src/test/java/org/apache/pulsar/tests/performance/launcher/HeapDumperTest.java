@@ -23,6 +23,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.testng.annotations.Test;
 
 public class HeapDumperTest {
@@ -54,6 +58,33 @@ public class HeapDumperTest {
         assertThat(HeapDumper.isNewPeak(new HeapDumper.HeapUsage(2300L << 20, max), 2048L << 20)).isTrue();
         // Without a known maximum, only the growth counts
         assertThat(HeapDumper.isNewPeak(new HeapDumper.HeapUsage(100L << 20, 0), 0)).isTrue();
+    }
+
+    @Test
+    public void cancelsTheDumpsDueLaterAndFinishesTheOneBeingWrittenAtTheEnd() throws Exception {
+        ScheduledThreadPoolExecutor scheduler = HeapDumper.newScheduler();
+        CountDownLatch writing = new CountDownLatch(1);
+        AtomicBoolean written = new AtomicBoolean();
+        AtomicBoolean later = new AtomicBoolean();
+        scheduler.execute(() -> {
+            writing.countDown();
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                return;
+            }
+            written.set(true);
+        });
+        scheduler.schedule(() -> later.set(true), 1, TimeUnit.HOURS);
+        scheduler.scheduleAtFixedRate(() -> later.set(true), 1, 1, TimeUnit.HOURS);
+        writing.await();
+
+        scheduler.shutdown();
+
+        // The end doesn't wait an hour for the dumps that are due later
+        assertThat(scheduler.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        assertThat(written).isTrue();
+        assertThat(later).isFalse();
     }
 
     @Test

@@ -65,8 +65,10 @@ heapDumps:
   that the collector hasn't reclaimed yet, as the JVM reports it, while the dump holds the live objects.
 - `atEnd` is only for the broker: the gateways and the applications have exited when every application has received
   every message.
-- `onOutOfMemoryError` adds `-XX:+HeapDumpOnOutOfMemoryError` to the JVM's `JAVA_TOOL_OPTIONS`, after any that the
-  component's `env` sets. The JVM writes the dump itself, named `java_pid<pid>.hprof`, also when the run then fails.
+- `onOutOfMemoryError` adds `-XX:+HeapDumpOnOutOfMemoryError` and the dump directory to the broker's
+  `PULSAR_EXTRA_OPTS`, which come after the test image's own `-XX:HeapDumpPath=/var/log/pulsar` on its command line,
+  and to the gateways' and the applications' `JAVA_TOOL_OPTIONS`, after any options that the component's `env` sets.
+  The JVM writes the dump itself, named `java_pid<pid>.hprof`, also when the run then fails.
 - The dumps are written one at a time; a dump that is due while another is being written waits for it.
 - `gzipLevel` has the JVMs write the dumps gzip-compressed, as `.hprof.gz` files: the launcher's with
   `jcmd GC.heap_dump -gz=<level>`, and those on `OutOfMemoryError` with `-XX:HeapDumpGzipLevel=<level>`, which JDK 17

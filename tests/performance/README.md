@@ -150,6 +150,7 @@ scenarios in detail.
   doesn't expand `~` or `$HOME` in the file; the shell expands `$HOME` in this command:
 
   ```bash
+  mkdir -p ~/.gradle
   echo "performance.reportsDir=$HOME/pulsar-performance-reports" >> ~/.gradle/gradle.properties
   ```
 

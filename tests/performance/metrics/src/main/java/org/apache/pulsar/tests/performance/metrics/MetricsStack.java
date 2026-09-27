@@ -90,14 +90,18 @@ public final class MetricsStack implements AutoCloseable {
     public static MetricsStack start(Path composeFile, String bindAddress, boolean showOutput)
             throws IOException, InterruptedException {
         createPersistentResources();
-        CommandResult result = compose(composeFile, bindAddress, showOutput, "up", "--detach", "--wait");
-        result.check("start the metrics stack");
         MetricsStack stack = new MetricsStack(composeFile, bindAddress);
         try {
+            compose(composeFile, bindAddress, showOutput, "up", "--detach", "--wait").check("start the metrics stack");
             awaitHealthy(localUrl(bindAddress, VICTORIAMETRICS_PORT) + "health");
             awaitHealthy(localUrl(bindAddress, GRAFANA_PORT) + "api/health");
         } catch (IOException | InterruptedException | RuntimeException e) {
-            stack.close();
+            // Also the containers of a start that failed part way, such as on a port that another process holds
+            try {
+                stack.close();
+            } catch (IOException | InterruptedException | RuntimeException stopFailure) {
+                e.addSuppressed(stopFailure);
+            }
             throw e;
         }
         return stack;

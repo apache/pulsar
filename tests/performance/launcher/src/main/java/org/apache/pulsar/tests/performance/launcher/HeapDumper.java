@@ -31,8 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -91,18 +90,34 @@ final class HeapDumper implements AutoCloseable {
     private record Jvm(String pid, String uid) {
     }
 
+    // jcmd runs without the container's JAVA_TOOL_OPTIONS: in a profiled workload, they would start the profiling
+    // agent in jcmd's own JVM, against the workload's capture files
+    private static final Map<String, String> JCMD_ENVIRONMENT = Map.of("JAVA_TOOL_OPTIONS", "");
+
     private final Path directory;
     private final String image;
     private final int gzipLevel;
     private final String extension;
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
-        Thread thread = new Thread(runnable, "heap-dumps");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private final ScheduledThreadPoolExecutor scheduler = newScheduler();
     private final Map<String, Long> peaks = new HashMap<>();
     private final List<Target> targets = new ArrayList<>();
     private long startNanos;
+
+    /**
+     * The dumps' single thread. Its shutdown cancels the dumps that are due later, such as at a time after the end of
+     * the workload, and lets a dump that is being written finish.
+     */
+    static ScheduledThreadPoolExecutor newScheduler() {
+        ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1, runnable -> {
+            Thread thread = new Thread(runnable, "heap-dumps");
+            thread.setDaemon(true);
+            return thread;
+        });
+        scheduler.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+        scheduler.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
+        scheduler.setRemoveOnCancelPolicy(true);
+        return scheduler;
+    }
 
     /**
      * @param runDirectory the run directory, which {@link #prepare} prepared
@@ -294,8 +309,8 @@ final class HeapDumper implements AutoCloseable {
     }
 
     private boolean writeDump(Target target, Jvm jvm, String file) throws IOException, InterruptedException {
-        Container.ExecResult result = target.container().execInContainer(ExecConfig.builder().user(jvm.uid())
-                .command(dumpCommand(jvm.pid(), MOUNT + "/" + file, gzipLevel)).build());
+        Container.ExecResult result = target.container().execInContainer(jcmd(jvm,
+                dumpCommand(jvm.pid(), MOUNT + "/" + file, gzipLevel)));
         if (result.getExitCode() != 0 || !result.getStdout().contains("Heap dump file created")) {
             System.out.println("Heap dumps: jcmd GC.heap_dump of " + target.name() + " failed: "
                     + (result.getStdout() + result.getStderr()).trim());
@@ -345,9 +360,14 @@ final class HeapDumper implements AutoCloseable {
         return result.getExitCode() == 0 && fields.length == 2 ? new Jvm(fields[0], fields[1]) : null;
     }
 
+    // jcmd has to run as the JVM's user
+    private static ExecConfig jcmd(Jvm jvm, String[] command) {
+        return ExecConfig.builder().user(jvm.uid()).envVars(JCMD_ENVIRONMENT).command(command).build();
+    }
+
     private static HeapUsage usage(GenericContainer<?> container, Jvm jvm) throws IOException, InterruptedException {
-        Container.ExecResult result = container.execInContainer(ExecConfig.builder().user(jvm.uid())
-                .command(new String[] {"jcmd", jvm.pid(), "GC.heap_info"}).build());
+        Container.ExecResult result = container.execInContainer(jcmd(jvm,
+                new String[] {"jcmd", jvm.pid(), "GC.heap_info"}));
         return result.getExitCode() == 0 ? parseUsage(result.getStdout()) : null;
     }
 

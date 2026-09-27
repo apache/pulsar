@@ -97,10 +97,10 @@ public final class JonoffcpuAgent {
         appendBlock(lines, sampling, "  ");
         Path configFile = hostDirectory.resolve(baseName + CONFIG_SUFFIX);
         Files.write(configFile, lines, StandardCharsets.UTF_8);
-        // The agent's protobuf codec writes the capture stream through sun.misc.Unsafe, which the JDK reports
-        // once as a terminally deprecated call. The option silences that and changes nothing else.
-        return "--sun-misc-unsafe-memory-access=allow -javaagent:" + AGENT_MOUNT + "=" + containerDirectory + "/"
-                + configFile.getFileName();
+        // The agent's protobuf codec writes the capture stream through sun.misc.Unsafe. Pulsar's scripts allow that
+        // with --sun-misc-unsafe-memory-access=allow on Java 23 and later; the agent doesn't pass the option itself,
+        // since Java 21, which the released Pulsar 4 images run, rejects it and doesn't start.
+        return "-javaagent:" + AGENT_MOUNT + "=" + containerDirectory + "/" + configFile.getFileName();
     }
 
     /** Renders one level of the agent's YAML, nesting a map under its key. */
