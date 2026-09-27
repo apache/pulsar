@@ -60,6 +60,9 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -221,10 +224,23 @@ public class PerformanceLauncher implements Callable<Integer> {
         // Whole seconds, as the run directory names the start
         RunInfo runInfo = RunInfo.collect(Path.of("").toAbsolutePath(),
                 ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+        // ZooKeeper, the bookies and the brokers run a released Pulsar in a test image built on it, see
+        // -Pperformance.clusterPulsarImage
+        String clusterPulsarImage = System.getProperty("performance.cluster.pulsarImage");
+        String clusterImage = System.getProperty("performance.cluster.image");
+        if ((clusterPulsarImage == null) != (clusterImage == null)) {
+            throw new IllegalArgumentException("Set both performance.cluster.pulsarImage and"
+                    + " performance.cluster.image, or neither; ./gradlew :tests:performance:launcher:run"
+                    + " -Pperformance.clusterPulsarImage=<image> sets both");
+        }
+        if (clusterPulsarImage != null) {
+            runInfo = runInfo.withCluster(new RunInfo.Cluster(clusterPulsarImage, ""));
+        }
         Path runOutput = output != null ? output : RunDirectory.resolve(
                 reportsDirectory != null ? reportsDirectory
                         : runInfo.projectDirectory().resolve(RunDirectory.DEFAULT_REPORTS_ROOT),
-                runInfo.started(), RunDirectory.branchDirectory(runInfo.gitBranch(), runInfo.gitCommit()),
+                runInfo.started(), clusterPulsarImage != null ? RunDirectory.clusterDirectory(clusterPulsarImage)
+                        : RunDirectory.branchDirectory(runInfo.gitBranch(), runInfo.gitCommit()),
                 runName(resolved));
         runOutput = runOutput.toAbsolutePath().normalize();
         Files.createDirectories(runOutput);
@@ -286,6 +302,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 .profileDirectory(brokerProfileDirectory.toString())
                 .jonoffcpuAgentJar(agentJar != null ? agentJar.toString() : null)
                 .jonoffcpuOptions(profilingSettings.broker().offCpuOptions())
+                .clusterImage(clusterImage)
                 .brokerEnvs(clusterSettings.brokers().env())
                 .bookkeeperEnvs(clusterSettings.bookies().env())
                 .build();
@@ -312,6 +329,13 @@ public class PerformanceLauncher implements Callable<Integer> {
             cluster.start();
             status(String.format(Locale.ROOT, "Started the Pulsar cluster in %.0f s",
                     (System.nanoTime() - clusterStart) / 1e9));
+            if (clusterPulsarImage != null) {
+                String clusterVersion = brokerVersion(cluster);
+                runInfo = runInfo.withCluster(new RunInfo.Cluster(clusterPulsarImage, clusterVersion));
+                runInfo.write(runOutput);
+                status("The cluster runs Pulsar " + (clusterVersion.isEmpty() ? "of unknown version" : clusterVersion)
+                        + " from " + clusterPulsarImage);
+            }
             status(String.format(Locale.ROOT, "Starting %d application(s) with %d pod(s) each",
                     applications, workload.path("applications").path("podsPerApplication").intValue()));
             // One container runs every application, as one runs every gateway; each application writes into its
@@ -458,6 +482,21 @@ public class PerformanceLauncher implements Callable<Integer> {
                 List.copyOf(cooldowns)), loader.mapper());
         System.out.println("Run report: " + MarkdownPages.htmlPage(runReport));
         return 0;
+    }
+
+    // The version that a broker reports, or empty when it doesn't answer; it names a release such as latest, which
+    // the whole cluster runs
+    private static String brokerVersion(PulsarCluster cluster) {
+        try (PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(cluster.getAnyBroker().getHttpServiceUrl())
+                .connectionTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(5, TimeUnit.SECONDS)
+                .build()) {
+            return admin.brokers().getVersion();
+        } catch (PulsarClientException | PulsarAdminException e) {
+            log().warn().exception(e).log("Could not read the brokers' Pulsar version");
+            return "";
+        }
     }
 
     /**

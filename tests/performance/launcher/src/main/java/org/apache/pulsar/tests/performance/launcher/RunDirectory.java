@@ -63,6 +63,14 @@ final class RunDirectory {
     }
 
     /** A single path segment: characters other than letters, digits, '.', '_' and '-' become '-'. */
+    /**
+     * The directory name for the released Pulsar that the cluster ran, which takes the branch's place, so that the
+     * runs of a release sit together: {@code apachepulsar/pulsar:4.0.13} is {@code pulsar-4.0.13}.
+     */
+    static String clusterDirectory(String pulsarImage) {
+        return sanitize(pulsarImage.substring(pulsarImage.lastIndexOf('/') + 1));
+    }
+
     static String sanitize(String name) {
         String sanitized = name.replaceAll("[^A-Za-z0-9._-]", "-");
         return sanitized.isEmpty() || sanitized.chars().allMatch(c -> c == '.') ? "run" : sanitized;

@@ -80,11 +80,16 @@ public class PulsarCluster {
         checkArgument(network != null, "Network should not be null");
         CSContainer csContainer = null;
         if (!spec.enableOxia) {
-            csContainer = new CSContainer(spec.clusterName)
+            csContainer = new CSContainer(spec.clusterName, clusterImage(spec))
                     .withNetwork(network)
                     .withNetworkAliases(CSContainer.NAME);
         }
         return new PulsarCluster(spec, network, csContainer, false);
+    }
+
+    // The image of the cluster's ZooKeeper, configuration store, bookies, brokers and proxy
+    private static String clusterImage(PulsarClusterSpec spec) {
+        return spec.clusterImage != null ? spec.clusterImage : PulsarContainer.DEFAULT_IMAGE_NAME;
     }
 
     public static PulsarCluster forSpec(PulsarClusterSpec spec, CSContainer csContainer) {
@@ -138,7 +143,7 @@ public class PulsarCluster {
             configurationMetadataStoreUrl = metadataStoreUrl;
         } else {
             this.oxiaContainer = null;
-            this.zkContainer = new ZKContainer(clusterName);
+            this.zkContainer = new ZKContainer(clusterName, clusterImage(spec));
             this.zkContainer
                     .withNetwork(network)
                     .withNetworkAliases(appendClusterName(ZKContainer.NAME))
@@ -166,7 +171,7 @@ public class PulsarCluster {
         // create bookies
         bookieContainers.putAll(
                 runNumContainers("bookie", spec.numBookies(), (name) -> {
-                    BKContainer bookieContainer = new BKContainer(clusterName, name)
+                    BKContainer bookieContainer = new BKContainer(clusterName, name, clusterImage(spec))
                             .withNetwork(network)
                             .withNetworkAliases(appendClusterName(name))
                             .withEnv("metadataServiceUri", "metadata-store:" + metadataStoreUrl)
@@ -196,7 +201,8 @@ public class PulsarCluster {
         brokerContainers.putAll(
                 runNumContainers("broker", spec.numBrokers(), (name) -> {
                             BrokerContainer brokerContainer =
-                                    new BrokerContainer(clusterName, appendClusterName(name), spec.enableTls)
+                                    new BrokerContainer(clusterName, appendClusterName(name), spec.enableTls,
+                                            clusterImage(spec))
                                             .withNetwork(network)
                                             .withNetworkAliases(appendClusterName(name))
                                             .withEnv("metadataStoreUrl", metadataStoreUrl)
@@ -280,7 +286,8 @@ public class PulsarCluster {
     /** The cluster's proxy, configured by the spec's proxy settings. */
     private ProxyContainer createProxyContainer() {
         ProxyContainer proxyContainer =
-                new ProxyContainer(clusterName, appendClusterName(ProxyContainer.NAME), spec.enableTls)
+                new ProxyContainer(clusterName, appendClusterName(ProxyContainer.NAME), spec.enableTls,
+                        clusterImage(spec))
                 .withNetwork(network)
                 .withNetworkAliases(appendClusterName("pulsar-proxy"))
                 .withEnv("metadataStoreUrl", metadataStoreUrl)

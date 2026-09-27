@@ -41,7 +41,7 @@ public class RunReportTest {
     private static RunInfo runInfo(ZonedDateTime started, String branch, boolean detached, String commit,
                                    boolean dirty, String version) {
         return new RunInfo(started, "host", HostDetails.UNKNOWN, null, "user", "", "", Path.of("/p"), branch,
-                detached, commit, dirty, version);
+                detached, commit, dirty, version, null);
     }
 
     private static final long START = 1_790_000_000_000L;
@@ -121,7 +121,7 @@ public class RunReportTest {
                         new DockerEngine("28.4.0", 16, 33_256_595_456L, "Pop!_OS 24.04 LTS", "7.1.5-76070105-generic",
                                 "x86_64"),
                         "lari", "Lari Hotari", "lari@example.com", Path.of("/work/pulsar/.claude/worktrees/w1"),
-                        "lh-branch", false, "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT"),
+                        "lh-branch", false, "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT", null),
                 ZonedDateTime.parse("2026-09-25T06:46:41+03:00"), List.of()),
                 mapper);
         String report = Files.readString(file);
@@ -359,6 +359,37 @@ public class RunReportTest {
                 .isEqualTo("lh-branch@1ebd73f2 2026-09-25 23:58:30-00:02:05");
         assertThat(RunReport.chartFooter(noGit, null)).isEqualTo("2026-09-25 23:58:30");
         assertThat(RunReport.chartFooter(null, null)).isEmpty();
+    }
+
+    @Test
+    public void leadsWithTheClustersReleaseAndNamesTheClientsRevision() {
+        ZonedDateTime started = ZonedDateTime.parse("2026-09-25T23:58:30+03:00");
+        String commit = "1ebd73f2652103b30483ba6ddd7ab587a605912a";
+        RunInfo info = runInfo(started, "lh-branch", false, commit, false, "5.0.0-SNAPSHOT")
+                .withCluster(new RunInfo.Cluster("apachepulsar/pulsar:latest", "4.1.1"));
+        // A cluster whose brokers didn't report their version is named by its image
+        RunInfo unknownVersion = runInfo(started, "", false, "", false, "")
+                .withCluster(new RunInfo.Cluster("apachepulsar/pulsar:4.0.13", ""));
+
+        assertThat(RunReport.title("iot.yaml", info)).isEqualTo("Pulsar 4.1.1 performance test run"
+                + " 2026-09-25 23:58:30 iot, clients lh-branch 1ebd73f26521");
+        assertThat(RunReport.title("iot.yaml", unknownVersion)).isEqualTo("Pulsar apachepulsar/pulsar:4.0.13"
+                + " performance test run 2026-09-25 23:58:30 iot");
+        assertThat(RunReport.chartFooter(info, null))
+                .isEqualTo("Pulsar 4.1.1, clients lh-branch@1ebd73f2 2026-09-25 23:58:30");
+        assertThat(RunReport.chartFooter(unknownVersion, null))
+                .isEqualTo("Pulsar apachepulsar/pulsar:4.0.13 2026-09-25 23:58:30");
+        assertThat(RunReport.clusterNote(info)).isEqualTo("ZooKeeper, the bookies and the brokers ran Pulsar"
+                + " `4.1.1`, from the image `apachepulsar/pulsar:latest`. The gateways and the applications ran"
+                + " `lh-branch 1ebd73f26521`, and with it its Pulsar client, so the results also depend on the revision"
+                + " when the clients are the bottleneck.\n\n");
+        assertThat(RunReport.clusterNote(runInfo(started, "lh-branch", false, commit, false, ""))).isEmpty();
+        StringBuilder rows = new StringBuilder();
+        RunReport.appendRunInfo(rows, info);
+        assertThat(rows.toString()).contains("| Git commit | `" + commit + "` |\n")
+                .contains("| Pulsar version of the clients | 5.0.0-SNAPSHOT |\n")
+                .contains("| Cluster's Pulsar image | `apachepulsar/pulsar:latest` |\n")
+                .contains("| Cluster's Pulsar version | 4.1.1 |\n");
     }
 
     @Test

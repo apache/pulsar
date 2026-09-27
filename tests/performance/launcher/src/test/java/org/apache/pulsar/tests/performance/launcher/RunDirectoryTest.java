@@ -48,4 +48,12 @@ public class RunDirectoryTest {
     public void namesBranchDirectories(String branch, String commit, String expected) {
         assertThat(RunDirectory.branchDirectory(branch, commit)).isEqualTo(expected);
     }
+
+    @Test
+    public void namesTheClustersReleaseInsteadOfTheBranch() {
+        assertThat(RunDirectory.clusterDirectory("apachepulsar/pulsar:4.0.13")).isEqualTo("pulsar-4.0.13");
+        assertThat(RunDirectory.clusterDirectory("apachepulsar/pulsar:latest")).isEqualTo("pulsar-latest");
+        assertThat(RunDirectory.clusterDirectory("registry.example.com:5000/team/pulsar:4.1.0"))
+                .isEqualTo("pulsar-4.1.0");
+    }
 }

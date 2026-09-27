@@ -90,6 +90,31 @@ several times, so that a drift of the host, such as its temperature, affects bot
 Keep the scenario, its settings and the profiler options identical for both revisions. Profiling has a measurement
 cost, so compare profiled runs only with profiled runs.
 
+## Comparing with a released Pulsar
+
+To compare a released Pulsar with the checkout, run the baseline with `-Pperformance.clusterPulsarImage=<image>`,
+from the same checkout:
+
+```bash
+./gradlew :tests:performance:launcher:run -Pperformance.clusterPulsarImage=apachepulsar/pulsar:4.0.13 \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name pulsar-4.0-ab'
+./gradlew :tests:performance:launcher:run \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --name pulsar-4.0-ab'
+```
+
+- The tasks build the test image on the release's image, pulling it first, since a tag such as `latest` moves. The
+  test image's Dockerfile installs packages with `apk`, so the release's image has to be Alpine-based, as
+  `apachepulsar/pulsar` images of Pulsar 3.3 and later are.
+- ZooKeeper, the bookies and the brokers run the release. The gateways and the applications run the checkout, and
+  with it its Pulsar client: when the clients are the bottleneck, the results depend on the checkout too.
+- The runs go under `pulsar-<tag>` instead of the branch, such as `pulsar-4.0.13`. The report's title leads with the
+  version that the brokers reported, such as "Pulsar 4.0.13 performance test run", and names the checkout's branch
+  and commit as the clients'. `run-info.json` has the image and the version as `cluster.pulsarImage` and
+  `cluster.version`, beside the checkout's git keys.
+- Profiling works on the release too: the jonoffcpu agent is mounted into the profiled containers, and it has
+  libraries for musl. On Alpine, native frames are less complete than on the Wolfi image that profiled runs of the
+  checkout use.
+
 ## Compare
 
 - Check each run's correctness first. Leave out runs with ordering violations, invalid messages, timeouts, broker

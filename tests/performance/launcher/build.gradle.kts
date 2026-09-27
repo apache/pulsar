@@ -103,6 +103,16 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     providers.gradleProperty("performance.cooldownTemperature").orNull?.let {
         systemProperty("performance.cooldown.temperature", it)
     }
+    // The cluster runs a released Pulsar, -Pperformance.clusterPulsarImage=<image> such as apachepulsar/pulsar:4.0.13,
+    // in a test image that :tests:java-test-image:dockerBuildCluster builds on it, with the same tag: ZooKeeper, the
+    // bookies and the brokers. The workloads keep this repository's test image, and with it its Pulsar client.
+    providers.gradleProperty("performance.clusterPulsarImage").orNull?.let {
+        dependsOn(":tests:java-test-image:dockerBuildCluster")
+        systemProperty("performance.cluster.pulsarImage", it)
+        systemProperty("performance.cluster.image",
+            "${providers.gradleProperty("docker.organization").getOrElse("apachepulsar")}/java-test-image:cluster-"
+                + it.replace(Regex("[^A-Za-z0-9_.-]"), "-").takeLast(120))
+    }
 }
 
 tasks.named<JavaExec>("run") {

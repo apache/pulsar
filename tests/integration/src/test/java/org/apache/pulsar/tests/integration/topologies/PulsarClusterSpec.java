@@ -138,6 +138,13 @@ public class PulsarClusterSpec {
     String pulsarTestImage = PulsarContainer.DEFAULT_IMAGE_NAME;
 
     /**
+     * The image of the cluster's ZooKeeper, configuration store, bookies, brokers and proxy, such as a test image
+     * built on an earlier Pulsar release to compare it with this revision. Unset means
+     * {@link PulsarContainer#DEFAULT_IMAGE_NAME}. Function workers and other containers keep that image.
+     */
+    String clusterImage;
+
+    /**
      * Specify envs for proxy.
      */
     Map<String, String> proxyEnvs;

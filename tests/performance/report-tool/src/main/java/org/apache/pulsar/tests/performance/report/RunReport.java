@@ -134,7 +134,8 @@ public final class RunReport {
     /**
      * The charts' footer, which says what a chart shows when it is looked at on its own: the branch, the short
      * commit (marked {@code -dirty} with uncommitted changes) and the run's start and end, such as
-     * {@code lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04}. The date is not repeated for the end.
+     * {@code lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04}. The date is not repeated for the end. When the brokers
+     * ran a released Pulsar, it leads: {@code Pulsar 4.0.13, clients lh-branch@1ebd73f2 2026-09-25 13:35:22-13:39:04}.
      */
     /**
      * The report's title: the run's start, the branch, the commit and the scenario, such as "Pulsar performance test
@@ -142,21 +143,42 @@ public final class RunReport {
      * revisions can be told apart, for example in browser tabs. A commit that no branch contains has no branch, and
      * a commit with uncommitted changes ends in {@code -dirty}, as in the chart footer. The commit is abbreviated to
      * 12 characters, as in the {@code detached-<commit>} directory of a commit that no branch contains; 7 are
-     * sometimes ambiguous in Pulsar's history.
+     * sometimes ambiguous in Pulsar's history. When the cluster ran a released Pulsar, the title leads with it, and the
+     * revision is the clients': "Pulsar 4.0.13 performance test run 2026-09-26 20:35:06 iot-telemetry, clients
+     * lh-branch 0123456789ab".
      */
     static String title(String scenario, RunInfo info) {
+        String name = scenario.replaceFirst("\\.ya?ml$", "");
+        if (info != null && info.cluster() != null) {
+            // The cluster's release leads, since it is what the run compares; the revision still ran the clients
+            String revision = revision(info);
+            return "Pulsar " + info.cluster().name() + " performance test run "
+                    + FOOTER_START.format(info.started()) + " " + name
+                    + (revision.isEmpty() ? "" : ", clients " + revision);
+        }
         StringBuilder title = new StringBuilder("Pulsar performance test run");
         if (info != null) {
             title.append(' ').append(FOOTER_START.format(info.started()));
-            if (!info.gitBranch().isEmpty() && !info.gitBranch().equals(RunInfo.DETACHED_HEAD)) {
-                title.append(' ').append(info.gitBranch());
-            }
-            if (!info.gitCommit().isEmpty()) {
-                title.append(' ').append(info.gitCommit(), 0, Math.min(12, info.gitCommit().length()))
-                        .append(info.gitDirty() ? "-dirty" : "");
+            String revision = revision(info);
+            if (!revision.isEmpty()) {
+                title.append(' ').append(revision);
             }
         }
-        return title.append(' ').append(scenario.replaceFirst("\\.ya?ml$", "")).toString();
+        return title.append(' ').append(name).toString();
+    }
+
+    // The branch and the commit abbreviated to 12 characters, such as "lh-branch 0123456789ab-dirty"
+    private static String revision(RunInfo info) {
+        StringBuilder revision = new StringBuilder();
+        if (!info.gitBranch().isEmpty() && !info.gitBranch().equals(RunInfo.DETACHED_HEAD)) {
+            revision.append(info.gitBranch());
+        }
+        if (!info.gitCommit().isEmpty()) {
+            revision.append(revision.isEmpty() ? "" : " ")
+                    .append(info.gitCommit(), 0, Math.min(12, info.gitCommit().length()))
+                    .append(info.gitDirty() ? "-dirty" : "");
+        }
+        return revision.toString();
     }
 
     static String chartFooter(RunInfo info, ZonedDateTime finished) {
@@ -171,6 +193,9 @@ public final class RunReport {
             footer.append(footer.isEmpty() ? "" : "@")
                     .append(info.gitCommit(), 0, Math.min(8, info.gitCommit().length()))
                     .append(info.gitDirty() ? "-dirty" : "");
+        }
+        if (info.cluster() != null) {
+            footer.insert(0, "Pulsar " + info.cluster().name() + (footer.isEmpty() ? "" : ", clients "));
         }
         footer.append(footer.isEmpty() ? "" : " ").append(FOOTER_START.format(info.started()));
         if (finished != null) {
@@ -289,7 +314,10 @@ public final class RunReport {
         // The launcher copies the scenario file and writes its resolved form into the run directory
         String scenarioName = run.scenario().replaceFirst("\\.ya?ml$", "");
         boolean resolved = Files.isRegularFile(runDirectory.resolve(RESOLVED_CONFIG));
-        report.append("Run `").append(run.runId()).append("`, image `").append(run.image()).append("`. The [Pulsar")
+        boolean release = run.info() != null && run.info().cluster() != null;
+        report.append(clusterNote(run.info()));
+        report.append("Run `").append(run.runId()).append("`, image `").append(run.image())
+                .append(release ? "` for the gateways and the applications" : "`").append(". The [Pulsar")
                 .append(" performance testing README](").append(README_URL).append(") describes the tests and how")
                 .append(" to read this report.\n\n")
                 .append("| Setting | Value |\n|---|---|\n")
@@ -417,7 +445,27 @@ public final class RunReport {
                         ? ", a detached HEAD at a commit of this branch" : "")))
                 .append(row("Git commit", info.gitCommit().isEmpty() ? ""
                         : code(info.gitCommit()) + (info.gitDirty() ? ", with uncommitted changes" : "")))
-                .append(row("Pulsar version", info.version()));
+                .append(row(info.cluster() != null ? "Pulsar version of the clients" : "Pulsar version",
+                        info.version()));
+        if (info.cluster() != null) {
+            report.append(row("Cluster's Pulsar image", code(info.cluster().pulsarImage())))
+                    .append(row("Cluster's Pulsar version", info.cluster().version()));
+        }
+    }
+
+    /**
+     * What ran which Pulsar when the cluster ran a released one, as the report's first paragraph, or empty otherwise:
+     * the workloads ran the revision, and with it its Pulsar client.
+     */
+    static String clusterNote(RunInfo info) {
+        if (info == null || info.cluster() == null) {
+            return "";
+        }
+        String revision = revision(info);
+        return "ZooKeeper, the bookies and the brokers ran Pulsar " + code(info.cluster().name()) + ", from the image "
+                + code(info.cluster().pulsarImage()) + ". The gateways and the applications ran "
+                + (revision.isEmpty() ? "this revision" : code(revision)) + ", and with it its Pulsar client, so the"
+                + " results also depend on the revision when the clients are the bottleneck.\n\n";
     }
 
     private static String code(String value) {

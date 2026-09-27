@@ -169,7 +169,7 @@ public class RunInfoTest {
         RunInfo info = new RunInfo(STARTED, "perf-host",
                 new HostDetails("Intel(R) Core(TM) i9-9980HK CPU @ 2.40GHz", 1, 8, 16, 33_256_595_456L, "Linux 7.1.5"),
                 null, "lari", "Lari Hotari", "lari@example.com", Path.of("/work/pulsar"), "lh-branch", false,
-                "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT")
+                "0123456789abcdef0123456789abcdef01234567", true, "5.0.0-SNAPSHOT", null)
                 .withDockerEngine(new DockerEngine("28.4.0", 4, 8_589_934_592L, "Docker Desktop", "6.10.14-linuxkit",
                         "aarch64"));
 
@@ -201,6 +201,15 @@ public class RunInfoTest {
         assertThat(json.path("docker.architecture").asText()).isEqualTo("aarch64");
         assertThat(json.path("user").asText()).isEqualTo("lari");
         assertThat(json.path("projectDirectory").asText()).isEqualTo("/work/pulsar");
+        // The cluster ran this revision
+        assertThat(json.has("cluster.pulsarImage")).isFalse();
+
+        info.withCluster(new RunInfo.Cluster("apachepulsar/pulsar:4.0.13", "4.0.13")).write(directory);
+
+        json = new ObjectMapper().readTree(Files.readString(directory.resolve(RunInfo.FILE_NAME)));
+        assertThat(json.path("cluster.pulsarImage").asText()).isEqualTo("apachepulsar/pulsar:4.0.13");
+        assertThat(json.path("cluster.version").asText()).isEqualTo("4.0.13");
+        assertThat(json.path("git.commit.id").asText()).isEqualTo("0123456789abcdef0123456789abcdef01234567");
     }
 
     // Commits an empty change, and returns the commit. The message is unique, so that two commits on the same parent

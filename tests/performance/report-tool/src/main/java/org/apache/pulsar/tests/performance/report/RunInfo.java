@@ -48,11 +48,28 @@ import java.util.concurrent.TimeUnit;
  * that a checked-out commit's runs sit with its branch's runs; {@code gitDetached} says that the HEAD was
  * detached. The branch is {@code HEAD} when no branch contains the commit.
  *
+ * <p>When the cluster (ZooKeeper, the bookies and the brokers) ran a released Pulsar instead of this revision,
+ * {@code cluster} names it; it is null otherwise. The workloads, and so the Pulsar client, still ran this revision.
+ *
  * <p>Nothing here fails a run: a value that cannot be found is empty.
  */
 public record RunInfo(ZonedDateTime started, String host, HostDetails hostDetails, DockerEngine dockerEngine,
                String user, String gitUserName, String gitUserEmail, Path projectDirectory, String gitBranch,
-               boolean gitDetached, String gitCommit, boolean gitDirty, String version) {
+               boolean gitDetached, String gitCommit, boolean gitDirty, String version, Cluster cluster) {
+    /**
+     * The released Pulsar that the cluster ran instead of this revision.
+     *
+     * @param pulsarImage the Pulsar image that the cluster's test image was built on, such as
+     *                    {@code apachepulsar/pulsar:4.0.13}
+     * @param version the version that the brokers reported, or empty when they didn't
+     */
+    public record Cluster(String pulsarImage, String version) {
+        /** The version when the brokers reported it, and the image otherwise. */
+        public String name() {
+            return version.isEmpty() ? pulsarImage : version;
+        }
+    }
+
     /** What {@code git rev-parse --abbrev-ref HEAD} prints on a detached HEAD. */
     static final String DETACHED_HEAD = "HEAD";
 
@@ -82,13 +99,19 @@ public record RunInfo(ZonedDateTime started, String host, HostDetails hostDetail
                 git(projectDirectory, "config", "user.name"), git(projectDirectory, "config", "user.email"),
                 projectDirectory, branch, detached, commit,
                 !commit.isEmpty() && !git(projectDirectory, "status", "--porcelain").isEmpty(),
-                version(projectDirectory));
+                version(projectDirectory), null);
     }
 
     /** This information with the Docker engine that runs the containers, which is null when it is unknown. */
     public RunInfo withDockerEngine(DockerEngine engine) {
         return new RunInfo(started, host, hostDetails, engine, user, gitUserName, gitUserEmail, projectDirectory,
-                gitBranch, gitDetached, gitCommit, gitDirty, version);
+                gitBranch, gitDetached, gitCommit, gitDirty, version, cluster);
+    }
+
+    /** This information with the released Pulsar that the cluster ran, or null when it ran this revision. */
+    public RunInfo withCluster(Cluster cluster) {
+        return new RunInfo(started, host, hostDetails, dockerEngine, user, gitUserName, gitUserEmail,
+                projectDirectory, gitBranch, gitDetached, gitCommit, gitDirty, version, cluster);
     }
 
     /**
@@ -119,6 +142,10 @@ public record RunInfo(ZonedDateTime started, String host, HostDetails hostDetail
             values.put("docker.os", dockerEngine.os());
             values.put("docker.kernel", dockerEngine.kernel());
             values.put("docker.architecture", dockerEngine.architecture());
+        }
+        if (cluster != null) {
+            values.put("cluster.pulsarImage", cluster.pulsarImage());
+            values.put("cluster.version", cluster.version());
         }
         values.put("user", user);
         values.put("projectDirectory", projectDirectory.toString());

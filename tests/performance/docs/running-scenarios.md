@@ -66,6 +66,7 @@ Pass these with `-P` on the command line, or set them in `~/.gradle/gradle.prope
 | `performance.cooldownTemperature` | The default of `--cooldown-temperature`. |
 | `performance.reportsServer.bindAddress`, `performance.reportsServer.port` | Where `:tests:performance:report-tool:serveReports` listens, `127.0.0.1` and `8000` by default, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |
 | `performance.profile.maxHeapSize` | The heap of the `profile` task, which correlates the off-CPU captures. Default: `4g`. |
+| `performance.clusterPulsarImage` | A released Pulsar image for the cluster, such as `apachepulsar/pulsar:4.0.13` or `apachepulsar/pulsar:latest`, to test that release instead of the checkout. The tasks build the test image on it, which needs an Alpine-based Pulsar image, and use it for ZooKeeper, the bookies and the brokers; the workloads, and so the Pulsar client, stay on the checkout's image. See [Comparing with a released Pulsar](comparing-revisions.md#comparing-with-a-released-pulsar). |
 | `docker.tag` | The tag of the Docker images the tasks build and run, `latest` by default. Separate tags keep the images of two revisions apart, see [Comparing revisions](comparing-revisions.md). |
 | `docker.organization` | The organization of the Docker images, `apachepulsar` by default. |
 | `inttest.testImageVariant` | `wolfi` (the default) or `alpine`: the image that profiled runs use, see [Profiling](profiling.md#requirements). |
@@ -90,7 +91,9 @@ Every run gets a directory of its own, in a hierarchy by day, git branch and nam
   replaced by `-`. On a detached HEAD, it is the branch that contains the commit with the fewest commits after it,
   a local branch before a remote-tracking one at the same distance, and a remote-tracking branch is named without
   its remote: a detached checkout of `origin/master` is `master`. The report says that the HEAD was detached. A
-  detached HEAD that no branch contains is `detached-<commit>`.
+  detached HEAD that no branch contains is `detached-<commit>`. When the cluster runs a released Pulsar with
+  `performance.clusterPulsarImage`, the release takes the branch's place: `apachepulsar/pulsar:4.0.13` is
+  `pulsar-4.0.13`.
 - The name is the scenario file name without `.yaml`, or the scenario's `output.name` when it sets one. `--name`
   names an experiment instead, so that its runs stay together:
 
