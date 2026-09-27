@@ -124,8 +124,8 @@ scenarios in detail.
 
   | Docker engine | Host | Status |
   |---|---|---|
-  | [Docker Engine](https://docs.docker.com/engine/) | Pop!_OS 24.04 (Ubuntu-based) Linux, x86_64, 32 GB RAM | Tested: runs, profiling and metrics |
-  | [OrbStack](https://orbstack.dev/) | macOS, Apple M3 Max (arm64), 36 GB RAM, with a 20 GB memory limit for OrbStack | Tested: runs, and profiling with async-profiler, jonoffcpu and JDK Flight Recorder |
+  | [Docker Engine](https://docs.docker.com/engine/) | Pop!_OS 24.04 (Ubuntu-based) Linux, x86_64, 32 GB RAM | Tested: runs, profiling with async-profiler, jonoffcpu and JDK Flight Recorder, and metrics |
+  | [OrbStack](https://orbstack.dev/) | macOS, Apple M3 Max (arm64), 36 GB RAM, with a 20 GB memory limit for OrbStack | Tested: runs, profiling with async-profiler, jonoffcpu and JDK Flight Recorder, and metrics |
   | [Docker Desktop](https://www.docker.com/products/docker-desktop/) | | Untested |
   | [Podman Desktop](https://podman-desktop.io/) | | Untested |
 - **Memory**: 32 GB of RAM on the host is recommended, although testing may be possible with less. A scenario's memory
