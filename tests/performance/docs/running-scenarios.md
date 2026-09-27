@@ -113,6 +113,20 @@ overrides applied, and the run's phases and progress: starting the cluster, the 
 gateways, waiting for the applications, verifying, and the run report. The logs of Testcontainers and of the Pulsar
 containers go to `launcher.log` in the run directory.
 
+While the applications start, the launcher shows how many of their pods are open, every 5 seconds while the number
+grows:
+
+```
+06:44:32 Starting 20 application(s) with 100 pod(s) each
+06:44:38 The applications have opened 1,144 of 2,000 pods
+06:44:43 The applications have opened 1,688 of 2,000 pods
+06:44:48 The applications have opened 1,940 of 2,000 pods
+06:44:49 Started the applications in 18 s
+```
+
+A workload container that exits while it starts fails the run at once, with the cause from its log, and one that
+makes no progress for 60 seconds fails it then, see [When a run fails](run-reports.md#when-a-run-fails).
+
 While the workload runs, the launcher prints two lines every `--progress-interval` seconds, as pulsar-perf does:
 the gateways' messages, throughput, pending sends and publish latency, and the applications' messages, throughput,
 backlog and end-to-end latency. The prefix has the time since the gateways started and the gateways' phase, such as

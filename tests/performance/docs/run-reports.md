@@ -72,6 +72,15 @@ down, and the Gradle task fails:
 00:41:42 Stack trace: .../launcher.log
 ```
 
+The same holds while a container starts: it fails the run as soon as it exits, or when it has made no progress for
+60 seconds, such as when the applications' JVM runs out of heap while their pods open. Its memory configuration's
+`PULSAR_MEM` is then too small for the scenario:
+
+```
+06:43:34 The applications have opened 1,703 of 2,000 pods
+06:43:36 The run failed: The applications exited with status 3: Terminating due to java.lang.OutOfMemoryError: Java heap space (log: .../applications/container.log.txt)
+```
+
 The stack trace is in `launcher.log`. A failure while shutting down, such as stopping a container, is only a warning.
 The run directory that the launcher printed at the start still has what the run wrote before it failed:
 

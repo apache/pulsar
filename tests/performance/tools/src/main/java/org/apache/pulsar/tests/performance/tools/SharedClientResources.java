@@ -21,7 +21,14 @@ package org.apache.pulsar.tests.performance.tools;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 
 final class SharedClientResources {
-    /** The resources that a workload's clients share, sized by its I/O and listener threads. */
+    /**
+     * The resources that a workload's clients share, sized by its I/O and listener threads.
+     *
+     * <p>The clients' memory isn't limited: a shared memory limit controller without a configured limit has none. The
+     * gateways' maxOutstanding bounds the messages that they have in flight, and each producer keeps the client's
+     * default limits of pending messages. A consumer uses the memory limit only when it auto-scales its receiver queue,
+     * which the applications' pods don't.
+     */
     static PulsarClientSharedResources create(int ioThreads, int listenerThreads) {
         return PulsarClientSharedResources.builder()
                 .configureEventLoop(config -> config.numberOfThreads(ioThreads))

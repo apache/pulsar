@@ -28,6 +28,7 @@ workloads:
         PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
     applications:
       # The environment of the applications' container. PULSAR_MEM sets the JVM's heap and direct memory, which every
-      # application shares.
+      # application shares. The heap is about twice the full topology's live heap: iot-telemetry.yaml's 2,000 pods
+      # keep up to about 770 MiB live, and run out of a 512 MiB heap while they open.
       env:
-        PULSAR_MEM: -Xms512m -Xmx512m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch
+        PULSAR_MEM: -Xms1536m -Xmx1536m -XX:MaxDirectMemorySize=256m -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch

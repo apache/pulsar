@@ -74,7 +74,6 @@ import org.apache.pulsar.tests.performance.report.RunReport;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -318,10 +317,12 @@ public class PerformanceLauncher implements Callable<Integer> {
             consumer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig, coordinationDirectory,
                     runId, applicationsOutput, agentJar, profilingSettings.applications(), APPLICATIONS_DIRECTORY,
                     applicationsEnv, "iot-consume", "--control-port", Integer.toString(CONTROL_PORT))
-                    .withExposedPorts(CONTROL_PORT)
-                    .waitingFor(Wait.forLogMessage(".*READY applications=.*", 1)
-                            .withStartupTimeout(Duration.ofMinutes(5)));
-            consumer.start();
+                    .withExposedPorts(CONTROL_PORT);
+            long applicationsStart = System.nanoTime();
+            startWorkload(consumer, ".*READY applications=.*", "The applications",
+                    applicationsOutput.resolve(CONTAINER_LOG));
+            status(String.format(Locale.ROOT, "Started the applications in %.0f s",
+                    (System.nanoTime() - applicationsStart) / 1e9));
             topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput);
             TopicStatsSampler backlogSource = topicStatsSampler;
             progress = new ProgressMonitor(loader.mapper(), System.out,
@@ -339,15 +340,13 @@ public class PerformanceLauncher implements Callable<Integer> {
                                     "--await-measurement-start"}
                             : new String[] {"--control-port", Integer.toString(CONTROL_PORT)});
             // The launcher reaches the producer's control endpoints through the port mapped on the host
-            producer.withExposedPorts(CONTROL_PORT)
-                    .waitingFor(Wait.forLogMessage(".*CONTROL_READY.*", 1)
-                            .withStartupTimeout(Duration.ofMinutes(5)));
+            producer.withExposedPorts(CONTROL_PORT);
             status(String.format(Locale.ROOT, "Starting the gateways: %,d warmup and %,d measured message(s) at "
                             + "%,d msg/s from %d gateway(s) to %d topic(s)",
                     warmupMessageCount(workload), measurementMessageCount(workload), workload.path("rate").intValue(),
                     workload.path("gateways").path("count").intValue(),
                     workload.path("topics").path("count").intValue()));
-            producer.start();
+            startWorkload(producer, ".*CONTROL_READY.*", "The gateways", producerOutput.resolve(CONTAINER_LOG));
             GenericContainer<?> runningProducer = producer;
             progress.follow("producer", controlUrl(producer), runningProducer::isRunning);
             progress.start(progressIntervalSeconds);
@@ -786,6 +785,27 @@ public class PerformanceLauncher implements Callable<Integer> {
 
     /** A workload container, with its name on the console and the file its log is saved to. */
     private record Workload(String name, GenericContainer<?> container, Path log) {
+    }
+
+    /**
+     * Starts a workload container and waits until it logs its ready line, showing the startup progress it logs
+     * meanwhile. Fails as soon as the container exits or stops making progress, with the cause from its log, and saves
+     * the log, which Testcontainers removes with a container whose startup failed.
+     */
+    private static void startWorkload(GenericContainer<?> container, String ready, String name, Path log) {
+        WorkloadStartup startup = new WorkloadStartup(ready, PerformanceLauncher::status);
+        container.waitingFor(startup);
+        try {
+            container.start();
+        } catch (RuntimeException e) {
+            try {
+                Files.writeString(log, startup.output());
+            } catch (IOException ignored) {
+                // The failure matters more than its log
+            }
+            String reason = startup.failure() != null ? startup.failure() : "didn't start: " + e.getMessage();
+            throw new IllegalStateException(name + " " + reason + " (log: " + log + ")", e);
+        }
     }
 
     /**

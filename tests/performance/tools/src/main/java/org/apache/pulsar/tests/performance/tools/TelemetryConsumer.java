@@ -27,10 +27,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -58,6 +60,9 @@ import picocli.CommandLine.Command;
 final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
     // The most applications that open their pods at the same time; each opens its pods one after another
     private static final int MAX_PARALLEL_STARTS = 32;
+    // Starts a line of the workload's startup progress, which the launcher shows on its console
+    static final String PROGRESS_PREFIX = "PROGRESS ";
+    private static final long STARTUP_PROGRESS_INTERVAL_SECONDS = 5;
 
     @Override
     public Integer call() throws Exception {
@@ -142,21 +147,32 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
 
     /**
      * Opens every application's pods, up to {@link #MAX_PARALLEL_STARTS} applications at a time, each application's
-     * pods one after another.
+     * pods one after another. Every {@link #STARTUP_PROGRESS_INTERVAL_SECONDS} s, it prints how many are open as a
+     * {@link #PROGRESS_PREFIX} line, which the launcher shows while it waits for the applications to start.
      */
     private static void openPods(List<Application> applications, PulsarClientSharedResources sharedResources)
             throws Exception {
+        long pods = (long) applications.size() * applications.get(0).scenario.podsPerApplication();
+        AtomicLong opened = new AtomicLong();
         ExecutorService executor = Executors.newFixedThreadPool(Math.min(applications.size(), MAX_PARALLEL_STARTS),
                 runnable -> {
                     Thread thread = new Thread(runnable, "iot-application-start");
                     thread.setDaemon(true);
                     return thread;
                 });
+        ScheduledExecutorService reporter = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "iot-application-start-progress");
+            thread.setDaemon(true);
+            return thread;
+        });
+        reporter.scheduleAtFixedRate(() -> System.out.println(String.format(Locale.ROOT,
+                        PROGRESS_PREFIX + "The applications have opened %,d of %,d pods", opened.get(), pods)),
+                STARTUP_PROGRESS_INTERVAL_SECONDS, STARTUP_PROGRESS_INTERVAL_SECONDS, TimeUnit.SECONDS);
         try {
             List<Future<?>> starts = new ArrayList<>(applications.size());
             for (Application application : applications) {
                 starts.add(executor.submit(() -> {
-                    application.openPods(sharedResources);
+                    application.openPods(sharedResources, opened);
                     return null;
                 }));
             }
@@ -171,6 +187,7 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
                 }
             }
         } finally {
+            reporter.shutdownNow();
             executor.shutdownNow();
             executor.awaitTermination(1, TimeUnit.MINUTES);
         }
@@ -235,12 +252,13 @@ final class TelemetryConsumer extends PerformanceTool.ScenarioCommand {
             return receiveLatency;
         }
 
-        void openPods(PulsarClientSharedResources sharedResources) throws Exception {
+        void openPods(PulsarClientSharedResources sharedResources, AtomicLong opened) throws Exception {
             for (int pod = 0; pod < scenario.podsPerApplication(); pod++) {
                 ClientAndConsumer created = createPod(sharedResources, pod);
                 synchronized (pods) {
                     pods.add(created);
                 }
+                opened.incrementAndGet();
             }
         }
 
