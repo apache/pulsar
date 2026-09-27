@@ -366,30 +366,34 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     /**
-     * Verifies that discarding an orphaned last chunk does not leak a flow-control permit.
+     * Verifies that discarding an orphaned last chunk does not leak a flow-control permit, by
+     * asserting the user-visible symptom: dispatch must not stall.
      *
      * Each chunk the broker dispatches consumes one permit. Non-last chunks are credited back at
      * arrival; the last chunk is normally credited when the assembled message is consumed. When a
-     * chunked message is torn apart (its first chunk expires, then the last chunk arrives with no
-     * assembly context), the last chunk hits the discard branch. Without the fix that branch never
-     * returned the permit, so every torn message leaked one permit and the consumer's available
-     * permits eventually drained to zero and dispatch stalled.
+     * chunked message is torn apart (its first chunk expires, then the orphaned last chunk arrives
+     * with no assembly context), the last chunk hits the discard branch. Without the fix that branch
+     * never returned the permit, so every torn message leaked one permit.
      *
-     * Here we send N chunk-0's (all non-last, each credited at arrival) then expire them, then send
-     * N orphaned last chunks. Every chunk delivered must have its permit returned, so the client's
-     * availablePermits must equal the total number of chunks delivered (2 * N).
+     * The consumer only sends fresh permits to the broker once its returned-permit accumulator
+     * reaches receiverQueueSize/2. With a small receiver queue, leaking more than receiverQueueSize/2
+     * permits means that threshold is never reached again, the broker's credit drains to zero, and
+     * dispatch stalls permanently. We reproduce exactly that: tear more than receiverQueueSize/2
+     * messages, then send a normal complete chunked message and assert it is still delivered.
+     *
+     * Without the fix the final message never arrives (stall). With the fix it is received.
      */
     @Test
-    public void testOrphanedLastChunkDoesNotLeakPermits() throws Exception {
+    public void testOrphanedLastChunkDoesNotStallDispatch() throws Exception {
         final String topicName = "persistent://my-property/my-ns/orphanChunkPermitLeak";
         final String subName = "my-sub";
+        final int receiverQueueSize = 4; // flush threshold = receiverQueueSize/2 = 2
         @Cleanup
-        ConsumerImpl<String> consumer = (ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionName(subName)
-                .maxPendingChunkedMessage(100)
+                .receiverQueueSize(receiverQueueSize)
                 .expireTimeOfIncompleteChunkedMessage(1, TimeUnit.SECONDS)
-                .autoAckOldestChunkedMessageOnQueueFull(true)
                 .subscribe();
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -399,29 +403,32 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 .enableBatching(false)
                 .create();
 
-        final int numMessages = 20;
-
-        // Send only the first (non-last) chunk of each message; these are credited at arrival.
-        for (int i = 0; i < numMessages; i++) {
+        // Tear apart well more than receiverQueueSize/2 chunked messages. Each torn message leaks
+        // one permit on the buggy client; once cumulative leaks exceed receiverQueueSize the broker
+        // credit is exhausted and never replenished.
+        final int tornMessages = receiverQueueSize * 3; // 12
+        for (int i = 0; i < tornMessages; i++) {
+            // first (non-last) chunk -> creates an incomplete context
             sendSingleChunk(producer, "orphan-" + i, 0, 2);
+            // wait for the scheduled expiry to discard it
+            final int idx = i;
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertEquals(
+                            ((ConsumerImpl<String>) consumer).chunkedMessagesMap.size(), 0));
+            // orphaned last chunk -> discard branch (must return its permit)
+            sendSingleChunk(producer, "orphan-" + idx, 1, 2);
         }
 
-        // Let the scheduled expiry discard all the incomplete contexts.
-        Awaitility.await().atMost(15, TimeUnit.SECONDS)
-                .untilAsserted(() -> assertEquals(consumer.chunkedMessagesMap.size(), 0));
+        // Now send a NORMAL complete chunked message. On a healthy consumer it is dispatched and
+        // received; on the buggy client the leaked permits have stalled dispatch and it never arrives.
+        sendSingleChunk(producer, "live", 0, 2);
+        sendSingleChunk(producer, "live", 1, 2);
 
-        int permitsAfterExpiry = consumer.getAvailablePermits();
-
-        // Now send the orphaned LAST chunk of each message -> discard branch. Each must return its
-        // permit; without the fix none of these are credited.
-        for (int i = 0; i < numMessages; i++) {
-            sendSingleChunk(producer, "orphan-" + i, 1, 2);
-        }
-
-        // Each orphaned last chunk consumed one permit that must be returned.
-        Awaitility.await().atMost(15, TimeUnit.SECONDS).untilAsserted(() ->
-                assertEquals(consumer.getAvailablePermits(), permitsAfterExpiry + numMessages,
-                        "orphaned last chunks leaked flow-control permits"));
+        Message<String> msg = consumer.receive(15, TimeUnit.SECONDS);
+        assertNotNull(msg, "dispatch stalled: orphaned last chunks leaked flow-control permits until "
+                + "the broker stopped dispatching (receiverQueueSize=" + receiverQueueSize + ")");
+        assertEquals(msg.getValue(), "chunk-live-0|chunk-live-1|");
+        consumer.acknowledge(msg);
     }
 
     @Test
