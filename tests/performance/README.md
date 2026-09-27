@@ -248,16 +248,15 @@ machine, run `serveReports` there, and to browse the reports from your own machi
 
 ### 3. Change the workload
 
-Try a single value with an environment variable, which overrides a setting of the scenario for one run:
+Try a single value with `--set`, which changes a setting of the scenario for one run:
 
 ```bash
-PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=5000 \
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
+  --args='--config tests/performance/scenarios/iot-telemetry.yaml --set workloads.iotTelemetry.rate=5000'
 ```
 
-[Environment overrides](scenarios/docs/scenario-format.md#environment-overrides) describes how a variable's name
-selects the setting it overrides.
+[Settings on the command line](scenarios/docs/scenario-format.md#settings-on-the-command-line) describes `--set`, and
+the environment variables that set a value too.
 
 To keep a workload, write it as a scenario that extends an existing one with the settings it changes.
 [The scenarios](scenarios/README.md) lists the maintained scenarios and describes writing one.
@@ -273,7 +272,7 @@ needs a Linux Docker engine. The profiling scenario saturates one topic from 500
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
+  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-producer'
 ```
 
 The launcher renders the flame graphs itself when the run has finished, into the run directory next to the

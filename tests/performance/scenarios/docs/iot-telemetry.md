@@ -37,8 +37,6 @@ application-visible order across Key_Shared hash-range reassignment.
 - [`iot-telemetry-high-rate.yaml`](../iot-telemetry-high-rate.yaml) removes the producer rate limit
   and sends five million messages through 500 preconnected producers to one topic. Five applications each
   consume with ten isolated clients on one Key_Shared subscription.
-- [`iot-telemetry-high-rate-profile.yaml`](../iot-telemetry-high-rate-profile.yaml) enables broker and
-  producer jonoffcpu (async-profiler plus off-CPU) recordings for the same saturation workload.
 
 Build the mountable workload distribution without running a cluster:
 
@@ -100,11 +98,12 @@ summary reports `messagesPerSecond` only for the post-warmup measurement phase a
 ## Profiling with jonoffcpu
 
 Use the `profile` task for a scenario that has non-empty `profiling.brokerOptions`, `producerOptions` or
-`consumerOptions`:
+`consumerOptions`. The launcher's `--extends` option adds them to a scenario from the `profile-*` files, here the
+broker's and the producer's to the saturation workload:
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
+  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-producer'
 ```
 
 The options are async-profiler options. The [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent runs

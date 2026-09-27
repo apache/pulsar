@@ -46,8 +46,24 @@ detail.
 | [`iot-telemetry-small-restarts.yaml`](iot-telemetry-small-restarts.yaml) | The smaller topology, restarting 10 % of each application's clients every 30 s |
 | [`iot-telemetry-restarts.yaml`](iot-telemetry-restarts.yaml) | The full topology, restarting 10 % of each application's clients every 30 s |
 | [`iot-telemetry-high-rate.yaml`](iot-telemetry-high-rate.yaml) | Saturation: five million messages without a rate limit, from 500 preconnected producers to one topic, consumed by 5 applications with 10 clients each |
-| [`iot-telemetry-high-rate-profile.yaml`](iot-telemetry-high-rate-profile.yaml) | The saturation workload with the broker and the producer profiled; run it with the `profile` task |
 | [`iot-telemetry-high-rate-dedup-snapshot-100k.yaml`](iot-telemetry-high-rate-dedup-snapshot-100k.yaml) | A diagnostic variation of the saturation workload with a deduplication snapshot every 100,000 entries |
+
+## Profiles
+
+These files add profiling to any scenario with the launcher's `--extends` option, and the scenario then runs with the
+`profile` task, see [Profiling](../docs/profiling.md):
+
+| File | What it adds |
+|---|---|
+| [`profile-broker.yaml`](profile-broker.yaml) | Profiles the broker |
+| [`profile-producer.yaml`](profile-producer.yaml) | Profiles the producer |
+| [`profile-application.yaml`](profile-application.yaml) | Profiles the applications' consumers |
+| [`profile-base.yaml`](profile-base.yaml) | The jonoffcpu settings that the others extend |
+
+```bash
+./gradlew :tests:performance:launcher:profile \
+  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker'
+```
 
 ## Scenarios for the legacy TestNG runner
 
@@ -71,12 +87,11 @@ workloads:
 ```
 
 Run it like any other scenario. Its runs are named after the file, `iot-telemetry-small-5k`, unless it sets
-`output.name`. To try a single value without a new file, override it with an environment variable:
+`output.name`. To try a single value without a new file, set it on the command line:
 
 ```bash
-PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=5000 \
 ./gradlew :tests:performance:launcher:run \
-  --args='--config tests/performance/scenarios/iot-telemetry.yaml'
+  --args='--config tests/performance/scenarios/iot-telemetry.yaml --set workloads.iotTelemetry.rate=5000'
 ```
 
 [The scenario format](docs/scenario-format.md) describes the sections, inheritance,

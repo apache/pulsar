@@ -59,6 +59,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
@@ -99,6 +100,18 @@ public class PerformanceLauncher implements Callable<Integer> {
 
     @Option(names = "--config", required = true)
     Path config;
+
+    @Option(names = "--extends", paramLabel = "<scenario>",
+            description = "Merge this scenario file on top of the scenario, as if the scenario extended it last, "
+                    + "such as profile-broker to profile the broker. A relative path is looked for in the --config "
+                    + "scenario's directory, then in the working directory, and .yaml may be left out; an absolute "
+                    + "path is used as given. Repeatable, applied in order")
+    List<Path> extendedScenarios = new ArrayList<>();
+
+    @Option(names = "--set", paramLabel = "<path>=<value>",
+            description = "Set a value of the resolved scenario, such as workloads.iotTelemetry.rate=5000, after the "
+                    + "inheritance and the environment overrides. Repeatable, applied in order")
+    List<String> settings = new ArrayList<>();
 
     @Option(names = "--output", description = "Exact run directory, instead of one in the reports hierarchy")
     Path output;
@@ -171,7 +184,9 @@ public class PerformanceLauncher implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         YamlScenarioLoader loader = new YamlScenarioLoader();
-        ObjectNode resolved = loader.resolve(config, null, System.getenv(), ENV_PREFIX, CONFIG_ENV);
+        List<Path> appendedScenarios = extendedScenarios.stream().map(this::appendedScenario).toList();
+        ObjectNode resolved = loader.resolve(config, appendedScenarios, null, System.getenv(), ENV_PREFIX, CONFIG_ENV);
+        settings.forEach(setting -> loader.set(resolved, setting));
         ObjectNode workload = (ObjectNode) loader.select(resolved, "workloads.iotTelemetry");
         ObjectNode clusterConfig = (ObjectNode) loader.select(resolved, "cluster");
         JsonNode profiling = resolved.path("profiling");
@@ -232,11 +247,18 @@ public class PerformanceLauncher implements Callable<Integer> {
                     + cooldownTimeoutSeconds);
         }
         loader.write(resolvedConfig, resolved);
-        status("Scenario " + scenarioName(resolved) + " (" + config.getFileName() + "), resolved:");
+        status("Scenario " + scenarioName(resolved) + " ("
+                + Stream.concat(Stream.of(config), appendedScenarios.stream())
+                        .map(file -> file.getFileName().toString()).collect(Collectors.joining(" + "))
+                + (settings.isEmpty() ? "" : ", " + String.join(", ", settings)) + "), resolved:");
         System.out.print(indent(loader.mapper().writerWithDefaultPrettyPrinter().writeValueAsString(resolved)
                 .replaceFirst("^---\\R", "")));
         // The scenario as written, beside its resolved form, so that the run report can link both
         Files.copy(config, runOutput.resolve(config.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+        for (Path appendedScenario : appendedScenarios) {
+            Files.copy(appendedScenario, runOutput.resolve(appendedScenario.getFileName()),
+                    StandardCopyOption.REPLACE_EXISTING);
+        }
 
         Path resolvedToolsDirectory = (toolsDirectory != null ? toolsDirectory : Path.of(System.getProperty(
                 "performance.tools.dir", "tests/performance/tools/build/install/pulsar-performance-tools")))
@@ -476,6 +498,31 @@ public class PerformanceLauncher implements Callable<Integer> {
     /** Indents every line of {@code text} by two spaces, so that a block stands out from the status lines. */
     static String indent(String text) {
         return text.lines().map(line -> "  " + line + System.lineSeparator()).collect(Collectors.joining());
+    }
+
+    /**
+     * The file of an --extends scenario. An absolute path is used as given. A relative one is looked for first in the
+     * directory of the --config scenario, then in the working directory, each time as given and then with .yaml added
+     * when the name has no extension.
+     */
+    private Path appendedScenario(Path scenario) {
+        if (scenario.isAbsolute()) {
+            if (!Files.isRegularFile(scenario)) {
+                throw new IllegalArgumentException("No scenario file for --extends " + scenario);
+            }
+            return scenario;
+        }
+        List<Path> candidates = new ArrayList<>();
+        for (Path base : List.of(config.toAbsolutePath().getParent(), Path.of("").toAbsolutePath())) {
+            Path candidate = base.resolve(scenario);
+            candidates.add(candidate);
+            if (!candidate.getFileName().toString().matches(".*\\.ya?ml")) {
+                candidates.add(candidate.resolveSibling(candidate.getFileName() + ".yaml"));
+            }
+        }
+        return candidates.stream().filter(Files::isRegularFile).findFirst().orElseThrow(() ->
+                new IllegalArgumentException("No scenario file for --extends " + scenario + "; looked for "
+                        + candidates));
     }
 
     /** The run's name in the reports hierarchy: --name, else the scenario's output.name, else its file name. */

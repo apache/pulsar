@@ -66,12 +66,49 @@ output:
   removes an inherited entry.
 - Cycles, missing files, non-mapping roots and invalid `extends` entries are rejected.
 
+## Adding to a scenario on the command line
+
+The launcher's `--extends <scenario>` option merges a file on top of the scenario, as if the scenario's `extends`
+listed it last, without writing a new scenario. It is how profiling is added to a scenario: the `profile-*` files in
+the scenarios directory each profile one component.
+
+```bash
+./gradlew :tests:performance:launcher:profile \
+  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-producer'
+```
+
+- A relative path is looked for first in the directory of the `--config` scenario, then in the working directory, and
+  `.yaml` may be left out. An absolute path is used as given. The files can have their own `extends`, which resolve
+  relative to them.
+- The option is repeatable, and the files are merged in order, after the scenario and its parents.
+- The launcher copies the files into the run directory beside the scenario, and `resolved-config.yaml` has the
+  result.
+
+## Settings on the command line
+
+The launcher's `--set <path>=<value>` option sets one value of the resolved scenario for a run. The path is the
+value's keys separated by dots, in any case:
+
+```bash
+./gradlew :tests:performance:launcher:run \
+  --args='--config tests/performance/scenarios/iot-telemetry.yaml --set workloads.iotTelemetry.rate=5000'
+```
+
+- Every section on the path has to exist, so that a misspelled section fails the run instead of adding
+  configuration. The last key may be new, such as a broker setting added with
+  `--set cluster.brokerEnvs.dispatcherMaxReadBatchSize=500`.
+- A value that replaces a scalar keeps the scalar's YAML type. Any other value is parsed as YAML, so that
+  `--set 'profiling.offCpu.reasons=[blocked, runnable]'` sets a list.
+- The option is repeatable, and the settings apply in order, after inheritance, `--extends` and the environment
+  overrides.
+
 ## Environment overrides
 
-For a one-off change, set an environment variable named with a prefix followed by an existing scalar's path, with
-the path's elements separated by underscores. The prefix is either `PULSAR_PERFORMANCE_` or `pulsar_performance_`;
-a variable with the prefix in any other case, such as `Pulsar_Performance_`, overrides nothing. The path is in any
-case, so that these set the same value. The loader keeps the scalar's YAML type:
+An environment variable also sets a value, when a command line is inconvenient to change, such as in a script that runs
+several scenarios. Name the variable with a prefix followed by an existing scalar's path, with the path's elements
+separated by underscores. The prefix is either `PULSAR_PERFORMANCE_` or `pulsar_performance_`; a variable with the
+prefix in any other case, such as `Pulsar_Performance_`, overrides nothing. The path is in any case, so that these set
+the same value. The loader keeps the scalar's YAML type:
 
 ```bash
 PULSAR_PERFORMANCE_WORKLOADS_IOTTELEMETRY_RATE=2000 \

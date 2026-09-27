@@ -40,7 +40,7 @@ image.
 
 ```bash
 ./gradlew :tests:performance:launcher:profile \
-  --args='--config tests/performance/scenarios/iot-telemetry-high-rate-profile.yaml'
+  --args='--config tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends profile-broker --extends profile-producer'
 ```
 
 The `run` task rejects a scenario that has profiler options, rather than silently running it without the agent.
@@ -48,7 +48,10 @@ The `run` task rejects a scenario that has profiler options, rather than silentl
 
 ## Configuring profiling
 
-The scenario's `profiling` section configures it:
+The scenario's `profiling` section configures it. The scenarios directory has it in parts that the launcher's
+`--extends` option adds to any scenario, as the example above does: `profile-broker`, `profile-producer` and
+`profile-application` each profile one component, the applications' consumers for the last, and extend
+`profile-base`, which holds the jonoffcpu settings they share. Together they make:
 
 ```yaml
 profiling:
