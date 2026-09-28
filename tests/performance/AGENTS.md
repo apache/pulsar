@@ -60,19 +60,24 @@ after them yourself; `install` still needs the user.
 
 ### Platforms
 
-The cluster and the workloads run in Linux containers, so the tests run on any host with a Docker engine, see the
-tested Docker engines in the README's [Before you start](README.md#before-you-start):
+The cluster and the workloads run in Linux containers, so the tests run on any host with a Docker engine. The
+README's [Before you start](README.md#before-you-start) lists the hosts that the tooling was tested on.
 
-| Host | Runs and profiling | Use its results for |
-|---|---|---|
-| Linux; x86_64 on dedicated hardware configured for performance testing is recommended | Yes, including jonoffcpu's off-CPU profiling | Measurements and comparing revisions: Linux x86_64 is Pulsar's main target platform, and on dedicated hardware a run has no noisy neighbours and less thermal and power throttling and CPU frequency variance |
-| macOS, with the [OrbStack](https://orbstack.dev/) Docker engine, tested on arm64 | Yes, including jonoffcpu's off-CPU profiling | Checking that a scenario works, and large effects |
-| macOS with [Docker Desktop](https://www.docker.com/products/docker-desktop/) or [Podman Desktop](https://podman-desktop.io/), and Windows with WSL 2 | Should work, untested | Checking that a scenario works, and large effects |
+| Host OS | Docker engine | Status | Off-CPU profiling | `validate` checks | Use its results for |
+|---|---|---|---|---|---|
+| Linux x86_64 | [Docker Engine](https://docs.docker.com/engine/) | Tested, on Pop!_OS 24.04 | Yes | Docker's disk and the host's configuration | Measurements and comparing revisions; recommended on dedicated hardware configured for performance testing |
+| Linux, other architectures | [Docker Engine](https://docs.docker.com/engine/) | Untested | Yes, when the kernel has BTF | Docker's disk and the host's configuration | Measurements |
+| macOS arm64 | [OrbStack](https://orbstack.dev/) | Tested, on an Apple M3 Max | Yes | Docker's disk | Checking that a scenario works, and large effects |
+| macOS | [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Podman Desktop](https://podman-desktop.io/) | Untested | When the engine's kernel has BTF | Docker's disk | Checking that a scenario works, and large effects |
+| Windows with WSL 2 | Docker Desktop, or Docker Engine in WSL 2 | Untested | When the kernel has BTF | Untested | Checking that a scenario works, and large effects |
 
-On macOS and Windows, Docker runs in a virtual machine that shares the host's CPUs, memory, disk and network with the
-host operating system, which schedules them, so the results aren't representative of a Linux deployment and vary more
-between runs. Say that a result comes from a non-Linux host when reporting it, don't compare revisions on one, and
-never compare runs made on different hosts.
+Linux x86_64 is Pulsar's main target platform, and on dedicated hardware a run has no noisy neighbours and less
+thermal and power throttling and CPU frequency variance. On macOS and Windows, Docker runs in a virtual machine that
+shares the host's CPUs, memory, disk and network with the host operating system, which schedules them, so the results
+aren't representative of a Linux deployment and vary more between runs. Off-CPU profiling needs a kernel with BTF,
+see [Profiling](docs/profiling.md#requirements); without it, profile with async-profiler and JDK Flight Recorder
+only. Say that a result comes from a non-Linux host when reporting it, don't compare revisions on one, and never
+compare runs made on different hosts.
 
 ## Using a run's results
 
