@@ -1,10 +1,15 @@
 # Agent guide for the performance tests
 
-Supplemental guidance for AI coding assistants working on the performance tests, on top of the repository's
-[`AGENTS.md`](../../AGENTS.md). The performance tests are for running performance test experiments, and for
-automating them, including tuning Pulsar by AI agents. [`README.md`](README.md) is a tutorial for running a scenario,
-reading its report, profiling a run and comparing revisions, and its Reference section lists the pages with the
-details; read it before running or changing the tests.
+Use this guide to turn an experiment into evidence: run a realistic workload, profile it, form a hypothesis,
+change one thing, and compare it with its baseline over repeated runs. The framework runs a Pulsar cluster and
+its workloads in Docker on a developer's machine; a run takes minutes once its images are built. The deliverable
+is a reproducible conclusion with run reports, measurements and an explanation supported by profiles or metrics.
+A faster run is useful only when the workload's delivery guarantees still hold.
+
+This supplements the repository's [`AGENTS.md`](../../AGENTS.md). [`README.md`](README.md) is the tutorial;
+read it before running or changing the tests. This guide is the agent's working reference, and the linked pages
+describe the full interfaces. There is no automatic baseline comparison or performance regression verdict:
+the agent must make and explain the comparison.
 
 The testing strategy is to simulate real-world use cases of Pulsar: a domain models a use case, currently IoT
 telemetry, and each scenario sets its scale so that it maps to a kind of real-world deployment. This keeps the tests
@@ -13,28 +18,78 @@ real deployments use together and checks their delivery guarantees, so its impro
 real-world use. Express experiments and new scenarios in the domain's terms, as
 [How the tests work](README.md#how-the-tests-work) describes.
 
+## Experiment loop
+
+1. **Define the question.** Record the baseline and candidate revisions, the scenario and overrides, the expected
+   effect, and the measure that would support or refute it. Express the workload in domain terms: devices,
+   gateways, topics, applications and pods. Use the maintained [scenarios](scenarios/docs/iot-telemetry.md) before
+   inventing a new one. For a rate-limited scenario, compare latency, backlog and resource use at the same offered
+   load; throughput may stay at that limit even after an improvement. A capacity experiment needs an explicit
+   rate sweep or unlimited rate (`workloads.iotTelemetry.rate=0`), with the same settings on both revisions.
+2. **Prepare and establish a baseline.** Complete [Before running](#before-running), keep one shared reports root,
+   and use separate worktrees and Docker tags as [Comparing revisions](docs/comparing-revisions.md) describes.
+   Both revisions must use the same test harness, resolved scenario, warmup, measurement size, memory limits and
+   metrics settings, except for the setting under test. Record dirty changes as a patch outside the source tree;
+   a commit ID and a dirty flag alone cannot reproduce them.
+3. **Measure without profiling.** Alternate baseline and candidate runs, one at a time. Start with at least three
+   valid runs of each, then add repetitions if the spread leaves the question unresolved. Check correctness and
+   the host state before using each run. Keep excluded runs and the reason for excluding them in the notes.
+4. **Explain the result.** Make separate profiled runs of the relevant components with identical profiler options
+   on both revisions. Use the off-CPU digest for waiting, CPU stacks for busy code, allocation stacks and JFR for
+   allocation and GC, and metrics for the broker, bookies and ZooKeeper. Follow [Analysis tools](#analysis-tools).
+   If the task is to find a bottleneck, do this before choosing a candidate change.
+5. **Test one hypothesis.** Connect the observed bottleneck to a code path or setting, state why the proposed
+   change should help, and make the change when implementation is in the user's task. Run the relevant correctness
+   tests, then repeat the unprofiled comparison. Investigate a regression or an inconclusive result before trying
+   another idea; do not stack unmeasured changes. A profile identifies a lead, not proof of a speedup.
+6. **Report and stop at the experiment's scope.** Deliver the evidence described in
+   [Experiment handoff](#experiment-handoff), including negative or inconclusive results. Keep run outputs outside
+   source control. Restore host settings and stop services that this experiment started, within the user's
+   authorization; leave a pre-existing metrics stack running.
+
 ## Quick reference
 
-Run the commands in the repository's root directory:
+Run commands from the repository root. Gradle properties (`-P...`) configure the task; launcher options go inside
+`--args='...'`. The launcher tasks build their images and workload applications when needed, then run the experiment.
 
-| Task | Command |
-|---|---|
-| The launcher's options | `./gradlew :tests:performance:launcher:run --args='--help'` |
-| Run a scenario | `./gradlew :tests:performance:launcher:run --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'` |
-| Change a setting for one run | add `--set workloads.iotTelemetry.rate=5000` to `--args` |
-| Group the runs of an experiment | add `--name <experiment>` to `--args` |
-| Profile a run | `./gradlew :tests:performance:launcher:profile --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/profile-broker'` |
-| Build a revision's images apart from another's | `-Pdocker.tag=<revision>` before `--args` |
-| Set the reports root for every checkout | `mkdir -p ~/.gradle && echo "performance.reportsDir=$HOME/pulsar-performance-reports" >> ~/.gradle/gradle.properties` |
-| Set the reports root for one command | `-Pperformance.reportsDir=<absolute directory>` |
-| Find the newest run | `ls -dt <reports root>/*/*/*/*/ \| head -n 1`, with `build/performance` as the reports root when none is set |
-| Serve the reports over HTTP | `./gradlew :tests:performance:report-tool:serveReports`, at <http://127.0.0.1:8000/> |
-| Start and stop the metrics stack, VictoriaMetrics and Grafana | `./gradlew :tests:performance:metrics:up`, `./gradlew :tests:performance:metrics:down`, with Grafana at <http://127.0.0.1:3000/> and VictoriaMetrics at <http://127.0.0.1:8428/> |
-| Keep `launcher.log` of a successful run | `-Pperformance.keepLauncherLog` |
-| Run without collecting metrics | `-Pperformance.metrics=false` |
-| Check Docker's disk space, and on Linux the host's configuration to ensure minimal run-to-run variance | [`tests/performance/environment/scripts/configure-perf-test-environment.sh`](environment/scripts/configure-perf-test-environment.sh) `validate` |
+| Purpose | Command or input | Output / effect |
+|---|---|---|
+| Run an unprofiled measurement | `./gradlew :tests:performance:launcher:run --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'` | Prints the run directory, resolved settings, progress and report path; writes the [run artifacts](#the-run) |
+| Profile selected components | `./gradlew :tests:performance:launcher:profile --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --extends configs/profile-broker'` | Adds JFR recordings, off-CPU captures, digests and flame graphs; use `profile`, since `run` rejects profiling options |
+| Select more profiled components | Repeat `--extends configs/profile-gateways` and/or `--extends configs/profile-applications` inside `--args` of `profile` | Profiles producers and/or consumers; each workload container's recording covers all its gateways or applications |
+| Change a setting for one run | Add `--set workloads.iotTelemetry.rate=5000` to `--args` | Applies after inheritance and environment overrides; inspect `resolved-config.yaml` to verify it |
+| Group an experiment's runs | Add `--name <experiment>` to `--args` | Uses that name below each revision's branch directory; does not combine or compare reports |
+| Keep revisions' images apart | Add `-Pdocker.tag=baseline` or `-Pdocker.tag=candidate` | Builds and uses a separate image tag in each checkout |
+| Share a reports root | Add `-Pperformance.reportsDir=<absolute-directory>` to run and report-server commands | Keeps evidence outside worktrees; alternatively set `performance.reportsDir=/absolute/path` once in `~/.gradle/gradle.properties` |
+| Keep logs for diagnosis | Add `-Pperformance.keepLauncherLog` | Retains `launcher.log` even on success; failures retain it by default |
+| Disable metrics | Add `-Pperformance.metrics=false` | Omits metrics collection; keep this choice identical across compared runs |
+| Browse reports | `./gradlew :tests:performance:report-tool:serveReports` | Serves the configured reports root at <http://127.0.0.1:8000/> by default; stop the foreground server when finished |
+| Query stored metrics after a run | `./gradlew :tests:performance:metrics:up` | Starts VictoriaMetrics and Grafana in the background, prints URLs; default ports are 8428 and 3000 |
+| Stop that metrics stack | `./gradlew :tests:performance:metrics:down` | Stops containers while retaining metrics and dashboards in Docker volumes |
+| Validate the host | `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` | Checks Docker and disk space; on Linux also host tuning and AC power; errors go to stderr with a documented exit code |
 
 [Running scenarios](docs/running-scenarios.md) lists every launcher option and Gradle property.
+`./gradlew :tests:performance:launcher:run --args='--help'` prints the launcher's options, but its Gradle image-build
+dependencies still run; it is not a side-effect-free preflight command.
+
+For an A/B run, use this in the baseline checkout and repeat it in the candidate checkout with
+`-Pdocker.tag=candidate`. Alternate them for the repetitions; do not run the commands concurrently:
+
+```bash
+./gradlew :tests:performance:launcher:run -Pdocker.tag=baseline \
+  -Pperformance.reportsDir="$HOME/pulsar-performance-reports" \
+  --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --name my-change-ab'
+```
+
+Use the printed `Run directory:` as the exact run identity. By default the layout is
+`<reports root>/<yyyy-MM-dd>/<branch>/<name>/<MM-dd-HH-mm-ss>/`, under `build/performance` if no root is configured.
+`Run report:` names `index.html`; read the sibling `README.md` for text analysis. A report URL does not start the
+HTTP server. Progress lines appear every 10 seconds and are copied to `console.log.txt`; they include warmup and
+interval statistics, so use the report and summary files for measurement results. Avoid selecting a run merely
+because it is the newest: associate each command, revision and resolved configuration with its printed path.
+The report's delivered throughput divides measured messages by the time until the slowest application received
+the last one; console receive rates and broker dispatch metrics sum deliveries across subscriptions. Do not
+compare those as if they were the same measure.
 
 ## Before running
 
@@ -43,9 +98,14 @@ user asked for them. Before a series of runs, check these:
 
 | Check | How | When it fails |
 |---|---|---|
-| Memory available to Docker, which on macOS and Windows is the memory of Docker's virtual machine; 32 GB of RAM on the host is recommended | The scenario's memory configuration needs about 3 GB (low), 11 GB (medium, the default) or 14 GB (high), see [Memory configurations](scenarios/README.md#memory-configurations) | Tell the user rather than starting the run |
-| Docker is available and its disk is less than 90 % full; on Linux, also the host's configuration for low run-to-run variance: a fixed CPU frequency, and no daemons that change power settings during a run | [`configure-perf-test-environment.sh`](environment/scripts/configure-perf-test-environment.sh) `validate`, on Linux and macOS, which prints the reason for each failed check to stderr | Find the failed checks from its exit code in the table of [Exit codes](environment/README.md#exit-codes), and ask the user before doing what it says: for permission to run [`environment/scripts/docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) when Docker's disk is too full, showing what it would remove with `--dry-run` first, and to configure the host, which needs `sudo` |
-| Profiling | Profile a scenario with the medium- or the high-memory configuration | Don't profile a scenario that uses the low-memory configuration |
+| Memory available to Docker. Recommended headroom: 20 GB for Docker and 32 GB on the host | Scenario memory configurations: low about 3 GB; medium (default) about 11 GB; high about 14 GB; see [Memory configurations](scenarios/README.md#memory-configurations) | Tell the user if the scenario will not fit; the low-memory scenarios are for smaller runs, not profiling |
+| Docker is available, sufficient diskspace, environment configured for low run-to-run variance: a fixed CPU frequency, and no daemons that change power settings during a run, AC power | [`configure-perf-test-environment.sh`](environment/scripts/configure-perf-test-environment.sh) `validate`, on Linux and macOS, which prints the reason for each failed check to stderr | Find the failed checks from its exit code in the table of [Exit codes](environment/README.md#exit-codes), and ask the user before doing what it says: for permission to run [`environment/scripts/docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) when Docker's disk is too full, showing what it would remove with `--dry-run` first, and to configure the host, which needs `sudo` |
+| Profiled scenario | Profile a scenario with the medium- or the high-memory configuration | Don't profile a scenario that uses the low-memory configuration |
+
+Follow the repository's [build prerequisites](../../CONTRIBUTING.md#building) for Java and Docker.
+`docker compose version` checks the Compose plugin needed by metrics. Collection is enabled by default: a run
+reuses a running stack, or starts and stops one for itself. Missing metrics or failed panel rendering may only
+produce a warning, so check `metrics.json` and the report before relying on that evidence.
 
 Variance sets the smallest change that a comparison can detect: when the spread between runs of the same revision is
 larger than a change's effect, the effect can't be told apart from noise. When you'll be running experiments
@@ -59,14 +119,6 @@ after them yourself; `install` still needs the user.
 The cluster and the workloads run in Linux containers, so the tests run on any host with a Docker engine. The
 README's [Before you start](README.md#before-you-start) lists the hosts that the tooling was tested on.
 
-| Host OS | Docker engine | Status | Off-CPU profiling | `validate` checks | Use its results for |
-|---|---|---|---|---|---|
-| Linux x86_64 | [Docker Engine](https://docs.docker.com/engine/) | Tested, on Pop!_OS 24.04 | Yes | Docker's disk and the host's configuration | Measurements and comparing revisions; recommended on dedicated hardware configured for performance testing |
-| Linux, other architectures | [Docker Engine](https://docs.docker.com/engine/) | Untested | Yes, when the kernel has BTF | Docker's disk and the host's configuration | Measurements |
-| macOS arm64 | [OrbStack](https://orbstack.dev/) | Tested, on an Apple M3 Max | Yes | Docker's disk | Checking that a scenario works, and large effects |
-| macOS | [Docker Desktop](https://www.docker.com/products/docker-desktop/), [Podman Desktop](https://podman-desktop.io/) | Untested | When the engine's kernel has BTF | Docker's disk | Checking that a scenario works, and large effects |
-| Windows with WSL 2 | Docker Desktop, or Docker Engine in WSL 2 | Untested | When the kernel has BTF | Untested | Checking that a scenario works, and large effects |
-
 Linux x86_64 is Pulsar's main target platform, and on dedicated hardware a run has no noisy neighbours and less
 thermal and power throttling and CPU frequency variance. On macOS and Windows, Docker runs in a virtual machine that
 shares the host's CPUs, memory, disk and network with the host operating system, which schedules them, so the results
@@ -78,14 +130,19 @@ compare runs made on different hosts.
 ## Using a run's results
 
 - Find a run's results from the launcher's output, which prints the run directory and the run report.
-- Use a run's numbers only when its report shows a valid run, as [Read the report](README.md#2-read-the-report)
-  describes.
+- Use a run's measurement results only when its report shows a valid run, as [Read the report](README.md#2-read-the-report)
+  describes: every application received every message, without ordering violations or invalid messages. Duplicates
+  are counted and allowed by at-least-once delivery; report them rather than assuming every duplicate fails the run.
 - Don't claim a performance change from a single run: compare revisions as
   [Comparing revisions](docs/comparing-revisions.md) describes.
 - A run that fails writes no report. Find the cause as [When a run fails](docs/run-reports.md#when-a-run-fails)
   describes, and tell the user rather than using the run.
-- Don't use the numbers of a run that wrote heap dumps: the dumps stop the JVM.
-- Don't commit run output.
+- Don't use the measurement results of a run that wrote heap dumps: the dumps stop the JVM.
+- Don't use a profiled run's measurement results for latency and throughput comparisons.
+- Exclude runs with timeouts, out-of-memory errors, broker restarts or incomparable host throttling, even if clients
+  recovered. Keep diagnostic evidence and record why the run was excluded. Missing host samples are not evidence
+  that the host did not throttle.
+- Don't add run output to the git repository.
 
 ## Inputs for analysis in a run directory
 
@@ -169,22 +226,107 @@ of a recording's completeness: it counts async-profiler's samples, which are in 
 The VictoriaMetrics and Grafana rows need the metrics stack to run: `./gradlew :tests:performance:metrics:up` starts
 it in the background. Stop only a stack that you started, and ask the user before stopping one that was running.
 
-## Tuning experiments
+### Start with a question, then select the input
 
-- An experiment tests one change: a code change, or a setting in a scenario. State what it is expected to improve,
-  and compare the change with its baseline on the same scenario, as
-  [Comparing revisions](docs/comparing-revisions.md) describes.
-- Find the cause of a difference in the profiles, as [Analyzing profiles](docs/analyzing-profiles.md) describes:
-  start from the off-CPU digest for waiting, and from the `cpu` and `alloc` collapsed stacks for CPU and allocation.
-  Compare two profiles' blocked time with the correlator's `top --baseline`, as
-  [Comparing two profiles](docs/analyzing-profiles.md#comparing-two-profiles) describes.
-- When a component's memory is in question, such as a heap that fills up, backlogs that grow at a modest rate, or an
-  `OutOfMemoryError`, capture heap dumps with the scenario's `heapDumps` settings, such as
-  `--extends configs/heap-dumps-broker`, as [Heap dumps](docs/heap-dumps.md) describes.
-- Save an analysis beside its recording as `<recording>.analysis.md`, and keep the scenario, the revisions, the runs
-  and the conclusion together.
-- Treat automated analysis as a lead, and confirm a claim with a controlled comparison, a JMH benchmark or a second
-  profile.
+The run and profile reports are generated automatically; inspect their text before installing extra tools or
+rendering anything again. Replace the example paths below with the exact files from the run. Optional tools
+augment those reports; their absence need not block analysis of the saved summaries and collapsed stacks.
+
+| Question | Start with | Follow up / output |
+|---|---|---|
+| Did the workload complete correctly, and what changed? | Run `README.md`, `resolved-config.yaml`, `run-info.json` and workload summaries | Compare measured throughput, latency percentiles and backlog; inspect logs for exclusions |
+| Where does a busy process wait? | `jonoffcpu-summary.md` and `offcpu-no-idle-app-root.collapsed` | Rank blocking callsites with the correlator; check coverage and loss in `jonoffcpu-report.json` before trusting the ranking |
+| Where does it use CPU or allocate? | `cpu.collapsed`, `alloc.collapsed`, then `.measurement.jfr` | Thread views find serial bottlenecks; heatmaps and JFR place CPU, allocation and GC activity in time |
+| Which cluster component explains a stall? | `metrics.json`, `grafana-panels/*.png`, `topic-stats.csv` | Use Grafana's run annotations and VictoriaMetrics queries to relate broker, bookie and ZooKeeper behavior to the measurement |
+| What retains the heap? | `heap-dumps.csv` and an `.hprof` dump | Use dominators, retained sizes and paths to GC roots; capture a separate diagnostic run with `--extends configs/heap-dumps-broker` as [Heap dumps](docs/heap-dumps.md) describes |
+
+### Off-CPU: rank and compare blocking callsites
+
+The correlator JAR must match the `jonoffcpu` version in `gradle/libs.versions.toml`. The generated digest includes
+commands to reproduce its views. For an existing broker profile:
+
+```bash
+offcpu_dir=/absolute/path/to/run/broker-profile/recording-offcpu
+java -jar /path/to/jonoffcpu-correlator.jar top \
+  --profile "$offcpu_dir/jonoffcpu-offcpu-profile.pb" \
+  --app '^org\.apache\.(pulsar|bookkeeper)\.' \
+  --waiting-from "$offcpu_dir/offcpu-idle-waits.txt" --package-names abbreviate
+```
+
+This prints a ranking of blocked time by the application method that waited and the wait beneath it.
+For a comparison, pass the candidate with `--profile` and the baseline with `--baseline`, and normalize each
+with `--units` and `--baseline-units`, for example measured messages divided by one million. Derive those counts
+from the summaries, exclude warmup, and state the unit. Use `--weights estimated` for proportional admission and
+identical sampling options and filters in both runs; see [Comparing two profiles](docs/analyzing-profiles.md#comparing-two-profiles).
+Blocked time sums across threads and can exceed elapsed wall time; a large idle wait is not evidence of contention.
+`stacks` writes collapsed stacks for a selected slice, and `export --format jsonl` writes rows for SQL analysis;
+the [slice commands](docs/analyzing-profiles.md#finding-what-to-optimize) include their inputs and output paths.
+
+### JFR: open a measurement recording, then query it
+
+When the Jafar MCP tools are available, use this call sequence; tool prefixes depend on the agent host:
+
+1. `jfr_open` with `{"path":"/absolute/path/to/recording.measurement.jfr"}` returns a session ID.
+2. `jfr_diagnose` with `{"sessionId":"<returned ID>"}` returns an initial diagnosis and suggested investigations.
+3. `jfr_stackprofile` with `{"sessionId":"<returned ID>","eventType":"jdk.ExecutionSample","limit":30}`
+   returns CPU frames, sample shares, time buckets and per-thread counts.
+4. `jfr_query` with `{"sessionId":"<returned ID>","query":"events/jdk.GCPhasePause | top(10)","limit":10}`
+   queries individual events; adapt the query to the diagnosis and inspect the available schema for other events.
+5. `jfr_close` with `{"sessionId":"<returned ID>"}` releases that session.
+
+Use `jdk.ExecutionSample` for CPU and async-profiler's `jdk.ObjectAllocationInNewTLAB` and
+`jdk.ObjectAllocationOutsideTLAB` for allocations. JDK events such as `jdk.JavaMonitorEnter` and `jdk.ThreadPark`
+are available when recorded with `jfrsync=profile`. These are not the kernel off-CPU capture.
+Without MCP, the shell can read commands from stdin:
+
+```bash
+printf 'show events/jdk.ExecutionSample | count()\nexit\n' | jafar-shell -q /absolute/path/to/recording.measurement.jfr
+```
+
+This prints an event count, not a performance verdict. Save the investigated events, queries, evidence and
+conclusion beside the recording as `<recording>.analysis.md`.
+
+### Metrics: query the exact run and time interval
+
+Start the metrics stack if needed. Its volumes retain the time series after the test cluster exits; `metrics.json`
+is connection and query metadata, not a copy of those time series. From the run directory, this queries the
+broker publish rate and returns Prometheus JSON containing timestamp/value series:
+
+```bash
+curl --get "$(jq -r .victoriaMetrics.prometheusApi metrics.json)query_range" \
+  --data-urlencode "query=sum(pulsar_rate_in$(jq -r .selector metrics.json))" \
+  --data-urlencode "start=$(jq -r '.startEpochMs / 1000' metrics.json)" \
+  --data-urlencode "end=$(jq -r '.endEpochMs / 1000' metrics.json)" \
+  --data-urlencode "step=$(jq -r .intervalSeconds metrics.json)"
+```
+
+Always apply the run's selector; an unfiltered query can mix several experiments. The example covers the full
+scrape period, including startup and warmup. For a measurement claim, narrow it using the workload summaries'
+measurement boundaries; `metrics.json.events` and Grafana annotations help align the phases. Prometheus API
+times here are seconds; Grafana `from` and `to` are epoch milliseconds.
+
+Open `grafanaDashboard` from `metrics.json` for the run's dashboard. To discover other metrics or try PromQL,
+use the VictoriaMetrics `ui` URL in that file (default <http://127.0.0.1:8428/vmui>); keep the same selector and
+time range. The existing `grafana-panels/*.png` need no live stack. To render another panel, take its dashboard
+UID and panel ID from Grafana's dashboard JSON and use the saved cluster label, time range and connection
+settings as [Rendering panels as images](docs/metrics.md#rendering-panels-as-images) describes; the output is PNG.
+
+## Experiment handoff
+
+Keep one experiment note with links to its run directories and any per-recording analyses. Give the user:
+
+- The question, hypothesis and verdict: improvement, regression or inconclusive, limited to the workload and host
+  tested. Include the code or setting changed and what the profiles suggest caused the result.
+- Reproduction commands, baseline and candidate commits, any local patches, resolved scenario, image tags, host
+  and Docker details, tuning state, metrics and profiler settings, and the order of the runs.
+- Correctness outcomes, duplicate counts, excluded runs and their reasons. Distinguish unprofiled measurements
+  from diagnostic runs with profiling or heap dumps.
+- A table of baseline and candidate medians, spread (for example min–max), absolute and percentage changes, and
+  which direction is better. State the number of valid repetitions. Report a latency percentile's median across
+  runs as such; do not present it as the percentile of pooled messages. A difference within run-to-run spread
+  is inconclusive, and three runs alone do not establish statistical significance.
+- Links to the reports, relevant charts, profile callsites and metric queries that support the explanation,
+  alongside limitations, missing evidence and the next experiment if the question remains open.
 
 ## Pull requests for performance improvements
 
