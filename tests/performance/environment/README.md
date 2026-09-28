@@ -148,14 +148,14 @@ series of runs. It runs on Linux and on macOS:
 tests/performance/environment/scripts/configure-perf-test-environment.sh validate
 ```
 
-On every operating system, it checks that Docker is available and that the disk that holds Docker's data is less
-than 90 % full. When Docker's data directory isn't on the host, as with Docker in a virtual machine on macOS, it reads
-the disk's usage in a container of the `alpine` image, whose root file system is on the same disk as Docker's data;
-`DISK_CHECK_IMAGE` sets another image. On Linux, it also checks the host's configuration: that the host is on AC
-power, that the `performance-testing` profile is active with `thermald` (and `com.system76.PowerDaemon.service` on
+On every operating system, it checks that Docker is available and that the disk that holds Docker's data is less than
+90 % full. It reads the disk's usage through Docker, with `df` in a container of the `alpine` image, whose root file
+system is on the same disk as Docker's data, as the bookies' ledgers are, also when Docker runs in a virtual machine, as
+on macOS; `DISK_CHECK_IMAGE` sets another image. On Linux, it also checks the host's configuration: that the host is on
+AC power, that the `performance-testing` profile is active with `thermald` (and `com.system76.PowerDaemon.service` on
 Pop!_OS) stopped, and the settings the profile applies: turbo, the CPU frequency governor, swapping, perf events and
-Transparent Huge Pages. It runs every check, prints each one to stdout as `ok:`, `FAILED:` or `skipped:`, and the
-reason for each failed check, with what to do about it, to stderr.
+Transparent Huge Pages. It runs every check, prints each one to stdout as `ok:`, `FAILED:` or `skipped:`, and the reason
+for each failed check, with what to do about it, to stderr.
 
 Its exit code tells the kinds of checks that failed apart, and is their sum when several kinds failed, such as 10 when
 Docker's disk is too full and the host isn't configured:

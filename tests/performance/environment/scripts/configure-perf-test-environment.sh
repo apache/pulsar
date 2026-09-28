@@ -56,8 +56,7 @@ DOCKER_LOG_OPTIONS='{"max-size": "100m", "max-file": "3"}'
 # BookKeeper's diskUsageWarnThreshold, bookies switch to read-only mode at 95 % by default. "start"
 # warns and "validate" fails when the disk that holds Docker's data is this full.
 DISK_USAGE_LIMIT_PERCENT=90
-# Where Docker's data directory isn't on the host, such as with Docker in a virtual machine on
-# macOS, the disk's usage is read in a container of this image
+# The image of the container in which the usage of Docker's disk is read
 DISK_CHECK_IMAGE="${DISK_CHECK_IMAGE:-alpine}"
 # The exit codes of "validate", added up when several kinds of checks failed; 1 is left for usage
 # and unexpected errors
@@ -454,20 +453,16 @@ check_ac_power() {
     fi
 }
 
-# Prints the directory of Docker's data and how full its disk is, in percent. When the directory
-# isn't on the host, as with Docker in a virtual machine, it reads the usage of a container's root
-# file system, which is on the same disk as Docker's data, as the bookies' ledgers are.
+# Prints how full the disk of Docker's data is, in percent, and Docker's data directory. The usage is
+# read through Docker rather than from the host, whose file system doesn't have Docker's data when
+# Docker runs in a virtual machine, as on macOS: a container's root file system is on the same disk
+# as Docker's data, as the bookies' ledgers are.
 docker_disk_usage() {
     local docker_root usage
     docker_root="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || true)"
-    docker_root="${docker_root:-/var/lib/docker}"
-    if [[ -d "${docker_root}" ]]; then
-        usage="$(df -P "${docker_root}" | awk 'NR == 2 { sub("%", "", $5); print $5 }')"
-    else
-        usage="$(docker run --rm "${DISK_CHECK_IMAGE}" df -P / 2>/dev/null \
-            | awk 'NR == 2 { sub("%", "", $5); print $5 }')" || return 1
-        docker_root="${docker_root}, read in a container"
-    fi
+    docker_root="${docker_root:-Docker data directory}"
+    usage="$(docker run --rm "${DISK_CHECK_IMAGE}" df -P / 2>/dev/null \
+        | awk 'NR == 2 { sub("%", "", $5); print $5 }')" || return 1
     [[ "${usage}" =~ ^[0-9]+$ ]] || return 1
     echo "${usage} ${docker_root}"
 }
@@ -689,8 +684,8 @@ validate_disk_space() {
         return
     fi
     if ! read -r usage docker_root < <(docker_disk_usage); then
-        check_failed "Docker's disk usage can be read" "Docker's data directory isn't on the host, and a container\
- of the ${DISK_CHECK_IMAGE} image couldn't read its disk's usage."
+        check_failed "Docker's disk usage can be read" "A container of the ${DISK_CHECK_IMAGE} image couldn't read\
+ the usage of Docker's disk. Check that the image can be pulled, or set DISK_CHECK_IMAGE to an image that has df."
         return
     fi
     failure_exit_code=${EXIT_DOCKER_DISK}
