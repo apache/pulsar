@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.testng.annotations.DataProvider;
@@ -310,6 +311,46 @@ public class BatchingExecutorWrapperTest {
         wrapper.execute(() -> ran.add(4));
         delegate.runAll();
         assertThat(ran).containsExactly(0, 1, 4);
+    }
+
+    @Test(timeOut = 30000)
+    public void testConcurrentSubmittersToARejectingDelegateLeaveNoTaskBehind() throws Exception {
+        int threads = 8;
+        int tasksPerThread = 10000;
+        ExecutorService submitters = Executors.newFixedThreadPool(threads);
+        AtomicInteger rejected = new AtomicInteger();
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
+        BatchingExecutorWrapper wrapper = new BatchingExecutorWrapper(command -> {
+            throw new RejectedExecutionException("rejected");
+        }, QUEUE_CHUNK_SIZE, 1024, NO_WEIGHT_LIMIT, failures::add, (task, e) -> rejected.incrementAndGet());
+        CyclicBarrier start = new CyclicBarrier(threads);
+        CountDownLatch submitted = new CountDownLatch(threads);
+        try {
+            for (int t = 0; t < threads; t++) {
+                submitters.execute(() -> {
+                    try {
+                        start.await();
+                        for (int i = 0; i < tasksPerThread; i++) {
+                            try {
+                                wrapper.execute(() -> failures.add(new AssertionError("A rejected task ran")));
+                            } catch (RejectedExecutionException e) {
+                                rejected.incrementAndGet();
+                            }
+                        }
+                    } catch (Throwable e) {
+                        failures.add(e);
+                    } finally {
+                        submitted.countDown();
+                    }
+                });
+            }
+            assertThat(submitted.await(20, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            submitters.shutdownNow();
+        }
+        assertThat(failures).isEmpty();
+        // Each task was either failed to its caller or passed to the handler, and none was left in the queue.
+        assertThat(rejected.get()).isEqualTo(threads * tasksPerThread);
     }
 
     @DataProvider
