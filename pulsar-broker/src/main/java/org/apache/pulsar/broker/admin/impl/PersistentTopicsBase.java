@@ -5554,11 +5554,13 @@ public class PersistentTopicsBase extends AdminResource {
                 .whenComplete((res, e) -> {
                     if (e != null) {
                         Throwable cause = FutureUtil.unwrapCompletionException(e);
-                        log.error()
-                                .attr("topic", topicName)
-                                .attr("subscription", subName)
-                                .exception(cause)
-                                .log("Failed to get replicated subscription status on");
+                        if (isNot307And404Exception(cause)) {
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .attr("subscription", subName)
+                                    .exception(cause)
+                                    .log("Failed to get replicated subscription status on");
+                        }
                         resumeAsyncResponseExceptionally(asyncResponse, e);
                     } else {
                         asyncResponse.resume(res);
