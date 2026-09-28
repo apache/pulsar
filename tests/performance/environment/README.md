@@ -148,14 +148,15 @@ series of runs. It runs on Linux and on macOS:
 tests/performance/environment/scripts/configure-perf-test-environment.sh validate
 ```
 
-On every operating system, it checks that Docker is available and that the disk that holds Docker's data is less than
-90 % full. It reads the disk's usage through Docker, with `df` in a container of the `alpine` image, whose root file
-system is on the same disk as Docker's data, as the bookies' ledgers are, also when Docker runs in a virtual machine, as
-on macOS; `DISK_CHECK_IMAGE` sets another image. On Linux, it also checks the host's configuration: that the host is on
-AC power, that the `performance-testing` profile is active with `thermald` (and `com.system76.PowerDaemon.service` on
-Pop!_OS) stopped, and the settings the profile applies: turbo, the CPU frequency governor, swapping, perf events and
-Transparent Huge Pages. It runs every check, prints each one to stdout as `ok:`, `FAILED:` or `skipped:`, and the reason
-for each failed check, with what to do about it, to stderr.
+On both platforms, it checks that Docker is available and that its data disk is less than 90 % full. It runs
+`df -P /` in a disposable `alpine` container to read disk usage inside the Docker engine, including when the engine
+runs in a virtual machine. The check can pull the image if it isn't cached; `DISK_CHECK_IMAGE` selects another image
+with `df`. It measures the container's root filesystem, not a separate host directory or disk mounted into a container.
+
+On Linux, it also checks that the host is on AC power, that the `performance-testing` profile is active with
+`thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS) stopped, and the settings the profile applies: turbo,
+the CPU frequency governor, swapping, perf events and Transparent Huge Pages. Checks print to stdout as `ok:`,
+`FAILED:` or `skipped:`; failed checks also print a reason and suggested action to stderr.
 
 ### Exit codes
 
@@ -167,7 +168,7 @@ bits 1 and 3 set, 2 + 8: Docker's disk is too full and the host isn't configured
 | Bit | Value | Set when | What to do |
 |---|---|---|---|
 | 1 | 2 | Docker's disk is 90 % full or more | Free space, for example with `scripts/docker-cleanup.sh`, see [Freeing Docker disk space](#freeing-docker-disk-space) |
-| 2 | 4 | Docker isn't available, or the usage of its disk couldn't be read | Start Docker, or give the user access to it |
+| 2 | 4 | Docker isn't available, or its disk usage couldn't be read | Check Docker access and whether the disk-check image can be pulled and can run `df`; see stderr for the failed step |
 | 3 | 8 | A check of the host's configuration failed, on Linux only | Configure the host with `install` and `start` |
 
 A failed setting check while the profile is active means that the installed profile is older than the script: run

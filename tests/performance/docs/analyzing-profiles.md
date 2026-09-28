@@ -67,8 +67,8 @@ its output, so choose a new filename when preserving an earlier rendering.
    ```
 
    `export --format jsonl` writes the profile one stack per row for SQL tools such as [DuckDB](https://duckdb.org/).
-3. Render other slices from the stack profile without correlating again. `--stack java+kernel` continues each stack into the
-   kernel so the wait mechanism is visible; `--time split` ends each stack in `[sleeping]` or `[runqueue]`, which
+3. Render other slices from the stack profile without correlating again. `--stack java+kernel` continues each stack
+   into the kernel so the wait mechanism is visible; `--time split` ends each stack in `[sleeping]` or `[runqueue]`, which
    separates waiting for an event from waiting for a CPU after it arrived; `--include`/`--exclude` and their
    `-from FILE` forms select intervals by frame. Render the result with the converter:
 
@@ -78,7 +78,8 @@ its output, so choose a new filename when preserving an earlier rendering.
      --exclude-from '$offcpu_dir/offcpu-idle-waits.txt' --time split --package-names abbreviate \
      --output /tmp/blocked-split.collapsed --summary /tmp/blocked-split.json"
    ./gradlew -q :tests:performance:report-tool:runJfrConverter \
-     --args='--title "Blocked off-CPU time" --units µs --highlight "^o\.a\.(p|b)\." /tmp/blocked-split.collapsed /tmp/blocked-split.html'
+     --args="--title 'Blocked off-CPU time' --units µs --highlight '^o\.a\.(p|b)\.' \
+     /tmp/blocked-split.collapsed /tmp/blocked-split.html"
    ```
 
    The transforms `--root-at`, `--trim-root`, `--hide` and `--collapse-leaf` change what each kept stack looks like
@@ -87,7 +88,7 @@ its output, so choose a new filename when preserving an earlier rendering.
 
 ## Comparing two profiles
 
-Compare the off-CPU time of two runs per unit of work with `top --baseline` (baseline second), for example per
+Compare the off-CPU time of two runs per unit of work with `top --baseline` (candidate in `--profile`), for example per
 million measured messages. Compare runs recorded with the same sampling policy. Proportional admission
 under-represents short waits in the observed weights, so the comparison uses the estimated weights:
 
@@ -98,7 +99,9 @@ under-represents short waits in the observed weights, so the comparison uses the
   --app '^org\.apache\.(pulsar|bookkeeper)\.' --waiting-from candidate-offcpu/offcpu-idle-waits.txt --package-names abbreviate"
 ```
 
-Profile both revisions with the same profiler options: profiling has a cost, and different options change it.
+The example assumes four million measured messages in each run. Replace `--units 4` and `--baseline-units 4`
+with each run's measured message count divided by one million, excluding warmup; do not assume the counts match.
+Keep the same filters and profiler options on both revisions. Profiling has a cost, and different options change it.
 [Comparing revisions](comparing-revisions.md) describes how to run the comparison.
 
 ## Analyzing collapsed stacks with DuckDB
@@ -106,14 +109,20 @@ Profile both revisions with the same profiler options: profiling has a cost, and
 For SQL analysis, DuckDB's [quack_flamegraph](https://github.com/kevintruong/quack-flamegraph) community extension
 reads collapsed stacktrace files as tables. These are also called folded stacktrace files: `.collapsed` and
 `.folded` are common extensions for the same format, with semicolon-separated frames and a weight at the end of
-each line. Start DuckDB and set the `profile` variable to the path of your collapsed stacks file, and `pkg` to a
-regular expression for the frames you're interested in. The queries below read both from there, so they can be
-copied as-is:
+each line.
+
+### Set up the profile and frame filter
+
+Start DuckDB and set `profile` to the path of your collapsed stacks file, relative to DuckDB's working directory
+or absolute. Set `pkg` to a regular expression for the frames you're interested in. Run the queries in the same
+session; they read both variables, so you need to change the path and filter only once:
 
 ```sql
 INSTALL quack_flamegraph FROM community;
 LOAD quack_flamegraph;
+```
 
+```sql
 SET VARIABLE profile = 'cpu.collapsed';
 SET VARIABLE pkg = '^org[./]apache[./]';
 ```
@@ -126,9 +135,15 @@ alternatives:
 SET VARIABLE pkg = '^org[./]apache[./](pulsar|bookkeeper)[./]';
 ```
 
-Don't end the pattern with `$`, which would require the whole frame name to end there and match nothing, since
-frame names continue with the class and method name. To match a substring anywhere in the frame name, leave out the
-`^`, as in `ManagedLedger`.
+Don't append `$` to these package-prefix patterns: frame names continue with the class and method name.
+To match a substring anywhere in the frame name, leave out the `^`, as in `ManagedLedger`. Match the names actually
+present in the file; an abbreviated frame such as `o.a.p.ManagedLedger.read` needs a different pattern.
+
+The column named `samples` holds the weight recorded in the input, not necessarily a sample count. Depending on
+the profile, weights can represent counts, durations or allocation sizes. Keep that unit when interpreting results;
+do not compare weights from different profile types as if they measured the same thing.
+
+### Rank stacks and methods
 
 This query returns the 45 highest-weight stacks whose leaf frame matches `pkg`:
 
@@ -140,8 +155,8 @@ ORDER BY samples DESC
 LIMIT 45;
 ```
 
-The `samples` column holds the weight from each collapsed stack. This ranks individual stacks, not totals grouped
-by leaf method, and filters only the leaf frame, not callers elsewhere in the stack.
+This ranks individual stacks, not totals grouped by leaf method, and filters only the leaf frame, not callers
+elsewhere in the stack.
 
 To rank matching methods by the total weight of the stacks they appear in, anywhere in the stack, use
 `flamegraph_coverage`. Each stack is counted once per frame, so recursive calls don't inflate the total:
@@ -154,6 +169,8 @@ ORDER BY coverage DESC
 LIMIT 45;
 ```
 
+### Find calls into other code
+
 To find the highest-weight call edges from a matching parent frame to a child that doesn't match:
 
 ```sql
@@ -164,10 +181,13 @@ ORDER BY samples DESC
 LIMIT 45;
 ```
 
-To see which of your frames is responsible for the time spent in code below it, create the `leaf_by_frame` view.
+### Attribute samples to the deepest matching frame
+
+To group the profile's weight by the last matching frame before execution enters other code, create `leaf_by_frame`.
 For each stack, it finds the deepest frame matching `pkg` and pairs it with the frame it calls (`child`) and the
 frame where the sample was taken (`leaf`). `child` is `NULL` when the matching frame is itself the leaf. Stacks
-without a matching frame are left out, and `pct` is the share of all samples in the profile:
+without a matching frame are left out, and `pct` is the share of the entire profile's weight, including unmatched
+stacks. This associates work with a calling frame; it does not by itself prove that the caller is a bottleneck.
 
 ```sql
 CREATE OR REPLACE VIEW leaf_by_frame AS
@@ -191,6 +211,8 @@ FROM s CROSS JOIN total
 GROUP BY ALL;
 ```
 
+You can store this view in a file name `views.sql` for loading on command line.
+
 The view reads `profile` and `pkg` each time it is queried, so changing either variable changes its results:
 
 ```sql
@@ -198,6 +220,41 @@ FROM leaf_by_frame
 ORDER BY samples DESC
 LIMIT 45;
 ```
+
+### Analysing collapsed stacktrace files with quack_flamegraph
+
+AI agents can automate analysis by building DuckDB queries with views and queries that join data in usable ways.
+Some example commands. The view above was a way to compose quack_flamegraph's functions to build other ways to query the data.
+Filtering with additional where queries to filter out false-positives is something that an AI agent can do to drill down into the data.
+
+Examples:
+
+```sql
+duckdb -json \
+-cmd "SET VARIABLE profile = 'cpu.collapsed';SET VARIABLE pkg = '^org[./]apache[./]';" \
+-cmd "INSTALL quack_flamegraph FROM community;LOAD quack_flamegraph;" \
+-c "
+SELECT samples, leaf
+FROM flamegraph_hot_stacks(getvariable('profile'))
+WHERE regexp_matches(leaf, getvariable('pkg'))
+ORDER BY samples DESC
+LIMIT 45;
+"
+```
+
+Store the leaf_by_frame view to a file called `quack_flamegraph_views.sql` when using the leaf_by_frame view described above.
+
+```sql
+duckdb -json \
+-cmd "SET VARIABLE profile = 'cpu.collapsed';SET VARIABLE pkg = '^org[./]apache[./]';" \
+-cmd "INSTALL quack_flamegraph FROM community;LOAD quack_flamegraph;" \
+-cmd ".read quack_flamegraph_views.sql" \
+-c "
+FROM leaf_by_frame ORDER BY samples DESC LIMIT 45;
+"
+```
+
+### Export results for automation
 
 For automated analysis, agents and scripts can export DuckDB query results as JSON or CSV. Save the setup statements
 and one result query in `analysis.sql` (include the view definition if querying `leaf_by_frame`), then run:
@@ -209,6 +266,9 @@ duckdb -no-init -bail -csv -header < analysis.sql > analysis.csv
 
 Use one result query per output file so that JSON contains a single array and CSV contains one table with a header.
 `-bail` stops on SQL errors; check the exit status before consuming the output.
+
+
+
 
 ## Flame graphs of other recordings
 

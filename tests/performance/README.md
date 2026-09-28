@@ -344,10 +344,20 @@ time, CPU and allocation flame graphs, cut to the measurement. The broker's jono
 time threads spent blocked by the Pulsar or BookKeeper method that waited. The blocked time flame graphs show the same
 time as call trees, to inspect visually which code paths lead to the blocking methods.
 
+Each of the profile files in the scenarios' `configs` directory profiles one component: `configs/profile-broker`,
+`configs/profile-gateways` and `configs/profile-applications`;
+[`profile-broker.yaml`](scenarios/configs/profile-broker.yaml) is an example of the settings. To study the performance
+of Pulsar's Java client, profile the gateways and the applications, which are its producers and consumers under the
+workload, with `--extends configs/profile-gateways --extends configs/profile-applications`. Don't profile a scenario
+that uses the low-memory configuration, such as `iot-telemetry-small.yaml`.
+[Profiling](docs/profiling.md) describes the requirements, the profiler options and the files, and
+[Analyzing profiles](docs/analyzing-profiles.md) how to find what to optimize.
+
+#### Inspect profile artifacts
+
 The flame graphs' collapsed stacktrace files (`.collapsed`), also called folded stacktrace files (`.folded`), can be
 handled with multiple tools. jonoffcpu's jfr-converter renders them as HTML flame graphs and runs through Gradle
-with no separate installation. Pass any converter options with `--args`;
-use `--args='--help'` to list them:
+with no separate installation. Pass any converter options with `--args`; use `--args='--help'` to list them:
 
 ```bash
 ./gradlew -q :tests:performance:report-tool:runJfrConverter \
@@ -371,17 +381,8 @@ inferno-flamegraph < /path/to/recording-offcpu/offcpu-no-idle-app-root.collapsed
 ```
 
 For SQL analysis, DuckDB's [quack_flamegraph](https://github.com/kevintruong/quack-flamegraph) community extension
-reads collapsed stacks as tables. See [Analyzing collapsed stacks with DuckDB](docs/analyzing-profiles.md#analyzing-collapsed-stacks-with-duckdb)
+reads collapsed stacks as tables. See [Analysing collapsed stacktrace files with DuckDB and quack_flamegraph](docs/analyzing-profiles.md#analysing-collapsed-stacktrace-files-with-quack_flamegraph)
 for setup and examples that rank stacks, methods and call edges, and attribute samples to application frames.
-
-Each of the profile files in the scenarios' `configs` directory profiles one component: `configs/profile-broker`,
-`configs/profile-gateways` and `configs/profile-applications`;
-[`profile-broker.yaml`](scenarios/configs/profile-broker.yaml) is an example of the settings. To study the performance
-of Pulsar's Java client, profile the gateways and the applications, which are its producers and consumers under the
-workload, with `--extends configs/profile-gateways --extends configs/profile-applications`. Don't profile a scenario
-that uses the low-memory configuration, such as `iot-telemetry-small.yaml`.
-[Profiling](docs/profiling.md) describes the requirements, the profiler options and the files, and
-[Analyzing profiles](docs/analyzing-profiles.md) how to find what to optimize.
 
 The JFR recordings also open in JDK Mission Control, whose OpenJDK distribution is
 [Eclipse Mission Control](https://adoptium.net/jmc). The JDK's

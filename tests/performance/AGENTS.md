@@ -144,8 +144,8 @@ see [Profiling](docs/profiling.md#requirements); without it, profile with async-
 only. Non-Linux hosts also lack the launcher's `host-stats.csv` evidence of temperature and throttling; a passing
 Docker/disk validation does not fill that gap. Use non-Linux comparisons as exploratory results for that host:
 name the host and Docker engine, repeat runs to establish their spread, and do not present the result as
-representative of a Linux deployment. Confirm a
-deployment-performance claim on Linux x86_64. Never compare runs made on different hosts.
+representative of a Linux deployment. Confirm a deployment-performance claim on Linux x86_64. Never compare
+runs made on different hosts.
 
 ## Using a run's results
 
@@ -168,10 +168,10 @@ deployment-performance claim on Linux x86_64. Never compare runs made on differe
 
 ## Inputs for analysis in a run directory
 
-Prefer the text files, the Markdown, JSON, CSV and collapsed stacks, to the HTML pages, which need a browser to
-render. In the paths, `<component>` is the directory of a profiled component, `broker-profile`, `gateways` or
-`applications`, and `<recording>` its recording's name without `.jfr`, such as
-`broker-profile/inttest_profile_<commit>_<time>_<container>` or `gateways/profile-gateways-<time>` (the broker's
+Prefer text artifacts — Markdown, JSON, CSV and collapsed stacks — to HTML pages, which need a browser to render.
+Collapsed stacktrace files are also called folded stacktrace files. In the paths, `<component>` is a profiled
+component's directory: `broker-profile`, `gateways` or `applications`. `<recording>` is the recording's basename
+without `.jfr`, such as `inttest_profile_<commit>_<time>_<container>` or `profile-gateways-<time>` (the broker's
 commit segment can be absent). Use the exact recording names linked from the profile report.
 [Files of a run](docs/run-reports.md#files-of-a-run) and
 [What a profiled run writes](docs/profiling.md#what-a-profiled-run-writes) describe every file.
@@ -199,20 +199,20 @@ commit segment can be absent). Use the exact recording names linked from the pro
 
 ### Profiles
 
-A profiled component's directory has these for each recording:
+The following paths are relative to the profiled component's directory:
 
 | Input | What it has | Read it with |
 |---|---|---|
-| `<component>/README.md`, `index.html` | The profile report: the measurement window, the recordings, and links to the digest and the flame graphs with their totals | Read `README.md` |
+| `README.md`, `index.html` | The profile report: the measurement window, the recordings, and links to the digest and the flame graphs with their totals | Read `README.md` |
 | `<recording>-offcpu/jonoffcpu-summary.md` | **Start here for waiting.** The off-CPU digest: the blocked time ranked by the Pulsar or BookKeeper method that waited, what it blocked on and for how long, and the capture's coverage; also as `.json` and `.html` | Read |
-| `<recording>-offcpu/offcpu-no-idle.collapsed`, `offcpu-no-idle-app-root.collapsed` | The blocked call stacks without idle waits, the second from where threads entered Pulsar or BookKeeper code: one stack per line, frames separated by `;`, time in microseconds at the end | Read, `rg`, `sort` |
-| `<recording>-offcpu/offcpu.collapsed`, `offcpu-app-root.collapsed` | The same with every blocked interval, idle waits included | Read, `rg`, `sort` |
+| `<recording>-offcpu/offcpu-no-idle.collapsed`, `offcpu-no-idle-app-root.collapsed` | The blocked call stacks without idle waits, the second from where threads entered Pulsar or BookKeeper code: one stack per line, frames separated by `;`, time in microseconds at the end | [DuckDB with the quack_flamegraph community extension](docs/analyzing-profiles.md#analyzing-collapsed-stacks-with-duckdb); also `rg`, `sort` |
+| `<recording>-offcpu/offcpu.collapsed`, `offcpu-app-root.collapsed` | The same with every blocked interval, idle waits included | [DuckDB with the quack_flamegraph community extension](docs/analyzing-profiles.md#analyzing-collapsed-stacks-with-duckdb); also `rg`, `sort` |
 | `<recording>-offcpu/offcpu*.json` | The totals of each slice, including the time that the idle filter removed | `jq` |
 | `<recording>-offcpu/offcpu*.html` | The off-CPU flame graphs | A browser |
 | `<recording>-offcpu/jonoffcpu-offcpu-profile.pb` | The stack profile, every distinct stack with its counters, from which other slices render without correlating again | The jonoffcpu correlator's `top`, `stacks` and `export` |
 | `<recording>-offcpu/jonoffcpu-report.json` | The capture's accounting: the intervals recorded and matched, loss, switch-out reasons, and sleeping versus run-queue time | `jq` |
 | `<recording>-offcpu/offcpu-idle-waits.txt`, `offcpu-dispatch-hide.txt` | The idle-wait patterns and the dispatch frames that the digest and the slices leave out or hide | Read |
-| `<recording>-flamegraphs/<view>.collapsed` | The async-profiler views' stacks, `cpu`, `alloc`, and `wall` and `lock` when recorded, of the measurement window: one stack per line with its weight at the end | Read, `rg`, `sort` |
+| `<recording>-flamegraphs/<view>.collapsed` | The async-profiler views' stacks, `cpu`, `alloc`, and `wall` and `lock` when recorded, of the measurement window: one stack per line with its weight at the end | [DuckDB with the quack_flamegraph community extension](docs/analyzing-profiles.md#analyzing-collapsed-stacks-with-duckdb); also `rg`, `sort` |
 | `<recording>-flamegraphs/<view>.html`, `<view>-threads.html`, `<view>-heatmap.html` | The flame graphs, split by thread, and over time for bursts and pauses | A browser |
 | `<recording>.measurement.jfr` | The recording cut to the measurement window: async-profiler's CPU and allocation samples, and the JDK's events such as `jdk.JavaMonitorEnter`, `jdk.ThreadPark` and garbage collection | The Jafar MCP server, jafar-shell |
 | `<recording>.jfr` | The complete recording, startup and shutdown included | The Jafar MCP server, jafar-shell; `runJfrCut` for another window |
@@ -243,7 +243,7 @@ of a recording's completeness: it counts async-profiler's samples, which are in 
 | `./gradlew jfrFlamegraphs` | `.jfr` made elsewhere | Flame graphs of recordings of profiled tests, integration tests and the JMH microbenchmarks | See [Flame graphs of other recordings](docs/analyzing-profiles.md#flame-graphs-of-other-recordings) |
 | VictoriaMetrics' Prometheus API | `metrics.json` | Querying a run's broker, bookie and ZooKeeper metrics over time | The metrics stack, see [metrics.json](docs/metrics.md#metricsjson) |
 | Grafana's image renderer | `metrics.json` | Rendering a dashboard panel over a run as a PNG image | The metrics stack, see [Rendering panels as images](docs/metrics.md#rendering-panels-as-images) |
-| [DuckDB](https://duckdb.org/) | CSV, and the correlator's JSONL export | SQL over the sampled stats and the off-CPU stacks | Install it |
+| [DuckDB](https://duckdb.org/) with [quack_flamegraph](https://github.com/kevintruong/quack-flamegraph) | Collapsed/folded stacktrace files; also CSV and JSONL | Automated stack analysis: rank stacks, methods and call edges, and attribute samples to application frames; export JSON or CSV for agents and scripts | Install DuckDB, then follow the [extension setup and usage examples](docs/analyzing-profiles.md#analyzing-collapsed-stacks-with-duckdb) |
 | JDK Mission Control, IntelliJ IDEA, [HistogramLogAnalyzer](https://github.com/HdrHistogram/HistogramLogAnalyzer) | `.jfr`, `.hdr` | Interactive analysis by the user | See [Opening recordings in JDK Mission Control or IntelliJ IDEA](docs/analyzing-profiles.md#opening-recordings-in-jdk-mission-control-or-intellij-idea) |
 
 The VictoriaMetrics and Grafana rows need the metrics stack to run: `./gradlew :tests:performance:metrics:up` starts
@@ -260,6 +260,7 @@ augment those reports; their absence need not block analysis of the saved summar
 | Did the workload complete correctly, and what changed? | Run `README.md`, `resolved-config.yaml`, `run-info.json` and workload summaries | Compare measured throughput, latency percentiles and backlog; inspect logs for exclusions |
 | Where does a busy process wait? | `jonoffcpu-summary.md` and `offcpu-no-idle-app-root.collapsed` | The digest already ranks blocking callsites; use the optional correlator CLI for comparisons or other slices, and check coverage and loss in `jonoffcpu-report.json` |
 | Where does it use CPU or allocate? | `cpu.collapsed`, `alloc.collapsed`, then `.measurement.jfr` | Thread views find serial bottlenecks; heatmaps and JFR place CPU, allocation and GC activity in time |
+| How can an agent query stack profiles automatically? | A `.collapsed` or `.folded` file | Use DuckDB with quack_flamegraph; the [SQL examples](docs/analyzing-profiles.md#analyzing-collapsed-stacks-with-duckdb) rank stacks, methods and call edges and export machine-readable JSON or CSV |
 | Which cluster component explains a stall? | `metrics.json`, `grafana-panels/*.png`, `topic-stats.csv` | Use Grafana's run annotations and VictoriaMetrics queries to relate broker, bookie and ZooKeeper behavior to the measurement |
 | What retains the heap? | `heap-dumps.csv` and an `.hprof` dump | Use dominators, retained sizes and paths to GC roots; capture a separate diagnostic run with `--extends configs/heap-dumps-broker` as [Heap dumps](docs/heap-dumps.md) describes |
 
