@@ -430,7 +430,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     synchronized void initialize(final ManagedLedgerInitializeLedgerCallback callback, final Object ctx) {
-        log.info("Opening managed ledger {}", name);
+        log.info("Opening managed ledger {} (lazyCursorRecovery={}, triggerOffloadOnTopicLoad={})", name,
+                config.isLazyCursorRecovery(), config.isTriggerOffloadOnTopicLoad());
 
         // Fetch the list of existing ledgers in the managed ledger
         store.getManagedLedgerInfo(name, config.isCreateIfMissing(), config.getProperties(),
@@ -601,8 +602,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             public void operationComplete(Void v, Stat stat) {
                 ledgersStat = stat;
                 emptyLedgersToBeDeleted.forEach(ledgerId -> {
+                    long timestampOfDeletingEmptyLedgers = System.currentTimeMillis();
                     asyncDeleteLedgerWithConcurrencyLimit(ledgerId, (rc, ctx) -> {
-                        log.info("[{}] Deleted empty ledger ledgerId={} rc={}", name, ledgerId, rc);
+                        log.info("[{}] Deleted empty ledger ledgerId={} rc={} cost={} ms", name, ledgerId, rc,
+                                System.currentTimeMillis() - timestampOfDeletingEmptyLedgers);
                     }, null);
                 });
                 initializeCursors(callback);
@@ -619,6 +622,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
         mbean.startDataLedgerCreateOp();
 
+        long startTimeOfCreateLedger = System.currentTimeMillis();
         asyncCreateLedger(bookKeeper, config, digestType, (rc, lh, ctx) -> {
 
             if (checkAndCompleteLedgerOpTask(rc, lh, ctx)) {
@@ -633,8 +637,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     return;
                 }
 
-                log.info("[{}] Created ledger {} after closed {}", name, lh.getId(),
-                        currentLedger == null ? "null" : currentLedger.getId());
+                log.info("[{}] Created ledger {} after closed {}, cost {} ms", name, lh.getId(),
+                        currentLedger == null ? "null" : currentLedger.getId(),
+                        System.currentTimeMillis() - startTimeOfCreateLedger);
                 STATE_UPDATER.set(this, State.LedgerOpened);
                 updateLastLedgerCreatedTimeAndScheduleRolloverTask();
                 currentLedger = lh;
@@ -684,6 +689,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     log.debug("[{}] Loading cursors", name);
 
                     for (final String cursorName : consumers) {
+                        final long timestampStartRecoverCursor = System.currentTimeMillis();
                         log.info("[{}] Loading cursor {}", name, cursorName);
                         final ManagedCursorImpl cursor;
                         cursor = createCursor(ManagedLedgerImpl.this.bookKeeper, cursorName);
@@ -691,8 +697,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         cursor.recover(new VoidCallback() {
                             @Override
                             public void operationComplete() {
-                                log.info("[{}] Recovery for cursor {} completed. pos={} -- todo={}", name, cursorName,
-                                        cursor.getMarkDeletedPosition(), cursorCount.get() - 1);
+                                log.info("[{}] Recovery for cursor {} completed. pos={} -- todo={}, cost {} ms", name,
+                                        cursorName, cursor.getMarkDeletedPosition(), cursorCount.get() - 1,
+                                        System.currentTimeMillis() - timestampStartRecoverCursor);
                                 cursor.setActive();
                                 addCursor(cursor);
 
@@ -704,7 +711,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                             @Override
                             public void operationFailed(ManagedLedgerException exception) {
-                                log.warn("[{}] Recovery for cursor {} failed", name, cursorName, exception);
+                                log.warn("[{}] Recovery for cursor {} failed, cost {} ms", name, cursorName,
+                                        System.currentTimeMillis() - timestampStartRecoverCursor, exception);
                                 cursorCount.set(-1);
                                 callback.initializeFailed(exception);
                             }
@@ -718,14 +726,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         }
                         final ManagedCursorImpl cursor;
                         cursor = createCursor(ManagedLedgerImpl.this.bookKeeper, cursorName);
+                        final long timestampStartRecoverCursor = System.currentTimeMillis();
                         CompletableFuture<ManagedCursor> cursorRecoveryFuture = new CompletableFuture<>();
                         uninitializedCursors.put(cursorName, cursorRecoveryFuture);
 
                         cursor.recover(new VoidCallback() {
                             @Override
                             public void operationComplete() {
-                                log.info("[{}] Lazy recovery for cursor {} completed. pos={} -- todo={}", name,
-                                        cursorName, cursor.getMarkDeletedPosition(), cursorCount.get() - 1);
+                                log.info("[{}] Lazy recovery for cursor {} completed. pos={} -- todo={}, cost {} ms",
+                                        name, cursorName, cursor.getMarkDeletedPosition(), cursorCount.get() - 1,
+                                        System.currentTimeMillis() - timestampStartRecoverCursor);
                                 cursor.setActive();
                                 synchronized (ManagedLedgerImpl.this) {
                                     addCursor(cursor);
@@ -735,7 +745,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                             @Override
                             public void operationFailed(ManagedLedgerException exception) {
-                                log.warn("[{}] Lazy recovery for cursor {} failed", name, cursorName, exception);
+                                log.warn("[{}] Lazy recovery for cursor {} failed, cost {} ms", name, cursorName,
+                                        System.currentTimeMillis() - timestampStartRecoverCursor, exception);
                                 synchronized (ManagedLedgerImpl.this) {
                                     uninitializedCursors.remove(cursor.getName()).completeExceptionally(exception);
                                 }
@@ -1065,10 +1076,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
         uninitializedCursors.put(cursorName, cursorFuture);
         Position position = InitialPosition.Earliest == initialPosition ? getFirstPosition() : getLastPosition();
+        long startTimeInit = System.currentTimeMillis();
         cursor.initialize(position, properties, cursorProperties, new VoidCallback() {
             @Override
             public void operationComplete() {
-                log.info("[{}] Opened new cursor: {}", name, cursor);
+                log.info("[{}] Opened new cursor: {}, cost {} ms", name, cursor,
+                        System.currentTimeMillis() - startTimeInit);
                 cursor.setActive();
                 synchronized (ManagedLedgerImpl.this) {
                     // Update the ack position (ignoring entries that were written while the cursor was being created)
@@ -2892,10 +2905,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 Position finalPosition = lastAckedPosition;
                 log.info("Mark deleting cursor:{} from {} to {} since ledger consumed completely.", cursor,
                         markDeletedPosition, lastAckedPosition);
+                long startPersistMdPosition = System.currentTimeMillis();
                 cursor.asyncMarkDelete(lastAckedPosition, null, new MarkDeleteCallback() {
                     @Override
                     public void markDeleteComplete(Object ctx) {
-                        log.info("Successfully persisted cursor position for cursor:{} to {}", cursor, finalPosition);
+                        log.info("Successfully persisted cursor position for cursor:{} to {}, cost {} ms", cursor,
+                                finalPosition, System.currentTimeMillis() - startPersistMdPosition);
                         future.complete(null);
                     }
 
