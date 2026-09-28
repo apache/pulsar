@@ -482,6 +482,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }
 
         // Ensure only one managed ledger is created and initialized
+        long startTimeOfCreation = System.currentTimeMillis();
         ledgers.computeIfAbsent(name, (mlName) -> {
             // Create the managed ledger
             CompletableFuture<ManagedLedgerImpl> future = new CompletableFuture<>();
@@ -496,7 +497,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         newledger.initialize(new ManagedLedgerInitializeLedgerCallback() {
                             @Override
                             public void initializeComplete() {
-                                log.info().attr("managedLedger", name).log("Successfully initialize managed ledger");
+                                log.info().attr("managedLedger", name)
+                                    .attr("cost", System.currentTimeMillis() - startTimeOfCreation)
+                                    .log("Successfully initialize managed ledger");
                                 pendingInitializeLedgers.remove(name, pendingLedger);
                                 // May need to update the cursor position and wait them finished
                                 newledger.maybeUpdateCursorBeforeTrimmingConsumedLedger().whenComplete((__, ex) -> {
