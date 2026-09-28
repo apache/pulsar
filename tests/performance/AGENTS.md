@@ -32,7 +32,7 @@ Run the commands in the repository's root directory:
 | Start and stop the metrics stack, VictoriaMetrics and Grafana | `./gradlew :tests:performance:metrics:up`, `./gradlew :tests:performance:metrics:down`, with Grafana at <http://127.0.0.1:3000/> and VictoriaMetrics at <http://127.0.0.1:8428/> |
 | Keep `launcher.log` of a successful run | `-Pperformance.keepLauncherLog` |
 | Run without collecting metrics | `-Pperformance.metrics=false` |
-| Check Docker's disk space, and on Linux the host's configuration to ensure minimal run-to-run variance | `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` |
+| Check Docker's disk space, and on Linux the host's configuration to ensure minimal run-to-run variance | [`tests/performance/environment/scripts/configure-perf-test-environment.sh`](environment/scripts/configure-perf-test-environment.sh) `validate` |
 
 [Running scenarios](docs/running-scenarios.md) lists every launcher option and Gradle property.
 
