@@ -1060,9 +1060,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                    future.completeExceptionally(e);
                 }
             });
+        }).exceptionally(ex -> {
+            future.completeExceptionally(ex);
+            return null;
         });
-
-
 
         return future;
     }
