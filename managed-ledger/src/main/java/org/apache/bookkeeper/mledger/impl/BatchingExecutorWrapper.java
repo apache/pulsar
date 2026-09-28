@@ -144,6 +144,16 @@ class BatchingExecutorWrapper implements Executor {
         return handoverQueue != null;
     }
 
+    @VisibleForTesting
+    int getMaxItems() {
+        return maxItems;
+    }
+
+    @VisibleForTesting
+    long getMaxWeight() {
+        return maxWeight;
+    }
+
     /**
      * Submits a handover batch to the delegate unless one is already scheduled.
      *

@@ -905,7 +905,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Jump to specific thread to avoid contention from writers writing from different threads, handing the adds
         // over in batches unless batching is disabled.
-        addEntryBatchingExecutor.execute(new AddEntryHandover(buffer, numberOfMessages, callback, ctx));
+        try {
+            addEntryBatchingExecutor.execute(new AddEntryHandover(buffer, numberOfMessages, callback, ctx));
+        } catch (RuntimeException e) {
+            // The add will not run: release the buffer retained for it, and fail the caller as before.
+            buffer.release();
+            throw e;
+        }
+    }
+
+    @VisibleForTesting
+    Executor getAddEntryBatchingExecutor() {
+        return addEntryBatchingExecutor;
     }
 
     /**

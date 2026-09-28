@@ -33,8 +33,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -351,6 +353,69 @@ public class BatchingExecutorWrapperTest {
         assertThat(failures).isEmpty();
         // Each task was either failed to its caller or passed to the handler, and none was left in the queue.
         assertThat(rejected.get()).isEqualTo(threads * tasksPerThread);
+    }
+
+    @Test(timeOut = 30000)
+    public void testConcurrentSubmittersToASometimesRejectingDelegateHandleEachTaskOnce() throws Exception {
+        int threads = 8;
+        int tasksPerThread = 10000;
+        ExecutorService delegate = Executors.newSingleThreadExecutor();
+        ExecutorService submitters = Executors.newFixedThreadPool(threads);
+        AtomicInteger handovers = new AtomicInteger();
+        // How many times each task ran or was rejected, which must be exactly once.
+        AtomicIntegerArray outcomes = new AtomicIntegerArray(threads * tasksPerThread);
+        List<Throwable> failures = new CopyOnWriteArrayList<>();
+        BatchingExecutorWrapper wrapper = new BatchingExecutorWrapper(command -> {
+            if (handovers.incrementAndGet() % 3 == 0) {
+                throw new RejectedExecutionException("rejected");
+            }
+            delegate.execute(command);
+        }, QUEUE_CHUNK_SIZE, 16, NO_WEIGHT_LIMIT, failures::add,
+                (task, e) -> ((IndexedTask) task).record());
+        CyclicBarrier start = new CyclicBarrier(threads);
+        try {
+            for (int t = 0; t < threads; t++) {
+                int thread = t;
+                submitters.execute(() -> {
+                    try {
+                        start.await();
+                        for (int i = 0; i < tasksPerThread; i++) {
+                            IndexedTask task = new IndexedTask(thread * tasksPerThread + i, outcomes);
+                            try {
+                                wrapper.execute(task);
+                            } catch (RejectedExecutionException e) {
+                                task.record();
+                            }
+                        }
+                    } catch (Throwable e) {
+                        failures.add(e);
+                    }
+                });
+            }
+            Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(failures).isEmpty();
+                for (int i = 0; i < outcomes.length(); i++) {
+                    assertThat(outcomes.get(i)).as("outcomes of task %d", i).isEqualTo(1);
+                }
+            });
+        } finally {
+            submitters.shutdownNow();
+            delegate.shutdownNow();
+        }
+    }
+
+    /**
+     * A task that records in {@code outcomes} that it ran, or that it was rejected.
+     */
+    private record IndexedTask(int index, AtomicIntegerArray outcomes) implements Runnable {
+        @Override
+        public void run() {
+            record();
+        }
+
+        void record() {
+            outcomes.incrementAndGet(index);
+        }
     }
 
     @DataProvider
