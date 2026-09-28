@@ -157,16 +157,18 @@ Pop!_OS) stopped, and the settings the profile applies: turbo, the CPU frequency
 Transparent Huge Pages. It runs every check, prints each one to stdout as `ok:`, `FAILED:` or `skipped:`, and the reason
 for each failed check, with what to do about it, to stderr.
 
-Its exit code tells the kinds of checks that failed apart, and is their sum when several kinds failed, such as 10 when
-Docker's disk is too full and the host isn't configured:
+### Exit codes
 
-| Exit code | Meaning | What to do |
-|---|---|---|
-| 0 | Every check passed | |
-| 1 | A usage or an unexpected error | |
-| 2 | Docker's disk is too full | Free space, for example with `scripts/docker-cleanup.sh`, see [Freeing Docker disk space](#freeing-docker-disk-space) |
-| 4 | Docker isn't available, or the usage of its disk couldn't be read | Start Docker, or give the user access to it |
-| 8 | The host's configuration, on Linux only | Configure the host with `install` and `start` |
+`validate` exits with 0 when every check passed, and with 1 on a usage or an unexpected error. Otherwise its exit code
+is a bit mask: each kind of failed check sets its bit, so that several kinds can fail at once. For example, 10 has
+bits 1 and 3 set, 2 + 8: Docker's disk is too full and the host isn't configured. Test a bit by its value, such as
+`(( code & 2 ))` for bit 1.
+
+| Bit | Value | Set when | What to do |
+|---|---|---|---|
+| 1 | 2 | Docker's disk is 90 % full or more | Free space, for example with `scripts/docker-cleanup.sh`, see [Freeing Docker disk space](#freeing-docker-disk-space) |
+| 2 | 4 | Docker isn't available, or the usage of its disk couldn't be read | Start Docker, or give the user access to it |
+| 3 | 8 | A check of the host's configuration failed, on Linux only | Configure the host with `install` and `start` |
 
 A failed setting check while the profile is active means that the installed profile is older than the script: run
 `install` again, then `start`.

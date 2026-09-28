@@ -44,12 +44,8 @@ user asked for them. Before a series of runs, check these:
 | Check | How | When it fails |
 |---|---|---|
 | Memory available to Docker, which on macOS and Windows is the memory of Docker's virtual machine; 32 GB of RAM on the host is recommended | The scenario's memory configuration needs about 3 GB (low), 11 GB (medium, the default) or 14 GB (high), see [Memory configurations](scenarios/README.md#memory-configurations) | Tell the user rather than starting the run |
-| Disk space: the disk that holds Docker's data less than 90 % full | `configure-perf-test-environment.sh validate`, on Linux and macOS, which exits with 2, or a sum including 2, and prints the reasons to stderr | Ask the user for permission to run [`environment/scripts/docker-cleanup.sh`](environment/scripts/docker-cleanup.sh), which removes the Pulsar images and unused Docker data; show what it would remove with `--dry-run` first |
-| On Linux, the host's configuration for low run-to-run variance: a fixed CPU frequency, and no daemons that change power settings during a run | `configure-perf-test-environment.sh validate`, which exits with 8, or a sum including 8 | Ask the user to configure the host as [`environment/README.md`](environment/README.md) instructs, which needs `sudo` |
+| Docker is available and its disk is less than 90 % full; on Linux, also the host's configuration for low run-to-run variance: a fixed CPU frequency, and no daemons that change power settings during a run | [`configure-perf-test-environment.sh`](environment/scripts/configure-perf-test-environment.sh) `validate`, on Linux and macOS, which prints the reason for each failed check to stderr | Find the failed checks from its exit code in the table of [Exit codes](environment/README.md#exit-codes), and ask the user before doing what it says: for permission to run [`environment/scripts/docker-cleanup.sh`](environment/scripts/docker-cleanup.sh) when Docker's disk is too full, showing what it would remove with `--dry-run` first, and to configure the host, which needs `sudo` |
 | Profiling | Profile a scenario with the medium- or the high-memory configuration | Don't profile a scenario that uses the low-memory configuration |
-
-[Checking the host](environment/README.md#checking-the-host) lists `validate`'s exit codes, including 4 when Docker
-isn't available.
 
 Variance sets the smallest change that a comparison can detect: when the spread between runs of the same revision is
 larger than a change's effect, the effect can't be told apart from noise. When you'll be running experiments

@@ -34,8 +34,8 @@
 #            active TuneD profile and the settings it applies. It prints each check to stdout
 #            and the reason for each failed check to stderr, so that scripts and AI agents can
 #            check the host before running tests. Its exit code is 0 when every check passed,
-#            and otherwise the sum of EXIT_DOCKER_DISK, EXIT_DOCKER_UNAVAILABLE and
-#            EXIT_HOST_CONFIGURATION for the kinds of checks that failed.
+#            and otherwise a bit mask in which each kind of failed check sets its bit:
+#            EXIT_DOCKER_DISK, EXIT_DOCKER_UNAVAILABLE or EXIT_HOST_CONFIGURATION.
 set -euo pipefail
 
 # tuned-adm, sysctl and other administration commands are in the sbin directories, which aren't on the
@@ -58,8 +58,8 @@ DOCKER_LOG_OPTIONS='{"max-size": "100m", "max-file": "3"}'
 DISK_USAGE_LIMIT_PERCENT=90
 # The image of the container in which the usage of Docker's disk is read
 DISK_CHECK_IMAGE="${DISK_CHECK_IMAGE:-alpine}"
-# The exit codes of "validate", added up when several kinds of checks failed; 1 is left for usage
-# and unexpected errors
+# The values of bits 1, 2 and 3 of "validate"'s exit code, one bit for each kind of failed check;
+# 1, the value of bit 0, is left for usage and unexpected errors
 EXIT_DOCKER_DISK=2
 EXIT_DOCKER_UNAVAILABLE=4
 EXIT_HOST_CONFIGURATION=8
@@ -623,7 +623,7 @@ stop() {
 validation_checks=0
 validation_failures=0
 validation_exit_code=0
-# The exit code that a failed check adds, which each group of checks sets
+# The value of the bit that a failed check sets in the exit code, which each group of checks sets
 failure_exit_code=${EXIT_HOST_CONFIGURATION}
 
 check_passed() {
