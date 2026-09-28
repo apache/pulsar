@@ -138,6 +138,13 @@ public class PulsarClusterSpec {
     String pulsarTestImage = PulsarContainer.DEFAULT_IMAGE_NAME;
 
     /**
+     * The image of the cluster's ZooKeeper, configuration store, bookies, brokers and proxy, such as a test image
+     * built on an earlier Pulsar release to compare it with this revision. Unset means
+     * {@link PulsarContainer#DEFAULT_IMAGE_NAME}. Function workers and other containers keep that image.
+     */
+    String clusterImage;
+
+    /**
      * Specify envs for proxy.
      */
     Map<String, String> proxyEnvs;
@@ -227,6 +234,19 @@ public class PulsarClusterSpec {
      * {@code build} in the working directory.
      */
     String profileDirectory;
+
+    /**
+     * Host path of the jonoffcpu agent JAR to attach instead of the image's async-profiler library.
+     * Unset means the {@code inttest.jonoffcpu.agent} system property, and failing that plain
+     * async-profiler. See {@link org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent}.
+     */
+    String jonoffcpuAgentJar;
+
+    /**
+     * The jonoffcpu agent's {@code sampling} block, deciding which off-CPU intervals are recorded.
+     */
+    @Default
+    Map<String, Object> jonoffcpuOptions = Map.of();
 
     /**
      * Whether the given cluster component should be profiled with async-profiler, according to the
