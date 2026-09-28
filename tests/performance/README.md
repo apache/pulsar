@@ -344,6 +344,49 @@ time, CPU and allocation flame graphs, cut to the measurement. The broker's jono
 time threads spent blocked by the Pulsar or BookKeeper method that waited. The blocked time flame graphs show the same
 time as call trees, to inspect visually which code paths lead to the blocking methods.
 
+The flame graphs' `.collapsed` files can be handled with multiple tools. jonoffcpu's jfr-converter renders them as
+HTML flame graphs and runs through Gradle with no separate installation. Pass any converter options with `--args`;
+use `--args='--help'` to list them:
+
+```bash
+./gradlew -q :tests:performance:report-tool:runJfrConverter \
+  --args='/path/to/recording-offcpu/offcpu-no-idle-app-root.collapsed /path/to/offcpu.html'
+```
+
+Another particularly useful option is [flameshow](https://github.com/laixintao/flameshow), a terminal user interface
+(TUI) for exploring flame graphs, with keyboard navigation and zooming. After installing it as its README describes,
+open a collapsed stack file:
+
+```bash
+flameshow /path/to/recording-offcpu/offcpu-no-idle-app-root.collapsed
+```
+
+[Inferno](https://github.com/jonhoo/inferno) includes `inferno-flamegraph`, which converts collapsed stacks to SVG
+flame graphs. With Rust's Cargo installed, install Inferno and convert a file:
+
+```bash
+cargo install inferno
+inferno-flamegraph < /path/to/recording-offcpu/offcpu-no-idle-app-root.collapsed > offcpu.svg
+```
+
+For SQL analysis, DuckDB's [quack_flamegraph](https://github.com/kevintruong/quack-flamegraph) community extension
+reads collapsed stacks as tables. Start DuckDB in the directory containing `cpu.collapsed`, or replace the filename
+below with its path. This query returns the 45 highest-weight stacks whose leaf frame is in an `org.apache` package:
+
+```sql
+INSTALL quack_flamegraph FROM community;
+LOAD quack_flamegraph;
+
+SELECT samples, leaf
+FROM flamegraph_hot_stacks('cpu.collapsed')
+WHERE regexp_matches(leaf, '^org\.apache\.')
+ORDER BY samples DESC
+LIMIT 45;
+```
+
+The `samples` column holds the weight from each collapsed stack. This ranks individual stacks, not totals grouped
+by leaf method, and filters only the leaf frame, not callers elsewhere in the stack.
+
 Each of the profile files in the scenarios' `configs` directory profiles one component: `configs/profile-broker`,
 `configs/profile-gateways` and `configs/profile-applications`;
 [`profile-broker.yaml`](scenarios/configs/profile-broker.yaml) is an example of the settings. To study the performance
