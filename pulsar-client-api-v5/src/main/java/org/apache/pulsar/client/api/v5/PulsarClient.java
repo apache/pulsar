@@ -103,6 +103,13 @@ public interface PulsarClient extends AutoCloseable {
      */
     CompletableFuture<Transaction> newTransactionAsync();
 
+    /**
+     * Returns the {@link TransactionCoordinatorClient} used by this client.
+     * This is a lower-level API, meant mainly for usage in streaming engines.
+     * @return the Transaction Coordinator Client associated with this Pulsar Client
+     */
+    TransactionCoordinatorClient getTransactionCoordinatorClient();
+
     // --- Lifecycle ---
 
     /**

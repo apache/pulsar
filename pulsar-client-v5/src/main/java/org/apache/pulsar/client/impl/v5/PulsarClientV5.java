@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.QueueConsumerBuilder;
 import org.apache.pulsar.client.api.v5.StreamConsumerBuilder;
 import org.apache.pulsar.client.api.v5.Transaction;
+import org.apache.pulsar.client.api.v5.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 
@@ -40,6 +41,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 final class PulsarClientV5 implements PulsarClient {
 
     private final PulsarClientImpl v4Client;
+    private final TransactionCoordinatorClientV5 transactionCoordinatorClientV5;
     private final String description;
     private final Duration transactionTimeout;
 
@@ -47,6 +49,7 @@ final class PulsarClientV5 implements PulsarClient {
         this.v4Client = v4Client;
         this.description = description;
         this.transactionTimeout = transactionTimeout;
+        this.transactionCoordinatorClientV5 = new TransactionCoordinatorClientV5(v4Client.getTransactionCoordinatorClient());
     }
 
     /**
@@ -96,6 +99,11 @@ final class PulsarClientV5 implements PulsarClient {
             builder.withTransactionTimeout(transactionTimeout.toMillis(), TimeUnit.MILLISECONDS);
         }
         return builder.build().thenApply(v4Txn -> (Transaction) new TransactionV5(v4Txn));
+    }
+
+    @Override
+    public TransactionCoordinatorClient getTransactionCoordinatorClient() {
+        return transactionCoordinatorClientV5;
     }
 
     @Override
