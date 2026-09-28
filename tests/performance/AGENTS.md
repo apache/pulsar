@@ -82,19 +82,20 @@ and Gradle property.
   of Docker's virtual machine: about 3 GB for the low-memory configuration, 11 GB for the default medium-memory one
   and 14 GB for the high-memory one, see [Memory configurations](scenarios/README.md#memory-configurations). When it hasn't, tell the user rather than
   starting the run. Don't profile a scenario that uses the low-memory configuration.
-- Use a run's numbers only when its report shows a valid run, as "Read the report" in the README describes, and don't
-  claim a performance change from a single run: compare revisions as `docs/comparing-revisions.md` describes.
+- Use a run's numbers only when its report shows a valid run, as [Read the report](README.md#2-read-the-report)
+  describes, and don't claim a performance change from a single run: compare revisions as
+  [Comparing revisions](docs/comparing-revisions.md) describes.
 - Find a run's results from the launcher's output, which prints the run directory and the run report. A run that
-  fails writes no report; find the cause as "When a run fails" in `docs/run-reports.md` describes, and tell the user
-  rather than using the run. Don't commit run output.
+  fails writes no report; find the cause as [When a run fails](docs/run-reports.md#when-a-run-fails) describes, and
+  tell the user rather than using the run. Don't commit run output.
 
 ## Tuning experiments
 
 An experiment tests one change: a code change, or a setting in a scenario. State what it is expected to improve,
 compare the change with its baseline on the same scenario, and find the cause of a difference in the profiles, as
-`docs/analyzing-profiles.md` describes. Save an analysis beside its recording as `<recording>.analysis.md`, and keep
-the scenario, the revisions, the runs and the conclusion together. Treat automated analysis as a lead, and confirm a
-claim with a controlled comparison, a JMH benchmark or a second profile.
+[Analyzing profiles](docs/analyzing-profiles.md) describes. Save an analysis beside its recording as
+`<recording>.analysis.md`, and keep the scenario, the revisions, the runs and the conclusion together. Treat automated
+analysis as a lead, and confirm a claim with a controlled comparison, a JMH benchmark or a second profile.
 
 For the time that threads spent blocked, look first at a profile's jonoffcpu report,
 `<recording>-offcpu/jonoffcpu-summary.md`. It is text, a digest that ranks the methods of the Pulsar broker's or the
@@ -106,8 +107,9 @@ entered Pulsar or BookKeeper code, one stack per line with its frames separated 
 at the end. The async-profiler views have collapsed stacks too, such as `<recording>-flamegraphs/cpu.collapsed`.
 
 Analyze JFR recordings and `.hprof` heap dumps with the Jafar tools. When they aren't available, suggest that the user
-installs the `jafar-perf` Claude Code plugin from [jafar-perf-box](https://github.com/btraceio/jafar-perf-box), which
-adds analysis skills and agents and registers the Jafar MCP server;
+installs the [`jafar-perf`](https://github.com/btraceio/jafar-perf-box/tree/main/plugins/jafar-perf) Claude Code
+plugin, which adds analysis skills and agents and registers the
+[Jafar MCP server](https://github.com/btraceio/jafar/blob/main/jfr-mcp/README.md);
 [the plugin's README](https://github.com/btraceio/jafar-perf-box/blob/main/plugins/jafar-perf/README.md) describes how
 to install and use it. Agents other than Claude Code can use the Jafar MCP server on its own, as
 [AI agent analysis](docs/analyzing-profiles.md#ai-agent-analysis) describes. For heap dumps, see also
