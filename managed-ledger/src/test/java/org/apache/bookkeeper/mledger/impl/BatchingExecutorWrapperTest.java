@@ -27,6 +27,7 @@ import java.util.Queue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
@@ -37,6 +38,7 @@ import org.testng.annotations.Test;
 
 public class BatchingExecutorWrapperTest {
     private static final int QUEUE_CHUNK_SIZE = 16;
+    private static final long NO_WEIGHT_LIMIT = Long.MAX_VALUE;
     private static final Consumer<Throwable> FAIL_ON_TASK_FAILURE = t -> {
         throw new AssertionError("Unexpected task failure", t);
     };
@@ -44,7 +46,7 @@ public class BatchingExecutorWrapperTest {
     /**
      * An executor that keeps the submitted tasks until the test runs them, and rejects them while {@link #rejecting}.
      */
-    private static class ManualExecutor implements java.util.concurrent.Executor {
+    private static class ManualExecutor implements Executor {
         final Queue<Runnable> tasks = new ArrayDeque<>();
         boolean rejecting;
 
@@ -67,19 +69,96 @@ public class BatchingExecutorWrapperTest {
         }
     }
 
+    /**
+     * Returns a task of the given weight that runs {@code action}.
+     */
+    private static BatchingExecutorWrapper.WeightedRunnable weighted(long weight, Runnable action) {
+        return new BatchingExecutorWrapper.WeightedRunnable() {
+            @Override
+            public long getWeight() {
+                return weight;
+            }
+
+            @Override
+            public void run() {
+                action.run();
+            }
+        };
+    }
+
     @Test
-    public void testMaxBatchSizeMustBeGreaterThanOne() {
-        for (int handoverMaxBatchSize : new int[] {-1, 0, 1}) {
-            assertThatThrownBy(() -> new BatchingExecutorWrapper(new ManualExecutor(), QUEUE_CHUNK_SIZE,
-                    handoverMaxBatchSize, FAIL_ON_TASK_FAILURE)).isInstanceOf(IllegalArgumentException.class);
+    public void testMaxItemsMustBeGreaterThanOne() {
+        for (int maxItems : new int[] {-1, 0, 1}) {
+            assertThatThrownBy(() -> new BatchingExecutorWrapper(new ManualExecutor(), QUEUE_CHUNK_SIZE, maxItems,
+                    NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE)).isInstanceOf(IllegalArgumentException.class);
         }
+    }
+
+    @Test
+    public void testMaxWeightMustBePositive() {
+        for (long maxWeight : new long[] {-1, 0}) {
+            assertThatThrownBy(() -> new BatchingExecutorWrapper(new ManualExecutor(), QUEUE_CHUNK_SIZE, 1024,
+                    maxWeight, FAIL_ON_TASK_FAILURE)).isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    @Test
+    public void testBatchStopsTakingTasksOnceTheirWeightsReachMaxWeight() {
+        ManualExecutor delegate = new ManualExecutor();
+        BatchingExecutorWrapper wrapper =
+                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, 10, FAIL_ON_TASK_FAILURE);
+        List<Integer> ran = new ArrayList<>();
+        for (int i = 0; i < 6; i++) {
+            int task = i;
+            wrapper.execute(weighted(4, () -> ran.add(task)));
+        }
+
+        delegate.runNext();
+
+        // 4 + 4 is below the limit, so the batch takes a third task; 12 reaches it, so the batch stops there.
+        assertThat(ran).containsExactly(0, 1, 2);
+        assertThat(delegate.tasks).hasSize(1);
+        delegate.runNext();
+        assertThat(ran).containsExactly(0, 1, 2, 3, 4, 5);
+    }
+
+    @Test
+    public void testTaskHeavierThanMaxWeightRunsInABatchOfItsOwn() {
+        ManualExecutor delegate = new ManualExecutor();
+        BatchingExecutorWrapper wrapper =
+                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, 10, FAIL_ON_TASK_FAILURE);
+        List<Integer> ran = new ArrayList<>();
+        wrapper.execute(weighted(100, () -> ran.add(0)));
+        wrapper.execute(weighted(1, () -> ran.add(1)));
+
+        delegate.runNext();
+
+        assertThat(ran).containsExactly(0);
+        delegate.runNext();
+        assertThat(ran).containsExactly(0, 1);
+    }
+
+    @Test
+    public void testTasksWithoutWeightAreLimitedOnlyByMaxItems() {
+        ManualExecutor delegate = new ManualExecutor();
+        BatchingExecutorWrapper wrapper =
+                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 3, 1, FAIL_ON_TASK_FAILURE);
+        List<Integer> ran = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            int task = i;
+            wrapper.execute(() -> ran.add(task));
+        }
+
+        delegate.runNext();
+
+        assertThat(ran).containsExactly(0, 1, 2);
     }
 
     @Test
     public void testTasksQueuedBeforeTheBatchRunsShareOneBatch() {
         ManualExecutor delegate = new ManualExecutor();
         BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, FAIL_ON_TASK_FAILURE);
+                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE);
         List<Integer> ran = new ArrayList<>();
 
         for (int i = 0; i < 3; i++) {
@@ -97,7 +176,7 @@ public class BatchingExecutorWrapperTest {
     public void testBatchRunsAtMostMaxBatchSizeTasksAndSchedulesTheRest() {
         ManualExecutor delegate = new ManualExecutor();
         BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 2, FAIL_ON_TASK_FAILURE);
+                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 2, NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE);
         List<Integer> ran = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             int task = i;
@@ -119,7 +198,7 @@ public class BatchingExecutorWrapperTest {
     public void testTaskQueuedWhileABatchRunsIsNotLeftBehind() {
         ManualExecutor delegate = new ManualExecutor();
         BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, FAIL_ON_TASK_FAILURE);
+                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE);
         List<String> ran = new ArrayList<>();
         wrapper.execute(() -> {
             ran.add("first");
@@ -136,7 +215,7 @@ public class BatchingExecutorWrapperTest {
         ManualExecutor delegate = new ManualExecutor();
         List<Throwable> failures = new ArrayList<>();
         BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, failures::add);
+                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, NO_WEIGHT_LIMIT, failures::add);
         RuntimeException failure = new RuntimeException("task failed");
         List<Integer> ran = new ArrayList<>();
         wrapper.execute(() -> ran.add(0));
@@ -155,7 +234,7 @@ public class BatchingExecutorWrapperTest {
     public void testRejectedHandoverFailsTheCallerAndALaterTaskRetriesScheduling() {
         ManualExecutor delegate = new ManualExecutor();
         BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, FAIL_ON_TASK_FAILURE);
+                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE);
         List<Integer> ran = new ArrayList<>();
         delegate.rejecting = true;
 
@@ -169,19 +248,19 @@ public class BatchingExecutorWrapperTest {
     }
 
     @DataProvider
-    public Object[][] handoverMaxBatchSizes() {
-        return new Object[][] {{2}, {1024}};
+    public Object[][] batchLimits() {
+        return new Object[][] {{2, NO_WEIGHT_LIMIT}, {1024, NO_WEIGHT_LIMIT}, {1024, 3L}};
     }
 
-    @Test(timeOut = 30000, dataProvider = "handoverMaxBatchSizes")
-    public void testConcurrentSubmittersKeepPerThreadOrder(int handoverMaxBatchSize) throws Exception {
+    @Test(timeOut = 30000, dataProvider = "batchLimits")
+    public void testConcurrentSubmittersKeepPerThreadOrder(int maxItems, long maxWeight) throws Exception {
         int threads = 8;
         int tasksPerThread = 10000;
         ExecutorService delegate = Executors.newSingleThreadExecutor();
         ExecutorService submitters = Executors.newFixedThreadPool(threads);
         List<Throwable> failures = new CopyOnWriteArrayList<>();
         BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, handoverMaxBatchSize, failures::add);
+                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, maxItems, maxWeight, failures::add);
         // Written only by the delegate's single thread; the latch publishes the results to the test thread.
         List<List<Integer>> ranByThread = new ArrayList<>();
         CountDownLatch completed = new CountDownLatch(threads * tasksPerThread);
@@ -195,10 +274,10 @@ public class BatchingExecutorWrapperTest {
                         start.await();
                         for (int i = 0; i < tasksPerThread; i++) {
                             int task = i;
-                            wrapper.execute(() -> {
+                            wrapper.execute(weighted(1, () -> {
                                 ran.add(task);
                                 completed.countDown();
-                            });
+                            }));
                         }
                     } catch (Throwable e) {
                         failures.add(e);

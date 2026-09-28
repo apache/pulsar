@@ -606,9 +606,9 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000, dataProvider = "addEntryHandoverBatchingDisabledSizes")
-    public void testAddEntryWithAddEntryHandoverBatchingDisabled(int addEntryHandoverMaxBatchSize) throws Exception {
-        ManagedLedger ledger = factory.open("add_entry_handover_disabled_" + addEntryHandoverMaxBatchSize,
-                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchSize(addEntryHandoverMaxBatchSize)));
+    public void testAddEntryWithAddEntryHandoverBatchingDisabled(int maxBatchItems) throws Exception {
+        ManagedLedger ledger = factory.open("add_entry_handover_disabled_" + maxBatchItems,
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchItems(maxBatchItems)));
 
         Position position = ledger.addEntry("entry".getBytes(Encoding));
 
@@ -616,10 +616,46 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
+    @Test(timeOut = 20000)
+    public void testAsyncAddEntriesWithSmallAddEntryHandoverMaxBatchBytesSize() throws Exception {
+        // Each entry reaches the byte limit on its own, so every handover batch runs a single add.
+        ManagedLedger ledger = factory.open("add_entry_handover_small_bytes_size",
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchBytesSize(1)));
+        int entries = 100;
+        List<CompletableFuture<Position>> positions = new ArrayList<>();
+        for (int i = 0; i < entries; i++) {
+            CompletableFuture<Position> position = new CompletableFuture<>();
+            positions.add(position);
+            ledger.asyncAddEntry(("entry-" + i).getBytes(Encoding), new AddEntryCallback() {
+                @Override
+                public void addComplete(Position addedPosition, ByteBuf entryData, Object ctx) {
+                    position.complete(addedPosition);
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    position.completeExceptionally(exception);
+                }
+            }, null);
+        }
+
+        List<Position> added = new ArrayList<>();
+        for (CompletableFuture<Position> position : positions) {
+            added.add(position.get(10, TimeUnit.SECONDS));
+        }
+        assertThat(added).isSorted().doesNotHaveDuplicates();
+        assertEquals(ledger.getNumberOfEntries(), entries);
+        ledger.close();
+    }
+
     @Test
-    public void testAddEntryHandoverMaxBatchSizeRejectsNegativeValues() {
-        assertEquals(new ManagedLedgerConfig().getAddEntryHandoverMaxBatchSize(), 1024);
-        assertThatThrownBy(() -> new ManagedLedgerConfig().setAddEntryHandoverMaxBatchSize(-1))
+    public void testAddEntryHandoverMaxBatchLimitsRejectNegativeValues() {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        assertEquals(config.getAddEntryHandoverMaxBatchItems(), 1024);
+        assertEquals(config.getAddEntryHandoverMaxBatchBytesSize(), 5 * 1024 * 1024);
+        assertThatThrownBy(() -> config.setAddEntryHandoverMaxBatchItems(-1))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> config.setAddEntryHandoverMaxBatchBytesSize(-1))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

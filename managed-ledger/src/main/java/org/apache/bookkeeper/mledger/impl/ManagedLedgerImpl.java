@@ -377,11 +377,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private ExecutorService deleteLedgerExecutor = null;
 
     // Adds are handed over to the executor in batches. Publishing threads append to the add entry handover queue; the
-    // thread that finds no handover batch scheduled submits one, and that task runs every add queued by then. The
+    // thread that finds no handover batch scheduled submits one, and that task runs the adds queued by then. The
     // executor's own queue then sees one task per batch rather than one per add, so concurrent publishers contend on
     // it once per batch, and other executor work (add completions, cursor notifications) does not wait behind a task
-    // per published message. A handover batch runs at most addEntryHandoverMaxBatchSize adds, captured when the ledger
-    // is opened; 0 or 1 disables batching, and each add is then handed over to the executor as a task of its own.
+    // per published message. A handover batch runs at most addEntryHandoverMaxBatchItems adds, and stops taking more
+    // once their entries add up to addEntryHandoverMaxBatchBytesSize bytes, so that a ledger with large entries does
+    // not hold the executor thread from the ledgers that share it for long. Both are captured when the ledger is
+    // opened; a max batch items of 0 or 1 disables batching, and each add is then handed over to the executor as a
+    // task of its own.
     private final Executor addEntryBatchingExecutor;
     // Chunk size of the add entry handover queue; the queue grows by linking chunks of this size when a batch backs up.
     private static final int ADD_ENTRY_HANDOVER_QUEUE_CHUNK_SIZE = 512;
@@ -416,9 +419,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // withOrderingKey, so their processing can run inline with executeOrRun() instead of re-queueing.
         this.executor = (ThreadBoundExecutor) bookKeeper.getMainWorkerPool().chooseThread(name);
         this.readEntriesCallbackInline = config.isReadEntriesCallbackInline();
-        this.addEntryBatchingExecutor = config.getAddEntryHandoverMaxBatchSize() > 1
+        this.addEntryBatchingExecutor = config.getAddEntryHandoverMaxBatchItems() > 1
                 ? new BatchingExecutorWrapper(executor, ADD_ENTRY_HANDOVER_QUEUE_CHUNK_SIZE,
-                        config.getAddEntryHandoverMaxBatchSize(),
+                        config.getAddEntryHandoverMaxBatchItems(),
+                        config.getAddEntryHandoverMaxBatchBytesSize() > 0
+                                ? config.getAddEntryHandoverMaxBatchBytesSize() : Long.MAX_VALUE,
                         t -> log.error().exception(t).log("Failed to process an add entry request"))
                 : this.executor;
         TOTAL_SIZE_UPDATER.set(this, 0);
@@ -899,11 +904,36 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Jump to specific thread to avoid contention from writers writing from different threads, handing the adds
         // over in batches unless batching is disabled.
-        addEntryBatchingExecutor.execute(() -> {
-            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
-                    currentLedgerTimeoutTriggered);
+        addEntryBatchingExecutor.execute(new AddEntryHandover(buffer, numberOfMessages, callback, ctx));
+    }
+
+    /**
+     * An add handed over to the executor, weighing the size of its entry in the handover batch that runs it.
+     */
+    private final class AddEntryHandover implements BatchingExecutorWrapper.WeightedRunnable {
+        private final ByteBuf buffer;
+        private final int numberOfMessages;
+        private final AddEntryCallback callback;
+        private final Object ctx;
+
+        AddEntryHandover(ByteBuf buffer, int numberOfMessages, AddEntryCallback callback, Object ctx) {
+            this.buffer = buffer;
+            this.numberOfMessages = numberOfMessages;
+            this.callback = callback;
+            this.ctx = ctx;
+        }
+
+        @Override
+        public long getWeight() {
+            return buffer.readableBytes();
+        }
+
+        @Override
+        public void run() {
+            OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(ManagedLedgerImpl.this, buffer, numberOfMessages,
+                    callback, ctx, currentLedgerTimeoutTriggered);
             internalAsyncAddEntry(addOperation);
-        });
+        }
     }
 
     protected synchronized void internalAsyncAddEntry(OpAddEntry addOperation) {

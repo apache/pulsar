@@ -2559,8 +2559,10 @@ public class BrokerService implements Closeable {
             }
             managedLedgerConfig.setBatchReadEnabled(serviceConfig.isManagedLedgerBatchReadEnabled());
             managedLedgerConfig.setReadEntriesCallbackInline(serviceConfig.isManagedLedgerReadEntriesCallbackInline());
-            managedLedgerConfig.setAddEntryHandoverMaxBatchSize(
-                    Math.max(0, serviceConfig.getManagedLedgerAddEntryHandoverMaxBatchSize()));
+            managedLedgerConfig.setAddEntryHandoverMaxBatchItems(
+                    Math.max(0, serviceConfig.getManagedLedgerAddEntryHandoverMaxBatchItems()));
+            managedLedgerConfig.setAddEntryHandoverMaxBatchBytesSize(
+                    Math.max(0, serviceConfig.getManagedLedgerAddEntryHandoverMaxBatchBytesSize()));
             managedLedgerConfig.setMinimumBacklogCursorsForCaching(
                     serviceConfig.getManagedLedgerMinimumBacklogCursorsForCaching());
             managedLedgerConfig.setMinimumBacklogEntriesForCaching(
@@ -3440,9 +3442,16 @@ public class BrokerService implements Closeable {
             }
             return true;
         });
-        addDynamicConfigValidator("managedLedgerAddEntryHandoverMaxBatchSize", (value) -> {
+        addDynamicConfigValidator("managedLedgerAddEntryHandoverMaxBatchItems", (value) -> {
             try {
                 return Integer.parseInt(value) >= 0;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        });
+        addDynamicConfigValidator("managedLedgerAddEntryHandoverMaxBatchBytesSize", (value) -> {
+            try {
+                return Long.parseLong(value) >= 0;
             } catch (NumberFormatException e) {
                 return false;
             }
@@ -3532,11 +3541,14 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("autoSkipNonRecoverableData", (skipNonRecoverableLedger) -> {
             updateManagedLedgerConfig();
         });
-        // add listener to update managed-ledger config to managedLedgerAddEntryHandoverMaxBatchSize; managed ledgers
-        // apply it when they are opened, so ledgers that are already open keep the value they opened with
-        registerConfigurationListener("managedLedgerAddEntryHandoverMaxBatchSize", (addEntryHandoverMaxBatchSize) -> {
+        // add listeners to update managed-ledger config to managedLedgerAddEntryHandoverMaxBatchItems and
+        // managedLedgerAddEntryHandoverMaxBatchBytesSize; managed ledgers apply them when they are opened, so ledgers
+        // that are already open keep the values they opened with
+        registerConfigurationListener("managedLedgerAddEntryHandoverMaxBatchItems", (addEntryHandoverMaxBatchItems) -> {
             updateManagedLedgerConfig();
         });
+        registerConfigurationListener("managedLedgerAddEntryHandoverMaxBatchBytesSize",
+                (addEntryHandoverMaxBatchBytesSize) -> updateManagedLedgerConfig());
         // add listener to update message-dispatch-rate in msg for subscription
         registerConfigurationListener("dispatchThrottlingRatePerSubscriptionInMsg", (dispatchRatePerTopicInMsg) -> {
             updateSubscriptionMessageDispatchRate();
@@ -3760,10 +3772,12 @@ public class BrokerService implements Closeable {
                         ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
                         managedLedgerConfig.setAutoSkipNonRecoverableData(
                                 pulsar.getConfiguration().isAutoSkipNonRecoverableData());
-                        // update addEntryHandoverMaxBatchSize configuration, which applies when a managed ledger
-                        // is opened
-                        managedLedgerConfig.setAddEntryHandoverMaxBatchSize(
-                                Math.max(0, pulsar.getConfiguration().getManagedLedgerAddEntryHandoverMaxBatchSize()));
+                        // update addEntryHandoverMaxBatchItems and addEntryHandoverMaxBatchBytesSize configuration,
+                        // which applies when a managed ledger is opened
+                        managedLedgerConfig.setAddEntryHandoverMaxBatchItems(
+                                Math.max(0, pulsar.getConfiguration().getManagedLedgerAddEntryHandoverMaxBatchItems()));
+                        managedLedgerConfig.setAddEntryHandoverMaxBatchBytesSize(Math.max(0,
+                                pulsar.getConfiguration().getManagedLedgerAddEntryHandoverMaxBatchBytesSize()));
                     }
                 } catch (Exception e) {
                     log.warn().attr("topic", topic.getName()).exception(e)
