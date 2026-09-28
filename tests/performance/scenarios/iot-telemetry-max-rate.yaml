@@ -14,11 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# The launcher variant of key-shared-500x20.yaml: 500 producer connections feed one topic as fast as possible
-# and one application consumes it through a twenty-member Key_Shared subscription, unbatched. Like
-# key-shared-500x20.yaml, ledgers keep a single copy: this is a broker dispatch experiment, not durable capacity
-# guidance. It keeps the saturation settings that iot-telemetry-high-rate.yaml had: no rate limit, and up to
-# 100,000 messages in flight.
+# The 500 gateways of iot-telemetry-high-rate.yaml sending to one topic at the maximum rate: without a rate limit,
+# the gateways publish as fast as the cluster takes the messages, unbatched and with up to 100,000 in flight, and one
+# application consumes them with twenty pods on its Key_Shared subscription. It measures the most telemetry that one
+# application takes in, when one topic's dispatcher and managed ledger carry all of the traffic. Ledgers keep a
+# single copy (ensemble, write and ack quorum 1), so that each entry is written once, and the three bookies share the
+# ledgers, which balances the write load between them; the results aren't capacity guidance for a durable deployment.
+# It is the launcher's counterpart of the legacy TestNG runner's key-shared-500x20.yaml.
 
 extends: iot-telemetry-high-rate.yaml
 cluster:
