@@ -223,11 +223,11 @@ LIMIT 45;
 
 ### Analysing collapsed stacktrace files with quack_flamegraph
 
-AI agents can automate analysis by building DuckDB queries with views and queries that join data in usable ways.
-Some example commands. The view above was a way to compose quack_flamegraph's functions to build other ways to query the data.
-Filtering with additional where queries to filter out false-positives is something that an AI agent can do to drill down into the data.
+AI agents can automate analysis by combining quack_flamegraph's functions in DuckDB queries and views, as the
+`leaf_by_frame` view above demonstrates. They can join results and add `WHERE` clauses to narrow the analysis,
+exclude irrelevant matches, and investigate specific call paths.
 
-Examples:
+For example, this command ranks stacks whose leaf frames match the filter and prints the results as JSON:
 
 ```sql
 duckdb -json \
@@ -242,7 +242,8 @@ LIMIT 45;
 "
 ```
 
-Store the leaf_by_frame view to a file called `quack_flamegraph_views.sql` when using the leaf_by_frame view described above.
+To use the `leaf_by_frame` view from the command line, save its definition above in `quack_flamegraph_views.sql`,
+then load it before running the query:
 
 ```sql
 duckdb -json \
