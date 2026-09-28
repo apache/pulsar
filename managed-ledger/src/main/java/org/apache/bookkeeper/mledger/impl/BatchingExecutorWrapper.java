@@ -20,10 +20,14 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.jctools.queues.MpscUnboundedArrayQueue;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An {@link Executor} that hands tasks over to a delegate executor in batches instead of one task at a time.
@@ -43,6 +47,12 @@ import org.jctools.queues.MpscUnboundedArrayQueue;
  * <p>Tasks submitted by one thread run in the order that thread submitted them. The delegate must run the tasks
  * submitted to it one at a time, such as a single-threaded executor, since the queue supports a single consumer.
  *
+ * <p>When the delegate rejects a handover batch, {@link #execute(Runnable)} throws what the delegate threw if the
+ * task it submitted had not run yet, and every other queued task is passed to the rejected task handler instead of
+ * being left in the queue.
+ *
+ * <p>The queue is created by the first submitted task, so that a wrapper that is never used does not allocate it.
+ *
  * <p>Batching needs a {@code maxItems} greater than 1. To hand tasks over one at a time, submit them to the delegate
  * directly instead of wrapping it.
  */
@@ -58,12 +68,22 @@ class BatchingExecutorWrapper implements Executor {
         long getWeight();
     }
 
+    @SuppressWarnings("rawtypes")
+    private static final AtomicReferenceFieldUpdater<BatchingExecutorWrapper, MpscUnboundedArrayQueue>
+            HANDOVER_QUEUE_UPDATER = AtomicReferenceFieldUpdater.newUpdater(BatchingExecutorWrapper.class,
+                    MpscUnboundedArrayQueue.class, "handoverQueue");
+
     private final Executor delegate;
+    private final int queueChunkSize;
     private final int maxItems;
     private final long maxWeight;
     private final Consumer<Throwable> runFailureConsumer;
+    private final BiConsumer<Runnable, RuntimeException> rejectedTaskHandler;
+    // Set while a handover batch is scheduled or running. The thread that sets it is the only one that takes tasks
+    // from the handover queue until it clears it, which keeps the queue single-consumer.
     private final AtomicBoolean handoverScheduled = new AtomicBoolean();
-    private final MpscUnboundedArrayQueue<Runnable> handoverQueue;
+    // Created by the first task, and never replaced.
+    private volatile MpscUnboundedArrayQueue<Runnable> handoverQueue;
 
     /**
      * Creates a wrapper that hands tasks over to {@code delegate} in batches.
@@ -73,55 +93,116 @@ class BatchingExecutorWrapper implements Executor {
      * @param maxItems the maximum number of tasks run by one handover batch; must be greater than 1
      * @param maxWeight the total weight of tasks after which a handover batch stops taking more tasks; must be
      *                  positive, and {@link Long#MAX_VALUE} leaves batches limited only by {@code maxItems}
-     * @param runFailureConsumer receives what a task run by a handover batch throws, so that the remaining tasks of
-     *                           the batch still run
+     * @param runFailureConsumer receives what a task run by a handover batch, or the rejected task handler, throws,
+     *                           so that the remaining tasks still run
+     * @param rejectedTaskHandler receives each queued task that will not run because the delegate rejected its
+     *                            handover batch, with what the delegate threw; it runs on the thread whose
+     *                            submission was rejected
      * @throws IllegalArgumentException if {@code maxItems} is not greater than 1 or {@code maxWeight} is not positive
      */
     BatchingExecutorWrapper(Executor delegate, int queueChunkSize, int maxItems, long maxWeight,
-                            Consumer<Throwable> runFailureConsumer) {
+                            Consumer<Throwable> runFailureConsumer,
+                            BiConsumer<Runnable, RuntimeException> rejectedTaskHandler) {
         checkArgument(maxItems > 1, "maxItems must be greater than 1");
         checkArgument(maxWeight > 0, "maxWeight must be positive");
         this.delegate = delegate;
+        this.queueChunkSize = queueChunkSize;
         this.maxItems = maxItems;
         this.maxWeight = maxWeight;
         this.runFailureConsumer = runFailureConsumer;
-        this.handoverQueue = new MpscUnboundedArrayQueue<>(queueChunkSize);
+        this.rejectedTaskHandler = rejectedTaskHandler;
     }
 
     /**
      * Queues {@code command} for the next handover batch, submitting that batch to the delegate unless it is already
      * scheduled.
      *
-     * @throws RuntimeException what the delegate throws when it rejects the handover batch, such as
-     *                          {@code RejectedExecutionException}
+     * @throws RuntimeException what the delegate throws when it rejects the handover batch before {@code command} ran,
+     *                          such as {@code RejectedExecutionException}; {@code command} then does not run
      */
     @Override
     public void execute(Runnable command) {
-        handoverQueue.offer(command);
-        scheduleHandover();
+        handoverQueue().offer(command);
+        scheduleHandover(command);
     }
 
-    private void scheduleHandover() {
-        if (handoverScheduled.compareAndSet(false, true)) {
+    @SuppressWarnings("unchecked")
+    private MpscUnboundedArrayQueue<Runnable> handoverQueue() {
+        MpscUnboundedArrayQueue<Runnable> queue = handoverQueue;
+        if (queue == null) {
+            queue = new MpscUnboundedArrayQueue<>(queueChunkSize);
+            if (!HANDOVER_QUEUE_UPDATER.compareAndSet(this, null, queue)) {
+                // Another submitting thread created it first: every thread must use the same queue.
+                queue = handoverQueue;
+            }
+        }
+        return queue;
+    }
+
+    @VisibleForTesting
+    boolean hasHandoverQueue() {
+        return handoverQueue != null;
+    }
+
+    /**
+     * Submits a handover batch to the delegate unless one is already scheduled.
+     *
+     * @param submitted the task the calling thread just queued, or null when called by a handover batch
+     */
+    private void scheduleHandover(@Nullable Runnable submitted) {
+        RuntimeException submittedRejection = null;
+        while (handoverScheduled.compareAndSet(false, true)) {
             try {
                 delegate.execute(this::runHandoverBatch);
+                break;
             } catch (RuntimeException e) {
-                // Let a later task retry scheduling, and fail this caller as the delegate would have.
+                if (rejectQueuedTasks(submitted, e)) {
+                    submittedRejection = e;
+                    submitted = null;
+                }
                 handoverScheduled.set(false);
-                throw e;
+                // Retry for a task queued after the queue was emptied: its thread found the flag set and returned.
+                if (handoverQueue.isEmpty()) {
+                    break;
+                }
             }
+        }
+        if (submittedRejection != null) {
+            throw submittedRejection;
         }
     }
 
-    private void runHandoverBatch() {
-        // Clear the flag before polling: a task queued after this point schedules another batch if this one misses
-        // it, so no task is left behind.
-        handoverScheduled.set(false);
+    /**
+     * Takes every queued task and passes it to the rejected task handler, except {@code submitted}, which the caller
+     * fails itself. The calling thread must have set the handover flag.
+     *
+     * @return whether {@code submitted} was still queued
+     */
+    private boolean rejectQueuedTasks(@Nullable Runnable submitted, RuntimeException rejection) {
+        boolean submittedQueued = false;
+        Runnable task;
+        // poll() rather than relaxedPoll(): a task whose submission completed must be seen, even if a task queued
+        // before it is still being written.
+        while ((task = handoverQueue.poll()) != null) {
+            if (task == submitted && !submittedQueued) {
+                submittedQueued = true;
+                continue;
+            }
+            try {
+                rejectedTaskHandler.accept(task, rejection);
+            } catch (Throwable t) {
+                runFailureConsumer.accept(t);
+            }
+        }
+        return submittedQueued;
+    }
 
+    private void runHandoverBatch() {
+        MpscUnboundedArrayQueue<Runnable> queue = handoverQueue;
         int items = 0;
         long weight = 0;
         Runnable command;
-        while (items < maxItems && weight < maxWeight && (command = handoverQueue.relaxedPoll()) != null) {
+        while (items < maxItems && weight < maxWeight && (command = queue.relaxedPoll()) != null) {
             items++;
             try {
                 if (command instanceof WeightedRunnable weightedCommand) {
@@ -133,9 +214,12 @@ class BatchingExecutorWrapper implements Executor {
             }
         }
 
-        if (!handoverQueue.isEmpty()) {
-            // Leave the rest to the next handover batch so that other tasks on the delegate can run in between.
-            scheduleHandover();
+        // Clear the flag before checking the queue: a task queued while the flag was set did not schedule a batch, so
+        // it is picked up here. Tasks left over by the limits are handed to a new batch, so that other tasks on the
+        // delegate can run in between.
+        handoverScheduled.set(false);
+        if (!queue.isEmpty()) {
+            scheduleHandover(null);
         }
     }
 }

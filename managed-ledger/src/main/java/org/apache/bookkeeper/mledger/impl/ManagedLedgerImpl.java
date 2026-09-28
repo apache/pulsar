@@ -424,7 +424,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         config.getAddEntryHandoverMaxBatchItems(),
                         config.getAddEntryHandoverMaxBatchBytesSize() > 0
                                 ? config.getAddEntryHandoverMaxBatchBytesSize() : Long.MAX_VALUE,
-                        t -> log.error().exception(t).log("Failed to process an add entry request"))
+                        t -> log.error().exception(t).log("Failed to process an add entry request"),
+                        (add, rejection) -> ((AddEntryHandover) add).rejected(rejection))
                 : this.executor;
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
@@ -933,6 +934,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(ManagedLedgerImpl.this, buffer, numberOfMessages,
                     callback, ctx, currentLedgerTimeoutTriggered);
             internalAsyncAddEntry(addOperation);
+        }
+
+        /**
+         * Fails this add, which will not run because the executor rejected its handover batch.
+         */
+        void rejected(RuntimeException rejection) {
+            buffer.release();
+            callback.addFailed(new ManagedLedgerException("Failed to hand the add entry over to the executor",
+                    rejection), ctx);
         }
     }
 

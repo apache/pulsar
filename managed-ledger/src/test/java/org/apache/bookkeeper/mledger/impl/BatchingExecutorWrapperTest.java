@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -42,6 +43,9 @@ public class BatchingExecutorWrapperTest {
     private static final Consumer<Throwable> FAIL_ON_TASK_FAILURE = t -> {
         throw new AssertionError("Unexpected task failure", t);
     };
+    private static final BiConsumer<Runnable, RuntimeException> FAIL_ON_REJECTED_TASK = (task, e) -> {
+        throw new AssertionError("Unexpected rejected task", e);
+    };
 
     /**
      * An executor that keeps the submitted tasks until the test runs them, and rejects them while {@link #rejecting}.
@@ -49,10 +53,13 @@ public class BatchingExecutorWrapperTest {
     private static class ManualExecutor implements Executor {
         final Queue<Runnable> tasks = new ArrayDeque<>();
         boolean rejecting;
+        // Runs before a rejection is thrown, standing in for a thread that queues a task meanwhile.
+        Runnable beforeRejecting = () -> { };
 
         @Override
         public void execute(Runnable command) {
             if (rejecting) {
+                beforeRejecting.run();
                 throw new RejectedExecutionException("rejected");
             }
             tasks.add(command);
@@ -67,6 +74,11 @@ public class BatchingExecutorWrapperTest {
                 runNext();
             }
         }
+    }
+
+    private static BatchingExecutorWrapper newWrapper(Executor delegate, int maxItems, long maxWeight) {
+        return new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, maxItems, maxWeight, FAIL_ON_TASK_FAILURE,
+                FAIL_ON_REJECTED_TASK);
     }
 
     /**
@@ -89,24 +101,23 @@ public class BatchingExecutorWrapperTest {
     @Test
     public void testMaxItemsMustBeGreaterThanOne() {
         for (int maxItems : new int[] {-1, 0, 1}) {
-            assertThatThrownBy(() -> new BatchingExecutorWrapper(new ManualExecutor(), QUEUE_CHUNK_SIZE, maxItems,
-                    NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> newWrapper(new ManualExecutor(), maxItems, NO_WEIGHT_LIMIT))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
     @Test
     public void testMaxWeightMustBePositive() {
         for (long maxWeight : new long[] {-1, 0}) {
-            assertThatThrownBy(() -> new BatchingExecutorWrapper(new ManualExecutor(), QUEUE_CHUNK_SIZE, 1024,
-                    maxWeight, FAIL_ON_TASK_FAILURE)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> newWrapper(new ManualExecutor(), 1024, maxWeight))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
     @Test
     public void testBatchStopsTakingTasksOnceTheirWeightsReachMaxWeight() {
         ManualExecutor delegate = new ManualExecutor();
-        BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, 10, FAIL_ON_TASK_FAILURE);
+        BatchingExecutorWrapper wrapper = newWrapper(delegate, 1024, 10);
         List<Integer> ran = new ArrayList<>();
         for (int i = 0; i < 6; i++) {
             int task = i;
@@ -125,8 +136,7 @@ public class BatchingExecutorWrapperTest {
     @Test
     public void testTaskHeavierThanMaxWeightRunsInABatchOfItsOwn() {
         ManualExecutor delegate = new ManualExecutor();
-        BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, 10, FAIL_ON_TASK_FAILURE);
+        BatchingExecutorWrapper wrapper = newWrapper(delegate, 1024, 10);
         List<Integer> ran = new ArrayList<>();
         wrapper.execute(weighted(100, () -> ran.add(0)));
         wrapper.execute(weighted(1, () -> ran.add(1)));
@@ -141,8 +151,7 @@ public class BatchingExecutorWrapperTest {
     @Test
     public void testTasksWithoutWeightAreLimitedOnlyByMaxItems() {
         ManualExecutor delegate = new ManualExecutor();
-        BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 3, 1, FAIL_ON_TASK_FAILURE);
+        BatchingExecutorWrapper wrapper = newWrapper(delegate, 3, 1);
         List<Integer> ran = new ArrayList<>();
         for (int i = 0; i < 4; i++) {
             int task = i;
@@ -157,8 +166,7 @@ public class BatchingExecutorWrapperTest {
     @Test
     public void testTasksQueuedBeforeTheBatchRunsShareOneBatch() {
         ManualExecutor delegate = new ManualExecutor();
-        BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE);
+        BatchingExecutorWrapper wrapper = newWrapper(delegate, 1024, NO_WEIGHT_LIMIT);
         List<Integer> ran = new ArrayList<>();
 
         for (int i = 0; i < 3; i++) {
@@ -175,8 +183,7 @@ public class BatchingExecutorWrapperTest {
     @Test
     public void testBatchRunsAtMostMaxBatchSizeTasksAndSchedulesTheRest() {
         ManualExecutor delegate = new ManualExecutor();
-        BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 2, NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE);
+        BatchingExecutorWrapper wrapper = newWrapper(delegate, 2, NO_WEIGHT_LIMIT);
         List<Integer> ran = new ArrayList<>();
         for (int i = 0; i < 5; i++) {
             int task = i;
@@ -197,8 +204,7 @@ public class BatchingExecutorWrapperTest {
     @Test
     public void testTaskQueuedWhileABatchRunsIsNotLeftBehind() {
         ManualExecutor delegate = new ManualExecutor();
-        BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE);
+        BatchingExecutorWrapper wrapper = newWrapper(delegate, 1024, NO_WEIGHT_LIMIT);
         List<String> ran = new ArrayList<>();
         wrapper.execute(() -> {
             ran.add("first");
@@ -214,8 +220,8 @@ public class BatchingExecutorWrapperTest {
     public void testTaskFailureIsProcessedAndTheBatchContinues() {
         ManualExecutor delegate = new ManualExecutor();
         List<Throwable> failures = new ArrayList<>();
-        BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, NO_WEIGHT_LIMIT, failures::add);
+        BatchingExecutorWrapper wrapper = new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024,
+                NO_WEIGHT_LIMIT, failures::add, FAIL_ON_REJECTED_TASK);
         RuntimeException failure = new RuntimeException("task failed");
         List<Integer> ran = new ArrayList<>();
         wrapper.execute(() -> ran.add(0));
@@ -231,10 +237,20 @@ public class BatchingExecutorWrapperTest {
     }
 
     @Test
+    public void testQueueIsCreatedByTheFirstTask() {
+        ManualExecutor delegate = new ManualExecutor();
+        BatchingExecutorWrapper wrapper = newWrapper(delegate, 1024, NO_WEIGHT_LIMIT);
+        assertThat(wrapper.hasHandoverQueue()).isFalse();
+
+        wrapper.execute(() -> { });
+
+        assertThat(wrapper.hasHandoverQueue()).isTrue();
+    }
+
+    @Test
     public void testRejectedHandoverFailsTheCallerAndALaterTaskRetriesScheduling() {
         ManualExecutor delegate = new ManualExecutor();
-        BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024, NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE);
+        BatchingExecutorWrapper wrapper = newWrapper(delegate, 1024, NO_WEIGHT_LIMIT);
         List<Integer> ran = new ArrayList<>();
         delegate.rejecting = true;
 
@@ -244,7 +260,56 @@ public class BatchingExecutorWrapperTest {
         wrapper.execute(() -> ran.add(1));
         assertThat(delegate.tasks).hasSize(1);
         delegate.runAll();
-        assertThat(ran).contains(1);
+        // The rejected task was taken out of the queue, so it does not run after its caller was failed.
+        assertThat(ran).containsExactly(1);
+    }
+
+    @Test
+    public void testRejectedHandoverPassesTasksQueuedByOtherThreadsToTheHandler() {
+        ManualExecutor delegate = new ManualExecutor();
+        List<Runnable> rejected = new ArrayList<>();
+        BatchingExecutorWrapper wrapper = new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 1024,
+                NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE, (task, e) -> rejected.add(task));
+        List<Integer> ran = new ArrayList<>();
+        Runnable queuedMeanwhile = () -> ran.add(1);
+        // Queued while the first caller's handover is being submitted, so its own execute() returns normally.
+        delegate.beforeRejecting = () -> {
+            delegate.beforeRejecting = () -> { };
+            wrapper.execute(queuedMeanwhile);
+        };
+        delegate.rejecting = true;
+
+        assertThatThrownBy(() -> wrapper.execute(() -> ran.add(0))).isInstanceOf(RejectedExecutionException.class);
+
+        assertThat(rejected).containsExactly(queuedMeanwhile);
+        assertThat(ran).isEmpty();
+        assertThat(delegate.tasks).isEmpty();
+    }
+
+    @Test
+    public void testRejectedFollowUpBatchPassesTheRemainingTasksToTheHandler() {
+        ManualExecutor delegate = new ManualExecutor();
+        List<Runnable> rejected = new ArrayList<>();
+        BatchingExecutorWrapper wrapper = new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 2,
+                NO_WEIGHT_LIMIT, FAIL_ON_TASK_FAILURE, (task, e) -> rejected.add(task));
+        List<Integer> ran = new ArrayList<>();
+        List<Runnable> tasks = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            int task = i;
+            tasks.add(() -> ran.add(task));
+            wrapper.execute(tasks.get(i));
+        }
+        delegate.rejecting = true;
+
+        // The batch runs two tasks, and the delegate rejects the batch for the other two.
+        delegate.runNext();
+
+        assertThat(ran).containsExactly(0, 1);
+        assertThat(rejected).containsExactly(tasks.get(2), tasks.get(3));
+        delegate.rejecting = false;
+        wrapper.execute(() -> ran.add(4));
+        delegate.runAll();
+        assertThat(ran).containsExactly(0, 1, 4);
     }
 
     @DataProvider
@@ -259,8 +324,8 @@ public class BatchingExecutorWrapperTest {
         ExecutorService delegate = Executors.newSingleThreadExecutor();
         ExecutorService submitters = Executors.newFixedThreadPool(threads);
         List<Throwable> failures = new CopyOnWriteArrayList<>();
-        BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, maxItems, maxWeight, failures::add);
+        BatchingExecutorWrapper wrapper = new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, maxItems,
+                maxWeight, failures::add, FAIL_ON_REJECTED_TASK);
         // Written only by the delegate's single thread; the latch publishes the results to the test thread.
         List<List<Integer>> ranByThread = new ArrayList<>();
         CountDownLatch completed = new CountDownLatch(threads * tasksPerThread);
