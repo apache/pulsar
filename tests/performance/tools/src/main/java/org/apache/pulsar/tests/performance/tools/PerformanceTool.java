@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.performance.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -29,6 +30,12 @@ import picocli.CommandLine.Option;
 @Command(name = "pulsar-performance-tools", mixinStandardHelpOptions = true,
         subcommands = {TelemetryProducer.class, TelemetryConsumer.class})
 public class PerformanceTool implements Callable<Integer> {
+    /**
+     * The largest latency the latency logs record: a longer one is recorded as this. An hour is far beyond any run of
+     * these tests, and keeps the histograms small.
+     */
+    static final long MAX_LATENCY_MICROS = TimeUnit.HOURS.toMicros(1);
+
     public static void main(String[] args) {
         System.exit(new CommandLine(new PerformanceTool()).execute(args));
     }
@@ -58,6 +65,11 @@ public class PerformanceTool implements Callable<Integer> {
         @Option(names = "--coordination-directory",
                 description = "Shared directory for workload phase barriers (default: <output>/coordination)")
         Path coordinationDirectory;
+
+        @Option(names = "--control-port",
+                description = "Serve the progress stream, and the producer's measurement control endpoints, on "
+                        + "this port")
+        Integer controlPort;
 
         @Option(names = "--run-id",
                 description = "Shared correlation ID, required when warmup is enabled; use a new ID per run")

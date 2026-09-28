@@ -54,14 +54,13 @@ val copyOffloaderTarball = tasks.register<Copy>("copyOffloaderTarball") {
     into(layout.buildDirectory.dir("target"))
 }
 
-val dockerBuild = tasks.register<Exec>("dockerBuild") {
+fun registerDockerBuild(taskName: String, dockerfile: String, imageTag: String) = tasks.register<Exec>(taskName) {
     group = "docker"
-    description = "Build the Pulsar Docker image. Use -Pdocker.push to push the image to registry."
 
     dependsOn(copyTarball, copyOffloaderTarball)
 
-    val dockerfile = if (useWolfi) "Dockerfile.wolfi" else "Dockerfile"
-    val imageName = "${dockerOrganization}/${dockerImage}:${dockerTag}"
+    val imageName = "${dockerOrganization}/${dockerImage}:${imageTag}"
+    val imageIdFile = layout.buildDirectory.file("docker/${taskName}.iid").get().asFile
     val tarballName = "apache-pulsar-${pulsarVersion}-bin.tar.gz"
     val offloaderTarballName = "apache-pulsar-offloaders-${pulsarVersion}-bin.tar.gz"
     // Resolve version catalog values at configuration time (not in doFirst)
@@ -76,6 +75,7 @@ val dockerBuild = tasks.register<Exec>("dockerBuild") {
         "docker", "build",
         "-f", dockerfile,
         "-t", imageName,
+        "--iidfile", imageIdFile.absolutePath,
         "--build-arg", "PULSAR_TARBALL=build/target/${tarballName}",
         "--build-arg", "PULSAR_CLIENT_PYTHON_VERSION=${pythonClientVersion}",
         "--build-arg", "SNAPPY_VERSION=${snappyVersion}",
@@ -94,4 +94,25 @@ val dockerBuild = tasks.register<Exec>("dockerBuild") {
     args.add(".")
 
     commandLine(args)
+
+    // Rebuild the image only when what goes into it changes, see dockerImageOutput
+    inputs.file(dockerfile)
+    inputs.dir("build-scripts")
+    inputs.dir("scripts")
+    inputs.files(copyTarball, copyOffloaderTarball)
+    inputs.property("dockerBuildArgs", args)
+    dockerImageOutput(imageName, imageIdFile)
+}
+
+val dockerBuild = registerDockerBuild("dockerBuild", if (useWolfi) "Dockerfile.wolfi" else "Dockerfile", dockerTag)
+dockerBuild.configure {
+    description = "Build the Pulsar Docker image. Use -Pdocker.push to push the image to registry and " +
+        "-Pdocker.wolfi to build it from Wolfi instead of Alpine."
+}
+
+// A glibc-based image under its own tag, for tooling whose native libraries do not load on musl (the
+// jonoffcpu profiler agent), without replacing the Alpine image everything else uses.
+val dockerBuildWolfi = registerDockerBuild("dockerBuildWolfi", "Dockerfile.wolfi", "${dockerTag}-wolfi")
+dockerBuildWolfi.configure {
+    description = "Build the Pulsar Docker image from Wolfi under the <tag>-wolfi tag"
 }
