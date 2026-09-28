@@ -29,11 +29,13 @@
 #            ~/.gradle/gradle.properties of the user running sudo
 #   stop     switches TuneD to a balanced profile that allows power saving, stops TuneD,
 #            starts the daemons stopped by "start" again and removes the Gradle property
-#   validate checks, without root, that the host is ready for performance tests: AC power,
-#            disk space, the active TuneD profile and the settings it applies. It prints each
-#            check to stdout and the reason for each failed check to stderr, and exits with
-#            1 when a check failed, so that scripts and AI agents can check the host before
-#            running tests.
+#   validate checks that the host is ready for performance tests: on every operating system
+#            that Docker is available and has disk space, and on Linux also AC power, the
+#            active TuneD profile and the settings it applies. It prints each check to stdout
+#            and the reason for each failed check to stderr, so that scripts and AI agents can
+#            check the host before running tests. Its exit code is 0 when every check passed,
+#            and otherwise the sum of EXIT_DOCKER_DISK, EXIT_DOCKER_UNAVAILABLE and
+#            EXIT_HOST_CONFIGURATION for the kinds of checks that failed.
 set -euo pipefail
 
 # tuned-adm, sysctl and other administration commands are in the sbin directories, which aren't on the
@@ -54,6 +56,14 @@ DOCKER_LOG_OPTIONS='{"max-size": "100m", "max-file": "3"}'
 # BookKeeper's diskUsageWarnThreshold, bookies switch to read-only mode at 95 % by default. "start"
 # warns and "validate" fails when the disk that holds Docker's data is this full.
 DISK_USAGE_LIMIT_PERCENT=90
+# Where Docker's data directory isn't on the host, such as with Docker in a virtual machine on
+# macOS, the disk's usage is read in a container of this image
+DISK_CHECK_IMAGE="${DISK_CHECK_IMAGE:-alpine}"
+# The exit codes of "validate", added up when several kinds of checks failed; 1 is left for usage
+# and unexpected errors
+EXIT_DOCKER_DISK=2
+EXIT_DOCKER_UNAVAILABLE=4
+EXIT_HOST_CONFIGURATION=8
 # The performance-testing profile applies the kernel settings of the
 # :tests:integration:tuneKernelPerfEvents task, so "start" skips the task in the Gradle
 # properties of the user who runs the tests
@@ -444,19 +454,27 @@ check_ac_power() {
     fi
 }
 
-# Prints the directory of Docker's data and how full its disk is, in percent
+# Prints the directory of Docker's data and how full its disk is, in percent. When the directory
+# isn't on the host, as with Docker in a virtual machine, it reads the usage of a container's root
+# file system, which is on the same disk as Docker's data, as the bookies' ledgers are.
 docker_disk_usage() {
-    local docker_root
+    local docker_root usage
     docker_root="$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || true)"
     docker_root="${docker_root:-/var/lib/docker}"
     if [[ -d "${docker_root}" ]]; then
-        echo "${docker_root} $(df --output=pcent "${docker_root}" | tail -n 1 | tr -d ' %')"
+        usage="$(df -P "${docker_root}" | awk 'NR == 2 { sub("%", "", $5); print $5 }')"
+    else
+        usage="$(docker run --rm "${DISK_CHECK_IMAGE}" df -P / 2>/dev/null \
+            | awk 'NR == 2 { sub("%", "", $5); print $5 }')" || return 1
+        docker_root="${docker_root}, read in a container"
     fi
+    [[ "${usage}" =~ ^[0-9]+$ ]] || return 1
+    echo "${usage} ${docker_root}"
 }
 
 check_disk_space() {
     local docker_root usage
-    read -r docker_root usage < <(docker_disk_usage) || return 0
+    read -r usage docker_root < <(docker_disk_usage) || return 0
     if ((usage >= DISK_USAGE_LIMIT_PERCENT)); then
         echo "WARNING: The disk of ${docker_root} is ${usage} % full. BookKeeper bookies switch to" \
             "read-only mode when the disk is 95 % full." >&2
@@ -609,6 +627,9 @@ stop() {
 # "validate" prints each check to stdout, and the reason for each failed check to stderr
 validation_checks=0
 validation_failures=0
+validation_exit_code=0
+# The exit code that a failed check adds, which each group of checks sets
+failure_exit_code=${EXIT_HOST_CONFIGURATION}
 
 check_passed() {
     validation_checks=$((validation_checks + 1))
@@ -618,6 +639,7 @@ check_passed() {
 check_failed() {
     validation_checks=$((validation_checks + 1))
     validation_failures=$((validation_failures + 1))
+    validation_exit_code=$((validation_exit_code | failure_exit_code))
     echo "FAILED: $1"
     echo "$1: $2" >&2
 }
@@ -661,14 +683,17 @@ validate_power() {
 
 validate_disk_space() {
     local docker_root usage
+    failure_exit_code=${EXIT_DOCKER_UNAVAILABLE}
     if ! docker info >/dev/null 2>&1; then
         check_failed "Docker is available" "Can't connect to Docker. Start it, or add the user to the docker group."
         return
     fi
-    if ! read -r docker_root usage < <(docker_disk_usage); then
-        check_failed "Docker's disk has space" "Docker's data directory wasn't found."
+    if ! read -r usage docker_root < <(docker_disk_usage); then
+        check_failed "Docker's disk usage can be read" "Docker's data directory isn't on the host, and a container\
+ of the ${DISK_CHECK_IMAGE} image couldn't read its disk's usage."
         return
     fi
+    failure_exit_code=${EXIT_DOCKER_DISK}
     if ((usage >= DISK_USAGE_LIMIT_PERCENT)); then
         check_failed "Docker's disk is less than ${DISK_USAGE_LIMIT_PERCENT} % full" "The disk of ${docker_root} is\
  ${usage} % full, and BookKeeper bookies switch to read-only mode when it is 95 % full. Free space, for example with\
@@ -728,8 +753,13 @@ validate_governor() {
 }
 
 validate() {
-    validate_power
     validate_disk_space
+    if [[ "$(uname -s)" != "Linux" ]]; then
+        echo "skipped: the host's configuration, which is checked on Linux only"
+        finish_validation
+    fi
+    failure_exit_code=${EXIT_HOST_CONFIGURATION}
+    validate_power
     validate_tuned_profile
     validate_service_stopped "${THERMALD_SERVICE}"
     if [[ "$(os_id)" == "pop" ]]; then
@@ -743,12 +773,16 @@ validate() {
         /sys/kernel/mm/transparent_hugepage/enabled madvise
     validate_setting "Transparent Huge Pages are compacted when the JVM touches its heap" \
         /sys/kernel/mm/transparent_hugepage/defrag madvise
+    finish_validation
+}
 
+finish_validation() {
     if ((validation_failures > 0)); then
         echo "Validation failed: ${validation_failures} of ${validation_checks} checks failed." >&2
-        exit 1
+        exit "${validation_exit_code}"
     fi
     echo "Validation passed: ${validation_checks} checks."
+    exit 0
 }
 
 case "${1:-}" in

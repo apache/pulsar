@@ -153,8 +153,9 @@ scenarios in detail.
   sudo tests/performance/environment/scripts/configure-perf-test-environment.sh stop     # after the runs
   ```
 
-  `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` checks, without root, that the
-  host is ready: that it's on AC power, has disk space and runs with the profile's settings.
+  `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` checks that the host is ready:
+  that Docker's disk has space, on Linux and macOS, and on Linux also that the host is on AC power and runs with the
+  profile's settings.
 - **A reports root** that your checkouts share. Without one, each checkout writes its runs to its own
   `build/performance`, so the runs of two revisions in separate worktrees end up apart, and removing a worktree
   removes its runs. Set `performance.reportsDir` in `~/.gradle/gradle.properties`, which applies to every checkout

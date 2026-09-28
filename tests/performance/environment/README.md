@@ -37,7 +37,7 @@ on any Linux distribution where TuneD and the profile are installed.
 | `install` | Installs TuneD when it is missing (Debian based distributions), disables TuneD's dynamic tuning, installs the `performance-testing` TuneD profile without activating it, limits the size of Docker's container logs and leaves the TuneD daemon disabled; when the profile is active, it applies the updated profile. Run once, and again after the profile changes. |
 | `start` | Checks that the host is on AC power and warns when Docker's disk is 90 % full, stops `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS), activates and verifies the `performance-testing` profile and skips the `:tests:integration:tuneKernelPerfEvents` task in `~/.gradle/gradle.properties`. |
 | `stop` | Switches TuneD to the `balanced` profile, stops TuneD, applies the system's configured dirty page limits and swappiness again, starts the stopped daemons again and removes the Gradle property. |
-| `validate` | Checks that the host is ready for performance tests, see [Checking the host](#checking-the-host). Doesn't need root. |
+| `validate` | Checks that the host is ready for performance tests, see [Checking the host](#checking-the-host). Runs on Linux and macOS. |
 
 `install`, `start` and `stop` run as root: `sudo scripts/configure-perf-test-environment.sh start`.
 
@@ -141,18 +141,32 @@ Before a run:
 
 ## Checking the host
 
-`validate` checks, without root, that the host is ready for performance tests, for example in a script or by an AI
-agent before a series of runs:
+`validate` checks that the host is ready for performance tests, for example in a script or by an AI agent before a
+series of runs. It runs on Linux and on macOS:
 
 ```sh
 tests/performance/environment/scripts/configure-perf-test-environment.sh validate
 ```
 
-It checks that the host is on AC power, that the disk that holds Docker's data is less than 90 % full, that the
-`performance-testing` profile is active with `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS) stopped,
-and the settings the profile applies: turbo, the CPU frequency governor, swapping, perf events and Transparent Huge
-Pages. It runs every check, prints each one to stdout as `ok:` or `FAILED:`, and the reason for each failed check,
-with what to do about it, to stderr. It exits with 1 when a check failed.
+On every operating system, it checks that Docker is available and that the disk that holds Docker's data is less
+than 90 % full. When Docker's data directory isn't on the host, as with Docker in a virtual machine on macOS, it reads
+the disk's usage in a container of the `alpine` image, whose root file system is on the same disk as Docker's data;
+`DISK_CHECK_IMAGE` sets another image. On Linux, it also checks the host's configuration: that the host is on AC
+power, that the `performance-testing` profile is active with `thermald` (and `com.system76.PowerDaemon.service` on
+Pop!_OS) stopped, and the settings the profile applies: turbo, the CPU frequency governor, swapping, perf events and
+Transparent Huge Pages. It runs every check, prints each one to stdout as `ok:`, `FAILED:` or `skipped:`, and the
+reason for each failed check, with what to do about it, to stderr.
+
+Its exit code tells the kinds of checks that failed apart, and is their sum when several kinds failed, such as 10 when
+Docker's disk is too full and the host isn't configured:
+
+| Exit code | Meaning | What to do |
+|---|---|---|
+| 0 | Every check passed | |
+| 1 | A usage or an unexpected error | |
+| 2 | Docker's disk is too full | Free space, for example with `scripts/docker-cleanup.sh`, see [Freeing Docker disk space](#freeing-docker-disk-space) |
+| 4 | Docker isn't available, or the usage of its disk couldn't be read | Start Docker, or give the user access to it |
+| 8 | The host's configuration, on Linux only | Configure the host with `install` and `start` |
 
 A failed setting check while the profile is active means that the installed profile is older than the script: run
 `install` again, then `start`.
