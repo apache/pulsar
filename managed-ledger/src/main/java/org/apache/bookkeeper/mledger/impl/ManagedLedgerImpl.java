@@ -953,18 +953,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (queue == null) {
             return;
         }
-        // Take the batch out of the queue before running it. The list is local to this run, which is on the ledger's
-        // executor thread. An add that is still being offered can be left in the queue; the check below then
-        // schedules another batch for it.
-        List<Runnable> batch = new ArrayList<>(Math.min(queue.size(), addEntryHandoverMaxBatchSize));
-        queue.drain(batch::add, addEntryHandoverMaxBatchSize);
-        for (Runnable add : batch) {
+
+        Runnable add;
+        for (int i = 0; i < addEntryHandoverMaxBatchSize && (add = queue.relaxedPoll()) != null; i++){
             try {
                 add.run();
             } catch (Throwable t) {
                 log.error().exception(t).log("Failed to process an add entry request");
             }
         }
+
         if (!queue.isEmpty()) {
             // Leave the rest to the next handover batch so that other executor tasks, such as add completions, can run.
             scheduleAddEntryHandover();
