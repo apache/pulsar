@@ -1319,7 +1319,7 @@ public class BrokerService implements Closeable {
     /**
      * Retrieves or creates a topic based on the specified parameters.
      * 0. If disable PersistentTopics or NonPersistentTopics, it will return a failed future with NotAllowedException.
-     * 1. If topic future exists in the cache returned directly regardless of whether it fails or timeout.
+     * 1. If topic future exists in the cache, it is returned directly; timed out futures are removed from the cache.
      * 2. If the topic metadata exists, the topic is created regardless of {@code createIfMissing}.
      * 3. If the topic metadata not exists, and {@code createIfMissing} is false,
      *    returns an empty Optional in a CompletableFuture. And this empty future not be added to the map.
@@ -1358,6 +1358,9 @@ public class BrokerService implements Closeable {
                     final Throwable unwrapped = throwable == null
                             ? null : FutureUtil.unwrapCompletionException(throwable);
                     final boolean timedOut = unwrapped instanceof TimeoutException;
+                    if (timedOut) {
+                        topics.remove(topicName.toString(), topicFuture);
+                    }
                     try {
                         if (throwable == null) {
                             if (optTopic.isPresent()) {
@@ -1411,11 +1414,21 @@ public class BrokerService implements Closeable {
                     final var systemTopicLoadFuture = context.trace(TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES,
                             getTopicPoliciesBypassSystemTopic(topicName, TopicPoliciesService.GetType.LOCAL_ONLY));
                     systemTopicLoadFuture.thenRun(() -> {
+                        if (topicFuture.isDone()) {
+                            return;
+                        }
                         final var inserted = new MutableBoolean(false);
                         final var cachedFuture = topics.computeIfAbsent(topicName.toString(), ___ -> {
+                            if (topicFuture.isDone()) {
+                                return topicFuture;
+                            }
                             inserted.setTrue();
                             return loadOrCreatePersistentTopic(context);
                         });
+                        if (isTopicLoadTimedOut(topicFuture)) {
+                            topics.remove(topicName.toString(), topicFuture);
+                            return;
+                        }
                         if (inserted.isFalse()) {
                             // This case should happen rarely when the same topic is loaded concurrently because we
                             // checked if the `topics` cache includes this topic before, so the latency is not the
@@ -1498,6 +1511,13 @@ public class BrokerService implements Closeable {
         // It will trigger the logging for exception and traced latencies in topicFuture's exceptionally callback, so
         // we don't need to add an extra log before it.
         topicFuture.completeExceptionally(rc);
+    }
+
+    private boolean isTopicLoadTimedOut(CompletableFuture<?> topicFuture) {
+        return FutureUtil.getException(topicFuture)
+                .map(FutureUtil::unwrapCompletionException)
+                .filter(TimeoutException.class::isInstance)
+                .isPresent();
     }
 
     private CompletableFuture<Optional<TopicPolicies>> getTopicPoliciesBypassSystemTopic(@NonNull TopicName topicName,
