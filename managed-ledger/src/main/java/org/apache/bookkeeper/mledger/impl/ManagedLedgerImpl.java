@@ -53,6 +53,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
@@ -381,7 +382,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // it once per batch, and other executor work (add completions, cursor notifications) does not wait behind a task
     // per published message. A handover batch runs at most addEntryHandoverMaxBatchSize adds, captured when the ledger
     // is opened; 0 disables batching, and each add is then handed over to the executor as a task of its own.
-    private final BatchingHandoverExecutorWrapper addEntryBatchingExecutorWrapper;
+    private final Executor addEntryBatchingExecutor;
     // Chunk size of the add entry handover queue; the queue grows by linking chunks of this size when a batch backs up.
     private static final int ADD_ENTRY_HANDOVER_QUEUE_CHUNK_SIZE = 512;
 
@@ -415,10 +416,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         // withOrderingKey, so their processing can run inline with executeOrRun() instead of re-queueing.
         this.executor = (ThreadBoundExecutor) bookKeeper.getMainWorkerPool().chooseThread(name);
         this.readEntriesCallbackInline = config.isReadEntriesCallbackInline();
-        this.addEntryBatchingExecutorWrapper = new BatchingHandoverExecutorWrapper(executor, ADD_ENTRY_HANDOVER_QUEUE_CHUNK_SIZE,
-                config.getAddEntryHandoverMaxBatchSize(), t -> {
-            log.error().log("Failed to process an add entry request");
-        });
+        this.addEntryBatchingExecutor = config.getAddEntryHandoverMaxBatchSize() > 0
+                ? new BatchingExecutorWrapper(executor, ADD_ENTRY_HANDOVER_QUEUE_CHUNK_SIZE,
+                        config.getAddEntryHandoverMaxBatchSize(),
+                        t -> log.error().exception(t).log("Failed to process an add entry request"))
+                : this.executor;
         TOTAL_SIZE_UPDATER.set(this, 0);
         NUMBER_OF_ENTRIES_UPDATER.set(this, 0);
         ENTRIES_ADDED_COUNTER_UPDATER.set(this, 0);
@@ -897,7 +899,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         // Jump to specific thread to avoid contention from writers writing from different threads, handing the adds
         // over in batches unless batching is disabled.
-        addEntryBatchingExecutorWrapper.execute(() -> {
+        addEntryBatchingExecutor.execute(() -> {
             OpAddEntry addOperation = OpAddEntry.createNoRetainBuffer(this, buffer, numberOfMessages, callback, ctx,
                     currentLedgerTimeoutTriggered);
             internalAsyncAddEntry(addOperation);
