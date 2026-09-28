@@ -29,11 +29,6 @@ import java.util.concurrent.TimeUnit;
 public interface TransactionCoordinatorClient extends Closeable {
 
     /**
-     * Default transaction ttl in mills.
-     */
-    long DEFAULT_TXN_TTL_MS = 60000L;
-
-    /**
      * State of the transaction coordinator client.
      */
     enum State {

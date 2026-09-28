@@ -39,22 +39,6 @@ public class TransactionCoordinatorClientException extends IOException {
     }
 
     /**
-     * Thrown when transaction coordinator with unexpected state.
-     */
-    public static class CoordinatorClientStateException extends TransactionCoordinatorClientException {
-        @Serial
-        private static final long serialVersionUID = 1L;
-
-        public CoordinatorClientStateException() {
-            super("Unexpected state for transaction metadata client.");
-        }
-
-        public CoordinatorClientStateException(String message) {
-            super(message);
-        }
-    }
-
-    /**
      * Thrown when transaction coordinator not found in broker side.
      */
     public static class CoordinatorNotFoundException extends TransactionCoordinatorClientException {
@@ -95,38 +79,6 @@ public class TransactionCoordinatorClientException extends IOException {
         }
     }
 
-    /**
-     * Thrown when transaction meta store handler not exists.
-     */
-    public static class MetaStoreHandlerNotExistsException extends TransactionCoordinatorClientException {
-        @Serial
-        private static final long serialVersionUID = 1L;
-
-        public MetaStoreHandlerNotExistsException(long tcId) {
-            super("Transaction meta store handler for transaction meta store {} not exists.");
-        }
-
-        public MetaStoreHandlerNotExistsException(String message) {
-            super(message);
-        }
-    }
-
-    /**
-     * Thrown when send request to transaction meta store but the transaction meta store handler not ready.
-     */
-    public static class MetaStoreHandlerNotReadyException extends TransactionCoordinatorClientException {
-        @Serial
-        private static final long serialVersionUID = 1L;
-
-        public MetaStoreHandlerNotReadyException(long tcId) {
-            super("Transaction meta store handler for transaction meta store {} not ready now.");
-        }
-
-        public MetaStoreHandlerNotReadyException(String message) {
-            super(message);
-        }
-    }
-
     public static TransactionCoordinatorClientException unwrap(Throwable t) {
         if (t instanceof CoordinatorNotFoundException) {
             return (CoordinatorNotFoundException) t;
@@ -145,6 +97,5 @@ public class TransactionCoordinatorClientException extends IOException {
         } else {
             return new TransactionCoordinatorClientException(t);
         }
-
     }
 }
