@@ -107,7 +107,10 @@ val dockerBuild = tasks.register<Exec>("dockerBuild") {
     dependsOn(":docker:pulsar-docker-image:dockerBuild", prepareBuildContext)
 
     val imageName = "${dockerOrganization}/pulsar-test-latest-version:${dockerTag}"
+    val imageIdFile = layout.buildDirectory.file("docker/dockerBuild.iid").get().asFile
     val pulsarImage = "${dockerOrganization}/pulsar:${dockerTag}"
+    // The ID of the Pulsar image, so that a new base image rebuilds this one
+    val pulsarImageIdFile = rootDir.resolve("docker/pulsar/build/docker/dockerBuild.iid")
     val asyncProfilerVersion = libs.versions.async.profiler.get()
 
     workingDir = projectDir
@@ -115,6 +118,7 @@ val dockerBuild = tasks.register<Exec>("dockerBuild") {
     val args = mutableListOf(
         "docker", "build",
         "-t", imageName,
+        "--iidfile", imageIdFile.absolutePath,
         "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
         "--build-arg", "GOLANG_IMAGE=${golangImage}",
         "--build-arg", "INSTALL_ASYNC_PROFILER=${dockerInstallAsyncProfiler}",
@@ -128,4 +132,15 @@ val dockerBuild = tasks.register<Exec>("dockerBuild") {
     args.add(".")
 
     commandLine(args)
+
+    // Rebuild the image only when what goes into it changes, see dockerImageOutput
+    inputs.file("Dockerfile")
+    inputs.dir("conf")
+    inputs.dir("go-examples")
+    inputs.dir("python-examples")
+    inputs.dir("scripts")
+    inputs.files(prepareBuildContext)
+    inputs.files(pulsarImageIdFile)
+    inputs.property("dockerBuildArgs", args)
+    dockerImageOutput(imageName, imageIdFile)
 }

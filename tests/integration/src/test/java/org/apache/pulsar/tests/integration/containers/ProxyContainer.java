@@ -32,9 +32,13 @@ public class ProxyContainer extends PulsarContainer<ProxyContainer> {
     }
 
     public ProxyContainer(String clusterName, String hostName, boolean enableTls) {
+        this(clusterName, hostName, enableTls, DEFAULT_IMAGE_NAME);
+    }
+
+    public ProxyContainer(String clusterName, String hostName, boolean enableTls, String imageName) {
         super(clusterName, hostName, hostName, "bin/run-proxy.sh", BROKER_PORT,
                 enableTls ? BROKER_PORT_TLS : 0, BROKER_HTTP_PORT,
-                enableTls ? BROKER_HTTPS_PORT : 0, DEFAULT_HTTP_PATH, DEFAULT_IMAGE_NAME);
+                enableTls ? BROKER_HTTPS_PORT : 0, DEFAULT_HTTP_PATH, imageName);
     }
 
     @Override

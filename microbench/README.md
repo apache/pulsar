@@ -21,7 +21,11 @@
 
 # Microbenchmarks for Apache Pulsar
 
-This module contains microbenchmarks for Apache Pulsar.
+This module contains [JMH](https://github.com/openjdk/jmh) microbenchmarks for Apache Pulsar, for questions about
+the performance of a single class or method, such as what a method, a data structure or a codec costs. JMH handles
+warm-up, dead-code elimination and measurement, which hand-written timing code gets wrong, so a benchmark is the
+strongest evidence for a small, self-contained optimization. [Performance testing](../tests/performance/README.md)
+covers end-to-end scenarios that run a Pulsar cluster, and profiling and analysis.
 
 > **Run benchmarks on Linux x86_64 when the numbers matter.** That is Pulsar's most common deployment
 > target, and results from elsewhere do not carry over. `System.nanoTime()` is far more expensive on
@@ -29,6 +33,14 @@ This module contains microbenchmarks for Apache Pulsar.
 > cost on every invocation. async-profiler also supports only some of its sampling engines on macOS,
 > so `-prof async` is less reliable there. Benchmarking on macOS or arm64 is fine while iterating —
 > just confirm the result on Linux x86_64 before drawing a conclusion from it.
+
+## Getting consistent results
+
+Results vary between runs when the CPU changes its frequency: turbo frequencies depend on the temperature and the
+power budget of the CPU, and power management changes CPU and device settings while the benchmarks run. On Linux,
+[the performance testing environment setup](../tests/performance/environment/README.md) configures the host for
+consistent results, with turbo disabled so that the CPU runs at a fixed frequency, and restores power saving
+afterwards.
 
 ## Running the benchmarks
 
@@ -132,11 +144,8 @@ the whole output directory and it finds the recordings inside:
 Each recording gets a directory beside it named after the file without its extension plus a
 `-flamegraphs` suffix, holding `cpu`, `wall`, `alloc` and `lock`, each rendered merged
 (`cpu.html`), split per thread (`cpu_threads.html`) and grouped into async-profiler's categories
-(`cpu_classify.html`). A view whose event the recording does not contain is skipped. See
-[Performance testing](../tests/performance/README.md) for the analysis workflow.
+(`cpu_classify.html`). A view whose event the recording does not contain is skipped.
 
 The `.jfr` can also be opened in [Eclipse Mission Control](https://adoptium.net/jmc) or IntelliJ
-IDEA, or handed to an AI agent through the
-[Jafar MCP server](https://github.com/btraceio/jafar/blob/main/jfr-mcp/README.md), which lets the
-agent query the recording directly with tools such as `jfr_diagnose` and `jfr_stackprofile` — see
-[Jafar MCP analysis](../tests/performance/README.md#jafar-mcp-analysis).
+IDEA, or analyzed by an AI agent. [Performance testing](../tests/performance/README.md) leads to the
+analysis workflow and its tools.
