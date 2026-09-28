@@ -68,17 +68,11 @@ public class BatchingExecutorWrapperTest {
     }
 
     @Test
-    public void testBatchingDisabledSubmitsEachTaskToTheDelegate() {
-        ManualExecutor delegate = new ManualExecutor();
-        BatchingExecutorWrapper wrapper =
-                new BatchingExecutorWrapper(delegate, QUEUE_CHUNK_SIZE, 0, FAIL_ON_TASK_FAILURE);
-        Runnable first = () -> { };
-        Runnable second = () -> { };
-
-        wrapper.execute(first);
-        wrapper.execute(second);
-
-        assertThat(delegate.tasks).containsExactly(first, second);
+    public void testMaxBatchSizeMustBeGreaterThanOne() {
+        for (int handoverMaxBatchSize : new int[] {-1, 0, 1}) {
+            assertThatThrownBy(() -> new BatchingExecutorWrapper(new ManualExecutor(), QUEUE_CHUNK_SIZE,
+                    handoverMaxBatchSize, FAIL_ON_TASK_FAILURE)).isInstanceOf(IllegalArgumentException.class);
+        }
     }
 
     @Test
@@ -176,7 +170,7 @@ public class BatchingExecutorWrapperTest {
 
     @DataProvider
     public Object[][] handoverMaxBatchSizes() {
-        return new Object[][] {{0}, {1}, {1024}};
+        return new Object[][] {{2}, {1024}};
     }
 
     @Test(timeOut = 30000, dataProvider = "handoverMaxBatchSizes")

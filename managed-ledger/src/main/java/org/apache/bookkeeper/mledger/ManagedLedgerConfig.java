@@ -448,8 +448,8 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * The maximum number of add entry requests handed over to the ledger's executor thread in one batch, or 0 when
-     * batching is disabled.
+     * The maximum number of add entry requests handed over to the ledger's executor thread in one batch, or 0 or 1
+     * when batching is disabled.
      *
      * @see #setAddEntryHandoverMaxBatchSize(int)
      */
@@ -463,13 +463,13 @@ public class ManagedLedgerConfig {
      * <p>Publishing threads queue adds for the ledger's executor, which takes them over in batches of up to this size
      * and processes each batch before other tasks on that thread can run. A larger value reduces scheduling overhead
      * and contention between publishing threads, but keeps the executor thread occupied for longer per batch, which
-     * can delay add completions, reads and cursor notifications for the ledgers that share the thread. 0 disables
-     * batching: each add is handed over to the executor as a task of its own.
+     * can delay add completions, reads and cursor notifications for the ledgers that share the thread. 0 or 1
+     * disables batching: each add is handed over to the executor as a task of its own.
      *
      * <p>The value is captured when the ledger is opened; subsequent changes, including
      * {@link ManagedLedger#setConfig(ManagedLedgerConfig)}, do not change it for an already open ledger.
      *
-     * @param addEntryHandoverMaxBatchSize the maximum handover batch size, or 0 to disable batching
+     * @param addEntryHandoverMaxBatchSize the maximum handover batch size, or 0 or 1 to disable batching
      * @return this configuration
      */
     public ManagedLedgerConfig setAddEntryHandoverMaxBatchSize(int addEntryHandoverMaxBatchSize) {

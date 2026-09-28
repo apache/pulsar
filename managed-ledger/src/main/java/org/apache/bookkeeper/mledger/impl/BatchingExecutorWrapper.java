@@ -19,10 +19,10 @@
 
 package org.apache.bookkeeper.mledger.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import lombok.CustomLog;
 import org.jctools.queues.MpscUnboundedArrayQueue;
 
 /**
@@ -38,13 +38,13 @@ import org.jctools.queues.MpscUnboundedArrayQueue;
  * <p>Tasks submitted by one thread run in the order that thread submitted them. The delegate must run the tasks
  * submitted to it one at a time, such as a single-threaded executor, since the queue supports a single consumer.
  *
- * <p>A {@code handoverMaxBatchSize} of 0 disables batching: each task is then submitted to the delegate on its own.
+ * <p>Batching needs a {@code handoverMaxBatchSize} greater than 1. To hand tasks over one at a time, submit them to
+ * the delegate directly instead of wrapping it.
  */
-@CustomLog
 class BatchingExecutorWrapper implements Executor {
     private final Executor delegate;
     private final int handoverMaxBatchSize;
-    private final Consumer<Throwable> runnableFailureProcessor;
+    private final Consumer<Throwable> runFailureConsumer;
     private final AtomicBoolean handoverScheduled = new AtomicBoolean();
     private final MpscUnboundedArrayQueue<Runnable> handoverQueue;
 
@@ -53,31 +53,29 @@ class BatchingExecutorWrapper implements Executor {
      *
      * @param delegate the executor that runs the handover batches; it must run its tasks one at a time
      * @param queueChunkSize the chunk size of the handover queue, which grows by linking chunks of this size
-     * @param handoverMaxBatchSize the maximum number of tasks run by one handover batch, or 0 to disable batching
-     * @param runnableFailureProcessor receives what a task run by a handover batch throws, so that the remaining
+     * @param handoverMaxBatchSize the maximum number of tasks run by one handover batch; must be greater than 1
+     * @param runFailureConsumer receives what a task run by a handover batch throws, so that the remaining
      *                                 tasks of the batch still run
      */
     BatchingExecutorWrapper(Executor delegate, int queueChunkSize, int handoverMaxBatchSize,
-                            Consumer<Throwable> runnableFailureProcessor) {
+                            Consumer<Throwable> runFailureConsumer) {
+        checkArgument(handoverMaxBatchSize > 1, "handoverMaxBatchSize must be greater than 1");
         this.delegate = delegate;
         this.handoverMaxBatchSize = handoverMaxBatchSize;
-        this.runnableFailureProcessor = runnableFailureProcessor;
+        this.runFailureConsumer = runFailureConsumer;
         this.handoverQueue = new MpscUnboundedArrayQueue<>(queueChunkSize);
     }
 
     /**
      * Queues {@code command} for the next handover batch, submitting that batch to the delegate unless it is already
-     * scheduled. With batching disabled, submits {@code command} to the delegate directly.
+     * scheduled.
      *
      * @throws RuntimeException what the delegate throws when it rejects the handover batch, such as
      *                          {@code RejectedExecutionException}
+     * @throws IllegalArgumentException if {@code handoverMaxBatchSize} is not greater than 1
      */
     @Override
     public void execute(Runnable command) {
-        if (handoverMaxBatchSize == 0) {
-            delegate.execute(command);
-            return;
-        }
         handoverQueue.offer(command);
         scheduleHandover();
     }
@@ -87,7 +85,7 @@ class BatchingExecutorWrapper implements Executor {
             try {
                 delegate.execute(this::runHandoverBatch);
             } catch (RuntimeException e) {
-                // Let a later add retry scheduling, and fail this caller like a rejected task did before.
+                // Let a later task retry scheduling, and fail this caller as the delegate would have.
                 handoverScheduled.set(false);
                 throw e;
             }
@@ -104,7 +102,7 @@ class BatchingExecutorWrapper implements Executor {
             try {
                 command.run();
             } catch (Throwable t) {
-                runnableFailureProcessor.accept(t);
+                runFailureConsumer.accept(t);
             }
         }
 

@@ -2745,9 +2745,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "A larger value reduces scheduling overhead and contention between publishing threads under "
                     + "high publish rates, but keeps the executor thread occupied for longer per batch, which can "
                     + "delay add completions, reads and cursor notifications for the ledgers that share the thread. "
-                    + "A smaller value favors those tasks over add throughput. Set to 0 to disable batching, so that "
-                    + "each add is handed over to the executor as a task of its own. Updates apply to managed ledgers "
-                    + "opened after the change; ledgers that are already open keep the value they opened with.")
+                    + "A smaller value favors those tasks over add throughput. Set to 0 or 1 to disable batching, so "
+                    + "that each add is handed over to the executor as a task of its own. Updates apply to managed "
+                    + "ledgers opened after the change; ledgers that are already open keep the value they opened with.")
     private int managedLedgerAddEntryHandoverMaxBatchSize = 1024;
 
     @FieldContext(category = CATEGORY_STORAGE_ML,

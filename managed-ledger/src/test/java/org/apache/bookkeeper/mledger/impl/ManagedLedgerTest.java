@@ -600,6 +600,22 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         ledger.close();
     }
 
+    @DataProvider
+    public Object[][] addEntryHandoverBatchingDisabledSizes() {
+        return new Object[][] {{0}, {1}};
+    }
+
+    @Test(timeOut = 20000, dataProvider = "addEntryHandoverBatchingDisabledSizes")
+    public void testAddEntryWithAddEntryHandoverBatchingDisabled(int addEntryHandoverMaxBatchSize) throws Exception {
+        ManagedLedger ledger = factory.open("add_entry_handover_disabled_" + addEntryHandoverMaxBatchSize,
+                initManagedLedgerConfig(defaultConfig().setAddEntryHandoverMaxBatchSize(addEntryHandoverMaxBatchSize)));
+
+        Position position = ledger.addEntry("entry".getBytes(Encoding));
+
+        assertEquals(ledger.getLastConfirmedEntry(), position);
+        ledger.close();
+    }
+
     @Test
     public void testAddEntryHandoverMaxBatchSizeRejectsNegativeValues() {
         assertEquals(new ManagedLedgerConfig().getAddEntryHandoverMaxBatchSize(), 1024);
