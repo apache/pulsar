@@ -26,6 +26,27 @@ to the recordings, and the run report, the run's `index.html`, links to all of t
 [What a profiled run writes](profiling.md#what-a-profiled-run-writes). This page describes how to go from them to what
 to optimize, and the other tools that read the recordings.
 
+## Running the analysis CLIs
+
+Run the jonoffcpu correlator and its jfr-converter through Gradle from the repository root. Gradle resolves the
+same versions used by profiling, pinned by `jonoffcpu` in `gradle/libs.versions.toml`; neither tool needs a separate
+installation. These tasks do not compile Pulsar, build images or start containers. Pass any of the tools' CLI
+arguments through `--args`, including subcommands, filters and output paths:
+
+```bash
+./gradlew -q :tests:performance:report-tool:runJonoffcpuCorrelator --args='--help'
+./gradlew -q :tests:performance:report-tool:runJonoffcpuCorrelator --args='top --help'
+./gradlew -q :tests:performance:report-tool:runJfrConverter --args='--help'
+```
+
+Relative input and output paths resolve from the repository root. Quote paths containing spaces inside `--args`,
+as in the examples below. `-q` suppresses Gradle's progress output. Both tasks use a `4g` maximum heap by default;
+override it with `-Pperformance.profile.maxHeapSize=8g` for a larger capture. Use the help from the pinned tools
+to discover their available options. The correlator prints rankings with `top`, writes collapsed stacks with
+`stacks`, and exports stack rows with `export`; the converter writes flame graph HTML from collapsed stacks or JFR.
+Choose fresh output paths for the correlator: it refuses to overwrite existing files. The converter can overwrite
+its output, so choose a new filename when preserving an earlier rendering.
+
 ## Finding what to optimize
 
 1. Open the run report, `index.html`, then the broker's profile report and the digest it links to,
@@ -36,26 +57,28 @@ to optimize, and the other tools that read the recordings.
    allocation comes in bursts or stalls.
 2. Rank the blocked time by the deepest Pulsar or BookKeeper frame of each stack and the lock or wait below it. This
    needs no flame graph: stacks without an application frame collect by thread pool, and idle waits are listed
-   separately. With the correlator JAR from the [jonoffcpu releases](https://github.com/jonoffcpu/jonoffcpu/releases):
+   separately. Replace the example directory with the off-CPU directory from your run:
 
    ```bash
-   OFFCPU=<run directory>/broker-profile/<recording>-offcpu
-   java -jar jonoffcpu-correlator.jar top --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
-     --app '^org\.apache\.(pulsar|bookkeeper)\.' --waiting-from $OFFCPU/offcpu-idle-waits.txt --package-names abbreviate
+   offcpu_dir=/absolute/path/to/run/broker-profile/recording-offcpu
+   ./gradlew -q :tests:performance:report-tool:runJonoffcpuCorrelator \
+     --args="top --profile '$offcpu_dir/jonoffcpu-offcpu-profile.pb' \
+     --app '^org\.apache\.(pulsar|bookkeeper)\.' --waiting-from '$offcpu_dir/offcpu-idle-waits.txt' --package-names abbreviate"
    ```
 
    `export --format jsonl` writes the profile one stack per row for SQL tools such as [DuckDB](https://duckdb.org/).
-3. Render other slices from the stack profile in under a second. `--stack java+kernel` continues each stack into the
+3. Render other slices from the stack profile without correlating again. `--stack java+kernel` continues each stack into the
    kernel so the wait mechanism is visible; `--time split` ends each stack in `[sleeping]` or `[runqueue]`, which
    separates waiting for an event from waiting for a CPU after it arrived; `--include`/`--exclude` and their
-   `-from FILE` forms select intervals by frame. Render the result with the converter JAR from the same release:
+   `-from FILE` forms select intervals by frame. Render the result with the converter:
 
    ```bash
-   java -jar jonoffcpu-correlator.jar stacks --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
-     --exclude-from $OFFCPU/offcpu-idle-waits.txt --time split --package-names abbreviate \
-     --output /tmp/blocked-split.collapsed --summary /tmp/blocked-split.json
-   java -jar jfr-converter.jar --title "Blocked off-CPU time" --units µs --highlight '^o\.a\.(p|b)\.' \
-     /tmp/blocked-split.collapsed /tmp/blocked-split.html
+   ./gradlew -q :tests:performance:report-tool:runJonoffcpuCorrelator \
+     --args="stacks --profile '$offcpu_dir/jonoffcpu-offcpu-profile.pb' \
+     --exclude-from '$offcpu_dir/offcpu-idle-waits.txt' --time split --package-names abbreviate \
+     --output /tmp/blocked-split.collapsed --summary /tmp/blocked-split.json"
+   ./gradlew -q :tests:performance:report-tool:runJfrConverter \
+     --args='--title "Blocked off-CPU time" --units µs --highlight "^o\.a\.(p|b)\." /tmp/blocked-split.collapsed /tmp/blocked-split.html'
    ```
 
    The transforms `--root-at`, `--trim-root`, `--hide` and `--collapse-leaf` change what each kept stack looks like
@@ -69,9 +92,10 @@ million measured messages. Compare runs recorded with the same sampling policy. 
 under-represents short waits in the observed weights, so the comparison uses the estimated weights:
 
 ```bash
-java -jar jonoffcpu-correlator.jar top --profile candidate-offcpu/jonoffcpu-offcpu-profile.pb \
+./gradlew -q :tests:performance:report-tool:runJonoffcpuCorrelator \
+  --args="top --profile candidate-offcpu/jonoffcpu-offcpu-profile.pb \
   --baseline baseline-offcpu/jonoffcpu-offcpu-profile.pb --units 4 --baseline-units 4 --weights estimated \
-  --app '^org\.apache\.(pulsar|bookkeeper)\.' --waiting-from candidate-offcpu/offcpu-idle-waits.txt --package-names abbreviate
+  --app '^org\.apache\.(pulsar|bookkeeper)\.' --waiting-from candidate-offcpu/offcpu-idle-waits.txt --package-names abbreviate"
 ```
 
 Profile both revisions with the same profiler options: profiling has a cost, and different options change it.

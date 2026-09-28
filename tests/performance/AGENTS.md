@@ -235,8 +235,8 @@ of a recording's completeness: it counts async-profiler's samples, which are in 
 | [Jafar MCP server](https://github.com/btraceio/jafar/blob/main/jfr-mcp/README.md) | `.jfr` | Querying a recording from an agent: `jfr_diagnose` and `jfr_stackprofile` first, then the other Jafar tools | `claude mcp add jafar -- jbang jfr-mcp@btraceio --stdio`, with JBang and JDK 25+, see [AI agent analysis](docs/analyzing-profiles.md#ai-agent-analysis) |
 | [`jafar-perf`](https://github.com/btraceio/jafar-perf-box/tree/main/plugins/jafar-perf) Claude Code plugin | `.jfr`, `.hprof` | Guided analysis from triage to a report, comparing recordings and heap dumps, and investigating memory leaks; it registers the Jafar MCP server itself | [The plugin's README](https://github.com/btraceio/jafar-perf-box/blob/main/plugins/jafar-perf/README.md); suggest it to the user when the Jafar tools aren't available |
 | [jafar-shell](https://github.com/btraceio/jafar) | `.jfr`, `.hprof` | Queries in JfrPath and HdumpPath, read from standard input so that an agent can script them | `jbang app install jafar-shell@btraceio`, see [Interactive analysis with jafar-shell](docs/analyzing-profiles.md#interactive-analysis-with-jafar-shell) |
-| jonoffcpu correlator | `jonoffcpu-offcpu-profile.pb`, the capture stream | Ranking the blocked time (`top`), comparing two profiles (`top --baseline`), rendering other slices (`stacks`), and exporting stacks for SQL (`export --format jsonl`) | The resolved Gradle JAR (see below), or `jonoffcpu-correlator.jar` from the matching [jonoffcpu release](https://github.com/jonoffcpu/jonoffcpu/releases); see [Finding what to optimize](docs/analyzing-profiles.md#finding-what-to-optimize) |
-| jfr-converter | Collapsed stacks | Rendering a flame graph of a slice | `jfr-converter.jar` from the same release |
+| jonoffcpu correlator | `jonoffcpu-offcpu-profile.pb`, the capture stream | Ranking the blocked time (`top`), comparing two profiles (`top --baseline`), rendering other slices (`stacks`), and exporting stacks for SQL (`export --format jsonl`) | `./gradlew :tests:performance:report-tool:runJonoffcpuCorrelator --args='--help'`; no separate installation |
+| jfr-converter | Collapsed stacks, `.jfr` | Rendering a flame graph of a slice or recording | `./gradlew :tests:performance:report-tool:runJfrConverter --args='--help'`; no separate installation |
 | [codelipenghui/mcp-mat](https://github.com/codelipenghui/mcp-mat) | `.hprof` | Eclipse Memory Analyzer's leak suspects report, dominator tree, paths to GC roots and OQL | See [Heap dumps and memory leaks](docs/analyzing-profiles.md#heap-dumps-and-memory-leaks) |
 | `./gradlew :tests:performance:launcher:runJfrCut` | `.jfr` | Cutting a recording to another interval | See [Cutting a recording yourself](docs/profiling.md#cutting-a-recording-yourself) |
 | `./gradlew :tests:performance:report-tool:renderHdrHistograms` | `.hdr` | Plotting a run's latency charts again | See [Latency logs](docs/run-reports.md#latency-logs) |
@@ -265,18 +265,17 @@ augment those reports; their absence need not block analysis of the saved summar
 
 ### Off-CPU: rank and compare blocking callsites
 
-The correlator JAR must match the `jonoffcpu` version in `gradle/libs.versions.toml`. The generated digest includes
-commands to reproduce its views. Gradle already resolves the runnable JAR for profiling: look under the Gradle
-user home's `caches/modules-2/files-2.1/io.github.jonoffcpu/jonoffcpu-correlator/<version>/<hash>/` for
-`jonoffcpu-correlator-<version>.jar` (not the sources JAR). Use that actual path below, or the matching release JAR;
-no extra download is needed when it is cached. For an existing broker profile:
+The Gradle tasks resolve the correlator and converter at the `jonoffcpu` version in `gradle/libs.versions.toml`;
+no JAR lookup or installation is needed. Both accept arbitrary CLI options through `--args` and resolve relative
+paths from the repository root, without compiling Pulsar or starting a cluster. Use `--args='top --help'` for the
+correlator's ranking options. For an existing broker profile:
 
 ```bash
 offcpu_dir=/absolute/path/to/run/broker-profile/recording-offcpu
-java -jar /path/to/jonoffcpu-correlator.jar top \
-  --profile "$offcpu_dir/jonoffcpu-offcpu-profile.pb" \
+./gradlew -q :tests:performance:report-tool:runJonoffcpuCorrelator \
+  --args="top --profile '$offcpu_dir/jonoffcpu-offcpu-profile.pb' \
   --app '^org\.apache\.(pulsar|bookkeeper)\.' \
-  --waiting-from "$offcpu_dir/offcpu-idle-waits.txt" --package-names abbreviate
+  --waiting-from '$offcpu_dir/offcpu-idle-waits.txt' --package-names abbreviate"
 ```
 
 This prints a ranking of blocked time by the application method that waited and the wait beneath it.
