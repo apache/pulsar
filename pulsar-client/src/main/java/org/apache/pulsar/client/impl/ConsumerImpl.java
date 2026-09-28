@@ -869,6 +869,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
             clearReceiverQueue(false);
+            client.getCnxPool().releaseConnection(cnx);
             return CompletableFuture.completedFuture(null);
         }
 
