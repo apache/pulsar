@@ -19,7 +19,6 @@ Run the commands in the repository's root directory:
 
 | Task | Command |
 |---|---|
-| Check the host, without root | `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` |
 | The launcher's options | `./gradlew :tests:performance:launcher:run --args='--help'` |
 | Run a scenario | `./gradlew :tests:performance:launcher:run --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'` |
 | Change a setting for one run | add `--set workloads.iotTelemetry.rate=5000` to `--args` |
@@ -30,9 +29,10 @@ Run the commands in the repository's root directory:
 | Set the reports root for one command | `-Pperformance.reportsDir=<absolute directory>` |
 | Find the newest run | `ls -dt <reports root>/*/*/*/*/ \| head -n 1`, with `build/performance` as the reports root when none is set |
 | Serve the reports over HTTP | `./gradlew :tests:performance:report-tool:serveReports`, at <http://127.0.0.1:8000/> |
-| Start and stop the metrics stack, VictoriaMetrics and Grafana | `./gradlew :tests:performance:metrics:up`, `./gradlew :tests:performance:metrics:down` |
+| Start and stop the metrics stack, VictoriaMetrics and Grafana | `./gradlew :tests:performance:metrics:up`, `./gradlew :tests:performance:metrics:down`, with Grafana at <http://127.0.0.1:3000/> and VictoriaMetrics at <http://127.0.0.1:8428/> |
 | Keep `launcher.log` of a successful run | `-Pperformance.keepLauncherLog` |
 | Run without collecting metrics | `-Pperformance.metrics=false` |
+| Check the host's configuration to ensure minimal run-to-run variance (optional, only on Linux), without root | `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` |
 
 A run's directory has its report, `README.md` and `index.html`, what the launcher printed, `console.log.txt`, and,
 when it collected metrics, `metrics.json`. [Running scenarios](docs/running-scenarios.md) lists every launcher option
