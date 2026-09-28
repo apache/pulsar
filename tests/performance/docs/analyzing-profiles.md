@@ -104,9 +104,11 @@ Profile both revisions with the same profiler options: profiling has a cost, and
 ## Analyzing collapsed stacks with DuckDB
 
 For SQL analysis, DuckDB's [quack_flamegraph](https://github.com/kevintruong/quack-flamegraph) community extension
-reads collapsed stacks as tables. Start DuckDB and set the `profile` variable to the path of your collapsed stacks
-file, and `pkg` to a regular expression for the frames you're interested in. The queries below read both from there,
-so they can be copied as-is:
+reads collapsed stacktrace files as tables. These are also called folded stacktrace files: `.collapsed` and
+`.folded` are common extensions for the same format, with semicolon-separated frames and a weight at the end of
+each line. Start DuckDB and set the `profile` variable to the path of your collapsed stacks file, and `pkg` to a
+regular expression for the frames you're interested in. The queries below read both from there, so they can be
+copied as-is:
 
 ```sql
 INSTALL quack_flamegraph FROM community;
@@ -196,6 +198,17 @@ FROM leaf_by_frame
 ORDER BY samples DESC
 LIMIT 45;
 ```
+
+For automated analysis, agents and scripts can export DuckDB query results as JSON or CSV. Save the setup statements
+and one result query in `analysis.sql` (include the view definition if querying `leaf_by_frame`), then run:
+
+```bash
+duckdb -no-init -bail -json < analysis.sql > analysis.json
+duckdb -no-init -bail -csv -header < analysis.sql > analysis.csv
+```
+
+Use one result query per output file so that JSON contains a single array and CSV contains one table with a header.
+`-bail` stops on SQL errors; check the exit status before consuming the output.
 
 ## Flame graphs of other recordings
 

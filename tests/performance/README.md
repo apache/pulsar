@@ -344,8 +344,9 @@ time, CPU and allocation flame graphs, cut to the measurement. The broker's jono
 time threads spent blocked by the Pulsar or BookKeeper method that waited. The blocked time flame graphs show the same
 time as call trees, to inspect visually which code paths lead to the blocking methods.
 
-The flame graphs' `.collapsed` files can be handled with multiple tools. jonoffcpu's jfr-converter renders them as
-HTML flame graphs and runs through Gradle with no separate installation. Pass any converter options with `--args`;
+The flame graphs' collapsed stacktrace files (`.collapsed`), also called folded stacktrace files (`.folded`), can be
+handled with multiple tools. jonoffcpu's jfr-converter renders them as HTML flame graphs and runs through Gradle
+with no separate installation. Pass any converter options with `--args`;
 use `--args='--help'` to list them:
 
 ```bash
