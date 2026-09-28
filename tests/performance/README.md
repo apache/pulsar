@@ -153,8 +153,9 @@ scenarios in detail.
   sudo tests/performance/environment/scripts/configure-perf-test-environment.sh stop     # after the runs
   ```
 
-  `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` checks, without root, that the
-  host is ready: that it's on AC power, has disk space and runs with the profile's settings.
+  `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` checks that the host is ready:
+  that Docker's disk has space, on Linux and macOS, and on Linux also that the host is on AC power and runs with the
+  profile's settings.
 - **A reports root** that your checkouts share. Without one, each checkout writes its runs to its own
   `build/performance`, so the runs of two revisions in separate worktrees end up apart, and removing a worktree
   removes its runs. Set `performance.reportsDir` in `~/.gradle/gradle.properties`, which applies to every checkout
@@ -351,6 +352,37 @@ workload, with `--extends configs/profile-gateways --extends configs/profile-app
 that uses the low-memory configuration, such as `iot-telemetry-small.yaml`.
 [Profiling](docs/profiling.md) describes the requirements, the profiler options and the files, and
 [Analyzing profiles](docs/analyzing-profiles.md) how to find what to optimize.
+
+#### Inspect profile artifacts
+
+The flame graphs' collapsed stacktrace files (`.collapsed`), also called folded stacktrace files (`.folded`), can be
+handled with multiple tools. jonoffcpu's jfr-converter renders them as HTML flame graphs and runs through Gradle
+with no separate installation. Pass any converter options with `--args`; use `--args='--help'` to list them:
+
+```bash
+./gradlew -q :tests:performance:report-tool:runJfrConverter \
+  --args='/path/to/recording-offcpu/offcpu-no-idle-app-root.collapsed /path/to/offcpu.html'
+```
+
+Another particularly useful option is [flameshow](https://github.com/laixintao/flameshow), a terminal user interface
+(TUI) for exploring flame graphs, with keyboard navigation and zooming. After installing it as its README describes,
+open a collapsed stack file:
+
+```bash
+flameshow /path/to/recording-offcpu/offcpu-no-idle-app-root.collapsed
+```
+
+[Inferno](https://github.com/jonhoo/inferno) includes `inferno-flamegraph`, which converts collapsed stacks to SVG
+flame graphs. With Rust's Cargo installed, install Inferno and convert a file:
+
+```bash
+cargo install inferno
+inferno-flamegraph < /path/to/recording-offcpu/offcpu-no-idle-app-root.collapsed > offcpu.svg
+```
+
+For SQL analysis, DuckDB's [quack_flamegraph](https://github.com/kevintruong/quack-flamegraph) community extension
+reads collapsed stacks as tables. See [Analysing collapsed stacktrace files with DuckDB and quack_flamegraph](docs/analyzing-profiles.md#analysing-collapsed-stacktrace-files-with-quack_flamegraph)
+for setup and examples that rank stacks, methods and call edges, and attribute samples to application frames.
 
 The JFR recordings also open in JDK Mission Control, whose OpenJDK distribution is
 [Eclipse Mission Control](https://adoptium.net/jmc). The JDK's

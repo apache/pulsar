@@ -37,7 +37,7 @@ on any Linux distribution where TuneD and the profile are installed.
 | `install` | Installs TuneD when it is missing (Debian based distributions), disables TuneD's dynamic tuning, installs the `performance-testing` TuneD profile without activating it, limits the size of Docker's container logs and leaves the TuneD daemon disabled; when the profile is active, it applies the updated profile. Run once, and again after the profile changes. |
 | `start` | Checks that the host is on AC power and warns when Docker's disk is 90 % full, stops `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS), activates and verifies the `performance-testing` profile and skips the `:tests:integration:tuneKernelPerfEvents` task in `~/.gradle/gradle.properties`. |
 | `stop` | Switches TuneD to the `balanced` profile, stops TuneD, applies the system's configured dirty page limits and swappiness again, starts the stopped daemons again and removes the Gradle property. |
-| `validate` | Checks that the host is ready for performance tests, see [Checking the host](#checking-the-host). Doesn't need root. |
+| `validate` | Checks that the host is ready for performance tests, see [Checking the host](#checking-the-host). Runs on Linux and macOS. |
 
 `install`, `start` and `stop` run as root: `sudo scripts/configure-perf-test-environment.sh start`.
 
@@ -141,18 +141,35 @@ Before a run:
 
 ## Checking the host
 
-`validate` checks, without root, that the host is ready for performance tests, for example in a script or by an AI
-agent before a series of runs:
+`validate` checks that the host is ready for performance tests, for example in a script or by an AI agent before a
+series of runs. It runs on Linux and on macOS:
 
 ```sh
 tests/performance/environment/scripts/configure-perf-test-environment.sh validate
 ```
 
-It checks that the host is on AC power, that the disk that holds Docker's data is less than 90 % full, that the
-`performance-testing` profile is active with `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS) stopped,
-and the settings the profile applies: turbo, the CPU frequency governor, swapping, perf events and Transparent Huge
-Pages. It runs every check, prints each one to stdout as `ok:` or `FAILED:`, and the reason for each failed check,
-with what to do about it, to stderr. It exits with 1 when a check failed.
+On both platforms, it checks that Docker is available and that its data disk is less than 90 % full. It runs
+`df -P /` in a disposable `alpine` container to read disk usage inside the Docker engine, including when the engine
+runs in a virtual machine. The check can pull the image if it isn't cached; `DISK_CHECK_IMAGE` selects another image
+with `df`. It measures the container's root filesystem, not a separate host directory or disk mounted into a container.
+
+On Linux, it also checks that the host is on AC power, that the `performance-testing` profile is active with
+`thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS) stopped, and the settings the profile applies: turbo,
+the CPU frequency governor, swapping, perf events and Transparent Huge Pages. Checks print to stdout as `ok:`,
+`FAILED:` or `skipped:`; failed checks also print a reason and suggested action to stderr.
+
+### Exit codes
+
+`validate` exits with 0 when every check passed, and with 1 on a usage or an unexpected error. Otherwise its exit code
+is a bit mask: each kind of failed check sets its bit, so that several kinds can fail at once. For example, 10 has
+bits 1 and 3 set, 2 + 8: Docker's disk is too full and the host isn't configured. Test a bit by its value, such as
+`(( code & 2 ))` for bit 1.
+
+| Bit | Value | Set when | What to do |
+|---|---|---|---|
+| 1 | 2 | Docker's disk is 90 % full or more | Free space, for example with `scripts/docker-cleanup.sh`, see [Freeing Docker disk space](#freeing-docker-disk-space) |
+| 2 | 4 | Docker isn't available, or its disk usage couldn't be read | Check Docker access and whether the disk-check image can be pulled and can run `df`; see stderr for the failed step |
+| 3 | 8 | A check of the host's configuration failed, on Linux only | Configure the host with `install` and `start` |
 
 A failed setting check while the profile is active means that the installed profile is older than the script: run
 `install` again, then `start`.

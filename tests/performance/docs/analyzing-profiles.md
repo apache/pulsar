@@ -26,6 +26,27 @@ to the recordings, and the run report, the run's `index.html`, links to all of t
 [What a profiled run writes](profiling.md#what-a-profiled-run-writes). This page describes how to go from them to what
 to optimize, and the other tools that read the recordings.
 
+## Running the analysis CLIs
+
+Run the jonoffcpu correlator and its jfr-converter through Gradle from the repository root. Gradle resolves the
+same versions used by profiling, pinned by `jonoffcpu` in `gradle/libs.versions.toml`; neither tool needs a separate
+installation. These tasks do not compile Pulsar, build images or start containers. Pass any of the tools' CLI
+arguments through `--args`, including subcommands, filters and output paths:
+
+```bash
+./gradlew -q :tests:performance:report-tool:runJonoffcpuCorrelator --args='--help'
+./gradlew -q :tests:performance:report-tool:runJonoffcpuCorrelator --args='top --help'
+./gradlew -q :tests:performance:report-tool:runJfrConverter --args='--help'
+```
+
+Relative input and output paths resolve from the repository root. Quote paths containing spaces inside `--args`,
+as in the examples below. `-q` suppresses Gradle's progress output. Both tasks use a `4g` maximum heap by default;
+override it with `-Pperformance.profile.maxHeapSize=8g` for a larger capture. Use the help from the pinned tools
+to discover their available options. The correlator prints rankings with `top`, writes collapsed stacks with
+`stacks`, and exports stack rows with `export`; the converter writes flame graph HTML from collapsed stacks or JFR.
+Choose fresh output paths for the correlator: it refuses to overwrite existing files. The converter can overwrite
+its output, so choose a new filename when preserving an earlier rendering.
+
 ## Finding what to optimize
 
 1. Open the run report, `index.html`, then the broker's profile report and the digest it links to,
@@ -36,26 +57,29 @@ to optimize, and the other tools that read the recordings.
    allocation comes in bursts or stalls.
 2. Rank the blocked time by the deepest Pulsar or BookKeeper frame of each stack and the lock or wait below it. This
    needs no flame graph: stacks without an application frame collect by thread pool, and idle waits are listed
-   separately. With the correlator JAR from the [jonoffcpu releases](https://github.com/jonoffcpu/jonoffcpu/releases):
+   separately. Replace the example directory with the off-CPU directory from your run:
 
    ```bash
-   OFFCPU=<run directory>/broker-profile/<recording>-offcpu
-   java -jar jonoffcpu-correlator.jar top --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
-     --app '^org\.apache\.(pulsar|bookkeeper)\.' --waiting-from $OFFCPU/offcpu-idle-waits.txt --package-names abbreviate
+   offcpu_dir=/absolute/path/to/run/broker-profile/recording-offcpu
+   ./gradlew -q :tests:performance:report-tool:runJonoffcpuCorrelator \
+     --args="top --profile '$offcpu_dir/jonoffcpu-offcpu-profile.pb' \
+     --app '^org\.apache\.(pulsar|bookkeeper)\.' --waiting-from '$offcpu_dir/offcpu-idle-waits.txt' --package-names abbreviate"
    ```
 
    `export --format jsonl` writes the profile one stack per row for SQL tools such as [DuckDB](https://duckdb.org/).
-3. Render other slices from the stack profile in under a second. `--stack java+kernel` continues each stack into the
-   kernel so the wait mechanism is visible; `--time split` ends each stack in `[sleeping]` or `[runqueue]`, which
+3. Render other slices from the stack profile without correlating again. `--stack java+kernel` continues each stack
+   into the kernel so the wait mechanism is visible; `--time split` ends each stack in `[sleeping]` or `[runqueue]`, which
    separates waiting for an event from waiting for a CPU after it arrived; `--include`/`--exclude` and their
-   `-from FILE` forms select intervals by frame. Render the result with the converter JAR from the same release:
+   `-from FILE` forms select intervals by frame. Render the result with the converter:
 
    ```bash
-   java -jar jonoffcpu-correlator.jar stacks --profile $OFFCPU/jonoffcpu-offcpu-profile.pb \
-     --exclude-from $OFFCPU/offcpu-idle-waits.txt --time split --package-names abbreviate \
-     --output /tmp/blocked-split.collapsed --summary /tmp/blocked-split.json
-   java -jar jfr-converter.jar --title "Blocked off-CPU time" --units µs --highlight '^o\.a\.(p|b)\.' \
-     /tmp/blocked-split.collapsed /tmp/blocked-split.html
+   ./gradlew -q :tests:performance:report-tool:runJonoffcpuCorrelator \
+     --args="stacks --profile '$offcpu_dir/jonoffcpu-offcpu-profile.pb' \
+     --exclude-from '$offcpu_dir/offcpu-idle-waits.txt' --time split --package-names abbreviate \
+     --output /tmp/blocked-split.collapsed --summary /tmp/blocked-split.json"
+   ./gradlew -q :tests:performance:report-tool:runJfrConverter \
+     --args="--title 'Blocked off-CPU time' --units µs --highlight '^o\.a\.(p|b)\.' \
+     /tmp/blocked-split.collapsed /tmp/blocked-split.html"
    ```
 
    The transforms `--root-at`, `--trim-root`, `--hide` and `--collapse-leaf` change what each kept stack looks like
@@ -64,18 +88,188 @@ to optimize, and the other tools that read the recordings.
 
 ## Comparing two profiles
 
-Compare the off-CPU time of two runs per unit of work with `top --baseline` (baseline second), for example per
+Compare the off-CPU time of two runs per unit of work with `top --baseline` (candidate in `--profile`), for example per
 million measured messages. Compare runs recorded with the same sampling policy. Proportional admission
 under-represents short waits in the observed weights, so the comparison uses the estimated weights:
 
 ```bash
-java -jar jonoffcpu-correlator.jar top --profile candidate-offcpu/jonoffcpu-offcpu-profile.pb \
+./gradlew -q :tests:performance:report-tool:runJonoffcpuCorrelator \
+  --args="top --profile candidate-offcpu/jonoffcpu-offcpu-profile.pb \
   --baseline baseline-offcpu/jonoffcpu-offcpu-profile.pb --units 4 --baseline-units 4 --weights estimated \
-  --app '^org\.apache\.(pulsar|bookkeeper)\.' --waiting-from candidate-offcpu/offcpu-idle-waits.txt --package-names abbreviate
+  --app '^org\.apache\.(pulsar|bookkeeper)\.' --waiting-from candidate-offcpu/offcpu-idle-waits.txt --package-names abbreviate"
 ```
 
-Profile both revisions with the same profiler options: profiling has a cost, and different options change it.
+The example assumes four million measured messages in each run. Replace `--units 4` and `--baseline-units 4`
+with each run's measured message count divided by one million, excluding warmup; do not assume the counts match.
+Keep the same filters and profiler options on both revisions. Profiling has a cost, and different options change it.
 [Comparing revisions](comparing-revisions.md) describes how to run the comparison.
+
+## Analyzing collapsed stacks with DuckDB
+
+For SQL analysis, DuckDB's [quack_flamegraph](https://github.com/kevintruong/quack-flamegraph) community extension
+reads collapsed stacktrace files as tables. These are also called folded stacktrace files: `.collapsed` and
+`.folded` are common extensions for the same format, with semicolon-separated frames and a weight at the end of
+each line.
+
+### Set up the profile and frame filter
+
+Start DuckDB and set `profile` to the path of your collapsed stacks file, relative to DuckDB's working directory
+or absolute. Set `pkg` to a regular expression for the frames you're interested in. Run the queries in the same
+session; they read both variables, so you need to change the path and filter only once:
+
+```sql
+INSTALL quack_flamegraph FROM community;
+LOAD quack_flamegraph;
+```
+
+```sql
+SET VARIABLE profile = 'cpu.collapsed';
+SET VARIABLE pkg = '^org[./]apache[./]';
+```
+
+The `^` anchors the match to the start of the frame name, and `[./]` matches either package separator, since frame
+names use `/` or `.` depending on how the file was produced. To match several packages at once, list them as
+alternatives:
+
+```sql
+SET VARIABLE pkg = '^org[./]apache[./](pulsar|bookkeeper)[./]';
+```
+
+Don't append `$` to these package-prefix patterns: frame names continue with the class and method name.
+To match a substring anywhere in the frame name, leave out the `^`, as in `ManagedLedger`. Match the names actually
+present in the file; an abbreviated frame such as `o.a.p.ManagedLedger.read` needs a different pattern.
+
+The column named `samples` holds the weight recorded in the input, not necessarily a sample count. Depending on
+the profile, weights can represent counts, durations or allocation sizes. Keep that unit when interpreting results;
+do not compare weights from different profile types as if they measured the same thing.
+
+### Rank stacks and methods
+
+This query returns the 45 highest-weight stacks whose leaf frame matches `pkg`:
+
+```sql
+SELECT samples, leaf
+FROM flamegraph_hot_stacks(getvariable('profile'))
+WHERE regexp_matches(leaf, getvariable('pkg'))
+ORDER BY samples DESC
+LIMIT 45;
+```
+
+This ranks individual stacks, not totals grouped by leaf method, and filters only the leaf frame, not callers
+elsewhere in the stack.
+
+To rank matching methods by the total weight of the stacks they appear in, anywhere in the stack, use
+`flamegraph_coverage`. Each stack is counted once per frame, so recursive calls don't inflate the total:
+
+```sql
+SELECT frame, coverage
+FROM flamegraph_coverage(getvariable('profile'))
+WHERE regexp_matches(frame, getvariable('pkg'))
+ORDER BY coverage DESC
+LIMIT 45;
+```
+
+### Find calls into other code
+
+To find the highest-weight call edges from a matching parent frame to a child that doesn't match:
+
+```sql
+FROM flamegraph_edges(getvariable('profile'))
+WHERE regexp_matches(parent, getvariable('pkg'))
+  AND NOT regexp_matches(child, getvariable('pkg'))
+ORDER BY samples DESC
+LIMIT 45;
+```
+
+### Attribute samples to the deepest matching frame
+
+To group the profile's weight by the last matching frame before execution enters other code, create `leaf_by_frame`.
+For each stack, it finds the deepest frame matching `pkg` and pairs it with the frame it calls (`child`) and the
+frame where the sample was taken (`leaf`). `child` is `NULL` when the matching frame is itself the leaf. Stacks
+without a matching frame are left out, and `pct` is the share of the entire profile's weight, including unmatched
+stacks. This associates work with a calling frame; it does not by itself prove that the caller is a bottleneck.
+
+```sql
+CREATE OR REPLACE VIEW leaf_by_frame AS
+WITH total AS (SELECT sum(samples) AS t FROM read_folded(getvariable('profile'))),
+m AS (
+  SELECT frames, leaf, samples,
+         list_last(list_filter(frames, lambda f: regexp_matches(f, getvariable('pkg')))) AS frame
+  FROM flamegraph_hot_stacks(getvariable('profile'))
+),
+s AS (
+  SELECT frame,
+         frames[len(frames) - list_position(list_reverse(frames), frame) + 2] AS child,
+         leaf, samples
+  FROM m
+  WHERE frame IS NOT NULL
+)
+SELECT frame, child, leaf,
+       sum(samples)                                 AS samples,
+       round(100.0 * sum(samples) / any_value(t), 2)  AS pct
+FROM s CROSS JOIN total
+GROUP BY ALL;
+```
+
+You can store this view in a file name `views.sql` for loading on command line.
+
+The view reads `profile` and `pkg` each time it is queried, so changing either variable changes its results:
+
+```sql
+FROM leaf_by_frame
+ORDER BY samples DESC
+LIMIT 45;
+```
+
+### Analysing collapsed stacktrace files with quack_flamegraph
+
+AI agents can automate analysis by combining quack_flamegraph's functions in DuckDB queries and views, as the
+`leaf_by_frame` view above demonstrates. They can join results and add `WHERE` clauses to narrow the analysis,
+exclude irrelevant matches, and investigate specific call paths.
+
+For example, this command ranks stacks whose leaf frames match the filter and prints the results as JSON:
+
+```sql
+duckdb -json \
+-cmd "SET VARIABLE profile = 'cpu.collapsed';SET VARIABLE pkg = '^org[./]apache[./]';" \
+-cmd "INSTALL quack_flamegraph FROM community;LOAD quack_flamegraph;" \
+-c "
+SELECT samples, leaf
+FROM flamegraph_hot_stacks(getvariable('profile'))
+WHERE regexp_matches(leaf, getvariable('pkg'))
+ORDER BY samples DESC
+LIMIT 45;
+"
+```
+
+To use the `leaf_by_frame` view from the command line, save its definition above in `quack_flamegraph_views.sql`,
+then load it before running the query:
+
+```sql
+duckdb -json \
+-cmd "SET VARIABLE profile = 'cpu.collapsed';SET VARIABLE pkg = '^org[./]apache[./]';" \
+-cmd "INSTALL quack_flamegraph FROM community;LOAD quack_flamegraph;" \
+-cmd ".read quack_flamegraph_views.sql" \
+-c "
+FROM leaf_by_frame ORDER BY samples DESC LIMIT 45;
+"
+```
+
+### Export results for automation
+
+For automated analysis, agents and scripts can export DuckDB query results as JSON or CSV. Save the setup statements
+and one result query in `analysis.sql` (include the view definition if querying `leaf_by_frame`), then run:
+
+```bash
+duckdb -no-init -bail -json < analysis.sql > analysis.json
+duckdb -no-init -bail -csv -header < analysis.sql > analysis.csv
+```
+
+Use one result query per output file so that JSON contains a single array and CSV contains one table with a header.
+`-bail` stops on SQL errors; check the exit status before consuming the output.
+
+
+
 
 ## Flame graphs of other recordings
 

@@ -33,6 +33,8 @@ the workload applications first when they are out of date.
 | `:tests:performance:launcher:run` | Runs a scenario without profiling. Rejects a scenario that has profiling options rather than silently running it without the profiler. |
 | `:tests:performance:launcher:profile` | Runs a scenario with the jonoffcpu profiler attached to every JVM that has profiling options, see [Profiling](profiling.md). |
 | `:tests:performance:tools:installDist` | Builds only the workload applications, into `tests/performance/tools/build/install/pulsar-performance-tools`, the directory the launcher mounts into the workload containers. |
+| `:tests:performance:report-tool:runJonoffcpuCorrelator` | Runs the pinned jonoffcpu correlator on saved profiles or captures; pass any CLI options with `--args`, see [Running the analysis CLIs](analyzing-profiles.md#running-the-analysis-clis). |
+| `:tests:performance:report-tool:runJfrConverter` | Runs jonoffcpu's pinned jfr-converter on collapsed stacks or JFR recordings; pass any CLI options with `--args`, see [Running the analysis CLIs](analyzing-profiles.md#running-the-analysis-clis). |
 
 Pass the launcher's options with `--args`:
 
@@ -70,7 +72,7 @@ Pass these with `-P` on the command line, or set them in `~/.gradle/gradle.prope
 | `performance.keepLauncherLog` | Keeps `launcher.log` of successful runs, as `--keep-launcher-log` does. The property alone, or with `true`, keeps it. |
 | `performance.reportsServer.bindAddress`, `performance.reportsServer.port` | Where `:tests:performance:report-tool:serveReports` listens, `127.0.0.1` and `8000` by default, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |
 | `performance.reportsServer.baseUrl` | The URL of the reports server, such as `http://192.168.1.123:8000/`, with which the launcher prints each report's URL. Default: `http://<bind address>:<port>/`, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |
-| `performance.profile.maxHeapSize` | The heap of the `profile` task, which correlates the off-CPU captures. Default: `4g`. |
+| `performance.profile.maxHeapSize` | The heap of the `profile`, `runJonoffcpuCorrelator` and `runJfrConverter` tasks. Default: `4g`. |
 | `performance.clusterPulsarImage` | A released Pulsar image for the cluster, such as `apachepulsar/pulsar:4.0.13` or `apachepulsar/pulsar:latest`, to test that release instead of the checkout. The tasks build the test image on it, which needs an Alpine-based Pulsar image, and use it for ZooKeeper, the bookies and the brokers; the workloads, and so the Pulsar client, stay on the checkout's image. See [Comparing with a released Pulsar](comparing-revisions.md#comparing-with-a-released-pulsar). |
 | `docker.tag` | The tag of the Docker images the tasks build and run, `latest` by default. Separate tags keep the images of two revisions apart, see [Comparing revisions](comparing-revisions.md). |
 | `docker.organization` | The organization of the Docker images, `apachepulsar` by default. |
