@@ -22,6 +22,7 @@ import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -33,13 +34,17 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -210,21 +215,29 @@ public class TableViewImplTest {
      */
     private static final class TailRetryFixture implements AutoCloseable {
         final Reader<String> reader = mock(Reader.class);
+        final ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
         final List<Long> retryDelays = new ArrayList<>();
         final List<Runnable> retries = new ArrayList<>();
+        final List<ScheduledFuture<?>> scheduledRetries = new ArrayList<>();
         final TableViewImpl<String> tableView;
 
-        @SuppressWarnings("unchecked")
         TailRetryFixture() {
+            this(null);
+        }
+
+        /** @param strategy the compaction strategy the table view loads, or {@code null} for none */
+        @SuppressWarnings("unchecked")
+        TailRetryFixture(TopicCompactionStrategy<String> strategy) {
             PulsarClientImpl client = mock(PulsarClientImpl.class);
             ReaderBuilder<String> builder = mock(ReaderBuilder.class, RETURNS_SELF);
             when(client.newReader(Schema.STRING)).thenReturn(builder);
             when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
-            ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
             when(scheduler.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class))).thenAnswer(inv -> {
                 retries.add(inv.getArgument(0));
                 retryDelays.add(inv.getArgument(1));
-                return null;
+                ScheduledFuture<?> scheduled = mock(ScheduledFuture.class);
+                scheduledRetries.add(scheduled);
+                return scheduled;
             });
             ScheduledExecutorProvider provider = mock(ScheduledExecutorProvider.class);
             when(provider.getExecutor()).thenReturn(scheduler);
@@ -233,12 +246,30 @@ public class TableViewImplTest {
             when(reader.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
             TableViewConfigurationData conf = new TableViewConfigurationData();
             conf.setTopicName(TAIL_RETRY_TOPIC);
-            tableView = new TableViewImpl<>(client, Schema.STRING, conf);
+            if (strategy == null) {
+                tableView = new TableViewImpl<>(client, Schema.STRING, conf);
+            } else {
+                try (var strategies = mockStatic(TopicCompactionStrategy.class)) {
+                    strategies.when(() -> TopicCompactionStrategy.load(TopicCompactionStrategy.TABLE_VIEW_TAG, null))
+                            .thenReturn(strategy);
+                    tableView = new TableViewImpl<>(client, Schema.STRING, conf);
+                }
+            }
         }
 
         /** Runs the most recently scheduled retry, as the scheduler would once its delay elapsed. */
         void runLatestRetry() {
             retries.get(retries.size() - 1).run();
+        }
+
+        /** Registers a refresh that waits for a message the reader has not delivered yet. */
+        CompletableFuture<Void> pendingRefresh() {
+            TopicMessageId lastMessageId = new TopicMessageIdImpl(TAIL_RETRY_TOPIC, new MessageIdImpl(1, 5, -1));
+            when(reader.getLastMessageIdsAsync())
+                    .thenReturn(CompletableFuture.completedFuture(List.of(lastMessageId)));
+            CompletableFuture<Void> refresh = tableView.refreshAsync();
+            assertFalse(refresh.isDone(), "The refresh must wait for the message at " + lastMessageId);
+            return refresh;
         }
 
         @Override
@@ -308,6 +339,72 @@ public class TableViewImplTest {
             assertEquals(delays.size(), 3, "Two failures before the success and one after: " + delays);
             assertTrue(delays.get(2) < delays.get(1),
                     "Delay after a successful read must reset to the initial backoff: " + delays);
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testCloseCancelsPendingTailReadRetryAndFailsPendingRefreshes() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture()) {
+            when(f.reader.readNextAsync()).thenAnswer(inv -> failedRead());
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> refresh = f.pendingRefresh();
+            assertEquals(f.scheduledRetries.size(), 1, "The failed read must leave one retry waiting for its delay");
+
+            f.tableView.closeAsync().get(5, TimeUnit.SECONDS);
+
+            verify(f.scheduledRetries.get(0)).cancel(false);
+            ExecutionException failure = expectThrows(ExecutionException.class,
+                    () -> refresh.get(5, TimeUnit.SECONDS));
+            assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException,
+                    "A refresh pending at close must fail right away, got " + failure.getCause());
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testRejectedTailReadRetryFailsPendingRefreshes() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture()) {
+            CompletableFuture<Message<String>> read = new CompletableFuture<>();
+            when(f.reader.readNextAsync()).thenReturn(read);
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> refresh = f.pendingRefresh();
+            // The client is shutting down: its scheduler no longer accepts the retry.
+            doThrow(new RejectedExecutionException("shutting down"))
+                    .when(f.scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+
+            read.completeExceptionally(new PulsarClientException.NotConnectedException());
+
+            ExecutionException failure = expectThrows(ExecutionException.class,
+                    () -> refresh.get(5, TimeUnit.SECONDS));
+            assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException,
+                    "A refresh cannot complete once retrying has stopped, got " + failure.getCause());
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    @SuppressWarnings("unchecked")
+    public void testProcessingFailureBacksOffLikeAReadFailure() throws Exception {
+        TopicCompactionStrategy<String> strategy = mock(TopicCompactionStrategy.class);
+        when(strategy.shouldKeepLeft(any(), any())).thenThrow(new IllegalStateException("strategy failure"));
+        try (TailRetryFixture f = new TailRetryFixture(strategy)) {
+            Message<String> message = mock(Message.class);
+            when(message.getTopicName()).thenReturn(TAIL_RETRY_TOPIC);
+            when(message.getMessageId()).thenReturn(new MessageIdImpl(1, 0, -1));
+            when(message.hasKey()).thenReturn(true);
+            when(message.getKey()).thenReturn("key");
+            when(message.size()).thenReturn(1);
+            when(message.getValue()).thenReturn("value");
+            // Two reads succeed but handling their message fails each time, then the reader blocks.
+            when(f.reader.readNextAsync()).thenReturn(CompletableFuture.completedFuture(message),
+                    CompletableFuture.completedFuture(message), new CompletableFuture<>());
+
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            f.runLatestRetry();
+
+            List<Long> delays = f.retryDelays;
+            assertEquals(delays.size(), 2, "Each failed handling must schedule a retry: " + delays);
+            // Doubling with the backoff's +-5% jitter; a reset would leave both near the initial delay.
+            assertTrue(delays.get(1) >= delays.get(0) * 1.5,
+                    "The delay must keep doubling while handling keeps failing: " + delays);
         }
     }
 
