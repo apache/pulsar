@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
+import io.github.merlimat.slog.Logger;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -30,6 +32,7 @@ import java.util.stream.Stream;
 final class JfrRecordingProcessor {
     private static final String JFR_SUFFIX = ".jfr";
     private static final String MEASUREMENT_SUFFIX = ".measurement.jfr";
+    private static final Duration CLOCK_TOLERANCE = Duration.ofSeconds(1);
 
     private JfrRecordingProcessor() {
     }
@@ -48,17 +51,13 @@ final class JfrRecordingProcessor {
         }
     }
 
-    static void process(Set<Path> recordings, Instant from, Instant to,
-                        boolean retainOriginal, boolean createMeasurementRecording) throws IOException {
+    /** Cuts each recording to the measurement into the measurement recording beside it, keeping the recording. */
+    static void process(Set<Path> recordings, Instant from, Instant to) throws IOException {
         IOException failure = null;
         for (Path recording : recordings) {
             try {
-                if (createMeasurementRecording) {
-                    JfrCut.cut(recording, from, to, measurementPath(recording));
-                }
-                if (!retainOriginal) {
-                    Files.delete(recording);
-                }
+                JfrCut.cut(recording, from, to, measurementPath(recording));
+                warnAboutClockMismatches(recording);
             } catch (IOException error) {
                 if (failure == null) {
                     failure = new IOException("Failed to process JFR recordings");
@@ -69,6 +68,21 @@ final class JfrRecordingProcessor {
         if (failure != null) {
             throw failure;
         }
+    }
+
+    // The cut keeps the right events of a chunk whose clock has another origin, but whole-file readers mistime them
+    private static void warnAboutClockMismatches(Path recording) throws IOException {
+        for (JfrCut.ClockMismatch mismatch : JfrCut.clockMismatches(recording, CLOCK_TOLERANCE)) {
+            log().warn().attr("recording", recording).attr("chunk", mismatch.chunk())
+                    .attr("errorSeconds", mismatch.error().toMillis() / 1000.0)
+                    .log("A chunk of the recording has a clock that doesn't line up with the first chunk's. The"
+                            + " measurement recording keeps its events, but JDK 22+ readers of a whole recording,"
+                            + " such as jfr print and the jonoffcpu correlator, mistime them");
+        }
+    }
+
+    private static Logger log() {
+        return Logger.get(JfrRecordingProcessor.class);
     }
 
     static Path measurementPath(Path recording) {
