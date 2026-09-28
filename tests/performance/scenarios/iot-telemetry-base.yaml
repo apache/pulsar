@@ -1,0 +1,73 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+
+# The defaults of the IoT telemetry scenarios: a workload of one gateway and one application with one pod, and the
+# cluster and the containers' memory of the medium-memory configuration, configs/iot-telemetry-medium-mem.yaml.
+# Recommended memory available to Docker: about 11 GB. The other scenarios extend it, and set the topology they model;
+# a scenario that needs a different memory configuration extends it from configs/ too, after this file.
+extends: configs/iot-telemetry-medium-mem.yaml
+# How often VictoriaMetrics scrapes the brokers' metrics, and the brokers update the stats that the metrics show, see
+# docs/metrics.md
+metrics:
+  intervalSeconds: 5
+workloads:
+  iotTelemetry:
+    # Warmup traffic is validated but excluded from throughput and the exported measurement window.
+    warmup:
+      seconds: 20
+      messages: 0
+      rounds: 1
+      roundDelaySeconds: 0
+    measurement:
+      seconds: 120
+      messages: 0
+    # The longest the workload may run: at least the warmup and the measurement at the rate, 140 s here, with room for
+    # startup and for the applications to catch up. The applications stop waiting for messages after it, and the run
+    # fails; the launcher rejects a timeout shorter than the warmup and the measurement before it starts a cluster.
+    timeoutSeconds: 240
+    rate: 1000
+    payload:
+      size: 64
+    devices:
+      count: 300000
+    gateways:
+      count: 1
+      producer:
+        ioThreads: 8
+        listenerThreads: 16
+        maxOutstanding: 20000
+        batchingEnabled: true
+        precreate: false
+    topics:
+      count: 30
+      prefix: persistent://public/default/iot-telemetry-
+    # Each application is a Key_Shared subscription of its own, consumed through its pods, each a Pulsar client with a
+    # consumer. One container runs every application, as one runs every gateway.
+    applications:
+      count: 1
+      podsPerApplication: 1
+      subscriptionPrefix: iot-application-
+      # The client resources that every pod's Pulsar client shares
+      client:
+        ioThreads: 8
+        listenerThreads: 16
+    behaviors:
+      # Each application restarts this fraction of its pods every intervalSeconds; 0 never
+      podRestarts:
+        intervalSeconds: 0
+        fraction: 0.0

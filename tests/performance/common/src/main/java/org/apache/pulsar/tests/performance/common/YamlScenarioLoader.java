@@ -24,8 +24,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /** Resolves performance scenario YAML inheritance and environment overrides. */
@@ -43,12 +47,84 @@ public final class YamlScenarioLoader {
 
     public ObjectNode resolve(Path configFile, JsonNode defaults, Map<String, String> environment,
                               String environmentPrefix, String configEnvironmentName) {
+        return resolve(configFile, List.of(), defaults, environment, environmentPrefix, configEnvironmentName);
+    }
+
+    /**
+     * Resolves {@code configFile} with its inheritance, merges each of {@code appendedFiles} on top of it, in order and
+     * with their own inheritance, as if the scenario extended them last, and applies the environment overrides.
+     */
+    public ObjectNode resolve(Path configFile, List<Path> appendedFiles, JsonNode defaults,
+                              Map<String, String> environment, String environmentPrefix,
+                              String configEnvironmentName) {
         ObjectNode root = defaults == null ? mapper.createObjectNode() : requireObject(defaults, "defaults").deepCopy();
         if (configFile != null) {
             mergeFile(root, configFile, new LinkedHashSet<>());
         }
+        for (Path appendedFile : appendedFiles) {
+            mergeFile(root, appendedFile, new LinkedHashSet<>());
+        }
         applyEnvironmentOverrides(root, environment, environmentPrefix, configEnvironmentName);
         return root;
+    }
+
+    /**
+     * Sets the value at a dotted path of a resolved scenario, {@code <path>=<value>}, such as
+     * {@code workloads.iotTelemetry.rate=5000}. The path's keys match in any case, and every section on the path has
+     * to exist, so that a misspelled section fails instead of adding configuration; the last key may be new, such as
+     * a setting added to {@code cluster.brokers.env}. A value replacing a scalar keeps its type; any other value is
+     * parsed as YAML, so that {@code [blocked]} sets a list.
+     */
+    public void set(ObjectNode root, String assignment) {
+        int separator = assignment.indexOf('=');
+        if (separator <= 0) {
+            throw new IllegalArgumentException("A setting is <path>=<value>, not '" + assignment + "'");
+        }
+        String[] path = assignment.substring(0, separator).split("\\.", -1);
+        String value = assignment.substring(separator + 1);
+        ObjectNode node = root;
+        for (int i = 0; i < path.length - 1; i++) {
+            String field = fieldName(node, path[i]);
+            if (field == null || !(node.get(field) instanceof ObjectNode section)) {
+                throw new IllegalArgumentException("Cannot set '" + assignment + "': the scenario has no section '"
+                        + String.join(".", Arrays.copyOf(path, i + 1)) + "'");
+            }
+            node = section;
+        }
+        String leaf = path[path.length - 1];
+        if (leaf.isEmpty()) {
+            throw new IllegalArgumentException("Cannot set '" + assignment + "': the path ends with an empty key");
+        }
+        String field = Objects.requireNonNullElse(fieldName(node, leaf), leaf);
+        JsonNode existing = node.get(field);
+        node.set(field, existing != null && existing.isValueNode() && !existing.isNull()
+                ? parseValue(value, existing) : parseYaml(assignment, value));
+    }
+
+    // A key's exact spelling, else the one that matches it in another case
+    private static String fieldName(ObjectNode node, String key) {
+        if (node.has(key)) {
+            return key;
+        }
+        var fields = node.fieldNames();
+        while (fields.hasNext()) {
+            String field = fields.next();
+            if (field.equalsIgnoreCase(key)) {
+                return field;
+            }
+        }
+        return null;
+    }
+
+    private JsonNode parseYaml(String assignment, String value) {
+        if (value.isEmpty()) {
+            return mapper.getNodeFactory().textNode("");
+        }
+        try {
+            return mapper.readTree(value);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Cannot set '" + assignment + "': the value isn't valid YAML", e);
+        }
     }
 
     public JsonNode select(JsonNode root, String dottedPath) {
@@ -128,11 +204,14 @@ public final class YamlScenarioLoader {
 
     private void applyEnvironmentOverrides(ObjectNode root, Map<String, String> environment,
                                            String prefix, String configEnvironmentName) {
+        // The prefix in upper or lower case; the rest of the name matches the scenario's keys in any case
+        String lowerCasePrefix = prefix.toLowerCase(Locale.ROOT);
         environment.forEach((name, value) -> {
-            if (!name.startsWith(prefix) || name.equals(configEnvironmentName)) {
+            if (!(name.startsWith(prefix) || name.startsWith(lowerCasePrefix))
+                    || name.equalsIgnoreCase(configEnvironmentName)) {
                 return;
             }
-            String[] path = name.substring(prefix.length()).toLowerCase().split("_");
+            String[] path = name.substring(prefix.length()).toLowerCase(Locale.ROOT).split("_");
             ObjectNode node = root;
             int pathIndex = 0;
             while (pathIndex < path.length) {

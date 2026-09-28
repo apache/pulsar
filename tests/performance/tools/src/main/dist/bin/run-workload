@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# Runs pulsar-performance-tools in a workload container of the Pulsar test image, with the JVM options that Pulsar's
+# own client tools get: conf/pulsar_env.sh's, such as the adaptive allocator, and those that bin/pulsar-perf adds,
+# such as Netty's reflection and native access. PULSAR_MEM, PULSAR_GC and PULSAR_EXTRA_OPTS apply only when the
+# container's environment sets them, as in bin/pulsar-perf, so that conf/pulsar_env.sh's broker defaults, such as a
+# 2 GB heap, don't. The launcher's JAVA_TOOL_OPTIONS, such as the profiler agent, come on top.
+
+# Every file and directory that the workload creates in the mounted output directories is writable by every user.
+# The launcher writes into them too, such as an application's latency percentile distribution into the application's
+# directory, and on a Linux host, where a bind mount keeps the files' owners, it runs as another user than the
+# workload.
+umask 000
+
+PULSAR_HOME=${PULSAR_HOME:-/pulsar}
+CALLER_PULSAR_MEM="${PULSAR_MEM:-}"
+CALLER_PULSAR_GC="${PULSAR_GC:-}"
+OPTS=""
+if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]; then
+  # conf/pulsar_env.sh runs java -version to find the JDK's version. JAVA_TOOL_OPTIONS would apply to that JVM too,
+  # and start the profiler agent there, which leaves a capture file behind that the workload's own agent refuses to
+  # overwrite, so it is hidden while the file runs.
+  if [ -n "${JAVA_TOOL_OPTIONS+set}" ]; then
+    SAVED_JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS"
+    unset JAVA_TOOL_OPTIONS
+    . "$PULSAR_HOME/conf/pulsar_env.sh"
+    export JAVA_TOOL_OPTIONS="$SAVED_JAVA_TOOL_OPTIONS"
+  else
+    . "$PULSAR_HOME/conf/pulsar_env.sh"
+  fi
+fi
+
+# The same options, and conditions, as bin/pulsar-perf
+if [[ $JAVA_MAJOR_VERSION -ge 23 ]]; then
+  OPTS="--sun-misc-unsafe-memory-access=allow $OPTS"
+fi
+if [[ $JAVA_MAJOR_VERSION -eq 25 || $JAVA_MAJOR_VERSION -eq 26 ]]; then
+  OPTS="-XX:+UseCompactObjectHeaders $OPTS"
+fi
+OPTS="$OPTS -Dio.netty.tryReflectionSetAccessible=true"
+OPTS="$OPTS -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
+OPTS="$OPTS --add-opens java.base/sun.net=ALL-UNNAMED --add-opens java.base/java.lang=ALL-UNNAMED"
+OPTS="$OPTS --add-opens java.base/java.util.zip=ALL-UNNAMED"
+OPTS="$OPTS --add-opens java.base/java.nio=ALL-UNNAMED --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
+if [[ $JAVA_MAJOR_VERSION -ge 24 ]]; then
+  # Netty, and the jonoffcpu agent in a profiled run, load native libraries, which is restricted from Java 24 on
+  OPTS="$OPTS --enable-native-access=ALL-UNNAMED"
+fi
+OPTS="-XX:+ExitOnOutOfMemoryError -Dpulsar.allocator.exit_on_oom=true $OPTS"
+OPTS="-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 $OPTS"
+OPTS="$OPTS $CALLER_PULSAR_MEM $CALLER_PULSAR_GC ${PULSAR_EXTRA_OPTS:-}"
+
+export JAVA_OPTS="$OPTS $JAVA_OPTS"
+exec "$(dirname "$0")/pulsar-performance-tools" "$@"

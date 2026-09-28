@@ -18,30 +18,72 @@
  */
 package org.apache.pulsar.tests.performance.launcher;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.github.dockerjava.api.model.Capability;
+import com.github.dockerjava.api.model.Info;
+import io.github.merlimat.slog.Logger;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.PrintStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalTime;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.OptionalDouble;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.util.stream.Stream;
+import org.apache.logging.log4j.LogManager;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
+import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
 import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
+import org.apache.pulsar.tests.performance.report.DockerEngine;
+import org.apache.pulsar.tests.performance.report.JfrFlamegraphViews;
+import org.apache.pulsar.tests.performance.report.MarkdownPages;
+import org.apache.pulsar.tests.performance.report.OffCpuFlamegraphs;
+import org.apache.pulsar.tests.performance.report.ProfileReport;
+import org.apache.pulsar.tests.performance.report.ReportsUrl;
+import org.apache.pulsar.tests.performance.report.RunInfo;
+import org.apache.pulsar.tests.performance.report.RunReport;
+import org.apache.pulsar.tests.performance.tools.IotScenario;
+import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.lifecycle.Startables;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -53,60 +95,227 @@ public class PerformanceLauncher implements Callable<Integer> {
     private static final String TOOLS_MOUNT = "/opt/pulsar-performance-tools";
     private static final String CONFIG_MOUNT = "/performance-config/resolved-config.yaml";
     private static final String COORDINATION_MOUNT = "/performance-coordination";
+    // The producer's measurement control endpoints, inside its container
+    private static final int CONTROL_PORT = 8089;
+    private static final String OUTPUT_MOUNT = "/performance-output";
+    static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
+    static final String PULSAR_MEM = "PULSAR_MEM";
+    // The JVM options that Pulsar's scripts put last on a Pulsar component's command line
+    static final String PULSAR_EXTRA_OPTS = "PULSAR_EXTRA_OPTS";
+    // A workload's heap and direct memory, unless the workload's gateways.env or applications.env set PULSAR_MEM
+    static final String WORKLOAD_MEMORY = "-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m";
+    private static final String CONTAINER_LOG = RunReport.CONTAINER_LOG;
+    // The gateways' outputs, named after them as the run report names them
+    private static final String GATEWAYS_DIRECTORY = "gateways";
+    // The applications' outputs: their container's, and a directory per application
+    private static final String APPLICATIONS_DIRECTORY = RunReport.APPLICATIONS_DIRECTORY;
+    // Every log goes to this file in the run directory, and the console shows only the launcher's own messages
+    static final String LAUNCHER_LOG = "launcher.log";
+    private static final String LOG_CONFIGURATION = "performance-launcher-log4j2.xml";
+    private static final DateTimeFormatter STATUS_TIME = DateTimeFormatter.ofPattern("HH:mm:ss", Locale.ROOT);
 
-    @Option(names = "--config", required = true)
-    Path config;
+    @Option(names = "--scenario", required = true, description = "The scenario file")
+    Path scenario;
 
-    @Option(names = "--output")
+    @Option(names = "--extends", paramLabel = "<scenario>",
+            description = "Merge this scenario file on top of the scenario, as if the scenario extended it last, "
+                    + "such as configs/profile-broker to profile the broker or configs/iot-telemetry-high-mem to give "
+                    + "it more memory. A relative path is looked for in the --scenario "
+                    + "file's directory, then in the working directory, and .yaml may be left out; an absolute "
+                    + "path is used as given. Repeatable, applied in order")
+    List<Path> extendedScenarios = new ArrayList<>();
+
+    @Option(names = "--set", paramLabel = "<path>=<value>",
+            description = "Set a value of the resolved scenario, such as workloads.iotTelemetry.rate=5000, after the "
+                    + "inheritance and the environment overrides. Repeatable, applied in order")
+    List<String> settings = new ArrayList<>();
+
+    @Option(names = "--output", description = "Exact run directory, instead of one in the reports hierarchy")
     Path output;
+
+    @Option(names = "--reports-dir", defaultValue = "${sys:performance.reports.dir}",
+            description = "Root of the reports hierarchy <root>/<yyyy-MM-dd>/<branch>/<name>/<MM-dd-HH-mm-ss>; "
+                    + "default: build/performance in the project directory")
+    Path reportsDirectory;
+
+    @Option(names = "--name", description = "The run's name in the reports hierarchy; default: the scenario's "
+            + "output.name, else the scenario file name without .yaml")
+    String name;
 
     @Option(names = "--tools-directory", description = "Installed pulsar-performance-tools distribution")
     Path toolsDirectory;
 
+    @Option(names = "--cooldown-temperature", defaultValue = "${sys:performance.cooldown.temperature}",
+            description = "Before starting the cluster, wait until the CPU package temperature is at most this "
+                    + "many °C, so that runs start from comparable thermal conditions; default: no wait")
+    Double cooldownCelsius;
+
+    @Option(names = "--cooldown-timeout", defaultValue = "600",
+            description = "The longest wait for --cooldown-temperature, in seconds; the run starts anyway after it")
+    int cooldownTimeoutSeconds;
+
+    @Option(names = "--progress-interval", defaultValue = "10",
+            description = "Report the workload's throughput, latency and backlog every this many seconds")
+    int progressIntervalSeconds;
+
+    @Option(names = "--keep-launcher-log", defaultValue = "${sys:performance.keepLauncherLog:-false}",
+            description = "Keep launcher.log when the run succeeds; without it, a successful run deletes it, since the "
+                    + "containers' logs make it large. It is written during the run, so that it can be followed, and "
+                    + "a failed run keeps it")
+    boolean keepLauncherLog;
+
+    @Option(names = "--metrics", negatable = true, defaultValue = "${sys:performance.metrics:-true}",
+            fallbackValue = "true", description = "Have VictoriaMetrics scrape the metrics of the brokers, the "
+                    + "bookies and ZooKeeper during the run, the default: the running metrics stack's, or else the "
+                    + "stack started for the run. --no-metrics doesn't. See docs/metrics.md")
+    boolean metrics;
+
+    @Option(names = "--sysfs", defaultValue = "/sys", hidden = true)
+    Path sysfs;
+
     public static void main(String[] args) {
-        System.exit(new CommandLine(new PerformanceLauncher()).execute(args));
+        if (System.getProperty("log4j2.configurationFile") == null) {
+            System.setProperty("log4j2.configurationFile", LOG_CONFIGURATION);
+        }
+        System.exit(new CommandLine(new PerformanceLauncher())
+                .setExecutionExceptionHandler((e, commandLine, parseResult) -> {
+                    if (!(e instanceof ReportedFailure)) {
+                        reportFailure(e);
+                    }
+                    return commandLine.getCommandSpec().exitCodeOnExecutionException();
+                })
+                .execute(args));
+    }
+
+    /**
+     * A failure that the launcher has reported already, when it happened: the launcher throws it so that the run
+     * fails without reporting it again, after it has shut the cluster down.
+     */
+    static final class ReportedFailure extends Exception {
+        ReportedFailure(Throwable cause) {
+            super(cause.getMessage(), cause);
+        }
+    }
+
+    /**
+     * Reports a failure on the console in one line, and its stack trace in the launcher's log. The console shows
+     * where the log is, and the containers' logs when the failure came from a workload.
+     */
+    static void reportFailure(Throwable e) {
+        status("The run failed: " + Objects.requireNonNullElse(e.getMessage(), e.toString()));
+        log().error().exception(e).log("The run failed");
+        String launcherLog = System.getProperty("performance.launcher.log");
+        if (launcherLog != null) {
+            status("Stack trace: " + launcherLog);
+        }
     }
 
     @Override
     public Integer call() throws Exception {
         YamlScenarioLoader loader = new YamlScenarioLoader();
-        ObjectNode resolved = loader.resolve(config, null, System.getenv(), ENV_PREFIX, CONFIG_ENV);
+        List<Path> appendedScenarios = extendedScenarios.stream().map(this::appendedScenario).toList();
+        ObjectNode resolved =
+                loader.resolve(scenario, appendedScenarios, null, System.getenv(), ENV_PREFIX, CONFIG_ENV);
+        settings.forEach(setting -> loader.set(resolved, setting));
         ObjectNode workload = (ObjectNode) loader.select(resolved, "workloads.iotTelemetry");
-        ObjectNode clusterConfig = (ObjectNode) loader.select(resolved, "cluster");
         JsonNode profiling = resolved.path("profiling");
-        String brokerProfileOptions = text(profiling, "brokerOptions");
-        String producerProfileOptions = text(profiling, "producerOptions");
-        String consumerProfileOptions = text(profiling, "consumerOptions");
-        boolean retainOriginalRecording = booleanValue(profiling, "retainOriginalRecording", true);
-        boolean createMeasurementRecording = booleanValue(profiling, "createMeasurementRecording", true);
-        boolean profilingEnabled = brokerProfileOptions != null || producerProfileOptions != null
-                || consumerProfileOptions != null;
-        if (profilingEnabled
-                && !Boolean.parseBoolean(System.getenv("PERFORMANCE_ASYNC_PROFILER_AVAILABLE"))) {
-            throw new IllegalArgumentException("This scenario enables async-profiler; run it with "
-                    + "./gradlew :tests:performance:launcher:profile");
+        ProfilingSettings profilingSettings = ProfilingSettings.read(loader.mapper(), profiling);
+        ClusterSettings clusterSettings = ClusterSettings.read(loader.mapper(), resolved.path("cluster"));
+        HeapDumpSettings heapDumpSettings = HeapDumpSettings.read(resolved.path("heapDumps"));
+        MetricsSettings metricsSettings = MetricsSettings.read(resolved.path("metrics"));
+        // The cluster as the scenario wrote it, for the run report
+        ObjectNode clusterConfig = (ObjectNode) resolved.get("cluster");
+        boolean profilingEnabled = profilingSettings.anyProfiled();
+        Path agentJar = null;
+        if (profilingEnabled) {
+            String configuredAgentJar = System.getProperty("performance.jonoffcpu.agent");
+            if (!Boolean.parseBoolean(System.getenv("PERFORMANCE_PROFILER_AVAILABLE"))
+                    || configuredAgentJar == null) {
+                throw new IllegalArgumentException("This scenario enables profiling; run it with "
+                        + "./gradlew :tests:performance:launcher:profile");
+            }
+            agentJar = Path.of(configuredAgentJar).toAbsolutePath().normalize();
         }
-        int applications = workload.path("applicationCount").intValue();
+        int applications = workload.path("applications").path("count").intValue();
         String runId = UUID.randomUUID().toString();
         String clusterName = "iot-" + ProcessHandle.current().pid();
         workload.put("serviceUrl", "pulsar://" + clusterName + "-pulsar-broker-0:6650");
+        checkWorkload(loader.mapper(), workload);
 
-        Path runOutput = output != null ? output
-                : Path.of(loader.select(resolved, "output.directory").textValue());
+        // Whole seconds, as the run directory names the start
+        RunInfo runInfo = RunInfo.collect(Path.of("").toAbsolutePath(),
+                ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+        // ZooKeeper, the bookies and the brokers run a released Pulsar in a test image built on it, see
+        // -Pperformance.clusterPulsarImage
+        String clusterPulsarImage = System.getProperty("performance.cluster.pulsarImage");
+        String clusterImage = System.getProperty("performance.cluster.image");
+        if ((clusterPulsarImage == null) != (clusterImage == null)) {
+            throw new IllegalArgumentException("Set both performance.cluster.pulsarImage and"
+                    + " performance.cluster.image, or neither; ./gradlew :tests:performance:launcher:run"
+                    + " -Pperformance.clusterPulsarImage=<image> sets both");
+        }
+        if (clusterPulsarImage != null) {
+            runInfo = runInfo.withCluster(new RunInfo.Cluster(clusterPulsarImage, ""));
+        }
+        Path reportsRoot = reportsDirectory != null ? reportsDirectory
+                : runInfo.projectDirectory().resolve(RunDirectory.DEFAULT_REPORTS_ROOT);
+        Path runOutput = output != null ? output : RunDirectory.resolve(reportsRoot, runInfo.started(),
+                clusterPulsarImage != null ? RunDirectory.clusterDirectory(clusterPulsarImage)
+                        : RunDirectory.branchDirectory(runInfo.gitBranch(), runInfo.gitCommit()),
+                runName(resolved));
         runOutput = runOutput.toAbsolutePath().normalize();
         Files.createDirectories(runOutput);
+        copyConsoleTo(runOutput.resolve(RunReport.CONSOLE_LOG));
+        System.out.println("Run directory: " + runOutput);
+        Path launcherLog = runOutput.resolve(LAUNCHER_LOG);
+        // Before anything logs, which is when the logging reads its configuration
+        System.setProperty("performance.launcher.log", launcherLog.toString());
+        status("Logs: " + launcherLog);
+        runInfo = runInfo.withDockerEngine(dockerEngine());
+        runInfo.write(runOutput);
         Path coordinationDirectory = runOutput.resolve("coordination");
         Files.createDirectories(coordinationDirectory);
         Files.writeString(runOutput.resolve("run-id.txt"), runId + "\n");
         Set<Path> recordingsBeforeRun = JfrRecordingProcessor.findOriginalRecordings(runOutput);
         Path brokerProfileDirectory = runOutput.resolve("broker-profile");
-        if (brokerProfileOptions != null) {
+        if (profilingSettings.broker().profiled()) {
             Files.createDirectories(brokerProfileDirectory);
-            System.setProperty("inttest.asyncprofiler.opts", brokerProfileOptions);
+            System.setProperty("inttest.asyncprofiler.opts", profilingSettings.broker().asyncProfilerOptions());
             System.setProperty("inttest.asyncprofiler.outputformat", "jfr");
         }
-        Path resolvedConfig = runOutput.resolve("resolved-config.yaml");
+        Map<String, Path> heapDumpDirectories = heapDumpSettings.any() ? HeapDumper.prepare(runOutput) : Map.of();
+        // The brokers update the stats that their metrics show every metrics interval, also when no metrics are
+        // collected, so that runs with and without them are alike
+        Map<String, String> brokerEnv = metricsSettings.withBrokerStatsSettings(clusterSettings.brokers().env());
+        Map<String, String> brokerMounts = new LinkedHashMap<>();
+        if (heapDumpSettings.broker().any()) {
+            brokerMounts.put(heapDumpDirectories.get(HeapDumpSettings.BROKER).toString(), HeapDumper.MOUNT);
+        }
+        if (heapDumpSettings.broker().onOutOfMemoryError()) {
+            // The test image's scripts put -XX:HeapDumpPath=/var/log/pulsar into the broker's command line, which the
+            // broker's extra options come after
+            brokerEnv = withJvmOptions(brokerEnv, PULSAR_EXTRA_OPTS,
+                    HeapDumper.outOfMemoryOptions(heapDumpSettings.gzipLevel()));
+        }
+        Path resolvedConfig = runOutput.resolve(RunReport.RESOLVED_CONFIG);
+        if (cooldownCelsius != null) {
+            // The workloads wait while the host cools down before the measurement; give them the time for it
+            workload.put("timeoutSeconds", workload.path("timeoutSeconds").intValue()
+                    + cooldownTimeoutSeconds);
+        }
         loader.write(resolvedConfig, resolved);
+        status("Scenario " + scenarioName(resolved) + " ("
+                + Stream.concat(Stream.of(scenario), appendedScenarios.stream())
+                        .map(file -> file.getFileName().toString()).collect(Collectors.joining(" + "))
+                + (settings.isEmpty() ? "" : ", " + String.join(", ", settings)) + "), resolved:");
+        System.out.print(indent(loader.mapper().writerWithDefaultPrettyPrinter().writeValueAsString(resolved)
+                .replaceFirst("^---\\R", "")));
+        // The scenario as written, beside its resolved form, so that the run report can link both
+        Files.copy(scenario, runOutput.resolve(scenario.getFileName()), StandardCopyOption.REPLACE_EXISTING);
+        for (Path appendedScenario : appendedScenarios) {
+            Files.copy(appendedScenario, runOutput.resolve(appendedScenario.getFileName()),
+                    StandardCopyOption.REPLACE_EXISTING);
+        }
 
         Path resolvedToolsDirectory = (toolsDirectory != null ? toolsDirectory : Path.of(System.getProperty(
                 "performance.tools.dir", "tests/performance/tools/build/install/pulsar-performance-tools")))
@@ -116,78 +325,206 @@ public class PerformanceLauncher implements Callable<Integer> {
                     "Build the performance tools distribution first: " + resolvedToolsDirectory);
         }
 
-        @SuppressWarnings("unchecked")
-        Map<String, String> brokerEnvs = loader.mapper().convertValue(clusterConfig.path("brokerEnvs"), Map.class);
-        @SuppressWarnings("unchecked")
-        Map<String, String> bookkeeperEnvs =
-                loader.mapper().convertValue(clusterConfig.path("bookkeeperEnvs"), Map.class);
+        Map<String, String> gatewaysEnv = ClusterSettings.env(loader.mapper(), workload.path("gateways").path("env"),
+                "workloads.iotTelemetry.gateways.env");
+        Map<String, String> applicationsEnv = ClusterSettings.env(loader.mapper(),
+                workload.path("applications").path("env"), "workloads.iotTelemetry.applications.env");
         PulsarClusterSpec spec = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
-                .numBrokers(clusterConfig.path("brokers").intValue())
-                .numBookies(clusterConfig.path("bookies").intValue())
+                .numBrokers(clusterSettings.brokers().replicas())
+                .numBookies(clusterSettings.bookies().replicas())
                 .numProxies(0)
-                .profileBroker(brokerProfileOptions != null)
+                .profileBroker(profilingSettings.broker().profiled())
                 .profileDirectory(brokerProfileDirectory.toString())
-                .brokerEnvs(brokerEnvs)
-                .bookkeeperEnvs(bookkeeperEnvs)
+                .jonoffcpuAgentJar(agentJar != null ? agentJar.toString() : null)
+                .jonoffcpuOptions(profilingSettings.broker().offCpuOptions())
+                .clusterImage(clusterImage)
+                .brokerEnvs(brokerEnv)
+                .brokerMountFiles(brokerMounts)
+                .bookkeeperEnvs(metricsSettings.withBookieStatsSettings(clusterSettings.bookies().env()))
                 .build();
 
+        HostStatsSampler.Sensors sensors = HostStatsSampler.discover(sysfs);
+        List<RunReport.Cooldown> cooldowns = new CopyOnWriteArrayList<>();
+        RunReport.Cooldown beforeRun = coolDown(sensors, RunReport.Cooldown.BEFORE_RUN);
+        if (beforeRun != null) {
+            cooldowns.add(beforeRun);
+        }
+        Thread measurementGate = null;
         PulsarCluster cluster = PulsarCluster.forSpec(spec);
-        List<GenericContainer<?>> consumers = new ArrayList<>(applications);
+        Path applicationsOutput = runOutput.resolve(APPLICATIONS_DIRECTORY);
+        GenericContainer<?> consumer = null;
         GenericContainer<?> producer = null;
+        TopicStatsSampler topicStatsSampler = null;
+        ProgressMonitor progress = null;
+        HostStatsSampler hostStatsSampler = startHostStatsSampler(sensors, runOutput);
+        HeapDumper heapDumper = heapDumpSettings.any()
+                ? new HeapDumper(runOutput, PulsarContainer.DEFAULT_IMAGE_NAME, heapDumpSettings.gzipLevel()) : null;
+        MetricsCollection metricsCollection = null;
+        Instant gatewaysStarted = null;
+        String metricsBindAddress = System.getProperty("performance.metrics.bindAddress",
+                ReportsUrl.DEFAULT_BIND_ADDRESS);
+        ZonedDateTime workloadFinished;
         try {
+            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)",
+                    spec.numBrokers(), spec.numBookies()));
+            long clusterStart = System.nanoTime();
             cluster.start();
-            for (int application = 0; application < applications; application++) {
-                Path appOutput = runOutput.resolve("consumer-" + application);
-                Files.createDirectories(appOutput);
-                consumers.add(workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
-                        coordinationDirectory, runId, appOutput,
-                        consumerProfileOptions, "iot-consume", "--application-index", Integer.toString(application))
-                        .waitingFor(Wait.forLogMessage(".*READY application=.*", 1)
-                                .withStartupTimeout(Duration.ofMinutes(5))));
+            status(String.format(Locale.ROOT, "Started the Pulsar cluster in %.0f s",
+                    (System.nanoTime() - clusterStart) / 1e9));
+            if (clusterPulsarImage != null) {
+                String clusterVersion = brokerVersion(cluster);
+                runInfo = runInfo.withCluster(new RunInfo.Cluster(clusterPulsarImage, clusterVersion));
+                runInfo.write(runOutput);
+                status("The cluster runs Pulsar " + (clusterVersion.isEmpty() ? "of unknown version" : clusterVersion)
+                        + " from " + clusterPulsarImage);
             }
-            Startables.deepStart(consumers.stream()).join();
+            if (metrics) {
+                String composeFile = System.getProperty("performance.metrics.composeFile");
+                metricsCollection = MetricsCollection.start(cluster, composeFile != null ? Path.of(composeFile) : null,
+                        metricsBindAddress, MetricsCollection.clusterLabel(reportsRoot, runOutput), runId,
+                        metricsSettings, PerformanceLauncher::status);
+            }
+            status(String.format(Locale.ROOT, "Starting %d application(s) with %d pod(s) each",
+                    applications, workload.path("applications").path("podsPerApplication").intValue()));
+            // One container runs every application, as one runs every gateway; each application writes into its
+            // directory in the applications' directory
+            Files.createDirectories(applicationsOutput);
+            consumer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig, coordinationDirectory,
+                    runId, applicationsOutput, agentJar, profilingSettings.applications(), APPLICATIONS_DIRECTORY,
+                    applicationsEnv, heapDumpSettings.applications(), heapDumpSettings.gzipLevel(),
+                    heapDumpDirectories.get(HeapDumpSettings.APPLICATIONS), "iot-consume", "--control-port",
+                    Integer.toString(CONTROL_PORT))
+                    .withExposedPorts(CONTROL_PORT);
+            long applicationsStart = System.nanoTime();
+            startWorkload(consumer, ".*READY applications=.*", "The applications",
+                    applicationsOutput.resolve(CONTAINER_LOG));
+            status(String.format(Locale.ROOT, "Started the applications in %.0f s",
+                    (System.nanoTime() - applicationsStart) / 1e9));
+            topicStatsSampler = startTopicStatsSampler(cluster, workload, runOutput);
+            TopicStatsSampler backlogSource = topicStatsSampler;
+            progress = new ProgressMonitor(loader.mapper(), System.out,
+                    workload.path("payload").path("size").intValue(),
+                    applications, () -> backlogSource != null ? backlogSource.latestBacklog() : null);
+            GenericContainer<?> runningConsumer = consumer;
+            progress.follow(APPLICATIONS_DIRECTORY, controlUrl(consumer), runningConsumer::isRunning);
 
-            Path producerOutput = runOutput.resolve("producer");
+            Path producerOutput = runOutput.resolve(GATEWAYS_DIRECTORY);
             Files.createDirectories(producerOutput);
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
-                    coordinationDirectory, runId, producerOutput,
-                    producerProfileOptions, "iot-produce");
-            producer.start();
-            int timeout = workload.path("consumerTimeoutSeconds").intValue() + 60;
-            int producerExit = waitForExit(producer, timeout);
-            saveContainerLog(producer, producerOutput.resolve("container.log"));
-            if (producerExit != 0) {
-                throw new IllegalStateException("IoT producer exited with status " + producerExit);
+                    coordinationDirectory, runId, producerOutput, agentJar, profilingSettings.gateways(),
+                    GATEWAYS_DIRECTORY, gatewaysEnv, heapDumpSettings.gateways(), heapDumpSettings.gzipLevel(),
+                    heapDumpDirectories.get(HeapDumpSettings.GATEWAYS), "iot-produce", cooldownCelsius != null
+                            ? new String[] {"--control-port", Integer.toString(CONTROL_PORT),
+                                    "--await-measurement-start"}
+                            : new String[] {"--control-port", Integer.toString(CONTROL_PORT)});
+            // The launcher reaches the producer's control endpoints through the port mapped on the host
+            producer.withExposedPorts(CONTROL_PORT);
+            status(String.format(Locale.ROOT, "Starting the gateways: %,d warmup and %,d measured message(s) at "
+                            + "%,d msg/s from %d gateway(s) to %d topic(s)",
+                    warmupMessageCount(workload), measurementMessageCount(workload), workload.path("rate").intValue(),
+                    workload.path("gateways").path("count").intValue(),
+                    workload.path("topics").path("count").intValue()));
+            startWorkload(producer, ".*CONTROL_READY.*", "The gateways", producerOutput.resolve(CONTAINER_LOG));
+            gatewaysStarted = Instant.now();
+            GenericContainer<?> runningProducer = producer;
+            if (heapDumper != null) {
+                heapDumper.start(heapDumpTargets(cluster, heapDumpSettings, producer, consumer));
             }
-            for (int application = 0; application < consumers.size(); application++) {
-                GenericContainer<?> consumer = consumers.get(application);
-                int consumerExit = waitForExit(consumer, timeout);
-                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/container.log"));
-                if (consumerExit != 0) {
-                    throw new IllegalStateException("IoT consumer exited with status " + consumerExit);
+            progress.follow("producer", controlUrl(producer), runningProducer::isRunning);
+            progress.start(progressIntervalSeconds);
+            if (cooldownCelsius != null) {
+                measurementGate = startMeasurementGate(sensors, producer, cooldowns);
+            }
+            List<Workload> workloads = new ArrayList<>();
+            workloads.add(new Workload("The gateways", producer, producerOutput.resolve(CONTAINER_LOG)));
+            workloads.add(new Workload("The applications", consumer, applicationsOutput.resolve(CONTAINER_LOG)));
+            awaitWorkloads(workloads, workload.path("timeoutSeconds").intValue() + 60);
+            progress.report();
+            progress.close();
+            if (heapDumper != null) {
+                heapDumper.end();
+            }
+            // The run's end in the charts: every consumer has finished, before the profiles are processed
+            workloadFinished = ZonedDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+            status("Every application has received every message; verifying the device sequences");
+            verifyStates(runOutput, workload, applications);
+            if (metricsCollection != null) {
+                // The metrics are an addition to the run, which doesn't fail with them
+                try {
+                    String dashboard = metricsCollection.finish(runOutput,
+                            runEvents(loader.mapper(), runOutput, workload, applications, gatewaysStarted),
+                            System.getProperty("performance.metrics.grafanaUrl"), metricsBindAddress,
+                            PerformanceLauncher::status);
+                    status("Metrics in Grafana: " + dashboard + (metricsCollection.startedStack()
+                            ? " (start the metrics stack with ./gradlew :tests:performance:metrics:up to view it)"
+                            : ""));
+                } catch (IOException | RuntimeException e) {
+                    status("Metrics: couldn't finish collecting them: " + e.getMessage());
+                    log().warn().exception(e).log("Finishing the metrics collection failed");
                 }
             }
-            verifyStates(runOutput, applications);
+        } catch (Exception e) {
+            // Reported before the shutdown, which takes a while, so that the failure is the last thing on the console
+            reportFailure(e);
+            throw new ReportedFailure(e);
         } finally {
-            if (producer != null) {
-                saveContainerLog(producer, runOutput.resolve("producer/container.log"));
-                producer.stop();
+            // A failure while shutting down is only a warning: it must not hide the run's result or its failure
+            ProgressMonitor progressToClose = progress;
+            TopicStatsSampler topicStatsToClose = topicStatsSampler;
+            Thread gateToStop = measurementGate;
+            GenericContainer<?> producerToStop = producer;
+            GenericContainer<?> consumerToStop = consumer;
+            // First, so that no dump is being written into a container that stops
+            shutDown("finishing the heap dumps", () -> {
+                if (heapDumper != null) {
+                    heapDumper.close();
+                }
+            });
+            shutDown("stopping the progress report", () -> {
+                if (progressToClose != null) {
+                    progressToClose.close();
+                }
+            });
+            shutDown("closing the topic stats sampler", () -> {
+                if (topicStatsToClose != null) {
+                    topicStatsToClose.close();
+                }
+            });
+            shutDown("closing the host stats sampler", () -> {
+                if (hostStatsSampler != null) {
+                    hostStatsSampler.close();
+                }
+            });
+            if (gateToStop != null) {
+                gateToStop.interrupt();
             }
-            for (int application = 0; application < consumers.size(); application++) {
-                GenericContainer<?> consumer = consumers.get(application);
-                saveContainerLog(consumer, runOutput.resolve("consumer-" + application + "/container.log"));
-                consumer.stop();
+            if (producerToStop != null) {
+                saveContainerLog(producerToStop, runOutput.resolve(GATEWAYS_DIRECTORY).resolve(CONTAINER_LOG));
+                shutDown("stopping the producer", producerToStop::stop);
             }
-            cluster.stop();
+            if (consumerToStop != null) {
+                saveContainerLog(consumerToStop, applicationsOutput.resolve(CONTAINER_LOG));
+                shutDown("stopping the applications", consumerToStop::stop);
+            }
+            MetricsCollection metricsToClose = metricsCollection;
+            shutDown("stopping the metrics collection", () -> {
+                if (metricsToClose != null) {
+                    metricsToClose.close();
+                }
+            });
+            status("Stopping the Pulsar cluster");
+            shutDown("stopping the Pulsar cluster", cluster::stop);
         }
         if (profilingEnabled) {
-            JsonNode summary = loader.mapper().readTree(runOutput.resolve("producer/producer-summary.json").toFile());
+            status("Processing the profiles");
+            JsonNode summary = loader.mapper().readTree(runOutput.resolve("gateways/gateways-summary.json").toFile());
             Instant measurementStart = Instant.ofEpochMilli(requiredLong(summary, "measurementStartEpochMs"));
             long lastConsumerReceiptEpochMs = Long.MIN_VALUE;
             for (int application = 0; application < applications; application++) {
                 JsonNode consumerSummary = loader.mapper().readTree(
-                        runOutput.resolve("consumer-" + application + "/consumer-summary.json").toFile());
+                        applicationOutput(runOutput, workload, application).resolve("application-summary.json")
+                                .toFile());
                 lastConsumerReceiptEpochMs = Math.max(lastConsumerReceiptEpochMs,
                         requiredLong(consumerSummary, "lastMeasurementMessageReceivedEpochMs"));
             }
@@ -199,57 +536,498 @@ public class PerformanceLauncher implements Callable<Integer> {
             if (recordings.isEmpty()) {
                 throw new IllegalStateException("Profiling completed without producing a JFR recording");
             }
-            JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd,
-                    retainOriginalRecording, createMeasurementRecording);
+            // Correlate against the untouched recording first: the stream binds its size and digest, and
+            // retention may delete it afterwards.
+            for (Path recording : recordings) {
+                if (offCpuCaptured(loader.mapper(), recording)) {
+                    Path outputDirectory = OffCpuFlamegraphs.process(recording,
+                            JonoffcpuAgent.capture(recording), measurementStart, measurementEnd);
+                    System.out.println("Off-CPU profile: " + outputDirectory);
+                }
+            }
+            JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd);
+            for (Path recording : recordings) {
+                Path source = JfrRecordingProcessor.measurementPath(recording);
+                Set<JfrFlamegraphViews.View> views = JfrFlamegraphViews.configuredViews(
+                        asyncProfilerOptions(loader.mapper(), recording));
+                if (!views.isEmpty() && Files.isRegularFile(source)) {
+                    System.out.println("Flame graphs: " + JfrFlamegraphViews.render(recording, source, views));
+                }
+            }
+            ProfileReport.Run run = new ProfileReport.Run(scenario.getFileName().toString(), runId,
+                    measurementStart, measurementEnd, summary.path("messagesPerSecond").asDouble());
+            Map<Path, List<Path>> recordingsByDirectory = recordings.stream().sorted()
+                    .collect(Collectors.groupingBy(Path::getParent, TreeMap::new, Collectors.toList()));
+            for (Map.Entry<Path, List<Path>> entry : recordingsByDirectory.entrySet()) {
+                printReport("Profile report", MarkdownPages.htmlPage(
+                        ProfileReport.write(entry.getKey(), entry.getValue(), run, loader.mapper(), runOutput)),
+                        reportsRoot);
+            }
+        }
+        Path runReport = RunReport.write(runOutput, new RunReport.Run(scenario.getFileName().toString(), runId,
+                PulsarContainer.DEFAULT_IMAGE_NAME, clusterConfig, workload, runInfo, workloadFinished,
+                List.copyOf(cooldowns)), loader.mapper());
+        printReport("Run report", MarkdownPages.htmlPage(runReport), reportsRoot);
+        if (!keepLauncherLog) {
+            deleteLauncherLog(launcherLog);
         }
         return 0;
     }
 
+    /**
+     * The run's events for Grafana's annotations: the gateways' start, which starts the warmup, the measurement's
+     * start, the gateways' finish, and the applications' finish, when they had received every message.
+     */
+    static List<MetricsCollection.Event> runEvents(ObjectMapper mapper, Path runOutput, JsonNode workload,
+                                                   int applications, Instant gatewaysStarted) throws IOException {
+        List<MetricsCollection.Event> events = new ArrayList<>();
+        if (gatewaysStarted != null) {
+            events.add(new MetricsCollection.Event("gateways-started",
+                    "Gateways started: the producers publish, the warmup starts", gatewaysStarted));
+        }
+        JsonNode gateways = mapper.readTree(runOutput.resolve("gateways/gateways-summary.json").toFile());
+        events.add(new MetricsCollection.Event("warmup-finished", "Warmup finished: the measurement starts",
+                Instant.ofEpochMilli(requiredLong(gateways, "measurementStartEpochMs"))));
+        events.add(new MetricsCollection.Event("gateways-finished",
+                "Gateways finished: the producers have published every message",
+                Instant.ofEpochMilli(requiredLong(gateways, "measurementEndEpochMs"))));
+        long lastReceived = Long.MIN_VALUE;
+        for (int application = 0; application < applications; application++) {
+            JsonNode summary = mapper.readTree(applicationOutput(runOutput, workload, application)
+                    .resolve("application-summary.json").toFile());
+            lastReceived = Math.max(lastReceived, requiredLong(summary, "lastMeasurementMessageReceivedEpochMs"));
+        }
+        if (lastReceived != Long.MIN_VALUE) {
+            events.add(new MetricsCollection.Event("applications-finished",
+                    "Applications finished: the consumers have received every message",
+                    Instant.ofEpochMilli(lastReceived)));
+        }
+        return events;
+    }
+
+    /**
+     * Prints a report's page, and its URL on the reports server when the report is in the reports root: the server's
+     * base URL, as {@code performance.reportsServer.baseUrl} or its bind address and port give it, with the report's
+     * path in the root appended.
+     */
+    private static void printReport(String label, Path page, Path reportsRoot) {
+        System.out.println(label + ": " + page);
+        String baseUrl = ReportsUrl.baseUrl(System.getProperty("performance.reportsServer.baseUrl"),
+                System.getProperty("performance.reportsServer.bindAddress"),
+                Integer.getInteger("performance.reportsServer.port", ReportsUrl.DEFAULT_PORT));
+        ReportsUrl.url(baseUrl, reportsRoot, page).ifPresent(url -> System.out.println(label + " URL: " + url));
+    }
+
+    /**
+     * Copies what the launcher prints on the console from now on into {@code file}, which the run keeps also when it
+     * deletes {@code launcher.log}. Each write goes to the file as it happens, so that it can be followed during the
+     * run and has everything up to a failure.
+     */
+    private static void copyConsoleTo(Path file) throws IOException {
+        PrintStream console = System.out;
+        OutputStream copy = Files.newOutputStream(file);
+        System.setOut(new PrintStream(new OutputStream() {
+            @Override
+            public void write(int b) throws IOException {
+                console.write(b);
+                copy.write(b);
+            }
+
+            @Override
+            public void write(byte[] bytes, int offset, int length) throws IOException {
+                console.write(bytes, offset, length);
+                copy.write(bytes, offset, length);
+            }
+
+            @Override
+            public void flush() throws IOException {
+                console.flush();
+                copy.flush();
+            }
+        }, true, console.charset()));
+    }
+
+    // Stops the logging first, which closes the log file and frees its space, and keeps anything from writing it again
+    private static void deleteLauncherLog(Path launcherLog) {
+        LogManager.shutdown();
+        try {
+            if (Files.deleteIfExists(launcherLog)) {
+                System.out.println("Deleted " + launcherLog + " of the successful run; --keep-launcher-log keeps it");
+            }
+        } catch (IOException e) {
+            System.out.println("Couldn't delete " + launcherLog + ": " + e);
+        }
+    }
+
+    // The version that a broker reports, or empty when it doesn't answer; it names a release such as latest, which
+    // the whole cluster runs
+    private static String brokerVersion(PulsarCluster cluster) {
+        try (PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(cluster.getAnyBroker().getHttpServiceUrl())
+                .connectionTimeout(5, TimeUnit.SECONDS)
+                .readTimeout(5, TimeUnit.SECONDS)
+                .build()) {
+            return admin.brokers().getVersion();
+        } catch (PulsarClientException | PulsarAdminException e) {
+            log().warn().exception(e).log("Could not read the brokers' Pulsar version");
+            return "";
+        }
+    }
+
+    /**
+     * The launcher's logger. It isn't a static field, because the logging reads its configuration when the first
+     * logger is created, which has to be after main() has chosen the configuration and call() has named the log file.
+     */
+    private static Logger log() {
+        return Logger.get(PerformanceLauncher.class);
+    }
+
+    /**
+     * Checks the workload's settings as the gateways and the applications read them, so that an invalid scenario
+     * fails before a cluster starts instead of in the workload containers.
+     */
+    static void checkWorkload(ObjectMapper mapper, JsonNode workload) {
+        try {
+            mapper.treeToValue(workload, IotScenario.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException(e.getCause() instanceof IllegalArgumentException invalid
+                    ? invalid.getMessage() : "Invalid workloads.iotTelemetry: " + e.getOriginalMessage(), e);
+        }
+    }
+
+    /** Prints a status line, with the time of day, as the run goes from one phase to the next. */
+    private static void status(String message) {
+        System.out.println(STATUS_TIME.format(LocalTime.now()) + " " + message);
+    }
+
+    /** The URL of a workload container's control port, through the port Testcontainers maps on the host. */
+    private static String controlUrl(GenericContainer<?> container) {
+        return "http://" + container.getHost() + ":" + container.getMappedPort(CONTROL_PORT);
+    }
+
+    private static long warmupMessageCount(JsonNode workload) {
+        JsonNode warmup = workload.path("warmup");
+        long perRound = warmup.path("messages").longValue() > 0 ? warmup.path("messages").longValue()
+                : warmup.path("seconds").longValue() * workload.path("rate").longValue();
+        return perRound * Math.max(1, warmup.path("rounds").intValue());
+    }
+
+    private static long measurementMessageCount(JsonNode workload) {
+        JsonNode measurement = workload.path("measurement");
+        return measurement.path("messages").longValue() > 0 ? measurement.path("messages").longValue()
+                : measurement.path("seconds").longValue() * workload.path("rate").longValue();
+    }
+
+    /** Indents every line of {@code text} by two spaces, so that a block stands out from the status lines. */
+    static String indent(String text) {
+        return text.lines().map(line -> "  " + line + System.lineSeparator()).collect(Collectors.joining());
+    }
+
+    /**
+     * The file of an --extends scenario. An absolute path is used as given. A relative one is looked for first in the
+     * directory of the --scenario file, then in the working directory, each time as given and then with .yaml added
+     * when the name has no extension.
+     */
+    private Path appendedScenario(Path file) {
+        if (file.isAbsolute()) {
+            if (!Files.isRegularFile(file)) {
+                throw new IllegalArgumentException("No scenario file for --extends " + file);
+            }
+            return file;
+        }
+        List<Path> candidates = new ArrayList<>();
+        for (Path base : List.of(scenario.toAbsolutePath().getParent(), Path.of("").toAbsolutePath())) {
+            Path candidate = base.resolve(file);
+            candidates.add(candidate);
+            if (!candidate.getFileName().toString().matches(".*\\.ya?ml")) {
+                candidates.add(candidate.resolveSibling(candidate.getFileName() + ".yaml"));
+            }
+        }
+        return candidates.stream().filter(Files::isRegularFile).findFirst().orElseThrow(() ->
+                new IllegalArgumentException("No scenario file for --extends " + file + "; looked for "
+                        + candidates));
+    }
+
+    /** The run's name in the reports hierarchy: --name, else the scenario's output.name, else its file name. */
+    private String runName(JsonNode resolved) {
+        return name != null && !name.isBlank() ? name : scenarioName(resolved);
+    }
+
+    /** The scenario's name: its output.name, else its file name without .yaml. */
+    private String scenarioName(JsonNode resolved) {
+        String scenarioName = resolved.path("output").path("name").textValue();
+        if (scenarioName != null && !scenarioName.isBlank()) {
+            return scenarioName;
+        }
+        String fileName = scenario.getFileName().toString();
+        return fileName.replaceFirst("\\.ya?ml$", "");
+    }
+
+    /**
+     * Starts sampling the workload topics' stats for the run report. Sampling is an observation, so a failure to
+     * start it is reported and the run goes on without it.
+     */
+    private static TopicStatsSampler startTopicStatsSampler(PulsarCluster cluster, JsonNode workload,
+                                                            Path runOutput) {
+        String prefix = workload.path("topics").path("prefix").textValue();
+        List<String> topics = IntStream.range(0, workload.path("topics").path("count").intValue())
+                .mapToObj(topic -> prefix + topic).toList();
+        try {
+            // Each broker, by its name in the cluster's network, which Docker names the container with a leading slash
+            Map<String, String> brokerHttpUrls = new LinkedHashMap<>();
+            for (BrokerContainer broker : cluster.getBrokers()) {
+                brokerHttpUrls.put(broker.getContainerName().replaceFirst("^/", ""), broker.getHttpServiceUrl());
+            }
+            return TopicStatsSampler.start(brokerHttpUrls, topics, runOutput);
+        } catch (Exception e) {
+            System.out.println("Topic stats sampling is off for this run: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Starts sampling the host's thermal state for the run report. Sampling is an observation, so a failure to
+     * start it is reported and the run goes on without it.
+     */
+    private static HostStatsSampler startHostStatsSampler(HostStatsSampler.Sensors sensors, Path runOutput) {
+        try {
+            HostStatsSampler sampler = HostStatsSampler.start(sensors, runOutput);
+            if (sampler == null) {
+                System.out.println("Host stats sampling is off for this run: no CPU sensors under the sysfs root");
+            }
+            return sampler;
+        } catch (Exception e) {
+            System.out.println("Host stats sampling is off for this run: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Waits until the CPU package has cooled down to --cooldown-temperature, or --cooldown-timeout has passed, so
+     * that a run doesn't start on a CPU that the previous run or the image build left hot. Returns what happened,
+     * for the run report, or {@code null} when no cool-down was asked for or the host has no temperature sensor.
+     */
+    private RunReport.Cooldown coolDown(HostStatsSampler.Sensors sensors, String phase)
+            throws InterruptedException {
+        if (cooldownCelsius == null) {
+            return null;
+        }
+        OptionalDouble initial = sensors.packageCelsius();
+        if (initial.isEmpty()) {
+            System.out.println("No cool-down: the host has no CPU temperature sensor");
+            return null;
+        }
+        long startEpochMillis = System.currentTimeMillis();
+        long start = System.nanoTime();
+        long deadline = start + TimeUnit.SECONDS.toNanos(cooldownTimeoutSeconds);
+        long nextProgress = start;
+        double current = initial.getAsDouble();
+        while (current > cooldownCelsius && System.nanoTime() < deadline) {
+            if (System.nanoTime() >= nextProgress) {
+                System.out.printf(Locale.ROOT, "Cooling down: CPU package at %.0f °C, waiting for %.0f °C%n",
+                        current, cooldownCelsius);
+                nextProgress = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
+            }
+            Thread.sleep(2000);
+            current = sensors.packageCelsius().orElse(current);
+        }
+        double waitedSeconds = (System.nanoTime() - start) / 1e9;
+        boolean reached = current <= cooldownCelsius;
+        System.out.printf(Locale.ROOT, "%s: CPU package at %.0f °C after %.0f s%n",
+                reached ? "Cooled down" : "Cool-down timed out", current, waitedSeconds);
+        return new RunReport.Cooldown(phase, cooldownCelsius, initial.getAsDouble(), current, waitedSeconds,
+                reached, startEpochMillis, System.currentTimeMillis());
+    }
+
+    /**
+     * Lets the host cool down again between the warmup and the measurement. The producer serves its measurement
+     * control endpoints over HTTP on {@link #CONTROL_PORT}, which this thread reaches through the port Testcontainers
+     * maps on the host: it waits on the ready endpoint, which answers as soon as every warmup round has been
+     * received, cools down, and starts the measurement. The start is always sent, also when the cool-down fails, so
+     * that the producer never waits for a launcher that has given up.
+     */
+    private Thread startMeasurementGate(HostStatsSampler.Sensors sensors, GenericContainer<?> producer,
+                                        List<RunReport.Cooldown> cooldowns) {
+        String control = "http://" + producer.getHost() + ":" + producer.getMappedPort(CONTROL_PORT);
+        HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        Thread gate = new Thread(() -> {
+            try {
+                if (awaitReady(client, control, producer)) {
+                    System.out.println("Warmup received; cooling down before the measurement");
+                    RunReport.Cooldown cooldown = coolDown(sensors, RunReport.Cooldown.BEFORE_MEASUREMENT);
+                    if (cooldown != null) {
+                        cooldowns.add(cooldown);
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } finally {
+                startMeasurement(client, control);
+            }
+        }, "measurement-gate");
+        gate.setDaemon(true);
+        gate.start();
+        return gate;
+    }
+
+    /**
+     * Waits until the producer is ready for the measurement; false when it stopped before that. Each request waits
+     * up to 10 s, within the JDK server's 30 s idle connection timeout, and is repeated until the producer is ready.
+     */
+    private static boolean awaitReady(HttpClient client, String control, GenericContainer<?> producer)
+            throws InterruptedException {
+        HttpRequest ready = HttpRequest.newBuilder(URI.create(control + "/measurement/ready?waitMillis=10000"))
+                .timeout(Duration.ofSeconds(30)).GET().build();
+        while (producer.isRunning()) {
+            try {
+                if (client.send(ready, HttpResponse.BodyHandlers.discarding()).statusCode() == 200) {
+                    return true;
+                }
+            } catch (IOException e) {
+                // The producer may be starting its server, or have stopped; the loop checks which
+                Thread.sleep(1000);
+            }
+        }
+        return false;
+    }
+
+    private static void startMeasurement(HttpClient client, String control) {
+        HttpRequest start = HttpRequest.newBuilder(URI.create(control + "/measurement/start"))
+                .timeout(Duration.ofSeconds(10)).POST(HttpRequest.BodyPublishers.noBody()).build();
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            try {
+                if (client.send(start, HttpResponse.BodyHandlers.discarding()).statusCode() == 200) {
+                    return;
+                }
+            } catch (IOException e) {
+                System.out.println("Couldn't start the measurement (attempt " + attempt + "): " + e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
+    }
+
+    /**
+     * The async-profiler options a recording was made with, as the agent configuration beside it records them.
+     */
+    private static String asyncProfilerOptions(ObjectMapper mapper, Path recording) throws IOException {
+        Path config = JonoffcpuAgent.config(recording);
+        if (!Files.isRegularFile(config)) {
+            return null;
+        }
+        JsonNode options = mapper.readTree(config.toFile()).path("asyncProfilerOptions");
+        return options.isTextual() ? options.textValue() : null;
+    }
+
+    /**
+     * Whether the agent recorded off-CPU samples beside {@code recording}, as the sampling block of the agent
+     * configuration beside it says: the admission policy {@code none} runs plain async-profiler through the same
+     * agent, leaving nothing to correlate.
+     */
+    private static boolean offCpuCaptured(ObjectMapper mapper, Path recording) throws IOException {
+        Path config = JonoffcpuAgent.config(recording);
+        if (!Files.isRegularFile(config)) {
+            return false;
+        }
+        return !"none".equals(mapper.readTree(config.toFile()).path("sampling").path("admission").path("policy")
+                .asText());
+    }
+
     private GenericContainer<?> workloadContainer(PulsarCluster cluster, Path tools, Path configFile,
                                                    Path coordinationDirectory, String runId,
-                                                   Path outputDirectory, String profileOptions,
-                                                   String command, String... extraArguments) {
+                                                   Path outputDirectory, Path agentJar,
+                                                   ProfilingSettings.Component profiling, String component,
+                                                   Map<String, String> envs, HeapDumpSettings.Component heapDumps,
+                                                   int heapDumpGzipLevel, Path heapDumpDirectory, String command,
+                                                   String... extraArguments) throws IOException {
         List<String> arguments = new ArrayList<>();
-        arguments.add(TOOLS_MOUNT + "/bin/pulsar-performance-tools");
+        // Starts the tools with the JVM options of Pulsar's client tools, see run-workload
+        arguments.add(TOOLS_MOUNT + "/bin/run-workload");
         arguments.add(command);
         arguments.add("--config");
         arguments.add(CONFIG_MOUNT);
         arguments.add("--output");
-        arguments.add("/performance-output");
+        arguments.add(OUTPUT_MOUNT);
         arguments.add("--coordination-directory");
         arguments.add(COORDINATION_MOUNT);
         arguments.add("--run-id");
         arguments.add(runId);
         arguments.addAll(List.of(extraArguments));
-        String javaOptions = "-Xms128m -Xmx512m -XX:MaxDirectMemorySize=256m";
-        if (profileOptions != null) {
-            if (profileOptions.contains("file=")) {
-                throw new IllegalArgumentException("Profiler options must not set file; the launcher owns output");
-            }
-            javaOptions += " -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints"
-                    + " -agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start," + profileOptions
-                    + ",file=/performance-output/profile-" + command + "-%t-%p.jfr";
+        String javaOptions = "";
+        if (profiling.profiled()) {
+            // The launcher owns the recording name so that it lands inside the run directory
+            javaOptions = "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints "
+                    + JonoffcpuAgent.writeConfig(outputDirectory, OUTPUT_MOUNT,
+                    "profile-" + component + "-" + System.currentTimeMillis(), profiling.asyncProfilerOptions(),
+                    profiling.offCpuOptions());
+        }
+        if (heapDumps.onOutOfMemoryError()) {
+            javaOptions = (javaOptions + " " + HeapDumper.outOfMemoryOptions(heapDumpGzipLevel)).trim();
         }
         GenericContainer<?> container = new GenericContainer<>(PulsarContainer.DEFAULT_IMAGE_NAME)
                 .withNetwork(cluster.getNetwork())
                 .withFileSystemBind(tools.toString(), TOOLS_MOUNT, BindMode.READ_ONLY)
                 .withFileSystemBind(configFile.toString(), CONFIG_MOUNT, BindMode.READ_ONLY)
                 .withFileSystemBind(coordinationDirectory.toString(), COORDINATION_MOUNT, BindMode.READ_WRITE)
-                .withFileSystemBind(outputDirectory.toString(), "/performance-output", BindMode.READ_WRITE)
-                .withEnv("JAVA_TOOL_OPTIONS", javaOptions)
+                .withFileSystemBind(outputDirectory.toString(), OUTPUT_MOUNT, BindMode.READ_WRITE)
+                .withEnv(workloadEnvironment(javaOptions, envs))
                 .withCommand(arguments.toArray(String[]::new));
-        if (profileOptions != null) {
-            container.withCreateContainerCmdModifier(cmd -> cmd.getHostConfig()
-                    .withCapAdd(Capability.PERFMON)
-                    .withCapAdd(Capability.SYS_PTRACE)
-                    .withSecurityOpts(List.of("seccomp=unconfined")));
+        if (profiling.profiled()) {
+            JonoffcpuAgent.attach(container, agentJar);
+        }
+        if (heapDumps.any()) {
+            container.withFileSystemBind(heapDumpDirectory.toString(), HeapDumper.MOUNT, BindMode.READ_WRITE);
         }
         return container;
     }
 
-    private static String text(JsonNode parent, String field) {
-        JsonNode value = parent.path(field);
-        return value.isTextual() && !value.textValue().isBlank() ? value.textValue() : null;
+    /** The JVMs whose heap the launcher dumps during the run: each broker, the gateways and the applications. */
+    static List<HeapDumper.Target> heapDumpTargets(PulsarCluster cluster, HeapDumpSettings settings,
+                                                   GenericContainer<?> producer, GenericContainer<?> consumer) {
+        List<HeapDumper.Target> targets = new ArrayList<>();
+        int index = 0;
+        for (GenericContainer<?> broker : cluster.getBrokers()) {
+            targets.add(new HeapDumper.Target(HeapDumpSettings.BROKER + "-" + index++, HeapDumpSettings.BROKER,
+                    settings.broker(), broker));
+        }
+        targets.add(new HeapDumper.Target(HeapDumpSettings.GATEWAYS, HeapDumpSettings.GATEWAYS, settings.gateways(),
+                producer));
+        targets.add(new HeapDumper.Target(HeapDumpSettings.APPLICATIONS, HeapDumpSettings.APPLICATIONS,
+                settings.applications(), consumer));
+        return targets;
+    }
+
+    /** An environment with options added to a variable of JVM options, such as {@code PULSAR_EXTRA_OPTS}. */
+    static Map<String, String> withJvmOptions(Map<String, String> env, String variable, String options) {
+        Map<String, String> environment = new LinkedHashMap<>(env != null ? env : Map.of());
+        String configured = environment.get(variable);
+        environment.put(variable, configured == null || configured.isBlank() ? options : configured + " " + options);
+        return environment;
+    }
+
+    /**
+     * The environment of a workload container: the configured variables (the workload's {@code gateways.env} or
+     * {@code applications.env}), {@code PULSAR_MEM} with the workload's heap unless they set it, and
+     * {@code JAVA_TOOL_OPTIONS} with the launcher's JVM options, such as the profiling agent. A configured
+     * {@code JAVA_TOOL_OPTIONS} is appended to the launcher's options, so that it can add or override options without
+     * dropping the profiling agent.
+     */
+    static Map<String, String> workloadEnvironment(String javaOptions, Map<String, String> envs) {
+        Map<String, String> environment = new LinkedHashMap<>();
+        if (envs != null) {
+            envs.forEach((name, value) -> environment.put(name, value != null ? value : ""));
+        }
+        environment.putIfAbsent(PULSAR_MEM, WORKLOAD_MEMORY);
+        String configured = environment.get(JAVA_TOOL_OPTIONS);
+        String toolOptions = Stream.of(javaOptions, configured).filter(options -> options != null && !options.isBlank())
+                .collect(Collectors.joining(" "));
+        if (toolOptions.isEmpty()) {
+            environment.remove(JAVA_TOOL_OPTIONS);
+        } else {
+            environment.put(JAVA_TOOL_OPTIONS, toolOptions);
+        }
+        return environment;
     }
 
     private static boolean booleanValue(JsonNode parent, String field, boolean defaultValue) {
@@ -271,9 +1049,106 @@ public class PerformanceLauncher implements Callable<Integer> {
         return value.longValue();
     }
 
-    private static int waitForExit(GenericContainer<?> container, int timeoutSeconds) throws Exception {
-        return container.getDockerClient().waitContainerCmd(container.getContainerId()).start()
-                .awaitStatusCode(timeoutSeconds, TimeUnit.SECONDS);
+    /** A workload container, with its name on the console and the file its log is saved to. */
+    private record Workload(String name, GenericContainer<?> container, Path log) {
+    }
+
+    /**
+     * Starts a workload container and waits until it logs its ready line, showing the startup progress it logs
+     * meanwhile. Fails as soon as the container exits or stops making progress, with the cause from its log, and saves
+     * the log, which Testcontainers removes with a container whose startup failed.
+     */
+    private static void startWorkload(GenericContainer<?> container, String ready, String name, Path log) {
+        WorkloadStartup startup = new WorkloadStartup(ready, PerformanceLauncher::status);
+        container.waitingFor(startup);
+        try {
+            container.start();
+        } catch (RuntimeException e) {
+            try {
+                Files.writeString(log, startup.output());
+            } catch (IOException ignored) {
+                // The failure matters more than its log
+            }
+            String reason = startup.failure() != null ? startup.failure() : "didn't start: " + e.getMessage();
+            throw new IllegalStateException(name + " " + reason + " (log: " + log + ")", e);
+        }
+    }
+
+    /**
+     * Waits until every workload has exited, and fails as soon as one exits with an error, or when they haven't
+     * finished within {@code timeoutSeconds}, with the cause from the failed workload's log.
+     */
+    private static void awaitWorkloads(List<Workload> workloads, int timeoutSeconds) throws Exception {
+        Map<Workload, CompletableFuture<Integer>> running = new LinkedHashMap<>();
+        for (Workload workload : workloads) {
+            running.put(workload, exitCode(workload.container()));
+        }
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSeconds);
+        while (!running.isEmpty()) {
+            try {
+                CompletableFuture.anyOf(running.values().toArray(CompletableFuture[]::new)).get(1, TimeUnit.SECONDS);
+            } catch (TimeoutException e) {
+                if (System.nanoTime() > deadline) {
+                    throw new IllegalStateException("The workload didn't finish within " + timeoutSeconds + " s; "
+                            + running.keySet().stream().map(Workload::name).collect(Collectors.joining(", "))
+                            + " still running");
+                }
+                continue;
+            } catch (ExecutionException e) {
+                // A failed wait is found below, with its workload
+            }
+            for (Iterator<Map.Entry<Workload, CompletableFuture<Integer>>> iterator = running.entrySet().iterator();
+                 iterator.hasNext(); ) {
+                Map.Entry<Workload, CompletableFuture<Integer>> entry = iterator.next();
+                if (!entry.getValue().isDone()) {
+                    continue;
+                }
+                iterator.remove();
+                Workload workload = entry.getKey();
+                int exitCode = entry.getValue().get();
+                saveContainerLog(workload.container(), workload.log());
+                if (exitCode != 0) {
+                    String cause = Files.isRegularFile(workload.log())
+                            ? FailureCause.of(Files.readString(workload.log())) : null;
+                    throw new IllegalStateException(workload.name() + " exited with status " + exitCode
+                            + (cause != null ? ": " + cause : "") + " (log: " + workload.log() + ")");
+                }
+                if (workload.container() == workloads.get(0).container()) {
+                    status("The gateways have finished; waiting for the applications to receive every message");
+                }
+            }
+        }
+    }
+
+    /** The container's exit code, once it has exited. */
+    private static CompletableFuture<Integer> exitCode(GenericContainer<?> container) {
+        CompletableFuture<Integer> exitCode = new CompletableFuture<>();
+        Thread waiter = new Thread(() -> {
+            try {
+                exitCode.complete(container.getDockerClient().waitContainerCmd(container.getContainerId()).start()
+                        .awaitStatusCode());
+            } catch (RuntimeException e) {
+                exitCode.completeExceptionally(e);
+            }
+        }, "wait-" + container.getContainerId());
+        waiter.setDaemon(true);
+        waiter.start();
+        return exitCode;
+    }
+
+    /** A step of shutting a run down, which may fail. */
+    private interface ShutdownStep {
+        void run() throws Exception;
+    }
+
+    /** Runs a shutdown step, and reports its failure as a warning, with the stack trace in the launcher's log. */
+    private static void shutDown(String description, ShutdownStep step) {
+        try {
+            step.run();
+        } catch (Exception e) {
+            status("Warning: " + description + " failed: " + e);
+            log().warn().exception(e).attr("step", description).log("A shutdown step failed");
+        }
     }
 
     private static void saveContainerLog(GenericContainer<?> container, Path path) {
@@ -287,10 +1162,16 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
     }
 
-    private static void verifyStates(Path output, int applications) throws Exception {
-        long[] produced = readState(output.resolve("producer/produced-state.bin"));
+    // An application's outputs are in a directory named after it, as the run report names the application
+    private static Path applicationOutput(Path runOutput, JsonNode workload, int application) {
+        return RunReport.applicationDirectory(runOutput, workload, application);
+    }
+
+    private static void verifyStates(Path output, JsonNode workload, int applications) throws Exception {
+        long[] produced = readState(output.resolve("gateways/gateways-state.bin"));
         for (int application = 0; application < applications; application++) {
-            long[] consumed = readState(output.resolve("consumer-" + application + "/consumed-state.bin"));
+            long[] consumed =
+                    readState(applicationOutput(output, workload, application).resolve("application-state.bin"));
             if (!java.util.Arrays.equals(produced, consumed)) {
                 throw new IllegalStateException("Application " + application
                         + " did not receive every device sequence");
@@ -309,6 +1190,22 @@ public class PerformanceLauncher implements Callable<Integer> {
                 result[i] = input.readLong();
             }
             return result;
+        }
+    }
+
+    /**
+     * The Docker engine that runs the containers, as {@code docker info} describes it, or null when Docker can't be
+     * asked. On macOS its CPUs and memory are those of Docker Desktop's virtual machine rather than the host's.
+     */
+    static DockerEngine dockerEngine() {
+        try {
+            Info info = DockerClientFactory.instance().getInfo();
+            return new DockerEngine(Objects.toString(info.getServerVersion(), ""),
+                    Objects.requireNonNullElse(info.getNCPU(), 0), Objects.requireNonNullElse(info.getMemTotal(), 0L),
+                    Objects.toString(info.getOperatingSystem(), ""), Objects.toString(info.getKernelVersion(), ""),
+                    Objects.toString(info.getArchitecture(), ""));
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 }

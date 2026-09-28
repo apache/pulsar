@@ -135,7 +135,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicLoadingContext;
-import org.apache.pulsar.broker.service.TopicLoadingContext.TopicLoadingStage;
+import org.apache.pulsar.broker.service.TopicLoadingTracePoints;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -500,7 +500,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         CompletableFuture<Optional<Policies>> namespacePoliciesFuture = brokerService.pulsar().getPulsarResources()
                 .getNamespaceResources().getPoliciesAsync(TopicName.get(topic).getNamespaceObject());
         if (loadingContext != null) {
-            namespacePoliciesFuture = loadingContext.trace(TopicLoadingStage.NAMESPACE_POLICIES,
+            namespacePoliciesFuture = loadingContext.trace(TopicLoadingTracePoints.NAMESPACE_POLICIES,
                     namespacePoliciesFuture);
         }
         final CompletableFuture<Optional<Policies>> trackedNamespacePoliciesFuture = namespacePoliciesFuture;
@@ -533,7 +533,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     isAllowAutoUpdateSchemaWithReplicator = policies.is_allow_auto_update_schema_with_replicator;
                 }, getPoliciesNotifyThread())
                 .thenCompose(ignore -> loadingContext == null ? initTopicPolicy()
-                        : loadingContext.trace(TopicLoadingStage.TOPIC_POLICIES, initTopicPolicy()))
+                        : loadingContext.trace(TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES, initTopicPolicy()))
                 .thenCompose(ignore -> removeOrphanReplicationCursors())
                 .exceptionally(ex -> {
                     log.warn()
@@ -2553,6 +2553,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     CompletableFuture<Void> startReplicator(String remoteCluster) {
+        if (TopicName.get(topic).isSegment()) {
+            // The segment DAG of a scalable topic is independent per cluster, so the remote cluster has no
+            // same-named segment to replicate into. Geo-replication of scalable topics needs a mechanism of its
+            // own; until it exists, a segment must neither start a classic replicator nor create its cursor.
+            log.debug().attr("remoteCluster", remoteCluster)
+                    .log("Skip starting replicator on a scalable topic segment");
+            return CompletableFuture.completedFuture(null);
+        }
         log.info().attr("remoteCluster", remoteCluster).log("Starting replicator to remote");
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
