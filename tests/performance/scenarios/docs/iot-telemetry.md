@@ -43,6 +43,14 @@ application-visible order across Key_Shared hash-range reassignment.
   workstation whose CPU runs at a fixed base frequency: without a rate limit, the gateways publish faster than the
   applications receive, and an application that falls behind can stall for tens of seconds. It uses the high-memory
   configuration.
+- [`iot-telemetry-max-rate.yaml`](../iot-telemetry-max-rate.yaml) runs the high-rate scenario's 500 gateways at the
+  maximum rate: `rate: 0` removes the rate limit, so the gateways publish four million unbatched 128-byte messages
+  as fast as the cluster takes them, with at most 100,000 in flight. One application consumes them with twenty pods
+  on its Key_Shared subscription, so one topic's dispatcher and managed ledger carry all of the traffic, and the run
+  measures the most telemetry that one application takes in. Ledgers keep a single copy, with an ensemble, write
+  and ack quorum of 1, so each entry is written once, and the three bookies share the ledgers, which balances the
+  write load between them; the results aren't capacity guidance for a durable deployment. It is the launcher's
+  counterpart of the legacy runner's `key-shared-500x20` scenario.
 
 Each scenario runs with a memory configuration from the scenarios' `configs` directory, which sets the cluster and
 the memory of every container: the low-memory one needs about 3 GB of memory available to Docker and isn't meant for

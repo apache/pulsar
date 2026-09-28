@@ -51,6 +51,26 @@ tasks.withType<JavaCompile>().configureEach {
     options.release.set(21)
 }
 
+// Run the pinned tools directly, without compiling the report tool or starting a cluster.
+// JavaExec's --args passes arbitrary CLI arguments through; paths resolve from the repository root.
+tasks.register<JavaExec>("runJonoffcpuCorrelator") {
+    group = "verification"
+    description = "Run the jonoffcpu correlator CLI; pass its options with --args"
+    classpath = configurations.runtimeClasspath.get()
+    mainClass.set("io.github.jonoffcpu.correlator.OffCpuCorrelator")
+    workingDir(rootProject.projectDir)
+    maxHeapSize = providers.gradleProperty("performance.profile.maxHeapSize").getOrElse("4g")
+}
+
+tasks.register<JavaExec>("runJfrConverter") {
+    group = "verification"
+    description = "Run jonoffcpu's jfr-converter CLI; pass its options with --args"
+    classpath = configurations.runtimeClasspath.get()
+    mainClass.set("one.convert.Main")
+    workingDir(rootProject.projectDir)
+    maxHeapSize = providers.gradleProperty("performance.profile.maxHeapSize").getOrElse("4g")
+}
+
 tasks.register<JavaExec>("renderHdrHistograms") {
     group = "verification"
     description = "Plot IoT publish and per-application end-to-end latencies by percentile and over time as SVG " +
