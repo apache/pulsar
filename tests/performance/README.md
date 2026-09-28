@@ -370,22 +370,8 @@ inferno-flamegraph < /path/to/recording-offcpu/offcpu-no-idle-app-root.collapsed
 ```
 
 For SQL analysis, DuckDB's [quack_flamegraph](https://github.com/kevintruong/quack-flamegraph) community extension
-reads collapsed stacks as tables. Start DuckDB in the directory containing `cpu.collapsed`, or replace the filename
-below with its path. This query returns the 45 highest-weight stacks whose leaf frame is in an `org.apache` package:
-
-```sql
-INSTALL quack_flamegraph FROM community;
-LOAD quack_flamegraph;
-
-SELECT samples, leaf
-FROM flamegraph_hot_stacks('cpu.collapsed')
-WHERE regexp_matches(leaf, '^org\.apache\.')
-ORDER BY samples DESC
-LIMIT 45;
-```
-
-The `samples` column holds the weight from each collapsed stack. This ranks individual stacks, not totals grouped
-by leaf method, and filters only the leaf frame, not callers elsewhere in the stack.
+reads collapsed stacks as tables. See [Analyzing collapsed stacks with DuckDB](docs/analyzing-profiles.md#analyzing-collapsed-stacks-with-duckdb)
+for setup and examples that rank stacks, methods and call edges, and attribute samples to application frames.
 
 Each of the profile files in the scenarios' `configs` directory profiles one component: `configs/profile-broker`,
 `configs/profile-gateways` and `configs/profile-applications`;

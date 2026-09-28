@@ -101,6 +101,102 @@ under-represents short waits in the observed weights, so the comparison uses the
 Profile both revisions with the same profiler options: profiling has a cost, and different options change it.
 [Comparing revisions](comparing-revisions.md) describes how to run the comparison.
 
+## Analyzing collapsed stacks with DuckDB
+
+For SQL analysis, DuckDB's [quack_flamegraph](https://github.com/kevintruong/quack-flamegraph) community extension
+reads collapsed stacks as tables. Start DuckDB and set the `profile` variable to the path of your collapsed stacks
+file, and `pkg` to a regular expression for the frames you're interested in. The queries below read both from there,
+so they can be copied as-is:
+
+```sql
+INSTALL quack_flamegraph FROM community;
+LOAD quack_flamegraph;
+
+SET VARIABLE profile = 'cpu.collapsed';
+SET VARIABLE pkg = '^org[./]apache[./]';
+```
+
+The `^` anchors the match to the start of the frame name, and `[./]` matches either package separator, since frame
+names use `/` or `.` depending on how the file was produced. To match several packages at once, list them as
+alternatives:
+
+```sql
+SET VARIABLE pkg = '^org[./]apache[./](pulsar|bookkeeper)[./]';
+```
+
+Don't end the pattern with `$`, which would require the whole frame name to end there and match nothing, since
+frame names continue with the class and method name. To match a substring anywhere in the frame name, leave out the
+`^`, as in `ManagedLedger`.
+
+This query returns the 45 highest-weight stacks whose leaf frame matches `pkg`:
+
+```sql
+SELECT samples, leaf
+FROM flamegraph_hot_stacks(getvariable('profile'))
+WHERE regexp_matches(leaf, getvariable('pkg'))
+ORDER BY samples DESC
+LIMIT 45;
+```
+
+The `samples` column holds the weight from each collapsed stack. This ranks individual stacks, not totals grouped
+by leaf method, and filters only the leaf frame, not callers elsewhere in the stack.
+
+To rank matching methods by the total weight of the stacks they appear in, anywhere in the stack, use
+`flamegraph_coverage`. Each stack is counted once per frame, so recursive calls don't inflate the total:
+
+```sql
+SELECT frame, coverage
+FROM flamegraph_coverage(getvariable('profile'))
+WHERE regexp_matches(frame, getvariable('pkg'))
+ORDER BY coverage DESC
+LIMIT 45;
+```
+
+To find the highest-weight call edges from a matching parent frame to a child that doesn't match:
+
+```sql
+FROM flamegraph_edges(getvariable('profile'))
+WHERE regexp_matches(parent, getvariable('pkg'))
+  AND NOT regexp_matches(child, getvariable('pkg'))
+ORDER BY samples DESC
+LIMIT 45;
+```
+
+To see which of your frames is responsible for the time spent in code below it, create the `leaf_by_frame` view.
+For each stack, it finds the deepest frame matching `pkg` and pairs it with the frame it calls (`child`) and the
+frame where the sample was taken (`leaf`). `child` is `NULL` when the matching frame is itself the leaf. Stacks
+without a matching frame are left out, and `pct` is the share of all samples in the profile:
+
+```sql
+CREATE OR REPLACE VIEW leaf_by_frame AS
+WITH total AS (SELECT sum(samples) AS t FROM read_folded(getvariable('profile'))),
+m AS (
+  SELECT frames, leaf, samples,
+         list_last(list_filter(frames, lambda f: regexp_matches(f, getvariable('pkg')))) AS frame
+  FROM flamegraph_hot_stacks(getvariable('profile'))
+),
+s AS (
+  SELECT frame,
+         frames[len(frames) - list_position(list_reverse(frames), frame) + 2] AS child,
+         leaf, samples
+  FROM m
+  WHERE frame IS NOT NULL
+)
+SELECT frame, child, leaf,
+       sum(samples)                                 AS samples,
+       round(100.0 * sum(samples) / any_value(t), 2)  AS pct
+FROM s CROSS JOIN total
+GROUP BY ALL;
+```
+
+The view reads `profile` and `pkg` each time it is queried, so changing either variable changes its results:
+
+```sql
+FROM leaf_by_frame
+ORDER BY samples DESC
+LIMIT 45;
+```
+
 ## Flame graphs of other recordings
 
 The flame graphs of a standalone run are already in its run directory. Recordings made elsewhere need the root
