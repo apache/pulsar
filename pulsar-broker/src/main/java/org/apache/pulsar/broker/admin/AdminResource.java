@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.errorprone.annotations.CanIgnoreReturnValue;
@@ -580,6 +581,7 @@ public abstract class AdminResource extends PulsarWebResource {
             return;
         }
         validateNamespaceOperationAsync(topicName.getNamespaceObject(), NamespaceOperation.CREATE_TOPIC)
+                .thenCompose(__ -> validateShadowTopicPropertiesAsync(properties))
                 .thenCompose((__) -> getNamespacePoliciesAsync(namespaceName).exceptionally(ex -> {
                     Throwable unwrapped = FutureUtil.unwrapCompletionException(ex);
                     if (unwrapped instanceof RestException re) {
@@ -785,6 +787,32 @@ public abstract class AdminResource extends PulsarWebResource {
                             return optMetadata.get().partitions > topicName.getPartitionIndex();
                         });
                 });
+    }
+
+    protected CompletableFuture<Void> validateShadowTopicPropertiesAsync(Map<String, String> properties) {
+        if (properties == null || !properties.containsKey(PROPERTY_SOURCE_TOPIC_KEY)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (!pulsar().getConfiguration().isEnableShadowTopics()) {
+            return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED, "Shadow topics are disabled"));
+        }
+        String shadowSource = properties.get(PROPERTY_SOURCE_TOPIC_KEY);
+        if (shadowSource == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        final TopicName sourceTopic;
+        try {
+            sourceTopic = TopicName.get(shadowSource);
+        } catch (IllegalArgumentException e) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Invalid shadow source topic name"));
+        }
+        return validateShadowTopicTenantAsync(sourceTopic);
+    }
+
+    protected CompletableFuture<Void> validateShadowTopicTenantAsync(TopicName relatedTopic) {
+        return topicName.getTenant().equals(relatedTopic.getTenant())
+                ? CompletableFuture.completedFuture(null) : validateSuperUserAccessAsync();
     }
 
     private CompletableFuture<Void> provisionPartitionedTopicPath(int numPartitions,

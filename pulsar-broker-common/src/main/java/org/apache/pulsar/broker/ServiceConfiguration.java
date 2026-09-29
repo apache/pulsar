@@ -1489,6 +1489,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
+        doc = "Enable shadow topic creation, loading and replication. Requires a broker restart."
+    )
+    private boolean enableShadowTopics = false;
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
         doc = "Enable broker to load non-persistent topics"
     )
     private boolean enableNonPersistentTopics = true;

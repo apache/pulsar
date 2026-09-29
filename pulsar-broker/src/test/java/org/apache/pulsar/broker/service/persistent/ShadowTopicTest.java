@@ -51,6 +51,7 @@ public class ShadowTopicTest extends BrokerTestBase {
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setEnableShadowTopics(true);
         baseSetup();
     }
 

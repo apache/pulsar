@@ -51,6 +51,7 @@ public class ShadowTopicRealBkTest {
     public void setup() throws Exception {
         bk.start();
         final var config = new ServiceConfiguration();
+        config.setEnableShadowTopics(true);
         config.setClusterName(cluster);
         config.setAdvertisedAddress("localhost");
         config.setBrokerServicePort(Optional.of(0));
