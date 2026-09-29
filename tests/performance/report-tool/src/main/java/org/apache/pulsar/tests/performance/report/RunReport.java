@@ -69,6 +69,20 @@ public final class RunReport {
     public static final String HOST_STATS_FILE = "host-stats.csv";
     public static final String HOST_STATS_HEADER =
             "epochMillis,packageCelsius,coreCelsius,meanMHz,minMHz,coreThrottles,packageThrottles,fanRpm";
+    /**
+     * Each container's CPU use and context switches sampled during a run, one row per container and second: the CPUs
+     * used, and the voluntary and involuntary context switches per second of its threads.
+     */
+    public static final String CONTAINER_STATS_FILE = "container-stats.csv";
+    public static final String CONTAINER_STATS_HEADER =
+            "epochMillis,container,cpuCores,voluntarySwitchesPerSecond,involuntarySwitchesPerSecond";
+    /**
+     * Each container's perf counts during a run, one row per container and second: CPU time in ms, context switches,
+     * CPU migrations, cycles and instructions. A count the host's CPU doesn't provide is empty.
+     */
+    public static final String PERF_STAT_FILE = "perf-stat.csv";
+    public static final String PERF_STAT_HEADER =
+            "epochMillis,container,taskClockMillis,contextSwitches,cpuMigrations,cycles,instructions";
     // .txt, so that an HTTP server such as Python's shows the log as text instead of offering a download
     public static final String CONTAINER_LOG = "container.log.txt";
     /** What the launcher printed on the console, from the run directory's creation to the end. */
@@ -306,6 +320,8 @@ public final class RunReport {
             appendHost(report, runDirectory, hostSamples, host, run.cooldowns(), measurementStart, measurementEnd,
                     chartFooter(run.info(), run.finished()));
         }
+        ContainerStatsReport.append(report, runDirectory, measurementStart, measurementEnd,
+                producer.path("measurementMessages").asLong());
         appendMetrics(report, runDirectory, mapper);
         appendHeapDumps(report, runDirectory);
         appendFiles(report, runDirectory, run.workload());

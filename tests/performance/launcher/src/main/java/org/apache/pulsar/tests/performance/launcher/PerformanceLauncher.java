@@ -59,6 +59,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -169,6 +170,19 @@ public class PerformanceLauncher implements Callable<Integer> {
                     + "bookies and ZooKeeper during the run, the default: the running metrics stack's, or else the "
                     + "stack started for the run. --no-metrics doesn't. See docs/metrics.md")
     boolean metrics;
+
+    @Option(names = "--perf-stat", negatable = true, defaultValue = "${sys:performance.perfStat:-true}",
+            fallbackValue = "true", description = "Count each container's CPU time, context switches, CPU "
+                    + "migrations, cycles and instructions with perf stat in a privileged sidecar container, the "
+                    + "default on Linux; --no-perf-stat doesn't. The containers' CPU use and voluntary and involuntary "
+                    + "context switches are sampled from /proc either way. See docs/run-reports.md")
+    boolean perfStat;
+
+    @Option(names = "--procfs", defaultValue = "/proc", hidden = true)
+    Path procfs;
+
+    @Option(names = "--cgroupfs", defaultValue = "/sys/fs/cgroup", hidden = true)
+    Path cgroupfs;
 
     @Option(names = "--sysfs", defaultValue = "/sys", hidden = true)
     Path sysfs;
@@ -359,6 +373,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         ProgressMonitor progress = null;
         HostStatsSampler hostStatsSampler = startHostStatsSampler(sensors, runOutput);
         HostIoSampler hostIoSampler = startHostIoSampler(runOutput);
+        ContainerStatsSampler containerStatsSampler = null;
+        PerfStatSidecar perfStatSidecar = null;
         HeapDumper heapDumper = heapDumpSettings.any()
                 ? new HeapDumper(runOutput, PulsarContainer.DEFAULT_IMAGE_NAME, heapDumpSettings.gzipLevel()) : null;
         MetricsCollection metricsCollection = null;
@@ -429,6 +445,11 @@ public class PerformanceLauncher implements Callable<Integer> {
             startWorkload(producer, ".*CONTROL_READY.*", "The gateways", producerOutput.resolve(CONTAINER_LOG));
             gatewaysStarted = Instant.now();
             GenericContainer<?> runningProducer = producer;
+            List<MeasuredContainer> measured = measuredContainers(cluster, clusterName, producer, consumer);
+            containerStatsSampler = startContainerStatsSampler(measured, runOutput);
+            if (perfStat) {
+                perfStatSidecar = startPerfStatSidecar(measured, runOutput);
+            }
             if (heapDumper != null) {
                 heapDumper.start(heapDumpTargets(cluster, heapDumpSettings, producer, consumer));
             }
@@ -500,6 +521,18 @@ public class PerformanceLauncher implements Callable<Integer> {
             shutDown("closing the host I/O sampler", () -> {
                 if (hostIoSampler != null) {
                     hostIoSampler.close();
+                }
+            });
+            ContainerStatsSampler containerStatsToClose = containerStatsSampler;
+            shutDown("closing the container stats sampler", () -> {
+                if (containerStatsToClose != null) {
+                    containerStatsToClose.close();
+                }
+            });
+            PerfStatSidecar perfStatToClose = perfStatSidecar;
+            shutDown("collecting the perf counts", () -> {
+                if (perfStatToClose != null) {
+                    perfStatToClose.close();
                 }
             });
             if (gateToStop != null) {
@@ -787,6 +820,84 @@ public class PerformanceLauncher implements Callable<Integer> {
             return TopicStatsSampler.start(brokerHttpUrls, topics, runOutput);
         } catch (Exception e) {
             System.out.println("Topic stats sampling is off for this run: " + e);
+            return null;
+        }
+    }
+
+    /** A container of the run, by its name in the report. */
+    record MeasuredContainer(String name, GenericContainer<?> container) {
+    }
+
+    /** The cluster's and the workloads' containers, named without the cluster's prefix, such as broker-0. */
+    static List<MeasuredContainer> measuredContainers(PulsarCluster cluster, String clusterName,
+                                                      GenericContainer<?> producer, GenericContainer<?> consumer) {
+        List<MeasuredContainer> containers = new ArrayList<>();
+        List<GenericContainer<?>> clusterContainers = new ArrayList<>();
+        clusterContainers.addAll(cluster.getBrokers());
+        clusterContainers.addAll(cluster.getBookies());
+        if (cluster.getZooKeeper() != null) {
+            clusterContainers.add(cluster.getZooKeeper());
+        }
+        for (GenericContainer<?> container : clusterContainers) {
+            String name = container.getContainerName().replaceFirst("^/", "")
+                    .replaceFirst("^" + Pattern.quote(clusterName) + "-", "")
+                    .replaceFirst("^pulsar-", "");
+            containers.add(new MeasuredContainer(name, container));
+        }
+        containers.add(new MeasuredContainer(GATEWAYS_DIRECTORY, producer));
+        containers.add(new MeasuredContainer(APPLICATIONS_DIRECTORY, consumer));
+        return containers;
+    }
+
+    /** The containers' cgroup directories; a container whose cgroup isn't found, such as in a VM, is left out. */
+    private Map<String, Path> cgroups(List<MeasuredContainer> containers) {
+        Map<String, Path> cgroups = new LinkedHashMap<>();
+        for (MeasuredContainer measured : containers) {
+            Long pid = measured.container().getContainerInfo().getState().getPidLong();
+            Path cgroup = pid != null ? ContainerStatsSampler.cgroupOf(procfs, pid, cgroupfs) : null;
+            if (cgroup != null) {
+                cgroups.put(measured.name(), cgroup);
+            }
+        }
+        return cgroups;
+    }
+
+    /**
+     * Starts sampling the containers' CPU use and context switches. Sampling is an observation, so a failure to
+     * start it is reported and the run goes on without it.
+     */
+    private ContainerStatsSampler startContainerStatsSampler(List<MeasuredContainer> containers, Path runOutput) {
+        try {
+            List<ContainerStatsSampler.Target> targets = cgroups(containers).entrySet().stream()
+                    .map(entry -> new ContainerStatsSampler.Target(entry.getKey(), entry.getValue())).toList();
+            ContainerStatsSampler sampler = ContainerStatsSampler.start(procfs, targets, runOutput);
+            if (sampler == null) {
+                System.out.println("Container stats sampling is off for this run: no container cgroups found");
+            }
+            return sampler;
+        } catch (Exception e) {
+            System.out.println("Container stats sampling is off for this run: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Starts counting the containers' perf events in a sidecar container. The counts are an observation, so a
+     * failure to start them is reported and the run goes on without them.
+     */
+    private PerfStatSidecar startPerfStatSidecar(List<MeasuredContainer> containers, Path runOutput) {
+        try {
+            List<PerfStatSidecar.Target> targets = cgroups(containers).entrySet().stream()
+                    .map(entry -> new PerfStatSidecar.Target(entry.getKey(),
+                            cgroupfs.relativize(entry.getValue()).toString()))
+                    .toList();
+            PerfStatSidecar sidecar = PerfStatSidecar.start(targets, runOutput);
+            if (sidecar != null) {
+                status("Counting the containers' CPU events with perf stat");
+            }
+            return sidecar;
+        } catch (Exception e) {
+            System.out.println("perf stat is off for this run: " + e.getMessage());
             return null;
         }
     }

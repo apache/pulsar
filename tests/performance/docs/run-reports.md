@@ -90,7 +90,7 @@ The run directory that the launcher printed at the start still has what the run 
 - `applications/<application>/application-summary.json`, with the application's unique messages, duplicates, ordering
   violations and invalid messages, and `applications/<application>/ordering-violations.txt`, with samples of the
   ordering violations, when the application got as far as its checks
-- `topic-stats.csv`, `host-stats.csv` and `host-io.csv`, sampled until the failure
+- `topic-stats.csv`, `host-stats.csv`, `host-io.csv` and `container-stats.csv`, sampled until the failure
 
 The applications' container exits with an error when an application found ordering violations or invalid messages, or
 didn't receive every message, and the launcher fails a run when an application's state shows that it missed messages
@@ -107,6 +107,7 @@ didn't receive every message, and the launcher fails a run when an application's
 │   host-temperature.svg, host-frequency.svg    the charts, each also as PNG
 ├── topic-stats.csv, host-stats.csv    the sampled topic stats and host CPU
 ├── host-io.csv                        the sampled host CPU utilization and disk throughput
+├── container-stats.csv, perf-stat.csv each container's CPU use, context switches and CPU counters
 ├── gateways/                          the gateways' outputs, and their recordings in a profiled run
 ├── applications/                      the applications' container log, and their recordings in a profiled run
 │   └── <application>/                 one directory per application, named after its subscription,
@@ -183,6 +184,8 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
 | `host-stats.csv` | The host's CPU sampled once per second from Linux's sysfs files: package and hottest core temperature, mean and lowest core frequency, the kernel's thermal throttle counters and the fastest fan |
 | `host-io.csv` | The host's CPU utilization and disk throughput sampled once per second from Linux's `/proc/stat` and `/proc/diskstats`: the busy and I/O-wait share of all CPUs, and each physical disk's read and write MB/s and busy share. It shows whether a run is limited by the host's CPUs or its storage, which the bookies share |
+| `container-stats.csv` | Each container's CPU use and context switches, once per second: the CPUs it used, from its cgroup's `cpu.stat`, and its threads' voluntary and involuntary context switches per second, from `/proc/<tid>/status`. A voluntary switch is a thread that blocked or waited for work; an involuntary one a thread that the scheduler preempted, which grows when the host's CPUs are saturated. Linux only; the run report's Containers section summarizes the measurement |
+| `perf-stat.csv` | Each container's exact `perf stat` counts per second, by cgroup: CPU time (task-clock, in ms), context switches, CPU migrations, cycles and instructions, from which the Containers section derives the clock rate and the instructions per cycle (IPC). A privileged sidecar container built from Alpine's `perf` package counts them; `--no-perf-stat` turns it off. Counts the host's CPU doesn't provide to containers, such as in a virtual machine, are empty |
 | `gateways/gateways-summary.json` | The gateways' counts and throughput, and the epoch-millisecond boundaries of the measurement |
 | `gateways/gateways-latency.hdr`, `.hgrm` | The publish latency log, and its percentile distribution in milliseconds, see [Latency logs](#latency-logs) |
 | `gateways/gateways-state.bin` | The gateways' next sequence number for each device. The launcher compares it with each application's `application-state.bin` and fails the run when they differ, which catches messages missing at the end, where no gap shows |

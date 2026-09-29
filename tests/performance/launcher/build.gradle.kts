@@ -110,6 +110,11 @@ fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     listOf("metrics", "metrics.bindAddress", "metrics.grafanaUrl").forEach { name ->
         providers.gradleProperty("performance.$name").orNull?.let { systemProperty("performance.$name", it) }
     }
+    // Count the containers' CPU events with perf stat in a privileged sidecar, the default; -Pperformance.perfStat=false
+    // counts none. See tests/performance/docs/run-reports.md
+    providers.gradleProperty("performance.perfStat").orNull?.let {
+        systemProperty("performance.perfStat", (it.isEmpty() || it.toBoolean()).toString())
+    }
     // The URL of the reports that :tests:performance:report-tool:serveReports serves, which the launcher prints beside
     // the reports: -Pperformance.reportsServer.baseUrl, else the server's bind address and port
     listOf("baseUrl", "bindAddress", "port").forEach { name ->
