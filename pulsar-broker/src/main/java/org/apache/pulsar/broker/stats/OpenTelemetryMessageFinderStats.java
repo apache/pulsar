@@ -23,6 +23,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleHistogram;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.PulsarService;
@@ -79,13 +80,17 @@ public class OpenTelemetryMessageFinderStats {
         findDuration = meter.histogramBuilder(FIND_DURATION_METRIC_NAME)
                 .setDescription("Time taken to find the position of a message by timestamp")
                 .setUnit("s")
+                .setExplicitBucketBoundariesAdvice(Arrays.asList(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5,
+                        1.0, 2.5, 5.0, 10.0, 30.0, 60.0))
                 .build();
         entryReadCounter = meter.counterBuilder(FIND_ENTRY_READ_COUNT_METRIC_NAME)
-                .setDescription("The number of entries read while finding the position of a message by timestamp")
+                .setDescription("The number of entries read while finding the position of a message by timestamp, "
+                        + "by the storage of their ledger. Entries served from the broker entry cache are included.")
                 .setUnit("{entry}")
                 .build();
         entryReadSizeCounter = meter.counterBuilder(FIND_ENTRY_READ_SIZE_METRIC_NAME)
-                .setDescription("The number of bytes read while finding the position of a message by timestamp")
+                .setDescription("The number of bytes read while finding the position of a message by timestamp, "
+                        + "by the storage of their ledger. Entries served from the broker entry cache are included.")
                 .setUnit("By")
                 .build();
 
