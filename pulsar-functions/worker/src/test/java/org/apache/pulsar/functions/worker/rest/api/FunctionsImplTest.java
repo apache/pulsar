@@ -23,12 +23,17 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
+import jakarta.ws.rs.core.Response;
 import java.io.InputStream;
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,6 +55,7 @@ import org.apache.pulsar.client.admin.Namespaces;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Tenants;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.functions.FunctionConfig;
@@ -371,6 +377,76 @@ public class FunctionsImplTest {
         AuthenticationDataSource nonSuperuserAuthData = mock(AuthenticationDataSource.class);
         when(nonSuperuserAuthData.getHttpHeader("mockedUser")).thenReturn("non-superuser");
         assertFalse(functionImpl.isSuperUser("non-superuser", nonSuperuserAuthData));
+    }
+
+    @Test
+    public void testTriggerFunctionChecksProducePermissionOnInputTopic() throws Exception {
+        final String functionUser = "function-user";
+        final String producerUser = "function-and-produce-user";
+        final String otherTenant = "other-tenant";
+        final String otherNamespace = otherTenant + "/other-ns";
+        final String inputTopic = "persistent://" + otherNamespace + "/input";
+
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setAuthorizationEnabled(true);
+        workerConfig.setSuperUserRoles(Collections.singleton(superUser));
+
+        PulsarResources pulsarResources = mock(PulsarResources.class);
+        TenantResources tenantResources = mock(TenantResources.class);
+        when(pulsarResources.getTenantResources()).thenReturn(tenantResources);
+        when(tenantResources.getTenantAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(TenantInfo.builder().build())));
+        NamespaceResources namespaceResources = mock(NamespaceResources.class);
+        when(pulsarResources.getNamespaceResources()).thenReturn(namespaceResources);
+        Policies functionNamespacePolicies = new Policies();
+        functionNamespacePolicies.auth_policies.getNamespaceAuthentication()
+                .put(functionUser, Set.of(AuthAction.functions));
+        functionNamespacePolicies.auth_policies.getNamespaceAuthentication()
+                .put(producerUser, Set.of(AuthAction.functions));
+        when(namespaceResources.getPoliciesAsync(NamespaceName.get(tenant, namespace)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(functionNamespacePolicies)));
+        Policies inputNamespacePolicies = new Policies();
+        inputNamespacePolicies.auth_policies.getNamespaceAuthentication()
+                .put(producerUser, Set.of(AuthAction.produce));
+        when(namespaceResources.getPoliciesAsync(NamespaceName.get(otherNamespace)))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(inputNamespacePolicies)));
+
+        AuthorizationService authorizationService = new AuthorizationService(
+                PulsarConfigurationLoader.convertFrom(workerConfig), pulsarResources);
+        doReturn(workerConfig).when(mockedWorkerService).getWorkerConfig();
+        doReturn(authorizationService).when(mockedWorkerService).getAuthorizationService();
+
+        FunctionConfig functionConfig = createDefaultFunctionConfig();
+        functionConfig.setCustomSerdeInputs(Collections.singletonMap(inputTopic, TopicSchema.DEFAULT_SERDE));
+        FunctionMetaData functionMetaData = new FunctionMetaData();
+        functionMetaData.setFunctionDetails().copyFrom(FunctionConfigUtils.convert(functionConfig));
+        when(mockedManager.getFunctionMetaData(tenant, namespace, function)).thenReturn(functionMetaData);
+
+        Topics mockedTopics = mock(Topics.class);
+        when(mockedPulsarAdmin.topics()).thenReturn(mockedTopics);
+        when(mockedTopics.getSubscriptions(inputTopic))
+                .thenThrow(new PulsarAdminException("topic lookup is not available in this test"));
+
+        // the functions permission alone does not allow producing to the input topic
+        RestException e = expectThrows(RestException.class, () -> resource.triggerFunction(tenant, namespace,
+                function, "value", null, inputTopic,
+                AuthenticationParameters.builder().clientRole(functionUser).build()));
+        assertEquals(e.getResponse().getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
+        verify(mockedTopics, never()).getSubscriptions(any());
+        verify(mockedWorkerService, never()).getClient();
+
+        // with produce permission on the input topic the permission check passes
+        e = expectThrows(RestException.class, () -> resource.triggerFunction(tenant, namespace,
+                function, "value", null, null,
+                AuthenticationParameters.builder().clientRole(producerUser).build()));
+        assertEquals(e.getResponse().getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
+        verify(mockedTopics).getSubscriptions(inputTopic);
+
+        // super users are allowed as before
+        e = expectThrows(RestException.class, () -> resource.triggerFunction(tenant, namespace,
+                function, "value", null, inputTopic,
+                AuthenticationParameters.builder().clientRole(superUser).build()));
+        assertEquals(e.getResponse().getStatus(), Response.Status.BAD_REQUEST.getStatusCode());
     }
 
     public static FunctionConfig createDefaultFunctionConfig() {
