@@ -98,7 +98,7 @@ reactive-streams = "1.0.4"
 # Google libraries (transitive deps)
 opentelemetry-gcp-resources = "1.60.0-alpha"
 # Data structures / Utils
-guava = "33.6.0-jre"
+guava = "33.7.1-jre"
 caffeine = "3.3.0"
 fastutil = "8.5.19"
 jctools = "4.0.7"
