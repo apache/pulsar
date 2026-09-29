@@ -329,12 +329,14 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         String name = "testPersistentMessageFinderMetricsWhenFound";
         ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2);
         ManagedLedger ledger = factory.open(name, config);
+        // A durable cursor keeps the ledgers from being trimmed in the background
+        ManagedCursor cursor = ledger.openCursor(name);
         List<Position> positions = new ArrayList<>();
         List<Long> timestampsAfterEntries = addEntriesSpacedInTime(ledger, 5, positions);
         // Read the entries from the ledgers rather than from the broker entry cache
         ledger.close();
         ledger = factory.open(name, config);
-        ManagedCursor cursor = ledger.openCursor(name);
+        cursor = ledger.openCursor(name);
 
         @Cleanup
         InMemoryMetricReader reader = InMemoryMetricReader.create();
@@ -412,11 +414,13 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         String name = "testPersistentMessageFinderMetricsWhenReadFails";
         ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2);
         ManagedLedger ledger = factory.open(name, config);
+        // A durable cursor keeps the ledgers from being trimmed in the background
+        ManagedCursor cursor = ledger.openCursor(name);
         List<Long> timestampsAfterEntries = addEntriesSpacedInTime(ledger, 5, new ArrayList<>());
         // Read the entries from the ledgers rather than from the broker entry cache
         ledger.close();
         ledger = factory.open(name, config);
-        ManagedCursor cursor = ledger.openCursor(name);
+        cursor = ledger.openCursor(name);
 
         @Cleanup
         InMemoryMetricReader reader = InMemoryMetricReader.create();
@@ -451,13 +455,15 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(2);
         config.setLedgerOffloader(new BookKeeperBackedLedgerOffloader(config));
         ManagedLedger ledger = factory.open(name, config);
+        // A durable cursor keeps the ledgers from being trimmed in the background
+        ManagedCursor cursor = ledger.openCursor(name);
         List<Position> positions = new ArrayList<>();
         List<Long> timestampsAfterEntries = addEntriesSpacedInTime(ledger, 5, positions);
         ledger.offloadPrefix(ledger.getLastConfirmedEntry());
         // Open the read handles of the offloaded ledgers from the offloader
         ledger.close();
         ledger = factory.open(name, config);
-        ManagedCursor cursor = ledger.openCursor(name);
+        cursor = ledger.openCursor(name);
 
         @Cleanup
         InMemoryMetricReader reader = InMemoryMetricReader.create();
