@@ -23,6 +23,7 @@ import io.github.merlimat.slog.Logger;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.SortedMap;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -91,6 +92,11 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
         // check to avoid test failures
         return this.cursor.getManagedLedger() != null
                 && this.cursor.getManagedLedger().getConfig().isAutoSkipNonRecoverableData();
+    }
+
+    @VisibleForTesting
+    public boolean isExpirationCheckInProgress() {
+        return expirationCheckInProgress == TRUE;
     }
 
     @Override
@@ -244,15 +250,45 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
             log.info()
                     .attr("position", position)
                     .log("Expiring all messages until position");
-            Position prevMarkDeletePos = cursor.getMarkDeletedPosition();
-            cursor.asyncMarkDelete(position, null, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
-            if (!Objects.equals(cursor.getMarkDeletedPosition(), prevMarkDeletePos) && subscription != null) {
-                subscription.updateLastMarkDeleteAdvancedTimestamp();
+            beforeCursorMarkDelete(position);
+            if (!runCursorMarkDeleteIfTopicNotClosingOrDeleting(position, () -> {
+                Position prevMarkDeletePos = cursor.getMarkDeletedPosition();
+                cursor.asyncMarkDelete(position, null, markDeleteCallback, cursor.getNumberOfEntriesInBacklog(false));
+                if (!Objects.equals(cursor.getMarkDeletedPosition(), prevMarkDeletePos) && subscription != null) {
+                    subscription.updateLastMarkDeleteAdvancedTimestamp();
+                }
+                return null;
+            })) {
+                expirationCheckInProgress = FALSE;
+                updateRates();
             }
         } else {
             log.debug("No messages to expire");
             expirationCheckInProgress = FALSE;
             updateRates();
+        }
+    }
+
+    @VisibleForTesting
+    protected void beforeCursorMarkDelete(Position position) {
+        // No-op.
+    }
+
+    private boolean runCursorMarkDeleteIfTopicNotClosingOrDeleting(Position position, Callable<Void> markDelete) {
+        try {
+            boolean didRun = topic.runWithTopicCloseReadLock(markDelete);
+            if (!didRun) {
+                log.debug()
+                        .attr("position", position)
+                        .log("Skipping message expiry mark-delete because topic is closing or deleting");
+            }
+            return didRun;
+        } catch (Exception e) {
+            log.warn()
+                    .attr("position", position)
+                    .exception(e)
+                    .log("Message expiry failed - mark delete failed");
+            return false;
         }
     }
 
