@@ -2492,6 +2492,31 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 && handleFuture.getNow(null) instanceof OffloadedLedgerHandle;
     }
 
+    /**
+     * Returns the entry ids around {@code position}, in its ledger, that the read handle of an offloaded ledger can
+     * read without scanning previous entries, see {@link OffloadedLedgerHandle#getIndexedEntryIdFloor(long)}: the
+     * greatest one lower than or equal to the entry id of {@code position}, and the lowest one greater than or equal
+     * to it, each one -1 when there is none. Completes with null if the ledger is not offloaded, or not read through
+     * an {@link OffloadedLedgerHandle}.
+     *
+     * <p>The read handle of an offloaded ledger is opened if needed, as reading an entry of the ledger would do, so
+     * that the result does not depend on which ledgers were read before. Completes exceptionally if opening it fails.
+     */
+    CompletableFuture<long[]> getIndexedEntryIdsAround(Position position) {
+        long ledgerId = position.getLedgerId();
+        LedgerInfo info = ledgers.get(ledgerId);
+        if (info == null || !info.hasOffloadContext() || !info.getOffloadContext().isComplete()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return getLedgerHandle(ledgerId).thenApply(handle -> {
+            if (!(handle instanceof OffloadedLedgerHandle offloadedLedgerHandle)) {
+                return null;
+            }
+            return new long[] {offloadedLedgerHandle.getIndexedEntryIdFloor(position.getEntryId()),
+                    offloadedLedgerHandle.getIndexedEntryIdCeiling(position.getEntryId())};
+        });
+    }
+
     void invalidateReadHandle(long ledgerId) {
         CompletableFuture<ReadHandle> rhf = ledgerCache.remove(ledgerId);
         if (rhf != null) {

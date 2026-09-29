@@ -19,6 +19,8 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -122,6 +124,7 @@ public class BlobStoreBackedReadHandleImplTest {
     private static class BackedInputStreamImpl extends BackedInputStream {
 
         private ByteBuf data;
+        private long bytesRead;
 
         private BackedInputStreamImpl(ByteBuf data){
             this.data = data;
@@ -147,7 +150,9 @@ public class BlobStoreBackedReadHandleImplTest {
             if (data.readableBytes() == 0) {
                 throw new EOFException("The input-stream has no bytes to read");
             }
-            return data.readByte();
+            bytesRead++;
+            // An unsigned byte, as specified by InputStream.read()
+            return data.readByte() & 0xFF;
         }
 
         @Override
@@ -208,5 +213,174 @@ public class BlobStoreBackedReadHandleImplTest {
         }
         // cleanup.
         ledger.close();
+    }
+
+    @Test
+    public void testGetIndexedEntryIdFloor() throws Exception {
+        int entries = 5000;
+        long[] indexedEntryIds = {0, 2500};
+        LedgerMetadata metadata = LedgerMetadataBuilder.create()
+                .withId(3)
+                .withEnsembleSize(1)
+                .withWriteQuorumSize(1)
+                .withAckQuorumSize(1)
+                .withDigestType(DigestType.CRC32C)
+                .withPassword("pwd".getBytes(UTF_8))
+                .withClosedState()
+                .withLastEntryId(entries - 1)
+                .withLength(entries * 100L)
+                .newEnsembleEntry(0L, Arrays.asList(BookieId.parse("127.0.0.1:3181")))
+                .build();
+        // A sparse index with one index entry per data block, like the index of an offloaded ledger
+        OffloadIndexBlock mockIndex = mock(OffloadIndexBlock.class);
+        when(mockIndex.getLedgerMetadata()).thenReturn(metadata);
+        when(mockIndex.getIndexEntryForEntry(anyLong())).thenAnswer(invocation -> {
+            long entryId = invocation.getArgument(0);
+            long floor = entryId >= indexedEntryIds[1] ? indexedEntryIds[1] : indexedEntryIds[0];
+            return OffloadIndexEntryImpl.of(floor, 0, 128 + floor * 100, 0);
+        });
+        ByteBuf data = ByteBufAllocator.DEFAULT.heapBuffer(0);
+        BlobStoreBackedReadHandleImpl ledger = new BlobStoreBackedReadHandleImpl(3, mockIndex,
+                new BackedInputStreamImpl(data), executor, offsetsCache);
+        try {
+            assertThat(ledger.getIndexedEntryIdFloor(0)).isEqualTo(0);
+            assertThat(ledger.getIndexedEntryIdFloor(2000)).as("floor in the first block").isEqualTo(0);
+            assertThat(ledger.getIndexedEntryIdFloor(2500)).as("first entry of the second block").isEqualTo(2500);
+            assertThat(ledger.getIndexedEntryIdFloor(4999)).as("floor in the second block").isEqualTo(2500);
+            assertThat(ledger.getIndexedEntryIdCeiling(0)).isEqualTo(0);
+            assertThat(ledger.getIndexedEntryIdCeiling(2000)).as("ceiling in the first block").isEqualTo(2500);
+            assertThat(ledger.getIndexedEntryIdCeiling(2500)).as("first entry of the second block").isEqualTo(2500);
+            assertThat(ledger.getIndexedEntryIdCeiling(4999)).as("no ceiling in the last block").isEqualTo(-1);
+        } finally {
+            ledger.close();
+            data.release();
+        }
+    }
+
+    @Test
+    public void testReadScansFromLearnedOffset() throws Exception {
+        int entrySize = 20;
+        int entryCount = 5000;
+        long learnedOffsetIntervalBytes = 4096;
+        int headerSize = 128;
+        ByteBuf data = ByteBufAllocator.DEFAULT.heapBuffer(headerSize + entryCount * entrySize);
+        data.writerIndex(headerSize);
+        for (int i = 0; i < entryCount; i++) {
+            data.writeInt(entrySize - 12);
+            data.writeLong(i);
+            data.writeZero(entrySize - 12);
+        }
+        LedgerMetadata metadata = LedgerMetadataBuilder.create()
+                .withId(2)
+                .withEnsembleSize(1)
+                .withWriteQuorumSize(1)
+                .withAckQuorumSize(1)
+                .withDigestType(DigestType.CRC32C)
+                .withPassword("pwd".getBytes(UTF_8))
+                .withClosedState()
+                .withLastEntryId(entryCount - 1)
+                .withLength((long) entryCount * (entrySize - 12))
+                .newEnsembleEntry(0L, Arrays.asList(BookieId.parse("127.0.0.1:3181")))
+                .build();
+        // A single data block: only the first entry has an indexed offset
+        OffloadIndexBlock mockIndex = mock(OffloadIndexBlock.class);
+        when(mockIndex.getLedgerMetadata()).thenReturn(metadata);
+        when(mockIndex.getIndexEntryForEntry(anyLong())).thenReturn(OffloadIndexEntryImpl.of(0, 0, headerSize, 0));
+        BackedInputStreamImpl inputStream = new BackedInputStreamImpl(data);
+        // Start without cached offsets, e.g. from a previous run of the same test
+        offsetsCache.clear();
+        BlobStoreBackedReadHandleImpl ledger = new BlobStoreBackedReadHandleImpl(2, mockIndex, inputStream,
+                executor, offsetsCache, learnedOffsetIntervalBytes);
+        try {
+            // The first read scans the block from its start
+            long firstEntry = 2000;
+            try (LedgerEntries entries = ledger.read(firstEntry, firstEntry)) {
+                assertThat(entries.iterator().next().getEntryId()).isEqualTo(firstEntry);
+            }
+            assertThat(inputStream.bytesRead).as("bytes scanned by the first read")
+                    .isGreaterThanOrEqualTo(firstEntry * entrySize);
+
+            // A read further than the probe window of the offsets cache resumes from the nearest learned offset
+            // instead of scanning the block from its start again
+            long secondEntry = 4999;
+            inputStream.bytesRead = 0;
+            try (LedgerEntries entries = ledger.read(secondEntry, secondEntry)) {
+                assertThat(entries.iterator().next().getEntryId()).isEqualTo(secondEntry);
+            }
+            // Offsets are learned every 205 entries (the first ones at least 4096 bytes apart), so the nearest one
+            // below the first read is the one of entry 9 * 205 = 1845
+            assertThat(inputStream.bytesRead).as("bytes scanned by the second read")
+                    .isEqualTo((secondEntry - 1845 + 1) * entrySize);
+
+            // Learned offsets are not reported as indexed entries, so that searches do not depend on previous reads
+            assertThat(ledger.getIndexedEntryIdFloor(secondEntry)).isEqualTo(0);
+        } finally {
+            ledger.close();
+            data.release();
+        }
+    }
+
+    @Test
+    public void testLearnedOffsetsOfAnotherBlockAreNotUsed() throws Exception {
+        int entrySize = 20;
+        int entryCount = 5000;
+        long secondBlockFirstEntry = 2500;
+        int headerSize = 128;
+        ByteBuf data = ByteBufAllocator.DEFAULT.heapBuffer(headerSize + entryCount * entrySize);
+        data.writerIndex(headerSize);
+        for (int i = 0; i < entryCount; i++) {
+            data.writeInt(entrySize - 12);
+            data.writeLong(i);
+            data.writeZero(entrySize - 12);
+        }
+        LedgerMetadata metadata = LedgerMetadataBuilder.create()
+                .withId(4)
+                .withEnsembleSize(1)
+                .withWriteQuorumSize(1)
+                .withAckQuorumSize(1)
+                .withDigestType(DigestType.CRC32C)
+                .withPassword("pwd".getBytes(UTF_8))
+                .withClosedState()
+                .withLastEntryId(entryCount - 1)
+                .withLength((long) entryCount * (entrySize - 12))
+                .newEnsembleEntry(0L, Arrays.asList(BookieId.parse("127.0.0.1:3181")))
+                .build();
+        // Two data blocks, whose first entries have indexed offsets
+        OffloadIndexBlock mockIndex = mock(OffloadIndexBlock.class);
+        when(mockIndex.getLedgerMetadata()).thenReturn(metadata);
+        when(mockIndex.getIndexEntryForEntry(anyLong())).thenAnswer(invocation -> {
+            long entryId = invocation.getArgument(0);
+            long floor = entryId >= secondBlockFirstEntry ? secondBlockFirstEntry : 0;
+            return OffloadIndexEntryImpl.of(floor, 0, headerSize + floor * entrySize, 0);
+        });
+        BackedInputStreamImpl inputStream = new BackedInputStreamImpl(data);
+        offsetsCache.clear();
+        BlobStoreBackedReadHandleImpl ledger = new BlobStoreBackedReadHandleImpl(4, mockIndex, inputStream,
+                executor, offsetsCache, 4096);
+        try {
+            // Learns the offsets of entries 0, 205, ..., 1845 in the first block
+            try (LedgerEntries entries = ledger.read(2000, 2000)) {
+                assertThat(entries.iterator().next().getEntryId()).isEqualTo(2000);
+            }
+            // Without the offsets cache, a learned entry is read directly
+            offsetsCache.clear();
+            inputStream.bytesRead = 0;
+            try (LedgerEntries entries = ledger.read(1845, 1845)) {
+                assertThat(entries.iterator().next().getEntryId()).isEqualTo(1845);
+            }
+            assertThat(inputStream.bytesRead).as("bytes read for a learned entry").isEqualTo(entrySize);
+
+            // An entry of the second block is scanned from the start of that block, not from an offset learned in
+            // the first block
+            inputStream.bytesRead = 0;
+            try (LedgerEntries entries = ledger.read(3000, 3000)) {
+                assertThat(entries.iterator().next().getEntryId()).isEqualTo(3000);
+            }
+            assertThat(inputStream.bytesRead).as("bytes scanned in the second block")
+                    .isEqualTo((3000 - secondBlockFirstEntry + 1) * entrySize);
+        } finally {
+            ledger.close();
+            data.release();
+        }
     }
 }

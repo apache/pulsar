@@ -24,8 +24,11 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -65,12 +68,29 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
     private static final long MAX_OFFSET_PROBE =
             Long.getLong("pulsar.jclouds.readhandleimpl.offsetprobe.max", 1024);
 
+    // Minimum distance, in bytes of offloaded data, between two entry offsets remembered while skipping entries.
+    // A later read of an entry in a part of the data block that was skipped before scans about this many bytes at
+    // most, from the nearest remembered offset, instead of scanning from the start of the block.
+    private static final long MIN_LEARNED_OFFSET_INTERVAL_BYTES = 64 * 1024;
+    private static final long DEFAULT_LEARNED_OFFSET_INTERVAL_BYTES = Math.max(MIN_LEARNED_OFFSET_INTERVAL_BYTES,
+            Long.getLong("pulsar.jclouds.readhandleimpl.learnedoffset.interval.bytes", 1024 * 1024));
+
     private final long ledgerId;
     private final OffloadIndexBlock index;
     private final BackedInputStream inputStream;
     private final DataInputStream dataStream;
     private final ExecutorService executor;
     private final OffsetsCache entryOffsetsCache;
+    // Entry ids that have an exact offset in the index, i.e. the first entry of each data block, in ascending order.
+    // Copied at open time since the index is recycled on close.
+    private final long[] indexedEntryIds;
+    // Entry offsets remembered while skipping entries to reach an entry whose offset is not cached (see
+    // skipPreviousEntry), at least "learnedOffsetIntervalBytes" apart. Reads that continue from the previous read
+    // do not skip entries and do not add any, as long as the offsets cache holds the offset of the next entry. At
+    // most the size of the data object divided by the interval, e.g. 2048 offsets for a fully skipped 2 GiB object
+    // with the default interval of 1 MiB.
+    private final ConcurrentSkipListMap<Long, Long> learnedOffsets = new ConcurrentSkipListMap<>();
+    private final long learnedOffsetIntervalBytes;
     private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
 
     enum State {
@@ -88,13 +108,70 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
     BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
                                           BackedInputStream inputStream, ExecutorService executor,
                                           OffsetsCache entryOffsetsCache) {
+        this(ledgerId, index, inputStream, executor, entryOffsetsCache, DEFAULT_LEARNED_OFFSET_INTERVAL_BYTES);
+    }
+
+    @VisibleForTesting
+    BlobStoreBackedReadHandleImpl(long ledgerId, OffloadIndexBlock index,
+                                  BackedInputStream inputStream, ExecutorService executor,
+                                  OffsetsCache entryOffsetsCache, long learnedOffsetIntervalBytes) {
         this.ledgerId = ledgerId;
         this.index = index;
         this.inputStream = inputStream;
         this.dataStream = new DataInputStream(inputStream);
         this.executor = executor;
         this.entryOffsetsCache = entryOffsetsCache;
+        this.indexedEntryIds = collectIndexedEntryIds(ledgerId, index);
+        this.learnedOffsetIntervalBytes = learnedOffsetIntervalBytes;
         state = State.Opened;
+    }
+
+    private static long[] collectIndexedEntryIds(long ledgerId, OffloadIndexBlock index) {
+        List<Long> entryIds = new ArrayList<>();
+        try {
+            long entryId = index.getLedgerMetadata().getLastEntryId();
+            while (entryId >= 0) {
+                OffloadIndexEntry indexEntry = index.getIndexEntryForEntry(entryId);
+                if (indexEntry == null || indexEntry.getEntryId() > entryId) {
+                    break;
+                }
+                entryIds.add(indexEntry.getEntryId());
+                entryId = indexEntry.getEntryId() - 1;
+            }
+        } catch (Exception e) {
+            // Reads still work, but searches can no longer prefer the entries that are cheap to read
+            log.warn().attr("ledgerId", ledgerId).exception(e)
+                    .log("Failed to collect the indexed entry ids of the offloaded ledger");
+            return new long[0];
+        }
+        long[] result = new long[entryIds.size()];
+        for (int i = 0; i < result.length; i++) {
+            result[i] = entryIds.get(result.length - 1 - i);
+        }
+        return result;
+    }
+
+    @Override
+    public long getIndexedEntryIdFloor(long entryId) {
+        // Only the entries of the index: the offsets learned while skipping entries depend on the previous reads, and
+        // a search that probes them would take a different path, and not benefit from the offsets it already cached
+        int i = Arrays.binarySearch(indexedEntryIds, entryId);
+        if (i >= 0) {
+            return entryId;
+        }
+        // No indexed entry lower than entryId when the insertion point is 0
+        return i == -1 ? -1 : indexedEntryIds[-i - 2];
+    }
+
+    @Override
+    public long getIndexedEntryIdCeiling(long entryId) {
+        int i = Arrays.binarySearch(indexedEntryIds, entryId);
+        if (i >= 0) {
+            return entryId;
+        }
+        // No indexed entry greater than entryId when the insertion point is the end of the array
+        int insertionPoint = -i - 1;
+        return insertionPoint == indexedEntryIds.length ? -1 : indexedEntryIds[insertionPoint];
     }
 
     @Override
@@ -132,6 +209,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
         private final long lastEntry;
         private final CompletableFuture<LedgerEntries> promise;
         private int seekedAndTryTimes = 0;
+        // Offset of the nearest learned offset at or before the skip position, valid until the next seek. Tracked
+        // here so that skipping entries does not look up "learnedOffsets" for each of them.
+        private long learnedOffsetFloor;
+        private boolean learnedOffsetFloorKnown = false;
 
         public ReadTask(long firstEntry, long lastEntry, CompletableFuture<LedgerEntries> promise) {
             this.firstEntry = firstEntry;
@@ -253,6 +334,7 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 long entryId = dataStream.readLong();
                 if (entryId == nextExpectedEntryId) {
                     entryOffsetsCache.put(ledgerId, entryId, offset);
+                    learnOffset(entryId, offset);
                     long skipped = inputStream.skip(len);
                     if (skipped != len) {
                         LedgerMetadata ledgerMetadata = getLedgerMetadata();
@@ -283,7 +365,28 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
             }
         }
 
+        private void learnOffset(long entryId, long offset) {
+            if (!learnedOffsetFloorKnown) {
+                Map.Entry<Long, Long> floor = learnedOffsets.floorEntry(entryId);
+                learnedOffsetFloor = floor != null ? floor.getValue() : Long.MIN_VALUE;
+                learnedOffsetFloorKnown = true;
+            }
+            if (learnedOffsetFloor != Long.MIN_VALUE && offset - learnedOffsetFloor < learnedOffsetIntervalBytes) {
+                return;
+            }
+            // Keep the offsets at least the interval apart from the next one too, e.g. when a scan that started below
+            // a remembered offset reaches it
+            Map.Entry<Long, Long> next = learnedOffsets.higherEntry(entryId);
+            if (next != null && next.getValue() - offset < learnedOffsetIntervalBytes) {
+                learnedOffsetFloor = next.getValue();
+                return;
+            }
+            learnedOffsets.put(entryId, offset);
+            learnedOffsetFloor = offset;
+        }
+
         private void seekToEntryOffset(long expectedEntryId) throws IOException, BKException {
+            learnedOffsetFloorKnown = false;
             // 1. Try to find the precise index.
             // 1-1. Precise cached indexes.
             Long cachedPreciseIndex = entryOffsetsCache.getIfPresent(ledgerId, expectedEntryId);
@@ -297,12 +400,25 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                 inputStream.seek(indexOfNearestEntry.getDataOffset());
                 return;
             }
+            // 1-3. Offsets remembered by previous scans of the same block, see step 3.
+            Map.Entry<Long, Long> learned = learnedOffsets.floorEntry(expectedEntryId);
+            if (learned != null && learned.getKey() < indexOfNearestEntry.getEntryId()) {
+                learned = null;
+            }
+            if (learned != null && learned.getKey() == expectedEntryId) {
+                inputStream.seek(learned.getValue());
+                return;
+            }
             // 2. Probe backwards for the nearest cached offset within a bounded window. Since entry-0
             //    must have a precise index, we can skip checking whether "expectedEntryId" is larger
             //    than 0. skipPreviousEntry() below caches every entry it walks past, so once a block
             //    has been walked once, a later jump into the same block lands on that cached run
-            //    within "gap" probes instead of re-walking from the sparse index marker in step 3.
+            //    within "gap" probes instead of re-walking from the sparse index marker in step 4.
+            //    Probing stops at the nearest learned offset, which is used when nothing closer is cached.
             long probeFloor = Math.max(indexOfNearestEntry.getEntryId(), expectedEntryId - MAX_OFFSET_PROBE);
+            if (learned != null) {
+                probeFloor = Math.max(probeFloor, learned.getKey() + 1);
+            }
             for (long probe = expectedEntryId - 1; probe >= probeFloor; probe--) {
                 Long cachedOffset = entryOffsetsCache.getIfPresent(ledgerId, probe);
                 if (cachedOffset != null) {
@@ -311,7 +427,16 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
                     return;
                 }
             }
-            // 3. Use the persistent index of the nearest entry that is smaller than "expectedEntryId".
+            // 3. Use the nearest offset remembered by a previous scan of the same block, so that only the entries
+            //    after it are scanned instead of the block from its start: about "learnedOffsetIntervalBytes" at most
+            //    in a part of the block that was scanned before. A binary search by timestamp reads entries spread
+            //    over the block, which would otherwise rescan it from its start on each read.
+            if (learned != null) {
+                inputStream.seek(learned.getValue());
+                skipPreviousEntry(learned.getKey(), expectedEntryId);
+                return;
+            }
+            // 4. Use the persistent index of the nearest entry that is smaller than "expectedEntryId".
             //    Because it is a sparse index, some entries need to be skipped.
             if (indexOfNearestEntry.getEntryId() < expectedEntryId) {
                 inputStream.seek(indexOfNearestEntry.getDataOffset());

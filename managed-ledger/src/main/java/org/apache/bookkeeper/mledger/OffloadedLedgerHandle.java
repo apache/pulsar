@@ -30,4 +30,27 @@ public interface OffloadedLedgerHandle {
     default int getPendingRead() {
         return 0;
     }
+
+    /**
+     * Returns the greatest entry id lower than or equal to {@code entryId} whose location in the offloaded data is
+     * known exactly, so that reading it does not require scanning the entries that precede it.
+     *
+     * <p>Searches that may choose which entry to read, such as a binary search by timestamp, use it to prefer
+     * entries that are cheap to read. It must not block nor trigger any I/O.
+     *
+     * @return the entry id, or -1 if unknown
+     */
+    default long getIndexedEntryIdFloor(long entryId) {
+        return -1;
+    }
+
+    /**
+     * Returns the lowest entry id greater than or equal to {@code entryId} whose location in the offloaded data is
+     * known exactly, see {@link #getIndexedEntryIdFloor(long)}.
+     *
+     * @return the entry id, or -1 if unknown
+     */
+    default long getIndexedEntryIdCeiling(long entryId) {
+        return -1;
+    }
 }
