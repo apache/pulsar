@@ -97,21 +97,13 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
      * @return a future that completes with the initial layout
      */
     CompletableFuture<ClientSegmentLayout> start() {
-        getWatchConnection()
+        v4Client.getConnection(topicName.toString())
                 .thenAccept(this::attach)
                 .exceptionally(ex -> {
                     initialLayoutFuture.completeExceptionally(ex);
                     return null;
                 });
         return initialLayoutFuture;
-    }
-
-    private CompletableFuture<ClientCnx> getWatchConnection() {
-        // A binary DAG watch can use any broker. Avoid a classic topic lookup before checking
-        // capabilities: older brokers reject topic:// names before we can report the missing feature.
-        // Pair through a proxy when present so the flags belong to the selected broker.
-        return v4Client.getLookup().isBinaryProtoLookupService()
-                ? v4Client.getAnyBrokerProxyConnection() : v4Client.getConnection(topicName.toString());
     }
 
     /**
@@ -257,7 +249,7 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
         if (closed) {
             return;
         }
-        getWatchConnection()
+        v4Client.getConnection(topicName.toString())
                 .thenAccept(this::attach)
                 .exceptionally(ex -> {
                     log.warn().exceptionMessage(ex)

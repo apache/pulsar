@@ -146,20 +146,20 @@ public class V5TransactionRecoveryTest extends MockedPulsarServiceBaseTest {
                     .hasMessageContaining("Scalable topics are disabled");
         }
         assertThatThrownBy(() -> v5Client.newProducer(Schema.string()).topic(topic).create())
-                .hasRootCauseInstanceOf(PulsarClientException.FeatureNotSupportedException.class)
-                .hasMessageContaining("Broker does not support scalable topics");
+                .hasRootCauseInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("Scalable topics are disabled");
         assertThatThrownBy(() -> v5Client.newQueueConsumer(Schema.string()).topic(topic)
                 .subscriptionName("queue").subscribe())
-                .hasRootCauseInstanceOf(PulsarClientException.FeatureNotSupportedException.class)
-                .hasMessageContaining("Broker does not support scalable topics");
+                .hasRootCauseInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("Scalable topics are disabled");
         assertThatThrownBy(() -> v5Client.newStreamConsumer(Schema.string()).topic(topic)
                 .subscriptionName("stream").subscribe())
-                .hasRootCauseInstanceOf(PulsarClientException.FeatureNotSupportedException.class)
-                .hasMessageContaining("Broker does not support scalable topics");
+                .hasRootCauseInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("Scalable topics are disabled");
         assertThatThrownBy(() -> v5Client.newCheckpointConsumer(Schema.string()).topic(topic)
                 .consumerGroup("checkpoint").create())
-                .hasRootCauseInstanceOf(PulsarClientException.FeatureNotSupportedException.class)
-                .hasMessageContaining("Broker does not support scalable topics");
+                .hasRootCauseInstanceOf(PulsarClientException.class)
+                .hasMessageContaining("Scalable topics are disabled");
         // Ordinary topics remain available to the classic client while scalable topics are disabled.
         String regular = topic.replace("topic://", "persistent://") + "-regular";
         try (var producer = pulsarClient.newProducer().topic(regular).create()) {
