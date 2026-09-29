@@ -170,15 +170,6 @@ dependencies {
         }
     }
 
-    // Allow overriding protobuf version via -PprotobufVersion=4.31.1 for protobuf v4 tests
-    providers.gradleProperty("protobufVersion").orNull?.let { protobufVersion ->
-        configurations.all {
-            resolutionStrategy {
-                force("com.google.protobuf:protobuf-java:$protobufVersion")
-            }
-        }
-    }
-
     // Annotation processing for Lombok
     "compileOnly"(catalog.findLibrary("lombok").get())
     "annotationProcessor"(catalog.findLibrary("lombok").get())
