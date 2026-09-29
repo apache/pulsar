@@ -2086,32 +2086,40 @@ public class PersistentTopicsBase extends AdminResource {
             boolean authoritative) {
         validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
         .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
-        .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
-        .thenAccept(partitionMetadata -> {
+        .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                .thenCombine(isSuperUserOrTenantAdminAsync(), Pair::of))
+        .thenAccept(metadataAndIsAdmin -> {
+            final PartitionedTopicMetadata partitionMetadata = metadataAndIsAdmin.getLeft();
+            final boolean isAdmin = metadataAndIsAdmin.getRight();
             if (topicName.isPartitioned()) {
                 internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic(asyncResponse,
-                        partitionMetadata, expireTimeInSeconds, authoritative);
+                        partitionMetadata, expireTimeInSeconds, authoritative, !isAdmin);
             } else {
                 if (partitionMetadata.partitions > 0) {
                     final List<CompletableFuture<Void>> futures = new ArrayList<>(partitionMetadata.partitions);
 
-                    // expire messages for each partition topic
-                    for (int i = 0; i < partitionMetadata.partitions; i++) {
-                        TopicName topicNamePartition = topicName.getPartition(i);
-                        try {
-                            futures.add(pulsar()
-                                    .getAdminClient()
-                                    .topics()
-                                    .expireMessagesForAllSubscriptionsAsync(
-                                            topicNamePartition.toString(), expireTimeInSeconds));
-                        } catch (Exception e) {
-                            log.error()
-                                    .attr("expireTimeInSeconds", expireTimeInSeconds)
-                                    .attr("topic", topicNamePartition)
-                                    .exception(e)
-                                    .log("Failed to expire messages");
-                            asyncResponse.resume(new RestException(e));
-                            return;
+                    if (!isAdmin) {
+                        futures.add(expireMessagesForAllowedSubscriptionsOfPartitionsAsync(
+                                partitionMetadata.partitions, expireTimeInSeconds));
+                    } else {
+                        // expire messages for each partition topic
+                        for (int i = 0; i < partitionMetadata.partitions; i++) {
+                            TopicName topicNamePartition = topicName.getPartition(i);
+                            try {
+                                futures.add(pulsar()
+                                        .getAdminClient()
+                                        .topics()
+                                        .expireMessagesForAllSubscriptionsAsync(
+                                                topicNamePartition.toString(), expireTimeInSeconds));
+                            } catch (Exception e) {
+                                log.error()
+                                        .attr("expireTimeInSeconds", expireTimeInSeconds)
+                                        .attr("topic", topicNamePartition)
+                                        .exception(e)
+                                        .log("Failed to expire messages");
+                                asyncResponse.resume(new RestException(e));
+                                return;
+                            }
                         }
                     }
 
@@ -2139,7 +2147,7 @@ public class PersistentTopicsBase extends AdminResource {
                     });
                 } else {
                     internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic(asyncResponse,
-                            partitionMetadata, expireTimeInSeconds, authoritative);
+                            partitionMetadata, expireTimeInSeconds, authoritative, !isAdmin);
                 }
             }
         }
@@ -2161,7 +2169,8 @@ public class PersistentTopicsBase extends AdminResource {
                                                                                  PartitionedTopicMetadata
                                                                                  partitionMetadata,
                                                                                  int expireTimeInSeconds,
-                                                                                 boolean authoritative) {
+                                                                                 boolean authoritative,
+                                                                                 boolean onlyAllowedSubscriptions) {
         // validate ownership and redirect if current broker is not owner
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> getTopicReferenceAsync(topicName).thenAccept(t -> {
@@ -2176,28 +2185,15 @@ public class PersistentTopicsBase extends AdminResource {
                         return;
                     }
                     PersistentTopic topic = (PersistentTopic) t;
-                    final List<CompletableFuture<Void>> futures =
-                            new ArrayList<>((int) topic.getReplicators().size());
-                    List<String> subNames =
-                            new ArrayList<>((int) topic.getSubscriptions().size());
-                    subNames.addAll(topic.getSubscriptions().keySet().stream().filter(
-                            subName -> !subName.equals(Compactor.COMPACTION_SUBSCRIPTION)).toList());
-                    for (int i = 0; i < subNames.size(); i++) {
-                        try {
-                            futures.add(internalExpireMessagesByTimestampForSinglePartitionAsync(partitionMetadata,
-                                    subNames.get(i), expireTimeInSeconds));
-                        } catch (Exception e) {
-                            log.error()
-                                    .attr("expireTimeInSeconds", expireTimeInSeconds)
-                                    .attr("topic", topicName)
-                                    .exception(e)
-                                    .log("Failed to expire messages for all subscriptions");
-                            asyncResponse.resume(new RestException(e));
-                            return;
-                        }
-                    }
-
-                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                    List<String> subNames = topic.getSubscriptions().keySet().stream().filter(
+                            subName -> !subName.equals(Compactor.COMPACTION_SUBSCRIPTION)).toList();
+                    CompletableFuture<List<String>> subNamesFuture = onlyAllowedSubscriptions
+                            ? filterSubscriptionsAllowedToExpireAsync(subNames)
+                            : CompletableFuture.completedFuture(subNames);
+                    subNamesFuture.thenCompose(names -> FutureUtil.waitForAll(names.stream()
+                            .map(subName -> internalExpireMessagesByTimestampForSinglePartitionAsync(
+                                    partitionMetadata, subName, expireTimeInSeconds))
+                            .toList())).handle((result, exception) -> {
                         if (exception != null) {
                             Throwable throwable = FutureUtil.unwrapCompletionException(exception);
                             if (throwable instanceof RestException) {
@@ -2232,6 +2228,59 @@ public class PersistentTopicsBase extends AdminResource {
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
+    }
+
+    /**
+     * Whether the caller may expire messages of the subscription, checked as for a single subscription.
+     */
+    private CompletableFuture<Boolean> canExpireSubscriptionAsync(String subName) {
+        if (AbstractReplicator.getRemoteCluster(pulsar().getConfiguration().getReplicatorPrefix(), subName)
+                .isPresent()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return isAuthorizedAsync(validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES, subName));
+    }
+
+    private CompletableFuture<List<String>> filterSubscriptionsAllowedToExpireAsync(List<String> subNames) {
+        List<CompletableFuture<Boolean>> checks = subNames.stream().map(this::canExpireSubscriptionAsync).toList();
+        return FutureUtil.waitForAll(checks).thenApply(__ -> {
+            List<String> allowed = new ArrayList<>();
+            for (int i = 0; i < subNames.size(); i++) {
+                if (checks.get(i).join()) {
+                    allowed.add(subNames.get(i));
+                }
+            }
+            return allowed;
+        });
+    }
+
+    /**
+     * Expires messages of the partition subscriptions that the caller may expire. Dispatched per subscription,
+     * because partition requests are made with the broker's identity.
+     */
+    private CompletableFuture<Void> expireMessagesForAllowedSubscriptionsOfPartitionsAsync(int partitions,
+                                                                                         int expireTimeInSeconds) {
+        final PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        final Map<String, CompletableFuture<Boolean>> allowed = new ConcurrentHashMap<>();
+        final List<CompletableFuture<Void>> futures = new ArrayList<>(partitions);
+        for (int i = 0; i < partitions; i++) {
+            final String partition = topicName.getPartition(i).toString();
+            futures.add(ignoreNotFound(admin.topics().getSubscriptionsAsync(partition), List.<String>of())
+                    .thenCompose(subNames -> FutureUtil.waitForAll(subNames.stream()
+                            .filter(subName -> !subName.equals(Compactor.COMPACTION_SUBSCRIPTION))
+                            .map(subName -> allowed.computeIfAbsent(subName, this::canExpireSubscriptionAsync)
+                                    .thenCompose(canExpire -> canExpire
+                                            ? ignoreNotFound(admin.topics().expireMessagesAsync(partition, subName,
+                                                    expireTimeInSeconds), null)
+                                            : CompletableFuture.<Void>completedFuture(null)))
+                            .toList())));
+        }
+        return FutureUtil.waitForAll(futures);
     }
 
     protected CompletableFuture<Void> internalResetCursorAsync(String subName, long timestamp,

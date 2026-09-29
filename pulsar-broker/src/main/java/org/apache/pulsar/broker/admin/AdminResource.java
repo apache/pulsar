@@ -43,7 +43,9 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.resources.ClusterResources;
@@ -1046,6 +1048,77 @@ public abstract class AdminResource extends PulsarWebResource {
 
     protected static boolean isNot307And4xxException(Throwable ex) {
         return !isRedirectException(ex) && !is4xxRestException(ex);
+    }
+
+    /**
+     * Whether the caller is a super user or an admin of the tenant; true when authorization is disabled.
+     */
+    protected CompletableFuture<Boolean> isSuperUserOrTenantAdminAsync() {
+        if (!pulsar().getConfiguration().isAuthenticationEnabled()
+                || !pulsar().getBrokerService().isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+        AuthorizationService authorizationService = pulsar().getBrokerService().getAuthorizationService();
+        String role = clientAppId();
+        String originalRole = originalPrincipal();
+        if (!authorizationService.isValidOriginalPrincipal(role, originalRole, clientAuthData())) {
+            return CompletableFuture.completedFuture(false);
+        }
+        CompletableFuture<Boolean> isAdmin = isSuperUserOrTenantAdminAsync(role, clientAuthData());
+        if (authorizationService.isProxyRole(role) && !authorizationService.isWebsocketPrinciple(originalRole)) {
+            // the original principal is checked with its own auth data, not with the proxy's
+            isAdmin = isAdmin.thenCombine(isSuperUserOrTenantAdminAsync(originalRole, originalPrincipalAuthData()),
+                    (isRoleAdmin, isOriginalAdmin) -> isRoleAdmin && isOriginalAdmin);
+        }
+        return isAdmin;
+    }
+
+    private CompletableFuture<Boolean> isSuperUserOrTenantAdminAsync(String role, AuthenticationDataSource authData) {
+        return pulsar().getBrokerService().getAuthorizationService()
+                .isSuperUserOrTenantAdmin(namespaceName.getTenant(), role, authData)
+                .exceptionally(ex -> {
+                    log.debug()
+                            .attr("namespace", namespaceName)
+                            .attr("role", role)
+                            .exception(ex)
+                            .log("Tenant admin check failed");
+                    return false;
+                });
+    }
+
+    /**
+     * Maps an authorization check to false when it is rejected.
+     */
+    protected static CompletableFuture<Boolean> isAuthorizedAsync(CompletableFuture<Void> authorizationCheck) {
+        return authorizationCheck.handle((__, ex) -> {
+            if (ex == null) {
+                return true;
+            }
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (cause instanceof WebApplicationException wae
+                    && (wae.getResponse().getStatus() == Status.FORBIDDEN.getStatusCode()
+                    || wae.getResponse().getStatus() == Status.UNAUTHORIZED.getStatusCode())) {
+                return false;
+            }
+            // PulsarAuthorizationProvider rejects a subscription outside the role prefix with this exception
+            if (cause instanceof PulsarServerException) {
+                return false;
+            }
+            throw FutureUtil.wrapToCompletionException(cause);
+        });
+    }
+
+    /**
+     * Completes with {@code defaultValue} when an admin client call fails with "not found".
+     */
+    protected static <T> CompletableFuture<T> ignoreNotFound(CompletableFuture<T> future, T defaultValue) {
+        return future.exceptionally(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            if (cause instanceof PulsarAdminException.NotFoundException) {
+                return defaultValue;
+            }
+            throw FutureUtil.wrapToCompletionException(cause);
+        });
     }
 
     protected static String getTopicNotFoundErrorMessage(String topic) {

@@ -48,9 +48,12 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -242,6 +245,228 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
     }
 
     @Test
+    public void testNamespaceClearBacklogWithSecondaryTenantAdminRole() throws Exception {
+        final String tenant = "multi-roles-clear-backlog-tenant";
+        final String namespace = tenant + "/ns";
+        final String topic = "persistent://" + namespace + "/test-topic";
+        final String subscription = "sub";
+        final String bundle = "0x00000000_0xffffffff";
+        // resolved to the subscription with the same name as the remote cluster part of the name
+        final String replicatorCursor = pulsar.getConfiguration().getReplicatorPrefix() + "." + subscription;
+        final int numMessages = 5;
+        Map<String, Object> claims = new HashMap<>();
+        // the first role is the primary role of the token, the second one is a tenant admin role
+        claims.put("roles", List.of("clear-backlog-consumer", "clear-backlog-tenant-admin"));
+        final String tenantAdminToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        claims.put("roles", List.of("clear-backlog-consumer"));
+        final String consumerToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+
+        @Cleanup
+        PulsarAdmin superUserAdmin = newPulsarAdmin(superUserToken);
+        superUserAdmin.tenants().createTenant(tenant, TenantInfo.builder()
+                .adminRoles(Set.of("clear-backlog-tenant-admin"))
+                .allowedClusters(Sets.newHashSet(configClusterName)).build());
+        superUserAdmin.namespaces().createNamespace(namespace);
+        superUserAdmin.namespaces().grantPermissionOnNamespace(namespace, "clear-backlog-consumer",
+                Set.of(AuthAction.consume));
+        superUserAdmin.topics().createNonPartitionedTopic(topic);
+        superUserAdmin.topics().createSubscription(topic, subscription, MessageId.earliest);
+        @Cleanup
+        PulsarClient client = newPulsarClient(superUserToken);
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer().topic(topic).enableBatching(false).create();
+        for (int i = 0; i < numMessages; i++) {
+            producer.send(("msg-" + i).getBytes(StandardCharsets.UTF_8));
+        }
+
+        @Cleanup
+        PulsarAdmin consumerAdmin = newPulsarAdmin(consumerToken);
+        assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> consumerAdmin.namespaces().clearNamespaceBacklogForSubscription(namespace, replicatorCursor));
+        assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> consumerAdmin.namespaces().clearNamespaceBundleBacklogForSubscription(namespace, bundle,
+                        replicatorCursor));
+        assertEquals(superUserAdmin.topics().getStats(topic).getSubscriptions().get(subscription).getMsgBacklog(),
+                numMessages);
+
+        @Cleanup
+        PulsarAdmin tenantAdmin = newPulsarAdmin(tenantAdminToken);
+        tenantAdmin.namespaces().clearNamespaceBacklogForSubscription(namespace, replicatorCursor);
+        assertEquals(superUserAdmin.topics().getStats(topic).getSubscriptions().get(subscription).getMsgBacklog(),
+                0);
+        for (int i = 0; i < numMessages; i++) {
+            producer.send(("msg-" + i).getBytes(StandardCharsets.UTF_8));
+        }
+        tenantAdmin.namespaces().clearNamespaceBundleBacklogForSubscription(namespace, bundle, replicatorCursor);
+        assertEquals(superUserAdmin.topics().getStats(topic).getSubscriptions().get(subscription).getMsgBacklog(),
+                0);
+    }
+
+    @Test
+    public void testNamespaceSubscriptionOperationsThroughProxyWithTenantAdminRole() throws Exception {
+        final String tenant = "multi-roles-proxy-tenant";
+        final String namespace = tenant + "/ns";
+        final String topic = "persistent://" + namespace + "/test-topic";
+        final String consumerRole = "proxied-consumer";
+        final String tenantAdminRole = "proxied-tenant-admin";
+        final String subscription = "sub";
+        final String consumerSubscription = consumerRole + "-sub";
+        final String bundle = "0x00000000_0xffffffff";
+        // resolved to the subscription with the same name as the remote cluster part of the name
+        final String replicatorCursor = pulsar.getConfiguration().getReplicatorPrefix() + "." + subscription;
+        final int numMessages = 5;
+        Map<String, Object> claims = new HashMap<>();
+        // the first role is the primary role of the token, the second one gives the proxy tenant admin access
+        claims.put("roles", List.of(PROXY_ROLE, tenantAdminRole));
+        final String proxyToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+
+        @Cleanup
+        PulsarAdmin superUserAdmin = newPulsarAdmin(superUserToken);
+        superUserAdmin.tenants().createTenant(tenant, TenantInfo.builder()
+                .adminRoles(Set.of(tenantAdminRole))
+                .allowedClusters(Sets.newHashSet(configClusterName)).build());
+        superUserAdmin.namespaces().createNamespace(namespace);
+        superUserAdmin.namespaces().grantPermissionOnNamespace(namespace, consumerRole, Set.of(AuthAction.consume));
+        superUserAdmin.namespaces().setSubscriptionAuthMode(namespace, SubscriptionAuthMode.Prefix);
+        superUserAdmin.topics().createNonPartitionedTopic(topic);
+        superUserAdmin.topics().createSubscription(topic, subscription, MessageId.earliest);
+        superUserAdmin.topics().createSubscription(topic, consumerSubscription, MessageId.earliest);
+        @Cleanup
+        PulsarClient client = newPulsarClient(superUserToken);
+        @Cleanup
+        Producer<byte[]> producer = client.newProducer().topic(topic).enableBatching(false).create();
+        for (int i = 0; i < numMessages; i++) {
+            producer.send(("msg-" + i).getBytes(StandardCharsets.UTF_8));
+        }
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        // the proxy is a tenant admin through a token role, the original principal is an ordinary consumer and is
+        // checked with its own role only
+        for (String bundlePath : new String[]{"", "/" + bundle}) {
+            assertEquals(clearBacklogThroughProxy(httpClient, proxyToken, consumerRole, namespace + bundlePath,
+                    replicatorCursor), 403);
+            assertEquals(clearBacklogThroughProxy(httpClient, proxyToken, consumerRole, namespace + bundlePath,
+                    subscription), 403);
+        }
+        assertEquals(superUserAdmin.topics().getStats(topic).getSubscriptions().get(subscription).getMsgBacklog(),
+                numMessages);
+
+        // the consumer can clear a subscription that matches its role prefix
+        assertEquals(clearBacklogThroughProxy(httpClient, proxyToken, consumerRole, namespace,
+                consumerSubscription), 204);
+        assertEquals(superUserAdmin.topics().getStats(topic).getSubscriptions().get(consumerSubscription)
+                .getMsgBacklog(), 0);
+
+        // a tenant admin forwarded by the proxy keeps the existing behaviour
+        assertEquals(clearBacklogThroughProxy(httpClient, proxyToken, tenantAdminRole, namespace,
+                replicatorCursor), 204);
+        assertEquals(superUserAdmin.topics().getStats(topic).getSubscriptions().get(subscription).getMsgBacklog(),
+                0);
+        for (int i = 0; i < numMessages; i++) {
+            producer.send(("msg-" + i).getBytes(StandardCharsets.UTF_8));
+        }
+        assertEquals(clearBacklogThroughProxy(httpClient, proxyToken, tenantAdminRole, namespace + "/" + bundle,
+                subscription), 204);
+        assertEquals(superUserAdmin.topics().getStats(topic).getSubscriptions().get(subscription).getMsgBacklog(),
+                0);
+    }
+
+    @Test
+    public void testAllSubscriptionOperationsThroughProxyWithTenantAdminRole() throws Exception {
+        final String tenant = "multi-roles-proxy-all-subscriptions-tenant";
+        final String namespace = tenant + "/ns";
+        final String topic = "persistent://" + namespace + "/topic";
+        final String partitionedTopic = "persistent://" + namespace + "/partitioned";
+        final String partitionedTopic2 = "persistent://" + namespace + "/partitioned-2";
+        final String consumerRole = "proxied-all-subscriptions-consumer";
+        final String tenantAdminRole = "proxied-all-subscriptions-tenant-admin";
+        final String subscription = "sub";
+        final String consumerSubscription = consumerRole + "-sub";
+        final int numMessages = 5;
+        Map<String, Object> claims = new HashMap<>();
+        // the first role is the primary role of the token, the second one gives the proxy tenant admin access
+        claims.put("roles", List.of(PROXY_ROLE, tenantAdminRole));
+        final String proxyToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+
+        @Cleanup
+        PulsarAdmin superUserAdmin = newPulsarAdmin(superUserToken);
+        superUserAdmin.tenants().createTenant(tenant, TenantInfo.builder()
+                .adminRoles(Set.of(tenantAdminRole))
+                .allowedClusters(Sets.newHashSet(configClusterName)).build());
+        superUserAdmin.namespaces().createNamespace(namespace);
+        superUserAdmin.namespaces().grantPermissionOnNamespace(namespace, consumerRole, Set.of(AuthAction.consume));
+        superUserAdmin.namespaces().setSubscriptionAuthMode(namespace, SubscriptionAuthMode.Prefix);
+        superUserAdmin.topics().createNonPartitionedTopic(topic);
+        superUserAdmin.topics().createPartitionedTopic(partitionedTopic, 2);
+        superUserAdmin.topics().createPartitionedTopic(partitionedTopic2, 2);
+        final List<String> topics = List.of(topic, partitionedTopic + "-partition-0",
+                partitionedTopic + "-partition-1", partitionedTopic2 + "-partition-0",
+                partitionedTopic2 + "-partition-1");
+        @Cleanup
+        PulsarClient client = newPulsarClient(superUserToken);
+        for (String t : topics) {
+            superUserAdmin.topics().createSubscription(t, subscription, MessageId.earliest);
+            superUserAdmin.topics().createSubscription(t, consumerSubscription, MessageId.earliest);
+            @Cleanup
+            Producer<byte[]> producer = client.newProducer().topic(t).enableBatching(false).create();
+            for (int i = 0; i < numMessages; i++) {
+                producer.send(("msg-" + i).getBytes(StandardCharsets.UTF_8));
+            }
+        }
+        // the messages must be older than the expiry time
+        Thread.sleep(1500);
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        // the proxy is a tenant admin through a token role, the original principal is an ordinary consumer and
+        // expires only the subscriptions that match its role prefix: on a topic, a partitioned topic and a partition
+        for (String t : List.of(topic, partitionedTopic, partitionedTopic2 + "-partition-0")) {
+            assertEquals(postThroughProxy(httpClient, proxyToken, consumerRole, "/admin/v2/"
+                    + TopicName.get(t).getRestPath() + "/all_subscription/expireMessages/1"), 204);
+        }
+        final List<String> expired = topics.subList(0, 4);
+        Awaitility.await().untilAsserted(() -> {
+            for (String t : expired) {
+                assertEquals(getMsgBacklog(superUserAdmin, t, consumerSubscription), 0, t);
+            }
+        });
+        for (String t : topics) {
+            assertEquals(getMsgBacklog(superUserAdmin, t, subscription), numMessages, t);
+        }
+        assertEquals(getMsgBacklog(superUserAdmin, topics.get(4), consumerSubscription), numMessages);
+
+        // the same applies to the namespace clear backlog
+        assertEquals(postThroughProxy(httpClient, proxyToken, consumerRole,
+                "/admin/v2/namespaces/" + namespace + "/clearBacklog"), 204);
+        for (String t : topics) {
+            assertEquals(getMsgBacklog(superUserAdmin, t, consumerSubscription), 0, t);
+            assertEquals(getMsgBacklog(superUserAdmin, t, subscription), numMessages, t);
+        }
+
+        // a tenant admin forwarded by the proxy clears all subscriptions
+        assertEquals(postThroughProxy(httpClient, proxyToken, tenantAdminRole,
+                "/admin/v2/namespaces/" + namespace + "/clearBacklog"), 204);
+        for (String t : topics) {
+            assertEquals(getMsgBacklog(superUserAdmin, t, subscription), 0, t);
+        }
+    }
+
+    private static long getMsgBacklog(PulsarAdmin admin, String topic, String subscription)
+            throws PulsarAdminException {
+        return admin.topics().getStats(topic).getSubscriptions().get(subscription).getMsgBacklog();
+    }
+
+    private int postThroughProxy(HttpClient httpClient, String proxyToken, String originalPrincipal, String path)
+            throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(pulsar.getWebServiceAddress() + path))
+                .header("Authorization", "Bearer " + proxyToken)
+                .header("X-Original-Principal", originalPrincipal)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
+    }
+
+    @Test
     public void testProxiedRequestsCheckOriginalPrincipalWithItsOwnRole() throws Exception {
         final String tenant = "multi-roles-proxied-tenant";
         final String namespace = tenant + "/ns";
@@ -309,6 +534,18 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
                 .header("Authorization", "Bearer " + proxyToken)
                 .header("X-Original-Principal", originalPrincipal)
                 .GET()
+                .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
+    }
+
+    private int clearBacklogThroughProxy(HttpClient httpClient, String proxyToken, String originalPrincipal,
+                                         String namespaceOrBundle, String subscription) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(pulsar.getWebServiceAddress()
+                        + "/admin/v2/namespaces/" + namespaceOrBundle + "/clearBacklog/" + subscription))
+                .header("Authorization", "Bearer " + proxyToken)
+                .header("X-Original-Principal", originalPrincipal)
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.noBody())
                 .build();
         return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
     }
