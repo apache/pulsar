@@ -1019,6 +1019,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         checkArgument(state == State.Connected);
         long watchId = cmd.getWatchId();
         log.debug().attr("watchId", watchId).log("Received WatchScalableTopicsClose");
+        if (!scalableTopicsEnabled) {
+            writeAndFlush(Commands.newWatchScalableTopicsError(watchId, ServerError.NotAllowedError,
+                    "Scalable topics are disabled on this broker"));
+            return;
+        }
+
         var session = scalableTopicsWatchers.remove(watchId);
         if (session != null) {
             session.close();
@@ -1034,7 +1040,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final long watchId = cmd.getWatchId();
         log.debug().attr("watchId", watchId).log("Received WatchTcAssignments");
 
-        if (!service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
+        if (!scalableTopicsEnabled
+                || !service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()) {
             ctx.writeAndFlush(Commands.newWatchTcAssignmentsError(watchId, ServerError.NotAllowedError,
                     "Scalable-topics transaction coordinator is disabled on this broker"));
             return;
@@ -1090,6 +1097,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         checkArgument(state == State.Connected);
         long watchId = cmd.getWatchId();
         log.debug().attr("watchId", watchId).log("Received WatchTcAssignmentsClose");
+        if (!scalableTopicsEnabled) {
+            writeAndFlush(Commands.newWatchTcAssignmentsError(watchId, ServerError.NotAllowedError,
+                    "Scalable topics are disabled on this broker"));
+            return;
+        }
+
         closeQuietly(tcAssignmentWatchers.remove(watchId));
     }
 
@@ -1115,6 +1128,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         checkArgument(state == State.Connected);
 
         final long sessionId = commandScalableTopicClose.getSessionId();
+        if (!scalableTopicsEnabled) {
+            writeAndFlush(Commands.newScalableTopicError(sessionId, ServerError.NotAllowedError,
+                    "Scalable topics are disabled on this broker"));
+            return;
+        }
 
         log.debug().attr("sessionId", sessionId).log("Received ScalableTopicClose");
 
@@ -1237,6 +1255,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         checkArgument(state == State.Connected);
         final long requestId = commandScalableTopicUnsubscribe.getRequestId();
         final long consumerId = commandScalableTopicUnsubscribe.getConsumerId();
+        if (!scalableTopicsEnabled) {
+            writeAndFlush(Commands.newError(requestId, ServerError.NotAllowedError,
+                    "Scalable topics are disabled on this broker"));
+            return;
+        }
 
         // The lookup is scoped to this connection's own registrations, so a client can only
         // unregister sessions it created here — no further authorization is needed.
@@ -1538,7 +1561,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
         writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, enableTopicListWatcher,
                 scalableTopicsEnabled,
-                service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()));
+                scalableTopicsEnabled
+                        && service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
         log.debug()
@@ -3726,7 +3750,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
      *     without the flag always go to the legacy coordinator, so v4 and v5 clients coexist.
      */
     private boolean isScalableTcAvailable() {
-        return service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()
+        return scalableTopicsEnabled && service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()
                 && service.getPulsar().getTransactionCoordinatorV5() != null;
     }
 
@@ -4677,7 +4701,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
     private TopicName validateTopicName(String topic, long requestId, Object requestCommand) {
         try {
-            return TopicName.get(topic);
+            TopicName topicName = TopicName.get(topic);
+            if (!scalableTopicsEnabled && (topicName.isScalable() || topicName.isSegment())) {
+                throw new IllegalArgumentException("Scalable topics are disabled on this broker");
+            }
+            return topicName;
         } catch (Throwable t) {
             log.debug()
                     .attr("topic", topic)

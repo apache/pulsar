@@ -24,7 +24,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableSet;
 import java.util.Optional;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Predicate;
 import javax.annotation.concurrent.NotThreadSafe;
@@ -42,22 +41,16 @@ import org.apache.pulsar.utils.ConcurrentBitmapSortedLongPairSet;
 public class MessageRedeliveryController {
 
     private final boolean allowOutOfOrderDelivery;
-    private final boolean isClassicDispatcher;
     private final ConcurrentBitmapSortedLongPairSet messagesToRedeliver;
     // Not final: under out-of-order delivery, whether this map is ever needed isn't known at construction time. Only a
     // Key_Shared dispatcher records hashes; a plain Shared dispatcher never does. The map is therefore allocated when
-    // add() first receives a real hash. Classic out-of-order returns before that allocation regardless of the hash.
+    // add() first receives a real hash.
     private ConcurrentLongLongPairHashMap positionToStickyKeyHash;
     // Final by contrast: this map is needed exactly when ordering is enforced, which is known at construction time.
     private final ConcurrentLongLongHashMap hashesRefCount;
 
     public MessageRedeliveryController(boolean allowOutOfOrderDelivery) {
-        this(allowOutOfOrderDelivery, false);
-    }
-
-    public MessageRedeliveryController(boolean allowOutOfOrderDelivery, boolean isClassicDispatcher) {
         this.allowOutOfOrderDelivery = allowOutOfOrderDelivery;
-        this.isClassicDispatcher = isClassicDispatcher;
         this.messagesToRedeliver = new ConcurrentBitmapSortedLongPairSet();
         if (!allowOutOfOrderDelivery) {
             this.positionToStickyKeyHash = newPositionToStickyKeyHashMap();
@@ -87,12 +80,12 @@ public class MessageRedeliveryController {
 
     public void add(long ledgerId, long entryId, long stickyKeyHash) {
         if (!allowOutOfOrderDelivery) {
-            if (!isClassicDispatcher && stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
+            if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
                 throw new IllegalArgumentException("Sticky key hash is not set. It is required.");
             }
-        } else if (isClassicDispatcher || stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
-            // Classic out-of-order dispatchers never read position hashes. Non-classic dispatchers normalize real
-            // sticky-key hashes away from the sentinel, so the sentinel denotes a replay position without a known hash.
+        } else if (stickyKeyHash == STICKY_KEY_HASH_NOT_SET) {
+            // Dispatchers normalize real sticky-key hashes away from the sentinel, so the sentinel denotes a replay
+            // position without a known hash.
             messagesToRedeliver.add(ledgerId, entryId);
             return;
         }
@@ -178,17 +171,6 @@ public class MessageRedeliveryController {
 
     public String toString() {
         return messagesToRedeliver.toString();
-    }
-
-    public boolean containsStickyKeyHashes(Set<Integer> stickyKeyHashes) {
-        if (!allowOutOfOrderDelivery) {
-            for (Integer stickyKeyHash : stickyKeyHashes) {
-                if (stickyKeyHash != STICKY_KEY_HASH_NOT_SET && hashesRefCount.containsKey(stickyKeyHash)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     public boolean containsStickyKeyHash(int stickyKeyHash) {

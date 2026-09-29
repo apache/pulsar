@@ -38,10 +38,16 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -173,6 +179,52 @@ public class MessageDuplicationTest extends BrokerTestBase {
         lastSequenceIdPushed = messageDeduplication.highestSequencedPushed.get(producerName1);
         assertNotNull(lastSequenceIdPushed);
         assertEquals(lastSequenceIdPushed.longValue(), 5);
+    }
+
+    @Test
+    public void testConcurrentDuplicateCheckForSameProducer() throws Exception {
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class,
+                pulsarService, mock(PersistentTopic.class), mock(ManagedLedger.class));
+        doReturn(true).when(messageDeduplication).isEnabled();
+
+        int threads = 32;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        CountDownLatch start = new CountDownLatch(1);
+        ByteBuf message = getMessage("producer", 1);
+        List<Future<MessageDeduplication.MessageDupStatus>> results = new ArrayList<>();
+        try {
+            for (int i = 0; i < threads; i++) {
+                Topic.PublishContext context = getPublishContext("producer", 1);
+                results.add(executor.submit(() -> {
+                    start.await();
+                    return messageDeduplication.isDuplicate(context, message);
+                }));
+            }
+            start.countDown();
+
+            int accepted = 0;
+            int unknown = 0;
+            for (Future<MessageDeduplication.MessageDupStatus> result : results) {
+                switch (result.get()) {
+                    case NotDup -> accepted++;
+                    case Unknown -> unknown++;
+                    default -> throw new AssertionError("A sequence cannot be known persisted before completion");
+                }
+            }
+            assertEquals(accepted, 1);
+            assertEquals(unknown, threads - 1);
+            assertEquals(messageDeduplication.highestSequencedPushed.get("producer").longValue(), 1L);
+        } finally {
+            message.release();
+            executor.shutdownNow();
+        }
     }
 
     @Test

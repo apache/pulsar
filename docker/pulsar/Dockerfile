@@ -190,6 +190,10 @@ RUN pip3 install --break-system-packages --no-cache-dir \
 COPY --from=jvm /opt/jvm /opt/jvm
 ENV JAVA_HOME=/opt/jvm
 
+# Match the compiled server target; custom builds may override this build argument.
+ARG PULSAR_MIN_JAVA_VERSION=21
+ENV PULSAR_MIN_JAVA_VERSION=${PULSAR_MIN_JAVA_VERSION}
+
 COPY --from=snappy-java /tmp/libsnappyjava.so /usr/lib/libsnappyjava.so
 
 # The default is /pulsat/bin and cannot be written.

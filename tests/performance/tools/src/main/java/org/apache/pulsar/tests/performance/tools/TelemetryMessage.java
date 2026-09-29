@@ -21,14 +21,16 @@ package org.apache.pulsar.tests.performance.tools;
 import java.nio.ByteBuffer;
 
 final class TelemetryMessage {
-    static final int HEADER_BYTES = Long.BYTES * 3;
+    static final int HEADER_BYTES = Long.BYTES * 4;
+    private static final long MEASUREMENT_FLAG = 1;
 
-    static byte[] encode(long deviceId, long sequence, int size) {
+    static byte[] encode(long deviceId, long sequence, boolean measurement, int size) {
         byte[] payload = new byte[size];
         ByteBuffer.wrap(payload)
                 .putLong(deviceId)
                 .putLong(sequence)
-                .putLong(System.nanoTime());
+                .putLong(System.nanoTime())
+                .putLong(measurement ? MEASUREMENT_FLAG : 0);
         return payload;
     }
 
@@ -37,12 +39,13 @@ final class TelemetryMessage {
             throw new IllegalArgumentException("Telemetry payload is shorter than " + HEADER_BYTES + " bytes");
         }
         ByteBuffer buffer = ByteBuffer.wrap(payload);
-        return new Decoded(buffer.getLong(), buffer.getLong(), buffer.getLong());
+        return new Decoded(buffer.getLong(), buffer.getLong(), buffer.getLong(),
+                (buffer.getLong() & MEASUREMENT_FLAG) != 0);
     }
 
     private TelemetryMessage() {
     }
 
-    record Decoded(long deviceId, long sequence, long sentNanos) {
+    record Decoded(long deviceId, long sequence, long sentNanos, boolean measurement) {
     }
 }

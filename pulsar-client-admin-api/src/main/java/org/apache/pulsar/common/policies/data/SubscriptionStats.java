@@ -130,9 +130,6 @@ public interface SubscriptionStats {
     /** Whether the Key_Shared subscription mode is AUTO_SPLIT or STICKY. */
     String getKeySharedMode();
 
-    /** This is for Key_Shared subscription to get the recentJoinedConsumers in the Key_Shared subscription. */
-    Map<String, String> getConsumersAfterMarkDeletePosition();
-
     /**
      * For Key_Shared subscription in AUTO_SPLIT ordered mode:
      * Retrieves the current number of hashes in the draining state.

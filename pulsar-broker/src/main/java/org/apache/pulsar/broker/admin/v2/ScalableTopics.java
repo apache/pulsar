@@ -276,11 +276,12 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Migrate even if legacy v4 clients are still connected to the topic")
             @QueryParam("force") @DefaultValue("false") boolean force) {
         validateNamespaceName(tenant, namespace);
+        String decodedTopic = Codec.decode(encodedTopic);
         // The scalable topic's canonical identity uses the topic:// domain; the migration
         // source is the same name in the persistent:// domain.
-        TopicName scalableName = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName scalableName = TopicName.get(TopicDomain.topic.value(), namespaceName, decodedTopic);
         TopicName persistentBase =
-                TopicName.get(TopicDomain.persistent.value(), namespaceName, encodedTopic);
+                TopicName.get(TopicDomain.persistent.value(), namespaceName, decodedTopic);
 
         validateTopicOperationAsync(persistentBase, TopicOperation.MIGRATE_TO_SCALABLE)
                 .thenCompose(__ -> doMigrateToScalableAsync(scalableName, persistentBase, force))

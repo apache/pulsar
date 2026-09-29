@@ -166,7 +166,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 .attr("subscription", Codec.decode(cursor.getName()))
                 .build();
         this.dispatchMessagesThread = topic.getBrokerService().getTopicOrderedExecutor().chooseThread();
-        this.redeliveryMessages = new MessageRedeliveryController(allowOutOfOrderDelivery, false);
+        this.redeliveryMessages = new MessageRedeliveryController(allowOutOfOrderDelivery);
         this.redeliveryTracker = this.serviceConfig.isSubscriptionRedeliveryTrackerEnabled()
                 ? new InMemoryRedeliveryTracker()
                 : RedeliveryTrackerDisabled.REDELIVERY_TRACKER_DISABLED;
@@ -1488,11 +1488,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 .filter(BucketDelayedDeliveryTracker.class::isInstance)
                 .map(tracker -> ((BucketDelayedDeliveryTracker) tracker).genTopicMetricMap())
                 .orElse(Collections.emptyMap());
-    }
-
-    @Override
-    public boolean isClassic() {
-        return false;
     }
 
     public ManagedCursor getCursor() {
