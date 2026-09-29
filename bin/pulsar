@@ -85,6 +85,7 @@ Environment variables:
    PULSAR_PROXY_CONF             Configuration file for Pulsar proxy (default: $DEFAULT_PROXY_CONF)
    PULSAR_WORKER_CONF            Configuration file for functions worker (default: $DEFAULT_WORKER_CONF)
    PULSAR_STANDALONE_CONF        Configuration file for standalone (default: $DEFAULT_STANDALONE_CONF)
+   PULSAR_MIN_JAVA_VERSION       Minimum Java version accepted by the launcher (default: 21)
    PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
    PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
    PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
@@ -147,8 +148,9 @@ if [[ -z $JAVA_MAJOR_VERSION ]]; then
   done
 fi
 
-if [[ $JAVA_MAJOR_VERSION -lt 17 ]]; then
-    echo "Error: Pulsar requires Java 17 or later." 1>&2
+PULSAR_MIN_JAVA_VERSION=${PULSAR_MIN_JAVA_VERSION:-21}
+if [[ $JAVA_MAJOR_VERSION -lt $PULSAR_MIN_JAVA_VERSION ]]; then
+    echo "Error: Pulsar server commands require Java $PULSAR_MIN_JAVA_VERSION or later." 1>&2
     exit 1
 fi
 

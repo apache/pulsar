@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.websocket;
+package org.apache.pulsar.websocket.data;
 
 /**
  * Enum for possible errors in the proxy
