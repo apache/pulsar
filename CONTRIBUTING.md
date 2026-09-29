@@ -50,6 +50,10 @@ toolchain (17 is already the default). For example:
 PULSAR_MIN_JAVA_VERSION=17 bin/pulsar standalone
 ```
 
+Gradle Docker builds bake `pulsarJavaVersion` into the image as `PULSAR_MIN_JAVA_VERSION`.
+Direct Docker builds can set `--build-arg PULSAR_MIN_JAVA_VERSION=17`; both Alpine and Wolfi
+Dockerfiles default to 21. The environment variable can also be overridden when running a container.
+
 `PULSAR_MIN_JAVA_VERSION` overrides the launcher check, which defaults to 21; it does not change
 compiled bytecode or dependency requirements. A custom Java 17 build is only possible while the
 sources and dependencies remain compatible; use of Java 21 features such as virtual threads will
