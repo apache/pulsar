@@ -119,6 +119,7 @@ import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaStorageFactory;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.OpenTelemetryConsumerStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryProducerStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatorStats;
@@ -289,6 +290,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private OpenTelemetryProducerStats openTelemetryProducerStats;
     private OpenTelemetryReplicatorStats openTelemetryReplicatorStats;
     private OpenTelemetryReplicatedSubscriptionStats openTelemetryReplicatedSubscriptionStats;
+    private OpenTelemetryMessageFinderStats openTelemetryMessageFinderStats;
     private OpenTelemetryTransactionCoordinatorStats openTelemetryTransactionCoordinatorStats;
     private OpenTelemetryTransactionPendingAckStoreStats openTelemetryTransactionPendingAckStoreStats;
 
@@ -924,6 +926,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             openTelemetryProducerStats = new OpenTelemetryProducerStats(this);
             openTelemetryReplicatorStats = new OpenTelemetryReplicatorStats(this);
             openTelemetryReplicatedSubscriptionStats = new OpenTelemetryReplicatedSubscriptionStats(this);
+            openTelemetryMessageFinderStats = new OpenTelemetryMessageFinderStats(this);
 
             localMetadataSynchronizer = StringUtils.isNotBlank(config.getMetadataSyncEventTopic())
                     ? new PulsarMetadataEventSynchronizer(this, config.getMetadataSyncEventTopic())

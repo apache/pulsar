@@ -73,6 +73,7 @@ import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
+import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats.FindReason;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -904,7 +905,8 @@ public class PersistentSubscription extends AbstractSubscription {
         final CompletableFuture<Void> future = new CompletableFuture<>();
         inProgressResetCursorFuture = future;
         PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor,
-                config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
+                config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis(),
+                topic.getBrokerService().getPulsar().getOpenTelemetryMessageFinderStats(), FindReason.SEEK);
 
         log.debug()
                 .attr("timestamp", timestamp)

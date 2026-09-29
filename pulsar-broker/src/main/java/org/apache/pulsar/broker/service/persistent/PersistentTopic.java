@@ -143,6 +143,7 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats.FindReason;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
@@ -2445,7 +2446,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         ManagedCursor cursor = cursorWithOldestPosition.getCursor();
         PersistentMessageFinder finder = new PersistentMessageFinder(topic, cursor, brokerService.getPulsar()
-                .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
+                .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis(),
+                brokerService.getPulsar().getOpenTelemetryMessageFinderStats(), FindReason.EXPIRY);
         // Find the target position.
         long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTtlInSeconds);
         CompletableFuture<Position> positionToMarkDelete = new CompletableFuture<>();
