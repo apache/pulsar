@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
@@ -56,6 +58,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -73,12 +76,16 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.TopicFactory;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TopicPolicyListener;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.Metric;
+import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -873,8 +880,7 @@ public class PersistentTopicTest extends BrokerTestBase {
                     return policies;
                 });
 
-        // The sweep swallows its own failure, so the warning it logs before deleting is what has to be
-        // asserted on: a live replicator must never reach it.
+        // A live replicator must never reach the orphan-removal path, even if deleting its cursor would succeed.
         @Cleanup
         final TestLogAppender logAppender = TestLogAppender.create(PersistentTopic.class);
 
@@ -925,6 +931,100 @@ public class PersistentTopicTest extends BrokerTestBase {
         assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionSizeInMB(), 1L);
         assertEquals(persistentTopic.getManagedLedger().getConfig().getRetentionTimeMillis(),
                 TimeUnit.MINUTES.toMillis(1));
+    }
+
+    public static class InitializationTopicFactory implements TopicFactory {
+        @Override
+        public <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService,
+                                         Class<T> topicClass) {
+            return topicClass.cast(BrokerTestInterceptor.INSTANCE.getPersistentTopicDecorator()
+                    .apply(new PersistentTopic(topic, ledger, brokerService)));
+        }
+    }
+
+    @DataProvider
+    public Object[][] initializationFailureStages() {
+        return new Object[][] {{"namespace"}, {"topic"}, {"replication-cursor"}};
+    }
+
+    @Test(dataProvider = "initializationFailureStages", timeOut = 60000)
+    public void testInitializationFailureClosesTopicAndAllowsRetry(String failureStage) throws Exception {
+        restartBroker(configuration -> configuration.setTopicFactoryClassName(
+                InitializationTopicFactory.class.getName()));
+        final String topicName = "persistent://prop/ns-abc/initialization-failure-" + UUID.randomUUID();
+        final TopicName parsedTopicName = TopicName.get(topicName);
+        pulsar.getPulsarResources().getNamespaceResources()
+                .setPolicies(parsedTopicName.getNamespaceObject(), policies -> {
+                    policies.encryption_required = true;
+                    return policies;
+                });
+        PersistentTopic initialTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, true)
+                .get(10, TimeUnit.SECONDS).orElseThrow();
+        assertThat(initialTopic.isEncryptionRequired()).isTrue();
+        if (failureStage.equals("replication-cursor")) {
+            initialTopic.getManagedLedger().openCursor(conf.getReplicatorPrefix() + ".removed-cluster");
+        }
+        initialTopic.close().get(10, TimeUnit.SECONDS);
+
+        RuntimeException injectedFailure = new RuntimeException("Injected " + failureStage + " initialization failure");
+        AtomicBoolean initializing = new AtomicBoolean();
+        AtomicReference<PersistentTopic> failedTopic = new AtomicReference<>();
+        PulsarResources originalResources = pulsar.getPulsarResources();
+        TopicPoliciesService originalPoliciesService = pulsar.getTopicPoliciesService();
+        BrokerTestInterceptor.INSTANCE.setPersistentTopicDecorator(topic -> {
+            if (!topic.getName().equals(topicName)) {
+                return topic;
+            }
+            initializing.set(true);
+            PersistentTopic decorated = spy(topic);
+            if (failureStage.equals("replication-cursor")) {
+                doReturn(CompletableFuture.failedFuture(injectedFailure)).when(decorated)
+                        .removeReplicator("removed-cluster");
+            }
+            failedTopic.set(decorated);
+            return decorated;
+        });
+        try {
+            if (failureStage.equals("namespace")) {
+                PulsarResources resources = spy(originalResources);
+                NamespaceResources namespaceResources = spy(originalResources.getNamespaceResources());
+                doReturn(resources).when(pulsar).getPulsarResources();
+                doReturn(namespaceResources).when(resources).getNamespaceResources();
+                doAnswer(invocation -> initializing.compareAndSet(true, false)
+                        ? CompletableFuture.failedFuture(injectedFailure) : invocation.callRealMethod())
+                        .when(namespaceResources).getPoliciesAsync(parsedTopicName.getNamespaceObject());
+            } else if (failureStage.equals("topic")) {
+                TopicPoliciesService policiesService = spy(originalPoliciesService);
+                doReturn(policiesService).when(pulsar).getTopicPoliciesService();
+                doAnswer(invocation -> initializing.compareAndSet(true, false)
+                        ? CompletableFuture.failedFuture(injectedFailure) : invocation.callRealMethod())
+                        .when(policiesService).getTopicPoliciesAsync(parsedTopicName,
+                                TopicPoliciesService.GetType.LOCAL_ONLY);
+            }
+
+            assertThatThrownBy(() -> pulsar.getBrokerService().getTopic(topicName, false).get(10, TimeUnit.SECONDS))
+                    .hasRootCause(injectedFailure);
+            assertThat(failedTopic.get()).as("failure must occur after the topic is constructed").isNotNull();
+            assertThat(pulsar.getBrokerService().getTopics()).doesNotContainKey(topicName);
+            assertThat(((ManagedLedgerImpl) failedTopic.get().getManagedLedger()).getState())
+                    .isEqualTo(ManagedLedgerImpl.State.Closed);
+        } finally {
+            BrokerTestInterceptor.INSTANCE.reset();
+            doReturn(originalResources).when(pulsar).getPulsarResources();
+            doReturn(originalPoliciesService).when(pulsar).getTopicPoliciesService();
+        }
+
+        PersistentTopic recoveredTopic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false)
+                .get(10, TimeUnit.SECONDS).orElseThrow();
+        assertThat(recoveredTopic).isNotSameAs(failedTopic.get());
+        assertThat(recoveredTopic.isEncryptionRequired()).isTrue();
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
+                .operationTimeout(1, TimeUnit.SECONDS).build();
+        assertThatThrownBy(() -> client.newProducer().topic(topicName).createAsync().get(10, TimeUnit.SECONDS))
+                .hasRootCauseInstanceOf(PulsarClientException.BrokerMetadataException.class)
+                .hasMessageContaining("Encryption is required");
+        recoveredTopic.close().get(10, TimeUnit.SECONDS);
     }
 
     @Test
