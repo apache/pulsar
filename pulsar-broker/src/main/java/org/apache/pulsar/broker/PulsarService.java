@@ -1070,7 +1070,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .newProvider(config.getTransactionMetadataStoreProviderClassName()), this,
                         transactionBufferClient, transactionTimer);
 
-                if (config.isTransactionCoordinatorScalableTopicsEnabled()) {
+                if (config.isScalableTopicsEnabled() && config.isTransactionCoordinatorScalableTopicsEnabled()) {
                     transactionCoordinatorV5 = new TransactionCoordinatorV5(this);
                     transactionCoordinatorV5.start();
                 }
@@ -1213,7 +1213,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     @VisibleForTesting
     protected PulsarResources newPulsarResources() {
         PulsarResources pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
-                config.getMetadataStoreOperationTimeoutSeconds(), getExecutor());
+                config.getMetadataStoreOperationTimeoutSeconds(), getExecutor(), config.isScalableTopicsEnabled());
 
         pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
         return pulsarResources;
