@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.RejectedExecutionException;
@@ -246,7 +247,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
         closed = true;
         cancelPendingTailReadRetry();
         // Nothing will be read any more, so a refresh still waiting for a message can only fail.
-        failPendingRefreshRequests(new PulsarClientException.AlreadyClosedException("TableView was closed"));
+        failPendingRefreshRequests(alreadyClosed("TableView was closed"));
         return reader.thenCompose(Reader::closeAsync);
     }
 
@@ -371,6 +372,13 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
             // After get the response of lastMessageIds, put the future and result into `refreshMap`
             // and then filter out partitions that has been read to the lastMessageID.
             pendingRefreshRequests.put(completableFuture, lastMessageIds);
+            if (closed) {
+                // closeAsync() ran while the last message ids were being fetched and has already failed the
+                // requests it found; nothing will be read any more that could complete this one.
+                pendingRefreshRequests.remove(completableFuture);
+                completableFuture.completeExceptionally(alreadyClosed("TableView was closed"));
+                return;
+            }
             filterReceivedMessages(lastMessageIds);
             // If there is no new messages, the refresh operation could be completed right now.
             if (lastMessageIds.isEmpty()) {
@@ -545,7 +553,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
             // The client is shutting down; the reader will be closed with it and nothing will be read any more.
             log.info().attr("reader", reader.getTopic())
                     .log("Client is closed, giving up retrying tail messages.");
-            failPendingRefreshRequests(new PulsarClientException.AlreadyClosedException("Client already closed"));
+            failPendingRefreshRequests(alreadyClosed("Client already closed"));
         }
     }
 
@@ -554,6 +562,15 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
         if (retry != null) {
             retry.cancel(false);
         }
+    }
+
+    /**
+     * The failure of a refresh that can no longer complete, shaped like the one that used to reach it from the
+     * closed reader's failed read: callbacks find the {@link PulsarClientException.AlreadyClosedException} in
+     * {@link Throwable#getCause()}, and {@code get()} unwraps it as usual.
+     */
+    private static CompletionException alreadyClosed(String message) {
+        return new CompletionException(new PulsarClientException.AlreadyClosedException(message));
     }
 
     private void failPendingRefreshRequests(Throwable ex) {

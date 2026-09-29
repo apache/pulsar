@@ -47,6 +47,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -349,6 +350,11 @@ public class TableViewImplTest {
             f.tableView.start().get(5, TimeUnit.SECONDS);
             CompletableFuture<Void> refresh = f.pendingRefresh();
             assertEquals(f.scheduledRetries.size(), 1, "The failed read must leave one retry waiting for its delay");
+            AtomicReference<Throwable> seenByCallback = new AtomicReference<>();
+            refresh.exceptionally(ex -> {
+                seenByCallback.set(ex);
+                return null;
+            });
 
             f.tableView.closeAsync().get(5, TimeUnit.SECONDS);
 
@@ -357,6 +363,9 @@ public class TableViewImplTest {
                     () -> refresh.get(5, TimeUnit.SECONDS));
             assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException,
                     "A refresh pending at close must fail right away, got " + failure.getCause());
+            // Same shape as when the failure came from the closed reader: callbacks look at getCause().
+            assertTrue(seenByCallback.get().getCause() instanceof PulsarClientException.AlreadyClosedException,
+                    "A callback must find the cause where it used to be, got " + seenByCallback.get());
         }
     }
 
@@ -405,6 +414,28 @@ public class TableViewImplTest {
             // Doubling with the backoff's +-5% jitter; a reset would leave both near the initial delay.
             assertTrue(delays.get(1) >= delays.get(0) * 1.5,
                     "The delay must keep doubling while handling keeps failing: " + delays);
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testRefreshInFlightWhileClosingFailsRightAway() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture()) {
+            when(f.reader.readNextAsync()).thenAnswer(inv -> failedRead());
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            // The refresh is still asking for the last message ids when the table view closes; the answer
+            // arrives afterwards, when no read is left that could ever complete the refresh.
+            CompletableFuture<List<TopicMessageId>> lastMessageIds = new CompletableFuture<>();
+            when(f.reader.getLastMessageIdsAsync()).thenReturn(lastMessageIds);
+            CompletableFuture<Void> refresh = f.tableView.refreshAsync();
+
+            f.tableView.closeAsync().get(5, TimeUnit.SECONDS);
+            assertFalse(refresh.isDone(), "The refresh is still waiting for the last message ids");
+            lastMessageIds.complete(List.of(new TopicMessageIdImpl(TAIL_RETRY_TOPIC, new MessageIdImpl(1, 5, -1))));
+
+            ExecutionException failure = expectThrows(ExecutionException.class,
+                    () -> refresh.get(5, TimeUnit.SECONDS));
+            assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException,
+                    "A refresh that registers after the close must fail right away, got " + failure.getCause());
         }
     }
 
