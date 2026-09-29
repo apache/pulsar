@@ -2593,6 +2593,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 opReadEntry.updateReadPosition(opReadEntry.readPosition);
             }
 
+            opReadEntry.readUpToLastConfirmedEntry = ledger.getId() == lastPosition.getLedgerId();
             opReadEntry.checkReadCompletion();
             return;
         }
@@ -2638,6 +2639,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 .attr("firstEntry", firstEntry)
                 .attr("lastEntry", lastEntry)
                 .log("Reading entries from ledger");
+        opReadEntry.readUpToLastConfirmedEntry =
+                ledger.getId() == lastPosition.getLedgerId() && lastEntry == lastPosition.getEntryId();
         asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry, opReadEntry.ctx);
     }
 
