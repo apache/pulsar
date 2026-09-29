@@ -30,6 +30,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
+import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -99,12 +100,19 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
             this.rootPath = new ConnectStringParser(zkConnectString).getChrootPath();
 
             isZkManaged = true;
+            StatsLogger statsLogger = null;
+            if (metadataStoreConfig.getStatsProvider() != null) {
+                statsLogger = metadataStoreConfig.getStatsProvider()
+                    .getStatsLogger("ZkMetadataStore")
+                    .scopeLabel("storeName", metadataStoreConfig.getMetadataStoreName());
+            }
             zkc = PulsarZooKeeperClient.newBuilder().connectString(zkConnectString)
                     .connectRetryPolicy(new BoundExponentialBackoffRetryPolicy(100, 60_000, Integer.MAX_VALUE))
                     .allowReadOnlyMode(metadataStoreConfig.isAllowReadOnlyOperations())
                     .sessionTimeoutMs(metadataStoreConfig.getSessionTimeoutMillis())
                     .watchers(Collections.singleton(this::processSessionWatcher))
                     .configPath(metadataStoreConfig.getConfigFilePath())
+                    .statsLogger(statsLogger)
                     .build();
             if (enableSessionWatcher) {
                 sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);

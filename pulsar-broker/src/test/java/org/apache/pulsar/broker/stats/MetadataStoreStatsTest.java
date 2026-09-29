@@ -22,23 +22,30 @@ import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.
 import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import com.google.common.collect.Multimap;
 import java.io.ByteArrayOutputStream;
+import java.io.StringWriter;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetricsToken;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.broker.stats.prometheus.metrics.PrometheusMetricsProvider;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.metadata.TestZKServer;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -72,6 +79,70 @@ public class MetadataStoreStatsTest extends BrokerTestBase {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testZKMetadataStoreMetricsCollectedByPrometheus() throws Exception {
+        @Cleanup
+        TestZKServer zkServer = new TestZKServer();
+
+        PrometheusMetricsProvider prometheusMetricsProvider = new PrometheusMetricsProvider();
+        ClientConfiguration bkClientConf = new ClientConfiguration();
+        bkClientConf.addProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_LATENCY_ROLLOVER_SECONDS, 60);
+        bkClientConf.addProperty(PrometheusMetricsProvider.CLUSTER_NAME, "test");
+        prometheusMetricsProvider.start(bkClientConf);
+
+        try {
+            MetadataStoreConfig config = MetadataStoreConfig.builder()
+                    .metadataStoreName("test-zk-prometheus")
+                    .fsyncEnable(false)
+                    .statsProvider(prometheusMetricsProvider)
+                    .build();
+
+            @Cleanup
+            MetadataStore store = MetadataStoreFactory.create(
+                    "zk:" + zkServer.getConnectionString(), config);
+
+            String path = "/test-prometheus-metrics-" + UUID.randomUUID();
+            store.put(path, "test-value".getBytes(), java.util.Optional.empty()).join();
+            store.get(path).join();
+            store.delete(path, Optional.empty()).join();
+
+            // Write all metrics via PrometheusMetricsProvider.writeAllMetrics
+            StringWriter writer = new StringWriter();
+            prometheusMetricsProvider.writeAllMetrics(writer);
+            String metricsOutput = writer.toString();
+
+            // Parse the metrics output
+            Multimap<String, Metric> metricsMap = parseMetrics(metricsOutput);
+
+            String metricsDebugMessage = "Assertion failed with metrics:\n" + metricsOutput + "\n";
+
+            // Verify the "multi" opStats metric exists.
+            Assert.assertTrue(metricsMap.containsKey("ZkMetadataStore_storeName_test_zk_prometheus_zk_multi_count"),
+                    "Expected ZKMetadataStore_zk_multi_count metric to be present. " + metricsDebugMessage);
+
+            Assert.assertTrue(metricsMap.containsKey("ZkMetadataStore_storeName_test_zk_prometheus_zk_multi_sum"),
+                    "Expected ZKMetadataStore_zk_multi_sum metric to be present. " + metricsDebugMessage);
+
+            // Verify that multi metrics have the correct cluster tag
+            for (Metric m : metricsMap.get("ZkMetadataStore_storeName_test_zk_prometheus_zk_multi_count")) {
+                Assert.assertEquals(m.tags.get("cluster"), "test", metricsDebugMessage);
+            }
+
+            // Verify other ZK operation metrics are also present
+            // (these are registered by PulsarZooKeeperClient in its constructor)
+            Assert.assertTrue(metricsMap.containsKey("ZkMetadataStore_storeName_test_zk_prometheus_zk_create_count"),
+                    "Expected ZKMetadataStore_zk_create_count metric to be present. " + metricsDebugMessage);
+
+            Assert.assertTrue(metricsMap.containsKey("ZkMetadataStore_storeName_test_zk_prometheus_zk_get_data_count"),
+                    "Expected ZKMetadataStore_zk_get_data_count metric to be present. " + metricsDebugMessage);
+
+            Assert.assertTrue(metricsMap.containsKey("ZkMetadataStore_storeName_test_zk_prometheus_zk_exists_count"),
+                    "Expected ZKMetadataStore_zk_exists_count metric to be present. " + metricsDebugMessage);
+        } finally {
+            prometheusMetricsProvider.stop();
+        }
     }
 
     @Test
