@@ -358,6 +358,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         TopicStatsSampler topicStatsSampler = null;
         ProgressMonitor progress = null;
         HostStatsSampler hostStatsSampler = startHostStatsSampler(sensors, runOutput);
+        HostIoSampler hostIoSampler = startHostIoSampler(runOutput);
         HeapDumper heapDumper = heapDumpSettings.any()
                 ? new HeapDumper(runOutput, PulsarContainer.DEFAULT_IMAGE_NAME, heapDumpSettings.gzipLevel()) : null;
         MetricsCollection metricsCollection = null;
@@ -494,6 +495,11 @@ public class PerformanceLauncher implements Callable<Integer> {
             shutDown("closing the host stats sampler", () -> {
                 if (hostStatsSampler != null) {
                     hostStatsSampler.close();
+                }
+            });
+            shutDown("closing the host I/O sampler", () -> {
+                if (hostIoSampler != null) {
+                    hostIoSampler.close();
                 }
             });
             if (gateToStop != null) {
@@ -798,6 +804,19 @@ public class PerformanceLauncher implements Callable<Integer> {
             return sampler;
         } catch (Exception e) {
             System.out.println("Host stats sampling is off for this run: " + e);
+            return null;
+        }
+    }
+
+    /**
+     * Starts sampling the host's CPU utilization and disk throughput into {@code host-io.csv}. Sampling is an
+     * observation, so a failure to start it is reported and the run goes on without it.
+     */
+    private HostIoSampler startHostIoSampler(Path runOutput) {
+        try {
+            return HostIoSampler.start(Path.of("/proc"), sysfs, runOutput);
+        } catch (Exception e) {
+            System.out.println("Host I/O sampling is off for this run: " + e);
             return null;
         }
     }

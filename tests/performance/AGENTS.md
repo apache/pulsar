@@ -230,6 +230,7 @@ commit segment can be absent). Use the exact recording names linked from the pro
 | `gateways/gateways-latency.hdr`, `applications/<application>/application-latency.hdr` | The latency interval logs | `renderHdrHistograms`, HistogramLogAnalyzer |
 | `topic-stats.csv` | The broker's topic stats, sampled once per second: backlog and message counters per subscription | DuckDB, or any CSV reader |
 | `host-stats.csv` | The host's CPU temperature, frequency and throttle counters, sampled once per second; on Linux only | DuckDB, or any CSV reader |
+| `host-io.csv` | The host's CPU busy and I/O-wait share and each disk's read/write MB/s and busy share, sampled once per second; on Linux only. CPUs near 100 % busy delay every thread; a disk near 100 % busy limits the bookies | DuckDB, or any CSV reader |
 | `throughput.svg`, `backlog.svg`, `latency-percentiles.svg`, `latency-timeline.svg`, `host-temperature.svg`, `host-frequency.svg` | The report's charts, each with a PNG beside it | View the PNG |
 | `metrics.json` | What querying the run's metrics needs: its label selector, time range, jobs and instances, and the URLs and credentials of VictoriaMetrics and Grafana, see [metrics.json](docs/metrics.md#metricsjson) | `jq`, then VictoriaMetrics' Prometheus API |
 | `grafana-panels/*.png` | Panels of Grafana's dashboards over the run | View |

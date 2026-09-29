@@ -90,7 +90,7 @@ The run directory that the launcher printed at the start still has what the run 
 - `applications/<application>/application-summary.json`, with the application's unique messages, duplicates, ordering
   violations and invalid messages, and `applications/<application>/ordering-violations.txt`, with samples of the
   ordering violations, when the application got as far as its checks
-- `topic-stats.csv` and `host-stats.csv`, sampled until the failure
+- `topic-stats.csv`, `host-stats.csv` and `host-io.csv`, sampled until the failure
 
 The applications' container exits with an error when an application found ordering violations or invalid messages, or
 didn't receive every message, and the launcher fails a run when an application's state shows that it missed messages
@@ -106,6 +106,7 @@ didn't receive every message, and the launcher fails a run when an application's
 ├── throughput.svg, backlog.svg, latency-percentiles.svg, latency-timeline.svg,
 │   host-temperature.svg, host-frequency.svg    the charts, each also as PNG
 ├── topic-stats.csv, host-stats.csv    the sampled topic stats and host CPU
+├── host-io.csv                        the sampled host CPU utilization and disk throughput
 ├── gateways/                          the gateways' outputs, and their recordings in a profiled run
 ├── applications/                      the applications' container log, and their recordings in a profiled run
 │   └── <application>/                 one directory per application, named after its subscription,
@@ -181,6 +182,7 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `host-temperature.svg`, `.png`, `host-frequency.svg`, `.png` | The CPU package and hottest core temperature, and the mean and lowest core frequency, over the run |
 | `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
 | `host-stats.csv` | The host's CPU sampled once per second from Linux's sysfs files: package and hottest core temperature, mean and lowest core frequency, the kernel's thermal throttle counters and the fastest fan |
+| `host-io.csv` | The host's CPU utilization and disk throughput sampled once per second from Linux's `/proc/stat` and `/proc/diskstats`: the busy and I/O-wait share of all CPUs, and each physical disk's read and write MB/s and busy share. It shows whether a run is limited by the host's CPUs or its storage, which the bookies share |
 | `gateways/gateways-summary.json` | The gateways' counts and throughput, and the epoch-millisecond boundaries of the measurement |
 | `gateways/gateways-latency.hdr`, `.hgrm` | The publish latency log, and its percentile distribution in milliseconds, see [Latency logs](#latency-logs) |
 | `gateways/gateways-state.bin` | The gateways' next sequence number for each device. The launcher compares it with each application's `application-state.bin` and fails the run when they differ, which catches messages missing at the end, where no gap shows |
