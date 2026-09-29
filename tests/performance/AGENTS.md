@@ -50,6 +50,43 @@ real-world use. Express experiments and new scenarios in the domain's terms, as
    source control. Restore host settings and stop services that this experiment started, within the user's
    authorization; leave a pre-existing metrics stack running.
 
+## Eliminating bottlenecks
+
+Use this mode when the task is to raise a scenario's capacity rather than to validate one change. A system has one
+limiting stage at a time; removing it moves the limit somewhere else, so the fastest progress comes from short
+iterations that each find the current limit, remove it and look again. Validate a change deeply only once it has
+shown that it moves the limit.
+
+1. **Find the limiting stage.** Profile the scenario (`profile` with `--extends configs/profile-broker`) and look
+   for, in this order:
+   - a single thread that is busy all the time, such as a topic's managed-ledger thread, which is a serial stage
+     that no other headroom helps: split the CPU samples by thread as
+     [Per-thread CPU](docs/analyzing-profiles.md#per-thread-cpu) describes and compare each thread's busy share
+     with 100 %;
+   - blocked time with an application frame in the off-CPU digest, such as a contended lock or monitor;
+   - run-queue time in the off-CPU capture, which means that the host has run out of CPU;
+   - a saturated resource outside the broker, in the bookies' and the host's metrics: storage flushes and throttled
+     writes, the journal, the network.
+2. **Measure per unit of work.** Compare CPU samples and blocked time per million messages, per thread and per
+   thread pool, between runs; the throughput of a saturated scenario follows the cost per message of its serial
+   stage. Prefer changes that take work off the limiting stage, or remove it, over micro-optimizations elsewhere.
+   Reduce allocation only when garbage collection or allocation is a measurable part of the limiting stage's CPU.
+3. **Make one change and screen it quickly.** One profiled run and one or two unprofiled runs per change are enough
+   to see whether the limit moved; note which stage limits the new run. Keep the changes that help on an
+   experiment branch and build on them; drop the ones that don't.
+4. **Check the other entry sizes.** Entry size changes which stage limits the broker and the bookies: run the
+   scenario with small entries (128 bytes) and with large unbatched ones, such as 8 KB and 128 KB. Scale the measured
+   messages, the gateways' `maxOutstanding` and the workload containers' direct memory with the payload size.
+   Batching is a client-side feature; for the broker and the bookies it only changes the entry size.
+5. **Add observability when an assumption can't be checked.** When a profile suggests a cause that no existing
+   metric shows, add a counter or a metric that does, in the experiment branch, and check the assumption with
+   it in the next run.
+6. **Record every iteration at a high level:** the limiting stage and its evidence, the change, the result, and
+   where the limit moved. A stage outside Pulsar's control, such as the host's single disk under all the bookies,
+   is a result too: record it and continue with the scenarios it does not limit.
+
+Before proposing a change for review, validate it as the [Experiment loop](#experiment-loop) describes.
+
 ## Quick reference
 
 Run commands from the repository root. Gradle properties (`-P...`) configure the task; launcher options go inside
@@ -260,6 +297,7 @@ augment those reports; their absence need not block analysis of the saved summar
 | Did the workload complete correctly, and what changed? | Run `README.md`, `resolved-config.yaml`, `run-info.json` and workload summaries | Compare measured throughput, latency percentiles and backlog; inspect logs for exclusions |
 | Where does a busy process wait? | `jonoffcpu-summary.md` and `offcpu-no-idle-app-root.collapsed` | The digest already ranks blocking callsites; use the optional correlator CLI for comparisons or other slices, and check coverage and loss in `jonoffcpu-report.json` |
 | Where does it use CPU or allocate? | `cpu.collapsed`, `alloc.collapsed`, then `.measurement.jfr` | Thread views find serial bottlenecks; heatmaps and JFR place CPU, allocation and GC activity in time |
+| Which thread limits the throughput? | `.measurement.jfr`, converted with `--threads` | Rank threads and pools and break down the busiest thread with DuckDB, see [Per-thread CPU](docs/analyzing-profiles.md#per-thread-cpu) |
 | How can an agent query stack profiles automatically? | A `.collapsed` or `.folded` file | Use DuckDB with quack_flamegraph; the [SQL examples](docs/analyzing-profiles.md#analyzing-collapsed-stacks-with-duckdb) rank stacks, methods and call edges and export machine-readable JSON or CSV |
 | Which cluster component explains a stall? | `metrics.json`, `grafana-panels/*.png`, `topic-stats.csv` | Use Grafana's run annotations and VictoriaMetrics queries to relate broker, bookie and ZooKeeper behavior to the measurement |
 | What retains the heap? | `heap-dumps.csv` and an `.hprof` dump | Use dominators, retained sizes and paths to GC roots; capture a separate diagnostic run with `--extends configs/heap-dumps-broker` as [Heap dumps](docs/heap-dumps.md) describes |
