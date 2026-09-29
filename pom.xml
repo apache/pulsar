@@ -272,7 +272,7 @@ flexible messaging model and an intuitive client API.</description>
     <jakarta.ws.rs-api.version>2.1.6</jakarta.ws.rs-api.version>
     <hdrHistogram.version>2.1.9</hdrHistogram.version>
     <javax.servlet-api>3.1.0</javax.servlet-api>
-    <caffeine.version>3.2.4</caffeine.version>
+    <caffeine.version>3.3.0</caffeine.version>
     <java-semver.version>0.9.0</java-semver.version>
     <jline3.version>4.2.1</jline3.version>
     <hppc.version>0.9.1</hppc.version>

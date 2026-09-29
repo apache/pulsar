@@ -260,7 +260,7 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.datatype-jackson-datatype-jdk8-2.18.11.jar
      - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.18.11.jar
      - com.fasterxml.jackson.module-jackson-module-parameter-names-2.18.11.jar
- * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.2.4.jar
+ * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.3.0.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.6.3.jar
  * Fastutil -- it.unimi.dsi-fastutil-8.5.16.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.59.2.jar
