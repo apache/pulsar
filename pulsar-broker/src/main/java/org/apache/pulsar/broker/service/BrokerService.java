@@ -1902,6 +1902,9 @@ public class BrokerService implements Closeable {
             }
             String shadowSource = managedLedgerConfig.getShadowSource();
             if (shadowSource != null) {
+                if (!pulsar().getConfiguration().isEnableShadowTopics()) {
+                    throw new CompletionException(new NotAllowedException("Shadow topics are disabled"));
+                }
                 managedLedgerConfig.setShadowSourceName(TopicName.get(shadowSource).getPersistenceNamingEncoding());
             }
 

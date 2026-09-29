@@ -149,6 +149,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setEnableShadowTopics(true);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setForceDeleteNamespaceAllowed(true);
         super.internalSetup();
