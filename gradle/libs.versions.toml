@@ -98,7 +98,7 @@ reactive-streams = "1.0.4"
 opentelemetry-gcp-resources = "1.59.0-alpha"
 # Data structures / Utils
 guava = "33.6.0-jre"
-caffeine = "3.2.4"
+caffeine = "3.3.0"
 fastutil = "8.5.19"
 jctools = "4.0.7"
 roaringbitmap = "1.6.20"
