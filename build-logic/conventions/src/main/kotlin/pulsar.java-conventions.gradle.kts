@@ -77,7 +77,9 @@ val java17Projects = setOf(
     ":pulsar-client-auth-athenz", ":pulsar-client-auth-sasl", ":pulsar-client-messagecrypto-bc",
     ":pulsar-client-shaded", ":pulsar-client-all", ":pulsar-client-admin-shaded",
     ":pulsar-client-v5-shaded", ":pulsar-client-v5-all", ":pulsar-client-fastutil-minimized",
-    ":pulsar-client-tools-api", ":pulsar-package-management:pulsar-package-core",
+    ":pulsar-client-tools-api", ":pulsar-client-tools", ":pulsar-client-tools-test",
+    ":pulsar-client-tools-customcommand-example", ":pulsar-cli-utils",
+    ":pulsar-package-management:pulsar-package-core",
     ":pulsar-functions:pulsar-functions-api", ":pulsar-io:pulsar-io-core",
     // Test support must also load in the Java 17 consumer compatibility test JVM.
     ":buildtools", ":testmocks", ":tests:pulsar-java17-compatibility",

@@ -22,14 +22,17 @@ package org.apache.pulsar.compatibility;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import java.util.Map;
+import java.util.Properties;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.cli.PulsarClientTool;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.testng.annotations.Test;
 
 public class Java17CompatibilityTest {
@@ -65,6 +68,14 @@ public class Java17CompatibilityTest {
         assertNotNull(org.apache.pulsar.client.api.v5.PulsarClient.builder());
         assertNotNull(PulsarAdmin.builder());
         assertEquals(Schema.STRING.decode(Schema.STRING.encode("java17")), "java17");
+    }
+
+    @Test
+    public void loadClientToolsOnJava17() {
+        assertNotNull(new PulsarClientTool(new Properties()));
+        ProducerMessage message = new ProducerMessage();
+        message.setPayload("java17");
+        assertEquals(message.getPayload(), "java17");
     }
 
     @Test

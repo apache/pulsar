@@ -128,8 +128,8 @@ Check `settings.gradle.kts` when a path is ambiguous.
 `pulsar.java-conventions` defaults main sources to Java 21 and explicitly lists the Java 17 client
 and public API dependency closure. This includes both client generations, admin/auth/crypto clients,
 TLS/HTTP SPIs, shared common/package APIs, and the Functions/IO interfaces. Functions implementations,
-CLI tools, brokers, and other server components target Java 21. Test sources independently target
-Java 21 by default so client tests can use server fixtures.
+brokers, and other server components target Java 21. Client CLI tools also remain Java 17 compatible.
+Test sources independently target Java 21 by default so client tests can use server fixtures.
 
 When adding a client dependency, keep its full compile/runtime closure Java 17 compatible. JVM
 variant attributes reject Java 21 project dependencies; `verifyJava17Compatibility` also checks
@@ -138,8 +138,8 @@ Multi-release jars are checked using the entries selected by Java 17. This verif
 all possible reflective or JDK API usage in third-party libraries; the Java 17 consumer tests provide
 runtime coverage. Do not mark a server implementation as Java 17 just to bypass a dependency error.
 
-The client fastutil minimizer reads CLI classes as build-only reachability roots. Those inputs may
-be Java 21; its published jar has no transitive project dependencies and is checked as Java 17.
+The client fastutil minimizer reads CLI classes as build-only reachability roots. Its published jar has no
+transitive project dependencies and is checked as Java 17.
 `buildtools` and `testmocks` also stay Java 17 so the consumer compatibility tests can load them.
 
 ### Changing the build

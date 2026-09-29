@@ -24,6 +24,7 @@ plugins {
 // Use only the consumer dependency graph: broker fixtures and Functions implementations must
 // never be needed to compile a Java 17 client or a user's Function/Source/Sink implementation.
 dependencies {
+    implementation(project(":pulsar-client-tools"))
     implementation(project(":pulsar-client-v5"))
     implementation(project(":pulsar-client-admin-original"))
     implementation(project(":pulsar-client-auth-athenz"))

@@ -29,7 +29,8 @@ workflow (build, test, PR, CI). For the big-picture module map and the Gradle bu
 
 ## Building
 
-Pulsar 5 server components, CLI tools, and Functions implementations require Java 21 or later.
+Pulsar 5 server components and Functions implementations require Java 21 or later.
+Client CLI tools remain Java 17 compatible.
 Client libraries (including V5), their shared dependencies, and Functions/IO public interfaces
 remain Java 17 compatible. Functions compiled on Java 17 can run in a Java 21+ Functions instance.
 The build uses `--release` and publishes the corresponding JVM requirement in Gradle metadata.
