@@ -147,8 +147,8 @@ if [[ -z $JAVA_MAJOR_VERSION ]]; then
   done
 fi
 
-if [[ $JAVA_MAJOR_VERSION -lt 17 ]]; then
-    echo "Error: Pulsar requires Java 17 or later." 1>&2
+if [[ $JAVA_MAJOR_VERSION -lt 21 ]]; then
+    echo "Error: Pulsar server commands require Java 21 or later." 1>&2
     exit 1
 fi
 

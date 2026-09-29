@@ -21,6 +21,7 @@
 // so an unqualified `java.util.zip.ZipFile` would resolve `java` to that extension.
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import java.util.zip.ZipFile
+import org.gradle.api.attributes.java.TargetJvmVersion
 
 // Convention for "<library> minimized" packaging modules. Produces a shadow jar that
 // contains only the classes of the minimized libraries that are actually reachable from
@@ -90,4 +91,20 @@ val verifyMinimizedJar = tasks.register("verifyMinimizedJar") {
 
 tasks.named("check") {
     dependsOn(verifyMinimizedJar)
+}
+
+// Reachability roots are build inputs, not published dependencies. The client minimized jar can
+// inspect Java 21 CLI code while the retained fastutil classes still have to work on Java 17.
+configurations.matching { it.name in setOf("compileClasspath", "runtimeClasspath") }.configureEach {
+    attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, 21)
+}
+// Shadow otherwise derives this from the build-only roots, which can require a newer JVM.
+shadow {
+    addTargetJvmVersionAttribute.set(false)
+}
+configurations.named("shadowRuntimeElements") {
+    attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, java.targetCompatibility.majorVersion.toInt())
+}
+tasks.withType<VerifyJavaCompatibility>().configureEach {
+    classpath.setFrom(tasks.named<ShadowJar>("shadowJar").flatMap { it.archiveFile })
 }

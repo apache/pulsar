@@ -18,6 +18,7 @@
  */
 
 import java.io.File
+import org.gradle.api.attributes.java.TargetJvmVersion
 
 plugins {
     `java-library`
@@ -65,10 +66,59 @@ configurations.matching { it.name in platformAlignedClasspaths }.configureEach {
     extendsFrom(internalPlatform)
 }
 
+// Java 17 is a compatibility promise for client libraries and user-written Functions/IO APIs.
+// Keep this list explicit: a new server module must not silently lower its baseline, and a new
+// client dependency must be reviewed before joining the Java 17 dependency closure. Gradle's JVM
+// attributes reject project dependencies from this group onto Java 21 modules.
+val java17Projects = setOf(
+    ":pulsar-client-api", ":pulsar-client-api-v5", ":pulsar-client-admin-api",
+    ":pulsar-tls-factory-api", ":pulsar-http-client-api", ":pulsar-common",
+    ":pulsar-client-original", ":pulsar-client-v5", ":pulsar-client-admin-original",
+    ":pulsar-client-auth-athenz", ":pulsar-client-auth-sasl", ":pulsar-client-messagecrypto-bc",
+    ":pulsar-client-shaded", ":pulsar-client-all", ":pulsar-client-admin-shaded",
+    ":pulsar-client-v5-shaded", ":pulsar-client-v5-all", ":pulsar-client-fastutil-minimized",
+    ":pulsar-client-tools-api", ":pulsar-package-management:pulsar-package-core",
+    ":pulsar-functions:pulsar-functions-api", ":pulsar-io:pulsar-io-core",
+    // Test support must also load in the Java 17 consumer compatibility test JVM.
+    ":buildtools", ":testmocks", ":tests:pulsar-java17-compatibility",
+)
+val mainJavaVersion = if (path in java17Projects) 17 else 21
+// Client tests can embed the broker and Functions implementation. Test bytecode and dependency
+// resolution therefore have their own baseline, independent of the published main artifact.
+val testJavaVersion = if (path == ":tests:pulsar-java17-compatibility") {
+    providers.provider { 17 }
+} else {
+    providers.gradleProperty("testJavaVersion").map { it.toInt() }
+}
+val testRelease = testJavaVersion.getOrElse(21)
+java {
+    sourceCompatibility = JavaVersion.toVersion(mainJavaVersion)
+    targetCompatibility = JavaVersion.toVersion(mainJavaVersion)
+}
+configurations.matching { it.name in setOf("testCompileClasspath", "testRuntimeClasspath") }.configureEach {
+    attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, testRelease)
+}
+
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
-    options.release.set(17)
+    options.release.set(mainJavaVersion)
     options.compilerArgs.addAll(listOf("-parameters", "-Xlint:deprecation", "-Xlint:unchecked"))
+}
+
+tasks.named<JavaCompile>("compileTestJava") {
+    options.release.set(testRelease)
+}
+
+if (mainJavaVersion == 17) {
+    val verifyJava17Compatibility = tasks.register<VerifyJavaCompatibility>("verifyJava17Compatibility") {
+        group = "verification"
+        description = "Check Java 17 bytecode compatibility of client/API classes and dependencies."
+        javaVersion.set(17)
+        classpath.from(sourceSets.main.get().output.classesDirs,
+            configurations.named("compileClasspath"), configurations.named("runtimeClasspath"))
+    }
+    tasks.named("check") { dependsOn(verifyJava17Compatibility) }
+    tasks.named("assemble") { dependsOn(verifyJava17Compatibility) }
 }
 
 configurations.all {
@@ -199,8 +249,7 @@ dependencies {
     "testRuntimeOnly"(catalog.findLibrary("log4j-jul").get())
 }
 
-// Allow overriding the JDK used for running tests via -PtestJavaVersion=17
-val testJavaVersion = providers.gradleProperty("testJavaVersion").map { it.toInt() }
+// Allow overriding the JDK used for running tests via -PtestJavaVersion=17.
 val javaToolchains = extensions.getByType<JavaToolchainService>()
 // Effective Java major version used to run tests: the -PtestJavaVersion override when set,
 // otherwise the JVM running Gradle.
