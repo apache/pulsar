@@ -33,10 +33,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiConsumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -108,12 +106,14 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
     private final Backoff tailReadBackoff;
 
     /**
-     * The retry of a failed tail read that is waiting for its backoff delay, so that closing the table view
-     * can cancel it instead of letting it find the closed reader once the delay has elapsed.
+     * Non-null once no tail read will ever run again: the table view is closing, the reader was closed under it
+     * (the client is shutting down), or the client's scheduler rejected a retry for the same reason. A retry
+     * still queued at that point does nothing, and every refresh that is pending or registers afterwards fails
+     * with this cause, shaped like the failed read of a closed reader delivers it
+     * ({@link PulsarClientException.AlreadyClosedException} in {@link Throwable#getCause()}, unwrapped by
+     * {@code get()} as usual).
      */
-    private final AtomicReference<ScheduledFuture<?>> pendingTailReadRetry;
-
-    private volatile boolean closed;
+    private volatile Throwable stopCause;
 
     /**
      * @param poolMessages whether the reader should use pooled messages. When enabled, the handled messages
@@ -139,7 +139,6 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                 .initialDelay(Duration.ofNanos(client.getConfiguration().getInitialBackoffIntervalNanos()))
                 .maxBackoff(Duration.ofNanos(client.getConfiguration().getMaxBackoffIntervalNanos()))
                 .build();
-        this.pendingTailReadRetry = new AtomicReference<>();
         ReaderBuilder<T> readerBuilder = client.newReader(schema)
                 .topic(conf.getTopicName())
                 .startMessageId(MessageId.earliest)
@@ -244,10 +243,7 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        closed = true;
-        cancelPendingTailReadRetry();
-        // Nothing will be read any more, so a refresh still waiting for a message can only fail.
-        failPendingRefreshRequests(alreadyClosed("TableView was closed"));
+        stopTailReads(alreadyClosed("TableView was closed"));
         return reader.thenCompose(Reader::closeAsync);
     }
 
@@ -372,11 +368,12 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
             // After get the response of lastMessageIds, put the future and result into `refreshMap`
             // and then filter out partitions that has been read to the lastMessageID.
             pendingRefreshRequests.put(completableFuture, lastMessageIds);
-            if (closed) {
-                // closeAsync() ran while the last message ids were being fetched and has already failed the
-                // requests it found; nothing will be read any more that could complete this one.
+            Throwable stopped = stopCause;
+            if (stopped != null) {
+                // The tail reads stopped while the last message ids were being fetched, and the requests found
+                // at that point have already been failed; nothing is left that could complete this one.
                 pendingRefreshRequests.remove(completableFuture);
-                completableFuture.completeExceptionally(alreadyClosed("TableView was closed"));
+                completableFuture.completeExceptionally(stopped);
                 return;
             }
             filterReceivedMessages(lastMessageIds);
@@ -525,8 +522,8 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                     if (ex.getCause() instanceof PulsarClientException.AlreadyClosedException) {
                         log.info().attr("reader", reader.getTopic())
                                 .log("Reader was closed while reading tail messages.");
-                        // Fail all refresh request when no more messages can be read.
-                        failPendingRefreshRequests(ex);
+                        // No more messages can be read: fail the refreshes, pending or still registering.
+                        stopTailReads(ex);
                     } else {
                         // Retry the other exceptions such as NotConnectedException after a backoff delay.
                         scheduleTailReadRetry(reader, ex);
@@ -542,26 +539,25 @@ abstract class AbstractTableViewImpl<T, V> implements TableView<V> {
                 .exception(ex)
                 .log("Reader was interrupted while reading tail messages. Retrying..");
         try {
-            ScheduledFuture<?> retry = ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor())
-                    .schedule(() -> readTailMessages(reader), delayMillis, TimeUnit.MILLISECONDS);
-            pendingTailReadRetry.set(retry);
-            if (closed) {
-                // closeAsync() ran between the failed read and this point and found nothing to cancel yet.
-                cancelPendingTailReadRetry();
-            }
+            ((ScheduledExecutorService) client.getScheduledExecutorProvider().getExecutor()).schedule(() -> {
+                // The retry may have been queued before the table view closed: then it must not read.
+                if (stopCause == null) {
+                    readTailMessages(reader);
+                }
+            }, delayMillis, TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException e) {
-            // The client is shutting down; the reader will be closed with it and nothing will be read any more.
+            // The client is shutting down and its scheduler will not run anything any more, so this loop has
+            // ended; the reader will be closed with the client.
             log.info().attr("reader", reader.getTopic())
                     .log("Client is closed, giving up retrying tail messages.");
-            failPendingRefreshRequests(alreadyClosed("Client already closed"));
+            stopTailReads(alreadyClosed("Client already closed"));
         }
     }
 
-    private void cancelPendingTailReadRetry() {
-        ScheduledFuture<?> retry = pendingTailReadRetry.getAndSet(null);
-        if (retry != null) {
-            retry.cancel(false);
-        }
+    /** Records that no tail read will run any more and fails the refreshes waiting for one. */
+    private void stopTailReads(Throwable cause) {
+        stopCause = cause;
+        failPendingRefreshRequests(cause);
     }
 
     /**
