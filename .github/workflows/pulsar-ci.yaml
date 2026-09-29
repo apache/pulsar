@@ -196,8 +196,8 @@ jobs:
           ./gradlew assemble rat spotlessCheck checkstyleMain checkstyleTest
           --no-configuration-cache
 
-      - name: Verify Java 17 client and Functions API compatibility
-        run: ./gradlew :tests:pulsar-java17-compatibility:test -PtestRetryCount=0
+      - name: Verify client and Functions API Java compatibility
+        run: ./gradlew :tests:pulsar-client-java-compatibility:test -PtestRetryCount=0
 
       - name: Check binary licenses
         run: ./gradlew checkBinaryLicense --no-configuration-cache

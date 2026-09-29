@@ -29,17 +29,32 @@ workflow (build, test, PR, CI). For the big-picture module map and the Gradle bu
 
 ## Building
 
-Pulsar 5 server components and Functions implementations require Java 21 or later.
+Standard Pulsar 5 server components and Functions implementations require Java 21 or later.
 Client CLI tools remain Java 17 compatible.
 Client libraries (including V5), their shared dependencies, and Functions/IO public interfaces
 remain Java 17 compatible. Functions compiled on Java 17 can run in a Java 21+ Functions instance.
 The build uses `--release` and publishes the corresponding JVM requirement in Gradle metadata.
 
 `assemble` checks Java 17 client/API bytecode and its compile/runtime dependencies, including shaded
-jars. Run `./gradlew :tests:pulsar-java17-compatibility:test -PtestRetryCount=0` to compile and run
+jars. Run `./gradlew :tests:pulsar-client-java-compatibility:test -PtestRetryCount=0` to compile and run
 consumer examples on an installed JDK 17. Ordinary tests target Java 21 because even client tests
 can depend on broker/Functions fixtures. `-PtestJavaVersion=17` is only suitable for test modules
 whose entire test dependency graph supports Java 17; it does not lower the server baseline.
+
+For custom builds, `-PpulsarJavaVersion=17` targets Java 17 for server code and ordinary test
+sources. `-PpulsarClientJavaVersion=17` controls the client/public API target and consumer test
+toolchain (17 is already the default). For example:
+
+```shell
+./gradlew assemble -PpulsarJavaVersion=17
+PULSAR_MIN_JAVA_VERSION=17 bin/pulsar standalone
+```
+
+`PULSAR_MIN_JAVA_VERSION` overrides the launcher check, which defaults to 21; it does not change
+compiled bytecode or dependency requirements. A custom Java 17 build is only possible while the
+sources and dependencies remain compatible; use of Java 21 features such as virtual threads will
+prevent targeting Java 17. Java 17 server builds are not part of CI. These properties do not change
+Gradle's build-JDK requirement. Use `-PtestJavaVersion=17` as well to run ordinary tests on an installed Java 17 JDK.
 
 **JDK 21, 25 or 26** is required to build `master` (`-PskipJavaVersionCheck` bypasses the check);
 `zip` is also needed. Use the bundled wrapper `./gradlew` (Linux/macOS) or

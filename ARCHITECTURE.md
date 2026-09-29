@@ -129,10 +129,13 @@ Check `settings.gradle.kts` when a path is ambiguous.
 and public API dependency closure. This includes both client generations, admin/auth/crypto clients,
 TLS/HTTP SPIs, shared common/package APIs, and the Functions/IO interfaces. Functions implementations,
 brokers, and other server components target Java 21. Client CLI tools also remain Java 17 compatible.
-Test sources independently target Java 21 by default so client tests can use server fixtures.
+`pulsarJavaVersion` and `pulsarClientJavaVersion` control these targets (defaults 21 and 17).
+Test sources default to `pulsarJavaVersion` so client tests can use server fixtures; the dedicated
+consumer tests use `pulsarClientJavaVersion` for compilation and their runtime toolchain.
+The bytecode check and published JVM metadata follow the configured client target.
 
 When adding a client dependency, keep its full compile/runtime closure Java 17 compatible. JVM
-variant attributes reject Java 21 project dependencies; `verifyJava17Compatibility` also checks
+variant attributes reject Java 21 project dependencies; `verifyClientJavaCompatibility` also checks
 class-file versions of dependencies without Gradle metadata and the final shaded client jars.
 Multi-release jars are checked using the entries selected by Java 17. This verifies bytecode, not
 all possible reflective or JDK API usage in third-party libraries; the Java 17 consumer tests provide

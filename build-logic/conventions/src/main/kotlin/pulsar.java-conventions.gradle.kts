@@ -70,7 +70,7 @@ configurations.matching { it.name in platformAlignedClasspaths }.configureEach {
 // Keep this list explicit: a new server module must not silently lower its baseline, and a new
 // client dependency must be reviewed before joining the Java 17 dependency closure. Gradle's JVM
 // attributes reject project dependencies from this group onto Java 21 modules.
-val java17Projects = setOf(
+val clientProjects = setOf(
     ":pulsar-client-api", ":pulsar-client-api-v5", ":pulsar-client-admin-api",
     ":pulsar-tls-factory-api", ":pulsar-http-client-api", ":pulsar-common",
     ":pulsar-client-original", ":pulsar-client-v5", ":pulsar-client-admin-original",
@@ -82,23 +82,32 @@ val java17Projects = setOf(
     ":pulsar-package-management:pulsar-package-core",
     ":pulsar-functions:pulsar-functions-api", ":pulsar-io:pulsar-io-core",
     // Test support must also load in the Java 17 consumer compatibility test JVM.
-    ":buildtools", ":testmocks", ":tests:pulsar-java17-compatibility",
+    ":buildtools", ":testmocks", ":tests:pulsar-client-java-compatibility",
 )
-val mainJavaVersion = if (path in java17Projects) 17 else 21
+val pulsarJavaVersion = providers.gradleProperty("pulsarJavaVersion").map { it.toInt() }.orElse(21)
+val pulsarClientJavaVersion = providers.gradleProperty("pulsarClientJavaVersion").map { it.toInt() }.orElse(17)
+val mainJavaVersion = if (path in clientProjects) pulsarClientJavaVersion.get() else pulsarJavaVersion.get()
 // Client tests can embed the broker and Functions implementation. Test bytecode and dependency
 // resolution therefore have their own baseline, independent of the published main artifact.
-val testJavaVersion = if (path == ":tests:pulsar-java17-compatibility") {
-    providers.provider { 17 }
+val testJavaVersion = if (path == ":tests:pulsar-client-java-compatibility") {
+    pulsarClientJavaVersion
 } else {
     providers.gradleProperty("testJavaVersion").map { it.toInt() }
 }
-val testRelease = testJavaVersion.getOrElse(21)
+val testRelease = testJavaVersion.getOrElse(pulsarJavaVersion.get())
+if (path == ":tests:pulsar-client-java-compatibility") {
+    tasks.withType<Test>().configureEach {
+        systemProperty("pulsarClientJavaVersion", pulsarClientJavaVersion.get())
+    }
+}
 java {
     sourceCompatibility = JavaVersion.toVersion(mainJavaVersion)
     targetCompatibility = JavaVersion.toVersion(mainJavaVersion)
 }
 configurations.matching { it.name in setOf("testCompileClasspath", "testRuntimeClasspath") }.configureEach {
-    attributes.attribute(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE, testRelease)
+    // Follow explicit module overrides too (for example the Java 21 performance tools).
+    attributes.attributeProvider(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE,
+        tasks.named<JavaCompile>("compileTestJava").flatMap { it.options.release })
 }
 
 tasks.withType<JavaCompile>().configureEach {
@@ -111,16 +120,16 @@ tasks.named<JavaCompile>("compileTestJava") {
     options.release.set(testRelease)
 }
 
-if (mainJavaVersion == 17) {
-    val verifyJava17Compatibility = tasks.register<VerifyJavaCompatibility>("verifyJava17Compatibility") {
+if (path in clientProjects) {
+    val verifyClientJavaCompatibility = tasks.register<VerifyJavaCompatibility>("verifyClientJavaCompatibility") {
         group = "verification"
-        description = "Check Java 17 bytecode compatibility of client/API classes and dependencies."
-        javaVersion.set(17)
+        description = "Check client/API classes and dependencies against pulsarClientJavaVersion."
+        javaVersion.set(pulsarClientJavaVersion)
         classpath.from(sourceSets.main.get().output.classesDirs,
             configurations.named("compileClasspath"), configurations.named("runtimeClasspath"))
     }
-    tasks.named("check") { dependsOn(verifyJava17Compatibility) }
-    tasks.named("assemble") { dependsOn(verifyJava17Compatibility) }
+    tasks.named("check") { dependsOn(verifyClientJavaCompatibility) }
+    tasks.named("assemble") { dependsOn(verifyClientJavaCompatibility) }
 }
 
 configurations.all {

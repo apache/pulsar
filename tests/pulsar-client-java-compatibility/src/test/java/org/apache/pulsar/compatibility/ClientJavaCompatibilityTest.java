@@ -35,7 +35,7 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.testng.annotations.Test;
 
-public class Java17CompatibilityTest {
+public class ClientJavaCompatibilityTest {
     // Compile real user implementations against the complete API graph, not just the API jar.
     private static class Echo implements Function<String, String> {
         @Override
@@ -62,8 +62,8 @@ public class Java17CompatibilityTest {
     }
 
     @Test
-    public void loadClientImplementationsOnJava17() {
-        assertEquals(Runtime.version().feature(), 17);
+    public void loadClientImplementationsOnClientJavaVersion() {
+        assertEquals(Runtime.version().feature(), Integer.parseInt(System.getProperty("pulsarClientJavaVersion")));
         assertNotNull(PulsarClient.builder());
         assertNotNull(org.apache.pulsar.client.api.v5.PulsarClient.builder());
         assertNotNull(PulsarAdmin.builder());
@@ -71,7 +71,7 @@ public class Java17CompatibilityTest {
     }
 
     @Test
-    public void loadClientToolsOnJava17() {
+    public void loadClientToolsOnClientJavaVersion() {
         assertNotNull(new PulsarClientTool(new Properties()));
         ProducerMessage message = new ProducerMessage();
         message.setPayload("java17");
@@ -79,7 +79,7 @@ public class Java17CompatibilityTest {
     }
 
     @Test
-    public void runUserFunctionAndSinkOnJava17() {
+    public void runUserFunctionAndSinkOnClientJavaVersion() {
         assertEquals(new Echo().process("java17", null), "java17");
         StringSink sink = new StringSink();
         sink.write(() -> "java17");

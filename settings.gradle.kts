@@ -290,4 +290,4 @@ include("tests:pulsar-client-native-image")
 project(":tests:pulsar-client-native-image").projectDir = file("tests/pulsar-client-native-image")
 
 // Compile and run consumer/API compatibility checks on the minimum supported client JDK.
-include("tests:pulsar-java17-compatibility")
+include("tests:pulsar-client-java-compatibility")

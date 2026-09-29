@@ -34,5 +34,5 @@ dependencies {
     implementation(project(":pulsar-io:pulsar-io-core"))
 }
 
-// pulsar.java-conventions always compiles/runs this module's tests with Java 17,
+// pulsar.java-conventions compiles/runs these tests with pulsarClientJavaVersion (default 17),
 // independently of the build JVM or -PtestJavaVersion used for server tests.
