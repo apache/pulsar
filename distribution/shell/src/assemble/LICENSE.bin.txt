@@ -407,18 +407,18 @@ The Apache Software License, Version 2.0
  * AsyncHttpClient
     - async-http-client-3.0.13.jar
  * Jetty
-    - jetty-alpn-client-12.1.12.jar
-    - jetty-client-12.1.12.jar
-    - jetty-compression-common-12.1.12.jar
-    - jetty-compression-gzip-12.1.12.jar
-    - jetty-http-12.1.12.jar
-    - jetty-io-12.1.12.jar
-    - jetty-util-12.1.12.jar
-    - jetty-websocket-core-client-12.1.12.jar
-    - jetty-websocket-core-common-12.1.12.jar
-    - jetty-websocket-jetty-api-12.1.12.jar
-    - jetty-websocket-jetty-client-12.1.12.jar
-    - jetty-websocket-jetty-common-12.1.12.jar
+    - jetty-alpn-client-12.1.13.jar
+    - jetty-client-12.1.13.jar
+    - jetty-compression-common-12.1.13.jar
+    - jetty-compression-gzip-12.1.13.jar
+    - jetty-http-12.1.13.jar
+    - jetty-io-12.1.13.jar
+    - jetty-util-12.1.13.jar
+    - jetty-websocket-core-client-12.1.13.jar
+    - jetty-websocket-core-common-12.1.13.jar
+    - jetty-websocket-jetty-api-12.1.13.jar
+    - jetty-websocket-jetty-client-12.1.13.jar
+    - jetty-websocket-jetty-common-12.1.13.jar
  * SnakeYaml -- snakeyaml-2.6.jar
  * Google Error Prone Annotations - error_prone_annotations-2.50.0.jar
  * Javassist -- javassist-3.32.0-GA.jar
