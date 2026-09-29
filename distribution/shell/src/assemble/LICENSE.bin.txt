@@ -324,7 +324,7 @@ The Apache Software License, Version 2.0
      - jackson-datatype-jdk8-2.21.6.jar
      - jackson-datatype-jsr310-2.21.6.jar
      - jackson-module-parameter-names-2.21.6.jar
- * Caffeine -- caffeine-3.2.4.jar
+ * Caffeine -- caffeine-3.3.0.jar
  * Conscrypt -- conscrypt-openjdk-uber-2.6.3.jar
  * Gson
     - gson-2.14.0.jar
@@ -334,7 +334,7 @@ The Apache Software License, Version 2.0
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-3.1.jar
  * Netty Reactive Streams -- netty-reactive-streams-2.0.19.jar
- * Swagger -- swagger-annotations-jakarta-2.2.53.jar
+ * Swagger -- swagger-annotations-jakarta-2.2.55.jar
  * DataSketches
     - datasketches-java-7.0.1.jar
     - datasketches-memory-4.1.0.jar
@@ -390,10 +390,10 @@ The Apache Software License, Version 2.0
     - log4j-slf4j2-impl-2.26.1.jar
     - log4j-web-2.26.1.jar
  * OpenTelemetry
-    - opentelemetry-api-1.65.0.jar
-    - opentelemetry-api-incubator-1.65.0-alpha.jar
-    - opentelemetry-common-1.65.0.jar
-    - opentelemetry-context-1.65.0.jar
+    - opentelemetry-api-1.66.0.jar
+    - opentelemetry-api-incubator-1.66.0-alpha.jar
+    - opentelemetry-common-1.66.0.jar
+    - opentelemetry-context-1.66.0.jar
   * Slog
     - slog-0.10.0.jar
 
@@ -419,7 +419,7 @@ The Apache Software License, Version 2.0
     - jetty-websocket-jetty-api-12.1.13.jar
     - jetty-websocket-jetty-client-12.1.13.jar
     - jetty-websocket-jetty-common-12.1.13.jar
- * SnakeYaml -- snakeyaml-2.6.jar
+ * SnakeYaml -- snakeyaml-2.7.jar
  * Google Error Prone Annotations - error_prone_annotations-2.50.0.jar
  * Javassist -- javassist-3.32.0-GA.jar
   * Apache Avro
@@ -474,9 +474,9 @@ Public Domain (CC0) -- ../licenses/LICENSE-CC0.txt
 
 Bouncy Castle License
  * Bouncy Castle -- ../licenses/LICENSE-bouncycastle.txt
-    - bcpkix-jdk18on-1.85.jar
-    - bcprov-jdk18on-1.85.2.jar
-    - bcutil-jdk18on-1.85.jar
+    - bcpkix-jdk18on-1.86.jar
+    - bcprov-jdk18on-1.86.jar
+    - bcutil-jdk18on-1.86.jar
 
 ------------------------
 
