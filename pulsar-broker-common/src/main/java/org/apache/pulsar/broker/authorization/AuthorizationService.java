@@ -739,6 +739,31 @@ public class AuthorizationService {
     }
 
     /**
+     * Checks a namespace operation, using separate authentication data for the original principal of a proxied
+     * request.
+     */
+    public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName,
+                                                                   NamespaceOperation operation,
+                                                                   String originalRole,
+                                                                   String role,
+                                                                   AuthenticationDataSource originalAuthData,
+                                                                   AuthenticationDataSource authData) {
+        if (!isValidOriginalPrincipal(role, originalRole, authData)) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
+            CompletableFuture<Boolean> isRoleAuthorizedFuture = allowNamespaceOperationAsync(
+                    namespaceName, operation, role, authData);
+            CompletableFuture<Boolean> isOriginalAuthorizedFuture = allowNamespaceOperationAsync(
+                    namespaceName, operation, originalRole, originalAuthData);
+            return isRoleAuthorizedFuture.thenCombine(isOriginalAuthorizedFuture,
+                    (isRoleAuthorized, isOriginalAuthorized) -> isRoleAuthorized && isOriginalAuthorized);
+        } else {
+            return allowNamespaceOperationAsync(namespaceName, operation, role, authData);
+        }
+    }
+
+    /**
      * Grant authorization-action permission on a namespace to the given client.
      *
      * @param namespaceName

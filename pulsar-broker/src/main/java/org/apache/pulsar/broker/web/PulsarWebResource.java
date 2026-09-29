@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataForwarded;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -1010,6 +1011,15 @@ public abstract class PulsarWebResource {
 
     public CompletableFuture<Void> validateNamespaceOperationAsync(NamespaceName namespaceName,
                                                               NamespaceOperation operation) {
+        return validateNamespaceOperationAsync(namespaceName, operation, null);
+    }
+
+    /**
+     * Validates a namespace operation for a single subscription, passing it to the authorization provider.
+     */
+    public CompletableFuture<Void> validateNamespaceOperationAsync(NamespaceName namespaceName,
+                                                                   NamespaceOperation operation,
+                                                                   String subscription) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
             && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
@@ -1017,9 +1027,21 @@ public abstract class PulsarWebResource {
                         new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
             }
 
-            return pulsar().getBrokerService().getAuthorizationService()
-                    .allowNamespaceOperationAsync(namespaceName, operation, originalPrincipal(),
-                             clientAppId(), clientAuthData())
+            AuthorizationService authorizationService = pulsar().getBrokerService().getAuthorizationService();
+            CompletableFuture<Boolean> allowFuture;
+            if (subscription != null) {
+                // Wrap the request auth data so that the subscription is available for every kind of
+                // authentication data, including the auth data of the anonymous role. The original principal
+                // is checked with its own auth data, so that it is not evaluated with the proxy credentials.
+                allowFuture = authorizationService.allowNamespaceOperationAsync(namespaceName, operation,
+                        originalPrincipal(), clientAppId(),
+                        new AuthenticationDataSubscription(originalPrincipalAuthData(), subscription),
+                        new AuthenticationDataSubscription(clientAuthData(), subscription));
+            } else {
+                allowFuture = authorizationService.allowNamespaceOperationAsync(namespaceName, operation,
+                        originalPrincipal(), clientAppId(), clientAuthData());
+            }
+            return allowFuture
                     .thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.FORBIDDEN,
@@ -1260,10 +1282,20 @@ public abstract class PulsarWebResource {
                         new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request"));
             }
 
-            AuthenticationDataSource authData = clientAuthData();
-            authData.setSubscription(subscription);
-            return pulsar().getBrokerService().getAuthorizationService()
-                    .allowTopicOperationAsync(topicName, operation, originalPrincipal(), clientAppId(), authData)
+            AuthorizationService authorizationService = pulsar().getBrokerService().getAuthorizationService();
+            CompletableFuture<Boolean> allowFuture;
+            if (subscription != null) {
+                // Wrap instead of setting the subscription, which some auth data types (e.g. anonymous) ignore.
+                // As for namespace operations, the original principal is checked with its own auth data.
+                allowFuture = authorizationService.allowTopicOperationAsync(topicName, operation,
+                        originalPrincipal(), clientAppId(),
+                        new AuthenticationDataSubscription(originalPrincipalAuthData(), subscription),
+                        new AuthenticationDataSubscription(clientAuthData(), subscription));
+            } else {
+                allowFuture = authorizationService.allowTopicOperationAsync(topicName, operation,
+                        originalPrincipal(), clientAppId(), clientAuthData());
+            }
+            return allowFuture
                     .thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.UNAUTHORIZED, String.format(
