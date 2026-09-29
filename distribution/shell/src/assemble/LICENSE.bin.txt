@@ -329,7 +329,7 @@ The Apache Software License, Version 2.0
  * Gson
     - gson-2.14.0.jar
  * Guava
-    - guava-33.6.0-jre.jar
+    - guava-33.7.1-jre.jar
     - failureaccess-1.0.3.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-3.1.jar
