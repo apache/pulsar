@@ -419,7 +419,7 @@ The Apache Software License, Version 2.0
     - jetty-websocket-jetty-api-12.1.13.jar
     - jetty-websocket-jetty-client-12.1.13.jar
     - jetty-websocket-jetty-common-12.1.13.jar
- * SnakeYaml -- snakeyaml-2.6.jar
+ * SnakeYaml -- snakeyaml-2.7.jar
  * Google Error Prone Annotations - error_prone_annotations-2.50.0.jar
  * Javassist -- javassist-3.32.0-GA.jar
   * Apache Avro
