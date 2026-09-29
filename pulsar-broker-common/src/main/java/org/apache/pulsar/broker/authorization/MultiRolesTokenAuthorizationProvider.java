@@ -69,6 +69,8 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
 
     static final String DEFAULT_ROLE_CLAIM = "roles";
 
+    private static final String HTTP_AUTHORIZATION_HEADER = "Authorization";
+
     private String roleClaim = DEFAULT_ROLE_CLAIM;
     private TokenAuthenticationProvider authenticationProvider;
 
@@ -178,6 +180,10 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
         if (roleData instanceof RoleAuthenticationData resolved) {
             return CompletableFuture.completedFuture(Collections.singleton(resolved.role));
         }
+        if (roleData instanceof AuthenticationDataForwarded forwarded && forwarded.getProxiedRequestData() != null
+                && role != null) {
+            return getProxiedRequestRolesAsync(role, forwarded.getProxiedRequestData());
+        }
         if (roleData == null || roleData instanceof AuthenticationDataAnonymous
                 || roleData instanceof AuthenticationDataForwarded) {
             return CompletableFuture.completedFuture(
@@ -196,6 +202,33 @@ public class MultiRolesTokenAuthorizationProvider extends PulsarAuthorizationPro
                 log.debug("Unable to extract additional roles from JWT token", e);
             }
             return CompletableFuture.completedFuture(Collections.emptySet());
+        }
+    }
+
+    /**
+     * A token in a proxied request applies to the original principal only when it authenticates as that principal.
+     */
+    private CompletableFuture<Set<String>> getProxiedRequestRolesAsync(String role, AuthenticationDataSource data) {
+        Set<String> roleOnly = Collections.singleton(role);
+        try {
+            if (!data.hasDataFromHttp() || data.getHttpHeader(HTTP_AUTHORIZATION_HEADER) == null) {
+                return CompletableFuture.completedFuture(roleOnly);
+            }
+            return authenticationProvider.authenticateAsync(data)
+                    .thenCompose(tokenRole -> role.equals(tokenRole)
+                            ? authenticationProvider.authenticateRolesAsync(data, roleClaim)
+                            : CompletableFuture.completedFuture(roleOnly))
+                    .exceptionally(error -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("No token of the original principal in the proxied request", error);
+                        }
+                        return roleOnly;
+                    });
+        } catch (RuntimeException e) {
+            if (log.isDebugEnabled()) {
+                log.debug("No token of the original principal in the proxied request", e);
+            }
+            return CompletableFuture.completedFuture(roleOnly);
         }
     }
 
