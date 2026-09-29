@@ -288,3 +288,6 @@ include("tests:pulsar-client-all-shade-test")
 project(":tests:pulsar-client-all-shade-test").projectDir = file("tests/pulsar-client-all-shade-test")
 include("tests:pulsar-client-native-image")
 project(":tests:pulsar-client-native-image").projectDir = file("tests/pulsar-client-native-image")
+
+// Compile and run consumer/API compatibility checks on the minimum supported client JDK.
+include("tests:pulsar-client-java-compatibility")
