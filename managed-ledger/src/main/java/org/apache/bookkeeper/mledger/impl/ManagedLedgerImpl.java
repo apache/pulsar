@@ -2482,6 +2482,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         });
     }
 
+    /**
+     * Returns whether the entries of the given ledger are currently read from tiered storage, i.e. whether its opened
+     * read handle is an {@link OffloadedLedgerHandle}. Returns false if no read handle is opened for the ledger.
+     */
+    public boolean isReadFromOffloadedLedgerHandle(long ledgerId) {
+        CompletableFuture<ReadHandle> handleFuture = ledgerCache.get(ledgerId);
+        return handleFuture != null && handleFuture.isDone() && !handleFuture.isCompletedExceptionally()
+                && handleFuture.getNow(null) instanceof OffloadedLedgerHandle;
+    }
+
     void invalidateReadHandle(long ledgerId) {
         CompletableFuture<ReadHandle> rhf = ledgerCache.remove(ledgerId);
         if (rhf != null) {

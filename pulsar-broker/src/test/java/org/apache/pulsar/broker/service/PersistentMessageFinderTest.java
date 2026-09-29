@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doAnswer;
@@ -33,6 +34,9 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import jakarta.ws.rs.client.Entity;
 import jakarta.ws.rs.core.MediaType;
 import java.lang.reflect.Field;
@@ -49,6 +53,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -70,6 +75,9 @@ import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonito
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil;
+import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats.FindReason;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -298,6 +306,67 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         cursor.close();
         ledger.close();
         factory.shutdown();
+    }
+
+    @Test
+    void testPersistentMessageFinderMetrics() throws Exception {
+        final String ledgerAndCursorName = "testPersistentMessageFinderMetrics";
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(2);
+        ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
+        ledger.addEntry(createMessageWrittenToLedger("message1"));
+        Thread.sleep(10);
+        ledger.addEntry(createMessageWrittenToLedger("message2"));
+        Thread.sleep(10);
+        Position position = ledger.addEntry(createMessageWrittenToLedger("message3"));
+        Thread.sleep(10);
+        long timestamp = System.currentTimeMillis();
+        Thread.sleep(10);
+        ledger.addEntry(createMessageWrittenToLedger("message4"));
+
+        @Cleanup
+        InMemoryMetricReader reader = InMemoryMetricReader.create();
+        @Cleanup
+        SdkMeterProvider meterProvider = SdkMeterProvider.builder().registerMetricReader(reader).build();
+        OpenTelemetryMessageFinderStats stats =
+                new OpenTelemetryMessageFinderStats(meterProvider.get("test"));
+        PersistentMessageFinder messageFinder =
+                new PersistentMessageFinder("topicname", cursor, 0, stats, FindReason.SEEK);
+
+        CompletableFuture<Position> future = new CompletableFuture<>();
+        messageFinder.findMessages(timestamp, new AsyncCallbacks.FindEntryCallback() {
+            @Override
+            public void findEntryComplete(Position position, Object ctx) {
+                future.complete(position);
+            }
+
+            @Override
+            public void findEntryFailed(ManagedLedgerException exception, Optional<Position> failedReadPosition,
+                                        Object ctx) {
+                future.completeExceptionally(exception);
+            }
+        });
+        assertThat(future.get()).as("position found for the timestamp").isEqualTo(position);
+
+        var metrics = reader.collectAllMetrics();
+        Attributes found = Attributes.of(OpenTelemetryMessageFinderStats.FIND_REASON, "seek",
+                OpenTelemetryMessageFinderStats.FIND_RESULT, "found");
+        BrokerOpenTelemetryTestUtil.assertMetricHistogramValue(metrics,
+                OpenTelemetryMessageFinderStats.FIND_DURATION_METRIC_NAME, found,
+                count -> assertThat(count).as("number of finds").isEqualTo(1L),
+                sum -> assertThat(sum).as("total find duration").isNotNegative());
+        Attributes bookkeeper = Attributes.of(OpenTelemetryMessageFinderStats.FIND_REASON, "seek",
+                OpenTelemetryMessageFinderStats.ENTRY_STORAGE, "bookkeeper");
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics,
+                OpenTelemetryMessageFinderStats.FIND_ENTRY_READ_COUNT_METRIC_NAME, bookkeeper,
+                value -> assertThat(value).as("entries read by the find").isPositive());
+        BrokerOpenTelemetryTestUtil.assertMetricLongSumValue(metrics,
+                OpenTelemetryMessageFinderStats.FIND_ENTRY_READ_SIZE_METRIC_NAME, bookkeeper,
+                value -> assertThat(value).as("bytes read by the find").isPositive());
+
+        cursor.close();
+        ledger.close();
     }
 
     @Test
