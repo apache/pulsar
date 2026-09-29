@@ -195,7 +195,7 @@ consolecaptor = "1.0.4"
 restassured = "5.5.7"
 skyscreamer = "1.5.3"
 # misc
-zstd-jni = "1.5.7-15"
+zstd-jni = "1.5.7-20"
 lz4java = "1.11.2"
 kubernetesclient = "27.0.0"
 aws-sdk = "1.12.797"
