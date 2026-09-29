@@ -85,6 +85,22 @@ shown that it moves the limit.
    where the limit moved. A stage outside Pulsar's control, such as the host's single disk under all the bookies,
    is a result too: record it and continue with the scenarios it does not limit.
 
+Lessons from earlier iterations:
+
+- When no thread is near 100 % busy but the throughput stops rising, read `host-io.csv`: at 80–90 % CPU busy the
+  host is the limit, and every thread waits for a CPU now and then. The clients share the host, so profile them too
+  (`--extends configs/profile-gateways --extends configs/profile-applications`) and account for all the
+  components' CPU per message; they are Pulsar clients, so their costs are Pulsar's to reduce as well.
+- Compare the broker's publish latency (`pulsar_broker_publish_latency`) and the managed ledger's add latencies
+  (`pulsar_ml_AddEntryLatencyBuckets`, `pulsar_ml_LedgerAddEntryLatencyBuckets`) with the bookies' own request and
+  journal latencies to find where a queue builds up.
+- When a stage outside the broker limits a run, check the test setup's defaults before the code: the test image's
+  `run-bookie.sh` sets 16 MB DbLedgerStorage caches unless a scenario sets them, which throttled bookie writes
+  (`bookie_throttled_write`) of large entries.
+- The launcher doesn't profile the bookies. Their metrics (`bookie_throttled_write`, `bookie_flush`, journal queue
+  and flush latencies, `bookkeeper_server_ADD_ENTRY*`) and their threads' CPU, sampled from `/proc/<pid>/task/*/stat`
+  inside the container with `docker exec`, show whether a bookie thread or its storage is the limit.
+
 Before proposing a change for review, validate it as the [Experiment loop](#experiment-loop) describes.
 
 ## Quick reference
