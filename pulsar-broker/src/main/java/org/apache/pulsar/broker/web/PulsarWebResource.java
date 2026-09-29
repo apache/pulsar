@@ -1280,6 +1280,22 @@ public abstract class PulsarWebResource {
         }
     }
 
+    /**
+     * Whether a topic that does not exist may be created for this client: the auto topic creation settings allow it
+     * and the authorization provider lets this client trigger it.
+     */
+    protected CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(TopicName topicName) {
+        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName).thenCompose(isAllowed -> {
+            if (!isAllowed || !pulsar().getConfiguration().isAuthenticationEnabled()
+                    || !pulsar().getBrokerService().isAuthorizationEnabled()) {
+                return CompletableFuture.completedFuture(isAllowed);
+            }
+            AuthenticationDataSource authData = clientAuthData();
+            return pulsar().getBrokerService().getAuthorizationService()
+                    .allowTopicAutoCreationAsync(topicName, originalPrincipal(), clientAppId(), authData, authData);
+        });
+    }
+
     public <T> T sync(Supplier<CompletableFuture<T>> supplier) {
         try {
             return supplier.get().get(config().getMetadataStoreOperationTimeoutSeconds(), SECONDS);

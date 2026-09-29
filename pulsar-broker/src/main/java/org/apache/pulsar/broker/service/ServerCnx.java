@@ -714,6 +714,29 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
     }
 
+    /**
+     * Whether a topic that does not exist may be created for this client: the auto topic creation settings allow it
+     * and the authorization provider lets this client trigger it.
+     */
+    public CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(TopicName topicName) {
+        return service.isAllowAutoTopicCreationAsync(topicName).thenCompose(isAllowed -> {
+            if (!isAllowed || !service.isAuthorizationEnabled()) {
+                return CompletableFuture.completedFuture(isAllowed);
+            }
+            return service.getAuthorizationService().allowTopicAutoCreationAsync(topicName, originalPrincipal,
+                    authRole, originalAuthData != null ? originalAuthData : authenticationData, authenticationData);
+        });
+    }
+
+    /**
+     * {@link BrokerService#getOrCreateTopic(String)} for this client, see {@link #isAllowAutoTopicCreationAsync}.
+     */
+    private CompletableFuture<Topic> getOrCreateTopic(TopicName topicName) {
+        return isAllowAutoTopicCreationAsync(topicName)
+                .thenCompose(isAllowed -> service.getTopic(topicName.toString(), isAllowed))
+                .thenApply(Optional::get);
+    }
+
     @Override
     protected void handleLookup(CommandLookupTopic lookupParam) {
         checkArgument(state == State.Connected);
@@ -1311,9 +1334,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     isAuthorized -> {
                 if (isAuthorized) {
                     // Get if exists, respond not found error if not exists.
-                    getBrokerService().isAllowAutoTopicCreationAsync(topicName).thenAccept(brokerAllowAutoCreate -> {
+                    isAllowAutoTopicCreationAsync(topicName).thenAccept(allowAutoCreate -> {
                         boolean autoCreateIfNotExist = partitionMetadata.isMetadataAutoCreationEnabled()
-                                && brokerAllowAutoCreate;
+                                && allowAutoCreate;
                         if (!autoCreateIfNotExist) {
                             NamespaceService namespaceService = getBrokerService().getPulsar().getNamespaceService();
                             namespaceService.checkTopicExistsAsync(topicName).thenAccept(topicExistsInfo -> {
@@ -2045,8 +2068,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     return null;
                 }
 
-                service.isAllowAutoTopicCreationAsync(topicName.toString())
-                        .thenApply(isAllowed -> forceTopicCreation && isAllowed)
+                (forceTopicCreation ? isAllowAutoTopicCreationAsync(topicName)
+                        : CompletableFuture.completedFuture(false))
                         .thenCompose(createTopicIfDoesNotExist ->
                                 service.getTopic(topicName.toString(), createTopicIfDoesNotExist))
                         .thenCompose(optTopic -> {
@@ -2448,7 +2471,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     .attr("schema", schema == null ? "absent" : "present")
                     .log("Creating producer");
 
-            service.getOrCreateTopic(topicName.toString()).thenComposeAsync((Topic topic) -> {
+            getOrCreateTopic(topicName).thenComposeAsync((Topic topic) -> {
                 // Check max producer limitation to avoid unnecessary ops wasting resources. For example: the new
                 // producer reached max producer limitation, but pulsar did schema check first, it would waste CPU
                 if (((AbstractTopic) topic).isProducersExceeded(producerName)) {
