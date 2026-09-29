@@ -247,23 +247,19 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         Assert.assertEquals(updatedStats.getBytesOutCounter(), 1280);
     }
 
-    @DataProvider(name = "classicAndSubscriptionType")
-    public Object[][] classicAndSubscriptionType() {
+    @DataProvider(name = "sharedSubscriptionTypes")
+    public Object[][] sharedSubscriptionTypes() {
         return new Object[][]{
-                {false, SubscriptionType.Shared},
-                {true, SubscriptionType.Key_Shared},
-                {false, SubscriptionType.Key_Shared}
+                {SubscriptionType.Shared},
+                {SubscriptionType.Key_Shared}
         };
     }
 
-    @Test(dataProvider = "classicAndSubscriptionType")
-    public void testConsumerStatsOutput(boolean classicDispatchers, SubscriptionType subscriptionType)
-            throws Exception {
+    @Test(dataProvider = "sharedSubscriptionTypes")
+    public void testConsumerStatsOutput(SubscriptionType subscriptionType) throws Exception {
         if (this instanceof AuthenticatedConsumerStatsTest) {
             throw new SkipException("Skip test for AuthenticatedConsumerStatsTest");
         }
-        conf.setSubscriptionSharedUseClassicPersistentImplementation(classicDispatchers);
-        conf.setSubscriptionKeySharedUseClassicPersistentImplementation(classicDispatchers);
         Set<String> expectedFields = Sets.newHashSet(
                 "msgRateOut",
                 "msgThroughputOut",
@@ -293,17 +289,10 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 "drainingHashesUnackedMessages"
         );
         if (subscriptionType == SubscriptionType.Key_Shared) {
-            if (classicDispatchers) {
-                expectedFields.addAll(List.of(
-                        "readPositionWhenJoining",
-                        "keyHashRanges"
-                ));
-            } else {
-                expectedFields.addAll(List.of(
-                        "drainingHashes",
-                        "keyHashRangeArrays"
-                ));
-            }
+            expectedFields.addAll(List.of(
+                    "drainingHashes",
+                    "keyHashRangeArrays"
+            ));
         }
         final String topicName = newUniqueName("persistent://my-property/my-ns/testConsumerStatsOutput");
         final String subName = "my-subscription";

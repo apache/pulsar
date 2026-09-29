@@ -100,13 +100,46 @@ public class PackageName {
         if (partsWithoutVersion.size() != 3) {
             throw new IllegalArgumentException("Invalid package name '" + packageName + "'");
         }
-        this.tenant = partsWithoutVersion.get(0);
-        this.namespace = partsWithoutVersion.get(1);
-        this.name = partsWithoutVersion.get(2);
-        this.version = Strings.isNullOrEmpty(parts.get(1)) ? "latest" : parts.get(1);
+        this.tenant = validateComponent(packageName, "tenant", partsWithoutVersion.get(0));
+        this.namespace = validateComponent(packageName, "namespace", partsWithoutVersion.get(1));
+        this.name = validateComponent(packageName, "name", partsWithoutVersion.get(2));
+        this.version = validateComponent(packageName, "version",
+                Strings.isNullOrEmpty(parts.get(1)) ? "latest" : parts.get(1));
         this.completeName = String.format("%s/%s/%s", tenant, namespace, name);
         this.completePackageName =
             String.format("%s://%s/%s/%s@%s", type.toString(), tenant, namespace, name, version);
+    }
+
+    /**
+     * Each component of a package name is used as a single segment of the package storage path, so it must be
+     * a non-empty single segment that does not contain path separators and is not a relative path reference.
+     */
+    private static String validateComponent(String packageName, String componentName, String value) {
+        if (!isValidComponent(value)) {
+            throw new IllegalArgumentException(
+                    "Invalid package " + componentName + " '" + value + "' in package name '" + packageName + "'");
+        }
+        return value;
+    }
+
+    private static boolean isValidComponent(String value) {
+        return value != null && !value.isEmpty() && !value.equals(".") && !value.equals("..")
+                && value.indexOf('/') < 0 && value.indexOf('\\') < 0 && value.indexOf('\0') < 0;
+    }
+
+    /**
+     * Validates the tenant and namespace used to address the packages of a namespace. They are subject to the
+     * same rules as the corresponding components of a package name.
+     *
+     * @throws IllegalArgumentException if the tenant or the namespace is not a valid package name component
+     */
+    public static void validateNamespace(String tenant, String namespace) {
+        if (!isValidComponent(tenant)) {
+            throw new IllegalArgumentException("Invalid package tenant '" + tenant + "'");
+        }
+        if (!isValidComponent(namespace)) {
+            throw new IllegalArgumentException("Invalid package namespace '" + namespace + "'");
+        }
     }
 
     @VisibleForTesting

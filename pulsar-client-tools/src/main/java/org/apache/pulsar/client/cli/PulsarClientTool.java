@@ -108,9 +108,6 @@ public class PulsarClientTool implements CommandHook {
     protected CmdProduce produceCommand;
     protected CmdConsume consumeCommand;
     protected CmdRead readCommand;
-    protected CmdProduceV4 produceV4Command;
-    protected CmdConsumeV4 consumeV4Command;
-    protected CmdReadV4 readV4Command;
     CmdGenerateDocumentation generateDocumentation;
 
     public PulsarClientTool(Properties properties) {
@@ -130,9 +127,6 @@ public class PulsarClientTool implements CommandHook {
         produceCommand = new CmdProduce();
         consumeCommand = new CmdConsume();
         readCommand = new CmdRead();
-        produceV4Command = new CmdProduceV4();
-        consumeV4Command = new CmdConsumeV4();
-        readV4Command = new CmdReadV4();
         generateDocumentation = new CmdGenerateDocumentation();
 
         pulsarClientPropertiesProvider = PulsarClientPropertiesProvider.create(properties);
@@ -140,13 +134,6 @@ public class PulsarClientTool implements CommandHook {
         commander.addSubcommand("produce", produceCommand);
         commander.addSubcommand("consume", consumeCommand);
         commander.addSubcommand("read", readCommand);
-        // The same commands driven by the v4 (pulsar-client-original) client, for the capabilities
-        // the V5 client cannot express: KeyValue schemas, non-durable subscriptions, a real topic
-        // regex, --start-timestamp, the v4 Reader with a <ledgerId>:<entryId> start position, and
-        // the client.conf keys that have no dedicated CLI flag.
-        commander.addSubcommand("produce-v4", produceV4Command);
-        commander.addSubcommand("consume-v4", consumeV4Command);
-        commander.addSubcommand("read-v4", readV4Command);
         commander.addSubcommand("generate_documentation", generateDocumentation);
         enableCaseInsensitiveEnums();
     }
@@ -178,8 +165,8 @@ public class PulsarClientTool implements CommandHook {
         PulsarClientBuilder clientBuilder = PulsarClient.builder()
                 .memoryLimit(MemorySize.ofBytes(rootParams.memoryLimit));
 
-        // The v4 Authentication object is still needed by the WebSocket produce/consume path,
-        // which talks HTTP and is not migrated to the binary-only V5 client.
+        // The v4 Authentication object is used by the v4 client and by the WebSocket produce/consume
+        // path, which talks HTTP and has no client generation of its own.
         Authentication authentication = null;
         if (isNotBlank(this.rootParams.authPluginClassName)) {
             authentication = AuthenticationFactory.create(rootParams.authPluginClassName, rootParams.authParams);
@@ -220,20 +207,20 @@ public class PulsarClientTool implements CommandHook {
         this.readCommand.updateConfig(clientBuilder, authentication, this.rootParams.serviceURL);
 
         // Deliberately a supplier rather than a built builder: this method is the preRun() hook and
-        // runs for every invocation, including `--help`, `generate_documentation` and the V5
-        // commands. Building the v4 builder here would make all of them depend on a service URL and
-        // on client.conf keys that only the v4 client parses. It is resolved when a *-v4 command
-        // actually runs.
+        // runs for every invocation, including `--help`, `generate_documentation` and the commands
+        // that use the V5 client. Building the v4 builder here would make all of them depend on a
+        // service URL and on client.conf keys that only the v4 client parses. It is resolved when a
+        // command actually uses the v4 client.
         final Authentication v4Authentication = authentication;
         Supplier<ClientBuilder> v4ClientBuilder = () -> buildV4ClientBuilder(properties, v4Authentication);
-        this.produceV4Command.updateConfig(v4ClientBuilder, authentication, this.rootParams.serviceURL);
-        this.consumeV4Command.updateConfig(v4ClientBuilder, authentication, this.rootParams.serviceURL);
-        this.readV4Command.updateConfig(v4ClientBuilder, authentication, this.rootParams.serviceURL);
+        this.produceCommand.updateV4Config(v4ClientBuilder);
+        this.consumeCommand.updateV4Config(v4ClientBuilder);
+        this.readCommand.updateV4Config(v4ClientBuilder);
         return 0;
     }
 
     /**
-     * Build the v4 client for the {@code *-v4} subcommands. Unlike the V5 builder this one keeps
+     * Build the v4 client for the commands that use it. Unlike the V5 builder this one keeps
      * {@code loadConf}, so every {@code client.conf} key still applies without a hand-written
      * translation, and it accepts {@code http://} / {@code https://} service URLs.
      */

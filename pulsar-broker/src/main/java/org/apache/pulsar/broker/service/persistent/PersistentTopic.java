@@ -135,7 +135,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.SubscriptionOption;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicLoadingContext;
-import org.apache.pulsar.broker.service.TopicLoadingContext.TopicLoadingStage;
+import org.apache.pulsar.broker.service.TopicLoadingTracePoints;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -143,6 +143,7 @@ import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaExce
 import org.apache.pulsar.broker.service.schema.exceptions.NotExistSchemaException;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats.FindReason;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
@@ -500,7 +501,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         CompletableFuture<Optional<Policies>> namespacePoliciesFuture = brokerService.pulsar().getPulsarResources()
                 .getNamespaceResources().getPoliciesAsync(TopicName.get(topic).getNamespaceObject());
         if (loadingContext != null) {
-            namespacePoliciesFuture = loadingContext.trace(TopicLoadingStage.NAMESPACE_POLICIES,
+            namespacePoliciesFuture = loadingContext.trace(TopicLoadingTracePoints.NAMESPACE_POLICIES,
                     namespacePoliciesFuture);
         }
         final CompletableFuture<Optional<Policies>> trackedNamespacePoliciesFuture = namespacePoliciesFuture;
@@ -533,7 +534,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     isAllowAutoUpdateSchemaWithReplicator = policies.is_allow_auto_update_schema_with_replicator;
                 }, getPoliciesNotifyThread())
                 .thenCompose(ignore -> loadingContext == null ? initTopicPolicy()
-                        : loadingContext.trace(TopicLoadingStage.TOPIC_POLICIES, initTopicPolicy()))
+                        : loadingContext.trace(TopicLoadingTracePoints.LOCAL_TOPIC_POLICIES, initTopicPolicy()))
                 .thenCompose(ignore -> removeOrphanReplicationCursors())
                 .exceptionally(ex -> {
                     log.warn()
@@ -2371,7 +2372,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private CompletableFuture<Void> checkShadowReplication() {
-        if (CollectionUtils.isEmpty(shadowTopics)) {
+        if (!brokerService.pulsar().getConfiguration().isEnableShadowTopics()
+                || CollectionUtils.isEmpty(shadowTopics)) {
             return CompletableFuture.completedFuture(null);
         }
         List<String> configuredShadowTopics = shadowTopics;
@@ -2444,7 +2446,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
         ManagedCursor cursor = cursorWithOldestPosition.getCursor();
         PersistentMessageFinder finder = new PersistentMessageFinder(topic, cursor, brokerService.getPulsar()
-                .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
+                .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis(),
+                brokerService.getPulsar().getOpenTelemetryMessageFinderStats(), FindReason.EXPIRY);
         // Find the target position.
         long expiredMessageTimestamp = System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(messageTtlInSeconds);
         CompletableFuture<Position> positionToMarkDelete = new CompletableFuture<>();
@@ -2553,6 +2556,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     CompletableFuture<Void> startReplicator(String remoteCluster) {
+        if (TopicName.get(topic).isSegment()) {
+            // The segment DAG of a scalable topic is independent per cluster, so the remote cluster has no
+            // same-named segment to replicate into. Geo-replication of scalable topics needs a mechanism of its
+            // own; until it exists, a segment must neither start a classic replicator nor create its cursor.
+            log.debug().attr("remoteCluster", remoteCluster)
+                    .log("Skip starting replicator on a scalable topic segment");
+            return CompletableFuture.completedFuture(null);
+        }
         log.info().attr("remoteCluster", remoteCluster).log("Starting replicator to remote");
         final CompletableFuture<Void> future = new CompletableFuture<>();
 
@@ -5050,6 +5061,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private synchronized void checkReplicatedSubscriptionControllerState(boolean shouldBeEnabled) {
+        if (shouldBeEnabled && TopicName.get(topic).isSegment()) {
+            // The segment DAG of a scalable topic is independent per cluster, so no remote cluster can answer a
+            // snapshot request for a segment. Replicated subscriptions of scalable topics need a mechanism of their
+            // own; until it exists, a segment must not enable the controller, which would keep writing snapshot
+            // request markers into it. The replication clusters below come from the namespace, so they cannot tell.
+            log.debug("Skip enabling replicated subscriptions controller on a scalable topic segment");
+            return;
+        }
         boolean isCurrentlyEnabled = replicatedSubscriptionsController.isPresent();
         boolean isEnableReplicatedSubscriptions =
                 brokerService.pulsar().getConfiguration().isEnableReplicatedSubscriptions();

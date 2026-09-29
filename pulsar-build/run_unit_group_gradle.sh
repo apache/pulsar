@@ -144,6 +144,7 @@ function test_group_other() {
     -x :tests:pulsar-client-v5-all-test:test \
     -x :tests:pulsar-client-shade-test:test \
     -x :tests:pulsar-client-native-image:test \
+    -x :tests:pulsar-client-java-compatibility:test \
     test
 
   # Run DnsResolverTest separately since it relies on static field values

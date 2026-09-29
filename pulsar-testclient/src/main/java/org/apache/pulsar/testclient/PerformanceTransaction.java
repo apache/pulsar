@@ -18,184 +18,171 @@
  */
 package org.apache.pulsar.testclient;
 
-import java.time.Duration;
+import io.github.merlimat.slog.Logger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminBuilder;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.v5.Message;
-import org.apache.pulsar.client.api.v5.Producer;
-import org.apache.pulsar.client.api.v5.PulsarClient;
-import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
-import org.apache.pulsar.client.api.v5.PulsarClientException;
-import org.apache.pulsar.client.api.v5.QueueConsumer;
-import org.apache.pulsar.client.api.v5.QueueConsumerBuilder;
-import org.apache.pulsar.client.api.v5.Transaction;
-import org.apache.pulsar.client.api.v5.async.AsyncMessageBuilder;
-import org.apache.pulsar.client.api.v5.async.AsyncProducer;
-import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
-import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
-import org.apache.pulsar.client.api.v5.schema.Schema;
+import org.apache.pulsar.cli.ClientApi;
+import org.apache.pulsar.cli.ClientApiOptionGroups;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.testclient.PerformanceConsumer.SubscriptionType;
+import picocli.CommandLine;
+import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.Spec;
 
 /**
- * A client program to test pulsar transaction performance with the V5 client API.
+ * The {@code pulsar-perf transaction} command: parses and validates the options, then runs the
+ * benchmark with the client the topics call for.
  *
- * <p>Everything that is not V5-specific lives in {@link PerformanceTransactionBase}; the v4 client
- * and its transaction coordinator are driven by {@link PerformanceTransactionV4} under the
- * {@code transaction-v4} name.
+ * <p>{@code topic://} (scalable) topics are driven by {@link PerformanceTransactionV5} against the
+ * scalable-topics transaction coordinator, every other topic by {@link PerformanceTransactionV4}
+ * against the v4 coordinator; {@code --client-api} overrides that choice. Options that only one client
+ * supports are in their own {@code @ArgGroup}, which gives them their own {@code --help} section and
+ * makes them a usage error with the other client.
  */
-@Command(name = "transaction", description = "Test pulsar transaction performance.")
-public class PerformanceTransaction extends PerformanceTransactionBase<PulsarClient, AsyncProducer<byte[]>,
-        QueueConsumer<byte[]>, Message<byte[]>, Transaction> {
+@Command(name = "transaction", sortOptions = false, optionListHeading = ClientApiOptionGroups.COMMON_HEADING,
+        description = {"Test pulsar transaction performance.",
+                "%nWhen the --topics-c and --topics-p topics have the topic:// (scalable) domain the V5 client "
+                        + "is used; for persistent:// and unprefixed topics the v4 client. "
+                        + "Use --client-api to override the client."})
+public class PerformanceTransaction extends PerformanceBaseArguments {
 
-    @Option(names = {"--scalable"}, description = "Create the producer/consumer topics as scalable"
-            + " topics (PIP-473) with --scalable-segments initial segments. Required for transactions"
-            + " against the scalable-topics (v5) coordinator. Mutually exclusive with --partitions.")
-    public boolean scalable = false;
+    private static final Logger log = Logger.get(PerformanceTransaction.class);
 
-    @Option(names = {"--scalable-segments"}, description = "Number of initial segments for scalable"
-            + " topics created via --scalable.")
-    public int scalableSegments = 1;
+    @Spec
+    CommandSpec spec;
+
+    @Option(names = ClientApi.OPTION_NAME, description = ClientApi.OPTION_DESCRIPTION)
+    public ClientApi clientApi;
+
+    @Option(names = "--topics-c", description = "All topics that need ack for a transaction", required =
+            true)
+    public List<String> consumerTopic = Collections.singletonList("test-consume");
+
+    @Option(names = "--topics-p", description = "All topics that need produce for a transaction",
+            required = true)
+    public List<String> producerTopic = Collections.singletonList("test-produce");
+
+    @Option(names = {"-threads", "--num-test-threads"}, description = "Number of test threads."
+            + "This thread is for a new transaction to ack messages from consumer topics and produce message to "
+            + "producer topics, and then commit or abort this transaction. "
+            + "Increasing the number of threads increases the parallelism of the performance test, "
+            + "thereby increasing the intensity of the stress test.")
+    public int numTestThreads = 1;
+
+    @Option(names = {"-au", "--admin-url"}, description = "Pulsar Admin URL", descriptionKey = "webServiceUrl")
+    public String adminURL;
+
+    @Option(names = {"-np",
+            "--partitions"}, description = "Create partitioned topics with a given number of partitions, 0 means"
+            + "not trying to create a topic")
+    public Integer partitions = null;
+
+    @Option(names = {"-time",
+            "--test-duration"}, description = "Test duration (in second). 0 means keeping publishing")
+    public long testTime = 0;
+
+    @Option(names = {"-ss",
+            "--subscriptions"}, description = "A list of subscriptions to consume (for example, sub1,sub2)")
+    public List<String> subscriptions = Collections.singletonList("sub");
+
+    @Option(names = {"-ns", "--num-subscriptions"}, description = "Number of subscriptions (per topic)")
+    public int numSubscriptions = 1;
+
+    @Option(names = {"-st", "--subscription-type"}, description = "Subscription type")
+    public SubscriptionType subscriptionType = SubscriptionType.Shared;
 
     @Option(names = {"-sp", "--subscription-position"}, description = "Subscription position")
-    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.EARLIEST;
+    public SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Earliest;
+
+    @Option(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
+    public int receiverQueueSize = 1000;
+
+    @Option(names = {"-tto", "--txn-timeout"}, description = "Set the time value of transaction timeout,"
+            + " and the time unit is second. (After --txn-enable setting to true, --txn-timeout takes effect)")
+    public long transactionTimeout = 5;
+
+    @Option(names = {"-ntxn",
+            "--number-txn"}, description = "Set the number of transaction. 0 means keeping open."
+            + "If transaction disabled, it means the number of tasks. The task or transaction produces or "
+            + "consumes a specified number of messages.")
+    public long numTransactions = 0;
+
+    @Option(names = {"-nmp", "--numMessage-perTransaction-produce"},
+            description = "Set the number of messages produced in  a transaction."
+                    + "If transaction disabled, it means the number of messages produced in a task.")
+    public int numMessagesProducedPerTransaction = 1;
+
+    @Option(names = {"-nmc", "--numMessage-perTransaction-consume"},
+            description = "Set the number of messages consumed in a transaction."
+                    + "If transaction disabled, it means the number of messages consumed in a task.")
+    public int numMessagesReceivedPerTransaction = 1;
+
+    @Option(names = {"--txn-disable"}, description = "Disable transaction")
+    public boolean isDisableTransaction = false;
+
+    @Option(names = {"-abort"}, description = "Abort the transaction. (After --txn-disEnable "
+            + "setting to false, -abort takes effect)")
+    public boolean isAbortTransaction = false;
+
+    @Option(names = "-txnRate", description = "Set the rate of opened transaction or task. 0 means no limit")
+    public int openTxnRate = 0;
+
+    @ArgGroup(exclusive = false, validate = false, order = 1, heading = ClientApiOptionGroups.V4_HEADING)
+    public V4Options v4 = new V4Options();
+
+    @ArgGroup(exclusive = false, validate = false, order = 2, heading = ClientApiOptionGroups.V5_HEADING)
+    public V5Options v5 = new V5Options();
+
+    /** The client picked for this invocation; set by {@link #validate()}. */
+    ClientApi resolvedClientApi;
+
+    /** Options that only the v4 client supports. */
+    public static class V4Options implements ClientApiOptionGroups.V4ClientOptions {
+        // The V5 consumers do not offer replicated subscriptions (#26679).
+        @Option(names = {"-rs", "--replicated" },
+                description = "Whether the subscription status should be replicated")
+        public boolean replicatedSubscription = false;
+    }
+
+    /** Options that only the V5 client supports. */
+    public static class V5Options implements ClientApiOptionGroups.V5ClientOptions {
+        @Option(names = {"--scalable"}, description = "Create the producer/consumer topics as scalable"
+                + " topics (PIP-473) with --scalable-segments initial segments. Required for transactions"
+                + " against the scalable-topics (v5) coordinator. Mutually exclusive with --partitions.")
+        public boolean scalable = false;
+
+        @Option(names = {"--scalable-segments"}, description = "Number of initial segments for scalable"
+                + " topics created via --scalable.")
+        public int scalableSegments = 1;
+    }
 
     public PerformanceTransaction() {
         super("transaction");
     }
 
     @Override
-    protected void createTopicsIfNeeded() throws Exception {
-        if (!this.scalable) {
-            super.createTopicsIfNeeded();
-            return;
-        }
-        // Scalable topics (PIP-473) must be pre-created via the admin API — they don't
-        // auto-create on produce. Create both the produce and consume topics so a
-        // transaction against the scalable-topics coordinator has segment participants.
-        final PulsarAdminBuilder adminBuilder = PerfClientUtils
-                .createAdminBuilderFromArguments(this, this.adminURL);
-        try (PulsarAdmin adminClient = adminBuilder.build()) {
-            List<String> allTopics = new ArrayList<>(this.producerTopic);
-            allTopics.addAll(this.consumerTopic);
-            for (String topic : allTopics) {
-                try {
-                    adminClient.scalableTopics().createScalableTopic(topic, this.scalableSegments);
-                    log.info().attr("topic", topic).attr("segments", this.scalableSegments)
-                            .log("Created scalable topic");
-                } catch (PulsarAdminException.ConflictException alreadyExists) {
-                    log.debug().attr("topic", topic).attr("exists", alreadyExists)
-                            .log("Scalable topic already exists");
-                }
-            }
+    public void validate() throws Exception {
+        super.validate();
+        List<String> allTopics = new ArrayList<>(producerTopic);
+        allTopics.addAll(consumerTopic);
+        resolvedClientApi = ClientApi.resolve(clientApi, allTopics, spec.commandLine());
+        ClientApiOptionGroups.validate(spec, resolvedClientApi);
+        if (v5.scalable && partitions != null) {
+            throw new CommandLine.ParameterException(spec.commandLine(),
+                    "--scalable cannot be combined with --partitions");
         }
     }
 
     @Override
-    protected void prepareRun() {
-        if (this.subscriptionType == SubscriptionType.Exclusive
-                || this.subscriptionType == SubscriptionType.Failover) {
-            log.warn().attr("type", this.subscriptionType)
-                    .log("V5 has no exclusive/failover subscription type. Falling back to QueueConsumer "
-                            + "(Shared-style work distribution). Use transaction-v4 for the v4 client.");
-        }
-    }
-
-    @Override
-    protected PulsarClient createClient() throws PulsarClientException {
-        PulsarClientBuilder clientBuilder = PerfClientUtils.createV5ClientBuilderFromArguments(this);
-        if (!this.isDisableTransaction) {
-            clientBuilder.transactionPolicy(TransactionPolicy.builder()
-                    .timeout(Duration.ofSeconds(this.transactionTimeout))
-                    .build());
-        }
-        return clientBuilder.build();
-    }
-
-    @Override
-    protected void closeClient(PulsarClient client) {
-        PerfClientUtils.closeClient(client);
-    }
-
-    @Override
-    protected CompletableFuture<AsyncProducer<byte[]>> createProducerAsync(PulsarClient client, String topic) {
-        return client.newProducer(Schema.bytes())
-                .sendTimeout(Duration.ZERO)
-                .topic(topic)
-                .createAsync()
-                .thenApply(Producer::async);
-    }
-
-    @Override
-    protected CompletableFuture<QueueConsumer<byte[]>> subscribeAsync(PulsarClient client, String topic,
-                                                                      String subscription) {
-        // V5 QueueConsumerBuilder has no clone(); build fresh per subscription.
-        QueueConsumerBuilder<byte[]> b = client.newQueueConsumer(Schema.bytes())
-                .receiverQueueSize(this.receiverQueueSize)
-                .subscriptionInitialPosition(this.subscriptionInitialPosition)
-                .replicateSubscriptionState(this.replicatedSubscription)
-                .topic(topic)
-                .subscriptionName(subscription);
-        return b.subscribeAsync();
-    }
-
-    @Override
-    protected Transaction newTransaction(PulsarClient client) throws PulsarClientException {
-        // Deliberately not PerfClientUtils.newTransactionWithRetry: this command builds its
-        // producers and consumers before opening its first transaction, so it does not hit the
-        // coordinator-connect race that helper exists for, and the worker's own retry loop has to
-        // see - and count - every failed open for -ntxn to terminate.
-        return client.newTransaction();
-    }
-
-    @Override
-    protected CompletableFuture<Void> commitTransaction(Transaction transaction) {
-        return transaction.async().commit();
-    }
-
-    @Override
-    protected CompletableFuture<Void> abortTransaction(Transaction transaction) {
-        return transaction.async().abort();
-    }
-
-    @Override
-    protected Message<byte[]> receive(QueueConsumer<byte[]> consumer) throws PulsarClientException {
-        return consumer.receive();
-    }
-
-    @Override
-    protected CompletableFuture<Void> acknowledgeAsync(QueueConsumer<byte[]> consumer, Message<byte[]> msg,
-                                                       Transaction transaction) {
-        // V5 acknowledge is synchronous void, so the reported ack latency is a local measurement
-        // rather than the broker round trip the v4 command reports.
-        try {
-            if (transaction != null) {
-                consumer.acknowledge(msg.id(), transaction);
-            } else {
-                consumer.acknowledge(msg.id());
-            }
-            return CompletableFuture.completedFuture(null);
-        } catch (Exception e) {
-            return CompletableFuture.failedFuture(e);
-        }
-    }
-
-    @Override
-    protected CompletableFuture<?> sendMessage(AsyncProducer<byte[]> producer, byte[] payload,
-                                               Transaction transaction) {
-        AsyncMessageBuilder<byte[]> msg = producer.newMessage().value(payload);
-        if (transaction != null) {
-            msg.transaction(transaction);
-        }
-        return msg.send();
-    }
-
-    @Override
-    protected boolean isAlreadyClosedException(Throwable cause) {
-        return cause instanceof PulsarClientException.AlreadyClosedException;
+    public void run() throws Exception {
+        log.info().attr("producerTopics", producerTopic).attr("consumerTopics", consumerTopic)
+                .log(resolvedClientApi == ClientApi.V5 ? "Using the V5 client" : "Using the v4 client");
+        PerformanceTransactionBase<?, ?, ?, ?, ?> transaction = resolvedClientApi == ClientApi.V5
+                ? new PerformanceTransactionV5(this) : new PerformanceTransactionV4(this);
+        transaction.run();
     }
 }

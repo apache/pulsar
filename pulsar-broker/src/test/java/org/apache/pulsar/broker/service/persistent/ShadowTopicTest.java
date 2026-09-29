@@ -29,7 +29,8 @@ import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
-import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -40,10 +41,30 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @CustomLog
-public class ShadowTopicTest extends SharedPulsarBaseTest {
+public class ShadowTopicTest extends BrokerTestBase {
+
+    @BeforeClass(alwaysRun = true)
+    @Override
+    protected void setup() throws Exception {
+        conf.setEnableShadowTopics(true);
+        super.baseSetup();
+    }
+
+    @AfterClass(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
+    }
+
+    @Override
+    protected String newTopicName() {
+        return BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/shadow-test");
+    }
 
     @Test
     public void testNonPartitionedShadowTopicSetup() throws Exception {
@@ -53,16 +74,16 @@ public class ShadowTopicTest extends SharedPulsarBaseTest {
         admin.topics().createNonPartitionedTopic(sourceTopic);
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
         PersistentTopic brokerShadowTopic =
-                (PersistentTopic) getTopicIfExists(shadowTopic).get().get();
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopic).get().get();
         Assert.assertTrue(brokerShadowTopic.getManagedLedger() instanceof ShadowManagedLedgerImpl);
         Assert.assertEquals(brokerShadowTopic.getShadowSourceTopic().get().toString(), sourceTopic);
         Assert.assertEquals(admin.topics().getShadowSource(shadowTopic), sourceTopic);
 
         //2. test shadow topic could be properly loaded after unload.
-        admin.namespaces().unload(getNamespace());
-        Assert.assertTrue(getTopicReference(shadowTopic).isEmpty());
+        admin.namespaces().unload("prop/ns-abc");
+        Assert.assertTrue(pulsar.getBrokerService().getTopicReference(shadowTopic).isEmpty());
         Assert.assertEquals(admin.topics().getShadowSource(shadowTopic), sourceTopic);
-        brokerShadowTopic = (PersistentTopic) getTopicIfExists(shadowTopic).get().get();
+        brokerShadowTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopic).get().get();
         Assert.assertTrue(brokerShadowTopic.getManagedLedger() instanceof ShadowManagedLedgerImpl);
         Assert.assertEquals(brokerShadowTopic.getShadowSourceTopic().get().toString(), sourceTopic);
     }
@@ -79,18 +100,19 @@ public class ShadowTopicTest extends SharedPulsarBaseTest {
         admin.topics().createShadowTopic(shadowTopic, sourceTopic);
         pulsarClient.newProducer().topic(shadowTopic).create().close(); //trigger loading partitions.
 
-        PersistentTopic brokerShadowTopic = (PersistentTopic) getTopicIfExists(shadowTopicPartition).get().get();
+        PersistentTopic brokerShadowTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopicPartition).get().get();
         Assert.assertTrue(brokerShadowTopic.getManagedLedger() instanceof ShadowManagedLedgerImpl);
         Assert.assertEquals(brokerShadowTopic.getShadowSourceTopic().get().toString(), sourceTopicPartition);
         Assert.assertEquals(admin.topics().getShadowSource(shadowTopic), sourceTopic);
 
         //2. test shadow topic could be properly loaded after unload.
-        admin.namespaces().unload(getNamespace());
-        Assert.assertTrue(getTopicReference(shadowTopic).isEmpty());
+        admin.namespaces().unload("prop/ns-abc");
+        Assert.assertTrue(pulsar.getBrokerService().getTopicReference(shadowTopic).isEmpty());
 
         Assert.assertEquals(admin.topics().getShadowSource(shadowTopic), sourceTopic);
         brokerShadowTopic =
-                (PersistentTopic) getTopicIfExists(shadowTopicPartition).get().get();
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopicPartition).get().get();
         Assert.assertTrue(brokerShadowTopic.getManagedLedger() instanceof ShadowManagedLedgerImpl);
         Assert.assertEquals(brokerShadowTopic.getShadowSourceTopic().get().toString(), sourceTopicPartition);
     }
@@ -138,7 +160,7 @@ public class ShadowTopicTest extends SharedPulsarBaseTest {
     private void awaitUntilShadowReplicatorReady(String sourceTopic, String shadowTopic) {
         Awaitility.await().untilAsserted(() -> {
             PersistentTopic sourcePersistentTopic =
-                    (PersistentTopic) getTopicIfExists(sourceTopic).get().get();
+                    (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopic).get().get();
             ShadowReplicator
                     replicator = (ShadowReplicator) sourcePersistentTopic.getShadowReplicators().get(shadowTopic);
             Assert.assertNotNull(replicator);

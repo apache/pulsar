@@ -159,19 +159,8 @@ public class MessageRedeliveryControllerTest {
         assertFalse(controller.isPositionToStickyKeyHashInitialized());
     }
 
-    @Test(timeOut = 10000)
-    public void testClassicOutOfOrderDoesNotInitializePositionHashMap() {
-        MessageRedeliveryController controller = new MessageRedeliveryController(true, true);
-
-        controller.add(1, 1, 100);
-
-        assertFalse(controller.isPositionToStickyKeyHashInitialized());
-        assertEquals(controller.size(), 1);
-        assertNull(controller.getHash(1, 1));
-    }
-
     @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)
-    public void testContainsStickyKeyHashes(boolean allowOutOfOrderDelivery) throws Exception {
+    public void testContainsStickyKeyHash(boolean allowOutOfOrderDelivery) throws Exception {
         MessageRedeliveryController controller = new MessageRedeliveryController(allowOutOfOrderDelivery);
         controller.add(1, 1, 100);
         controller.add(1, 2, 101);
@@ -180,18 +169,18 @@ public class MessageRedeliveryControllerTest {
         controller.add(2, 1, 104);
 
         if (allowOutOfOrderDelivery) {
-            assertFalse(controller.containsStickyKeyHashes(Set.of(100)));
-            assertFalse(controller.containsStickyKeyHashes(Set.of(101, 102, 103)));
-            assertFalse(controller.containsStickyKeyHashes(Set.of(104, 105)));
+            assertFalse(controller.containsStickyKeyHash(100));
+            assertFalse(controller.containsStickyKeyHash(101));
+            assertFalse(controller.containsStickyKeyHash(104));
         } else {
-            assertTrue(controller.containsStickyKeyHashes(Set.of(100)));
-            assertTrue(controller.containsStickyKeyHashes(Set.of(101, 102, 103)));
-            assertTrue(controller.containsStickyKeyHashes(Set.of(104, 105)));
+            assertTrue(controller.containsStickyKeyHash(100));
+            assertTrue(controller.containsStickyKeyHash(101));
+            assertTrue(controller.containsStickyKeyHash(104));
         }
 
-        assertFalse(controller.containsStickyKeyHashes(Set.of()));
-        assertFalse(controller.containsStickyKeyHashes(Set.of(99)));
-        assertFalse(controller.containsStickyKeyHashes(Set.of(105, 106)));
+        assertFalse(controller.containsStickyKeyHash(99));
+        assertFalse(controller.containsStickyKeyHash(105));
+        assertFalse(controller.containsStickyKeyHash(106));
     }
 
     @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)
