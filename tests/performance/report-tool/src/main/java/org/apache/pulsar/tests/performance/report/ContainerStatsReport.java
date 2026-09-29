@@ -18,126 +18,315 @@
  */
 package org.apache.pulsar.tests.performance.report;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
- * The run report's section on the containers: each container's CPU use, context switches, CPU migrations, clock rate
- * and instructions per cycle during the measurement, from {@code container-stats.csv} and {@code perf-stat.csv}.
+ * The run report's section on the host and the containers during the measurement: the host's CPU and disk use from
+ * {@code host-io.csv}, and each container's CPU use and context switches from {@code container-stats.csv} and its
+ * perf counts from {@code perf-stat.csv}: CPU migrations, page faults, the clock rate, instructions per cycle, and
+ * cache and branch misses per thousand instructions. The same numbers go to {@code container-summary.json} for scripts
+ * and agents.
  */
 final class ContainerStatsReport {
-    /** Sums of one container's rows within the measurement. */
-    static final class Totals {
-        int statsRows;
-        double cpuCores;
+    /** The perf columns of {@code perf-stat.csv} after the container's name, in order. */
+    static final List<String> PERF_COLUMNS = List.of(RunReport.PERF_STAT_HEADER.split(",")).subList(2,
+            RunReport.PERF_STAT_HEADER.split(",").length);
+
+    /** A container's per-second averages within the measurement, or their sum over the containers. */
+    static final class Row {
+        boolean stats;
+        double cpus;
         double voluntary;
         double involuntary;
-        int perfRows;
-        double taskClockMillis;
-        double contextSwitches;
-        double migrations;
-        double cycles;
-        double instructions;
-        boolean cyclesMissing;
+        boolean perf;
+        // Per-second averages of the perf columns; a column with an empty value in any row is missing
+        final Map<String, Double> counts = new LinkedHashMap<>();
+        final Set<String> missing = new HashSet<>();
+
+        void add(Row other) {
+            stats |= other.stats;
+            cpus += other.cpus;
+            voluntary += other.voluntary;
+            involuntary += other.involuntary;
+            perf |= other.perf;
+            other.counts.forEach((column, value) -> counts.merge(column, value, Double::sum));
+            missing.addAll(other.missing);
+        }
+
+        /** A perf count per second, or NaN when it isn't available. */
+        double count(String column) {
+            return perf && !missing.contains(column) ? counts.getOrDefault(column, Double.NaN) : Double.NaN;
+        }
+
+        double ghz() {
+            return count("cycles") / (count("taskClockMillis") * 1e6);
+        }
+
+        double ipc() {
+            return count("instructions") / count("cycles");
+        }
+
+        /** Events per thousand instructions. */
+        double perKiloInstructions(String column) {
+            return count(column) / count("instructions") * 1000;
+        }
+
+        double cacheMissPercent() {
+            return count("cacheMisses") / count("cacheReferences") * 100;
+        }
     }
 
     private ContainerStatsReport() {
     }
 
     /**
-     * Sums the rows of both files within the measurement, per container. A row covers the second before its time, so
-     * the rows from one second after the measurement's start to its end are counted.
+     * Each container's per-second averages within the measurement. A row covers the second before its time, so the
+     * rows from one second after the measurement's start to its end are counted.
      */
-    static Map<String, Totals> totals(Path runDirectory, long measurementStart, long measurementEnd)
-            throws IOException {
-        Map<String, Totals> totals = new LinkedHashMap<>();
-        for (String[] row : rows(runDirectory.resolve(RunReport.CONTAINER_STATS_FILE))) {
-            long epochMillis = Long.parseLong(row[0]);
-            if (epochMillis < measurementStart + 1000 || epochMillis > measurementEnd || row.length < 5) {
+    static Map<String, Row> rows(Path runDirectory, long measurementStart, long measurementEnd) throws IOException {
+        Map<String, double[]> stats = new LinkedHashMap<>();
+        Map<String, Integer> statsRows = new LinkedHashMap<>();
+        for (String[] row : csvRows(runDirectory.resolve(RunReport.CONTAINER_STATS_FILE))) {
+            if (row.length < 5 || !inMeasurement(row[0], measurementStart, measurementEnd)) {
                 continue;
             }
-            Totals t = totals.computeIfAbsent(row[1], name -> new Totals());
-            t.statsRows++;
-            t.cpuCores += Double.parseDouble(row[2]);
-            t.voluntary += Double.parseDouble(row[3]);
-            t.involuntary += Double.parseDouble(row[4]);
+            double[] sums = stats.computeIfAbsent(row[1], name -> new double[3]);
+            for (int i = 0; i < 3; i++) {
+                sums[i] += value(row[2 + i]);
+            }
+            statsRows.merge(row[1], 1, Integer::sum);
         }
-        for (String[] row : rows(runDirectory.resolve(RunReport.PERF_STAT_FILE))) {
-            long epochMillis = Long.parseLong(row[0]);
-            if (epochMillis < measurementStart + 1000 || epochMillis > measurementEnd || row.length < 7) {
+        Map<String, Row> rows = new LinkedHashMap<>();
+        stats.forEach((name, sums) -> {
+            Row row = rows.computeIfAbsent(name, n -> new Row());
+            int count = statsRows.get(name);
+            row.stats = true;
+            row.cpus = sums[0] / count;
+            row.voluntary = sums[1] / count;
+            row.involuntary = sums[2] / count;
+        });
+        Map<String, Integer> perfRows = new LinkedHashMap<>();
+        for (String[] fields : csvRows(runDirectory.resolve(RunReport.PERF_STAT_FILE))) {
+            if (fields.length < 2 + PERF_COLUMNS.size()
+                    || !inMeasurement(fields[0], measurementStart, measurementEnd)) {
                 continue;
             }
-            Totals t = totals.computeIfAbsent(row[1], name -> new Totals());
-            t.perfRows++;
-            t.taskClockMillis += value(row[2]);
-            t.contextSwitches += value(row[3]);
-            t.migrations += value(row[4]);
-            t.cycles += value(row[5]);
-            t.instructions += value(row[6]);
-            t.cyclesMissing |= row[5].isEmpty() || row[6].isEmpty();
-        }
-        return totals;
-    }
-
-    /** Appends the section, or nothing when the run has neither file. */
-    static void append(StringBuilder report, Path runDirectory, long measurementStart, long measurementEnd,
-                       long measuredMessages) throws IOException {
-        Map<String, Totals> totals = totals(runDirectory, measurementStart, measurementEnd);
-        if (totals.isEmpty()) {
-            return;
-        }
-        boolean perf = totals.values().stream().anyMatch(t -> t.perfRows > 0);
-        double seconds = (measurementEnd - measurementStart) / 1000.0;
-        report.append("\n## Containers\n\nEach container's CPU use during the measurement, from its cgroup, and its")
-                .append(" threads' context switches: voluntary when a thread blocked or waited for work, involuntary")
-                .append(" when the scheduler preempted it, which grows when the host's CPUs are saturated. The")
-                .append(" [sampled container stats](").append(RunReport.CONTAINER_STATS_FILE)
-                .append(") are a CSV file.");
-        if (perf) {
-            report.append(" The perf columns are exact counts of `perf stat` per container cgroup ([perf counts](")
-                    .append(RunReport.PERF_STAT_FILE).append(")): the clock rate its threads ran at and their")
-                    .append(" instructions per cycle (IPC).");
-        }
-        report.append("\n\n| Container | CPUs | CPU s per million messages | Voluntary switches/s | Involuntary")
-                .append(" switches/s |");
-        if (perf) {
-            report.append(" CPU migrations/s | GHz | IPC |");
-        }
-        report.append("\n|---|---:|---:|---:|---:|").append(perf ? "---:|---:|---:|" : "").append('\n');
-        for (Map.Entry<String, Totals> entry : totals.entrySet()) {
-            Totals t = entry.getValue();
-            report.append("| ").append(entry.getKey()).append(" | ");
-            if (t.statsRows > 0) {
-                double cores = t.cpuCores / t.statsRows;
-                report.append(format("%.2f", cores)).append(" | ")
-                        .append(measuredMessages > 0 ? format("%,.1f", cores * seconds / (measuredMessages / 1e6))
-                                : "").append(" | ")
-                        .append(format("%,.0f", t.voluntary / t.statsRows)).append(" | ")
-                        .append(format("%,.0f", t.involuntary / t.statsRows)).append(" |");
-            } else {
-                report.append(" |  |  |  |");
-            }
-            if (perf) {
-                if (t.perfRows > 0) {
-                    report.append(' ').append(format("%,.0f", t.migrations / t.perfRows)).append(" | ")
-                            .append(t.cyclesMissing || t.taskClockMillis <= 0 ? ""
-                                    : format("%.2f", t.cycles / (t.taskClockMillis * 1e6))).append(" | ")
-                            .append(t.cyclesMissing || t.cycles <= 0 ? "" : format("%.2f", t.instructions / t.cycles))
-                            .append(" |");
+            Row row = rows.computeIfAbsent(fields[1], n -> new Row());
+            row.perf = true;
+            for (int i = 0; i < PERF_COLUMNS.size(); i++) {
+                String text = fields[2 + i];
+                if (text.isEmpty()) {
+                    row.missing.add(PERF_COLUMNS.get(i));
                 } else {
-                    report.append("  |  |  |");
+                    row.counts.merge(PERF_COLUMNS.get(i), Double.parseDouble(text), Double::sum);
                 }
             }
-            report.append('\n');
+            perfRows.merge(fields[1], 1, Integer::sum);
+        }
+        perfRows.forEach((name, count) -> rows.get(name).counts.replaceAll((column, sum) -> sum / count));
+        return rows;
+    }
+
+    /**
+     * Appends the section and writes {@code container-summary.json}, or does nothing when the run has none of the
+     * files.
+     */
+    static void append(StringBuilder report, Path runDirectory, long measurementStart, long measurementEnd,
+                       long measuredMessages) throws IOException {
+        Map<String, Row> rows = rows(runDirectory, measurementStart, measurementEnd);
+        Map<String, Double> host = hostAverages(runDirectory.resolve(RunReport.HOST_IO_FILE), measurementStart,
+                measurementEnd);
+        if (rows.isEmpty() && host.isEmpty()) {
+            return;
+        }
+        double seconds = (measurementEnd - measurementStart) / 1000.0;
+        Row all = new Row();
+        rows.values().forEach(all::add);
+        writeSummary(runDirectory, measurementStart, measurementEnd, measuredMessages, host, rows, all);
+        report.append("\n## Containers\n\n");
+        if (!host.isEmpty()) {
+            report.append(hostLine(host)).append("\n\n");
+        }
+        if (rows.isEmpty()) {
+            return;
+        }
+        boolean perf = all.perf;
+        report.append("Each container's CPU use during the measurement, from its cgroup, and its threads' context")
+                .append(" switches: voluntary when a thread blocked or waited for work, involuntary when the scheduler")
+                .append(" preempted it, which grows when the host's CPUs are saturated. The [sampled container")
+                .append(" stats](").append(RunReport.CONTAINER_STATS_FILE).append(") are a CSV file, and")
+                .append(" [the summary](").append(RunReport.CONTAINER_SUMMARY_FILE).append(") holds these tables'")
+                .append(" numbers as JSON.\n\n| Container | CPUs | CPU s per million messages | Voluntary switches/s |")
+                .append(" Involuntary switches/s |").append(perf ? " CPU migrations/s | Page faults/s |" : "")
+                .append("\n|---|---:|---:|---:|---:|").append(perf ? "---:|---:|" : "").append('\n');
+        for (Map.Entry<String, Row> entry : rows.entrySet()) {
+            appendUseRow(report, entry.getKey(), entry.getValue(), perf, seconds, measuredMessages);
+        }
+        if (rows.size() > 1) {
+            appendUseRow(report, "**All containers**", all, perf, seconds, measuredMessages);
+        }
+        if (!perf) {
+            return;
+        }
+        report.append("\nHow efficiently the containers' threads ran, from exact `perf stat` counts per container")
+                .append(" cgroup ([perf counts](").append(RunReport.PERF_STAT_FILE).append(")): the clock rate, the")
+                .append(" instructions per cycle (IPC), the misses of the last-level cache, the L1 data cache and the")
+                .append(" branch predictor per thousand instructions (MPKI), and the share of last-level cache")
+                .append(" references that missed. A lower IPC with more cache misses per instruction means more time")
+                .append(" waiting for memory.\n\n")
+                .append("| Container | GHz | IPC | LLC MPKI | LLC miss % | L1D MPKI | Branch MPKI |\n")
+                .append("|---|---:|---:|---:|---:|---:|---:|\n");
+        for (Map.Entry<String, Row> entry : rows.entrySet()) {
+            appendEfficiencyRow(report, entry.getKey(), entry.getValue());
+        }
+        if (rows.size() > 1) {
+            appendEfficiencyRow(report, "**All containers**", all);
         }
     }
 
-    private static List<String[]> rows(Path csv) throws IOException {
+    private static void appendUseRow(StringBuilder report, String label, Row row, boolean perf, double seconds,
+                                     long measuredMessages) {
+        report.append("| ").append(label).append(" | ");
+        if (row.stats) {
+            report.append(format("%.2f", row.cpus)).append(" | ")
+                    .append(measuredMessages > 0 ? format("%,.1f", row.cpus * seconds / (measuredMessages / 1e6))
+                            : "").append(" | ")
+                    .append(format("%,.0f", row.voluntary)).append(" | ")
+                    .append(format("%,.0f", row.involuntary)).append(" |");
+        } else {
+            report.append(" |  |  |  |");
+        }
+        if (perf) {
+            report.append(' ').append(format("%,.0f", row.count("cpuMigrations"))).append(" | ")
+                    .append(format("%,.0f", row.count("pageFaults"))).append(" |");
+        }
+        report.append('\n');
+    }
+
+    private static void appendEfficiencyRow(StringBuilder report, String label, Row row) {
+        report.append("| ").append(label).append(" | ").append(format("%.2f", row.ghz())).append(" | ")
+                .append(format("%.2f", row.ipc())).append(" | ")
+                .append(format("%.2f", row.perKiloInstructions("cacheMisses"))).append(" | ")
+                .append(format("%.1f", row.cacheMissPercent())).append(" | ")
+                .append(format("%.2f", row.perKiloInstructions("l1dLoadMisses"))).append(" | ")
+                .append(format("%.2f", row.perKiloInstructions("branchMisses"))).append(" |\n");
+    }
+
+    /** Writes the section's numbers as JSON: the measurement, the host, and a record per container and for all. */
+    static void writeSummary(Path runDirectory, long measurementStart, long measurementEnd, long measuredMessages,
+                             Map<String, Double> host, Map<String, Row> rows, Row all) throws IOException {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode summary = mapper.createObjectNode();
+        ObjectNode measurement = summary.putObject("measurement");
+        measurement.put("startEpochMillis", measurementStart).put("endEpochMillis", measurementEnd)
+                .put("messages", measuredMessages);
+        ObjectNode hostNode = summary.putObject("host");
+        host.forEach((column, value) -> put(hostNode, column, value));
+        ObjectNode containers = summary.putObject("containers");
+        double seconds = (measurementEnd - measurementStart) / 1000.0;
+        rows.forEach((name, row) -> containerNode(containers.putObject(name), row, seconds, measuredMessages));
+        if (!rows.isEmpty()) {
+            containerNode(summary.putObject("allContainers"), all, seconds, measuredMessages);
+        }
+        mapper.writerWithDefaultPrettyPrinter()
+                .writeValue(runDirectory.resolve(RunReport.CONTAINER_SUMMARY_FILE).toFile(), summary);
+    }
+
+    private static void containerNode(ObjectNode node, Row row, double seconds, long measuredMessages) {
+        if (row.stats) {
+            put(node, "cpus", row.cpus);
+            if (measuredMessages > 0) {
+                put(node, "cpuSecondsPerMillionMessages", row.cpus * seconds / (measuredMessages / 1e6));
+            }
+            put(node, "voluntarySwitchesPerSecond", row.voluntary);
+            put(node, "involuntarySwitchesPerSecond", row.involuntary);
+        }
+        if (row.perf) {
+            for (String column : PERF_COLUMNS) {
+                put(node, column + "PerSecond", row.count(column));
+            }
+            put(node, "ghz", row.ghz());
+            put(node, "instructionsPerCycle", row.ipc());
+            put(node, "llcMissesPerKiloInstructions", row.perKiloInstructions("cacheMisses"));
+            put(node, "llcMissPercent", row.cacheMissPercent());
+            put(node, "l1dMissesPerKiloInstructions", row.perKiloInstructions("l1dLoadMisses"));
+            put(node, "branchMissesPerKiloInstructions", row.perKiloInstructions("branchMisses"));
+        }
+    }
+
+    private static void put(ObjectNode node, String field, double value) {
+        if (Double.isFinite(value)) {
+            node.put(field, Math.round(value * 1000) / 1000.0);
+        }
+    }
+
+    /**
+     * The measurement's averages of {@code host-io.csv}'s columns by name, such as {@code cpuBusyPercent} and
+     * {@code nvme0n1WriteMBps}; empty when the file is missing or has no rows within the measurement.
+     */
+    static Map<String, Double> hostAverages(Path csv, long measurementStart, long measurementEnd) throws IOException {
+        Map<String, Double> averages = new LinkedHashMap<>();
+        if (!Files.isRegularFile(csv)) {
+            return averages;
+        }
+        List<String> lines = Files.readAllLines(csv);
+        if (lines.size() < 2) {
+            return averages;
+        }
+        String[] header = lines.get(0).split(",", -1);
+        double[] sums = new double[header.length];
+        int count = 0;
+        for (String line : lines.subList(1, lines.size())) {
+            String[] fields = line.split(",", -1);
+            if (fields.length != header.length || !inMeasurement(fields[0], measurementStart, measurementEnd)) {
+                continue;
+            }
+            for (int i = 1; i < fields.length; i++) {
+                sums[i] += value(fields[i]);
+            }
+            count++;
+        }
+        for (int i = 1; count > 0 && i < header.length; i++) {
+            averages.put(header[i], sums[i] / count);
+        }
+        return averages;
+    }
+
+    /** A sentence on the host's CPU and disks during the measurement. */
+    static String hostLine(Map<String, Double> host) {
+        StringBuilder text = new StringBuilder(String.format(Locale.ROOT,
+                "During the measurement, the host's CPUs were %.1f %% busy and %.1f %% waiting for I/O on average",
+                host.getOrDefault("cpuBusyPercent", Double.NaN), host.getOrDefault("cpuIowaitPercent", Double.NaN)));
+        for (String column : host.keySet()) {
+            if (column.endsWith("ReadMBps")) {
+                String disk = column.substring(0, column.length() - "ReadMBps".length());
+                text.append(String.format(Locale.ROOT, "; disk %s read %,.0f MB/s and wrote %,.0f MB/s, busy %.1f %%",
+                        disk, host.get(column), host.getOrDefault(disk + "WriteMBps", Double.NaN),
+                        host.getOrDefault(disk + "BusyPercent", Double.NaN)));
+            }
+        }
+        return text.append(" ([sampled host I/O](").append(RunReport.HOST_IO_FILE).append(")).").toString();
+    }
+
+    private static boolean inMeasurement(String epochMillis, long measurementStart, long measurementEnd) {
+        if (epochMillis.isEmpty()) {
+            return false;
+        }
+        long time = Long.parseLong(epochMillis);
+        return time >= measurementStart + 1000 && time <= measurementEnd;
+    }
+
+    private static List<String[]> csvRows(Path csv) throws IOException {
         if (!Files.isRegularFile(csv)) {
             return List.of();
         }
@@ -150,6 +339,6 @@ final class ContainerStatsReport {
     }
 
     private static String format(String format, double value) {
-        return String.format(Locale.ROOT, format, value);
+        return Double.isFinite(value) ? String.format(Locale.ROOT, format, value) : "";
     }
 }

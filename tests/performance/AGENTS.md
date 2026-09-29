@@ -87,10 +87,12 @@ shown that it moves the limit.
 
 Lessons from earlier iterations:
 
-- The run report's Containers section shows each container's share of the CPUs per million messages. Involuntary
-  context switches that grow with the load mean threads are preempted, so the host's CPUs are saturated; voluntary
-  ones count blocking and hand-offs between threads. A change that lowers the instructions per cycle (IPC) at the
-  same CPU time does more memory-bound work, for example more cache misses.
+- The run report's Containers section, and `container-summary.json` for scripts, shows each container's CPU use per
+  million messages. Involuntary context switches that grow with the load mean threads are preempted, so the host's
+  CPUs are saturated; voluntary ones count blocking and hand-offs between threads; many CPU migrations spread a
+  thread's work over cores and cool its caches. A lower instructions per cycle (IPC) with more last-level cache or
+  L1 data cache misses per thousand instructions (MPKI) means more time waiting for memory; more branch MPKI means
+  more mispredicted branches. Compare these per container between the baseline and the change.
 - When no thread is near 100 % busy but the throughput stops rising, read `host-io.csv`: at 80–90 % CPU busy the
   host is the limit, and every thread waits for a CPU now and then. The clients share the host, so profile them too
   (`--extends configs/profile-gateways --extends configs/profile-applications`) and account for all the
@@ -251,7 +253,8 @@ commit segment can be absent). Use the exact recording names linked from the pro
 | `topic-stats.csv` | The broker's topic stats, sampled once per second: backlog and message counters per subscription | DuckDB, or any CSV reader |
 | `host-stats.csv` | The host's CPU temperature, frequency and throttle counters, sampled once per second; on Linux only | DuckDB, or any CSV reader |
 | `host-io.csv` | The host's CPU busy and I/O-wait share and each disk's read/write MB/s and busy share, sampled once per second; on Linux only. CPUs near 100 % busy delay every thread; a disk near 100 % busy limits the bookies | DuckDB, or any CSV reader |
-| `container-stats.csv`, `perf-stat.csv` | Each container's CPUs, voluntary and involuntary context switches per second, and `perf stat` counts: CPU migrations, cycles and instructions; the run report's Containers section summarizes them with the clock rate and IPC | Read `README.md`; DuckDB, or any CSV reader |
+| `container-summary.json` | **Start here for CPU use per component.** The measurement's averages: the host's CPU busy and I/O-wait share and disk MB/s, and for each container and all of them the CPUs, CPU seconds per million messages, voluntary and involuntary context switches, CPU migrations and page faults per second, the clock rate, IPC, and last-level cache, L1 data cache and branch misses per thousand instructions | `jq` |
+| `container-stats.csv`, `perf-stat.csv` | The per-second samples behind the summary: each container's CPUs and context switches, and its `perf stat` counts (task-clock, context switches, migrations, page faults, cycles, instructions, cache references and misses, L1 data cache load misses, branch misses) | DuckDB, or any CSV reader |
 | `throughput.svg`, `backlog.svg`, `latency-percentiles.svg`, `latency-timeline.svg`, `host-temperature.svg`, `host-frequency.svg` | The report's charts, each with a PNG beside it | View the PNG |
 | `metrics.json` | What querying the run's metrics needs: its label selector, time range, jobs and instances, and the URLs and credentials of VictoriaMetrics and Grafana, see [metrics.json](docs/metrics.md#metricsjson) | `jq`, then VictoriaMetrics' Prometheus API |
 | `grafana-panels/*.png` | Panels of Grafana's dashboards over the run | View |

@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -38,33 +39,55 @@ import org.apache.pulsar.tests.performance.report.RunReport;
  * {@code /proc/<tid>/status}. A voluntary switch is a thread that blocked or waited for work; an involuntary one is a
  * thread that the scheduler preempted, which grows when the host's CPUs are saturated.
  *
- * <p>These files are readable without privileges on Linux, where the containers' processes are the host's. A
- * container whose cgroup can't be found, such as on a host where Docker runs in a virtual machine, is left out.
+ * <p>The files are read by a {@link Source}: {@link LocalSource} reads them directly when the launcher runs on the
+ * Linux host of the containers, which needs no privileges; {@link PerfStatSidecar} reads them inside the Docker
+ * engine's host, such as the Linux VM of Docker Desktop or OrbStack on macOS.
  */
 final class ContainerStatsSampler implements AutoCloseable {
     static final String FILE_NAME = RunReport.CONTAINER_STATS_FILE;
     private static final long INTERVAL_MILLIS = 1000;
 
-    /** A container to sample: its name in the report and its cgroup directory. */
-    record Target(String name, Path cgroup) {
+    /** One reading of a container: its cgroup's CPU time and each thread's voluntary and involuntary switches. */
+    record Snapshot(long usageMicros, Map<String, long[]> threadSwitches) {
+    }
+
+    /** Reads the containers' snapshots, by container name. */
+    interface Source {
+        Map<String, Snapshot> read() throws IOException;
+    }
+
+    /** Reads the containers' cgroup and thread files on this host. */
+    record LocalSource(Path procfs, Map<String, Path> cgroups) implements Source {
+        @Override
+        public Map<String, Snapshot> read() {
+            Map<String, Snapshot> snapshots = new LinkedHashMap<>();
+            cgroups.forEach((name, cgroup) -> {
+                Map<String, long[]> threads = new HashMap<>();
+                for (String tid : lines(cgroup.resolve("cgroup.threads"))) {
+                    long[] switches = parseSwitches(lines(procfs.resolve(tid.trim()).resolve("status")));
+                    if (switches != null) {
+                        threads.put(tid.trim(), switches);
+                    }
+                }
+                snapshots.put(name, new Snapshot(parseUsageMicros(lines(cgroup.resolve("cpu.stat"))), threads));
+            });
+            return snapshots;
+        }
     }
 
     /** The previous reading of a container. */
     private static final class State {
         long epochMillis;
-        long usageMicros = -1;
-        Map<String, long[]> switches = new HashMap<>();
+        Snapshot snapshot;
     }
 
-    private final Path procfs;
-    private final List<Target> targets;
+    private final Source source;
     private final Map<String, State> states = new HashMap<>();
     private final BufferedWriter writer;
     private final ScheduledExecutorService executor;
 
-    private ContainerStatsSampler(Path procfs, List<Target> targets, BufferedWriter writer) {
-        this.procfs = procfs;
-        this.targets = targets;
+    private ContainerStatsSampler(Source source, BufferedWriter writer) {
+        this.source = source;
         this.writer = writer;
         this.executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
             Thread thread = new Thread(runnable, "container-stats-sampler");
@@ -73,22 +96,24 @@ final class ContainerStatsSampler implements AutoCloseable {
         });
     }
 
-    /** Starts sampling the targets into {@code runDirectory}, or returns {@code null} when there are none. */
-    static ContainerStatsSampler start(Path procfs, List<Target> targets, Path runDirectory) throws IOException {
-        if (targets.isEmpty()) {
-            return null;
-        }
-        BufferedWriter writer = Files.newBufferedWriter(runDirectory.resolve(FILE_NAME));
-        writer.write(RunReport.CONTAINER_STATS_HEADER);
-        writer.newLine();
-        ContainerStatsSampler sampler = new ContainerStatsSampler(procfs, targets, writer);
+    /** Starts sampling the source's containers into {@code runDirectory}. */
+    static ContainerStatsSampler start(Source source, Path runDirectory) throws IOException {
+        ContainerStatsSampler sampler = open(source, runDirectory);
         sampler.executor.scheduleAtFixedRate(sampler::sample, 0, INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
         return sampler;
     }
 
+    /** Creates the CSV file with its header, without starting to sample. */
+    static ContainerStatsSampler open(Source source, Path runDirectory) throws IOException {
+        BufferedWriter writer = Files.newBufferedWriter(runDirectory.resolve(FILE_NAME));
+        writer.write(RunReport.CONTAINER_STATS_HEADER);
+        writer.newLine();
+        return new ContainerStatsSampler(source, writer);
+    }
+
     /**
      * The cgroup directory of the process {@code pid}, from its {@code /proc/<pid>/cgroup} entry of the unified
-     * (v2) hierarchy under {@code cgroupRoot}, or {@code null}.
+     * (v2) hierarchy under {@code cgroupRoot}, or {@code null}, such as when the containers run in a VM.
      */
     static Path cgroupOf(Path procfs, long pid, Path cgroupRoot) {
         for (String line : lines(procfs.resolve(Long.toString(pid)).resolve("cgroup"))) {
@@ -100,37 +125,32 @@ final class ContainerStatsSampler implements AutoCloseable {
         return null;
     }
 
-    /** One CSV row for a target, or {@code null} for its first reading. */
-    String row(Target target, long epochMillis) {
-        State state = states.computeIfAbsent(target.name(), name -> new State());
-        long usageMicros = cpuUsageMicros(target.cgroup());
-        long voluntary = 0;
-        long involuntary = 0;
-        Map<String, long[]> switches = new HashMap<>();
-        for (String tid : lines(target.cgroup().resolve("cgroup.threads"))) {
-            long[] current = threadSwitches(tid.trim());
-            if (current == null) {
-                continue;
+    /** One CSV row for a container, or {@code null} for its first reading. */
+    String row(String name, Snapshot snapshot, long epochMillis) {
+        State state = states.computeIfAbsent(name, n -> new State());
+        String row = null;
+        if (state.snapshot != null && epochMillis > state.epochMillis) {
+            double seconds = (epochMillis - state.epochMillis) / 1000.0;
+            long voluntary = 0;
+            long involuntary = 0;
+            for (Map.Entry<String, long[]> thread : snapshot.threadSwitches().entrySet()) {
+                // A thread that started since the previous reading counts its switches from its start
+                long[] previous = state.snapshot.threadSwitches().getOrDefault(thread.getKey(), new long[2]);
+                voluntary += Math.max(0, thread.getValue()[0] - previous[0]);
+                involuntary += Math.max(0, thread.getValue()[1] - previous[1]);
             }
-            switches.put(tid.trim(), current);
-            // A thread that started since the previous reading counts its switches from its start
-            long[] previous = state.switches.getOrDefault(tid.trim(), new long[2]);
-            voluntary += Math.max(0, current[0] - previous[0]);
-            involuntary += Math.max(0, current[1] - previous[1]);
+            row = String.format(Locale.ROOT, "%d,%s,%.3f,%.1f,%.1f", epochMillis, name,
+                    Math.max(0, snapshot.usageMicros() - state.snapshot.usageMicros()) / 1e6 / seconds,
+                    voluntary / seconds, involuntary / seconds);
         }
-        boolean first = state.usageMicros < 0;
-        double seconds = (epochMillis - state.epochMillis) / 1000.0;
-        String row = first || seconds <= 0 ? null : String.format(Locale.ROOT, "%d,%s,%.3f,%.1f,%.1f", epochMillis,
-                target.name(), (usageMicros - state.usageMicros) / 1e6 / seconds, voluntary / seconds,
-                involuntary / seconds);
         state.epochMillis = epochMillis;
-        state.usageMicros = usageMicros;
-        state.switches = switches;
+        state.snapshot = snapshot;
         return row;
     }
 
-    private long cpuUsageMicros(Path cgroup) {
-        for (String line : lines(cgroup.resolve("cpu.stat"))) {
+    /** The {@code usage_usec} of a cgroup's {@code cpu.stat}, or 0. */
+    static long parseUsageMicros(List<String> cpuStat) {
+        for (String line : cpuStat) {
             if (line.startsWith("usage_usec ")) {
                 return Long.parseLong(line.substring("usage_usec ".length()).trim());
             }
@@ -138,11 +158,11 @@ final class ContainerStatsSampler implements AutoCloseable {
         return 0;
     }
 
-    /** The thread's voluntary and involuntary context switches, or {@code null} when it has exited. */
-    private long[] threadSwitches(String tid) {
+    /** A thread's voluntary and involuntary context switches from its {@code status}, or {@code null}. */
+    static long[] parseSwitches(List<String> status) {
         long[] switches = new long[2];
         int found = 0;
-        for (String line : lines(procfs.resolve(tid).resolve("status"))) {
+        for (String line : status) {
             if (line.startsWith("voluntary_ctxt_switches:")) {
                 switches[0] = Long.parseLong(line.substring(line.indexOf(':') + 1).trim());
                 found++;
@@ -157,8 +177,8 @@ final class ContainerStatsSampler implements AutoCloseable {
     private void sample() {
         try {
             long now = System.currentTimeMillis();
-            for (Target target : targets) {
-                String row = row(target, now);
+            for (Map.Entry<String, Snapshot> entry : source.read().entrySet()) {
+                String row = row(entry.getKey(), entry.getValue(), now);
                 if (row != null) {
                     writer.write(row);
                     writer.newLine();
@@ -181,7 +201,7 @@ final class ContainerStatsSampler implements AutoCloseable {
         writer.close();
     }
 
-    private static List<String> lines(Path file) {
+    static List<String> lines(Path file) {
         try {
             return Files.readAllLines(file);
         } catch (IOException | RuntimeException e) {

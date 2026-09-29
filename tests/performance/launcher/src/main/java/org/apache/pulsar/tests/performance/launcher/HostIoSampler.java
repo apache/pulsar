@@ -31,6 +31,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
+import org.apache.pulsar.tests.performance.report.RunReport;
 
 /**
  * Samples the host's CPU utilization and its disks' throughput once per second into {@code host-io.csv}: the share of
@@ -44,7 +45,7 @@ import java.util.stream.Stream;
  * is not sampled.
  */
 final class HostIoSampler implements AutoCloseable {
-    static final String FILE_NAME = "host-io.csv";
+    static final String FILE_NAME = RunReport.HOST_IO_FILE;
     private static final long INTERVAL_MILLIS = 1000;
     private static final int SECTOR_BYTES = 512;
 

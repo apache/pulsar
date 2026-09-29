@@ -446,10 +446,10 @@ public class PerformanceLauncher implements Callable<Integer> {
             gatewaysStarted = Instant.now();
             GenericContainer<?> runningProducer = producer;
             List<MeasuredContainer> measured = measuredContainers(cluster, clusterName, producer, consumer);
-            containerStatsSampler = startContainerStatsSampler(measured, runOutput);
             if (perfStat) {
                 perfStatSidecar = startPerfStatSidecar(measured, runOutput);
             }
+            containerStatsSampler = startContainerStatsSampler(measured, perfStatSidecar, runOutput);
             if (heapDumper != null) {
                 heapDumper.start(heapDumpTargets(cluster, heapDumpSettings, producer, consumer));
             }
@@ -849,11 +849,19 @@ public class PerformanceLauncher implements Callable<Integer> {
         return containers;
     }
 
-    /** The containers' cgroup directories; a container whose cgroup isn't found, such as in a VM, is left out. */
-    private Map<String, Path> cgroups(List<MeasuredContainer> containers) {
+    /** The PID of a container's main process in the Docker engine's host, from Docker's container inspect. */
+    private static Long pid(MeasuredContainer measured) {
+        return measured.container().getContainerInfo().getState().getPidLong();
+    }
+
+    /**
+     * The containers' cgroup directories on this host; empty when the Docker engine runs in a VM, such as Docker
+     * Desktop or OrbStack on macOS, whose processes and cgroups this host doesn't see.
+     */
+    private Map<String, Path> localCgroups(List<MeasuredContainer> containers) {
         Map<String, Path> cgroups = new LinkedHashMap<>();
         for (MeasuredContainer measured : containers) {
-            Long pid = measured.container().getContainerInfo().getState().getPidLong();
+            Long pid = pid(measured);
             Path cgroup = pid != null ? ContainerStatsSampler.cgroupOf(procfs, pid, cgroupfs) : null;
             if (cgroup != null) {
                 cgroups.put(measured.name(), cgroup);
@@ -863,18 +871,22 @@ public class PerformanceLauncher implements Callable<Integer> {
     }
 
     /**
-     * Starts sampling the containers' CPU use and context switches. Sampling is an observation, so a failure to
-     * start it is reported and the run goes on without it.
+     * Starts sampling the containers' CPU use and context switches: from this host's files when it runs the
+     * containers, else through the perf sidecar, which runs in the Docker engine's host. Sampling is an observation, so
+     * a failure to start it is reported and the run goes on without it.
      */
-    private ContainerStatsSampler startContainerStatsSampler(List<MeasuredContainer> containers, Path runOutput) {
+    private ContainerStatsSampler startContainerStatsSampler(List<MeasuredContainer> containers,
+                                                             PerfStatSidecar sidecar, Path runOutput) {
         try {
-            List<ContainerStatsSampler.Target> targets = cgroups(containers).entrySet().stream()
-                    .map(entry -> new ContainerStatsSampler.Target(entry.getKey(), entry.getValue())).toList();
-            ContainerStatsSampler sampler = ContainerStatsSampler.start(procfs, targets, runOutput);
-            if (sampler == null) {
-                System.out.println("Container stats sampling is off for this run: no container cgroups found");
+            Map<String, Path> cgroups = localCgroups(containers);
+            ContainerStatsSampler.Source source = !cgroups.isEmpty()
+                    ? new ContainerStatsSampler.LocalSource(procfs, cgroups) : sidecar;
+            if (source == null) {
+                System.out.println("Container stats sampling is off for this run: the containers' cgroups aren't on "
+                        + "this host, and --no-perf-stat turned off the sidecar that reads them in the Docker engine");
+                return null;
             }
-            return sampler;
+            return ContainerStatsSampler.start(source, runOutput);
         } catch (Exception e) {
             System.out.println("Container stats sampling is off for this run: " + e);
             return null;
@@ -882,17 +894,20 @@ public class PerformanceLauncher implements Callable<Integer> {
     }
 
     /**
-     * Starts counting the containers' perf events in a sidecar container. The counts are an observation, so a
-     * failure to start them is reported and the run goes on without them.
+     * Starts the perf sidecar container in the Docker engine's host. The counts are an observation, so a failure to
+     * start it is reported and the run goes on without them.
      */
     private PerfStatSidecar startPerfStatSidecar(List<MeasuredContainer> containers, Path runOutput) {
         try {
-            List<PerfStatSidecar.Target> targets = cgroups(containers).entrySet().stream()
-                    .map(entry -> new PerfStatSidecar.Target(entry.getKey(),
-                            cgroupfs.relativize(entry.getValue()).toString()))
-                    .toList();
+            List<PerfStatSidecar.Target> targets = new ArrayList<>();
+            for (MeasuredContainer measured : containers) {
+                Long pid = pid(measured);
+                if (pid != null) {
+                    targets.add(new PerfStatSidecar.Target(measured.name(), pid));
+                }
+            }
             PerfStatSidecar sidecar = PerfStatSidecar.start(targets, runOutput);
-            if (sidecar != null) {
+            if (sidecar != null && sidecar.counting()) {
                 status("Counting the containers' CPU events with perf stat");
             }
             return sidecar;

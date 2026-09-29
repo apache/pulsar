@@ -23,7 +23,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
-import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -64,13 +64,12 @@ public class ContainerStatsSamplerTest {
         thread(proc, "11", 50, 1);
         Files.writeString(cgroup.resolve("cgroup.threads"), "10\n11\n");
         Files.writeString(cgroup.resolve("cpu.stat"), "usage_usec 1000000\nuser_usec 800000\n");
-        ContainerStatsSampler.Target target = new ContainerStatsSampler.Target("broker-0", cgroup);
-
-        assertThat(ContainerStatsSampler.start(proc, List.of(), root)).isNull();
-        ContainerStatsSampler sampler = ContainerStatsSampler.start(proc, List.of(target), root);
+        ContainerStatsSampler.LocalSource source = new ContainerStatsSampler.LocalSource(proc,
+                Map.of("broker-0", cgroup));
+        ContainerStatsSampler sampler = ContainerStatsSampler.open(source, root);
         try {
             // The first reading only starts the counts
-            assertThat(sampler.row(target, 1_000)).isNull();
+            assertThat(sampler.row("broker-0", source.read().get("broker-0"), 1_000)).isNull();
             // Two seconds later: 3 s of CPU; thread 10 switched 40 and 2 times, 11 exited, 12 started and switched 20
             thread(proc, "10", 140, 7);
             thread(proc, "12", 20, 0);
@@ -78,7 +77,8 @@ public class ContainerStatsSamplerTest {
             Files.writeString(cgroup.resolve("cgroup.threads"), "10\n11\n12\n");
             Files.writeString(cgroup.resolve("cpu.stat"), "usage_usec 4000000\n");
 
-            assertThat(sampler.row(target, 3_000)).isEqualTo("3000,broker-0,1.500,30.0,1.0");
+            assertThat(sampler.row("broker-0", source.read().get("broker-0"), 3_000))
+                    .isEqualTo("3000,broker-0,1.500,30.0,1.0");
         } finally {
             sampler.close();
         }
