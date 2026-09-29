@@ -3687,7 +3687,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    private CompletableFuture<Void> asyncDeleteLedger(long ledgerId, long retry) {
+    @VisibleForTesting
+    CompletableFuture<Void> asyncDeleteLedger(long ledgerId, long retry) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         asyncDeleteLedgerWithRetry(future, ledgerId, retry);
         return future;
@@ -3707,7 +3708,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     future.completeExceptionally(BKException.create(rc));
                     return;
                 }
-                scheduledExecutor.schedule(() -> asyncDeleteLedger(ledgerId, retry - 1),
+                scheduledExecutor.schedule(() -> asyncDeleteLedgerWithRetry(future, ledgerId, retry - 1),
                         DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC, TimeUnit.SECONDS);
             } else {
                 log.debug().attr("ledgerId", ledgerId).log("Deleted ledger");
