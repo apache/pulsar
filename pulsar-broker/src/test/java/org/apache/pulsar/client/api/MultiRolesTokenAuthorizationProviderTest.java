@@ -21,13 +21,19 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
@@ -42,6 +48,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.testng.annotations.AfterClass;
@@ -50,6 +57,8 @@ import org.testng.annotations.Test;
 
 public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("deprecation")
+
+    private static final String PROXY_ROLE = "multi-roles-proxy";
 
     private final SecretKey secretKey = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private final String superUserToken;
@@ -88,6 +97,7 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("superUser");
         conf.setSuperUserRoles(superUserRoles);
+        conf.setProxyRoles(Set.of(PROXY_ROLE));
 
         Properties properties = new Properties();
         properties.setProperty("tokenSecretKey",
@@ -229,5 +239,77 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
                     .subscriptionName("test")
                     .subscribe();
         });
+    }
+
+    @Test
+    public void testProxiedRequestsCheckOriginalPrincipalWithItsOwnRole() throws Exception {
+        final String tenant = "multi-roles-proxied-tenant";
+        final String namespace = tenant + "/ns";
+        final String topicPath = namespace + "/test-topic";
+        final String userRole = "proxied-user";
+        final String consumerRole = "proxied-topic-consumer";
+        final String tenantAdminRole = "proxied-tenant-admin-role";
+        Map<String, Object> claims = new HashMap<>();
+        // the first role is the primary role of the token, the second one is an extra role of the proxy
+        claims.put("roles", List.of(PROXY_ROLE, "superUser"));
+        final String superUserProxyToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        claims.put("roles", List.of(PROXY_ROLE, tenantAdminRole));
+        final String tenantAdminProxyToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+
+        @Cleanup
+        PulsarAdmin superUserAdmin = newPulsarAdmin(superUserToken);
+        superUserAdmin.tenants().createTenant(tenant, TenantInfo.builder()
+                .adminRoles(Set.of(tenantAdminRole))
+                .allowedClusters(Sets.newHashSet(configClusterName)).build());
+        superUserAdmin.namespaces().createNamespace(namespace);
+        superUserAdmin.namespaces().grantPermissionOnNamespace(namespace, consumerRole, Set.of(AuthAction.consume));
+        superUserAdmin.topics().createNonPartitionedTopic("persistent://" + topicPath);
+        HttpClient httpClient = HttpClient.newHttpClient();
+
+        List<String> superUserPaths = List.of(
+                "/admin/v2/brokers/" + configClusterName,
+                "/admin/v2/clusters/" + configClusterName);
+        List<String> tenantPaths = List.of(
+                "/admin/v2/persistent/" + topicPath + "/permissions",
+                "/admin/v2/namespaces/" + tenant,
+                "/admin/v2/namespaces/" + namespace + "/permissions",
+                "/admin/v2/namespaces/" + namespace + "/retention",
+                "/admin/v2/persistent/" + topicPath + "/retention",
+                "/admin/v2/persistent/" + topicPath + "/stats");
+
+        // an ordinary original principal doesn't get the extra roles of the proxy token
+        for (String path : superUserPaths) {
+            assertDenied(getThroughProxy(httpClient, superUserProxyToken, userRole, path), path);
+        }
+        for (String path : tenantPaths) {
+            assertDenied(getThroughProxy(httpClient, superUserProxyToken, userRole, path), path);
+            assertDenied(getThroughProxy(httpClient, tenantAdminProxyToken, userRole, path), path);
+        }
+
+        // the original principal keeps its own permissions
+        for (String path : superUserPaths) {
+            assertEquals(getThroughProxy(httpClient, superUserProxyToken, "superUser", path), 200, path);
+        }
+        for (String path : tenantPaths) {
+            assertEquals(getThroughProxy(httpClient, superUserProxyToken, "superUser", path), 200, path);
+            assertEquals(getThroughProxy(httpClient, tenantAdminProxyToken, tenantAdminRole, path), 200, path);
+            assertEquals(getThroughProxy(httpClient, superUserProxyToken, tenantAdminRole, path), 200, path);
+        }
+        assertEquals(getThroughProxy(httpClient, superUserProxyToken, consumerRole,
+                "/admin/v2/persistent/" + topicPath + "/stats"), 200);
+    }
+
+    private static void assertDenied(int status, String path) {
+        assertTrue(status == 401 || status == 403, path + " returned " + status);
+    }
+
+    private int getThroughProxy(HttpClient httpClient, String proxyToken, String originalPrincipal, String path)
+            throws Exception {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(pulsar.getWebServiceAddress() + path))
+                .header("Authorization", "Bearer " + proxyToken)
+                .header("X-Original-Principal", originalPrincipal)
+                .GET()
+                .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.discarding()).statusCode();
     }
 }

@@ -53,6 +53,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataForwarded;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -180,6 +181,13 @@ public abstract class PulsarWebResource {
         return (AuthenticationDataSource) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedDataAttributeName);
     }
 
+    /**
+     * The request authentication data of a proxied request is authenticated as the proxy, not the original principal.
+     */
+    protected AuthenticationDataSource originalPrincipalAuthData() {
+        return AuthenticationDataForwarded.ofProxiedRequest(clientAuthData());
+    }
+
     public boolean isRequestHttps() {
         return "https".equalsIgnoreCase(httpRequest.getScheme());
     }
@@ -240,7 +248,7 @@ public abstract class PulsarWebResource {
                         }
                         return pulsar.getBrokerService()
                                 .getAuthorizationService()
-                                .isSuperUser(originalPrincipal, clientAuthData());
+                                .isSuperUser(originalPrincipal, originalPrincipalAuthData());
                     }).thenAccept(originalPrincipalAuthorizationSuccess -> {
                         if (!originalPrincipalAuthorizationSuccess){
                             throw new RestException(Status.UNAUTHORIZED,
@@ -344,39 +352,27 @@ public abstract class PulsarWebResource {
                         }
                         validateOriginalPrincipal(clientAppId, originalPrincipal);
                         if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
+                            // both the proxy and the original principal must be a super user or a tenant admin
                             AuthorizationService authorizationService =
                                     pulsar.getBrokerService().getAuthorizationService();
-                            return authorizationService.isTenantAdmin(tenant, clientAppId, tenantInfo,
-                                            authenticationData)
-                                .thenCompose(isTenantAdmin -> {
-                                    if (!isTenantAdmin) {
-                                            return authorizationService.isSuperUser(clientAppId, authenticationData)
-                                                .thenCombine(authorizationService.isSuperUser(originalPrincipal,
-                                                             authenticationData),
-                                                     (proxyAuthorized, originalPrincipalAuthorized) -> {
-                                                         if (!proxyAuthorized || !originalPrincipalAuthorized) {
-                                                             throw new RestException(Status.UNAUTHORIZED,
-                                                                     String.format("Proxy not authorized to access "
-                                                                                     + "resource (proxy:%s,original:%s)"
-                                                                             , clientAppId, originalPrincipal));
-                                                         } else {
-                                                                 log.debug()
-                                                                         .attr("principal", originalPrincipal)
-                                                                         .attr("proxy", clientAppId)
-                                                                         .attr("tenant", tenant)
-                                                                         .log("Authorized on tenant");
-                                                                 return null;
-                                                         }
-                                                     });
-                                    } else {
-                                            log.debug().attr("principal", originalPrincipal)
-                                                    .attr("proxy", clientAppId)
-                                                    .attr("tenant", tenant)
-                                                    .log("Successfully authorized on tenant");
-                                                                                return CompletableFuture
-                                                                                        .completedFuture(null);
-                                    }
-                                });
+                            return authorizationService.isSuperUserOrTenantAdmin(tenant, clientAppId,
+                                    authenticationData)
+                                .thenCombine(authorizationService.isSuperUserOrTenantAdmin(tenant,
+                                        originalPrincipal,
+                                        AuthenticationDataForwarded.ofProxiedRequest(authenticationData)),
+                                    (proxyAuthorized, originalPrincipalAuthorized) -> {
+                                        if (!proxyAuthorized || !originalPrincipalAuthorized) {
+                                            throw new RestException(Status.UNAUTHORIZED,
+                                                    String.format("Proxy not authorized to access "
+                                                            + "resource (proxy:%s,original:%s)",
+                                                            clientAppId, originalPrincipal));
+                                        }
+                                        log.debug().attr("principal", originalPrincipal)
+                                                .attr("proxy", clientAppId)
+                                                .attr("tenant", tenant)
+                                                .log("Successfully authorized on tenant");
+                                        return null;
+                                    });
                         } else {
                             return pulsar.getBrokerService()
                                     .getAuthorizationService()
