@@ -27,6 +27,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
@@ -59,16 +61,25 @@ public class FileSystemPackagesStorage implements PackagesStorage {
     }
 
     private File getPath(String path) throws IOException {
-        // Normalize the path to remove any redundant path elements
-        File f = Paths.get(storagePath.toString(), path).normalize().toFile();
+        Path rootPath = storagePath.toPath().toAbsolutePath().normalize();
+        Path resolvedPath;
+        try {
+            // Normalize the path to remove any redundant path elements
+            resolvedPath = Paths.get(rootPath.toString(), path).normalize();
+        } catch (InvalidPathException e) {
+            throw new IOException("Invalid path: " + path, e);
+        }
 
-        // Ensure the normalized path is still within the storagePath
-        if (!f.getAbsolutePath().startsWith(storagePath.getAbsolutePath())) {
+        // Ensure the normalized path is still within the storagePath. Path#startsWith compares whole
+        // path elements, so a sibling directory sharing the same name prefix is not accepted.
+        if (!resolvedPath.startsWith(rootPath)) {
             throw new IOException("Invalid path: " + path);
         }
 
-        if (!f.getParentFile().exists()) {
-            if (!f.getParentFile().mkdirs()) {
+        File f = resolvedPath.toFile();
+        File parent = f.getParentFile();
+        if (parent != null && !parent.exists()) {
+            if (!parent.mkdirs()) {
                 throw new RuntimeException("Failed to create parent dirs for " + path);
             }
         }
