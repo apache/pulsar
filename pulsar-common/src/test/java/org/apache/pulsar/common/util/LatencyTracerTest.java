@@ -31,6 +31,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -212,7 +213,13 @@ public class LatencyTracerTest {
 
     @Test
     public void testTraceFuture() throws Exception {
-        final var tracer = new LatencyTracer(System::nanoTime);
+        final var tracerStartNanos = new AtomicLong(Long.MIN_VALUE);
+        final var tracer = new LatencyTracer(() -> {
+            final long nanos = System.nanoTime();
+            // The first call is made by the constructor and marks the start of the tracer
+            tracerStartNanos.compareAndSet(Long.MIN_VALUE, nanos);
+            return nanos;
+        });
         final var future = CompletableFuture.completedFuture(100);
         assertNotSame(tracer.trace("A", future), future);
         final var latency = tracer.getSnapshot().description();
@@ -230,7 +237,16 @@ public class LatencyTracerTest {
                         + "total: \\d+ ms, A: \\d+ (ms|us), B: (\\d+) ms")
                 .matcher(snapshot.description());
         assertTrue(m.matches(), snapshot.description());
-        assertEquals(Long.parseLong(m.group(2)), snapshot.elapsedInMillis(), snapshot.description());
+        final var tracePointB = tracer.getTracePoints().get(1);
+        assertEquals(tracePointB.name(), "B");
+        assertEquals(Long.parseLong(m.group(2)), TimeUnit.NANOSECONDS.toMillis(
+                tracePointB.endTimeInNanos() - tracePointB.startTimeInNanos()), snapshot.description());
+        // The total covers the time from the creation of the tracer until B, the latest trace point, completed.
+        // It can be larger than B's latency since it also includes A and the time before B was started.
+        assertEquals(snapshot.endTimeInNanos(), tracePointB.endTimeInNanos(), snapshot.description());
+        assertEquals(snapshot.elapsedInMillis(), TimeUnit.NANOSECONDS.toMillis(
+                tracePointB.endTimeInNanos() - tracerStartNanos.get()), snapshot.description());
+        assertTrue(snapshot.elapsedInMillis() >= Long.parseLong(m.group(2)), snapshot.description());
         assertTrue(snapshot.elapsedInMillis() >= 500, snapshot.description());
     }
 
