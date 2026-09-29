@@ -5277,19 +5277,13 @@ public class PersistentTopicsBase extends AdminResource {
         resumeAsyncResponseExceptionally(asyncResponse, cause);
     }
 
-    protected CompletableFuture<Void> internalTruncateNonPartitionedTopicAsync(boolean authoritative) {
-        return validateAdminAccessForTenantAsync(topicName.getTenant())
-            .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-            .thenCompose(__ -> getTopicReferenceAsync(topicName))
-            .thenCompose(Topic::truncate);
-    }
-
     protected CompletableFuture<Void> internalTruncateTopicAsync(boolean authoritative) {
-
-        // If the topic name is a partition name, no need to get partition topic metadata again
-        if (topicName.isPartitioned()) {
-            return internalTruncateNonPartitionedTopicAsync(authoritative);
-        } else {
+        // Validate tenant admin access once for partitioned, non-partitioned and partition topics
+        return validateAdminAccessForTenantAsync(topicName.getTenant()).thenCompose(__ -> {
+            // If the topic name is a partition name, no need to get partition topic metadata again
+            if (topicName.isPartitioned()) {
+                return truncateNonPartitionedTopicWithoutAccessCheckAsync(authoritative);
+            }
             return getPartitionedTopicMetadataAsync(topicName, authoritative, false).thenCompose(meta -> {
                 if (meta.partitions > 0) {
                     final List<CompletableFuture<Void>> futures = new ArrayList<>(meta.partitions);
@@ -5309,10 +5303,16 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                     return FutureUtil.waitForAll(futures);
                 } else {
-                    return internalTruncateNonPartitionedTopicAsync(authoritative);
+                    return truncateNonPartitionedTopicWithoutAccessCheckAsync(authoritative);
                 }
             });
-        }
+        });
+    }
+
+    private CompletableFuture<Void> truncateNonPartitionedTopicWithoutAccessCheckAsync(boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+            .thenCompose(__ -> getTopicReferenceAsync(topicName))
+            .thenCompose(Topic::truncate);
     }
 
     protected void internalSetReplicatedSubscriptionStatus(AsyncResponse asyncResponse, String subName,
