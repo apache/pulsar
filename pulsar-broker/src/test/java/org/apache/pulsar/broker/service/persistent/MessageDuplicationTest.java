@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -35,17 +36,22 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import java.lang.reflect.Field;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -58,8 +64,10 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.awaitility.Awaitility;
@@ -245,6 +253,501 @@ public class MessageDuplicationTest extends BrokerTestBase {
         assertEquals((long) highestSequencedPushed.get(producerName1), 2L);
         assertFalse(highestSequencedPushed.containsKey(producerName2));
         assertFalse(highestSequencedPushed.containsKey(producerName3));
+    }
+
+    @Test
+    public void testInactiveGeoReplicationProducerKeepsDedupState() throws Exception {
+        PulsarService pulsarService = mock(PulsarService.class);
+        PersistentTopic topic = mock(PersistentTopic.class);
+        ManagedLedger managedLedger = mock(ManagedLedger.class);
+
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        serviceConfiguration.setBrokerDeduplicationProducerInactivityTimeoutMinutes(1);
+
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class,
+                pulsarService, topic, managedLedger);
+        doReturn(true).when(messageDeduplication).isEnabled();
+
+        ManagedCursor managedCursor = mock(ManagedCursor.class);
+        doReturn(PositionFactory.create(0, 0)).when(managedCursor).getMarkDeletedPosition();
+        doReturn(managedCursor).when(messageDeduplication).getManagedCursor();
+
+        Map<String, Long> inactiveProducers = messageDeduplication.getInactiveProducers();
+
+        String replicatorProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+        // Geo V2 dedup state tracks the last source position, so it must outlive producer inactivity cleanup.
+        MessageDeduplication.ReplSourcePosition replSourcePosition =
+                new MessageDeduplication.ReplSourcePosition(7L, 9L);
+        messageDeduplication.highestReplPositionPushed.put(replicatorProducerName, replSourcePosition);
+        messageDeduplication.highestReplPositionPersisted.put(replicatorProducerName, replSourcePosition);
+
+        messageDeduplication.producerRemoved(replicatorProducerName);
+        inactiveProducers.put(replicatorProducerName, System.currentTimeMillis() - 70000);
+
+        messageDeduplication.purgeInactiveProducers();
+
+        assertFalse(inactiveProducers.containsKey(replicatorProducerName));
+        assertEquals(messageDeduplication.highestReplPositionPushed.get(replicatorProducerName), replSourcePosition);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(replicatorProducerName), replSourcePosition);
+    }
+
+    @Test
+    public void testGeoReplicationV2DeduplicationStateTransitions() {
+        MessageDeduplication messageDeduplication = newEnabledMessageDeduplication();
+        String replicatorProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+        AtomicReference<long[]> sourcePosition = new AtomicReference<>(new long[]{7L, 9L});
+        Topic.PublishContext publishContext = getReplPublishContext(replicatorProducerName, sourcePosition);
+
+        assertEquals(messageDeduplication.isDuplicateReplV2(publishContext, Unpooled.EMPTY_BUFFER),
+                MessageDeduplication.MessageDupStatus.NotDup);
+        assertEquals(messageDeduplication.isDuplicateReplV2(publishContext, Unpooled.EMPTY_BUFFER),
+                MessageDeduplication.MessageDupStatus.Unknown);
+
+        messageDeduplication.recordMessagePersisted(publishContext, PositionFactory.create(1L, 1L));
+        assertEquals(messageDeduplication.isDuplicateReplV2(publishContext, Unpooled.EMPTY_BUFFER),
+                MessageDeduplication.MessageDupStatus.Dup);
+
+        sourcePosition.set(new long[]{7L, 8L});
+        assertEquals(messageDeduplication.isDuplicateReplV2(publishContext, Unpooled.EMPTY_BUFFER),
+                MessageDeduplication.MessageDupStatus.Dup);
+
+        sourcePosition.set(new long[]{8L, 0L});
+        assertEquals(messageDeduplication.isDuplicateReplV2(publishContext, Unpooled.EMPTY_BUFFER),
+                MessageDeduplication.MessageDupStatus.NotDup);
+        assertEquals(messageDeduplication.isDuplicateReplV2(publishContext, Unpooled.EMPTY_BUFFER),
+                MessageDeduplication.MessageDupStatus.Unknown);
+
+        // Simulate an add failure: pushed state must roll back to the last persisted source position.
+        messageDeduplication.resetHighestSequenceIdPushed();
+        MessageDeduplication.ReplSourcePosition persistedPosition =
+                new MessageDeduplication.ReplSourcePosition(7L, 9L);
+        assertEquals(messageDeduplication.highestReplPositionPushed.get(replicatorProducerName), persistedPosition);
+        assertEquals(messageDeduplication.isDuplicateReplV2(publishContext, Unpooled.EMPTY_BUFFER),
+                MessageDeduplication.MessageDupStatus.NotDup);
+    }
+
+    @Test
+    public void testGeoReplicationV2RequiresValidSourcePosition() {
+        MessageDeduplication messageDeduplication = newEnabledMessageDeduplication();
+        String replicatorProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+        Topic.PublishContext publishContext = mock(Topic.PublishContext.class);
+        doReturn(replicatorProducerName).when(publishContext).getProducerName();
+        doReturn(true).when(publishContext).supportsReplDedupByLidAndEid();
+
+        for (String sourcePosition : new String[]{null, "invalid", "-1:9"}) {
+            MessageMetadata metadata = new MessageMetadata()
+                    .setProducerName("app-producer")
+                    .setReplicatedFrom("c1")
+                    .setSequenceId(3L)
+                    .setPublishTime(System.currentTimeMillis());
+            if (sourcePosition != null) {
+                metadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue(sourcePosition);
+            }
+            ByteBuf entry = serializeMetadataAndPayload(
+                    Commands.ChecksumType.Crc32c, metadata, Unpooled.EMPTY_BUFFER);
+            try {
+                assertEquals(messageDeduplication.isDuplicate(publishContext, entry),
+                        MessageDeduplication.MessageDupStatus.Unknown);
+            } finally {
+                entry.release();
+            }
+        }
+
+        assertTrue(messageDeduplication.highestReplPositionPushed.isEmpty());
+        assertTrue(messageDeduplication.highestReplPositionPersisted.isEmpty());
+        assertTrue(messageDeduplication.highestSequencedPushed.isEmpty());
+        assertTrue(messageDeduplication.highestSequencedPersisted.isEmpty());
+    }
+
+    @Test
+    public void testGeoReplicationWatermarksAreIndependentByReplicator() {
+        MessageDeduplication messageDeduplication = newEnabledMessageDeduplication();
+        AtomicReference<long[]> sourcePosition = new AtomicReference<>(new long[]{7L, 9L});
+        String firstReplicator = REPLICATOR_PREFIX + ".c1-->c3";
+        String secondReplicator = REPLICATOR_PREFIX + ".c2-->c3";
+        Topic.PublishContext firstContext = getReplPublishContext(firstReplicator, sourcePosition);
+        Topic.PublishContext secondContext = getReplPublishContext(secondReplicator, sourcePosition);
+
+        assertEquals(messageDeduplication.isDuplicateReplV2(firstContext, Unpooled.EMPTY_BUFFER),
+                MessageDeduplication.MessageDupStatus.NotDup);
+        assertEquals(messageDeduplication.isDuplicateReplV2(secondContext, Unpooled.EMPTY_BUFFER),
+                MessageDeduplication.MessageDupStatus.NotDup);
+        messageDeduplication.recordMessagePersisted(firstContext, PositionFactory.create(1L, 1L));
+        messageDeduplication.recordMessagePersisted(secondContext, PositionFactory.create(1L, 2L));
+
+        assertEquals(messageDeduplication.isDuplicateReplV2(firstContext, Unpooled.EMPTY_BUFFER),
+                MessageDeduplication.MessageDupStatus.Dup);
+        assertEquals(messageDeduplication.isDuplicateReplV2(secondContext, Unpooled.EMPTY_BUFFER),
+                MessageDeduplication.MessageDupStatus.Dup);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.size(), 2);
+    }
+
+    @Test
+    public void testSnapshotStoresCompleteReplicationWatermarkPairsWithinProducerLimit() throws Exception {
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(1);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(1);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+
+        PersistentTopic topic = mock(PersistentTopic.class);
+        doReturn("persistent://prop/ns/tp").when(topic).getName();
+
+        MessageDeduplication messageDeduplication = new MessageDeduplication(pulsarService, topic,
+                mock(ManagedLedger.class));
+        ManagedCursor managedCursor = mock(ManagedCursor.class);
+        messageDeduplication.setManagedCursor(managedCursor);
+
+        AtomicReference<Map<String, Long>> snapshotRef = new AtomicReference<>();
+        Position position = PositionFactory.create(1, 1);
+        doAnswer(invocation -> {
+            Map<String, Long> snapshot = invocation.getArgument(1);
+            snapshotRef.set(new HashMap<>(snapshot));
+            MarkDeleteCallback callback = invocation.getArgument(2);
+            callback.markDeleteComplete(null);
+            return null;
+        }).when(managedCursor).asyncMarkDelete(eq(position), any(), any(), any());
+
+        String completeReplicatorProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+        String partialReplicatorProducerName = REPLICATOR_PREFIX + ".c3-->c2";
+        messageDeduplication.highestSequencedPersisted.put("normal-producer", 5L);
+        messageDeduplication.highestSequencedPersisted.put(partialReplicatorProducerName + "_LID", 11L);
+
+        Topic.PublishContext publishContext = mock(Topic.PublishContext.class);
+        doReturn(completeReplicatorProducerName).when(publishContext).getProducerName();
+        doReturn(new long[]{7L, 9L}).when(publishContext).getProperty(MSG_PROP_REPL_SOURCE_POSITION);
+
+        messageDeduplication.recordMessagePersistedRepl(publishContext, position);
+
+        Map<String, Long> snapshot = snapshotRef.get();
+        assertNotNull(snapshot);
+        assertEquals(snapshot.get(completeReplicatorProducerName + "_LID").longValue(), 7L);
+        assertEquals(snapshot.get(completeReplicatorProducerName + "_EID").longValue(), 9L);
+        assertEquals(snapshot.size(), 2);
+        assertFalse(snapshot.containsKey("normal-producer"));
+        assertFalse(snapshot.containsKey(partialReplicatorProducerName + "_LID"));
+        assertFalse(snapshot.containsKey(partialReplicatorProducerName + "_EID"));
+    }
+
+    @Test
+    public void testRecoverOldSnapshotWithNormalAndReplicationState() {
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+
+        PersistentTopic topic = mock(PersistentTopic.class);
+        doReturn("persistent://prop/ns/tp").when(topic).getName();
+        MessageDeduplication messageDeduplication = new MessageDeduplication(pulsarService, topic,
+                mock(ManagedLedger.class));
+
+        String completeReplicatorProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+        String incompleteReplicatorProducerName = REPLICATOR_PREFIX + ".c3-->c2";
+        Map<String, Long> oldSnapshot = new HashMap<>();
+        oldSnapshot.put("normal-producer", 5L);
+        oldSnapshot.put(completeReplicatorProducerName + "_LID", 7L);
+        oldSnapshot.put(completeReplicatorProducerName + "_EID", 9L);
+        oldSnapshot.put(incompleteReplicatorProducerName + "_LID", 11L);
+
+        messageDeduplication.recoverDeduplicationStateFromSnapshot(oldSnapshot);
+
+        assertEquals(messageDeduplication.highestSequencedPushed.get("normal-producer").longValue(), 5L);
+        assertEquals(messageDeduplication.highestSequencedPersisted.get("normal-producer").longValue(), 5L);
+        MessageDeduplication.ReplSourcePosition expectedPosition =
+                new MessageDeduplication.ReplSourcePosition(7L, 9L);
+        assertEquals(messageDeduplication.highestReplPositionPushed.get(completeReplicatorProducerName),
+                expectedPosition);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(completeReplicatorProducerName),
+                expectedPosition);
+        assertFalse(messageDeduplication.highestReplPositionPushed.containsKey(incompleteReplicatorProducerName));
+        assertFalse(messageDeduplication.highestReplPositionPersisted.containsKey(incompleteReplicatorProducerName));
+    }
+
+    @Test
+    public void testReplayRecoverShadowReplicationWatermarkUsesShadowProducerName() {
+        String clusterName = "c2";
+        String sourceTopicName = "persistent://prop/ns/source";
+        String shadowTopicName = "persistent://prop/ns/source-shadow";
+
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        serviceConfiguration.setClusterName(clusterName);
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+
+        PersistentTopic topic = mock(PersistentTopic.class);
+        doReturn(shadowTopicName).when(topic).getName();
+        doReturn(Optional.of(TopicName.get(sourceTopicName))).when(topic).getShadowSourceTopic();
+
+        MessageDeduplication messageDeduplication = new MessageDeduplication(pulsarService, topic,
+                mock(ManagedLedger.class));
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(1L)
+                .setPublishTime(System.currentTimeMillis());
+        metadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue("7:9");
+
+        messageDeduplication.recoverReplWatermarkFromMetadata(metadata);
+
+        String shadowProducerName = ShadowReplicator.getShadowProducerName(REPLICATOR_PREFIX, sourceTopicName,
+                shadowTopicName);
+        MessageDeduplication.ReplSourcePosition expectedPosition =
+                new MessageDeduplication.ReplSourcePosition(7L, 9L);
+        assertEquals(messageDeduplication.highestReplPositionPushed.get(shadowProducerName), expectedPosition);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(shadowProducerName), expectedPosition);
+        assertFalse(messageDeduplication.highestSequencedPushed.containsKey(shadowProducerName));
+        assertFalse(messageDeduplication.highestSequencedPersisted.containsKey(shadowProducerName));
+
+        String geoProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+        assertFalse(messageDeduplication.highestReplPositionPushed.containsKey(geoProducerName));
+    }
+
+    @Test
+    public void testReplayRecoverGeoReplicationWatermarkOnlyAdvances() {
+        String topicName = "persistent://prop/ns/tp";
+        String clusterName = "c2";
+
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        serviceConfiguration.setClusterName(clusterName);
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+
+        PersistentTopic topic = mock(PersistentTopic.class);
+        doReturn(topicName).when(topic).getName();
+        doReturn(Optional.empty()).when(topic).getShadowSourceTopic();
+
+        MessageDeduplication messageDeduplication = new MessageDeduplication(pulsarService, topic,
+                mock(ManagedLedger.class));
+        String geoProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+
+        MessageMetadata firstMetadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(1L)
+                .setPublishTime(System.currentTimeMillis());
+        firstMetadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue("7:9");
+        messageDeduplication.recoverReplWatermarkFromMetadata(firstMetadata);
+
+        MessageMetadata olderMetadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(2L)
+                .setPublishTime(System.currentTimeMillis());
+        olderMetadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue("7:8");
+        messageDeduplication.recoverReplWatermarkFromMetadata(olderMetadata);
+
+        MessageDeduplication.ReplSourcePosition firstPosition =
+                new MessageDeduplication.ReplSourcePosition(7L, 9L);
+        assertEquals(messageDeduplication.highestReplPositionPushed.get(geoProducerName), firstPosition);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(geoProducerName), firstPosition);
+        assertFalse(messageDeduplication.highestSequencedPushed.containsKey(geoProducerName));
+        assertFalse(messageDeduplication.highestSequencedPersisted.containsKey(geoProducerName));
+
+        MessageMetadata laterMetadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(3L)
+                .setPublishTime(System.currentTimeMillis());
+        laterMetadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue("8:0");
+        messageDeduplication.recoverReplWatermarkFromMetadata(laterMetadata);
+
+        MessageDeduplication.ReplSourcePosition laterPosition =
+                new MessageDeduplication.ReplSourcePosition(8L, 0L);
+        assertEquals(messageDeduplication.highestReplPositionPushed.get(geoProducerName), laterPosition);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(geoProducerName), laterPosition);
+    }
+
+    @Test
+    public void testPersistedGeoReplicationWatermarkOnlyAdvances() {
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+
+        PersistentTopic topic = mock(PersistentTopic.class);
+        doReturn("persistent://prop/ns/tp").when(topic).getName();
+        MessageDeduplication messageDeduplication = new MessageDeduplication(pulsarService, topic,
+                mock(ManagedLedger.class));
+
+        String geoProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+        Topic.PublishContext publishContext = mock(Topic.PublishContext.class);
+        doReturn(geoProducerName).when(publishContext).getProducerName();
+        doReturn(new long[]{7L, 9L}, new long[]{7L, 8L}, new long[]{8L, 0L})
+                .when(publishContext).getProperty(MSG_PROP_REPL_SOURCE_POSITION);
+        Position position = PositionFactory.create(1L, 1L);
+
+        messageDeduplication.recordMessagePersistedRepl(publishContext, position);
+        messageDeduplication.recordMessagePersistedRepl(publishContext, position);
+        MessageDeduplication.ReplSourcePosition firstPosition =
+                new MessageDeduplication.ReplSourcePosition(7L, 9L);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(geoProducerName), firstPosition);
+
+        messageDeduplication.recordMessagePersistedRepl(publishContext, position);
+        MessageDeduplication.ReplSourcePosition laterPosition =
+                new MessageDeduplication.ReplSourcePosition(8L, 0L);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(geoProducerName), laterPosition);
+    }
+
+    @Test
+    public void testReplayRecoversMixedV1V2AndInvalidReplicationEntries() {
+        String topicName = "persistent://prop/ns/tp";
+        String clusterName = "c2";
+
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        serviceConfiguration.setClusterName(clusterName);
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+
+        PersistentTopic topic = mock(PersistentTopic.class);
+        doReturn(topicName).when(topic).getName();
+        doReturn(Optional.empty()).when(topic).getShadowSourceTopic();
+        MessageDeduplication messageDeduplication = new MessageDeduplication(pulsarService, topic,
+                mock(ManagedLedger.class));
+
+        MessageMetadata v1Metadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(7L)
+                .setHighestSequenceId(9L)
+                .setPublishTime(System.currentTimeMillis());
+        messageDeduplication.recoverDeduplicationStateFromMetadata(v1Metadata);
+        assertEquals(messageDeduplication.highestSequencedPersisted.get("app-producer").longValue(), 9L);
+
+        MessageMetadata v2Metadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(10L)
+                .setPublishTime(System.currentTimeMillis());
+        v2Metadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue("7:9");
+        messageDeduplication.recoverDeduplicationStateFromMetadata(v2Metadata);
+        // V2 state must not affect the normal producer state: a same-named local producer uses that map.
+        assertEquals(messageDeduplication.highestSequencedPersisted.get("app-producer").longValue(), 9L);
+
+        MessageMetadata olderV1Metadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(8L)
+                .setPublishTime(System.currentTimeMillis());
+        messageDeduplication.recoverDeduplicationStateFromMetadata(olderV1Metadata);
+        assertEquals(messageDeduplication.highestSequencedPersisted.get("app-producer").longValue(), 9L);
+
+        MessageMetadata invalidV2Metadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(11L)
+                .setPublishTime(System.currentTimeMillis());
+        invalidV2Metadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue("invalid");
+        messageDeduplication.recoverDeduplicationStateFromMetadata(invalidV2Metadata);
+        assertEquals(messageDeduplication.highestSequencedPersisted.get("app-producer").longValue(), 11L);
+
+        String geoProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+        MessageDeduplication.ReplSourcePosition expectedPosition =
+                new MessageDeduplication.ReplSourcePosition(7L, 9L);
+        assertEquals(messageDeduplication.highestReplPositionPushed.get(geoProducerName), expectedPosition);
+        assertEquals(messageDeduplication.highestReplPositionPersisted.get(geoProducerName), expectedPosition);
+    }
+
+    @Test
+    public void testReplayRecoversLegacyV1ReplicationSequenceIdAfterUnload() throws Exception {
+        String topicName = "persistent://prop/ns-abc/" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName, false).join().orElseThrow();
+        Awaitility.await().untilAsserted(() -> assertTrue(persistentTopic.getMessageDeduplication().isEnabled()));
+
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(7L)
+                .setHighestSequenceId(9L)
+                .setPublishTime(System.currentTimeMillis());
+        ByteBuf entry = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata, Unpooled.EMPTY_BUFFER);
+        try {
+            persistentTopic.getManagedLedger().addEntry(ByteBufUtil.getBytes(entry));
+        } finally {
+            entry.release();
+        }
+
+        admin.topics().unload(topicName);
+        PersistentTopic reloadedTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopic(topicName, false).join().orElseThrow();
+        Awaitility.await().untilAsserted(() -> assertTrue(reloadedTopic.getMessageDeduplication().isEnabled()));
+
+        MessageDeduplication messageDeduplication = reloadedTopic.getMessageDeduplication();
+        assertEquals(messageDeduplication.highestSequencedPushed.get("app-producer").longValue(), 9L);
+        assertEquals(messageDeduplication.highestSequencedPersisted.get("app-producer").longValue(), 9L);
+        assertTrue(messageDeduplication.highestReplPositionPushed.isEmpty());
+        assertTrue(messageDeduplication.highestReplPositionPersisted.isEmpty());
+
+        Topic.PublishContext replayContext = mock(Topic.PublishContext.class);
+        doReturn(pulsar.getConfiguration().getReplicatorPrefix() + ".c1-->c2")
+                .when(replayContext).getProducerName();
+        doReturn(7L).when(replayContext).getSequenceId();
+        doReturn(9L).when(replayContext).getHighestSequenceId();
+        doReturn("app-producer").when(replayContext).getOriginalProducerName();
+        doReturn(7L).when(replayContext).getOriginalSequenceId();
+        doReturn(9L).when(replayContext).getOriginalHighestSequenceId();
+        ByteBuf replayedEntry = serializeMetadataAndPayload(
+                Commands.ChecksumType.Crc32c, metadata, Unpooled.EMPTY_BUFFER);
+        try {
+            assertEquals(messageDeduplication.isDuplicate(replayContext, replayedEntry),
+                    MessageDeduplication.MessageDupStatus.Dup);
+        } finally {
+            replayedEntry.release();
+        }
+    }
+
+    @Test
+    public void testReplayRecoverGeoReplicationWatermarkSkipsMarkers() {
+        String topicName = "persistent://prop/ns/tp";
+
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        serviceConfiguration.setClusterName("c2");
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+
+        PersistentTopic topic = mock(PersistentTopic.class);
+        doReturn(topicName).when(topic).getName();
+        doReturn(Optional.empty()).when(topic).getShadowSourceTopic();
+
+        MessageDeduplication messageDeduplication = new MessageDeduplication(pulsarService, topic,
+                mock(ManagedLedger.class));
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("app-producer")
+                .setReplicatedFrom("c1")
+                .setSequenceId(1L)
+                .setMarkerType(MarkerType.REPLICATED_SUBSCRIPTION_UPDATE_VALUE)
+                .setPublishTime(System.currentTimeMillis());
+        metadata.addProperty().setKey(MSG_PROP_REPL_SOURCE_POSITION).setValue("7:9");
+
+        messageDeduplication.recoverDeduplicationStateFromMetadata(metadata);
+
+        String geoProducerName = REPLICATOR_PREFIX + ".c1-->c2";
+        assertFalse(messageDeduplication.highestReplPositionPushed.containsKey(geoProducerName));
+        assertFalse(messageDeduplication.highestReplPositionPersisted.containsKey(geoProducerName));
+        assertEquals(messageDeduplication.highestSequencedPushed.get("app-producer").longValue(), 1L);
+        assertEquals(messageDeduplication.highestSequencedPersisted.get("app-producer").longValue(), 1L);
     }
 
     @Test
@@ -479,6 +982,31 @@ public class MessageDuplicationTest extends BrokerTestBase {
 
             }
         });
+    }
+
+    private MessageDeduplication newEnabledMessageDeduplication() {
+        PulsarService pulsarService = mock(PulsarService.class);
+        ServiceConfiguration serviceConfiguration = new ServiceConfiguration();
+        serviceConfiguration.setBrokerDeduplicationEntriesInterval(BROKER_DEDUPLICATION_ENTRIES_INTERVAL);
+        serviceConfiguration.setBrokerDeduplicationMaxNumberOfProducers(BROKER_DEDUPLICATION_MAX_NUMBER_PRODUCERS);
+        serviceConfiguration.setReplicatorPrefix(REPLICATOR_PREFIX);
+        doReturn(serviceConfiguration).when(pulsarService).getConfiguration();
+
+        PersistentTopic topic = mock(PersistentTopic.class);
+        doReturn("persistent://prop/ns/tp").when(topic).getName();
+        MessageDeduplication messageDeduplication = spyWithClassAndConstructorArgs(MessageDeduplication.class,
+                pulsarService, topic, mock(ManagedLedger.class));
+        doReturn(true).when(messageDeduplication).isEnabled();
+        return messageDeduplication;
+    }
+
+    private Topic.PublishContext getReplPublishContext(String producerName, AtomicReference<long[]> sourcePosition) {
+        Topic.PublishContext publishContext = mock(Topic.PublishContext.class);
+        doReturn(producerName).when(publishContext).getProducerName();
+        doReturn(true).when(publishContext).supportsReplDedupByLidAndEid();
+        doAnswer(invocation -> MSG_PROP_REPL_SOURCE_POSITION.equals(invocation.getArgument(0))
+                ? sourcePosition.get() : null).when(publishContext).getProperty(any());
+        return publishContext;
     }
 
     @BeforeMethod(alwaysRun = true)
