@@ -372,9 +372,13 @@ public class PerformanceLauncher implements Callable<Integer> {
         TopicStatsSampler topicStatsSampler = null;
         ProgressMonitor progress = null;
         HostStatsSampler hostStatsSampler = startHostStatsSampler(sensors, runOutput);
-        HostIoSampler hostIoSampler = startHostIoSampler(runOutput);
+        // The sidecar in the Docker engine's host counts the containers' CPU events, and reads the engine host's
+        // counters when that is a VM, such as Docker Desktop's or OrbStack's on macOS
+        PerfStatSidecar perfStatSidecar = perfStat ? startPerfStatSidecar(runOutput) : null;
+        boolean engineOnThisHost = engineOnThisHost(perfStatSidecar);
+        HostIoSampler hostIoSampler = startHostIoSampler(engineOnThisHost || perfStatSidecar == null
+                ? new HostIoSampler.LocalSource(procfs, sysfs) : perfStatSidecar.hostSource(), runOutput);
         ContainerStatsSampler containerStatsSampler = null;
-        PerfStatSidecar perfStatSidecar = null;
         HeapDumper heapDumper = heapDumpSettings.any()
                 ? new HeapDumper(runOutput, PulsarContainer.DEFAULT_IMAGE_NAME, heapDumpSettings.gzipLevel()) : null;
         MetricsCollection metricsCollection = null;
@@ -446,10 +450,9 @@ public class PerformanceLauncher implements Callable<Integer> {
             gatewaysStarted = Instant.now();
             GenericContainer<?> runningProducer = producer;
             List<MeasuredContainer> measured = measuredContainers(cluster, clusterName, producer, consumer);
-            if (perfStat) {
-                perfStatSidecar = startPerfStatSidecar(measured, runOutput);
-            }
-            containerStatsSampler = startContainerStatsSampler(measured, perfStatSidecar, runOutput);
+            boolean counted = perfStatSidecar != null && countContainers(perfStatSidecar, measured);
+            containerStatsSampler = startContainerStatsSampler(measured, engineOnThisHost,
+                    counted ? perfStatSidecar : null, runOutput);
             if (heapDumper != null) {
                 heapDumper.start(heapDumpTargets(cluster, heapDumpSettings, producer, consumer));
             }
@@ -871,16 +874,35 @@ public class PerformanceLauncher implements Callable<Integer> {
     }
 
     /**
-     * Starts sampling the containers' CPU use and context switches: from this host's files when it runs the
-     * containers, else through the perf sidecar, which runs in the Docker engine's host. Sampling is an observation, so
-     * a failure to start it is reported and the run goes on without it.
+     * Whether the Docker engine runs on this host's kernel, from the kernel's boot ID, which isn't namespaced; assumed
+     * without the sidecar. When it doesn't, such as with Docker Desktop or OrbStack on macOS, this host's files don't
+     * describe the containers' host.
+     */
+    private boolean engineOnThisHost(PerfStatSidecar sidecar) {
+        if (sidecar == null) {
+            return true;
+        }
+        try {
+            String local = Files.readString(procfs.resolve("sys/kernel/random/boot_id")).trim();
+            return local.equals(sidecar.bootId());
+        } catch (IOException | RuntimeException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Starts sampling the containers' CPU use and context switches: from this host's files when the Docker engine
+     * runs on it, else through the sidecar in the engine's host. Sampling is an observation, so a failure to start it
+     * is reported and the run goes on without it.
      */
     private ContainerStatsSampler startContainerStatsSampler(List<MeasuredContainer> containers,
-                                                             PerfStatSidecar sidecar, Path runOutput) {
+                                                             boolean engineOnThisHost, PerfStatSidecar sidecar,
+                                                             Path runOutput) {
         try {
-            Map<String, Path> cgroups = localCgroups(containers);
+            Map<String, Path> cgroups = engineOnThisHost ? localCgroups(containers) : Map.of();
             ContainerStatsSampler.Source source = !cgroups.isEmpty()
-                    ? new ContainerStatsSampler.LocalSource(procfs, cgroups) : sidecar;
+                    ? new ContainerStatsSampler.LocalSource(procfs, cgroups)
+                    : sidecar != null ? sidecar.containerSource() : null;
             if (source == null) {
                 System.out.println("Container stats sampling is off for this run: the containers' cgroups aren't on "
                         + "this host, and --no-perf-stat turned off the sidecar that reads them in the Docker engine");
@@ -894,10 +916,21 @@ public class PerformanceLauncher implements Callable<Integer> {
     }
 
     /**
-     * Starts the perf sidecar container in the Docker engine's host. The counts are an observation, so a failure to
-     * start it is reported and the run goes on without them.
+     * Starts the idle sidecar container in the Docker engine's host. It is an observation, so a failure to start it
+     * is reported and the run goes on without it.
      */
-    private PerfStatSidecar startPerfStatSidecar(List<MeasuredContainer> containers, Path runOutput) {
+    private static PerfStatSidecar startPerfStatSidecar(Path runOutput) {
+        try {
+            return PerfStatSidecar.start(runOutput);
+        } catch (Exception e) {
+            System.out.println("perf stat and the Docker engine host's counters are off for this run: "
+                    + e.getMessage());
+            return null;
+        }
+    }
+
+    /** Has the sidecar count the containers' CPU events; returns whether it found their cgroups. */
+    private static boolean countContainers(PerfStatSidecar sidecar, List<MeasuredContainer> containers) {
         try {
             List<PerfStatSidecar.Target> targets = new ArrayList<>();
             for (MeasuredContainer measured : containers) {
@@ -906,14 +939,14 @@ public class PerformanceLauncher implements Callable<Integer> {
                     targets.add(new PerfStatSidecar.Target(measured.name(), pid));
                 }
             }
-            PerfStatSidecar sidecar = PerfStatSidecar.start(targets, runOutput);
-            if (sidecar != null && sidecar.counting()) {
+            boolean found = sidecar.count(targets);
+            if (sidecar.counting()) {
                 status("Counting the containers' CPU events with perf stat");
             }
-            return sidecar;
+            return found;
         } catch (Exception e) {
             System.out.println("perf stat is off for this run: " + e.getMessage());
-            return null;
+            return false;
         }
     }
 
@@ -938,9 +971,9 @@ public class PerformanceLauncher implements Callable<Integer> {
      * Starts sampling the host's CPU utilization and disk throughput into {@code host-io.csv}. Sampling is an
      * observation, so a failure to start it is reported and the run goes on without it.
      */
-    private HostIoSampler startHostIoSampler(Path runOutput) {
+    private static HostIoSampler startHostIoSampler(HostIoSampler.Source source, Path runOutput) {
         try {
-            return HostIoSampler.start(Path.of("/proc"), sysfs, runOutput);
+            return HostIoSampler.start(source, runOutput);
         } catch (Exception e) {
             System.out.println("Host I/O sampling is off for this run: " + e);
             return null;

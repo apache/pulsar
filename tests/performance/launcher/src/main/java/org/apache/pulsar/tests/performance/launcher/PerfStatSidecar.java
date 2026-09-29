@@ -37,8 +37,9 @@ import org.testcontainers.images.builder.ImageFromDockerfile;
  * A privileged sidecar container in the Docker engine's host, which counts each container's CPU time, context
  * switches, CPU migrations, page faults, cycles, instructions, and cache and branch misses with {@code perf stat} into
  * {@code perf-stat.csv}, once per second, and serves the containers' cgroup and thread counters to the
- * {@link ContainerStatsSampler}. The perf counts are exact, not sampled, and cost next to nothing, so they suit
- * unprofiled runs.
+ * {@link ContainerStatsSampler} and the host's CPU and disk counters to the {@link HostIoSampler}. The perf counts are
+ * exact, not sampled, and cost next to nothing, so they suit unprofiled runs. It starts idle with the run; perf starts
+ * counting once the run's containers exist.
  *
  * <p>The sidecar runs in the engine host's PID and cgroup namespaces, so it works on a Linux host as well as in the
  * Linux VM of Docker Desktop or OrbStack, on x86-64 and arm64: it finds each container's cgroup from the PID that
@@ -47,7 +48,7 @@ import org.testcontainers.images.builder.ImageFromDockerfile;
  * which the kernel maps to the CPU's own; a count that the CPU or the VM doesn't provide is left empty, and when perf
  * can't count at all, the sidecar still serves the containers' counters.
  */
-final class PerfStatSidecar implements ContainerStatsSampler.Source, AutoCloseable {
+final class PerfStatSidecar implements AutoCloseable {
     static final String FILE_NAME = RunReport.PERF_STAT_FILE;
     // The software events, the cycles and instructions counters, and four more hardware counters: last-level cache
     // references and misses, L1 data cache load misses and branch misses. Common x86 and Arm cores have at least six
@@ -59,9 +60,8 @@ final class PerfStatSidecar implements ContainerStatsSampler.Source, AutoCloseab
     private static final String TARGETS = "/tmp/targets";
     private static final String OUTPUT = "/tmp/perf-stat.raw";
     private static final String START = "/tmp/perf-stat.start";
-    // Arguments: name=pid pairs. Resolves each container's cgroup, then runs perf stat in the background and keeps the
-    // container running when perf can't count, so that it still serves the containers' counters
-    private static final String START_SCRIPT = ": > " + TARGETS + ".tmp\n"
+    // Arguments: name=pid pairs. Resolves each container's cgroup, then starts perf stat detached from this docker exec
+    private static final String COUNT_SCRIPT = ": > " + TARGETS + ".tmp\n"
             + "for pair in \"$@\"; do\n"
             + "  name=${pair%%=*}; pid=${pair#*=}\n"
             + "  cg=$(sed -n 's|^0::/||p' /proc/$pid/cgroup 2>/dev/null)\n"
@@ -69,15 +69,15 @@ final class PerfStatSidecar implements ContainerStatsSampler.Source, AutoCloseab
             + ".tmp; fi\n"
             + "done\n"
             + "mv " + TARGETS + ".tmp " + TARGETS + "\n"
-            + "if [ -s " + TARGETS + " ]; then\n"
-            + "  cgroups=$(cut -d, -f2 " + TARGETS + " | paste -sd, -)\n"
-            + "  date +%s%3N > /tmp/perf-stat.t0\n"
-            + "  perf stat -a -x, -I 1000 -e " + EVENTS + " --for-each-cgroup \"$cgroups\" -o " + OUTPUT
-            + " 2> /tmp/perf-stat.err &\n"
-            + "  sleep 2\n"
-            + "  if kill -0 $! 2>/dev/null; then mv /tmp/perf-stat.t0 " + START + "; fi\n"
-            + "fi\n"
-            + "exec sleep infinity\n";
+            + "[ -s " + TARGETS + " ] || exit 0\n"
+            + "cgroups=$(cut -d, -f2 " + TARGETS + " | paste -sd, -)\n"
+            + "date +%s%3N > /tmp/perf-stat.t0\n"
+            + "setsid perf stat -a -x, -I 1000 -e " + EVENTS + " --for-each-cgroup \"$cgroups\" -o " + OUTPUT
+            + " < /dev/null > /dev/null 2> /tmp/perf-stat.err &\n"
+            + "sleep 2\n"
+            + "if kill -0 $! 2>/dev/null; then mv /tmp/perf-stat.t0 " + START + "; fi\n";
+    private static final String DISKS_SCRIPT =
+            "for d in /sys/block/*; do if [ -e \"$d/device\" ]; then basename \"$d\"; fi; done";
     // Prints each container's cgroup CPU time and its threads' context switches:
     // U,<name>,<usage_usec> and T,<name>,<tid>,<voluntary>,<involuntary>
     private static final String SNAPSHOT_SCRIPT = "while IFS=, read -r name cg; do\n"
@@ -92,58 +92,57 @@ final class PerfStatSidecar implements ContainerStatsSampler.Source, AutoCloseab
     }
 
     private final GenericContainer<?> sidecar;
-    private final Map<String, String> cgroups;
-    private final boolean counting;
     private final Path runDirectory;
+    private Map<String, String> cgroups = Map.of();
+    private boolean counting;
 
-    private PerfStatSidecar(GenericContainer<?> sidecar, Map<String, String> cgroups, boolean counting,
-                            Path runDirectory) {
+    private PerfStatSidecar(GenericContainer<?> sidecar, Path runDirectory) {
         this.sidecar = sidecar;
-        this.cgroups = cgroups;
-        this.counting = counting;
         this.runDirectory = runDirectory;
     }
 
-    /**
-     * Starts the sidecar for the targets, or returns {@code null} when there are none or none of their cgroups was
-     * found.
-     */
+    /** Starts the idle sidecar in the Docker engine's host. */
     @SuppressWarnings("resource")
-    static PerfStatSidecar start(List<Target> targets, Path runDirectory) throws IOException, InterruptedException {
-        if (targets.isEmpty()) {
-            return null;
-        }
-        List<String> command = new ArrayList<>(List.of("sh", "-c", START_SCRIPT, "sh"));
-        targets.forEach(target -> command.add(target.name() + "=" + target.pid()));
+    static PerfStatSidecar start(Path runDirectory) {
         GenericContainer<?> sidecar = new GenericContainer<>(new ImageFromDockerfile(IMAGE, false)
                 .withDockerfileFromBuilder(builder -> builder.from("alpine:3.20")
                         .run("apk add --no-cache perf coreutils").build()))
                 .withPrivilegedMode(true)
                 .withCreateContainerCmdModifier(cmd -> cmd.getHostConfig().withCgroupnsMode("host")
                         .withPidMode("host"))
-                .withCommand(command.toArray(String[]::new))
-                .waitingFor(Wait.forSuccessfulCommand("test -e " + TARGETS)
-                        .withStartupTimeout(Duration.ofSeconds(60)));
+                .withCommand("sleep", "infinity")
+                .waitingFor(Wait.forSuccessfulCommand("true").withStartupTimeout(Duration.ofSeconds(60)));
         sidecar.start();
-        Map<String, String> cgroups = new LinkedHashMap<>();
-        for (String line : sidecar.execInContainer("cat", TARGETS).getStdout().lines().toList()) {
+        return new PerfStatSidecar(sidecar, runDirectory);
+    }
+
+    /** The boot ID of the Docker engine host's kernel, which isn't namespaced: equal only on the same kernel. */
+    String bootId() throws IOException {
+        return exec("cat", "/proc/sys/kernel/random/boot_id").trim();
+    }
+
+    /**
+     * Starts counting the targets' events, and serving their counters. Returns whether any of their cgroups was
+     * found; perf may still be unable to count, see {@link #counting()}.
+     */
+    boolean count(List<Target> targets) throws IOException, InterruptedException {
+        List<String> command = new ArrayList<>(List.of("sh", "-c", COUNT_SCRIPT, "sh"));
+        targets.forEach(target -> command.add(target.name() + "=" + target.pid()));
+        sidecar.execInContainer(command.toArray(String[]::new));
+        Map<String, String> found = new LinkedHashMap<>();
+        for (String line : exec("cat", TARGETS).lines().toList()) {
             int comma = line.indexOf(',');
             if (comma > 0) {
-                cgroups.put(line.substring(0, comma), line.substring(comma + 1));
+                found.put(line.substring(0, comma), line.substring(comma + 1));
             }
         }
-        if (cgroups.isEmpty()) {
-            sidecar.stop();
-            return null;
-        }
-        // perf gets two seconds to start counting
-        Thread.sleep(2500);
-        boolean counting = sidecar.execInContainer("test", "-e", START).getExitCode() == 0;
-        if (!counting) {
+        cgroups = found;
+        counting = !found.isEmpty() && sidecar.execInContainer("test", "-e", START).getExitCode() == 0;
+        if (!found.isEmpty() && !counting) {
             System.out.println("perf stat can't count in this Docker engine: "
-                    + sidecar.execInContainer("cat", "/tmp/perf-stat.err").getStdout().trim());
+                    + exec("cat", "/tmp/perf-stat.err").trim());
         }
-        return new PerfStatSidecar(sidecar, cgroups, counting, runDirectory);
+        return !found.isEmpty();
     }
 
     /** Whether perf stat is counting the containers' events. */
@@ -151,15 +150,46 @@ final class PerfStatSidecar implements ContainerStatsSampler.Source, AutoCloseab
         return counting;
     }
 
-    /** The containers' cgroup and thread counters, read inside the Docker engine's host. */
-    @Override
-    public Map<String, ContainerStatsSampler.Snapshot> read() throws IOException {
+    /** The Docker engine host's CPU and disk counters, for the {@link HostIoSampler}. */
+    HostIoSampler.Source hostSource() {
+        return new HostIoSampler.Source() {
+            @Override
+            public List<String> disks() throws IOException {
+                return exec("sh", "-c", DISKS_SCRIPT).lines().filter(line -> !line.isBlank()).toList();
+            }
+
+            @Override
+            public HostIoSampler.HostFiles read() throws IOException {
+                return parseHostFiles(exec("sh", "-c", "cat /proc/stat; echo ---; cat /proc/diskstats").lines()
+                        .toList());
+            }
+        };
+    }
+
+    /** The counted containers' cgroup and thread counters, for the {@link ContainerStatsSampler}. */
+    ContainerStatsSampler.Source containerSource() {
+        return this::readContainers;
+    }
+
+    /** Splits the host files' exec output at its {@code ---} line. */
+    static HostIoSampler.HostFiles parseHostFiles(List<String> lines) {
+        int separator = lines.indexOf("---");
+        return separator < 0 ? new HostIoSampler.HostFiles(lines, List.of())
+                : new HostIoSampler.HostFiles(lines.subList(0, separator), lines.subList(separator + 1, lines.size()));
+    }
+
+    private String exec(String... command) throws IOException {
         try {
-            return parseSnapshots(sidecar.execInContainer("sh", "-c", SNAPSHOT_SCRIPT).getStdout().lines().toList());
+            return sidecar.execInContainer(command).getStdout();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new IOException(e);
         }
+    }
+
+    /** The containers' cgroup and thread counters, read inside the Docker engine's host. */
+    private Map<String, ContainerStatsSampler.Snapshot> readContainers() throws IOException {
+        return parseSnapshots(exec("sh", "-c", SNAPSHOT_SCRIPT).lines().toList());
     }
 
     /** Parses the snapshot script's output into a snapshot per container. */

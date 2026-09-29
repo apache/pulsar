@@ -83,7 +83,8 @@ public class HostIoSamplerTest {
         Files.createDirectories(root.resolve("sys/block/nvme0n1/device"));
 
         HostIoSampler.Counters counters;
-        try (HostIoSampler sampler = HostIoSampler.start(proc, root.resolve("sys"), root)) {
+        HostIoSampler.Source source = new HostIoSampler.LocalSource(proc, root.resolve("sys"));
+        try (HostIoSampler sampler = HostIoSampler.start(source, root)) {
             assertThat(sampler).isNotNull();
             counters = sampler.read(5_000);
         }

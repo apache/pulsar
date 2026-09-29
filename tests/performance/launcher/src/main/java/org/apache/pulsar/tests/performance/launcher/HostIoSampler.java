@@ -41,8 +41,9 @@ import org.apache.pulsar.tests.performance.report.RunReport;
  *
  * <p>The values are deltas of Linux's cumulative counters in {@code /proc/stat} and {@code /proc/diskstats} between
  * samples. The disks are the block devices under {@code /sys/block} that have a {@code device} link, so partitions,
- * device-mapper volumes, loop and RAM devices are left out. A host without these files, such as one that isn't Linux,
- * is not sampled.
+ * device-mapper volumes, loop and RAM devices are left out. A {@link Source} reads the files: {@link LocalSource}
+ * on the Linux host of the containers, and {@link PerfStatSidecar} in the Docker engine's host otherwise, such as
+ * the Linux VM of Docker Desktop or OrbStack on macOS, whose CPUs and virtual disks are then the ones sampled.
  */
 final class HostIoSampler implements AutoCloseable {
     static final String FILE_NAME = RunReport.HOST_IO_FILE;
@@ -53,14 +54,39 @@ final class HostIoSampler implements AutoCloseable {
     record Counters(long epochMillis, long cpuTotal, long cpuIdle, long cpuIowait, Map<String, long[]> disks) {
     }
 
-    private final Path procfs;
+    /** The lines of {@code /proc/stat} and {@code /proc/diskstats}. */
+    record HostFiles(List<String> stat, List<String> diskstats) {
+    }
+
+    /** Reads the host's files. */
+    interface Source {
+        /** The physical disks, by their block device names. */
+        List<String> disks() throws IOException;
+
+        HostFiles read() throws IOException;
+    }
+
+    /** Reads the files of this host. */
+    record LocalSource(Path procfs, Path sysfs) implements Source {
+        @Override
+        public List<String> disks() {
+            return physicalDisks(sysfs);
+        }
+
+        @Override
+        public HostFiles read() {
+            return new HostFiles(lines(procfs.resolve("stat")), lines(procfs.resolve("diskstats")));
+        }
+    }
+
+    private final Source source;
     private final List<String> disks;
     private final BufferedWriter writer;
     private final ScheduledExecutorService executor;
     private Counters previous;
 
-    private HostIoSampler(Path procfs, List<String> disks, BufferedWriter writer) {
-        this.procfs = procfs;
+    private HostIoSampler(Source source, List<String> disks, BufferedWriter writer) {
+        this.source = source;
         this.disks = disks;
         this.writer = writer;
         this.executor = Executors.newSingleThreadScheduledExecutor(runnable -> {
@@ -71,15 +97,15 @@ final class HostIoSampler implements AutoCloseable {
     }
 
     /** Starts sampling into {@code runDirectory}, or returns {@code null} when the host has no such counters. */
-    static HostIoSampler start(Path procfs, Path sysfs, Path runDirectory) throws IOException {
-        List<String> disks = physicalDisks(sysfs);
-        if (read(procfs.resolve("stat"), System.currentTimeMillis(), disks) == null) {
+    static HostIoSampler start(Source source, Path runDirectory) throws IOException {
+        List<String> disks = source.disks();
+        if (parse(source.read(), System.currentTimeMillis(), disks) == null) {
             return null;
         }
         BufferedWriter writer = Files.newBufferedWriter(runDirectory.resolve(FILE_NAME));
         writer.write(header(disks));
         writer.newLine();
-        HostIoSampler sampler = new HostIoSampler(procfs, disks, writer);
+        HostIoSampler sampler = new HostIoSampler(source, disks, writer);
         sampler.executor.scheduleAtFixedRate(sampler::sample, 0, INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
         return sampler;
     }
@@ -107,14 +133,14 @@ final class HostIoSampler implements AutoCloseable {
         }
     }
 
-    /** Reads the counters, or returns {@code null} when {@code /proc/stat} is missing. */
-    Counters read(long epochMillis) {
-        return read(procfs.resolve("stat"), epochMillis, disks);
+    /** Reads the counters, or returns {@code null} when {@code /proc/stat} has no CPU line. */
+    Counters read(long epochMillis) throws IOException {
+        return parse(source.read(), epochMillis, disks);
     }
 
-    private static Counters read(Path stat, long epochMillis, List<String> disks) {
-        List<String> statLines = lines(stat);
-        String cpu = statLines.stream().filter(line -> line.startsWith("cpu ")).findFirst().orElse(null);
+    /** The counters in the host's files, or {@code null} when {@code /proc/stat} has no CPU line. */
+    static Counters parse(HostFiles files, long epochMillis, List<String> disks) {
+        String cpu = files.stat().stream().filter(line -> line.startsWith("cpu ")).findFirst().orElse(null);
         if (cpu == null) {
             return null;
         }
@@ -127,7 +153,7 @@ final class HostIoSampler implements AutoCloseable {
         long idle = fields.length > 4 ? Long.parseLong(fields[4]) : 0;
         long iowait = fields.length > 5 ? Long.parseLong(fields[5]) : 0;
         Map<String, long[]> diskCounters = new LinkedHashMap<>();
-        for (String line : lines(stat.resolveSibling("diskstats"))) {
+        for (String line : files.diskstats()) {
             String[] d = line.trim().split("\\s+");
             // major minor name reads merged sectorsRead msRead writes merged sectorsWritten msWrite inFlight msIo ...
             if (d.length >= 13 && disks.contains(d[2])) {

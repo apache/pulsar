@@ -73,8 +73,8 @@ public class ContainerStatsReportTest {
 
         assertThat(report.toString())
                 .contains("## Containers")
-                .contains("the host's CPUs were 85.0 % busy and 2.0 % waiting for I/O on average; disk nvme0n1 read "
-                        + "1 MB/s and wrote 500 MB/s, busy 50.0 %")
+                .contains("the Docker engine host's CPUs were 85.0 % busy and 2.0 % waiting for I/O on average; "
+                        + "disk nvme0n1 read 1 MB/s and wrote 500 MB/s, busy 50.0 %")
                 // 3 CPUs on average for 2 s, over one million messages
                 .contains("| broker-0 | 3.00 | 6.0 | 2,000 | 200 | 20 | 10 |")
                 .contains("| **All containers** | 4.00 | 8.0 | 2,500 | 210 | 22 | 11 |")

@@ -302,10 +302,11 @@ final class ContainerStatsReport {
         return averages;
     }
 
-    /** A sentence on the host's CPU and disks during the measurement. */
+    /** A sentence on the Docker engine host's CPU and disks during the measurement, a VM on macOS. */
     static String hostLine(Map<String, Double> host) {
         StringBuilder text = new StringBuilder(String.format(Locale.ROOT,
-                "During the measurement, the host's CPUs were %.1f %% busy and %.1f %% waiting for I/O on average",
+                "During the measurement, the Docker engine host's CPUs were %.1f %% busy and %.1f %% waiting for I/O "
+                        + "on average",
                 host.getOrDefault("cpuBusyPercent", Double.NaN), host.getOrDefault("cpuIowaitPercent", Double.NaN)));
         for (String column : host.keySet()) {
             if (column.endsWith("ReadMBps")) {

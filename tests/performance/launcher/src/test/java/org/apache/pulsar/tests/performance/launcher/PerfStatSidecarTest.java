@@ -79,4 +79,16 @@ public class PerfStatSidecarTest {
         assertThat(snapshots.get("bookie-0").usageMicros()).isZero();
         assertThat(snapshots.get("bookie-0").threadSwitches()).isEmpty();
     }
+
+    @Test
+    public void splitsTheEngineHostsFiles() {
+        HostIoSampler.HostFiles files = PerfStatSidecar.parseHostFiles(List.of(
+                "cpu  100 0 50 800 20 0 5 0 0 0",
+                "---",
+                " 259       0 nvme0n1 10 0 800 5 20 0 1600 10 0 30 15 0 0 0 0 0 0"));
+
+        assertThat(files.stat()).containsExactly("cpu  100 0 50 800 20 0 5 0 0 0");
+        assertThat(files.diskstats())
+                .containsExactly(" 259       0 nvme0n1 10 0 800 5 20 0 1600 10 0 30 15 0 0 0 0 0 0");
+    }
 }
