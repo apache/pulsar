@@ -1627,9 +1627,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         dynamic = true,
         category = CATEGORY_SERVER,
-        doc = "Max number of entries to read from bookkeeper. By default it is 100 entries."
+        doc = "Max number of entries to read from bookkeeper. By default it is 500 entries."
     )
-    private int dispatcherMaxReadBatchSize = 100;
+    private int dispatcherMaxReadBatchSize = 500;
 
     @FieldContext(
             dynamic = true,
