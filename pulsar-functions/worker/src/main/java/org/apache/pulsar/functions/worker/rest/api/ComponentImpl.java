@@ -72,6 +72,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.state.StateValue;
@@ -1751,6 +1752,36 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
         } catch (IllegalArgumentException e) {
             throw new RestException(Status.BAD_REQUEST, e.getMessage());
+        }
+    }
+
+    // Require the packages permission on the namespace of a package URL provided in the request.
+    void checkPackageSourcePermission(String packageUrl, AuthenticationParameters authParams) {
+        if (!worker().getWorkerConfig().isAuthorizationEnabled()
+                || !isNotBlank(packageUrl) || !Utils.hasPackageTypePrefix(packageUrl)) {
+            return;
+        }
+        final NamespaceName packageNamespace;
+        try {
+            PackageName packageName = PackageName.get(packageUrl);
+            packageNamespace = NamespaceName.get(packageName.getTenant(), packageName.getNamespace());
+        } catch (RuntimeException e) {
+            throw new RestException(Status.BAD_REQUEST, e.getMessage());
+        }
+        final boolean allowed;
+        try {
+            allowed = worker().getAuthorizationService().allowNamespaceOperationAsync(
+                    packageNamespace, NamespaceOperation.PACKAGES, authParams.getOriginalPrincipal(),
+                    authParams.getClientRole(), authParams.getClientAuthenticationDataSource())
+                    .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (Exception e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+        if (!allowed) {
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to access package source");
         }
     }
 
