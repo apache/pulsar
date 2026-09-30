@@ -39,7 +39,11 @@ into the workload containers.
   to the launcher's JVM options, such as the profiler agent. Workload-specific fields live below their workload name, so
   that another launcher or application can reuse the same file without interpreting unrelated sections. A workload
   command can select its subtree with `--config-path`.
-- `profiling`: optional profiler options for the broker, the gateways and the applications, see
+- `profiling`: optional profiler settings for the broker, the gateways and the applications: `asyncProfilerOptions`,
+  a comma-separated list of
+  [async-profiler's options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md) as
+  the page's "Launch as agent" column names them, `offCpuOptions`, `jfrConfigurations`, `jfrEventConfig` and
+  `nettyAllocationsReport`, see
   [Profiling](../../docs/profiling.md#configuring-profiling).
 - `heapDumps`: optional heap dumps of the broker, the gateways and the applications, when they run out of memory, at
   the highest heap usage and at given times, see [Heap dumps](../../docs/heap-dumps.md).
@@ -63,7 +67,7 @@ workloads:
         fraction: 0.1
 profiling:
   broker:
-    asyncProfilerOptions: event=cpu,interval=10ms,jfrsync=profile
+    asyncProfilerOptions: event=cpu,interval=10ms
     offCpuOptions:
       admission:
         policy: none
