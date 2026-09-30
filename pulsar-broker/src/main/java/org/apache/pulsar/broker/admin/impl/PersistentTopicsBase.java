@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
+import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
 import static org.apache.pulsar.common.api.proto.CompressionType.NONE;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isSystemTopic;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
@@ -716,6 +717,12 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalRemovePropertiesAsync(boolean authoritative, String key) {
         return validateTopicOperationAsync(topicName, TopicOperation.DELETE_METADATA)
+                .thenRun(() -> {
+                    if (PROPERTY_SOURCE_TOPIC_KEY.equals(key)) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Property " + key + " cannot be removed");
+                    }
+                })
                 .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenCompose(__ -> {
                     if (topicName.isPartitioned()) {

@@ -800,7 +800,9 @@ public abstract class AdminResource extends PulsarWebResource {
         }
         String shadowSource = properties.get(PROPERTY_SOURCE_TOPIC_KEY);
         if (shadowSource == null) {
-            return CompletableFuture.completedFuture(null);
+            // A null value would drop the shadow source of an existing shadow topic.
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Shadow source topic must not be null"));
         }
         final TopicName sourceTopic;
         try {
