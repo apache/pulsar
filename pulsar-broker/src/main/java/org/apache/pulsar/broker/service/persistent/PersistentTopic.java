@@ -515,14 +515,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     isAllowAutoUpdateSchema = policies.is_allow_auto_update_schema;
                 }, getPoliciesNotifyThread())
                 .thenCompose(ignore -> initTopicPolicy())
-                .thenCompose(ignore -> removeOrphanReplicationCursors())
-                .exceptionally(ex -> {
-                    log.warn("[{}] Error loading topic policies during initialization. Ignoring the failure. "
-                                    + "isEncryptionRequired will be set to false. {}",
-                            topic, ex.getMessage());
-                    isEncryptionRequired = false;
-                    return null;
-                }));
+                .thenCompose(ignore -> removeOrphanReplicationCursors()));
     }
 
     private void initializeDispatchRateLimiterIfNeeded() {
