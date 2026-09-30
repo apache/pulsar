@@ -3616,6 +3616,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         }
         SchemaData schemaData = getSchema(commandGetOrCreateSchema.getSchema());
         SchemaData schema = schemaData.getType() == SchemaType.NONE ? null : schemaData;
+        // Read the producer name now: the decoder reuses the command object after this method returns.
+        boolean isReplicatorProducer = commandGetOrCreateSchema.hasProducerName()
+                && Producer.isRemoteOrShadow(commandGetOrCreateSchema.getProducerName(),
+                        getBrokerService().getPulsar().getConfig().getReplicatorPrefix());
         // Adding a schema version changes what the topic's producers may send, so it takes PRODUCE, as the
         // REST schema upload does.
         CompletableFuture<Optional<Topic>> topicFuture =
@@ -3630,11 +3634,6 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         topicFuture.thenAccept(topicOpt -> {
             if (topicOpt.isPresent()) {
                 Topic topic = topicOpt.get();
-                boolean isReplicatorProducer = false;
-                if (commandGetOrCreateSchema.hasProducerName()) {
-                    isReplicatorProducer = Producer.isRemoteOrShadow(commandGetOrCreateSchema.getProducerName(),
-                            getBrokerService().getPulsar().getConfig().getReplicatorPrefix());
-                }
                 CompletableFuture<SchemaVersion> schemaVersionFuture =
                         tryAddSchema(topic, schema, isReplicatorProducer);
                 schemaVersionFuture.exceptionally(ex -> {
