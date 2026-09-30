@@ -64,6 +64,9 @@ public class PersistentMessageExpiryMonitorTest extends ProducerConsumerBase {
     @Override
     protected void doInitConf() throws Exception {
         conf.setMessageExpiryCheckIntervalInMinutes(60);
+        // The subscriptions have no active consumers, so don't cache added entries. The expiry check
+        // must read them from the ledgers, which is what testTopicExpireMessages counts.
+        conf.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(0L);
     }
 
     /***
