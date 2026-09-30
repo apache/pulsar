@@ -302,6 +302,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Getter
     private volatile long lastMaxReadPositionMovedForwardTimestamp = 0;
 
+    // Preserve data activity for this topic instance even if its entries are trimmed before controller activation.
+    private volatile boolean maxReadPositionMovedForward = false;
+
     @Getter
     private final ExecutorService orderedExecutor;
 
@@ -762,6 +765,11 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void updateMaxReadPositionMovedForwardTimestamp() {
+        // Set this before checking the controller so that activation's second seed cannot miss an inactive publish.
+        // Once set, later callbacks only read this flag; ordinary topics still avoid reading the wall clock.
+        if (!maxReadPositionMovedForward) {
+            maxReadPositionMovedForward = true;
+        }
         if (replicatedSubscriptionsController.isEmpty()) {
             return;
         }
@@ -769,9 +777,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void seedMaxReadPositionMovedForwardTimestamp() {
-        // An empty topic has no data to snapshot. Recheck after publishing the controller reference to cover
-        // entries added during construction, while publishes after activation update the timestamp themselves.
-        if (ledger.getNumberOfEntries() > 0) {
+        // Retained entries also cover topics loaded from storage. Activity observed by this instance must survive
+        // ledger trimming. Recheck after publishing the controller reference to cover advances during construction.
+        if (maxReadPositionMovedForward || ledger.getNumberOfEntries() > 0) {
             lastMaxReadPositionMovedForwardTimestamp = Clock.systemUTC().millis();
         }
     }
