@@ -149,7 +149,7 @@ public class TopicAuthZTest extends AuthZTest {
     public void testUnloadAndCompactAndTrim() {
         final String random = UUID.randomUUID().toString();
         final String topic = "persistent://public/default/" + random;
-        final String subject =  UUID.randomUUID().toString();
+        final String subject = UUID.randomUUID().toString();
         final String token = Jwts.builder()
                 .claim("sub", subject).signWith(SECRET_KEY).compact();
         superUserAdmin.topics().createPartitionedTopic(topic, 2);
@@ -2306,6 +2306,66 @@ public class TopicAuthZTest extends AuthZTest {
         Assert.assertTrue(execFlag.get());
 
         deleteTopic(topic, false);
+    }
+
+    @Test(dataProvider = "partitioned")
+    @SneakyThrows
+    public void testTruncate(boolean partitioned) {
+        final String random = UUID.randomUUID().toString();
+        final String topic = "persistent://public/default/" + random;
+        final String subject =  UUID.randomUUID().toString();
+        final String token = Jwts.builder()
+                .claim("sub", subject).signWith(SECRET_KEY).compact();
+        final String subName = "test-sub";
+        createTopic(topic, partitioned);
+        superUserAdmin.topics().createSubscription(topic, subName, MessageId.earliest);
+        @Cleanup
+        final PulsarAdmin subAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token))
+                .build();
+        @Cleanup
+        final PulsarClient pulsarClient = PulsarClient.builder()
+                .serviceUrl(getPulsarService().getBrokerServiceUrl())
+                .authentication(new AuthenticationToken(SUPER_USER_TOKEN))
+                .build();
+        final int numMessages = 4;
+        try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic).enableBatching(false).create()) {
+            for (int i = 0; i < numMessages; i++) {
+                producer.send("msg-" + i);
+            }
+        }
+        Assert.assertEquals(getBacklog(topic, subName, partitioned), numMessages);
+
+        // Only super user and tenant admin can truncate, topic level permissions are not sufficient
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().truncate(topic));
+        for (AuthAction action : AuthAction.values()) {
+            superUserAdmin.topics().grantPermission(topic, subject, Set.of(action));
+            Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                    () -> subAdmin.topics().truncate(topic));
+            superUserAdmin.topics().revokePermissions(topic, subject);
+        }
+        superUserAdmin.topics().grantPermission(topic, subject, Set.of(AuthAction.produce, AuthAction.consume));
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> subAdmin.topics().truncate(topic));
+        superUserAdmin.topics().revokePermissions(topic, subject);
+        Assert.assertEquals(getBacklog(topic, subName, partitioned), numMessages);
+
+        tenantManagerAdmin.topics().truncate(topic);
+        Assert.assertEquals(getBacklog(topic, subName, partitioned), 0);
+        superUserAdmin.topics().truncate(topic);
+
+        deleteTopic(topic, partitioned);
+    }
+
+    private long getBacklog(String topic, String subName, boolean partitioned) throws Exception {
+        if (partitioned) {
+            return superUserAdmin.topics().getPartitionedStats(topic, false)
+                    .getSubscriptions().get(subName).getMsgBacklog();
+        }
+        return superUserAdmin.topics().getStats(topic).getSubscriptions().get(subName).getMsgBacklog();
     }
 
     @Test
