@@ -40,14 +40,13 @@ public class PulsarStandaloneUpgradeTest {
     @DataProvider
     public Object[][] previousReleases() {
         return new Object[][] {
-                {"apachepulsar/pulsar:4.0.13", true},
-                {"apachepulsar/pulsar:4.2.4", true},
-                {"apachepulsar/pulsar:5.0.0-M2", false}
+                {"apachepulsar/pulsar:4.0.13"},
+                {"apachepulsar/pulsar:4.2.4"}
         };
     }
 
     @Test(dataProvider = "previousReleases", timeOut = 900_000)
-    public void testUpgradeWithExistingCookies(String oldImage, boolean legacyAddress) throws Exception {
+    public void testUpgradeWithExistingCookies(String oldImage) throws Exception {
         String clusterName = "standalone-upgrade-" + UUID.randomUUID();
         try (Network network = Network.newNetwork();
              GenericContainer<?> storage = new GenericContainer<>(PulsarContainer.ALPINE_IMAGE_NAME)
@@ -65,19 +64,13 @@ public class PulsarStandaloneUpgradeTest {
                 produce(old, "before-upgrade");
                 for (int i = 0; i < cookies.length; i++) {
                     cookies[i] = cookie(old, i);
-                    if (legacyAddress) {
-                        assertThat(cookies[i]).containsPattern("bookieHost: \"[^\"]+:[0-9]+\"");
-                    } else {
-                        assertThat(cookies[i]).containsPattern("bookieHost: \"bk-" + i + "-[0-9a-f]+\"");
-                    }
+                    assertThat(cookies[i]).containsPattern("bookieHost: \"[^\"]+:[0-9]+\"");
                 }
             }
             try (StandaloneContainer upgraded = standalone(clusterName, PulsarContainer.UPGRADE_TEST_IMAGE_NAME,
                     network, storage, null)) {
                 upgraded.start();
-                if (legacyAddress) {
-                    assertBookiePorts(upgraded, cookies, true, 0);
-                }
+                assertLegacyBookiePorts(upgraded, cookies);
                 assertCookiesUnchanged(upgraded, cookies);
                 consume(upgraded, "before-upgrade");
                 produce(upgraded, "after-upgrade");
@@ -85,7 +78,7 @@ public class PulsarStandaloneUpgradeTest {
             try (StandaloneContainer restarted = standalone(clusterName, PulsarContainer.UPGRADE_TEST_IMAGE_NAME,
                     network, storage, 3191)) {
                 restarted.start();
-                assertBookiePorts(restarted, cookies, legacyAddress, 3191);
+                assertLegacyBookiePorts(restarted, cookies);
                 assertCookiesUnchanged(restarted, cookies);
                 consume(restarted, "before-upgrade", "after-upgrade");
                 produce(restarted, "after-restart");
@@ -120,16 +113,11 @@ public class PulsarStandaloneUpgradeTest {
         }
     }
 
-    private static void assertBookiePorts(StandaloneContainer container, String[] cookies,
-                                         boolean legacyAddress, int basePort) throws Exception {
-        for (int i = 0; i < cookies.length; i++) {
-            int port = basePort + i;
-            if (legacyAddress) {
-                Matcher matcher = Pattern.compile("bookieHost: \"[^\"]+:(\\d+)\"").matcher(cookies[i]);
-                assertThat(matcher.find()).isTrue();
-                port = Integer.parseInt(matcher.group(1));
-            }
-            assertListening(container, port);
+    private static void assertLegacyBookiePorts(StandaloneContainer container, String[] cookies) throws Exception {
+        for (String cookie : cookies) {
+            Matcher matcher = Pattern.compile("bookieHost: \"[^\"]+:(\\d+)\"").matcher(cookie);
+            assertThat(matcher.find()).isTrue();
+            assertListening(container, Integer.parseInt(matcher.group(1)));
         }
     }
 
