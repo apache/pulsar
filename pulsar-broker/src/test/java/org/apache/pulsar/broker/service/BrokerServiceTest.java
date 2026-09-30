@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateTableViewImpl.TOPIC;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN;
 import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORDINATOR_LOG;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
@@ -2154,6 +2155,30 @@ public class BrokerServiceTest extends BrokerTestBase {
             } else {
                 Assert.assertEquals(managedLedgerConfig2.getLedgerOffloader(), NullLedgerOffloader.INSTANCE);
             }
+        }
+    }
+
+    @Test
+    public void testManagedLedgerContinueCachingAddedEntriesConfiguration() throws Exception {
+        var serviceConfiguration = pulsar.getConfiguration();
+        Long originalContinueCaching =
+                serviceConfiguration.getManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis();
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/continue-caching-" + UUID.randomUUID());
+        try {
+            serviceConfiguration.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(12345L);
+            ManagedLedgerConfig ledgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName)
+                    .get(10, TimeUnit.SECONDS);
+            assertThat(ledgerConfig.getContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis())
+                    .isEqualTo(12345L);
+
+            // unset defaults to 2 * managedLedgerCacheEvictionTimeThresholdMillis
+            serviceConfiguration.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(null);
+            ledgerConfig = pulsar.getBrokerService().getManagedLedgerConfig(topicName).get(10, TimeUnit.SECONDS);
+            assertThat(ledgerConfig.getContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis())
+                    .isEqualTo(2 * serviceConfiguration.getManagedLedgerCacheEvictionTimeThresholdMillis());
+        } finally {
+            serviceConfiguration.setManagedLedgerContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(
+                    originalContinueCaching);
         }
     }
 
