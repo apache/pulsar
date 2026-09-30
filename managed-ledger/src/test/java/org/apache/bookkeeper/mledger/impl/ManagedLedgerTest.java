@@ -2127,6 +2127,37 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testContinueCachingAddedEntriesWithoutActiveCursors() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setCacheEvictionByExpectedReadCount(true);
+        config.setContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(TimeUnit.SECONDS.toMillis(5));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "my_test_ledger_for_testContinueCachingAddedEntriesWithoutActiveCursors", config);
+        ledger.entryCache.clear();
+
+        ledger.addEntry("entry-1".getBytes());
+
+        assertThat(ledger.entryCache.getSize()).isEqualTo(7);
+    }
+
+    @Test
+    public void testNoCachingOfAddedEntriesWithoutActiveCursorsWhenContinueCachingDisabled() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setCacheEvictionByExpectedReadCount(true);
+        config.setContinueCachingAddedEntriesAfterLastActiveCursorLeavesMillis(0);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "my_test_ledger_for_testNoCachingOfAddedEntriesWithoutActiveCursorsWhenContinueCachingDisabled",
+                config);
+        ledger.entryCache.clear();
+
+        ledger.addEntry("entry-1".getBytes());
+
+        assertThat(ledger.entryCache.getSize()).isZero();
+    }
+
+    @Test
     public void invalidateEntriesFromCacheByMarkDeletePosition() throws Exception {
         ManagedLedgerConfig config = defaultConfig();
         initManagedLedgerConfig(config);
