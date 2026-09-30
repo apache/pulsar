@@ -186,12 +186,12 @@ the scenarios' `configs` directory, here the broker's and the gateways' to the h
   --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/profile-broker --extends configs/profile-gateways'
 ```
 
-The options are a comma-separated list of
-[async-profiler's options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md), as
-the page's "Launch as agent" column names them. The [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent runs
-async-profiler with them, JDK Flight Recorder alongside with `jfrsync` when the component lists JFR configurations, as
-it does by default, and its kernel-measured off-CPU recording, all at the same time.
-[Profiling](../../docs/profiling.md) describes the requirements and the files each recording produces, and [Analyzing
+The options are a comma-separated list of [async-profiler's
+options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md), as the page's "Launch
+as agent" column names them. The [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent runs async-profiler with
+them, JDK Flight Recorder alongside with `jfrsync` when the component lists JFR configurations or events, as it does
+by default, and its kernel-measured off-CPU recording, all at the same time. [Profiling](../../docs/profiling.md)
+describes the requirements and the files each recording produces, and [Analyzing
 profiles](../../docs/analyzing-profiles.md) how to find what to optimize.
 
 Broker recordings are written under `broker-profile/`, the gateways' under `gateways/` and the applications' under

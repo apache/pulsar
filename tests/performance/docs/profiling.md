@@ -27,9 +27,9 @@ that has profiler options. In each of them, three recorders run at the same time
 - [async-profiler](https://github.com/async-profiler/async-profiler), which the agent bundles, samples CPU time and
   allocations into a JFR recording.
 - JDK Flight Recorder (JFR), which async-profiler starts alongside with its `jfrsync` option when the component lists
-  JFR configurations, as it does by default, records the JVM's own events into the same recording, such as monitor
-  contention (`jdk.JavaMonitorEnter`), thread parking (`jdk.ThreadPark`) and garbage collection, with the JFR
-  configurations that [The JFR configuration](#the-jfr-configuration) describes.
+  JFR configurations, as it does by default, or JFR events, records the JVM's own events into the same recording, such
+  as monitor contention (`jdk.JavaMonitorEnter`), thread parking (`jdk.ThreadPark`) and garbage collection, with the
+  JFR configurations that [The JFR configuration](#the-jfr-configuration) describes.
 - jonoffcpu's eBPF collector records, from the kernel scheduler, every interval in which a thread blocked, into a
   capture stream beside the recording.
 
@@ -86,15 +86,17 @@ profiling:
   them, such as `event=cpu,interval=10ms,alloc=2m`. A component without them isn't profiled. The launcher owns each
   recording's path, so that recordings stay inside the run directory, and rejects options that set `file=`.
 - The launcher adds async-profiler's `jfrsync` option, which records JDK Flight Recorder's events alongside
-  async-profiler's, when the component lists JFR configurations in `jfrConfigurations`, as it does by default. The
-  options don't set it; the launcher rejects options that do.
+  async-profiler's, when the component lists JFR configurations in `jfrConfigurations`, as it does by default, or JFR
+  events in `jfrEventConfig`. The options don't set it; the launcher rejects options that do.
 - `offCpuOptions` is the agent's [`sampling` block](https://github.com/jonoffcpu/jonoffcpu#choosing-what-to-sample):
   which switch-out reasons to record (`blocked` — the thread could not run — rather than `runnable` preemption), a
   minimum duration, and an admission policy that records every long wait and samples short ones in proportion to their
   length. A profiled component needs it; the policy `none` records plain async-profiler through the same agent and skips
   the off-CPU steps, for a Docker engine whose kernel can't run jonoffcpu's collector.
 - `jfrConfigurations` lists the JFR configurations that the component records with, `[profile]` by default, and
-  `[]` records without JFR's events, see [The JFR configuration](#the-jfr-configuration).
+  `[]` or `[none]` without `jfrEventConfig` turns JFR off, see [The JFR configuration](#the-jfr-configuration).
+- `jfrEventConfig` lists JFR events, or settings of events, to add to the configurations, see
+  [The JFR configuration](#the-jfr-configuration).
 - `nettyAllocationsReport`, `false` by default, summarizes the measurement recording's Netty allocator events after
   the run, which the component records only when its `jfrConfigurations` list `netty-allocations.jfc`, see
   [Netty allocator events](#netty-allocator-events).
@@ -103,7 +105,7 @@ profiling:
 
 ## The JFR configuration
 
-Every profiled JVM records JDK Flight Recorder's events with the JFR configurations that its component's
+A profiled JVM records JDK Flight Recorder's events with the JFR configurations that its component's
 `jfrConfigurations` list, merged in order with the JDK's `jfr configure`. The default is `[profile]`:
 
 - A name, such as `profile` or `default`, is one of the JDK's configurations, from `$JAVA_HOME/lib/jfr`. `profile` is
@@ -111,15 +113,36 @@ Every profiled JVM records JDK Flight Recorder's events with the JFR configurati
 - A name ending with `.jfc` is a file of [`tests/performance/jfr`](../jfr), such as
   [`netty-allocations.jfc`](../jfr/netty-allocations.jfc), see [Netty allocator events](#netty-allocator-events). For a
   purpose that needs other events or settings, add a `.jfc` file there and list it.
-- An empty list, `jfrConfigurations: []`, records without JFR's events: async-profiler's samples only.
+- `none` is an empty configuration, for a component that records only the events of its `jfrEventConfig`.
+- An empty list, `jfrConfigurations: []`, lists no configurations.
 
-A single configuration of the JDK, such as the default `profile`, goes to async-profiler's `jfrsync` option as it is.
-Otherwise, before the cluster starts, the launcher merges the component's configurations in a one-off container of the
-component's image, so that a configuration of the JDK is the one of the JVM that records with it, into
-`jfr-configuration.jfc` beside the component's recordings, and passes that file to `jfrsync`. The options don't set
-`jfrsync`; the launcher rejects options that do. When the image's JDK can't merge them, such as a released Pulsar's
-image whose JDK has no `jfr` tool (`-Pperformance.clusterPulsarImage`), the launcher says so and records that
-component with the JDK's `profile` configuration.
+Without `jfrEventConfig`, `jfrConfigurations: []` and `jfrConfigurations: [none]` turn JFR off: the launcher leaves
+`jfrsync` out, and the component records only async-profiler's samples.
+
+A component's `jfrEventConfig` lists events to add to its configurations, or settings of events that override
+theirs. Each entry has an `event`, and optionally a `setting` and its `value`; an entry without a setting enables the
+event. The launcher applies them after the configurations, `[profile]` unless the component lists others, or, with
+`jfrConfigurations: []`, to the JDK's `default` configuration, as `jfr configure` does without `--input`;
+`jfrConfigurations: [none]` starts from an empty one:
+
+```yaml
+profiling:
+  broker:
+    jfrEventConfig:
+      - event: jdk.CPULoad
+        setting: period
+        value: 100 ms
+      - event: io.netty.AllocateChunk
+```
+
+A single configuration of the JDK without `jfrEventConfig`, such as the default `profile`, goes to async-profiler's
+`jfrsync` option as it is. Otherwise, before the cluster starts, the launcher merges the component's configurations,
+and applies its `jfrEventConfig` after them, in a one-off container of the component's image, so that a configuration
+of the JDK is the one of the JVM that records with it, into `jfr-configuration.jfc` beside the component's recordings,
+and passes that file to `jfrsync`. The options don't set `jfrsync`; the launcher rejects options that do. When the
+image's JDK can't merge them, such as a released Pulsar's image whose JDK has no `jfr` tool
+(`-Pperformance.clusterPulsarImage`), the launcher says so and records that component with the JDK's `profile`
+configuration.
 
 ### Netty allocator events
 

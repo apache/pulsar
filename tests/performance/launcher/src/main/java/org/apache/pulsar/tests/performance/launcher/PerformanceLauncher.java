@@ -1136,6 +1136,14 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
     }
 
+    /** The command of {@code jfr configure} that merges {@code input} and applies the event settings after it. */
+    static String[] jfrConfigureCommand(String input, List<String> eventSettings, String output) {
+        List<String> command = new ArrayList<>(List.of("configure", "--input", input));
+        command.addAll(eventSettings);
+        command.addAll(List.of("--output", output));
+        return command.toArray(String[]::new);
+    }
+
     /** The profiled component whose recording {@code recording} is, by the directory that it is in. */
     static String recordingComponent(Path runOutput, Path recording) {
         Path directory = runOutput.relativize(recording.toAbsolutePath().normalize()).getName(0);
@@ -1155,14 +1163,16 @@ public class PerformanceLauncher implements Callable<Integer> {
 
     /**
      * Merges each profiled component's {@code jfrConfigurations} with {@code jfr configure} into
-     * {@value #JFR_CONFIGURATION_FILE} in its output directory, and sets its async-profiler {@code jfrsync} to the file
-     * as its container sees it. A single configuration of the JDK, such as the default {@code profile}, is passed to
-     * {@code jfrsync} as it is, and an empty list leaves {@code jfrsync} out, which records only async-profiler's
-     * events. The merge runs in a one-off container of the component's image, so that a configuration
-     * of the JDK, such as {@code profile}, is the one of the JVM that records with it; the {@code .jfc} files come
-     * from {@code jfcDirectory}. When the image's JDK can't merge them, such as a released Pulsar's image whose JDK has
-     * no jfr tool, the component records with the JDK's {@value ProfilingSettings#FALLBACK_JFR_CONFIGURATION}
-     * configuration.
+     * {@value #JFR_CONFIGURATION_FILE} in its output directory, and sets its async-profiler {@code jfrsync} to the
+     * file as its container sees it, with its {@code jfrEventConfig} applied after them, or to the JDK's
+     * {@code default} configuration without configurations, as {@code jfr configure} starts from without
+     * {@code --input}. A single configuration of the JDK without {@code jfrEventConfig}, such as the default
+     * {@code profile}, is passed to {@code jfrsync} as it is; without configurations and {@code jfrEventConfig},
+     * {@code jfrsync} is left out, which records only async-profiler's events. The merge runs in a one-off container
+     * of the component's image, so that a configuration of the JDK, such as {@code profile}, is the one of the JVM
+     * that records with it; the {@code .jfc} files come from {@code jfcDirectory}. When the image's JDK can't merge
+     * them, such as a released Pulsar's image whose JDK has no jfr tool, the component records with the JDK's
+     * {@value ProfilingSettings#FALLBACK_JFR_CONFIGURATION} configuration.
      */
     static ProfilingSettings mergeJfrConfigurations(ProfilingSettings settings, Path jfcDirectory,
                                                     Map<String, JfrOutput> outputs) throws IOException {
@@ -1173,7 +1183,10 @@ public class PerformanceLauncher implements Callable<Integer> {
                 continue;
             }
             List<String> listed = component.jfrConfigurations();
-            if (listed.size() == 1 && !listed.get(0).endsWith(ProfilingSettings.JFC_SUFFIX)) {
+            // A configuration of the JDK, but not an empty one, which async-profiler doesn't know by name
+            if (component.jfrEventConfig().isEmpty() && listed.size() == 1
+                    && !listed.get(0).endsWith(ProfilingSettings.JFC_SUFFIX)
+                    && !ProfilingSettings.JFR_CONFIGURE_EMPTY_INPUT.equals(listed.get(0))) {
                 configurations.put(name, listed.get(0));
                 continue;
             }
@@ -1191,14 +1204,15 @@ public class PerformanceLauncher implements Callable<Integer> {
                     .withFileSystemBind(jfcDirectory.toString(), JFC_MOUNT, BindMode.READ_ONLY)
                     .withFileSystemBind(output.directory().toString(), MERGE_OUTPUT_MOUNT, BindMode.READ_WRITE)
                     .withCreateContainerCmdModifier(command -> command.withUser("0").withEntrypoint("jfr"))
-                    .withCommand("configure", "--input", input, "--output",
-                            MERGE_OUTPUT_MOUNT + "/" + JFR_CONFIGURATION_FILE)
+                    .withCommand(jfrConfigureCommand(input, component.jfrConfigureEventSettings(),
+                            MERGE_OUTPUT_MOUNT + "/" + JFR_CONFIGURATION_FILE))
                     .withStartupCheckStrategy(new OneShotStartupCheckStrategy()
                             .withTimeout(Duration.ofMinutes(1)))) {
                 merge.start();
                 configurations.put(name, output.containerDirectory() + "/" + JFR_CONFIGURATION_FILE);
                 System.out.println("JFR configuration of " + name + ": " + String.join(", ",
-                        component.jfrConfigurations()) + ", merged into "
+                        component.jfrConfigurations()) + (component.jfrEventConfig().isEmpty() ? ""
+                        : " with " + String.join(" ", component.jfrConfigureEventSettings())) + ", merged into "
                         + output.directory().resolve(JFR_CONFIGURATION_FILE));
             } catch (RuntimeException e) {
                 System.out.println("Couldn't merge the JFR configurations " + input + " of " + name + " in the image "

@@ -42,7 +42,8 @@ into the workload containers.
 - `profiling`: optional profiler settings for the broker, the gateways and the applications: `asyncProfilerOptions`,
   a comma-separated list of
   [async-profiler's options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md) as
-  the page's "Launch as agent" column names them, `offCpuOptions`, `jfrConfigurations` and `nettyAllocationsReport`, see
+  the page's "Launch as agent" column names them, `offCpuOptions`, `jfrConfigurations`, `jfrEventConfig` and
+  `nettyAllocationsReport`, see
   [Profiling](../../docs/profiling.md#configuring-profiling).
 - `heapDumps`: optional heap dumps of the broker, the gateways and the applications, when they run out of memory, at
   the highest heap usage and at given times, see [Heap dumps](../../docs/heap-dumps.md).

@@ -150,4 +150,66 @@ public class ProfilingSettingsTest {
         assertThat(PerformanceLauncher.recordingComponent(run, run.resolve("applications/profile-applications-1.jfr")))
                 .isEqualTo(ProfilingSettings.APPLICATIONS);
     }
+
+    @Test
+    public void addsTheListedJfrEvents() throws Exception {
+        ProfilingSettings settings = ProfilingSettings.read(mapper, mapper.readTree("""
+                broker:
+                  asyncProfilerOptions: event=cpu
+                  jfrEventConfig:
+                    - event: jdk.CPULoad
+                      setting: period
+                      value: 100 ms
+                    - event: io.netty.AllocateChunk
+                gateways:
+                  asyncProfilerOptions: event=cpu
+                  jfrConfigurations: []
+                  jfrEventConfig:
+                    - event: jdk.ThreadPark
+                      setting: threshold
+                      value: 0 ms
+                """));
+
+        assertThat(settings.broker().jfrEventConfig()).containsExactly(
+                new ProfilingSettings.JfrEventSetting("jdk.CPULoad", "period", "100 ms"),
+                new ProfilingSettings.JfrEventSetting("io.netty.AllocateChunk", null, null));
+        // jfr configure applies them after the configurations; an event without a setting is enabled
+        assertThat(settings.broker().jfrConfigureEventSettings())
+                .containsExactly("+jdk.CPULoad#period=100 ms", "+io.netty.AllocateChunk#enabled=true");
+        assertThat(PerformanceLauncher.jfrConfigureCommand("profile", settings.broker().jfrConfigureEventSettings(),
+                "/out/jfr-configuration.jfc")).containsExactly("configure", "--input", "profile",
+                "+jdk.CPULoad#period=100 ms", "+io.netty.AllocateChunk#enabled=true", "--output",
+                "/out/jfr-configuration.jfc");
+        // Without configurations, they are merged into the JDK's default configuration, as jfr configure does
+        assertThat(settings.gateways().recordsJfrEvents()).isTrue();
+        assertThat(settings.gateways().jfrConfigureInput("/jfr")).isEqualTo("default");
+        assertThat(settings.gateways().jfrConfigureEventSettings()).containsExactly("+jdk.ThreadPark#threshold=0 ms");
+        // none starts from an empty configuration instead
+        assertThat(ProfilingSettings.read(mapper, mapper.readTree("""
+                broker:
+                  asyncProfilerOptions: event=cpu
+                  jfrConfigurations: [none]
+                  jfrEventConfig:
+                    - event: jdk.ThreadPark
+                """)).broker().jfrConfigureInput("/jfr")).isEqualTo("none");
+        // Without event settings, none turns JFR off like no configurations
+        assertThat(ProfilingSettings.read(mapper, mapper.readTree("""
+                broker:
+                  asyncProfilerOptions: event=cpu
+                  jfrConfigurations: [none]
+                """)).broker().recordsJfrEvents()).isFalse();
+    }
+
+    @Test
+    public void rejectsInvalidJfrEvents() throws Exception {
+        for (String events : List.of("jdk.CPULoad", "[{event: jdk.CPULoad, setting: period}]",
+                "[{event: jdk.CPULoad, setting: period, value: ''}]", "[{event: 'jdk.CPU Load'}]",
+                "[{event: jdk.CPULoad, other: x}]")) {
+            assertThatThrownBy(() -> ProfilingSettings.read(mapper,
+                    mapper.readTree("broker:\n  jfrEventConfig: " + events)))
+                    .as(events)
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageContaining("profiling.broker.jfrEventConfig must list JFR events to add");
+        }
+    }
 }
