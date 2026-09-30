@@ -268,6 +268,9 @@ public class BlobStoreBackedReadHandleImplTest {
      * knows the offsets of the first entries of its data blocks, like the index of an offloaded ledger.
      */
     private final class SparselyIndexedLedger implements AutoCloseable {
+        // A dedicated offsets cache whose offsets do not expire during the test: the TTL of the tests of this module
+        // is 1 second, and the assertions count exact bytes depending on the cached offsets
+        private final OffsetsCache offsetsCache = new OffsetsCache(3600, 1_000_000);
         private final ByteBuf data;
         private final BackedInputStreamImpl inputStream;
         private final BlobStoreBackedReadHandleImpl handle;
@@ -306,8 +309,6 @@ public class BlobStoreBackedReadHandleImplTest {
                 return OffloadIndexEntryImpl.of(floor, 0, offsetOf(floor), 0);
             });
             inputStream = new BackedInputStreamImpl(data);
-            // Start without cached offsets, e.g. from a previous run of the same test
-            offsetsCache.clear();
             handle = new BlobStoreBackedReadHandleImpl(ledgerId, mockIndex, inputStream, executor, offsetsCache,
                     learnedOffsetIntervalBytes);
         }
@@ -335,6 +336,7 @@ public class BlobStoreBackedReadHandleImplTest {
         public void close() throws Exception {
             handle.close();
             data.release();
+            offsetsCache.close();
         }
     }
 
@@ -375,8 +377,8 @@ public class BlobStoreBackedReadHandleImplTest {
                     .isEqualTo((2100L - 2000 + 1) * ENTRY_SIZE);
 
             // A cached offset before the nearest learned offset is farther, so the learned offset is used
-            offsetsCache.clear();
-            offsetsCache.put(5, 1800, ledger.offsetOf(1800));
+            ledger.offsetsCache.clear();
+            ledger.offsetsCache.put(5, 1800, ledger.offsetOf(1800));
             assertThat(ledger.read(1900, 1900)).as("bytes scanned from the learned offset of entry 1845")
                     .isEqualTo((1900L - 1845 + 1) * ENTRY_SIZE);
         }
@@ -389,7 +391,7 @@ public class BlobStoreBackedReadHandleImplTest {
             ledger.read(2000, 2000);
 
             // Without the offsets cache, a learned entry is read directly
-            offsetsCache.clear();
+            ledger.offsetsCache.clear();
             assertThat(ledger.read(1845, 1845)).as("bytes read for a learned entry").isEqualTo(ENTRY_SIZE);
 
             // An entry of the second block is scanned from the start of that block, not from an offset learned in
