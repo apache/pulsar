@@ -72,6 +72,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.state.StateValue;
@@ -1159,6 +1160,8 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     .log("Function in trigger function has unidentified topic @ / / /");
             throw new RestException(Status.BAD_REQUEST, "Function in trigger function has unidentified topic");
         }
+        // The worker's client publishes the message, so check the caller's produce permission first
+        throwRestExceptionIfNotAllowedToProduce(tenant, namespace, functionName, inputTopicToWrite, authParams);
         try {
             worker().getBrokerAdmin().topics().getSubscriptions(inputTopicToWrite);
         } catch (PulsarAdminException e) {
@@ -1803,6 +1806,35 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             throw new RestException(Status.BAD_REQUEST,
                     String.format("%s %s doesn't have instance with id %s", ComponentTypeUtils.toString(componentType),
                             componentName, instanceId));
+        }
+    }
+
+    private void throwRestExceptionIfNotAllowedToProduce(String tenant, String namespace, String componentName,
+                                                         String topic, AuthenticationParameters authParams) {
+        if (!worker().getWorkerConfig().isAuthorizationEnabled() || isSuperUser(authParams)) {
+            return;
+        }
+        boolean allowed;
+        try {
+            allowed = worker().getAuthorizationService()
+                    .allowTopicOperationAsync(TopicName.get(topic), TopicOperation.PRODUCE, authParams)
+                    .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (Exception e) {
+            log.warn().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", componentName)
+                    .attr("topic", topic).attr("clientRole", authParams.getClientRole())
+                    .attr("originalPrincipal", authParams.getOriginalPrincipal()).exception(e)
+                    .log("Failed to check produce permission on topic");
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+        if (!allowed) {
+            log.warn().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", componentName)
+                    .attr("topic", topic).attr("clientRole", authParams.getClientRole())
+                    .attr("originalPrincipal", authParams.getOriginalPrincipal())
+                    .log("Client is not allowed to produce to the input topic of the triggered function");
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
         }
     }
 

@@ -3112,6 +3112,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void maybeOffload(long offloadThresholdInBytes, long offloadThresholdInSeconds,
                               CompletableFuture<Position> finalPromise, OffloadRequestSource source) {
+        if (!ownsLedgerData()) {
+            if (source == OffloadRequestSource.AUTOMATIC) {
+                finalPromise.complete(PositionFactory.LATEST);
+            } else {
+                finalPromise.completeExceptionally(new ManagedLedgerException(
+                        "Offload is not supported for a managed ledger that does not own its ledgers"));
+            }
+            return;
+        }
         if (getOffloadPoliciesIfAppendable().isEmpty()) {
             String msg = String.format("[%s] Nothing to offload due to offloader or offloadPolicies is NULL", name);
             finalPromise.completeExceptionally(new IllegalArgumentException(msg));
@@ -3711,7 +3720,24 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
     }
 
+    /**
+     * Returns whether the BookKeeper ledgers and offloaded ledger data listed by this managed ledger belong to it.
+     * When this returns false, trimming or deleting this managed ledger only updates its own metadata and never
+     * deletes the underlying ledger data, and offloading is not performed.
+     *
+     * <p>A managed ledger that is configured with a shadow source, or whose stored properties contain the shadow
+     * source property, lists ledgers of another managed ledger and does not own them.
+     */
+    protected boolean ownsLedgerData() {
+        return config.getShadowSource() == null
+                && !propertiesMap.containsKey(ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY);
+    }
+
     private void asyncDeleteLedger(long ledgerId, LedgerInfo info) {
+        if (!ownsLedgerData()) {
+            log.debug().attr("ledgerId", ledgerId).log("Skipping deletion of ledger not owned by this managed ledger");
+            return;
+        }
         if (!info.getOffloadContext().isBookkeeperDeleted()) {
             // only delete if it hasn't been previously deleted for offload
             asyncDeleteLedger(ledgerId, DEFAULT_LEDGER_DELETE_RETRIES);
@@ -3763,6 +3789,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private void asyncDeleteLedgerWithConcurrencyLimit(long ledgerId,
                                                        org.apache.bookkeeper.client.AsyncCallback.DeleteCallback cb,
                                                        Object ctx) {
+        if (!ownsLedgerData()) {
+            log.debug().attr("ledgerId", ledgerId).log("Skipping deletion of ledger not owned by this managed ledger");
+            cb.deleteComplete(BKException.Code.OK, ctx);
+            return;
+        }
         if (deleteLedgerSemaphore != null) {
             AsyncCallback.DeleteCallback cbWrapper = (rc, ctx1) -> {
                 deleteLedgerSemaphore.release();
@@ -3867,6 +3898,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx) {
+        if (!ownsLedgerData()) {
+            callback.offloadFailed(new ManagedLedgerException(
+                    "Offload is not supported for a managed ledger that does not own its ledgers"), ctx);
+            return;
+        }
         LedgerOffloader ledgerOffloader = config.getLedgerOffloader();
         if (ledgerOffloader != null && !ledgerOffloader.isAppendable()) {
             String msg = String.format("[%s] does not support offload", ledgerOffloader.getClass().getSimpleName());
@@ -5151,6 +5187,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     private void asyncUpdateProperties(Map<String, String> properties, boolean isDelete,
         String deleteKey, final UpdatePropertiesCallback callback, Object ctx) {
+        if (isDelete && ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY.equals(deleteKey)) {
+            // The property marks that the ledgers listed by this managed ledger belong to another managed ledger.
+            callback.updatePropertiesFailed(new ManagedLedgerException(
+                    "Property " + deleteKey + " cannot be removed"), ctx);
+            return;
+        }
         if (!metadataMutex.tryLock()) {
             // Defer update for later
             scheduledExecutor.schedule(() -> asyncUpdateProperties(properties, isDelete, deleteKey,

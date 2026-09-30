@@ -622,6 +622,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
             category = CATEGORY_SERVER,
+            dynamic = true,
             doc = "Amount of seconds to timeout when loading a topic. In situations with many geo-replicated clusters, "
                     + "this may need raised."
     )

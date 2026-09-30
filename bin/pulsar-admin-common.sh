@@ -161,6 +161,10 @@ OPTS="-XX:+ExitOnOutOfMemoryError -Dpulsar.allocator.exit_on_oom=true $OPTS"
 # than chunk size (8MB) and can reuse Netty's memory pool.
 OPTS="-Dio.netty.recycler.maxCapacityPerThread=4096 -Dio.netty.allocator.maxOrder=10 $OPTS"
 
+# Disable Netty's leak detection by default, as bin/pulsar does, since it costs CPU on the hot paths;
+# -Dio.netty.leakDetection.level in PULSAR_EXTRA_OPTS, which comes later on the command line, overrides it.
+OPTS="-Dio.netty.leakDetection.level=disabled $OPTS"
+
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
