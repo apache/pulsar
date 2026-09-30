@@ -20,6 +20,8 @@ package org.apache.pulsar.websocket;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.trim;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
@@ -28,6 +30,7 @@ import com.google.common.cache.CacheBuilder;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -48,6 +51,7 @@ import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -77,6 +81,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private SubscriptionType subscriptionType;
     private SubscriptionMode subscriptionMode;
     private Consumer<byte[]> consumer;
+    private TopicName deadLetterTopic;
 
     private int maxPendingMessages = 0;
     private final AtomicInteger pendingMessages = new AtomicInteger();
@@ -120,6 +125,15 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             }
             this.subscriptionType = builder.getConf().getSubscriptionType();
             this.subscriptionMode = builder.getConf().getSubscriptionMode();
+            if (service.isAuthorizationEnabled() && builder.getConf().getDeadLetterPolicy() != null) {
+                DeadLetterPolicy deadLetterPolicy = builder.getConf().getDeadLetterPolicy();
+                // Trim like ProducerBuilder.topic() so the checked topic is the one the DLQ producer uses.
+                String destination = trim(deadLetterPolicy.getDeadLetterTopic());
+                // A blank topic would make the client derive a separate DLQ topic for each partition.
+                checkArgument(isNotBlank(destination), "Dead letter topic must not be blank");
+                this.deadLetterTopic = TopicName.get(destination);
+                deadLetterPolicy.setDeadLetterTopic(destination);
+            }
 
             if (!checkAuth(response)) {
                 return;
@@ -495,6 +509,12 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                     this.subscription);
             return service.getAuthorizationService()
                     .allowTopicOperationAsync(topic, TopicOperation.CONSUME, authRole, subscription)
+                    .thenCompose(allowed -> {
+                        if (!allowed) {
+                            return CompletableFuture.completedFuture(allowed);
+                        }
+                        return authorizeDeadLetterTopic(authRole, authenticationData);
+                    })
                     .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
         } catch (TimeoutException e) {
             log.warn("Time-out {} sec while checking authorization on {} ",
@@ -505,6 +525,14 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                     e.getMessage());
             throw e;
         }
+    }
+
+    CompletableFuture<Boolean> authorizeDeadLetterTopic(String authRole, AuthenticationDataSource authenticationData) {
+        if (deadLetterTopic == null) {
+            return CompletableFuture.completedFuture(true);
+        }
+        return service.getAuthorizationService().allowTopicOperationAsync(
+                deadLetterTopic, TopicOperation.PRODUCE, authRole, authenticationData);
     }
 
     public String extractSubscription(HttpServletRequest request) {
