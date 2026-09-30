@@ -60,7 +60,8 @@
 # reuses small size-class slots to limit fragmentation; retained chunks and size rounding still cost memory.
 # To retain the previous cache allocator: -Dpulsar.allocator.ml-cache.type=pooled
 # Settings are read when an allocator is first created. default overrides do not apply to other IDs.
-# Leak detection is global: use -Dio.netty.leakDetection.level=disabled|simple|advanced|paranoid.
+# Leak detection is global and disabled by default in bin/pulsar: enable it with
+# -Dio.netty.leakDetection.level=simple|advanced|paranoid.
 # pulsar.allocator.leak_detection and per-allocator leak_detection settings are not supported.
 # -Dpulsar.allocator.pooled=true is deprecated; use -Dpulsar.allocator.type=pooled instead.
 # pulsar.allocator.type takes precedence over the legacy pulsar.allocator.pooled property.
