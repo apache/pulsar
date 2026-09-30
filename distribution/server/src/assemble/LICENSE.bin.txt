@@ -384,7 +384,7 @@ The Apache Software License, Version 2.0
     - org.apache.distributedlog-distributedlog-protocol-4.18.1.jar
     - org.apache.bookkeeper-native-io-4.18.1.jar
     - org.apache.bookkeeper-native-library-common-4.18.1.jar
-    - at.yawk.lz4-lz4-java-1.11.2.jar
+    - at.yawk.lz4-lz4-java-1.11.4.jar
   * Apache Felix HTTP Wrappers
     - org.apache.felix-org.apache.felix.http.wrappers-1.1.10.jar
   * Apache HTTP Client
