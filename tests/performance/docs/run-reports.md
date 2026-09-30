@@ -90,7 +90,7 @@ The run directory that the launcher printed at the start still has what the run 
 - `applications/<application>/application-summary.json`, with the application's unique messages, duplicates, ordering
   violations and invalid messages, and `applications/<application>/ordering-violations.txt`, with samples of the
   ordering violations, when the application got as far as its checks
-- `topic-stats.csv` and `host-stats.csv`, sampled until the failure
+- `topic-stats.csv`, `host-stats.csv`, `host-io.csv` and `container-stats.csv`, sampled until the failure
 
 The applications' container exits with an error when an application found ordering violations or invalid messages, or
 didn't receive every message, and the launcher fails a run when an application's state shows that it missed messages
@@ -106,6 +106,9 @@ didn't receive every message, and the launcher fails a run when an application's
 ├── throughput.svg, backlog.svg, latency-percentiles.svg, latency-timeline.svg,
 │   host-temperature.svg, host-frequency.svg    the charts, each also as PNG
 ├── topic-stats.csv, host-stats.csv    the sampled topic stats and host CPU
+├── host-io.csv                        the sampled Docker engine host CPU utilization and disk throughput
+├── container-stats.csv, perf-stat.csv each container's CPU use, context switches and CPU counters
+├── container-summary.json             the measurement's host and container averages, for scripts and agents
 ├── gateways/                          the gateways' outputs, and their recordings in a profiled run
 ├── applications/                      the applications' container log, and their recordings in a profiled run
 │   └── <application>/                 one directory per application, named after its subscription,
@@ -180,7 +183,11 @@ beside it, rendered with [commonmark-java](https://github.com/commonmark/commonm
 | `latency-timeline.svg`, `.png` | The maximum latency of each logged interval over the run, publish and per application |
 | `host-temperature.svg`, `.png`, `host-frequency.svg`, `.png` | The CPU package and hottest core temperature, and the mean and lowest core frequency, over the run |
 | `topic-stats.csv` | The broker's topic stats sampled once per second: backlog and message counters per subscription |
-| `host-stats.csv` | The host's CPU sampled once per second from Linux's sysfs files: package and hottest core temperature, mean and lowest core frequency, the kernel's thermal throttle counters and the fastest fan |
+| `host-stats.csv` | The launcher's host's CPU sampled once per second from Linux's sysfs files: package and hottest core temperature, mean and lowest core frequency, the kernel's thermal throttle counters and the fastest fan |
+| `host-io.csv` | The Docker engine host's CPU utilization and disk throughput sampled once per second from Linux's `/proc/stat` and `/proc/diskstats`: the busy and I/O-wait share of all CPUs, and each physical disk's read and write MB/s and busy share. It shows whether a run is limited by the host's CPUs or its storage, which the bookies share. When the engine runs in a Linux VM, such as Docker Desktop's or OrbStack's on macOS, the files are read in the VM through the privileged perf stat sidecar, so the numbers describe the VM; the launcher compares the kernels' boot IDs to tell. Without the sidecar (`--no-perf-stat`) the launcher reads its own host's files |
+| `container-stats.csv` | Each container's CPU use and context switches, once per second: the CPUs it used, from its cgroup's `cpu.stat`, and its threads' voluntary and involuntary context switches per second, from `/proc/<tid>/status`. A voluntary switch is a thread that blocked or waited for work; an involuntary one a thread that the scheduler preempted, which grows when the host's CPUs are saturated. Read from the host's files on a Linux host, and through the perf sidecar in the Docker engine's VM elsewhere; the run report's Containers section summarizes the measurement |
+| `perf-stat.csv` | Each container's exact `perf stat` counts per second, by cgroup: CPU time (task-clock, in ms), context switches, CPU migrations, page faults, cycles, instructions, last-level cache references and misses, L1 data cache load misses and branch misses. The Containers section derives the clock rate, the instructions per cycle (IPC), and the cache and branch misses per thousand instructions (MPKI) from them. A privileged sidecar container, built from Alpine's `perf` package and running in the Docker engine's host's PID and cgroup namespaces, counts them; it works on a Linux host and in the Linux VM of Docker Desktop or OrbStack, on x86-64 and arm64, and `--no-perf-stat` turns it off. A count that the CPU or the VM doesn't provide is empty |
+| `container-summary.json` | The measurement's averages of the Containers section as JSON, for scripts and agents: `measurement` (start, end, messages), `host` (the averages of `host-io.csv`'s columns), `containers.<name>` and `allContainers` (CPUs, CPU seconds per million messages, voluntary and involuntary switches per second, each perf count per second, `ghz`, `instructionsPerCycle`, `llcMissesPerKiloInstructions`, `llcMissPercent`, `l1dMissesPerKiloInstructions`, `branchMissesPerKiloInstructions`). A value that isn't available is left out |
 | `gateways/gateways-summary.json` | The gateways' counts and throughput, and the epoch-millisecond boundaries of the measurement |
 | `gateways/gateways-latency.hdr`, `.hgrm` | The publish latency log, and its percentile distribution in milliseconds, see [Latency logs](#latency-logs) |
 | `gateways/gateways-state.bin` | The gateways' next sequence number for each device. The launcher compares it with each application's `application-state.bin` and fails the run when they differ, which catches messages missing at the end, where no gap shows |

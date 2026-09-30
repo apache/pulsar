@@ -19,6 +19,8 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -208,5 +210,47 @@ public class BlobStoreBackedReadHandleImplTest {
         }
         // cleanup.
         ledger.close();
+    }
+
+    @Test
+    public void testGetIndexedEntryIdFloor() throws Exception {
+        int entries = 5000;
+        long[] indexedEntryIds = {0, 2500};
+        LedgerMetadata metadata = LedgerMetadataBuilder.create()
+                .withId(3)
+                .withEnsembleSize(1)
+                .withWriteQuorumSize(1)
+                .withAckQuorumSize(1)
+                .withDigestType(DigestType.CRC32C)
+                .withPassword("pwd".getBytes(UTF_8))
+                .withClosedState()
+                .withLastEntryId(entries - 1)
+                .withLength(entries * 100L)
+                .newEnsembleEntry(0L, Arrays.asList(BookieId.parse("127.0.0.1:3181")))
+                .build();
+        // A sparse index with one index entry per data block, like the index of an offloaded ledger
+        OffloadIndexBlock mockIndex = mock(OffloadIndexBlock.class);
+        when(mockIndex.getLedgerMetadata()).thenReturn(metadata);
+        when(mockIndex.getIndexEntryForEntry(anyLong())).thenAnswer(invocation -> {
+            long entryId = invocation.getArgument(0);
+            long floor = entryId >= indexedEntryIds[1] ? indexedEntryIds[1] : indexedEntryIds[0];
+            return OffloadIndexEntryImpl.of(floor, 0, 128 + floor * 100, 0);
+        });
+        ByteBuf data = ByteBufAllocator.DEFAULT.heapBuffer(0);
+        BlobStoreBackedReadHandleImpl ledger = new BlobStoreBackedReadHandleImpl(3, mockIndex,
+                new BackedInputStreamImpl(data), executor, offsetsCache);
+        try {
+            assertThat(ledger.getIndexedEntryIdFloor(0)).isEqualTo(0);
+            assertThat(ledger.getIndexedEntryIdFloor(2000)).as("floor in the first block").isEqualTo(0);
+            assertThat(ledger.getIndexedEntryIdFloor(2500)).as("first entry of the second block").isEqualTo(2500);
+            assertThat(ledger.getIndexedEntryIdFloor(4999)).as("floor in the second block").isEqualTo(2500);
+            assertThat(ledger.getIndexedEntryIdCeiling(0)).isEqualTo(0);
+            assertThat(ledger.getIndexedEntryIdCeiling(2000)).as("ceiling in the first block").isEqualTo(2500);
+            assertThat(ledger.getIndexedEntryIdCeiling(2500)).as("first entry of the second block").isEqualTo(2500);
+            assertThat(ledger.getIndexedEntryIdCeiling(4999)).as("no ceiling in the last block").isEqualTo(-1);
+        } finally {
+            ledger.close();
+            data.release();
+        }
     }
 }
