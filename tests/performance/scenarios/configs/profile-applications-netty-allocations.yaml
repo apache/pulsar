@@ -15,15 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Profiles the applications' Pulsar clients as configs/profile-applications does, and also records every Netty buffer
-# allocation and free with JDK Flight Recorder (io.netty.AllocateBuffer and io.netty.FreeBuffer, from
-# tests/performance/jfr/netty-allocations.jfc), which the profile report's Netty allocator events section breaks down
-# by size, pooled or one-off memory and thread pool. There is an event for every buffer, so it adds overhead to the
-# applications' Pulsar clients and makes the recording much larger: in the max-rate scenario, about 2.5 events of each
-# kind per message, and a broker recording of 1 GB instead of 10 MB. Prefer a short measurement, and compare
-# throughput and latency only between runs that record the same events. Add it to a scenario with the launcher's
-# --extends configs/profile-applications-netty-allocations option, and run the scenario with the profile task.
+# Profiles the applications' Pulsar clients as configs/profile-applications does, and also records the events of
+# Netty's buffer allocators with JDK Flight Recorder, from tests/performance/jfr/netty-allocations.jfc: every buffer
+# allocation, reallocation and free, and every chunk allocation and free. nettyAllocationsReport summarizes them in
+# the profile report's Netty allocator events section, by size, pooled or one-off memory and thread pool. The buffer
+# events are recorded for every buffer, so they add a heavy overhead to the applications' Pulsar clients and make the
+# recording much larger: in the max-rate scenario, about 2.5 events of each kind per message, and a broker recording
+# of 1 GB instead of 10 MB. Prefer a short measurement, and compare throughput and latency only between runs that
+# record the same events. Netty 4.1, which Pulsar 4.x uses, has no such events. Add it to a scenario with the
+# launcher's --extends configs/profile-applications-netty-allocations option, in place of
+# configs/profile-applications, and run the scenario with the profile task.
 extends: profile-applications.yaml
 profiling:
   applications:
-    jfrConfigurations: [profile, pulsar.jfc, netty-allocations.jfc]
+    jfrConfigurations: [profile, netty-allocations.jfc]
+    nettyAllocationsReport: true

@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import org.testng.annotations.Test;
@@ -102,32 +103,51 @@ public class ProfilingSettingsTest {
         ProfilingSettings settings = ProfilingSettings.read(mapper, mapper.readTree("""
                 broker:
                   asyncProfilerOptions: event=cpu
-                  jfrConfigurations: [profile, pulsar.jfc, netty-allocations.jfc]
+                  jfrConfigurations: [profile, netty-allocations.jfc]
+                  nettyAllocationsReport: true
                 gateways:
                   asyncProfilerOptions: event=cpu
+                applications:
+                  asyncProfilerOptions: event=cpu
+                  jfrConfigurations: []
                 """));
 
-        assertThat(settings.broker().jfrConfigurations())
-                .containsExactly("profile", "pulsar.jfc", "netty-allocations.jfc");
+        assertThat(settings.broker().jfrConfigurations()).containsExactly("profile", "netty-allocations.jfc");
         // A configuration of the JDK as it is, a .jfc file in the directory
-        assertThat(settings.broker().jfrConfigureInput("/jfr"))
-                .isEqualTo("profile,/jfr/pulsar.jfc,/jfr/netty-allocations.jfc");
-        assertThat(settings.gateways().jfrConfigurations()).isEqualTo(ProfilingSettings.DEFAULT_JFR_CONFIGURATIONS);
-        assertThat(settings.gateways().jfrConfigureInput("/jfr")).isEqualTo("profile,/jfr/pulsar.jfc");
+        assertThat(settings.broker().jfrConfigureInput("/jfr")).isEqualTo("profile,/jfr/netty-allocations.jfc");
+        assertThat(settings.broker().nettyAllocationsReport()).isTrue();
+        assertThat(settings.gateways().jfrConfigurations()).containsExactly("profile");
+        assertThat(settings.gateways().nettyAllocationsReport()).isFalse();
+        // No configurations record without JFR's events, so the launcher adds no jfrsync
+        assertThat(settings.applications().recordsJfrEvents()).isFalse();
+        assertThat(settings.applications().withJfrsync(null).asyncProfilerOptions()).isEqualTo("event=cpu");
     }
 
     @Test
-    public void rejectsJfrConfigurationsThatAreNotNames() throws Exception {
+    public void rejectsInvalidJfrSettings() throws Exception {
         assertThatThrownBy(() -> ProfilingSettings.read(mapper,
                 mapper.readTree("broker:\n  jfrConfigurations: [profile, ../etc/passwd.jfc]")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("profiling.broker.jfrConfigurations must list JFR configurations");
-        assertThatThrownBy(() -> ProfilingSettings.read(mapper, mapper.readTree("broker:\n  jfrConfigurations: []")))
+        assertThatThrownBy(() -> ProfilingSettings.read(mapper,
+                mapper.readTree("broker:\n  jfrConfigurations: netty-allocations.jfc")))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("profiling.broker.jfrConfigurations must list JFR configurations");
         assertThatThrownBy(() -> ProfilingSettings.read(mapper,
-                mapper.readTree("broker:\n  jfrConfigurations: pulsar.jfc")))
+                mapper.readTree("broker:\n  nettyAllocationsReport: yes please")))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("profiling.broker.jfrConfigurations must list JFR configurations");
+                .hasMessageContaining("profiling.broker.nettyAllocationsReport must be true or false");
+    }
+
+    @Test
+    public void findsTheComponentOfARecording() {
+        Path run = Path.of("/reports/run");
+
+        assertThat(PerformanceLauncher.recordingComponent(run, run.resolve("broker-profile/a.jfr")))
+                .isEqualTo(ProfilingSettings.BROKER);
+        assertThat(PerformanceLauncher.recordingComponent(run, run.resolve("gateways/profile-gateways-1.jfr")))
+                .isEqualTo(ProfilingSettings.GATEWAYS);
+        assertThat(PerformanceLauncher.recordingComponent(run, run.resolve("applications/profile-applications-1.jfr")))
+                .isEqualTo(ProfilingSettings.APPLICATIONS);
     }
 }

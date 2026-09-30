@@ -40,15 +40,20 @@ import java.util.regex.Pattern;
  *     offCpuOptions:
  *       reasons: [blocked]
  *       ...
- *     jfrConfigurations: [profile, pulsar.jfc]
+ *     jfrConfigurations: [profile, netty-allocations.jfc]
+ *     nettyAllocationsReport: true
  * </pre>
  *
- * <p>A component with {@code asyncProfilerOptions} is profiled; {@code offCpuOptions} is the jonoffcpu agent's
- * {@code sampling} block for it, which a profiled component needs. The launcher adds async-profiler's {@code jfrsync}
- * option, which records JDK Flight Recorder's events alongside async-profiler's with the merge of the component's
- * {@code jfrConfigurations}, {@link #DEFAULT_JFR_CONFIGURATIONS} unless the scenario lists them: a name, such as
- * {@code profile}, is one of the JDK's configurations, and a name ending with {@code .jfc} is a file of
- * {@value #JFR_CONFIGURATIONS_DIRECTORY}.
+ * <p>A component with {@code asyncProfilerOptions}, a comma-separated list of the options of
+ * <a href="https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md">async-profiler</a>,
+ * as the page's "Launch as agent" column names them, is profiled; {@code offCpuOptions} is the jonoffcpu agent's
+ * {@code sampling} block for it, which a profiled component needs. When the component lists JFR configurations in
+ * {@code jfrConfigurations}, {@link #DEFAULT_JFR_CONFIGURATIONS} unless the scenario lists others, the launcher adds
+ * async-profiler's {@code jfrsync} option, which records JDK Flight Recorder's events alongside async-profiler's with
+ * their merge: a name, such as {@code profile}, is one of the JDK's configurations, and a name ending with
+ * {@code .jfc} is a file of {@value #JFR_CONFIGURATIONS_DIRECTORY}. An empty list leaves {@code jfrsync} out, which
+ * records only async-profiler's events. {@code nettyAllocationsReport} summarizes the recording's Netty allocator events after
+ * the run, which a component records when its {@code jfrConfigurations} list {@code netty-allocations.jfc}.
  */
 record ProfilingSettings(Component broker, Component gateways, Component applications) {
     static final String BROKER = "broker";
@@ -58,8 +63,11 @@ record ProfilingSettings(Component broker, Component gateways, Component applica
     private static final String ASYNC_PROFILER_OPTIONS = "asyncProfilerOptions";
     private static final String OFF_CPU_OPTIONS = "offCpuOptions";
     private static final String JFR_CONFIGURATIONS = "jfrConfigurations";
+    private static final String NETTY_ALLOCATIONS_REPORT = "nettyAllocationsReport";
     private static final Set<String> COMPONENT_KEYS = Set.of(ASYNC_PROFILER_OPTIONS, OFF_CPU_OPTIONS,
-            JFR_CONFIGURATIONS);
+            JFR_CONFIGURATIONS, NETTY_ALLOCATIONS_REPORT);
+    private static final String SETTINGS = ASYNC_PROFILER_OPTIONS + ", " + OFF_CPU_OPTIONS + ", " + JFR_CONFIGURATIONS
+            + " and " + NETTY_ALLOCATIONS_REPORT;
     // A configuration of the JDK, such as profile, or the name of a .jfc file, without a directory
     private static final Pattern JFR_CONFIGURATION_NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]*");
 
@@ -73,9 +81,9 @@ record ProfilingSettings(Component broker, Component gateways, Component applica
 
     /**
      * The JFR configurations that a profiled component records with unless the scenario lists them: the JDK's
-     * {@code profile} configuration and the events that {@code tests/performance/jfr/pulsar.jfc} adds to it.
+     * {@code profile} configuration, which the JDK describes as a profiling configuration with about 2 % overhead.
      */
-    static final List<String> DEFAULT_JFR_CONFIGURATIONS = List.of("profile", "pulsar.jfc");
+    static final List<String> DEFAULT_JFR_CONFIGURATIONS = List.of("profile");
 
     /** The JDK's own profiling configuration, for an image whose JDK can't merge the configurations. */
     static final String FALLBACK_JFR_CONFIGURATION = "profile";
@@ -85,22 +93,33 @@ record ProfilingSettings(Component broker, Component gateways, Component applica
      *
      * @param asyncProfilerOptions the async-profiler options, or null when the component isn't profiled
      * @param offCpuOptions the jonoffcpu agent's {@code sampling} block, as the scenario wrote it
-     * @param jfrConfigurations the JFR configurations to merge and record with, in order
+     * @param jfrConfigurations the JFR configurations to merge and record with, in order; none records without JFR's
+     *                          events
+     * @param nettyAllocationsReport whether to summarize the recording's Netty allocator events after the run
      */
-    record Component(String asyncProfilerOptions, Map<String, Object> offCpuOptions, List<String> jfrConfigurations) {
-        static final Component NONE = new Component(null, Map.of(), DEFAULT_JFR_CONFIGURATIONS);
+    record Component(String asyncProfilerOptions, Map<String, Object> offCpuOptions, List<String> jfrConfigurations,
+                     boolean nettyAllocationsReport) {
+        static final Component NONE = new Component(null, Map.of(), DEFAULT_JFR_CONFIGURATIONS, false);
 
         boolean profiled() {
             return asyncProfilerOptions != null;
         }
 
-        /** The component with async-profiler's {@code jfrsync} recording JFR's events with {@code configuration}. */
+        /**
+         * The component with async-profiler's {@code jfrsync} recording JFR's events with {@code configuration}, or
+         * without JFR's events when it is null.
+         */
         Component withJfrsync(String configuration) {
-            if (!profiled()) {
+            if (!profiled() || configuration == null) {
                 return this;
             }
             return new Component(asyncProfilerOptions + "," + JFRSYNC + "=" + configuration, offCpuOptions,
-                    jfrConfigurations);
+                    jfrConfigurations, nettyAllocationsReport);
+        }
+
+        /** Whether the component records JFR's events, which an empty {@code jfrConfigurations} turns off. */
+        boolean recordsJfrEvents() {
+            return !jfrConfigurations.isEmpty();
         }
 
         /**
@@ -149,8 +168,7 @@ record ProfilingSettings(Component broker, Component gateways, Component applica
         profiling.fieldNames().forEachRemaining(field -> {
             if (!COMPONENTS.contains(field)) {
                 throw new IllegalArgumentException("profiling." + field + " isn't a component; profiling has "
-                        + COMPONENTS + ", each with " + ASYNC_PROFILER_OPTIONS + ", " + OFF_CPU_OPTIONS + " and "
-                        + JFR_CONFIGURATIONS);
+                        + COMPONENTS + ", each with " + SETTINGS);
             }
         });
         return new ProfilingSettings(component(mapper, profiling, BROKER), component(mapper, profiling, GATEWAYS),
@@ -167,30 +185,35 @@ record ProfilingSettings(Component broker, Component gateways, Component applica
             return Component.NONE;
         }
         if (!section.isObject()) {
-            throw new IllegalArgumentException("profiling." + name + " must be a mapping with "
-                    + ASYNC_PROFILER_OPTIONS + ", " + OFF_CPU_OPTIONS + " and " + JFR_CONFIGURATIONS);
+            throw new IllegalArgumentException("profiling." + name + " must be a mapping with " + SETTINGS);
         }
         section.fieldNames().forEachRemaining(field -> {
             if (!COMPONENT_KEYS.contains(field)) {
                 throw new IllegalArgumentException("profiling." + name + "." + field + " isn't a setting; a component "
-                        + "has " + ASYNC_PROFILER_OPTIONS + ", " + OFF_CPU_OPTIONS + " and " + JFR_CONFIGURATIONS);
+                        + "has " + SETTINGS);
             }
         });
         JsonNode options = section.path(ASYNC_PROFILER_OPTIONS);
         String asyncProfilerOptions = options.isTextual() && !options.textValue().isBlank()
                 ? options.textValue() : null;
-        // The launcher sets jfrsync to the merge of the component's jfrConfigurations
+        // The launcher sets jfrsync from the component's jfrConfigurations
         if (asyncProfilerOptions != null && Arrays.stream(asyncProfilerOptions.split(","))
                 .anyMatch(option -> option.trim().startsWith(JFRSYNC))) {
             throw new IllegalArgumentException("profiling." + name + "." + ASYNC_PROFILER_OPTIONS + " sets " + JFRSYNC
                     + ", which the launcher sets to the merge of the component's " + JFR_CONFIGURATIONS + "; list the"
-                    + " JFR configurations there, such as " + JFR_CONFIGURATIONS
-                    + ": [profile, pulsar.jfc, netty-allocations.jfc]");
+                    + " JFR configurations there, such as " + JFR_CONFIGURATIONS + ": [profile, netty-allocations.jfc],"
+                    + " or none, " + JFR_CONFIGURATIONS + ": [], to record without JFR's events");
         }
         List<String> jfrConfigurations = jfrConfigurations(section.path(JFR_CONFIGURATIONS), name);
+        JsonNode report = section.path(NETTY_ALLOCATIONS_REPORT);
+        if (!report.isMissingNode() && !report.isNull() && !report.isBoolean()) {
+            throw new IllegalArgumentException("profiling." + name + "." + NETTY_ALLOCATIONS_REPORT
+                    + " must be true or false");
+        }
+        boolean nettyAllocationsReport = report.asBoolean(false);
         JsonNode offCpu = section.path(OFF_CPU_OPTIONS);
         if (offCpu.isMissingNode() || offCpu.isNull()) {
-            return new Component(asyncProfilerOptions, Map.of(), jfrConfigurations);
+            return new Component(asyncProfilerOptions, Map.of(), jfrConfigurations, nettyAllocationsReport);
         }
         if (!offCpu.isObject()) {
             throw new IllegalArgumentException("profiling." + name + "." + OFF_CPU_OPTIONS
@@ -200,7 +223,7 @@ record ProfilingSettings(Component broker, Component gateways, Component applica
         // and is recorded in the capture metadata as spelled
         return new Component(asyncProfilerOptions,
                 mapper.convertValue(offCpu, new TypeReference<LinkedHashMap<String, Object>>() { }),
-                jfrConfigurations);
+                jfrConfigurations, nettyAllocationsReport);
     }
 
     private static List<String> jfrConfigurations(JsonNode node, String name) {
@@ -209,8 +232,8 @@ record ProfilingSettings(Component broker, Component gateways, Component applica
         }
         String invalid = "profiling." + name + "." + JFR_CONFIGURATIONS + " must list JFR configurations to merge:"
                 + " configurations of the JDK, such as profile, and .jfc files of " + JFR_CONFIGURATIONS_DIRECTORY
-                + ", such as pulsar.jfc";
-        if (!node.isArray() || node.isEmpty()) {
+                + ", such as netty-allocations.jfc, or none to record without JFR's events";
+        if (!node.isArray()) {
             throw new IllegalArgumentException(invalid + ", not " + node);
         }
         List<String> configurations = new ArrayList<>();

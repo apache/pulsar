@@ -48,11 +48,12 @@ import picocli.CommandLine.Parameters;
  * {@code ReallocateBuffer}, {@code AllocateChunk}, {@code FreeChunk} and {@code ReturnChunk}) in a measurement
  * recording: how many buffers each allocator handed out and of which sizes, how many of them needed a chunk of their
  * own instead of pooled memory, how often buffers grew, the chunks allocated and freed, and the threads that
- * allocated. The summary is written as JSON beside the recording, and the profile report renders it.
+ * allocated. The summary is written as JSON beside the recording, and the profile report renders it. Any subset of the
+ * events can be in the recording, including none, which gives an empty summary.
  *
- * <p>Profiled components record the events with the JFR configuration {@code tests/performance/jfr/pulsar.jfc}, except
- * the events of every buffer allocation and free, which a component records when its {@code jfrConfigurations} list
- * {@code tests/performance/jfr/netty-allocations.jfc}.
+ * <p>A profiled component records the events when its {@code jfrConfigurations} list
+ * {@code tests/performance/jfr/netty-allocations.jfc}, and the launcher writes the summary when the component has
+ * {@code nettyAllocationsReport: true}. Netty 4.2.4 and later emit them; Netty 4.1, which Pulsar 4.x uses, has none.
  */
 @Command(name = "netty-allocator-events", mixinStandardHelpOptions = true,
         description = "Summarize the Netty allocator events of a JFR recording into <recording>"
@@ -89,10 +90,6 @@ public final class NettyAllocatorEvents implements Callable<Integer> {
     public Integer call() throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         Path output = write(recording, null, messages, mapper);
-        if (output == null) {
-            System.out.println("No Netty allocator events in " + recording);
-            return 1;
-        }
         StringBuilder markdown = new StringBuilder();
         appendReport(markdown, mapper.readTree(output.toFile()), output.getFileName().toString());
         System.out.print(markdown);
@@ -119,7 +116,7 @@ public final class NettyAllocatorEvents implements Callable<Integer> {
      *
      * @param window the measurement period, or null to take it from the first and last allocator event
      * @param messages the messages measured in the period, or 0 when unknown
-     * @return the summary file, or null when the recording has no Netty allocator events
+     * @return the summary file, which has no events when the recording has no Netty allocator events
      */
     public static Path write(Path recording, Duration window, long messages, ObjectMapper mapper) throws IOException {
         Map<String, Totals> events = new TreeMap<>();
@@ -195,10 +192,7 @@ public final class NettyAllocatorEvents implements Callable<Integer> {
                 }
             }
         }
-        if (events.isEmpty()) {
-            return null;
-        }
-        double seconds = window != null ? window.toMillis() / 1000.0
+        double seconds = window != null ? window.toMillis() / 1000.0 : first == null ? 0
                 : Math.max(Duration.between(first, last).toMillis() / 1000.0, 0.001);
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("recording", recording.getFileName().toString());
@@ -309,26 +303,23 @@ public final class NettyAllocatorEvents implements Callable<Integer> {
     static void appendReport(StringBuilder report, JsonNode summary, String file) {
         double seconds = summary.path("seconds").asDouble();
         long messages = summary.path("messages").asLong();
-        boolean bufferEvents = false;
-        for (JsonNode row : summary.path("events")) {
-            bufferEvents |= ALLOCATE_BUFFER.equals(row.path("event").asText());
+        report.append("\n### Netty allocator events\n\n");
+        if (!summary.path("events").isArray() || summary.path("events").isEmpty()) {
+            report.append("The recording has no events of Netty's buffer allocators ([the summary](").append(file)
+                    .append(")). The component records them when its `jfrConfigurations` list `netty-allocations.jfc`,")
+                    .append(" and Netty 4.2.4 and later emit them; Netty 4.1, which Pulsar 4.x uses, has none.\n");
+            return;
         }
-        report.append("\n### Netty allocator events\n\n")
-                .append("Netty's buffer allocators recorded an event for every chunk of memory they allocated and")
-                .append(" freed to hand out buffers from, and for every buffer they grew")
-                .append(bufferEvents ? ", allocated and freed" : "").append(", in the")
+        report.append("The events of Netty's buffer allocators in the")
                 .append(String.format(Locale.ROOT, " %.1f s measurement", seconds))
                 .append(messages > 0 ? String.format(Locale.ROOT, " of %,d messages", messages) : "")
-                .append(" ([the summary](").append(file).append(")). A one-off chunk is the memory of a single")
-                .append(" buffer that didn't fit the pooled memory, allocated and freed with it, so such a buffer")
-                .append(" costs much more than a pooled one; reallocations grow a buffer by copying it into a larger")
-                .append(" one. Chunk allocations while the load is steady show the pools growing or churning.")
-                .append(bufferEvents ? "" : " The events of every buffer allocation and free,"
-                        + " `io.netty.AllocateBuffer` and `io.netty.FreeBuffer`, weren't recorded: there is one for"
-                        + " every buffer, so they are recorded only when the component's `jfrConfigurations` list"
-                        + " `netty-allocations.jfc`, such as with"
-                        + " `--extends configs/profile-broker-netty-allocations`.")
-                .append("\n\n");
+                .append(" ([the summary](").append(file).append(")), as far as the recording has them. A buffer")
+                .append(" event is recorded for every buffer that an allocator allocates, grows or frees, and a chunk")
+                .append(" event for every chunk of memory that it allocates or frees to hand out buffers from. A")
+                .append(" one-off chunk is the memory of a single buffer that didn't fit the pooled memory, allocated")
+                .append(" and freed with it, so such a buffer costs much more than a pooled one; reallocations grow a")
+                .append(" buffer by copying it into a larger one. Chunk allocations while the load is steady show the")
+                .append(" pools growing or churning.\n\n");
         report.append("| Event | Events | Per second |").append(messages > 0 ? " Per message |" : "")
                 .append(" MB | One-off |\n|---|---:|---:|").append(messages > 0 ? "---:|" : "")
                 .append("---:|---:|\n");

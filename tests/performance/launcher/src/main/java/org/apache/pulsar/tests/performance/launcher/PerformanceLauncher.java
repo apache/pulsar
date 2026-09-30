@@ -615,13 +615,11 @@ public class PerformanceLauncher implements Callable<Integer> {
             JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd);
             for (Path recording : recordings) {
                 Path source = JfrRecordingProcessor.measurementPath(recording);
-                if (Files.isRegularFile(source)) {
-                    Path nettyAllocator = NettyAllocatorEvents.write(source,
+                String component = recordingComponent(runOutput, recording);
+                if (Files.isRegularFile(source) && profilingSettings.component(component).nettyAllocationsReport()) {
+                    System.out.println("Netty allocator events: " + NettyAllocatorEvents.write(source,
                             Duration.between(measurementStart, measurementEnd),
-                            summary.path("measurementMessages").asLong(), loader.mapper());
-                    if (nettyAllocator != null) {
-                        System.out.println("Netty allocator events: " + nettyAllocator);
-                    }
+                            summary.path("measurementMessages").asLong(), loader.mapper()));
                 }
                 Set<JfrFlamegraphViews.View> views = JfrFlamegraphViews.configuredViews(
                         asyncProfilerOptions(loader.mapper(), recording));
@@ -1138,6 +1136,16 @@ public class PerformanceLauncher implements Callable<Integer> {
         }
     }
 
+    /** The profiled component whose recording {@code recording} is, by the directory that it is in. */
+    static String recordingComponent(Path runOutput, Path recording) {
+        Path directory = runOutput.relativize(recording.toAbsolutePath().normalize()).getName(0);
+        return switch (directory.toString()) {
+            case GATEWAYS_DIRECTORY -> ProfilingSettings.GATEWAYS;
+            case APPLICATIONS_DIRECTORY -> ProfilingSettings.APPLICATIONS;
+            default -> ProfilingSettings.BROKER;
+        };
+    }
+
     /**
      * Where a component's merged JFR configuration goes: the image that the component runs, and the directory on the
      * host that its container binds at {@code containerDirectory}.
@@ -1148,7 +1156,9 @@ public class PerformanceLauncher implements Callable<Integer> {
     /**
      * Merges each profiled component's {@code jfrConfigurations} with {@code jfr configure} into
      * {@value #JFR_CONFIGURATION_FILE} in its output directory, and sets its async-profiler {@code jfrsync} to the file
-     * as its container sees it. The merge runs in a one-off container of the component's image, so that a configuration
+     * as its container sees it. A single configuration of the JDK, such as the default {@code profile}, is passed to
+     * {@code jfrsync} as it is, and an empty list leaves {@code jfrsync} out, which records only async-profiler's
+     * events. The merge runs in a one-off container of the component's image, so that a configuration
      * of the JDK, such as {@code profile}, is the one of the JVM that records with it; the {@code .jfc} files come
      * from {@code jfcDirectory}. When the image's JDK can't merge them, such as a released Pulsar's image whose JDK has
      * no jfr tool, the component records with the JDK's {@value ProfilingSettings#FALLBACK_JFR_CONFIGURATION}
@@ -1159,10 +1169,15 @@ public class PerformanceLauncher implements Callable<Integer> {
         Map<String, String> configurations = new HashMap<>();
         for (String name : ProfilingSettings.components()) {
             ProfilingSettings.Component component = settings.component(name);
-            if (!component.profiled()) {
+            if (!component.profiled() || !component.recordsJfrEvents()) {
                 continue;
             }
-            for (String configuration : component.jfrConfigurations()) {
+            List<String> listed = component.jfrConfigurations();
+            if (listed.size() == 1 && !listed.get(0).endsWith(ProfilingSettings.JFC_SUFFIX)) {
+                configurations.put(name, listed.get(0));
+                continue;
+            }
+            for (String configuration : listed) {
                 if (configuration.endsWith(ProfilingSettings.JFC_SUFFIX)
                         && !Files.isRegularFile(jfcDirectory.resolve(configuration))) {
                     throw new IllegalArgumentException("The profiling of " + name + " lists the JFR configuration "

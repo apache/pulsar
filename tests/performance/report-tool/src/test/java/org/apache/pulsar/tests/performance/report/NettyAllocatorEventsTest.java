@@ -144,7 +144,7 @@ public class NettyAllocatorEventsTest {
     }
 
     @Test
-    public void writesNothingWithoutAllocatorEvents() throws Exception {
+    public void writesAnEmptySummaryWithoutAllocatorEvents() throws Exception {
         Path recording = Files.createTempDirectory("netty-allocator-events").resolve("empty.jfr");
         try (Recording jfr = new Recording()) {
             jfr.start();
@@ -152,7 +152,14 @@ public class NettyAllocatorEventsTest {
             jfr.dump(recording);
         }
 
-        assertThat(NettyAllocatorEvents.write(recording, null, 0, mapper)).isNull();
+        Path output = NettyAllocatorEvents.write(recording, Duration.ofSeconds(2), 10, mapper);
+
+        JsonNode summary = mapper.readTree(output.toFile());
+        assertThat(summary.path("events")).isEmpty();
+        StringBuilder report = new StringBuilder();
+        NettyAllocatorEvents.appendReport(report, summary, output.getFileName().toString());
+        assertThat(report.toString()).contains("The recording has no events of Netty's buffer allocators")
+                .doesNotContain("| Event |");
     }
 
     @Test

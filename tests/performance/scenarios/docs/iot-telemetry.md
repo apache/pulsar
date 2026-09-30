@@ -186,20 +186,22 @@ the scenarios' `configs` directory, here the broker's and the gateways' to the h
   --args='--scenario tests/performance/scenarios/iot-telemetry-high-rate.yaml --extends configs/profile-broker --extends configs/profile-gateways'
 ```
 
-The options are async-profiler options. The [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent runs
-async-profiler with them, JDK Flight Recorder alongside with `jfrsync`, and its kernel-measured off-CPU recording, all
-at the same time. [Profiling](../../docs/profiling.md) describes the requirements
-and the files each recording produces, and [Analyzing profiles](../../docs/analyzing-profiles.md) how to find what to
-optimize.
+The options are a comma-separated list of
+[async-profiler's options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md), as
+the page's "Launch as agent" column names them. The [jonoffcpu](https://github.com/jonoffcpu/jonoffcpu) agent runs
+async-profiler with them, JDK Flight Recorder alongside with `jfrsync` when the component lists JFR configurations, as
+it does by default, and its kernel-measured off-CPU recording, all at the same time.
+[Profiling](../../docs/profiling.md) describes the requirements and the files each recording produces, and [Analyzing
+profiles](../../docs/analyzing-profiles.md) how to find what to optimize.
 
 Broker recordings are written under `broker-profile/`, the gateways' under `gateways/` and the applications' under
 `applications/`. The launcher owns each recording path so recordings remain inside the run
 directory, and rejects options that set `file=`. A component without options isn't profiled. The ordinary `run` task
 rejects profiling-enabled YAML rather than silently running without the agent.
 
-The profile files sample CPU every 10 ms and allocations every 2 MB in their component, the JVM's own events and
-Netty's allocator events are recorded with the launcher's JFR configuration (see
-[The JFR configuration](../../docs/profiling.md#the-jfr-configuration)), and they record only intervals where a thread
+The profile files sample CPU every 10 ms and allocations every 2 MB in their component, record the JVM's own events
+with JFR's `profile` configuration (see [The JFR configuration](../../docs/profiling.md#the-jfr-configuration)), and
+record only intervals where a thread
 blocked (`reasons: [blocked]`), not those where it was runnable but waiting for a CPU. It ignores waits under 100 µs
 (`minOffCpuMicros: 100`) and records every wait of 10 ms or longer, sampling shorter ones in proportion to their
 length (`admission: {policy: proportional, recordAllAboveMicros: 10000}`), which bounds the recording rate by off-CPU
