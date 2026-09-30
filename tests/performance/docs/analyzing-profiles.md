@@ -268,6 +268,49 @@ duckdb -no-init -bail -csv -header < analysis.sql > analysis.csv
 Use one result query per output file so that JSON contains a single array and CSV contains one table with a header.
 `-bail` stops on SQL errors; check the exit status before consuming the output.
 
+### Per-thread CPU
+
+The flame graphs' `cpu.collapsed` merges all threads. A serial stage, such as a topic's managed-ledger thread,
+shows only when the samples are split by thread: write collapsed stacks with the thread as their first frame from the
+measurement recording, with the converter's `--threads` option:
+
+```bash
+./gradlew -q :tests:performance:report-tool:runJfrConverter \
+  --args="--cpu --threads --norm -o collapsed /absolute/path/to/recording.measurement.jfr /tmp/cpu-threads.collapsed"
+```
+
+Each stack then starts with a frame such as `[BookKeeperClientWorker-OrderedExecutor-12-0 tid=123]`. This ranks the
+thread pools, with the numeric suffix of each thread's name replaced so that a pool's threads group together:
+
+```sql
+SET VARIABLE profile = '/tmp/cpu-threads.collapsed';
+SELECT regexp_replace(regexp_extract(frames[1], '^\[(.*) tid=[0-9]+\]$', 1), '-[0-9]+$', '-N') AS pool,
+       sum(samples) AS samples,
+       round(100.0 * sum(samples) / (SELECT sum(samples) FROM read_folded(getvariable('profile'))), 1) AS pct
+FROM flamegraph_hot_stacks(getvariable('profile'))
+GROUP BY pool ORDER BY samples DESC LIMIT 20;
+```
+
+Group by `regexp_extract(frames[1], '^\[(.*) tid=[0-9]+\]$', 1)` instead to rank single threads. A thread's samples
+per second of the measurement window, times the sampling interval (10 ms by default), is its busy share of one core:
+a thread near 100 % is a serial stage. This query shows where one thread spends its CPU, counting each stack once per
+matching frame:
+
+```sql
+SET VARIABLE thread = 'BookKeeperClientWorker-OrderedExecutor-12-0';
+SET VARIABLE pkg = '^org[./]apache[./](pulsar|bookkeeper)[./]';
+WITH t AS (SELECT frames, samples FROM flamegraph_hot_stacks(getvariable('profile'))
+           WHERE regexp_extract(frames[1], '^\[(.*) tid=[0-9]+\]$', 1) = getvariable('thread')),
+     total AS (SELECT sum(samples) AS n FROM t)
+SELECT f AS frame, sum(samples) AS samples, round(100.0 * sum(samples) / any_value(n), 1) AS pct_of_thread
+FROM (SELECT unnest(list_distinct(frames[2:])) AS f, samples FROM t), total
+WHERE regexp_matches(f, getvariable('pkg'))
+GROUP BY f ORDER BY samples DESC LIMIT 30;
+```
+
+To compare runs, divide the samples by each run's measured messages in millions; the throughput of a saturated
+scenario follows the cost per message of its busiest serial thread.
+
 
 
 
