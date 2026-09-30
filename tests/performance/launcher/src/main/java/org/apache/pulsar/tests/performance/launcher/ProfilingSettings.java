@@ -52,8 +52,9 @@ import java.util.regex.Pattern;
  * async-profiler's {@code jfrsync} option, which records JDK Flight Recorder's events alongside async-profiler's with
  * their merge: a name, such as {@code profile}, is one of the JDK's configurations, and a name ending with
  * {@code .jfc} is a file of {@value #JFR_CONFIGURATIONS_DIRECTORY}. An empty list leaves {@code jfrsync} out, which
- * records only async-profiler's events. {@code nettyAllocationsReport} summarizes the recording's Netty allocator events after
- * the run, which a component records when its {@code jfrConfigurations} list {@code netty-allocations.jfc}.
+ * records only async-profiler's events. {@code nettyAllocationsReport} summarizes the recording's Netty allocator
+ * events after the run, which a component records when its {@code jfrConfigurations} list
+ * {@code netty-allocations.jfc}.
  */
 record ProfilingSettings(Component broker, Component gateways, Component applications) {
     static final String BROKER = "broker";
