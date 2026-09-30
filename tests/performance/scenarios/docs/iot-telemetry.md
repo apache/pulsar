@@ -197,9 +197,9 @@ Broker recordings are written under `broker-profile/`, the gateways' under `gate
 directory, and rejects options that set `file=`. A component without options isn't profiled. The ordinary `run` task
 rejects profiling-enabled YAML rather than silently running without the agent.
 
-The profile files sample CPU every 10 ms and allocations every 2 MB in their component, record the
-JVM's own events with JFR's `profile` configuration (`jfrsync=profile`, see
-[Configuring profiling](../../docs/profiling.md#configuring-profiling)), and record only intervals where a thread
+The profile files sample CPU every 10 ms and allocations every 2 MB in their component, the JVM's own events and
+Netty's allocator events are recorded with the launcher's JFR configuration (see
+[The JFR configuration](../../docs/profiling.md#the-jfr-configuration)), and they record only intervals where a thread
 blocked (`reasons: [blocked]`), not those where it was runnable but waiting for a CPU. It ignores waits under 100 µs
 (`minOffCpuMicros: 100`) and records every wait of 10 ms or longer, sampling shorter ones in proportion to their
 length (`admission: {policy: proportional, recordAllAboveMicros: 10000}`), which bounds the recording rate by off-CPU

@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<!--
+  The JFR events that the performance tests' profiled JVMs record in addition to, or instead of, the JDK's "profile"
+  configuration. A component's profiling settings list the JFR configurations it records with,
+  jfrConfigurations: [profile, pulsar.jfc] by default, which the launcher merges with "jfr configure" in the component's
+  image and passes to async-profiler's jfrsync option: a name such as profile is one of the JDK's configurations, and a
+  name ending with .jfc is a file of this directory. To record other events or change their settings, edit this file;
+  an event that the JVM doesn't have is ignored. For a purpose that needs more events, add a file here and list it in a
+  component's jfrConfigurations, as netty-allocations.jfc is.
+
+  The events of Netty's buffer allocators (Netty 4.2: AdaptivePoolingAllocator and PooledByteBufAllocator), as
+  Netty's microbench/src/main/resources/Netty Allocator Events.jfc lists them, without their legacy names.
+  io.netty.ReturnChunk is ignored until the JVM's Netty version has it.
+
+  The events of every buffer allocation and free, io.netty.AllocateBuffer and io.netty.FreeBuffer, are in
+  netty-allocations.jfc instead, since there is an event for every buffer, and JFR can't sample them. In the IoT
+  telemetry max-rate scenario, they were about 2.5 events of each kind per message in each profiled component, which
+  made a broker's recording 1 GB instead of 10 MB. The chunk events show the one-off buffers without them: a buffer that
+  doesn't fit the pooled memory gets an unpooled chunk of its own (io.netty.AllocateChunk with pooled false).
+-->
+<configuration version="2.0" label="Pulsar"
+    description="The events that Pulsar's performance tests add to the JDK's profile configuration">
+  <category label="Netty">
+    <event name="io.netty.ReallocateBuffer">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+    <event name="io.netty.AllocateChunk">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+    <event name="io.netty.FreeChunk">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+    <event name="io.netty.ReturnChunk">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+  </category>
+</configuration>

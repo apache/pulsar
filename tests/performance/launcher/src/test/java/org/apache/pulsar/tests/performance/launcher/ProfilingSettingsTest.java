@@ -70,4 +70,64 @@ public class ProfilingSettingsTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("profiling.broker.retainOriginalRecording isn't a setting");
     }
+
+    @Test
+    public void addsTheJfrConfigurationToTheProfiledComponents() throws Exception {
+        ProfilingSettings settings = ProfilingSettings.read(mapper, mapper.readTree("""
+                broker:
+                  asyncProfilerOptions: event=cpu,interval=10ms
+                  offCpuOptions:
+                    admission:
+                      policy: none
+                """)).withJfrsync(Map.of(ProfilingSettings.BROKER, "/profiles/jfr-configuration.jfc",
+                ProfilingSettings.GATEWAYS, ProfilingSettings.FALLBACK_JFR_CONFIGURATION));
+
+        assertThat(settings.broker().asyncProfilerOptions())
+                .isEqualTo("event=cpu,interval=10ms,jfrsync=/profiles/jfr-configuration.jfc");
+        // A component that isn't profiled gets no options
+        assertThat(settings.gateways()).isEqualTo(ProfilingSettings.Component.NONE);
+    }
+
+    @Test
+    public void rejectsAJfrConfigurationInTheScenario() throws Exception {
+        assertThatThrownBy(() -> ProfilingSettings.read(mapper,
+                mapper.readTree("broker:\n  asyncProfilerOptions: event=cpu,jfrsync=profile")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("profiling.broker.asyncProfilerOptions sets jfrsync")
+                .hasMessageContaining("jfrConfigurations");
+    }
+
+    @Test
+    public void mergesTheListedJfrConfigurations() throws Exception {
+        ProfilingSettings settings = ProfilingSettings.read(mapper, mapper.readTree("""
+                broker:
+                  asyncProfilerOptions: event=cpu
+                  jfrConfigurations: [profile, pulsar.jfc, netty-allocations.jfc]
+                gateways:
+                  asyncProfilerOptions: event=cpu
+                """));
+
+        assertThat(settings.broker().jfrConfigurations())
+                .containsExactly("profile", "pulsar.jfc", "netty-allocations.jfc");
+        // A configuration of the JDK as it is, a .jfc file in the directory
+        assertThat(settings.broker().jfrConfigureInput("/jfr"))
+                .isEqualTo("profile,/jfr/pulsar.jfc,/jfr/netty-allocations.jfc");
+        assertThat(settings.gateways().jfrConfigurations()).isEqualTo(ProfilingSettings.DEFAULT_JFR_CONFIGURATIONS);
+        assertThat(settings.gateways().jfrConfigureInput("/jfr")).isEqualTo("profile,/jfr/pulsar.jfc");
+    }
+
+    @Test
+    public void rejectsJfrConfigurationsThatAreNotNames() throws Exception {
+        assertThatThrownBy(() -> ProfilingSettings.read(mapper,
+                mapper.readTree("broker:\n  jfrConfigurations: [profile, ../etc/passwd.jfc]")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("profiling.broker.jfrConfigurations must list JFR configurations");
+        assertThatThrownBy(() -> ProfilingSettings.read(mapper, mapper.readTree("broker:\n  jfrConfigurations: []")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("profiling.broker.jfrConfigurations must list JFR configurations");
+        assertThatThrownBy(() -> ProfilingSettings.read(mapper,
+                mapper.readTree("broker:\n  jfrConfigurations: pulsar.jfc")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("profiling.broker.jfrConfigurations must list JFR configurations");
+    }
 }

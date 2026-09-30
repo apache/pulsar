@@ -20,8 +20,10 @@
 profiling:
   broker:
     # async-profiler options, recorded through the jonoffcpu agent. No wall-clock or lock event: CPU and allocation
-    # data share one JFR recording, and waiting time comes from the kernel instead.
-    asyncProfilerOptions: event=cpu,interval=10ms,alloc=2m,jfrsync=profile
+    # data share one JFR recording, and waiting time comes from the kernel instead. The launcher adds jfrsync, which
+    # records JDK Flight Recorder's events with the merge of jfrConfigurations, by default the JDK's profile
+    # configuration and tests/performance/jfr/pulsar.jfc.
+    asyncProfilerOptions: event=cpu,interval=10ms,alloc=2m
     # The jonoffcpu sampling policy. Only intervals where the thread blocked are recorded, not those where it was
     # runnable but had no CPU. Waits below 100 µs are dropped as context-switch noise; every wait of 10 ms or longer
     # is recorded, and shorter ones in proportion to their length, so the long waits are never missed and the short

@@ -119,6 +119,7 @@ Run commands from the repository root. Gradle properties (`-P...`) configure the
 | Run an unprofiled measurement | `./gradlew :tests:performance:launcher:run --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'` | Prints the run directory, resolved settings, progress and report path; writes the [run artifacts](#the-run) |
 | Profile selected components | `./gradlew :tests:performance:launcher:profile --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --extends configs/profile-broker'` | Adds JFR recordings, off-CPU captures, digests and flame graphs; use `profile`, since `run` rejects profiling options |
 | Select more profiled components | Repeat `--extends configs/profile-gateways` and/or `--extends configs/profile-applications` inside `--args` of `profile` | Profiles producers and/or consumers; each workload container's recording covers all its gateways or applications |
+| Record every Netty buffer allocation | Use `--extends configs/profile-<component>-netty-allocations` in place of `configs/profile-<component>` | Adds JFR events for every buffer allocation and free, broken down in the profile report; costly, so prefer a short measurement and compare runs that record the same events |
 | Change a setting for one run | Add `--set workloads.iotTelemetry.rate=5000` to `--args` | Applies after inheritance and environment overrides; inspect `resolved-config.yaml` to verify it |
 | Group an experiment's runs | Add `--name <experiment>` to `--args` | Uses that name below the checkout's branch directory, which can be shared by both revisions; does not combine or compare reports |
 | Keep revisions' images apart | Add `-Pdocker.tag=baseline` or `-Pdocker.tag=candidate` | Builds and uses a separate image tag in each checkout |
@@ -276,7 +277,8 @@ The following paths are relative to the profiled component's directory:
 | `<recording>-offcpu/offcpu-idle-waits.txt`, `offcpu-dispatch-hide.txt` | The idle-wait patterns and the dispatch frames that the digest and the slices leave out or hide | Read |
 | `<recording>-flamegraphs/<view>.collapsed` | The async-profiler views' stacks, `cpu`, `alloc`, and `wall` and `lock` when recorded, of the measurement window: one stack per line with its weight at the end | [DuckDB with the quack_flamegraph community extension](docs/analyzing-profiles.md#analyzing-collapsed-stacks-with-duckdb); also `rg`, `sort` |
 | `<recording>-flamegraphs/<view>.html`, `<view>-threads.html`, `<view>-heatmap.html` | The flame graphs, split by thread, and over time for bursts and pauses | A browser |
-| `<recording>.measurement.jfr` | The recording cut to the measurement window: async-profiler's CPU and allocation samples, and the JDK's events such as `jdk.JavaMonitorEnter`, `jdk.ThreadPark` and garbage collection | The Jafar MCP server, jafar-shell |
+| `<recording>.measurement.jfr` | The recording cut to the measurement window: async-profiler's CPU and allocation samples, the JDK's events such as `jdk.JavaMonitorEnter`, `jdk.ThreadPark` and garbage collection, and Netty's allocator events (`io.netty.*`) | The Jafar MCP server, jafar-shell |
+| `<recording>.measurement.netty-allocator.json` | Netty's buffer and chunk allocations in the measurement window by allocator, size, pooled or one-off memory and thread pool; the profile report shows it | `jq`; `summarizeNettyAllocatorEvents` for another recording |
 | `<recording>.jfr` | The complete recording, startup and shutdown included | The Jafar MCP server, jafar-shell; `runJfrCut` for another window |
 | `<recording>.jonoffcpu-capture.pb`, `.jonoffcpu-capture.manifest.json`, `.jonoffcpu.yaml` | The off-CPU capture stream, its manifest, and the agent's configuration | The jonoffcpu correlator, to correlate again, such as with `--audit full` |
 
@@ -365,7 +367,8 @@ When the Jafar MCP tools are available, use this call sequence; tool prefixes de
 
 Use `jdk.ExecutionSample` for CPU and async-profiler's `jdk.ObjectAllocationInNewTLAB` and
 `jdk.ObjectAllocationOutsideTLAB` for allocations. JDK events such as `jdk.JavaMonitorEnter` and `jdk.ThreadPark`
-are available when recorded with `jfrsync=profile`. These are not the kernel off-CPU capture.
+are in every profiled recording, see [The JFR configuration](docs/profiling.md#the-jfr-configuration). These are
+not the kernel off-CPU capture.
 Without MCP, the shell can read commands from stdin:
 
 ```bash

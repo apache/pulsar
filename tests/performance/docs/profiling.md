@@ -28,7 +28,8 @@ that has profiler options. In each of them, three recorders run at the same time
   allocations into a JFR recording.
 - JDK Flight Recorder (JFR), which async-profiler starts alongside with its `jfrsync` option, records the JVM's own
   events into the same recording, such as monitor contention (`jdk.JavaMonitorEnter`), thread parking
-  (`jdk.ThreadPark`) and garbage collection.
+  (`jdk.ThreadPark`) and garbage collection, and the events of Netty's buffer allocators, see
+  [The JFR configuration](#the-jfr-configuration).
 - jonoffcpu's eBPF collector records, from the kernel scheduler, every interval in which a thread blocked, into a
   capture stream beside the recording.
 
@@ -71,7 +72,7 @@ the launcher's `--extends` option adds to any scenario, as the example above doe
 ```yaml
 profiling:
   broker:
-    asyncProfilerOptions: event=cpu,interval=10ms,alloc=2m,jfrsync=profile
+    asyncProfilerOptions: event=cpu,interval=10ms,alloc=2m
     offCpuOptions:
       reasons: [blocked]
       minOffCpuMicros: 100
@@ -84,20 +85,55 @@ profiling:
   [async-profiler options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md). A
   component without them isn't profiled. The launcher owns each recording's path, so that recordings stay inside the
   run directory, and rejects options that set `file=`.
-- `jfrsync` chooses what JDK Flight Recorder records alongside async-profiler. `jfrsync=profile` uses the JFR
-  configuration named `profile` that the JDK ships, `$JAVA_HOME/lib/jfr/profile.jfc`, which the JDK describes as a
-  profiling configuration with about 2 % overhead; `jfrsync=default` uses `default.jfc`, meant for continuous use at
-  less than 1 %. `jfrsync` also takes the path of a custom JFR configuration file (`.jfc`), or a list of events
-  starting with `+`. A custom file's path is resolved inside the container that runs the JVM, so the file has to be
-  readable there, for example built into the test image. Without `jfrsync`, the recording holds only
-  async-profiler's samples.
+- The launcher adds async-profiler's `jfrsync` option, which records JDK Flight Recorder's events alongside
+  async-profiler's, with the configuration that [The JFR configuration](#the-jfr-configuration) describes. The
+  options don't set it; the launcher rejects options that do.
 - `offCpuOptions` is the agent's [`sampling` block](https://github.com/jonoffcpu/jonoffcpu#choosing-what-to-sample):
   which switch-out reasons to record (`blocked` — the thread could not run — rather than `runnable` preemption), a
   minimum duration, and an admission policy that records every long wait and samples short ones in proportion to their
   length. A profiled component needs it; the policy `none` records plain async-profiler through the same agent and skips
   the off-CPU steps, for a Docker engine whose kernel can't run jonoffcpu's collector.
+- `jfrConfigurations` lists the JFR configurations that the component records with, `[profile, pulsar.jfc]` by
+  default, see [The JFR configuration](#the-jfr-configuration).
 - The launcher keeps each complete recording and writes its measurement recording beside it, see
   [The measurement recording](#the-measurement-recording).
+
+## The JFR configuration
+
+Every profiled JVM records JDK Flight Recorder's events with the JFR configurations that its component's
+`jfrConfigurations` list, merged in order with the JDK's `jfr configure`. The default is `[profile, pulsar.jfc]`:
+
+- A name, such as `profile` or `default`, is one of the JDK's configurations, from `$JAVA_HOME/lib/jfr`. `profile` is
+  the one that the JDK describes as a profiling configuration with about 2 % overhead.
+- A name ending with `.jfc` is a file of [`tests/performance/jfr`](../jfr). [`pulsar.jfc`](../jfr/pulsar.jfc) adds the
+  events of Netty's buffer allocators, which Netty 4.2's `AdaptivePoolingAllocator` and `PooledByteBufAllocator` emit,
+  and which [Netty allocator events](analyzing-profiles.md#netty-allocator-events) summarizes after the run:
+  `io.netty.AllocateChunk`, `FreeChunk`, `ReturnChunk` and `ReallocateBuffer`.
+
+Before the cluster starts, the launcher merges each profiled component's configurations in a one-off container of the
+component's image, so that a configuration of the JDK is the one of the JVM that records with it, into
+`jfr-configuration.jfc` beside the component's recordings, and passes that file to async-profiler's `jfrsync` option.
+The options don't set `jfrsync`; the launcher rejects options that do. When the image's JDK can't merge them, such as a
+released Pulsar's image whose JDK has no `jfr` tool (`-Pperformance.clusterPulsarImage`), the launcher says so and
+records that component with the JDK's `profile` configuration.
+
+To record other events or change their settings, such as a threshold or stack traces, edit `pulsar.jfc`; an event that
+the JVM doesn't have is ignored. For a purpose that needs more events, add a `.jfc` file to `tests/performance/jfr` and
+list it in a component's `jfrConfigurations`.
+
+[`netty-allocations.jfc`](../jfr/netty-allocations.jfc) records every Netty buffer allocation and free too,
+`io.netty.AllocateBuffer` and `FreeBuffer`. There is an event for every buffer, and JFR can't sample them, so they add
+overhead to the profiled JVM and make its recording much larger: in the IoT telemetry max-rate scenario, about 2.5
+events of each kind per message in each profiled component, and a broker recording of 1 GB instead of 10 MB. Prefer a
+short measurement, and compare throughput and latency only between runs that record the same events.
+`configs/profile-broker-netty-allocations`, `configs/profile-gateways-netty-allocations` and
+`configs/profile-applications-netty-allocations` profile a component with
+`jfrConfigurations: [profile, pulsar.jfc, netty-allocations.jfc]`, in place of its `configs/profile-<component>`:
+
+```bash
+./gradlew :tests:performance:launcher:profile \
+  --args='--scenario tests/performance/scenarios/iot-telemetry-max-rate.yaml --extends configs/profile-broker-netty-allocations'
+```
 
 ## Requirements
 
@@ -114,9 +150,12 @@ profiling:
 - Profiled containers run privileged with the JVM as root: loading the eBPF programs needs `CAP_BPF` and
   `CAP_PERFMON`, which Docker grants to root in the container only. A tracefs is mounted read-only at
   `/sys/kernel/tracing` as a Docker volume.
-- Profiled runs use the glibc-based `java-test-image:<tag>-wolfi` image, on which native frames (HotSpot, libc, JNI
-  libraries) are symbolized; on the Alpine image every native frame reads as `/lib/ld-musl-x86_64.so.1`.
-  `-Pinttest.testImageVariant=alpine` profiles on Alpine anyway.
+- Profiled runs use the same Alpine image as the unprofiled ones, which is also Pulsar's default Docker image, since a
+  profile of another image doesn't carry over to it: the libc's memory allocator, for one, behaves differently. Alpine
+  strips its libc, musl, and the test image installs musl's debug symbols (`musl-dbg`), so that the profiles name
+  musl's functions, such as the system call wrappers under the JNI methods, and walk native stacks through them;
+  without them, every frame in musl reads as `/lib/ld-musl-x86_64.so.1`. `-Pinttest.testImageVariant=wolfi` profiles on
+  the glibc-based `java-test-image:<tag>-wolfi` image instead.
 
 Correlation holds each capture's distinct stacks in memory. The `profile` task runs with a 4 GB heap, several times
 what a few minutes of broker capture needs; `-Pperformance.profile.maxHeapSize=...` changes it.
@@ -147,6 +186,8 @@ component, such as `broker-profile/inttest_profile_<time>_<container>.jfr` and
 | `README.md`, `index.html` | The profile report. **Start here**, from the run report. One per profiled directory (`broker-profile/`, `gateways/`): the run, with a link back to the run report, and for each recording links to the off-CPU digest, the flame graphs with their totals, and the heatmaps, and how to open the JFR recordings in JDK Mission Control |
 | `<recording>.jfr` | The complete recording |
 | `<recording>.measurement.jfr` | The same cut to the measurement window, see [The measurement recording](#the-measurement-recording) |
+| `jfr-configuration.jfc` | The JFR configuration that the component recorded with, merged from its `jfrConfigurations`, see [The JFR configuration](#the-jfr-configuration) |
+| `<recording>.measurement.netty-allocator.json` | The summary of the measurement recording's Netty allocator events, which the profile report shows, see [Netty allocator events](analyzing-profiles.md#netty-allocator-events) |
 | `<recording>-flamegraphs/` | `cpu`, `wall`, `alloc` and `lock` views of the measurement recording, each only when its event is in the profiler options: `<view>.html`, `<view>-threads.html` (split by thread), `<view>-heatmap.html` (samples over time, for bursts and pauses) and `<view>.collapsed`. Pulsar and BookKeeper frames are highlighted |
 | `<recording>.jonoffcpu-capture.pb`, `.manifest.json`, `<recording>.jonoffcpu.yaml` | The off-CPU capture stream, its manifest, and the agent configuration the JVM was started with |
 | `<recording>-offcpu/jonoffcpu-summary.md`, `.json` | The off-CPU digest: the blocked time ranked by the application method that waited, by application root and by application method, where the time went and the capture coverage, leaving out the idle waits of `offcpu-idle-waits.txt` |

@@ -334,6 +334,41 @@ the `cpu`, `wall`, `alloc` and `lock` views, each merged (`cpu.html`), split per
 grouped into async-profiler's categories (`cpu_classify.html`). A view whose event the recording doesn't contain is
 skipped. It doesn't render off-CPU flame graphs, which need the jonoffcpu capture of a standalone profiled run.
 
+## Netty allocator events
+
+Every profiled recording has Netty's buffer allocator events (see
+[The JFR configuration](profiling.md#the-jfr-configuration)), and the launcher summarizes those of the measurement
+recording into `<recording>.measurement.netty-allocator.json`, which the profile report shows in its "Netty allocator
+events" section:
+
+- **Events**: how many chunks of memory the allocators allocated and freed, and how many buffers they grew
+  (`io.netty.ReallocateBuffer`), per second and per message.
+- **Chunk allocations and frees** by allocator (`AdaptivePoolingAllocator`, `PooledByteBufAllocator`), direct or heap
+  memory, and pooled or one-off chunk. A one-off chunk is the memory of a single buffer that didn't fit the pooled
+  memory, allocated and freed with it; many of them, or a growing share, point to buffers larger than the allocator
+  pools, such as large entries or aggregated batches. With a steady load, pooled chunk allocations that keep happening
+  show the pools growing or churning; compare them with the direct memory use in the broker's metrics.
+- **Buffer reallocations**: buffers grown by copying into a larger one, such as a buffer that a writer outgrew.
+
+With `netty-allocations.jfc` in a component's `jfrConfigurations`, such as with
+`--extends configs/profile-broker-netty-allocations`, which records every buffer allocation and free at some cost (see
+[The JFR configuration](profiling.md#the-jfr-configuration)), the section also shows every buffer allocation: by allocator, memory and pooled or one-off chunk, by size class from 64 bytes to over 1 MiB, and by the
+thread pool that allocated, such as the Netty event loops (`pulsar-io`), the managed ledger's threads
+(`BookKeeperClientWorker-OrderedExecutor`) and the BookKeeper client's I/O threads (`bookkeeper-io`).
+
+Compare the counts per message between a baseline and a change: fewer one-off chunks, reallocations or
+buffer allocations per message are less work for the allocator. The events have no stack traces; to see where a kind of
+buffer is allocated, find the allocating methods in the allocation flame graph of the same recording.
+
+To summarize another recording, such as one cut to another window with `runJfrCut`:
+
+```bash
+./gradlew :tests:performance:report-tool:summarizeNettyAllocatorEvents \
+  --args="/absolute/path/to/recording.measurement.jfr --messages 4000000"
+```
+
+It writes `<recording>.netty-allocator.json` beside the recording and prints the report's section.
+
 ## Opening recordings in JDK Mission Control or IntelliJ IDEA
 
 The `.jfr` files open in JDK Mission Control and IntelliJ IDEA. The OpenJDK distribution of JDK Mission Control is
@@ -433,8 +468,8 @@ Use `jfr_diagnose` and `jfr_stackprofile` first, then query further with the oth
 result beside the recording as `<recording>.analysis.md`, in addition to showing the report in the console. For a
 standalone profiled run, analyze `<recording>.measurement.jfr`: CPU samples are `jdk.ExecutionSample`,
 async-profiler's allocation samples are `jdk.ObjectAllocationInNewTLAB` (not `jdk.ObjectAllocationSample`), and
-`jfrsync=profile` adds JDK events such as `jdk.JavaMonitorEnter` and `jdk.ThreadPark` (see
-[Configuring profiling](profiling.md#configuring-profiling)). Off-CPU time is not in a JFR file; use the digest
+the launcher's JFR configuration adds JDK events such as `jdk.JavaMonitorEnter` and `jdk.ThreadPark`, and Netty's
+allocator events (see [The JFR configuration](profiling.md#the-jfr-configuration)). Off-CPU time is not in a JFR file; use the digest
 `<recording>-offcpu/jonoffcpu-summary.md` and the correlator's `top` and `stacks` subcommands (see
 [Finding what to optimize](#finding-what-to-optimize)). A useful starting prompt is:
 

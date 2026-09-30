@@ -63,7 +63,7 @@ workloads:
         fraction: 0.1
 profiling:
   broker:
-    asyncProfilerOptions: event=cpu,interval=10ms,jfrsync=profile
+    asyncProfilerOptions: event=cpu,interval=10ms
     offCpuOptions:
       admission:
         policy: none

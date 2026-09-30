@@ -68,16 +68,17 @@ tasks.named<Test>("test") {
         .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
-// Profiled containers use the glibc-based Wolfi image: on musl every native frame reads as the unsymbolized
-// /lib/ld-musl-x86_64.so.1, which hides what the JVM's own threads were waiting in. -Pinttest.testImageVariant=alpine
-// profiles on the same Alpine image as every other run instead.
+// Profiled containers use the same Alpine image as every other run, which is also Pulsar's default image, since a
+// profile of another image, such as its libc's memory allocation, doesn't carry over to it. The test image installs
+// musl's debug symbols, so that native frames in musl are named. -Pinttest.testImageVariant=wolfi profiles on the
+// glibc-based Wolfi image instead.
 val wolfiTestImage = providers.gradleProperty("inttest.testImageVariant").map {
     when (it) {
         "wolfi" -> true
         "alpine" -> false
         else -> throw GradleException("inttest.testImageVariant must be alpine or wolfi, not '$it'")
     }
-}.getOrElse(true)
+}.getOrElse(false)
 
 fun JavaExec.configurePerformanceLauncher(profiler: Boolean) {
     workingDir(rootProject.projectDir)

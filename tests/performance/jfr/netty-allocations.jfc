@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<!--
+  The events of every Netty buffer allocation and free, which a component records when its profiling settings list
+  this file, jfrConfigurations: [profile, pulsar.jfc, netty-allocations.jfc], such as with
+  configs/profile-broker-netty-allocations.yaml. They are recorded for every buffer, without stack traces, so they add
+  overhead to the profiled JVM and make its recording much larger: in the IoT telemetry max-rate scenario, about 2.5
+  events of each kind per message, and a broker recording of 1 GB instead of 10 MB. Prefer a short measurement.
+-->
+<configuration version="2.0" label="Netty allocation events" description="Every Netty buffer allocation and free">
+  <category label="Netty">
+    <event name="io.netty.AllocateBuffer">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+    <event name="io.netty.FreeBuffer">
+      <setting name="enabled">true</setting>
+      <setting name="stackTrace">false</setting>
+      <setting name="threshold">0 ns</setting>
+    </event>
+  </category>
+</configuration>
