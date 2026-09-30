@@ -285,18 +285,10 @@ public class NonPersistentTopics extends PersistentTopics {
                 throw new RestException(Response.Status.PRECONDITION_FAILED,
                         "Partitioned Topic Name should not contain '-partition-'");
             }
-            try {
-                validateGlobalNamespaceOwnership(namespaceName);
-            } catch (Exception e) {
-                log.error()
-                        .attr("topic", topicName)
-                        .exception(e)
-                        .log("Failed to get partitioned stats");
-                resumeAsyncResponseExceptionally(asyncResponse, e);
-                return;
-            }
-            getPartitionedTopicMetadataAsync(topicName,
-                    authoritative, false).thenAccept(partitionMetadata -> {
+            validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
+                    .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
+                    .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
+                    .thenAccept(partitionMetadata -> {
                 if (partitionMetadata.partitions == 0) {
                     asyncResponse.resume(new RestException(Status.NOT_FOUND,
                             String.format("Partitioned topic not found %s", topicName.toString())));
@@ -362,10 +354,12 @@ public class NonPersistentTopics extends PersistentTopics {
                     return null;
                 });
             }).exceptionally(ex -> {
-                log.error()
-                        .attr("topic", topicName)
-                        .exception(ex)
-                        .log("Failed to get partitioned stats");
+                if (isNot307And404Exception(ex)) {
+                    log.error()
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to get partitioned stats");
+                }
                 resumeAsyncResponseExceptionally(asyncResponse, ex);
                 return null;
             });
