@@ -324,6 +324,6 @@ public class FunctionsApiV2Resource extends FunctionApiResource {
      */
     @Deprecated
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return functions().getListOfConnectors();
+        return get().getWorkers().getListOfConnectors(authParams());
     }
 }
