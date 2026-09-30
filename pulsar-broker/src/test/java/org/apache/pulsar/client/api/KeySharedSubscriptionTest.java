@@ -58,6 +58,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
@@ -72,6 +73,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.DrainingHashesTracker;
+import org.apache.pulsar.broker.service.HashRangeAutoSplitStickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.PendingAcksMap;
 import org.apache.pulsar.broker.service.StickyKeyConsumerSelector;
 import org.apache.pulsar.broker.service.StickyKeyDispatcher;
@@ -170,6 +172,102 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
     // When a test fails, it's possible to re-run it to reproduce the issue
     private static final Random random = new Random(1);
     private static final int NUMBER_OF_KEYS = 300;
+
+    @DataProvider
+    public Object[][] autoSplitSnapshotModes() {
+        return new Object[][]{
+                {false},
+                {true}
+        };
+    }
+
+    @Test(dataProvider = "autoSplitSnapshotModes", timeOut = 60000)
+    public void testConcurrentSelectionDuringMembershipChanges(boolean allowOutOfOrderDelivery)
+            throws Exception {
+        boolean useConsistentHashing = conf.isSubscriptionKeySharedUseConsistentHashing();
+        conf.setSubscriptionKeySharedUseConsistentHashing(false);
+        String topic = "persistent://public/default/" + newUniqueName("auto-split-snapshot");
+        var consumerBuilder = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName(SUBSCRIPTION_NAME)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .keySharedPolicy(KeySharedPolicy.autoSplitHashRange()
+                        .setAllowOutOfOrderDelivery(allowOutOfOrderDelivery));
+        ExecutorService executor = Executors.newFixedThreadPool(3);
+        CountDownLatch ready = new CountDownLatch(3);
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicBoolean stop = new AtomicBoolean();
+        AtomicIntegerArray completedSweeps = new AtomicIntegerArray(3);
+        List<Future<?>> readers = new ArrayList<>();
+        try (Consumer<Integer> stableClient = consumerBuilder.clone().consumerName("stable").subscribe()) {
+            StickyKeyConsumerSelector selector = getDispatcher(topic, SUBSCRIPTION_NAME).getSelector();
+            assertThat(selector).isInstanceOf(HashRangeAutoSplitStickyKeyConsumerSelector.class);
+            Range hashRange = selector.getKeyHashRange();
+            var stableConsumer = selector.select(hashRange.getStart());
+            assertThat(stableConsumer.consumerName()).isEqualTo("stable");
+            for (int reader = 0; reader < 3; reader++) {
+                final int readerIndex = reader;
+                readers.add(executor.submit(() -> {
+                    ready.countDown();
+                    assertTrue(start.await(10, TimeUnit.SECONDS));
+                    while (!stop.get()) {
+                        for (int hash = hashRange.getStart(); hash <= hashRange.getEnd(); hash++) {
+                            var selected = selector.select(hash);
+                            assertNotNull(selected);
+                            assertTrue(selected == stableConsumer || selected.consumerName().startsWith("transient-"));
+                        }
+                        completedSweeps.incrementAndGet(readerIndex);
+                    }
+                    // Validate the published removal snapshot on the reader threads too.
+                    for (int hash = hashRange.getStart(); hash <= hashRange.getEnd(); hash++) {
+                        Assert.assertSame(selector.select(hash), stableConsumer, "hash " + hash);
+                    }
+                    return null;
+                }));
+            }
+            assertTrue(ready.await(10, TimeUnit.SECONDS));
+            start.countDown();
+            for (int round = 0; round < 20; round++) {
+                try (Consumer<Integer> transientClient = consumerBuilder.clone()
+                        .consumerName("transient-" + round).subscribe()) {
+                    assertThat(selector.select(hashRange.getStart()).consumerName())
+                            .isEqualTo(transientClient.getConsumerName());
+                    Assert.assertSame(selector.select(hashRange.getEnd()), stableConsumer);
+                    int[] before = new int[3];
+                    for (int reader = 0; reader < 3; reader++) {
+                        before[reader] = completedSweeps.get(reader);
+                    }
+                    // Keep every reader active while the transient consumer is registered.
+                    Awaitility.await().atMost(Duration.ofSeconds(10)).until(() -> {
+                        for (int reader = 0; reader < 3; reader++) {
+                            if (completedSweeps.get(reader) <= before[reader]) {
+                                return false;
+                            }
+                        }
+                        return true;
+                    });
+                }
+                // Closing the client must publish the new snapshot before it returns.
+                for (int hash = hashRange.getStart(); hash <= hashRange.getEnd(); hash++) {
+                    Assert.assertSame(selector.select(hash), stableConsumer, "round " + round + ", hash " + hash);
+                }
+            }
+            stop.set(true);
+            for (Future<?> reader : readers) {
+                reader.get(10, TimeUnit.SECONDS);
+            }
+            stableClient.close();
+            for (int hash = hashRange.getStart(); hash <= hashRange.getEnd(); hash++) {
+                assertNull(selector.select(hash), "hash " + hash);
+            }
+        } finally {
+            stop.set(true);
+            start.countDown();
+            executor.shutdownNow();
+            conf.setSubscriptionKeySharedUseConsistentHashing(useConsistentHashing);
+            assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
+        }
+    }
 
     @Test(dataProvider = "data")
     public void testSendAndReceiveWithHashRangeAutoSplitStickyKeyConsumerSelector(String topicType, boolean enableBatch)
