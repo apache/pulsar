@@ -71,6 +71,16 @@ tasks.register<JavaExec>("runJfrConverter") {
     maxHeapSize = providers.gradleProperty("performance.profile.maxHeapSize").getOrElse("4g")
 }
 
+tasks.register<JavaExec>("summarizeNettyAllocatorEvents") {
+    group = "verification"
+    description = "Summarize the Netty allocator events of a JFR recording into <recording>.netty-allocator.json " +
+        "and print the summary; pass the recording and --messages <measured messages> with --args"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("org.apache.pulsar.tests.performance.report.NettyAllocatorEvents")
+    workingDir(rootProject.projectDir)
+    maxHeapSize = providers.gradleProperty("performance.profile.maxHeapSize").getOrElse("4g")
+}
+
 tasks.register<JavaExec>("renderHdrHistograms") {
     group = "verification"
     description = "Plot IoT publish and per-application end-to-end latencies by percentile and over time as SVG " +

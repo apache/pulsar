@@ -43,6 +43,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -76,6 +77,7 @@ import org.apache.pulsar.tests.performance.common.YamlScenarioLoader;
 import org.apache.pulsar.tests.performance.report.DockerEngine;
 import org.apache.pulsar.tests.performance.report.JfrFlamegraphViews;
 import org.apache.pulsar.tests.performance.report.MarkdownPages;
+import org.apache.pulsar.tests.performance.report.NettyAllocatorEvents;
 import org.apache.pulsar.tests.performance.report.OffCpuFlamegraphs;
 import org.apache.pulsar.tests.performance.report.ProfileReport;
 import org.apache.pulsar.tests.performance.report.ReportsUrl;
@@ -85,6 +87,7 @@ import org.apache.pulsar.tests.performance.tools.IotScenario;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.startupcheck.OneShotStartupCheckStrategy;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -99,6 +102,13 @@ public class PerformanceLauncher implements Callable<Integer> {
     // The producer's measurement control endpoints, inside its container
     private static final int CONTROL_PORT = 8089;
     private static final String OUTPUT_MOUNT = "/performance-output";
+    // Where the one-off container that merges the JFR configurations sees the .jfc files and its output directory
+    private static final String JFC_MOUNT = "/jfr";
+    private static final String MERGE_OUTPUT_MOUNT = "/jfr-output";
+    // Where PulsarContainer binds a profiled broker's profile directory
+    private static final String BROKER_PROFILE_MOUNT = "/profiles";
+    // The merged JFR configuration of a profiled component, in its profile or output directory
+    static final String JFR_CONFIGURATION_FILE = "jfr-configuration.jfc";
     static final String JAVA_TOOL_OPTIONS = "JAVA_TOOL_OPTIONS";
     static final String PULSAR_MEM = "PULSAR_MEM";
     // The JVM options that Pulsar's scripts put last on a Pulsar component's command line
@@ -162,7 +172,8 @@ public class PerformanceLauncher implements Callable<Integer> {
     @Option(names = "--keep-launcher-log", defaultValue = "${sys:performance.keepLauncherLog:-false}",
             description = "Keep launcher.log when the run succeeds; without it, a successful run deletes it, since the "
                     + "containers' logs make it large. It is written during the run, so that it can be followed, and "
-                    + "a failed run keeps it")
+                    + "a failed run keeps it, as does a run whose applications received duplicates, ordering "
+                    + "violations or invalid messages")
     boolean keepLauncherLog;
 
     @Option(names = "--metrics", negatable = true, defaultValue = "${sys:performance.metrics:-true}",
@@ -292,6 +303,20 @@ public class PerformanceLauncher implements Callable<Integer> {
         Files.writeString(runOutput.resolve("run-id.txt"), runId + "\n");
         Set<Path> recordingsBeforeRun = JfrRecordingProcessor.findOriginalRecordings(runOutput);
         Path brokerProfileDirectory = runOutput.resolve("broker-profile");
+        if (profilingEnabled) {
+            // Each component's JFR configuration goes beside its recordings: the broker's profile directory is its
+            // /profiles, and a workload's output directory its output mount. The brokers run the cluster's image,
+            // the gateways and the applications the test image.
+            String brokerImage = clusterImage != null ? clusterImage : PulsarContainer.DEFAULT_IMAGE_NAME;
+            profilingSettings = mergeJfrConfigurations(profilingSettings,
+                    runInfo.projectDirectory().resolve(ProfilingSettings.JFR_CONFIGURATIONS_DIRECTORY), Map.of(
+                            ProfilingSettings.BROKER, new JfrOutput(brokerImage, brokerProfileDirectory,
+                                    BROKER_PROFILE_MOUNT),
+                            ProfilingSettings.GATEWAYS, new JfrOutput(PulsarContainer.DEFAULT_IMAGE_NAME,
+                                    runOutput.resolve(GATEWAYS_DIRECTORY), OUTPUT_MOUNT),
+                            ProfilingSettings.APPLICATIONS, new JfrOutput(PulsarContainer.DEFAULT_IMAGE_NAME,
+                                    runOutput.resolve(APPLICATIONS_DIRECTORY), OUTPUT_MOUNT)));
+        }
         if (profilingSettings.broker().profiled()) {
             Files.createDirectories(brokerProfileDirectory);
             System.setProperty("inttest.asyncprofiler.opts", profilingSettings.broker().asyncProfilerOptions());
@@ -590,6 +615,12 @@ public class PerformanceLauncher implements Callable<Integer> {
             JfrRecordingProcessor.process(recordings, measurementStart, measurementEnd);
             for (Path recording : recordings) {
                 Path source = JfrRecordingProcessor.measurementPath(recording);
+                String component = recordingComponent(runOutput, recording);
+                if (Files.isRegularFile(source) && profilingSettings.component(component).nettyAllocationsReport()) {
+                    System.out.println("Netty allocator events: " + NettyAllocatorEvents.write(source,
+                            Duration.between(measurementStart, measurementEnd),
+                            summary.path("measurementMessages").asLong(), loader.mapper()));
+                }
                 Set<JfrFlamegraphViews.View> views = JfrFlamegraphViews.configuredViews(
                         asyncProfilerOptions(loader.mapper(), recording));
                 if (!views.isEmpty() && Files.isRegularFile(source)) {
@@ -611,9 +642,28 @@ public class PerformanceLauncher implements Callable<Integer> {
                 List.copyOf(cooldowns)), loader.mapper());
         printReport("Run report", MarkdownPages.htmlPage(runReport), reportsRoot);
         if (!keepLauncherLog) {
-            deleteLauncherLog(launcherLog);
+            if (deliveredIncorrectly(loader.mapper(), runOutput, workload, applications)) {
+                System.out.println("Kept " + launcherLog + ", with the containers' logs, since the applications"
+                        + " received duplicates, ordering violations or invalid messages");
+            } else {
+                deleteLauncherLog(launcherLog);
+            }
         }
         return 0;
+    }
+
+    /** Whether an application received duplicates, ordering violations or invalid messages in the run. */
+    static boolean deliveredIncorrectly(ObjectMapper mapper, Path runOutput, JsonNode workload, int applications)
+            throws IOException {
+        for (int application = 0; application < applications; application++) {
+            JsonNode summary = mapper.readTree(applicationOutput(runOutput, workload, application)
+                    .resolve("application-summary.json").toFile());
+            if (summary.path("duplicates").asLong() > 0 || summary.path("orderingViolations").asLong() > 0
+                    || summary.path("invalidMessages").asLong() > 0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -1084,6 +1134,94 @@ public class PerformanceLauncher implements Callable<Integer> {
                 return;
             }
         }
+    }
+
+    /** The command of {@code jfr configure} that merges {@code input} and applies the event settings after it. */
+    static String[] jfrConfigureCommand(String input, List<String> eventSettings, String output) {
+        List<String> command = new ArrayList<>(List.of("configure", "--input", input));
+        command.addAll(eventSettings);
+        command.addAll(List.of("--output", output));
+        return command.toArray(String[]::new);
+    }
+
+    /** The profiled component whose recording {@code recording} is, by the directory that it is in. */
+    static String recordingComponent(Path runOutput, Path recording) {
+        Path directory = runOutput.relativize(recording.toAbsolutePath().normalize()).getName(0);
+        return switch (directory.toString()) {
+            case GATEWAYS_DIRECTORY -> ProfilingSettings.GATEWAYS;
+            case APPLICATIONS_DIRECTORY -> ProfilingSettings.APPLICATIONS;
+            default -> ProfilingSettings.BROKER;
+        };
+    }
+
+    /**
+     * Where a component's merged JFR configuration goes: the image that the component runs, and the directory on the
+     * host that its container binds at {@code containerDirectory}.
+     */
+    record JfrOutput(String image, Path directory, String containerDirectory) {
+    }
+
+    /**
+     * Merges each profiled component's {@code jfrConfigurations} with {@code jfr configure} into
+     * {@value #JFR_CONFIGURATION_FILE} in its output directory, and sets its async-profiler {@code jfrsync} to the
+     * file as its container sees it, with its {@code jfrEventConfig} applied after them, or to the JDK's
+     * {@code default} configuration without configurations, as {@code jfr configure} starts from without
+     * {@code --input}. A single configuration of the JDK without {@code jfrEventConfig}, such as the default
+     * {@code profile}, is passed to {@code jfrsync} as it is; without configurations and {@code jfrEventConfig},
+     * {@code jfrsync} is left out, which records only async-profiler's events. The merge runs in a one-off container
+     * of the component's image, so that a configuration of the JDK, such as {@code profile}, is the one of the JVM
+     * that records with it; the {@code .jfc} files come from {@code jfcDirectory}. When the image's JDK can't merge
+     * them, such as a released Pulsar's image whose JDK has no jfr tool, the component records with the JDK's
+     * {@value ProfilingSettings#FALLBACK_JFR_CONFIGURATION} configuration.
+     */
+    static ProfilingSettings mergeJfrConfigurations(ProfilingSettings settings, Path jfcDirectory,
+                                                    Map<String, JfrOutput> outputs) throws IOException {
+        Map<String, String> configurations = new HashMap<>();
+        for (String name : ProfilingSettings.components()) {
+            ProfilingSettings.Component component = settings.component(name);
+            if (!component.profiled() || !component.recordsJfrEvents()) {
+                continue;
+            }
+            List<String> listed = component.jfrConfigurations();
+            // A configuration of the JDK, but not an empty one, which async-profiler doesn't know by name
+            if (component.jfrEventConfig().isEmpty() && listed.size() == 1
+                    && !listed.get(0).endsWith(ProfilingSettings.JFC_SUFFIX)
+                    && !ProfilingSettings.JFR_CONFIGURE_EMPTY_INPUT.equals(listed.get(0))) {
+                configurations.put(name, listed.get(0));
+                continue;
+            }
+            for (String configuration : listed) {
+                if (configuration.endsWith(ProfilingSettings.JFC_SUFFIX)
+                        && !Files.isRegularFile(jfcDirectory.resolve(configuration))) {
+                    throw new IllegalArgumentException("The profiling of " + name + " lists the JFR configuration "
+                            + configuration + ", which isn't a file of " + jfcDirectory);
+                }
+            }
+            JfrOutput output = outputs.get(name);
+            Files.createDirectories(output.directory());
+            String input = component.jfrConfigureInput(JFC_MOUNT);
+            try (GenericContainer<?> merge = new GenericContainer<>(output.image())
+                    .withFileSystemBind(jfcDirectory.toString(), JFC_MOUNT, BindMode.READ_ONLY)
+                    .withFileSystemBind(output.directory().toString(), MERGE_OUTPUT_MOUNT, BindMode.READ_WRITE)
+                    .withCreateContainerCmdModifier(command -> command.withUser("0").withEntrypoint("jfr"))
+                    .withCommand(jfrConfigureCommand(input, component.jfrConfigureEventSettings(),
+                            MERGE_OUTPUT_MOUNT + "/" + JFR_CONFIGURATION_FILE))
+                    .withStartupCheckStrategy(new OneShotStartupCheckStrategy()
+                            .withTimeout(Duration.ofMinutes(1)))) {
+                merge.start();
+                configurations.put(name, output.containerDirectory() + "/" + JFR_CONFIGURATION_FILE);
+                System.out.println("JFR configuration of " + name + ": " + String.join(", ",
+                        component.jfrConfigurations()) + (component.jfrEventConfig().isEmpty() ? ""
+                        : " with " + String.join(" ", component.jfrConfigureEventSettings())) + ", merged into "
+                        + output.directory().resolve(JFR_CONFIGURATION_FILE));
+            } catch (RuntimeException e) {
+                System.out.println("Couldn't merge the JFR configurations " + input + " of " + name + " in the image "
+                        + output.image() + " (" + e.getMessage() + "), so " + name + " records with the JDK's "
+                        + ProfilingSettings.FALLBACK_JFR_CONFIGURATION + " JFR configuration");
+                configurations.put(name, ProfilingSettings.FALLBACK_JFR_CONFIGURATION);
+            }
+        }
+        return settings.withJfrsync(configurations);
     }
 
     /**

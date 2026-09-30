@@ -119,6 +119,7 @@ Run commands from the repository root. Gradle properties (`-P...`) configure the
 | Run an unprofiled measurement | `./gradlew :tests:performance:launcher:run --args='--scenario tests/performance/scenarios/iot-telemetry.yaml'` | Prints the run directory, resolved settings, progress and report path; writes the [run artifacts](#the-run) |
 | Profile selected components | `./gradlew :tests:performance:launcher:profile --args='--scenario tests/performance/scenarios/iot-telemetry.yaml --extends configs/profile-broker'` | Adds JFR recordings, off-CPU captures, digests and flame graphs; use `profile`, since `run` rejects profiling options |
 | Select more profiled components | Repeat `--extends configs/profile-gateways` and/or `--extends configs/profile-applications` inside `--args` of `profile` | Profiles producers and/or consumers; each workload container's recording covers all its gateways or applications |
+| Profile Netty's buffer allocations | Use `--extends configs/profile-<component>-netty-allocations` in place of `configs/profile-<component>` | Records Netty's allocator events (`jfrConfigurations: [profile, netty-allocations.jfc]`) and summarizes them in the profile report (`nettyAllocationsReport: true`). Heavy overhead: an event for every buffer, about 2.5 per message of each kind at max rate and a 1 GB broker recording, so use a short measurement, don't compare its throughput or latency with runs without it, and profile allocations only for allocation questions. Pulsar 4.x images (Netty 4.1) have no such events |
 | Change a setting for one run | Add `--set workloads.iotTelemetry.rate=5000` to `--args` | Applies after inheritance and environment overrides; inspect `resolved-config.yaml` to verify it |
 | Group an experiment's runs | Add `--name <experiment>` to `--args` | Uses that name below the checkout's branch directory, which can be shared by both revisions; does not combine or compare reports |
 | Keep revisions' images apart | Add `-Pdocker.tag=baseline` or `-Pdocker.tag=candidate` | Builds and uses a separate image tag in each checkout |
@@ -131,7 +132,11 @@ Run commands from the repository root. Gradle properties (`-P...`) configure the
 | Stop that metrics stack | `./gradlew :tests:performance:metrics:down` | Stops containers while retaining metrics and dashboards in Docker volumes |
 | Validate the host | `tests/performance/environment/scripts/configure-perf-test-environment.sh validate` | Checks Docker and disk space; on Linux also host tuning and AC power; errors go to stderr with a documented exit code |
 
-[Running scenarios](docs/running-scenarios.md) lists every launcher option and Gradle property.
+[Running scenarios](docs/running-scenarios.md) lists every launcher option and Gradle property. A profiled
+component's `asyncProfilerOptions` is a comma-separated list of
+[async-profiler's options](https://github.com/async-profiler/async-profiler/blob/master/docs/ProfilerOptions.md), as
+the page's "Launch as agent" column names them, and
+[Configuring profiling](docs/profiling.md#configuring-profiling) describes its other settings.
 Relative `--extends` paths resolve against the scenario file's directory first, then the working directory;
 `.yaml` can be omitted. Use an absolute path for a configuration outside those locations.
 `./gradlew :tests:performance:launcher:run --args='--help'` prints the launcher's options, but its Gradle image-build
@@ -276,7 +281,8 @@ The following paths are relative to the profiled component's directory:
 | `<recording>-offcpu/offcpu-idle-waits.txt`, `offcpu-dispatch-hide.txt` | The idle-wait patterns and the dispatch frames that the digest and the slices leave out or hide | Read |
 | `<recording>-flamegraphs/<view>.collapsed` | The async-profiler views' stacks, `cpu`, `alloc`, and `wall` and `lock` when recorded, of the measurement window: one stack per line with its weight at the end | [DuckDB with the quack_flamegraph community extension](docs/analyzing-profiles.md#analyzing-collapsed-stacks-with-duckdb); also `rg`, `sort` |
 | `<recording>-flamegraphs/<view>.html`, `<view>-threads.html`, `<view>-heatmap.html` | The flame graphs, split by thread, and over time for bursts and pauses | A browser |
-| `<recording>.measurement.jfr` | The recording cut to the measurement window: async-profiler's CPU and allocation samples, and the JDK's events such as `jdk.JavaMonitorEnter`, `jdk.ThreadPark` and garbage collection | The Jafar MCP server, jafar-shell |
+| `<recording>.measurement.jfr` | The recording cut to the measurement window: async-profiler's CPU and allocation samples, the JDK's events such as `jdk.JavaMonitorEnter`, `jdk.ThreadPark` and garbage collection, and Netty's allocator events (`io.netty.*`) when the component recorded them | The Jafar MCP server, jafar-shell |
+| `<recording>.measurement.netty-allocator.json` | With `nettyAllocationsReport: true`: Netty's buffer and chunk allocations in the measurement window by allocator, size, pooled or one-off memory and thread pool; the profile report shows it | `jq`; `summarizeNettyAllocatorEvents` for another recording |
 | `<recording>.jfr` | The complete recording, startup and shutdown included | The Jafar MCP server, jafar-shell; `runJfrCut` for another window |
 | `<recording>.jonoffcpu-capture.pb`, `.jonoffcpu-capture.manifest.json`, `.jonoffcpu.yaml` | The off-CPU capture stream, its manifest, and the agent's configuration | The jonoffcpu correlator, to correlate again, such as with `--audit full` |
 
@@ -365,7 +371,8 @@ When the Jafar MCP tools are available, use this call sequence; tool prefixes de
 
 Use `jdk.ExecutionSample` for CPU and async-profiler's `jdk.ObjectAllocationInNewTLAB` and
 `jdk.ObjectAllocationOutsideTLAB` for allocations. JDK events such as `jdk.JavaMonitorEnter` and `jdk.ThreadPark`
-are available when recorded with `jfrsync=profile`. These are not the kernel off-CPU capture.
+are in every profiled recording that records JFR's events, with the default `jfrConfigurations: [profile]`, see
+[The JFR configuration](docs/profiling.md#the-jfr-configuration). These are not the kernel off-CPU capture.
 Without MCP, the shell can read commands from stdin:
 
 ```bash
