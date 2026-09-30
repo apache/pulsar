@@ -58,6 +58,8 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.worker.FileServer;
@@ -102,6 +104,21 @@ public abstract class AbstractPulsarE2ETest {
     protected String workerId;
     protected PulsarFunctionTestTemporaryDirectory tempDirectory;
     protected FileServer fileServer;
+
+    /**
+     * Creates a V5 client with the same service URL, authentication and TLS settings as the function worker.
+     */
+    protected org.apache.pulsar.client.api.v5.PulsarClient newV5Client() throws Exception {
+        AuthenticationConfig authConfig = AuthenticationConfig.builder()
+                .clientAuthenticationPlugin(workerConfig.getBrokerClientAuthenticationPlugin())
+                .clientAuthenticationParameters(workerConfig.getBrokerClientAuthenticationParameters())
+                .useTls(workerConfig.isUseTls())
+                .tlsAllowInsecureConnection(workerConfig.isTlsAllowInsecureConnection())
+                .tlsTrustCertsFilePath(workerConfig.getTlsTrustCertsFilePath())
+                .build();
+        return InstanceUtils.createPulsarClientV5Builder(workerConfig.getPulsarServiceUrl(), authConfig,
+                Optional.empty()).build();
+    }
 
     @DataProvider(name = "validRoleName")
     public Object[][] validRoleName() {
