@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.functions.instance.v5;
 
+import java.io.IOException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
+import java.io.ObjectStreamException;
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.Objects;
 import org.apache.pulsar.client.api.MessageId;
 
@@ -26,7 +32,8 @@ import org.apache.pulsar.client.api.MessageId;
  * v4-typed user API can carry ids of messages sent or received with the V5 client.
  *
  * <p>{@link #toByteArray()} returns the V5 serialization; it can be restored with
- * {@link org.apache.pulsar.client.api.v5.MessageId#fromByteArray(byte[])}, not with the v4 counterpart.
+ * {@link org.apache.pulsar.client.api.v5.MessageId#fromByteArray(byte[])}, not with the v4 counterpart. Java
+ * serialization, which the v4 interface supports, also goes through that byte form.
  */
 public final class V5MessageIdAdapter implements MessageId {
 
@@ -34,8 +41,32 @@ public final class V5MessageIdAdapter implements MessageId {
 
     private final transient org.apache.pulsar.client.api.v5.MessageId messageId;
 
+    /** The serialized form: the V5 message id bytes, restored through the V5 client. */
+    private record SerializedForm(byte[] data) implements Serializable {
+        @Serial
+        private Object readResolve() throws ObjectStreamException {
+            try {
+                return new V5MessageIdAdapter(org.apache.pulsar.client.api.v5.MessageId.fromByteArray(data));
+            } catch (IOException e) {
+                InvalidObjectException invalid = new InvalidObjectException("Invalid V5 message id");
+                invalid.initCause(e);
+                throw invalid;
+            }
+        }
+    }
+
     public V5MessageIdAdapter(org.apache.pulsar.client.api.v5.MessageId messageId) {
         this.messageId = Objects.requireNonNull(messageId, "messageId");
+    }
+
+    @Serial
+    private Object writeReplace() {
+        return new SerializedForm(messageId.toByteArray());
+    }
+
+    @Serial
+    private void readObject(ObjectInputStream in) throws InvalidObjectException {
+        throw new InvalidObjectException("Deserialized through SerializedForm");
     }
 
     /** Returns the wrapped V5 message id. */

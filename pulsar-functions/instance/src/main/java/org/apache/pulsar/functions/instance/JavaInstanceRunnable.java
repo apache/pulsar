@@ -60,6 +60,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericObject;
 import org.apache.pulsar.client.api.schema.KeyValueSchema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.api.v5.config.CompressionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -1190,7 +1191,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 V5ProducerFactory v5ProducerFactory = usesClientV5()
                         ? new V5ProducerFactory(clientV5, pulsarSinkConfig.getProducerConfig(),
-                                org.apache.pulsar.client.api.v5.config.CompressionType.LZ4)
+                                CompressionType.LZ4)
                         : null;
                 object = new PulsarSink(this.client, v5ProducerFactory, pulsarSinkConfig, this.properties,
                         this.stats, this.functionClassLoader, this.producerCache);

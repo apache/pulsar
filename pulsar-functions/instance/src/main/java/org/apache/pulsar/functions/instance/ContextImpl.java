@@ -98,7 +98,7 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
     private final V5ProducerFactory v5ProducerFactory;
     // creates the producers for topic:// topics in a component whose own topics use the v4 client; created on
     // first use
-    private V5ProducerFactory scalableTopicProducerFactory;
+    private volatile V5ProducerFactory scalableTopicProducerFactory;
     private final LazyPulsarClientV5 clientV5;
     private final ProducerConfig producerConfig;
     private final Map<String, String> producerProperties;
@@ -593,13 +593,20 @@ class ContextImpl implements Context, SinkContext, SourceContext, AutoCloseable 
      * The factory for the V5 producers of a context message: the component's own when its topics use the V5 client,
      * otherwise one created on first use for the topic:// topics that a v4 component publishes to.
      */
-    private synchronized V5ProducerFactory v5ProducerFactoryFor(String topicName) throws PulsarClientException {
+    private V5ProducerFactory v5ProducerFactoryFor(String topicName) throws PulsarClientException {
         if (v5ProducerFactory != null) {
             return v5ProducerFactory;
         }
         if (!ClientApiResolver.isScalableTopic(topicName)) {
+            // the common v4 path, which publishing threads take for every message, needs no lock
             return null;
         }
+        V5ProducerFactory factory = scalableTopicProducerFactory;
+        return factory != null ? factory : createScalableTopicProducerFactory(topicName);
+    }
+
+    private synchronized V5ProducerFactory createScalableTopicProducerFactory(String topicName)
+            throws PulsarClientException {
         if (clientV5 == null) {
             throw new PulsarClientException("Topic " + topicName + " is a topic:// (scalable) topic, which only "
                     + "the V5 client can publish to, and the function runtime has no V5 client");

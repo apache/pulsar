@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.v5.PulsarClientBuilder;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.common.util.Reflections;
@@ -194,13 +195,13 @@ public class InstanceUtils {
      * Creates a V5 client builder with the same service URL, authentication, TLS and memory settings that
      * {@link #createPulsarClientBuilder(String, AuthenticationConfig, Optional)} applies to the v4 client.
      */
-    public static org.apache.pulsar.client.api.v5.PulsarClientBuilder createPulsarClientV5Builder(
+    public static PulsarClientBuilder createPulsarClientV5Builder(
             String pulsarServiceUrl, AuthenticationConfig authConfig, Optional<Long> memoryLimit)
             throws org.apache.pulsar.client.api.v5.PulsarClientException {
         if (!isNotBlank(pulsarServiceUrl)) {
             throw new org.apache.pulsar.client.api.v5.PulsarClientException("pulsarServiceUrl cannot be null");
         }
-        org.apache.pulsar.client.api.v5.PulsarClientBuilder clientBuilder =
+        PulsarClientBuilder clientBuilder =
                 org.apache.pulsar.client.api.v5.PulsarClient.builder()
                         .serviceUrl(pulsarServiceUrl)
                         .connectionPolicy(ConnectionPolicy.builder()

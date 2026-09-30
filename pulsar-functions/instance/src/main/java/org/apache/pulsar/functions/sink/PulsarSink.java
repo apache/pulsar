@@ -108,9 +108,6 @@ public class PulsarSink<T> implements Sink<T> {
 
             return throwable -> {
                 Record<?> srcRecord = record.getSourceRecord();
-                if (failSource) {
-                    srcRecord.fail();
-                }
 
                 String topic = record.getDestinationTopic().orElse(pulsarSinkConfig.getTopic());
 
@@ -128,6 +125,10 @@ public class PulsarSink<T> implements Sink<T> {
                 }
                 log.error().attr("errorMsg", errorMsg).log("Failed to publish to topic");
                 stats.incrSinkExceptions(new Exception(errorMsg));
+                // after recording the error: failing a record of a V5 stream subscription throws
+                if (failSource) {
+                    srcRecord.fail();
+                }
                 return null;
             };
         }

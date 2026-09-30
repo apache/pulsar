@@ -20,10 +20,10 @@ package org.apache.pulsar.functions.source;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
@@ -72,7 +72,8 @@ public class V5PulsarSource<T> extends PushPulsarSource<T> {
     private final MultiConsumerPulsarSourceConfig pulsarSourceConfig;
     private final Supplier<org.apache.pulsar.client.api.v5.PulsarClient> clientV5;
     private final String consumerName;
-    private final List<Input> inputs = new ArrayList<>();
+    // written by open() and read by close(), which may run on another thread
+    private final List<Input> inputs = new CopyOnWriteArrayList<>();
     private volatile boolean closed;
     private SourceContext sourceContext;
 
@@ -242,6 +243,11 @@ public class V5PulsarSource<T> extends PushPulsarSource<T> {
                 inputs.add(isQueue()
                         ? new QueueInput(topic, subscribeQueue(topic, conf))
                         : new StreamInput(topic, subscribeStream(topic, conf)));
+                if (closed) {
+                    // close() ran on another thread while the consumer was subscribing and may have missed it;
+                    // an unclosed stream consumer would keep its share of the topic's key ranges
+                    throw new IllegalStateException("The source was closed while it was opening");
+                }
             }
         } catch (Exception e) {
             close();

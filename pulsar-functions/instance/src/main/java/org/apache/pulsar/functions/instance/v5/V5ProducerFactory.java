@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.instance.v5;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.Producer;
@@ -53,6 +54,7 @@ public class V5ProducerFactory {
     private final Supplier<PulsarClient> client;
     private final ProducerConfig producerConfig;
     private final CompressionType defaultCompressionType;
+    private final AtomicBoolean ignoredSettingsLogged = new AtomicBoolean();
 
     /**
      * @param client supplies the V5 client, which is created on first use
@@ -84,7 +86,8 @@ public class V5ProducerFactory {
         if (properties != null) {
             builder.properties(properties);
         }
-        if (hasIgnoredSettings()) {
+        // once per factory: a component creates a producer per topic, and per thread with thread-local producers
+        if (hasIgnoredSettings() && ignoredSettingsLogged.compareAndSet(false, true)) {
             log.warn().attr("topic", topic).attr("producerConfig", producerConfig)
                     .log("Ignoring the pending-message limits, the batcher type and the round-robin partition switch"
                             + " frequency, which the V5 producer does not have; the V5 client's memory limit bounds"
