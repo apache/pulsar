@@ -314,16 +314,16 @@ The Apache Software License, Version 2.0
      - picocli-shell-jline3-4.7.7.jar
  * Jackson
      - jackson-annotations-2.21.jar
-     - jackson-core-2.21.6.jar
-     - jackson-databind-2.21.6.jar
-     - jackson-dataformat-yaml-2.21.6.jar
-     - jackson-jakarta-rs-base-2.21.6.jar
-     - jackson-jakarta-rs-json-provider-2.21.6.jar
-     - jackson-module-jakarta-xmlbind-annotations-2.21.6.jar
-     - jackson-module-jsonSchema-2.21.6.jar
-     - jackson-datatype-jdk8-2.21.6.jar
-     - jackson-datatype-jsr310-2.21.6.jar
-     - jackson-module-parameter-names-2.21.6.jar
+     - jackson-core-2.21.7.jar
+     - jackson-databind-2.21.7.jar
+     - jackson-dataformat-yaml-2.21.7.jar
+     - jackson-jakarta-rs-base-2.21.7.jar
+     - jackson-jakarta-rs-json-provider-2.21.7.jar
+     - jackson-module-jakarta-xmlbind-annotations-2.21.7.jar
+     - jackson-module-jsonSchema-2.21.7.jar
+     - jackson-datatype-jdk8-2.21.7.jar
+     - jackson-datatype-jsr310-2.21.7.jar
+     - jackson-module-parameter-names-2.21.7.jar
  * Caffeine -- caffeine-3.3.0.jar
  * Conscrypt -- conscrypt-openjdk-uber-2.6.3.jar
  * Gson
@@ -333,7 +333,7 @@ The Apache Software License, Version 2.0
     - failureaccess-1.0.3.jar
     - listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- j2objc-annotations-3.1.jar
- * Netty Reactive Streams -- netty-reactive-streams-2.0.19.jar
+ * Netty Reactive Streams -- netty-reactive-streams-2.0.20.jar
  * Swagger -- swagger-annotations-jakarta-2.2.55.jar
  * DataSketches
     - datasketches-java-7.0.1.jar
@@ -405,7 +405,7 @@ The Apache Software License, Version 2.0
   * AirCompressor
      - aircompressor-2.0.3.jar
  * AsyncHttpClient
-    - async-http-client-3.0.13.jar
+    - async-http-client-3.0.14.jar
  * Jetty
     - jetty-alpn-client-12.1.13.jar
     - jetty-client-12.1.13.jar
