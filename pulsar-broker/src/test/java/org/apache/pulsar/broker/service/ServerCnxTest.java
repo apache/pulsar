@@ -172,6 +172,8 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.protocol.PulsarHandler;
 import org.apache.pulsar.common.protocol.schema.EmptyVersion;
+import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -4228,6 +4230,38 @@ public class ServerCnxTest {
         // No topic is loaded, so an authorized request reaches the topic lookup and gets TopicNotFound.
         assertEquals(response.getErrorCode(), ServerError.TopicNotFound);
         assertTrue(topicLookedUp.get());
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetOrCreateSchemaKeepsProducerNameWhileAuthorizing() throws Exception {
+        AuthorizationService authorizationService = mockTopicAuthorization(true);
+        CompletableFuture<Boolean> authorization = new CompletableFuture<>();
+        doReturn(authorization).when(authorizationService).allowTopicOperationAsync(
+                eq(TopicName.get(successTopicName)), any(), any(), any(), any(), any());
+        Topic topic = mock(Topic.class);
+        doReturn(CompletableFuture.completedFuture(Optional.of(topic))).when(brokerService)
+                .getTopicIfExists(successTopicName);
+        when(topic.addSchema(any(), anyBoolean())).thenReturn(CompletableFuture.completedFuture(SchemaVersion.Empty));
+        resetChannel();
+        setChannelConnected();
+
+        String replicatorProducerName = svcConfig.getReplicatorPrefix() + ".remote-cluster";
+        channel.writeInbound(Commands.newGetOrCreateSchema(1L, successTopicName, replicatorProducerName,
+                Schema.STRING.getSchemaInfo()));
+        // The next command is decoded into the same command object before the first request is authorized.
+        channel.writeInbound(Commands.newGetOrCreateSchema(2L, "persistent://prop/use/ns-abc/other",
+                "ordinary-producer", Schema.STRING.getSchemaInfo()));
+        authorization.complete(true);
+
+        CommandGetOrCreateSchemaResponse response = null;
+        for (int i = 0; i < 2 && (response == null || response.getRequestId() != 1L); i++) {
+            response = (CommandGetOrCreateSchemaResponse) getResponse();
+        }
+        assertEquals(response.getRequestId(), 1L);
+        assertFalse(response.hasErrorCode());
+        verify(topic).addSchema(any(SchemaData.class), eq(true));
 
         channel.finish();
     }
