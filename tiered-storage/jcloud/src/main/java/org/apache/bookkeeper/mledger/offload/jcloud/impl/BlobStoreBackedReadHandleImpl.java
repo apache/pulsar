@@ -24,6 +24,7 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -71,6 +72,9 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
     private final DataInputStream dataStream;
     private final ExecutorService executor;
     private final OffsetsCache entryOffsetsCache;
+    // Entry ids that have an exact offset in the index, i.e. the first entry of each data block, in ascending order.
+    // Copied at open time since the index is recycled on close.
+    private final long[] indexedEntryIds;
     private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
 
     enum State {
@@ -94,7 +98,54 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
         this.dataStream = new DataInputStream(inputStream);
         this.executor = executor;
         this.entryOffsetsCache = entryOffsetsCache;
+        this.indexedEntryIds = collectIndexedEntryIds(ledgerId, index);
         state = State.Opened;
+    }
+
+    private static long[] collectIndexedEntryIds(long ledgerId, OffloadIndexBlock index) {
+        List<Long> entryIds = new ArrayList<>();
+        try {
+            long entryId = index.getLedgerMetadata().getLastEntryId();
+            while (entryId >= 0) {
+                OffloadIndexEntry indexEntry = index.getIndexEntryForEntry(entryId);
+                if (indexEntry == null || indexEntry.getEntryId() > entryId) {
+                    break;
+                }
+                entryIds.add(indexEntry.getEntryId());
+                entryId = indexEntry.getEntryId() - 1;
+            }
+        } catch (Exception e) {
+            // Reads still work, but searches can no longer prefer the entries that are cheap to read
+            log.warn().attr("ledgerId", ledgerId).exception(e)
+                    .log("Failed to collect the indexed entry ids of the offloaded ledger");
+            return new long[0];
+        }
+        long[] result = new long[entryIds.size()];
+        for (int i = 0; i < result.length; i++) {
+            result[i] = entryIds.get(result.length - 1 - i);
+        }
+        return result;
+    }
+
+    @Override
+    public long getIndexedEntryIdFloor(long entryId) {
+        int i = Arrays.binarySearch(indexedEntryIds, entryId);
+        if (i >= 0) {
+            return entryId;
+        }
+        // No indexed entry lower than entryId when the insertion point is 0
+        return i == -1 ? -1 : indexedEntryIds[-i - 2];
+    }
+
+    @Override
+    public long getIndexedEntryIdCeiling(long entryId) {
+        int i = Arrays.binarySearch(indexedEntryIds, entryId);
+        if (i >= 0) {
+            return entryId;
+        }
+        // No indexed entry greater than entryId when the insertion point is the end of the array
+        int insertionPoint = -i - 1;
+        return insertionPoint == indexedEntryIds.length ? -1 : indexedEntryIds[insertionPoint];
     }
 
     @Override
