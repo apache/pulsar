@@ -1946,8 +1946,8 @@ public class BrokerService implements Closeable {
                                             }
                                         })
                                         .exceptionally((ex) -> {
-                                            log.warn("Replication or dedup check failed."
-                                                    + " Removing topic from topics list {}, {}", topic, ex);
+                                            log.warn("[{}] Topic initialization failed. Removing topic from cache: {}",
+                                                    topic, ex.getMessage());
                                             executor().submit(() -> {
                                                 persistentTopic.close().whenComplete((ignore, closeEx) -> {
                                                     topics.remove(topic, topicFuture);
