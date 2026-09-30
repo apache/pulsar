@@ -365,7 +365,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
             final int value = target;
             offloadedReads.clear();
             Position found = ledger.asyncFindPosition(
-                    entry -> Integer.parseInt(new String(entry.getData())) < value).get();
+                    entry -> Integer.parseInt(new String(entry.getDataAndRelease())) < value).get();
             // The last entry lower than the target is found, the next position is returned
             assertThat(found).as("position found for target %d", target).isEqualTo(positions.get(target));
             // Only the last steps of the search, around a single data block, read entries that are not indexed:
@@ -398,7 +398,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
         CountingFindEntryCallback callback = new CountingFindEntryCallback();
         ledger.newNonDurableCursor(PositionFactory.EARLIEST).asyncFindNewestMatching(
                 ManagedCursor.FindPositionConstraint.SearchAllAvailableEntries,
-                entry -> Integer.parseInt(new String(entry.getData())) < 150, callback, null, true);
+                entry -> Integer.parseInt(new String(entry.getDataAndRelease())) < 150, callback, null, true);
 
         callback.awaitCalled();
         assertThat(callback.failures.get()).as("reported failures").isEqualTo(1);
@@ -460,7 +460,7 @@ public class OffloadPrefixReadTest extends MockedBookKeeperTestCase {
     private static CountingFindEntryCallback startFindNewestMatching(ManagedLedgerImpl ledger) {
         CountingFindEntryCallback callback = new CountingFindEntryCallback();
         Position firstPosition = PositionFactory.create(ledger.getLedgersInfoAsList().get(0).getLedgerId(), 0);
-        new OpFindNewest(ledger, firstPosition, entry -> Integer.parseInt(new String(entry.getData())) < 150,
+        new OpFindNewest(ledger, firstPosition, entry -> Integer.parseInt(new String(entry.getDataAndRelease())) < 150,
                 ledger.getNumberOfEntries() - 1, callback, null).find();
         return callback;
     }

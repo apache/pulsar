@@ -85,10 +85,10 @@ public class BlobStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedge
     // Copied at open time since the index is recycled on close.
     private final long[] indexedEntryIds;
     // Entry offsets remembered while skipping entries to reach an entry whose offset is not cached (see
-    // skipPreviousEntry), at least "learnedOffsetIntervalBytes" apart. Reads that continue from the previous read
-    // do not skip entries and do not add any, as long as the offsets cache holds the offset of the next entry. At
-    // most the size of the data object divided by the interval, e.g. 2048 offsets for a fully skipped 2 GiB object
-    // with the default interval of 1 MiB.
+    // skipPreviousEntry), at least "learnedOffsetIntervalBytes" apart. Sequential reads add some too: a read of the
+    // entries [a..b] only caches their offsets, so the next read of b + 1 skips entry b to reach it. At most the size
+    // of the data object divided by the interval, e.g. 2048 offsets for a fully read 2 GiB object with the default
+    // interval of 1 MiB.
     private final ConcurrentSkipListMap<Long, Long> learnedOffsets = new ConcurrentSkipListMap<>();
     private final long learnedOffsetIntervalBytes;
     private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
