@@ -201,9 +201,9 @@ public class OffloadedLedgerFindPositionTest extends BlobStoreManagedLedgerOfflo
                 .attr("warmAvgMiB", warmBytes / SEARCHES / (1024 * 1024))
                 .log("Blob store reads of searches by timestamp over offloaded ledgers");
 
-        // Probing the first entries of the data blocks, whose offsets are indexed, and resuming the scans of a block
-        // from the offsets learned by the previous scans, brings a cold search from 34 to 15 reads on average with
-        // this data, and does not make a warm search more expensive (7 reads on average).
+        // Probing the first entries of the data blocks, whose offsets are indexed, instead of scanning the blocks
+        // brings a cold search from 34 to 15 reads on average with this data, and does not make a warm search more
+        // expensive (7 reads on average).
         assertThat(coldGets).as("reads of cold searches").isLessThanOrEqualTo(20L * SEARCHES);
         assertThat(warmGets).as("reads of warm searches").isLessThanOrEqualTo(8L * SEARCHES);
     }
