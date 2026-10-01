@@ -20,9 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
@@ -44,7 +42,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -60,6 +57,7 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -211,16 +209,15 @@ public class TableViewImplTest {
 
     /**
      * Fixture for the tail-read retry: a non-persistent topic, so {@code start()} issues the first tail
-     * read on the calling thread, and a scheduler mock that records every delayed retry instead of
-     * running it.
+     * read on the calling thread, and a table view that records every delayed retry instead of running it.
      */
     private static final class TailRetryFixture implements AutoCloseable {
+        final PulsarClientImpl client = mock(PulsarClientImpl.class);
         final Reader<String> reader = mock(Reader.class);
-        final ScheduledExecutorService scheduler = mock(ScheduledExecutorService.class);
         final List<Long> retryDelays = new ArrayList<>();
         final List<Runnable> retries = new ArrayList<>();
-        /** When set, the next scheduled retry runs inside schedule(), before the scheduler returns its future. */
-        final AtomicBoolean runNextRetryBeforeScheduleReturns = new AtomicBoolean();
+        /** When set, the next retry runs before the call that queued it has returned. */
+        final AtomicBoolean runNextRetryRightAway = new AtomicBoolean();
         final TableViewImpl<String> tableView;
 
         TailRetryFixture() {
@@ -230,39 +227,38 @@ public class TableViewImplTest {
         /** @param strategy the compaction strategy the table view loads, or {@code null} for none */
         @SuppressWarnings("unchecked")
         TailRetryFixture(TopicCompactionStrategy<String> strategy) {
-            PulsarClientImpl client = mock(PulsarClientImpl.class);
             ReaderBuilder<String> builder = mock(ReaderBuilder.class, RETURNS_SELF);
             when(client.newReader(Schema.STRING)).thenReturn(builder);
             when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
-            when(scheduler.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class))).thenAnswer(inv -> {
-                Runnable retry = inv.getArgument(0);
-                retries.add(retry);
-                retryDelays.add(inv.getArgument(1));
-                if (runNextRetryBeforeScheduleReturns.compareAndSet(true, false)) {
-                    // A zero delay lets the scheduler run the task before schedule() has returned.
-                    retry.run();
-                }
-                return mock(ScheduledFuture.class);
-            });
-            ScheduledExecutorProvider provider = mock(ScheduledExecutorProvider.class);
-            when(provider.getExecutor()).thenReturn(scheduler);
-            when(client.getScheduledExecutorProvider()).thenReturn(provider);
             when(builder.createAsync()).thenReturn(CompletableFuture.completedFuture(reader));
             when(reader.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
             TableViewConfigurationData conf = new TableViewConfigurationData();
             conf.setTopicName(TAIL_RETRY_TOPIC);
             if (strategy == null) {
-                tableView = new TableViewImpl<>(client, Schema.STRING, conf);
+                tableView = newTableView(conf);
             } else {
                 try (var strategies = mockStatic(TopicCompactionStrategy.class)) {
                     strategies.when(() -> TopicCompactionStrategy.load(TopicCompactionStrategy.TABLE_VIEW_TAG, null))
                             .thenReturn(strategy);
-                    tableView = new TableViewImpl<>(client, Schema.STRING, conf);
+                    tableView = newTableView(conf);
                 }
             }
         }
 
-        /** Runs the most recently scheduled retry, as the scheduler would once its delay elapsed. */
+        private TableViewImpl<String> newTableView(TableViewConfigurationData conf) {
+            return new TableViewImpl<>(client, Schema.STRING, conf) {
+                @Override
+                void runAfterDelay(long delayMillis, Runnable retry) {
+                    retries.add(retry);
+                    retryDelays.add(delayMillis);
+                    if (runNextRetryRightAway.compareAndSet(true, false)) {
+                        retry.run();
+                    }
+                }
+            };
+        }
+
+        /** Runs the most recently queued retry, as happens once its delay has elapsed. */
         void runLatestRetry() {
             retries.get(retries.size() - 1).run();
         }
@@ -306,7 +302,7 @@ public class TableViewImplTest {
             f.tableView.start().get(5, TimeUnit.SECONDS);
 
             verify(f.reader, times(1)).readNextAsync();
-            assertEquals(f.retryDelays.size(), 1, "One retry must be handed to the scheduler");
+            assertEquals(f.retryDelays.size(), 1, "One retry must be left waiting for its delay");
             assertTrue(f.retryDelays.get(0) > 0, "The retry must be delayed, got " + f.retryDelays);
 
             f.runLatestRetry();
@@ -381,22 +377,19 @@ public class TableViewImplTest {
     }
 
     @Test(timeOut = 10_000)
-    public void testRejectedTailReadRetryFailsPendingRefreshes() throws Exception {
+    public void testReadRejectedByItsExecutorFailsPendingRefreshes() throws Exception {
         try (TailRetryFixture f = new TailRetryFixture()) {
-            CompletableFuture<Message<String>> read = new CompletableFuture<>();
-            when(f.reader.readNextAsync()).thenReturn(read);
+            when(f.reader.readNextAsync()).thenAnswer(inv -> failedRead());
             f.tableView.start().get(5, TimeUnit.SECONDS);
             CompletableFuture<Void> refresh = f.pendingRefresh();
-            // The client is shutting down: its scheduler no longer accepts the retry.
-            doThrow(new RejectedExecutionException("shutting down"))
-                    .when(f.scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            // The executor the reader hands its work to was shut down, with the client or the resources it
+            // shares: the reader cannot even take the read.
+            when(f.reader.readNextAsync()).thenThrow(new RejectedExecutionException("executor terminated"));
 
-            read.completeExceptionally(new PulsarClientException.NotConnectedException());
+            f.runLatestRetry();
 
-            ExecutionException failure = expectThrows(ExecutionException.class,
-                    () -> refresh.get(5, TimeUnit.SECONDS));
-            assertTrue(failure.getCause() instanceof PulsarClientException.AlreadyClosedException,
-                    "A refresh cannot complete once retrying has stopped, got " + failure.getCause());
+            assertFailedAsClosed(refresh, "A refresh cannot complete once the reader takes no more reads");
+            assertEquals(f.retries.size(), 1, "A read the reader rejected must not be retried");
         }
     }
 
@@ -421,7 +414,7 @@ public class TableViewImplTest {
             f.runLatestRetry();
 
             List<Long> delays = f.retryDelays;
-            assertEquals(delays.size(), 2, "Each failed handling must schedule a retry: " + delays);
+            assertEquals(delays.size(), 2, "Each failed handling must be retried: " + delays);
             // Doubling with the backoff's +-5% jitter; a reset would leave both near the initial delay.
             assertTrue(delays.get(1) >= delays.get(0) * 1.5,
                     "The delay must keep doubling while handling keeps failing: " + delays);
@@ -446,12 +439,12 @@ public class TableViewImplTest {
     }
 
     @Test(timeOut = 10_000)
-    public void testRetryThatRunsBeforeScheduleReturnsDoesNotOutliveClose() throws Exception {
+    public void testRetryThatRunsRightAwayDoesNotOutliveClose() throws Exception {
         try (TailRetryFixture f = new TailRetryFixture()) {
             when(f.reader.readNextAsync()).thenAnswer(inv -> failedRead());
-            // The first retry runs inside schedule(): it fails again and queues the second retry before the
-            // scheduler has even returned the first one's future.
-            f.runNextRetryBeforeScheduleReturns.set(true);
+            // The first retry runs before the failed read's callback has returned, as it can on another thread
+            // with a zero delay: it fails again and queues the second retry.
+            f.runNextRetryRightAway.set(true);
 
             f.tableView.start().get(5, TimeUnit.SECONDS);
             verify(f.reader, times(2)).readNextAsync();
@@ -465,19 +458,18 @@ public class TableViewImplTest {
     }
 
     @Test(timeOut = 10_000)
-    public void testRefreshAfterRejectedRetryFailsRightAway() throws Exception {
+    public void testRefreshAfterARejectedReadFailsRightAway() throws Exception {
         try (TailRetryFixture f = new TailRetryFixture()) {
-            // The client is shutting down: its scheduler rejects the retry, so no tail read will ever run again.
-            doThrow(new RejectedExecutionException("shutting down"))
-                    .when(f.scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
             when(f.reader.readNextAsync()).thenAnswer(inv -> failedRead());
             f.tableView.start().get(5, TimeUnit.SECONDS);
+            when(f.reader.readNextAsync()).thenThrow(new RejectedExecutionException("executor terminated"));
+            f.runLatestRetry();
 
             // The mocked reader would still answer, with an empty topic even.
             when(f.reader.getLastMessageIdsAsync()).thenReturn(CompletableFuture.completedFuture(List.of()));
             CompletableFuture<Void> refresh = f.tableView.refreshAsync();
 
-            assertFailedAsClosed(refresh, "A refresh after the retries stopped must fail right away");
+            assertFailedAsClosed(refresh, "A refresh after the tail reads stopped must fail right away");
             verify(f.reader, never()).getLastMessageIdsAsync();
         }
     }
@@ -501,18 +493,16 @@ public class TableViewImplTest {
     }
 
     @Test(timeOut = 10_000)
-    public void testRefreshFetchingLastMessageIdsFailsWhenTheRetryIsRejected() throws Exception {
+    public void testRefreshFetchingLastMessageIdsFailsWhenTheReadIsRejected() throws Exception {
         try (TailRetryFixture f = new TailRetryFixture()) {
-            CompletableFuture<Message<String>> read = new CompletableFuture<>();
-            when(f.reader.readNextAsync()).thenReturn(read);
+            when(f.reader.readNextAsync()).thenAnswer(inv -> failedRead());
             f.tableView.start().get(5, TimeUnit.SECONDS);
             CompletableFuture<List<TopicMessageId>> lastMessageIds = new CompletableFuture<>();
             when(f.reader.getLastMessageIdsAsync()).thenReturn(lastMessageIds);
             CompletableFuture<Void> refresh = f.tableView.refreshAsync();
-            doThrow(new RejectedExecutionException("shutting down"))
-                    .when(f.scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            when(f.reader.readNextAsync()).thenThrow(new RejectedExecutionException("executor terminated"));
 
-            read.completeExceptionally(new PulsarClientException.NotConnectedException());
+            f.runLatestRetry();
 
             assertFailedAsClosed(refresh, "A refresh still looking up the last message ids must fail with the loop");
             assertFalse(lastMessageIds.isDone(), "The lookup itself is left alone");
@@ -648,6 +638,113 @@ public class TableViewImplTest {
 
         start.get(5, TimeUnit.SECONDS);
         verify(reader, never()).readNextAsync();
+    }
+
+    @Test(timeOut = 30_000)
+    @SuppressWarnings("unchecked")
+    public void testRetryWaitingWhenTheClientClosesStillFailsPendingRefreshes() throws Exception {
+        // The client's scheduler, shut down when the client closes. The retry used to wait there and was dropped
+        // with it; nothing is queued on it any more, so shutting it down below changes nothing now.
+        ScheduledExecutorService clientScheduler = Executors.newSingleThreadScheduledExecutor();
+        CountDownLatch clientClosed = new CountDownLatch(1);
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
+        ScheduledExecutorProvider provider = mock(ScheduledExecutorProvider.class);
+        when(provider.getExecutor()).thenReturn(clientScheduler);
+        when(client.getScheduledExecutorProvider()).thenReturn(provider);
+        ReaderBuilder<String> builder = mock(ReaderBuilder.class, RETURNS_SELF);
+        when(client.newReader(Schema.STRING)).thenReturn(builder);
+        Reader<String> reader = mock(Reader.class);
+        when(builder.createAsync()).thenReturn(CompletableFuture.completedFuture(reader));
+        when(reader.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        // The first read fails, so a retry waits for its delay. The read it issues finds the reader closed by the
+        // client.
+        when(reader.readNextAsync()).thenReturn(failedRead()).thenAnswer(inv -> {
+            assertTrue(clientClosed.await(10, TimeUnit.SECONDS));
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Consumer already closed"));
+        });
+        when(reader.getLastMessageIdsAsync()).thenReturn(CompletableFuture.completedFuture(
+                List.of(new TopicMessageIdImpl(TAIL_RETRY_TOPIC, new MessageIdImpl(1, 5, -1)))));
+        TableViewConfigurationData conf = new TableViewConfigurationData();
+        conf.setTopicName(TAIL_RETRY_TOPIC);
+        try (TableViewImpl<String> tableView = new TableViewImpl<>(client, Schema.STRING, conf)) {
+            tableView.start().get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> refresh = tableView.refreshAsync();
+            assertFalse(refresh.isDone(), "The refresh must wait for a message the reader has not delivered");
+
+            // The client closes while the table view is still open and the retry is waiting.
+            clientScheduler.shutdownNow();
+            clientClosed.countDown();
+
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).until(refresh::isDone);
+            assertFailedAsClosed(refresh, "The retry must still run and find the closed reader");
+        } finally {
+            clientClosed.countDown();
+            clientScheduler.shutdownNow();
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testReadThatThrowsIsRetriedLikeAFailedRead() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture()) {
+            when(f.reader.readNextAsync()).thenAnswer(inv -> failedRead());
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            assertEquals(f.retries.size(), 1);
+            // A reader that throws instead of returning a failed future: thrown from the retry, it would end
+            // the tail reads without anything noticing.
+            when(f.reader.readNextAsync()).thenThrow(new IllegalStateException("reader failure"));
+
+            f.runLatestRetry();
+
+            assertEquals(f.retries.size(), 2, "The read that threw must be retried like a failed read");
+            assertTrue(f.retryDelays.get(1) >= f.retryDelays.get(0) * 1.5,
+                    "and keep backing off: " + f.retryDelays);
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    @SuppressWarnings("unchecked")
+    public void testHandlingFailureThatIsARejectionIsRetried() throws Exception {
+        TopicCompactionStrategy<String> strategy = mock(TopicCompactionStrategy.class);
+        // A strategy can be rejected by an executor of its own, a saturated one for instance: that says nothing
+        // about the reader.
+        when(strategy.shouldKeepLeft(any(), any())).thenThrow(new RejectedExecutionException("strategy is busy"));
+        try (TailRetryFixture f = new TailRetryFixture(strategy)) {
+            Message<String> message = mock(Message.class);
+            when(message.getTopicName()).thenReturn(TAIL_RETRY_TOPIC);
+            when(message.getMessageId()).thenReturn(new MessageIdImpl(1, 0, -1));
+            when(message.hasKey()).thenReturn(true);
+            when(message.getKey()).thenReturn("key");
+            when(message.size()).thenReturn(1);
+            when(message.getValue()).thenReturn("value");
+            when(f.reader.readNextAsync()).thenReturn(CompletableFuture.completedFuture(message),
+                    new CompletableFuture<>());
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> refresh = f.pendingRefresh();
+
+            assertEquals(f.retries.size(), 1, "Only a read the reader rejects ends the tail reads");
+            f.runLatestRetry();
+
+            verify(f.reader, times(2)).readNextAsync();
+            assertFalse(refresh.isDone(), "The tail reads go on, so the refresh keeps waiting");
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testFailedReadIsNotRetriedOnceTheClientIsClosed() throws Exception {
+        try (TailRetryFixture f = new TailRetryFixture()) {
+            // A reader that keeps failing its reads without being closed, as one that has failed for good does:
+            // the client no longer closes it.
+            when(f.reader.readNextAsync()).thenAnswer(inv -> failedRead());
+            f.tableView.start().get(5, TimeUnit.SECONDS);
+            CompletableFuture<Void> refresh = f.pendingRefresh();
+            when(f.client.isClosed()).thenReturn(true);
+
+            f.runLatestRetry();
+
+            assertFailedAsClosed(refresh, "A refresh cannot complete once the client is closed");
+            assertEquals(f.retries.size(), 1, "Nothing is retried once the client is closed");
+        }
     }
 
 }
