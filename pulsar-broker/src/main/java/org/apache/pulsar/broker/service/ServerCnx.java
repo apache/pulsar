@@ -93,7 +93,6 @@ import org.apache.pulsar.broker.limiter.ConnectionController;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.namespace.LookupOptions;
-import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -714,111 +713,41 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            isTopicOperationAllowed(topicName, TopicOperation.LOOKUP, authenticationData, originalAuthData).thenApply(
-                    isAuthorized -> {
-                if (isAuthorized) {
-                    // Get if exists, respond not found error if not exists.
-                    getBrokerService().isAllowAutoTopicCreationAsync(topicName).thenAccept(brokerAllowAutoCreate -> {
-                        boolean autoCreateIfNotExist = partitionMetadata.isMetadataAutoCreationEnabled()
-                                && brokerAllowAutoCreate;
-                        if (!autoCreateIfNotExist) {
-                            NamespaceService namespaceService = getBrokerService().getPulsar().getNamespaceService();
-                            namespaceService.checkTopicExistsAsync(topicName).thenAccept(topicExistsInfo -> {
-                                lookupSemaphore.release();
-                                if (!topicExistsInfo.isExists()) {
-                                    writeAndFlush(Commands.newPartitionMetadataResponse(
-                                            ServerError.TopicNotFound, "", requestId));
-                                } else if (topicExistsInfo.getTopicType().equals(TopicType.PARTITIONED)) {
-                                    commandSender.sendPartitionMetadataResponse(topicExistsInfo.getPartitions(),
-                                            requestId);
-                                } else {
-                                    commandSender.sendPartitionMetadataResponse(0, requestId);
-                                }
-                                // release resources.
-                                topicExistsInfo.recycle();
-                            }).exceptionally(ex -> {
-                                lookupSemaphore.release();
-                                Throwable actEx = FutureUtil.unwrapCompletionException(ex);
-                                if (actEx instanceof WebApplicationException restException
-                                        && restException.getResponse().getStatus() == NOT_FOUND.getStatusCode()) {
-                                    log.warn("{} {} Failed to get partition metadata for nonexistent resource: {}",
-                                            topicName, ServerCnx.this, actEx.getMessage());
-                                } else {
-                                    log.error("{} {} Failed to get partition metadata", topicName,
-                                            ServerCnx.this, ex);
-                                }
-                                writeAndFlush(
-                                        Commands.newPartitionMetadataResponse(ServerError.MetadataError,
-                                                "Failed to get partition metadata",
-                                                requestId));
-                                return null;
-                            });
-                        } else {
-                            // Get if exists, create a new one if not exists.
-                            unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName)
-                                .whenComplete((metadata, ex) -> {
-                                    lookupSemaphore.release();
-                                    if (ex == null) {
-                                        int partitions = metadata.partitions;
-                                        commandSender.sendPartitionMetadataResponse(partitions, requestId);
-                                    } else {
-                                        if (ex instanceof PulsarClientException) {
-                                            log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
-                                                    remoteAddress, topicName, ex.getMessage());
-                                            commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
-                                                    ex.getMessage(), requestId);
-                                        } else {
-                                            ServerError error = ServerError.ServiceNotReady;
-                                            if (ex instanceof MetadataStoreException) {
-                                                error = ServerError.MetadataError;
-                                            } else if (ex instanceof RestException restException){
-                                                int responseCode = restException.getResponse().getStatus();
-                                                if (responseCode == NOT_FOUND.getStatusCode()){
-                                                    error = ServerError.TopicNotFound;
-                                                } else if (responseCode < INTERNAL_SERVER_ERROR.getStatusCode()){
-                                                    error = ServerError.MetadataError;
-                                                }
-                                            }
-                                            if (error == ServerError.TopicNotFound) {
-                                                log.info("Trying to get Partitioned Metadata for a resource not exist"
-                                                                + "[{}] {}: {}", remoteAddress,
-                                                        topicName, ex.getMessage());
-                                            } else {
-                                                log.warn("Failed to get Partitioned Metadata [{}] {}: {}",
-                                                        remoteAddress, topicName, ex.getMessage(), ex);
-                                            }
-                                            commandSender.sendPartitionMetadataResponse(error, ex.getMessage(),
-                                                    requestId);
-                                        }
-                                    }
-                                });
-                        }
-                    });
-                } else {
+            FutureUtil.supplySafely(() -> isTopicOperationAllowed(topicName, TopicOperation.LOOKUP,
+                    authenticationData, originalAuthData)).handle((isAuthorized, ex) -> {
+                if (ex != null) {
+                    logAuthException(remoteAddress, "partition-metadata", getPrincipal(), Optional.of(topicName), ex);
+                    Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                    if (actEx instanceof WebApplicationException restException
+                            && restException.getResponse().getStatus() == NOT_FOUND.getStatusCode()) {
+                        writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound,
+                                "Tenant or namespace or topic does not exist: " + topicName.getNamespace(), requestId));
+                    } else {
+                        writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
+                                "Exception occurred while trying to authorize get Partition Metadata", requestId));
+                    }
+                    return false;
+                }
+                if (!isAuthorized) {
                     final String msg = "Client is not authorized to Get Partition Metadata";
                     log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, getPrincipal(), topicName);
-                    writeAndFlush(
-                            Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
-                    lookupSemaphore.release();
+                    writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
+                            msg, requestId));
                 }
-                return null;
-            }).exceptionally(ex -> {
-                logAuthException(remoteAddress, "partition-metadata", getPrincipal(), Optional.of(topicName), ex);
-                Throwable actEx = FutureUtil.unwrapCompletionException(ex);
-                if (actEx instanceof WebApplicationException restException) {
-                    if (restException.getResponse().getStatus() == Response.Status.NOT_FOUND.getStatusCode()) {
-                        writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound,
-                        "Tenant or namespace or topic does not exist: " + topicName.getNamespace() ,
-                                requestId));
-                        lookupSemaphore.release();
-                        return null;
-                    }
+                return isAuthorized;
+            }).thenCompose(isAuthorized -> {
+                if (!isAuthorized) {
+                    return CompletableFuture.completedFuture(null);
                 }
-                final String msg = "Exception occurred while trying to authorize get Partition Metadata";
-                writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg,
-                        requestId));
+                return lookupPartitionMetadata(topicName, requestId, partitionMetadata.isMetadataAutoCreationEnabled());
+            }).whenComplete((ignored, ex) -> {
+                // All branches, including their response handling and cleanup, finish before releasing the permit.
                 lookupSemaphore.release();
-                return null;
+                if (ex != null) {
+                    // Stage-specific failures have already been handled. Do not attempt another response here.
+                    log.error("{} {} Failed to process partition metadata request {}", topicName, ServerCnx.this,
+                            requestId, FutureUtil.unwrapCompletionException(ex));
+                }
             });
         } else {
             if (log.isDebugEnabled()) {
@@ -828,6 +757,95 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             commandSender.sendPartitionMetadataResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId);
         }
+    }
+
+    private CompletableFuture<Void> lookupPartitionMetadata(TopicName topicName, long requestId,
+                                                             boolean metadataAutoCreationEnabled) {
+        return FutureUtil.supplySafely(() -> getBrokerService().isAllowAutoTopicCreationAsync(topicName))
+                .<CompletableFuture<Void>>handle((brokerAllowAutoCreate, ex) -> {
+                    if (ex != null) {
+                        sendPartitionMetadataLookupError(topicName, requestId, ex);
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    if (metadataAutoCreationEnabled && brokerAllowAutoCreate) {
+                        return lookupOrCreatePartitionMetadata(topicName, requestId);
+                    }
+                    return lookupExistingTopicMetadata(topicName, requestId);
+                }).thenCompose(future -> future);
+    }
+
+    private CompletableFuture<Void> lookupExistingTopicMetadata(TopicName topicName, long requestId) {
+        return FutureUtil.supplySafely(() -> getBrokerService().getPulsar().getNamespaceService()
+                .checkTopicExistsAsync(topicName)).handle((topicExistsInfo, ex) -> {
+            if (ex != null) {
+                sendPartitionMetadataLookupError(topicName, requestId, ex);
+                return null;
+            }
+            try {
+                if (!topicExistsInfo.isExists()) {
+                    writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TopicNotFound, "", requestId));
+                } else if (topicExistsInfo.getTopicType().equals(TopicType.PARTITIONED)) {
+                    commandSender.sendPartitionMetadataResponse(topicExistsInfo.getPartitions(), requestId);
+                } else {
+                    commandSender.sendPartitionMetadataResponse(0, requestId);
+                }
+            } finally {
+                topicExistsInfo.recycle();
+            }
+            return null;
+        });
+    }
+
+    private void sendPartitionMetadataLookupError(TopicName topicName, long requestId, Throwable ex) {
+        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+        if (actEx instanceof WebApplicationException restException
+                && restException.getResponse().getStatus() == NOT_FOUND.getStatusCode()) {
+            log.warn("{} {} Failed to get partition metadata for nonexistent resource: {}",
+                    topicName, ServerCnx.this, actEx.getMessage());
+        } else {
+            log.error("{} {} Failed to get partition metadata", topicName, ServerCnx.this, ex);
+        }
+        writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.MetadataError,
+                "Failed to get partition metadata", requestId));
+    }
+
+    private CompletableFuture<Void> lookupOrCreatePartitionMetadata(TopicName topicName, long requestId) {
+        return FutureUtil.supplySafely(() ->
+                        unsafeGetPartitionedTopicMetadataAsync(getBrokerService().pulsar(), topicName))
+                .handle((metadata, ex) -> {
+                    if (ex == null) {
+                        commandSender.sendPartitionMetadataResponse(metadata.partitions, requestId);
+                        return null;
+                    }
+                    Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                    if (actEx instanceof PulsarClientException) {
+                        log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
+                                remoteAddress, topicName, actEx.getMessage());
+                        commandSender.sendPartitionMetadataResponse(ServerError.AuthorizationError,
+                                actEx.getMessage(), requestId);
+                        return null;
+                    }
+                    ServerError error = ServerError.ServiceNotReady;
+                    if (actEx instanceof MetadataStoreException) {
+                        error = ServerError.MetadataError;
+                    } else if (actEx instanceof RestException restException) {
+                        int responseCode = restException.getResponse().getStatus();
+                        if (responseCode == NOT_FOUND.getStatusCode()) {
+                            error = ServerError.TopicNotFound;
+                        } else if (responseCode < INTERNAL_SERVER_ERROR.getStatusCode()) {
+                            error = ServerError.MetadataError;
+                        }
+                    }
+                    if (error == ServerError.TopicNotFound) {
+                        log.info("Trying to get Partitioned Metadata for a resource not exist"
+                                + "[{}] {}: {}", remoteAddress, topicName, actEx.getMessage());
+                    } else {
+                        log.warn("Failed to get Partitioned Metadata [{}] {}: {}",
+                                remoteAddress, topicName, actEx.getMessage(), actEx);
+                    }
+                    commandSender.sendPartitionMetadataResponse(error, actEx.getMessage(), requestId);
+                    return null;
+                });
     }
 
     @Override
