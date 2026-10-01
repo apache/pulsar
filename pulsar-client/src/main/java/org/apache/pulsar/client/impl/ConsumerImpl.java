@@ -1642,19 +1642,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // The first chunk of a new chunked-message received before receiving the other chunks
                 // of the previous chunked-message with the SAME uuid (a resent/duplicated first
                 // chunk, or a producer restart reusing the sequenceId). Discard the previous context.
-                // This is a REPLACEMENT of an existing tracking slot: the uuid is already represented
-                // exactly once in pendingChunkedMessageCount and once in pendingChunkedMessageUuidQueue,
-                // so this branch must NOT increment the count or re-add the uuid to the queue -- only
-                // the new-uuid branch below does that. Otherwise each duplicate first chunk would both
-                // drift the count above the real chunkedMessagesMap size (triggering spurious
-                // eviction) and leak a duplicate uuid into the queue (unbounded growth, and a stale
-                // head can block removeExpireIncompleteChunkedMessages()). The map entry itself is
-                // re-created by the shared computeIfAbsent below.
+                // This is a REPLACEMENT of an existing tracking slot: the uuid is already counted once
+                // in pendingChunkedMessageCount, so this branch must NOT increment the count -- only
+                // the new-uuid branch below does. Otherwise each duplicate first chunk would drift the
+                // count above the real chunkedMessagesMap size (triggering spurious eviction).
+                //
+                // The uuid must, however, be re-positioned in pendingChunkedMessageUuidQueue. The
+                // replacement context below gets a fresh receivedTime, so leaving the uuid at its
+                // original (older) position would make queue order no longer match expiry order:
+                // removeExpireIncompleteChunkedMessages() only inspects the head and returns at the
+                // first non-expired entry, so a repeatedly-refreshed head uuid would indefinitely
+                // block expiry of genuinely-expired entries behind it. Remove the stale entry and
+                // re-add it so its position reflects the refreshed receivedTime. The count is
+                // unchanged (one entry out, one back in).
                 if (chunkedMsgCtx.chunkedMsgBuffer != null) {
                     ReferenceCountUtil.safeRelease(chunkedMsgCtx.chunkedMsgBuffer);
                 }
                 chunkedMsgCtx.recycle();
                 chunkedMessagesMap.remove(msgMetadata.getUuid());
+                pendingChunkedMessageUuidQueue.remove(msgMetadata.getUuid());
+                pendingChunkedMessageUuidQueue.add(msgMetadata.getUuid());
             } else {
                 // Genuinely new uuid: count it and enqueue it exactly once. Eviction is only checked
                 // here because only a new uuid grows the number of in-flight chunked messages.

@@ -498,6 +498,67 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                         + mapSize + ") after " + duplicates + " duplicate first chunks");
     }
 
+    /**
+     * A duplicate first chunk resets its context's receivedTime. If the uuid is left at its original
+     * position in pendingChunkedMessageUuidQueue, queue order no longer matches expiry order, and
+     * because removeExpireIncompleteChunkedMessages() only inspects the head and returns at the first
+     * non-expired entry, a repeatedly-refreshed head uuid blocks expiry of genuinely-expired entries
+     * behind it (the reviewer's A/B head-of-line scenario).
+     *
+     * Here A's first chunk is refreshed continuously so A never expires, while B is left untouched
+     * past the expiry window. B must still be expired and removed. The fix re-positions A's uuid in
+     * the queue on each refresh so B reaches the head and is collected.
+     */
+    @Test
+    public void testRefreshedFirstChunkDoesNotBlockExpiryOfLaterEntries() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/refreshedHeadExpiry";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .maxPendingChunkedMessage(100)
+                .expireTimeOfIncompleteChunkedMessage(2, TimeUnit.SECONDS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        ConsumerImpl<String> consumerImpl = (ConsumerImpl<String>) consumer;
+
+        // A arrives first, then B. Both incomplete. Queue: [A, B].
+        sendSingleChunk(producer, "A", 0, 2);
+        sendSingleChunk(producer, "B", 0, 2);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(consumerImpl.chunkedMessagesMap.size(), 2));
+
+        // Keep refreshing A's first chunk continuously so A's receivedTime is never older than the
+        // 2s expiry window -- A must never be eligible for expiry while we observe. We check B's
+        // removal WHILE still refreshing A:  where the
+        // perpetually-refreshed head uuid actively shields the entry behind it. B is never refreshed,
+        // so once >2s pass it is expired -- unless A (left at the stale queue head without the fix)
+        // blocks the head-only expiry scan. Refresh every 400ms for up to ~12s, asserting B is gone.
+        long bArrivalNanos = System.nanoTime();
+        boolean bCollected = false;
+        for (int i = 0; i < 30 && !bCollected; i++) {
+            sendSingleChunk(producer, "A", 0, 2); // keep A's receivedTime fresh (head stays non-expired)
+            Thread.sleep(400);
+            // only meaningful once B is well past its 2s expiry window
+            if (System.nanoTime() - bArrivalNanos > TimeUnit.SECONDS.toNanos(4)) {
+                bCollected = consumerImpl.chunkedMessagesMap.get("B") == null;
+            }
+        }
+
+        // B must have been expired and removed while A was still being refreshed at the (old) queue
+        // head. On the buggy client B stays stuck behind the refreshed A indefinitely.
+        assertNull(consumerImpl.chunkedMessagesMap.get("B"),
+                "expired message B was not collected while A was continually refreshed: a refreshed "
+                        + "head uuid blocked head-only expiry of later entries");
+    }
+
     @Test
     public void testExpireIncompleteChunkMessage() throws Exception{
         final String topicName = "persistent://my-property/my-ns/expireMsg";
