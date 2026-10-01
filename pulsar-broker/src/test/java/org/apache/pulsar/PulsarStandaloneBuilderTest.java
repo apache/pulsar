@@ -20,7 +20,10 @@
 package org.apache.pulsar;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.AssertJUnit.assertNotNull;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -33,18 +36,18 @@ public class PulsarStandaloneBuilderTest {
                 .withTempDirectory()
                 .build();
         try {
-            //standalone.setNumOfBk(2);
+            standalone.setNumOfBk(2);
             standalone.start();
-            try (PulsarClient client = PulsarClient.builder()
-                    .serviceUrl("pulsar://localhost:6650")
-                    .build()) {
+            try (PulsarClient client = standalone.buildClient()) {
                 Producer<String> producer = client.newProducer(Schema.STRING)
                         .topic("test-topic").create();
                 Consumer<String> consumer = client.newConsumer(Schema.STRING)
                         .topic("test-topic").subscriptionName("sub").subscribe();
 
                 producer.send("hello");
-                assertEquals(consumer.receive().getValue(), "hello");
+                Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
+                assertNotNull(msg);
+                assertEquals(msg.getValue(), "hello");
             }
 
         } finally {
