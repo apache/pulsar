@@ -57,7 +57,8 @@ Pass the launcher's options with `--args`:
 | `--cooldown-timeout <seconds>` | The longest wait for `--cooldown-temperature`. Default: 600. |
 | `--progress-interval <seconds>` | How often to print the workload's progress, see [Progress on the console](#progress-on-the-console). Default: 10. |
 | `--no-metrics` | Collects no metrics of the brokers, the bookies and ZooKeeper, which a run collects by default, see [Metrics](metrics.md). Default: `performance.metrics`, or else collect them. |
-| `--keep-launcher-log` | Keeps `launcher.log` when the run succeeds. Without it, a successful run deletes the log, since the containers' logs make it large; a failed run keeps it. Default: `performance.keepLauncherLog`, or else a successful run deletes it. |
+| `--no-perf-stat` | Doesn't count the containers' CPU time, context switches, CPU migrations, cycles and instructions with `perf stat`, which a run does by default in a privileged sidecar container, see [Files of a run](run-reports.md#files-of-a-run). The containers' CPU use and voluntary and involuntary context switches are sampled from `/proc` either way when the Docker engine runs on the launcher's host; when it runs in a VM, such as on macOS, those and `host-io.csv` need the sidecar. Default: `performance.perfStat`, or else count them. |
+| `--keep-launcher-log` | Keeps `launcher.log` when the run succeeds. Without it, a successful run deletes the log, since the containers' logs make it large; a failed run keeps it, and so does a run whose applications received duplicates, ordering violations or invalid messages. Default: `performance.keepLauncherLog`, or else a successful run deletes it. |
 | `--tools-directory <dir>` | The installed workload applications. The Gradle tasks pass it. |
 
 ## Gradle properties
@@ -69,6 +70,7 @@ Pass these with `-P` on the command line, or set them in `~/.gradle/gradle.prope
 | `performance.reportsDir` | The root of the reports hierarchy, relative to the repository root or absolute. Use an absolute path in `~/.gradle/gradle.properties`, since a relative one resolves in each checkout. |
 | `performance.cooldownTemperature` | The default of `--cooldown-temperature`. |
 | `performance.metrics`, `performance.metrics.bindAddress`, `performance.metrics.grafanaUrl` | Whether runs collect metrics, `true` by default, where the metrics stack is published, and the URL of its Grafana, see [Metrics](metrics.md#settings). |
+| `performance.perfStat` | Whether runs count the containers' CPU events with `perf stat` in a privileged sidecar container, `true` by default. |
 | `performance.keepLauncherLog` | Keeps `launcher.log` of successful runs, as `--keep-launcher-log` does. The property alone, or with `true`, keeps it. |
 | `performance.reportsServer.bindAddress`, `performance.reportsServer.port` | Where `:tests:performance:report-tool:serveReports` listens, `127.0.0.1` and `8000` by default, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |
 | `performance.reportsServer.baseUrl` | The URL of the reports server, such as `http://192.168.1.123:8000/`, with which the launcher prints each report's URL. Default: `http://<bind address>:<port>/`, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |
@@ -76,7 +78,7 @@ Pass these with `-P` on the command line, or set them in `~/.gradle/gradle.prope
 | `performance.clusterPulsarImage` | A released Pulsar image for the cluster, such as `apachepulsar/pulsar:4.0.13` or `apachepulsar/pulsar:latest`, to test that release instead of the checkout. The tasks build the test image on it, which needs an Alpine-based Pulsar image, and use it for ZooKeeper, the bookies and the brokers; the workloads, and so the Pulsar client, stay on the checkout's image. See [Comparing with a released Pulsar](comparing-revisions.md#comparing-with-a-released-pulsar). |
 | `docker.tag` | The tag of the Docker images the tasks build and run, `latest` by default. Separate tags keep the images of two revisions apart, see [Comparing revisions](comparing-revisions.md). |
 | `docker.organization` | The organization of the Docker images, `apachepulsar` by default. |
-| `inttest.testImageVariant` | `wolfi` (the default) or `alpine`: the image that profiled runs use, see [Profiling](profiling.md#requirements). |
+| `inttest.testImageVariant` | `alpine` (the default, as the unprofiled runs and Pulsar's default image) or `wolfi`, the glibc-based image: the image that profiled runs use, see [Profiling](profiling.md#requirements). |
 | `inttest.asyncprofiler.skipPerfEventTuning` | Skips the privileged container that relaxes the kernel's perf event and BPF limits before a profiled run, when they are already set. |
 
 ## Where runs are written
@@ -122,8 +124,9 @@ The launcher's console shows only the scenario's resolved configuration, with it
 overrides applied, and the run's phases and progress: starting the cluster, the applications and the
 gateways, waiting for the applications, verifying, and the run report. The logs of Testcontainers and of the Pulsar
 containers go to `launcher.log` in the run directory, which you can follow with `tail -f` during the run. A successful
-run deletes it at the end, since the containers' logs make it large; a failed run keeps it, and `--keep-launcher-log`
-keeps it also after a successful run. What the launcher prints on the console goes also to `console.log.txt` in the
+run deletes it at the end, since the containers' logs make it large; a failed run keeps it, as does a run whose
+applications received duplicates, ordering violations or invalid messages, and `--keep-launcher-log` keeps it also
+after a successful run. What the launcher prints on the console goes also to `console.log.txt` in the
 run directory, which every run keeps.
 
 While the applications start, the launcher shows how many of their pods are open, every 5 seconds while the number

@@ -268,6 +268,49 @@ duckdb -no-init -bail -csv -header < analysis.sql > analysis.csv
 Use one result query per output file so that JSON contains a single array and CSV contains one table with a header.
 `-bail` stops on SQL errors; check the exit status before consuming the output.
 
+### Per-thread CPU
+
+The flame graphs' `cpu.collapsed` merges all threads. A serial stage, such as a topic's managed-ledger thread,
+shows only when the samples are split by thread: write collapsed stacks with the thread as their first frame from the
+measurement recording, with the converter's `--threads` option:
+
+```bash
+./gradlew -q :tests:performance:report-tool:runJfrConverter \
+  --args="--cpu --threads --norm -o collapsed /absolute/path/to/recording.measurement.jfr /tmp/cpu-threads.collapsed"
+```
+
+Each stack then starts with a frame such as `[BookKeeperClientWorker-OrderedExecutor-12-0 tid=123]`. This ranks the
+thread pools, with the numeric suffix of each thread's name replaced so that a pool's threads group together:
+
+```sql
+SET VARIABLE profile = '/tmp/cpu-threads.collapsed';
+SELECT regexp_replace(regexp_extract(frames[1], '^\[(.*) tid=[0-9]+\]$', 1), '-[0-9]+$', '-N') AS pool,
+       sum(samples) AS samples,
+       round(100.0 * sum(samples) / (SELECT sum(samples) FROM read_folded(getvariable('profile'))), 1) AS pct
+FROM flamegraph_hot_stacks(getvariable('profile'))
+GROUP BY pool ORDER BY samples DESC LIMIT 20;
+```
+
+Group by `regexp_extract(frames[1], '^\[(.*) tid=[0-9]+\]$', 1)` instead to rank single threads. A thread's samples
+per second of the measurement window, times the sampling interval (10 ms by default), is its busy share of one core:
+a thread near 100 % is a serial stage. This query shows where one thread spends its CPU, counting each stack once per
+matching frame:
+
+```sql
+SET VARIABLE thread = 'BookKeeperClientWorker-OrderedExecutor-12-0';
+SET VARIABLE pkg = '^org[./]apache[./](pulsar|bookkeeper)[./]';
+WITH t AS (SELECT frames, samples FROM flamegraph_hot_stacks(getvariable('profile'))
+           WHERE regexp_extract(frames[1], '^\[(.*) tid=[0-9]+\]$', 1) = getvariable('thread')),
+     total AS (SELECT sum(samples) AS n FROM t)
+SELECT f AS frame, sum(samples) AS samples, round(100.0 * sum(samples) / any_value(n), 1) AS pct_of_thread
+FROM (SELECT unnest(list_distinct(frames[2:])) AS f, samples FROM t), total
+WHERE regexp_matches(f, getvariable('pkg'))
+GROUP BY f ORDER BY samples DESC LIMIT 30;
+```
+
+To compare runs, divide the samples by each run's measured messages in millions; the throughput of a saturated
+scenario follows the cost per message of its busiest serial thread.
+
 
 
 
@@ -290,6 +333,40 @@ It writes a directory beside each recording, named after the file without its ex
 the `cpu`, `wall`, `alloc` and `lock` views, each merged (`cpu.html`), split per thread (`cpu_threads.html`) and
 grouped into async-profiler's categories (`cpu_classify.html`). A view whose event the recording doesn't contain is
 skipped. It doesn't render off-CPU flame graphs, which need the jonoffcpu capture of a standalone profiled run.
+
+## Netty allocator events
+
+A profiled component records the events of Netty's buffer allocators when its `jfrConfigurations` list
+`netty-allocations.jfc`, and the launcher summarizes those of the measurement recording when the component also has
+`nettyAllocationsReport: true`, as `configs/profile-<component>-netty-allocations` sets both (see
+[Netty allocator events](profiling.md#netty-allocator-events) for their heavy overhead). The summary,
+`<recording>.measurement.netty-allocator.json`, shows in the profile report's "Netty allocator events" section, with
+the tables of the events that the recording has:
+
+- **Events**: how many of each Netty allocator event there were, per second and per message.
+- **Buffer allocations** by allocator (`AdaptivePoolingAllocator`, `PooledByteBufAllocator`), direct or heap memory,
+  and pooled or one-off chunk; **by size**, in size classes from 64 bytes to over 1 MiB; and **by thread pool**, such
+  as the Netty event loops (`pulsar-io`), the managed ledger's threads (`BookKeeperClientWorker-OrderedExecutor`) and
+  the BookKeeper client's I/O threads (`bookkeeper-io`). A one-off buffer didn't fit the pooled memory and got a chunk
+  of its own, which is allocated and freed with it; many of them, or a growing share, point to buffers larger than the
+  allocator pools, such as large entries or aggregated batches.
+- **Buffer reallocations**: buffers grown by copying into a larger one, such as a buffer that a writer outgrew.
+- **Chunk allocations and frees**: each is a native allocation or free of direct memory. With a steady load, pooled
+  chunk allocations that keep happening show the pools growing or churning; compare them with the direct memory use in
+  the broker's metrics, and the page faults in the Containers section of the run report.
+
+Compare the counts per message between a baseline and a change: fewer one-off chunks, reallocations or buffer
+allocations per message are less work for the allocator. The events have no stack traces; to see where a kind of
+buffer is allocated, find the allocating methods in the allocation flame graph of the same recording.
+
+To summarize another recording, such as one cut to another window with `runJfrCut`:
+
+```bash
+./gradlew :tests:performance:report-tool:summarizeNettyAllocatorEvents \
+  --args="/absolute/path/to/recording.measurement.jfr --messages 4000000"
+```
+
+It writes `<recording>.netty-allocator.json` beside the recording and prints the report's section.
 
 ## Opening recordings in JDK Mission Control or IntelliJ IDEA
 
@@ -390,8 +467,8 @@ Use `jfr_diagnose` and `jfr_stackprofile` first, then query further with the oth
 result beside the recording as `<recording>.analysis.md`, in addition to showing the report in the console. For a
 standalone profiled run, analyze `<recording>.measurement.jfr`: CPU samples are `jdk.ExecutionSample`,
 async-profiler's allocation samples are `jdk.ObjectAllocationInNewTLAB` (not `jdk.ObjectAllocationSample`), and
-`jfrsync=profile` adds JDK events such as `jdk.JavaMonitorEnter` and `jdk.ThreadPark` (see
-[Configuring profiling](profiling.md#configuring-profiling)). Off-CPU time is not in a JFR file; use the digest
+the JDK's `profile` JFR configuration adds JDK events such as `jdk.JavaMonitorEnter` and `jdk.ThreadPark` (see
+[The JFR configuration](profiling.md#the-jfr-configuration)). Off-CPU time is not in a JFR file; use the digest
 `<recording>-offcpu/jonoffcpu-summary.md` and the correlator's `top` and `stacks` subcommands (see
 [Finding what to optimize](#finding-what-to-optimize)). A useful starting prompt is:
 
