@@ -25,11 +25,11 @@ import com.fasterxml.jackson.databind.deser.DeserializationProblemHandler;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import java.io.IOException;
 import java.util.Collection;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
+@CustomLog
 public class DynamicSkipUnknownPropertyHandler extends DeserializationProblemHandler {
 
     @Getter
@@ -44,9 +44,7 @@ public class DynamicSkipUnknownPropertyHandler extends DeserializationProblemHan
         UnrecognizedPropertyException unrecognizedPropertyException = UnrecognizedPropertyException
                 .from(p, beanOrClass, propertyName, propIds);
         if (skipUnknownProperty){
-            if (log.isDebugEnabled()) {
-                log.debug(unrecognizedPropertyException.getMessage());
-            }
+            log.debug().exceptionMessage(unrecognizedPropertyException).log("Unrecognized property error");
             p.skipChildren();
             return skipUnknownProperty;
         } else {

@@ -29,12 +29,12 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.util.FileModifiedTimeUpdater;
-import org.apache.pulsar.common.util.SecurityUtility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.util.tls.PemReader;
 
+@CustomLog
 public class AuthenticationDataTls implements AuthenticationDataProvider {
     private static final long serialVersionUID = 1L;
     protected X509Certificate[] tlsCertificates;
@@ -57,8 +57,8 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
         }
         this.certFile = new FileModifiedTimeUpdater(certFilePath);
         this.keyFile = new FileModifiedTimeUpdater(keyFilePath);
-        this.tlsCertificates = SecurityUtility.loadCertificatesFromPemFile(certFilePath);
-        this.tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFilePath);
+        this.tlsCertificates = PemReader.loadCertificatesFromPemFile(certFilePath);
+        this.tlsPrivateKey = PemReader.loadPrivateKeyFromPemFile(keyFilePath);
     }
 
     public AuthenticationDataTls(Supplier<ByteArrayInputStream> certStreamProvider,
@@ -80,8 +80,8 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
         this.trustStoreStreamProvider = trustStoreStreamProvider;
         this.certStream = certStreamProvider.get();
         this.keyStream = keyStreamProvider.get();
-        this.tlsCertificates = SecurityUtility.loadCertificatesFromPemStream(certStream);
-        this.tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemStream(keyStream);
+        this.tlsCertificates = PemReader.loadCertificatesFromPemStream(certStream);
+        this.tlsPrivateKey = PemReader.loadPrivateKeyFromPemStream(keyStream);
     }
     /*
      * TLS
@@ -101,17 +101,19 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     public Certificate[] getTlsCertificates() {
         if (certFile != null && certFile.checkAndRefresh()) {
             try {
-                this.tlsCertificates = SecurityUtility.loadCertificatesFromPemFile(certFile.getFileName());
+                this.tlsCertificates = PemReader.loadCertificatesFromPemFile(certFile.getFileName());
             } catch (KeyManagementException e) {
-                LOG.error("Unable to refresh authData for cert {}: ", certFile.getFileName(), e);
+                log.error().attr("cert", certFile.getFileName())
+                        .exception(e)
+                        .log("Unable to refresh authData for cert");
             }
         } else if (certStreamProvider != null && certStreamProvider.get() != null
                 && !certStreamProvider.get().equals(certStream)) {
             try {
                 certStream = certStreamProvider.get();
-                tlsCertificates = SecurityUtility.loadCertificatesFromPemStream(certStream);
+                tlsCertificates = PemReader.loadCertificatesFromPemStream(certStream);
             } catch (KeyManagementException e) {
-                LOG.error("Unable to refresh authData from cert stream ", e);
+                log.error().exception(e).log("Unable to refresh authData from cert stream ");
             }
         }
         return this.tlsCertificates;
@@ -121,17 +123,17 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     public PrivateKey getTlsPrivateKey() {
         if (keyFile != null && keyFile.checkAndRefresh()) {
             try {
-                this.tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemFile(keyFile.getFileName());
+                this.tlsPrivateKey = PemReader.loadPrivateKeyFromPemFile(keyFile.getFileName());
             } catch (KeyManagementException e) {
-                LOG.error("Unable to refresh authData for cert {}: ", keyFile.getFileName(), e);
+                log.error().attr("cert", keyFile.getFileName()).exception(e).log("Unable to refresh authData for cert");
             }
         } else if (keyStreamProvider != null && keyStreamProvider.get() != null
                 && !keyStreamProvider.get().equals(keyStream)) {
             try {
                 keyStream = keyStreamProvider.get();
-                tlsPrivateKey = SecurityUtility.loadPrivateKeyFromPemStream(keyStream);
+                tlsPrivateKey = PemReader.loadPrivateKeyFromPemStream(keyStream);
             } catch (KeyManagementException e) {
-                LOG.error("Unable to refresh authData from key stream ", e);
+                log.error().exception(e).log("Unable to refresh authData from key stream ");
             }
         }
         return this.tlsPrivateKey;
@@ -151,6 +153,4 @@ public class AuthenticationDataTls implements AuthenticationDataProvider {
     public String getTlsPrivateKeyFilePath() {
         return keyFile != null ? keyFile.getFileName() : null;
     }
-
-    private static final Logger LOG = LoggerFactory.getLogger(AuthenticationDataTls.class);
 }

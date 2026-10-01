@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -37,8 +38,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -46,9 +45,12 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.IntSupplier;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import lombok.EqualsAndHashCode;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -64,27 +66,30 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PendingReadsManagerTest  {
 
     static final Object CTX = "foo";
     static final Object CTX2 = "far";
     static final long LEDGER_ID = 123414L;
     private final Map<Pair<Long, Long>, AtomicInteger> entryRangeReadCount = new ConcurrentHashMap<>();
-    ExecutorService orderedExecutor;
+    OrderedExecutor executorPool;
+    ThreadBoundExecutor orderedExecutor;
 
     PendingReadsManagerTest() {
     }
 
     @BeforeClass(alwaysRun = true)
     void before() {
-        orderedExecutor = Executors.newSingleThreadExecutor();
+        executorPool = OrderedExecutor.newBuilder().numThreads(1).name("test").build();
+        orderedExecutor = (ThreadBoundExecutor) executorPool.chooseThread();
     }
 
     @AfterClass(alwaysRun = true)
     void after() {
-        if (orderedExecutor != null) {
-            orderedExecutor.shutdown();
+        if (executorPool != null) {
+            executorPool.shutdown();
+            executorPool = null;
             orderedExecutor = null;
         }
     }
@@ -110,17 +115,19 @@ public class PendingReadsManagerTest  {
         doAnswer(new Answer() {
             @Override
             public Object answer(InvocationOnMock invocationOnMock) throws Throwable {
-                log.info("rangeEntryCache asyncReadEntry0 {}", invocationOnMock);
+                log.info().attr("invocation", invocationOnMock).log("rangeEntryCache asyncReadEntry0");
                 ReadHandle rh = invocationOnMock.getArgument(0);
                 long startEntry = invocationOnMock.getArgument(1);
                 long endEntry = invocationOnMock.getArgument(2);
-                IntSupplier expectedReadCount = invocationOnMock.getArgument(3);
-                AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(4);
-                Object ctx = invocationOnMock.getArgument(5);
-                pendingReadsManager.readEntries(lh, startEntry, endEntry, expectedReadCount, callback, ctx);
+                long maxSizeBytes = invocationOnMock.getArgument(3);
+                IntSupplier expectedReadCount = invocationOnMock.getArgument(4);
+                AsyncCallbacks.ReadEntriesCallback callback = invocationOnMock.getArgument(5);
+                Object ctx = invocationOnMock.getArgument(6);
+                pendingReadsManager.readEntries(lh, startEntry, endEntry, maxSizeBytes, expectedReadCount, callback,
+                        ctx);
                 return null;
             }
-        }).when(rangeEntryCache).asyncReadEntry0(any(), anyLong(), anyLong(),
+        }).when(rangeEntryCache).asyncReadEntry0(any(), anyLong(), anyLong(), anyLong(),
                 any(), any(), any(), anyBoolean());
 
         lh = mock(ReadHandle.class);
@@ -132,6 +139,7 @@ public class PendingReadsManagerTest  {
 
 
     @Data
+    @EqualsAndHashCode(callSuper = false)
     private static class CapturingReadEntriesCallback extends CompletableFuture<Void>
             implements AsyncCallbacks.ReadEntriesCallback  {
         List<Position> entries;
@@ -169,7 +177,7 @@ public class PendingReadsManagerTest  {
 
     private void verifyRange(List<Position> entries, long firstEntry, long endEntry) {
         int pos = 0;
-        log.info("verifyRange numEntries {}", entries.size());
+        log.info().attr("numEntries", entries.size()).log("verifyRange");
         for (long entry = firstEntry; entry <= endEntry; entry++) {
             assertEquals(entries.get(pos++).getEntryId(), entry);
         }
@@ -200,13 +208,14 @@ public class PendingReadsManagerTest  {
                                                            long firstEntry, long endEntry,
                                                            IntSupplier expectedReadCount) {
         PreparedReadFromStorage read = new PreparedReadFromStorage(firstEntry, endEntry, expectedReadCount);
-        log.info("prepareReadFromStorage from {} to {} expectedReadCount {}", firstEntry, endEntry, expectedReadCount);
-        when(rangeEntryCache.readFromStorage(eq(lh), eq(firstEntry), eq(endEntry),
+        log.info().attr("firstEntry", firstEntry).attr("endEntry", endEntry)
+                .attr("expectedReadCount", expectedReadCount).log("prepareReadFromStorage");
+        when(rangeEntryCache.readFromStorage(eq(lh), eq(firstEntry), eq(endEntry), anyLong(),
                 argThat(expectedReadCountArg -> expectedReadCountArg.getAsInt()
                         == expectedReadCount.getAsInt()))).thenAnswer(
                 (invocationOnMock -> {
-                    log.info("readFromStorage from {} to {} expectedReadCount {}", firstEntry, endEntry,
-                            expectedReadCount);
+                    log.info().attr("firstEntry", firstEntry).attr("endEntry", endEntry)
+                            .attr("expectedReadCount", expectedReadCount).log("readFromStorage");
                     entryRangeReadCount.computeIfAbsent(Pair.of(firstEntry, endEntry), __ -> new AtomicInteger(0))
                             .getAndIncrement();
                     return read;
@@ -226,7 +235,7 @@ public class PendingReadsManagerTest  {
                 prepareReadFromStorage(lh, rangeEntryCache, firstEntry, endEntry, expectedReadCount);
 
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, NO_MAX_SIZE_LIMIT, expectedReadCount, callback, CTX);
 
         // complete the read
         read1.storageReadCompleted();
@@ -252,10 +261,11 @@ public class PendingReadsManagerTest  {
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, NO_MAX_SIZE_LIMIT, expectedReadCount, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback2, CTX2);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, NO_MAX_SIZE_LIMIT, expectedReadCount, callback2,
+                CTX2);
 
         // complete the read from BK
         // only one read completes 2 callbacks
@@ -294,12 +304,12 @@ public class PendingReadsManagerTest  {
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, NO_MAX_SIZE_LIMIT, expectedReadCount, callback, CTX);
 
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, expectedReadCount, callback2,
-                CTX2);
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, callback2, CTX2);
 
         // complete the read from BK
         // only one read completes 2 callbacks
@@ -344,11 +354,11 @@ public class PendingReadsManagerTest  {
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, NO_MAX_SIZE_LIMIT, expectedReadCount, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, expectedReadCount, callback2,
-                CTX2);
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, callback2, CTX2);
 
         // complete the read from BK
         read1.storageReadCompleted();
@@ -385,11 +395,11 @@ public class PendingReadsManagerTest  {
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, NO_MAX_SIZE_LIMIT, expectedReadCount, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, expectedReadCount, callback2,
-                CTX2);
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, callback2, CTX2);
 
         // complete the read from BK
         read1.storageReadCompleted();
@@ -429,11 +439,11 @@ public class PendingReadsManagerTest  {
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, NO_MAX_SIZE_LIMIT, expectedReadCount, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, expectedReadCount, callback2,
-                CTX2);
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, callback2, CTX2);
 
         // complete the read from BK
         read1.storageReadCompleted();
@@ -472,11 +482,11 @@ public class PendingReadsManagerTest  {
 
         PendingReadsManager pendingReadsManager = new PendingReadsManager(rangeEntryCache);
         CapturingReadEntriesCallback callback = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntry, endEntry, expectedReadCount, callback, CTX);
+        pendingReadsManager.readEntries(lh, firstEntry, endEntry, NO_MAX_SIZE_LIMIT, expectedReadCount, callback, CTX);
 
         CapturingReadEntriesCallback callback2 = new CapturingReadEntriesCallback();
-        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, expectedReadCount, callback2,
-                CTX2);
+        pendingReadsManager.readEntries(lh, firstEntrySecondRead, endEntrySecondRead, NO_MAX_SIZE_LIMIT,
+                expectedReadCount, callback2, CTX2);
 
         read1.storageReadCompleted();
         callback.get();
@@ -497,7 +507,7 @@ public class PendingReadsManagerTest  {
         final var readFutures = new ArrayList<CapturingReadEntriesCallback>();
         final BiConsumer<Long, Long> readEntries = (firstEntry, lastEntry) -> {
             final var callback = new CapturingReadEntriesCallback();
-            pendingReadsManager.readEntries(lh, firstEntry, lastEntry, () -> 0, callback, CTX);
+            pendingReadsManager.readEntries(lh, firstEntry, lastEntry, NO_MAX_SIZE_LIMIT, () -> 0, callback, CTX);
             readFutures.add(callback);
         };
         final BiFunction<Long, Long, PreparedReadFromStorage> mockReadFromStorage = (firstEntry, lastEntry) ->
@@ -522,7 +532,7 @@ public class PendingReadsManagerTest  {
         readFutures.get(2).get(1, TimeUnit.SECONDS);
         assertEquals(readFutures.get(2).getEntries().size(), 91);
 
-        log.info("entryRangeReadCount: {}", entryRangeReadCount);
+        log.info().attr("entryRangeReadCount", entryRangeReadCount).log("Entry range read counts");
         final var keys = Set.of(Pair.of(10L, 70L), Pair.of(71L, 79L),
                 Pair.of(80L, 100L));
         assertEquals(entryRangeReadCount.keySet(), keys);

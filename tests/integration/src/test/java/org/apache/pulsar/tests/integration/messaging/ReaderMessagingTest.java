@@ -23,7 +23,7 @@ import static org.testng.Assert.assertNotNull;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -33,12 +33,12 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ReaderMessagingTest extends MessagingBase {
 
     @Test(dataProvider = "ServiceAndAdminUrls")
     public void testReaderReconnectAndRead(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test --");
         final String topicName = getNonPartitionedTopic("test-reader-reconnect-read", false);
         @Cleanup final PulsarClient client = PulsarClient.builder()
                 .serviceUrl(serviceUrl.get())
@@ -83,13 +83,13 @@ public class ReaderMessagingTest extends MessagingBase {
             assertEquals(msg.getValue(), "message-" + i);
         }
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test --");
     }
 
     @Test(dataProvider = "ServiceAndAdminUrls")
     public void testReaderReconnectAndReadBatchMessages(Supplier<String> serviceUrl, Supplier<String> adminUrl)
             throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test --");
         final String topicName = getNonPartitionedTopic("test-reader-reconnect-read-batch", false);
         @Cleanup final PulsarClient client = PulsarClient.builder()
                 .serviceUrl(serviceUrl.get())
@@ -137,6 +137,6 @@ public class ReaderMessagingTest extends MessagingBase {
             assertEquals(msg.getValue(), "message-" + i);
         }
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test --");
     }
 }

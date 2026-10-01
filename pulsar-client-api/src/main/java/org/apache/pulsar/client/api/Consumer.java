@@ -466,6 +466,7 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      *
      * @return statistic for the consumer
      */
+    @SuppressWarnings("deprecation")
     ConsumerStats getStats();
 
     /**

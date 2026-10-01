@@ -23,17 +23,15 @@ import static org.testng.Assert.assertFalse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import lombok.CustomLog;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link ConsumerConfiguration}.
  */
+@CustomLog
 public class ConsumerConfigurationTest {
-
-    private static final Logger log = LoggerFactory.getLogger(ConsumerConfigurationTest.class);
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @Test
@@ -61,7 +59,7 @@ public class ConsumerConfigurationTest {
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
 
         String confAsString = w.writeValueAsString(conf);
-        log.info("conf : {}", confAsString);
+        log.info().attr("conf", confAsString).log("Consumer configuration");
 
         assertFalse(confAsString.contains("messageListener"));
         assertFalse(confAsString.contains("consumerEventListener"));

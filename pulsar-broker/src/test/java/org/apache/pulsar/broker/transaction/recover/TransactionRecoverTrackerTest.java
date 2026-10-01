@@ -37,6 +37,7 @@ import org.testng.annotations.Test;
 
 public class TransactionRecoverTrackerTest {
 
+    @SuppressWarnings("unchecked")
     @Test
     public void openStatusRecoverTrackerTest() throws Exception {
         TransactionMetadataStoreService transactionMetadataStoreService = mock(TransactionMetadataStoreService.class);
@@ -65,6 +66,7 @@ public class TransactionRecoverTrackerTest {
         assertEquals(priorityQueue.size(), 2);
     }
 
+    @SuppressWarnings("unchecked")
     @Test
     public void updateStatusRecoverTest() throws Exception {
         TransactionRecoverTrackerImpl recoverTracker =

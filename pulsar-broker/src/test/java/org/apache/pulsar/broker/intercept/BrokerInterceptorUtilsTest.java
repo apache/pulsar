@@ -37,6 +37,7 @@ import org.testng.annotations.Test;
 public class BrokerInterceptorUtilsTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadBrokerEventListener() throws Exception {
         BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
         def.setInterceptorClass(MockBrokerInterceptor.class.getName());
@@ -69,6 +70,7 @@ public class BrokerInterceptorUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
+    @SuppressWarnings("unchecked")
     public void testLoadBrokerEventListenerWithBlankListenerClass() throws Exception {
         BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
         def.setDescription("test-broker-listener");
@@ -96,6 +98,7 @@ public class BrokerInterceptorUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
+    @SuppressWarnings("unchecked")
     public void testLoadBrokerEventListenerWithWrongListenerClass() throws Exception {
         BrokerInterceptorDefinition def = new BrokerInterceptorDefinition();
         def.setInterceptorClass(Runnable.class.getName());

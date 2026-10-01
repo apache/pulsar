@@ -27,7 +27,7 @@ import java.util.NavigableSet;
 import java.util.NoSuchElementException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.util.StringUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -44,7 +44,7 @@ import org.apache.pulsar.metadata.api.MetadataStore;
  * <i>(ledgersRootPath)/00/0000/L0001</i>. So each znode could have at most 10000 ledgers, which avoids
  * errors during garbage collection due to lists of children that are too long.
  */
-@Slf4j
+@CustomLog
 public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.LedgerRangeIterator {
 
     private static final String MAX_ID_SUFFIX = "9999";
@@ -175,10 +175,9 @@ public class LegacyHierarchicalLedgerRangeIterator implements LedgerManager.Ledg
         }
         NavigableSet<Long> zkActiveLedgers =
                 HierarchicalLedgerUtils.ledgerListToSet(ledgerNodes, ledgersRoot, nodePath);
-        if (log.isDebugEnabled()) {
-            log.debug("All active ledgers from ZK for hash node "
-                    + level1 + "/" + level2 + " : " + zkActiveLedgers);
-        }
+        log.debug().attr("hashNode", level1 + "/" + level2)
+                .attr("ledgers", zkActiveLedgers)
+                .log("All active ledgers from ZK for hash node");
 
         return new LedgerManager.LedgerRange(zkActiveLedgers.subSet(getStartLedgerIdByLevel(level1, level2), true,
                 getEndLedgerIdByLevel(level1, level2), true));

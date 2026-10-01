@@ -21,24 +21,37 @@
 
 # Microbenchmarks for Apache Pulsar
 
-This module contains microbenchmarks for Apache Pulsar.
+This module contains [JMH](https://github.com/openjdk/jmh) microbenchmarks for Apache Pulsar, for questions about
+the performance of a single class or method, such as what a method, a data structure or a codec costs. JMH handles
+warm-up, dead-code elimination and measurement, which hand-written timing code gets wrong, so a benchmark is the
+strongest evidence for a small, self-contained optimization. [Performance testing](../tests/performance/README.md)
+covers end-to-end scenarios that run a Pulsar cluster, and profiling and analysis.
+
+> **Run benchmarks on Linux x86_64 when the numbers matter.** That is Pulsar's most common deployment
+> target, and results from elsewhere do not carry over. `System.nanoTime()` is far more expensive on
+> macOS than on Linux, which skews the results in some cases — JMH's own measurement loop pays that
+> cost on every invocation. async-profiler also supports only some of its sampling engines on macOS,
+> so `-prof async` is less reliable there. Benchmarking on macOS or arm64 is fine while iterating —
+> just confirm the result on Linux x86_64 before drawing a conclusion from it.
+
+## Getting consistent results
+
+Results vary between runs when the CPU changes its frequency: turbo frequencies depend on the temperature and the
+power budget of the CPU, and power management changes CPU and device settings while the benchmarks run. On Linux,
+[the performance testing environment setup](../tests/performance/environment/README.md) configures the host for
+consistent results, with turbo disabled so that the CPU runs at a fixed frequency, and restores power saving
+afterwards.
 
 ## Running the benchmarks
 
 The benchmarks are written using [JMH](http://openjdk.java.net/projects/code-tools/jmh/). To compile & run the benchmarks, use the following command:
 
 ```bash
-# Compile everything for creating the shaded microbenchmarks.jar file
-mvn -Pcore-modules,microbench,-main -T 1C clean package
+# Compile everything including the shaded microbenchmarks jar
+./gradlew :microbench:shadowJar
 
 # run the benchmarks using the standalone shaded jar in any environment
-java -jar microbench/target/microbenchmarks.jar
-```
-
-For fast recompiling of the benchmarks (without compiling Pulsar modules) and creating the shaded jar, you can use the following command:
-
-```bash
-mvn -Pmicrobench -pl microbench clean package
+java -jar microbench/build/libs/microbench-*-benchmarks.jar
 ```
 
 ### Running specific benchmarks
@@ -46,25 +59,26 @@ mvn -Pmicrobench -pl microbench clean package
 Display help:
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar -h
+java -jar microbench/build/libs/microbench-*-benchmarks.jar -h
 ```
 
 Listing all benchmarks:
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar -l
+java -jar microbench/build/libs/microbench-*-benchmarks.jar -l
 ```
 
 Running specific benchmarks:
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar ".*BenchmarkName.*"
+java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*BenchmarkName.*"
 ```
 
 Running specific benchmarks with machine-readable output and saving the output to a file:
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar -rf json -rff jmh-result-$(date +%s).json ".*BenchmarkName.*" | tee jmh-result-$(date +%s).txt
+ts=$(date +%s)
+java -jar microbench/build/libs/microbench-*-benchmarks.jar -rf json -rff jmh-result-$ts.json ".*BenchmarkName.*" | tee jmh-result-$ts.txt
 ```
 
 The `jmh-result-*.json` file can be used to visualize the results using [JMH Visualizer](https://jmh.morethan.io/).
@@ -72,22 +86,66 @@ The `jmh-result-*.json` file can be used to visualize the results using [JMH Vis
 Checking what benchmarks match the pattern:
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar ".*BenchmarkName.*" -lp
+java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*BenchmarkName.*" -lp
 ```
 
 Profiling benchmarks with [async-profiler](https://github.com/async-profiler/async-profiler):
 
+Set `LIBASYNCPROFILER_PATH` to the path of the async-profiler library.
+
+Corretto JDK ships with async-profiler (asprof binary and libasyncProfiler dynamic library)
+
 ```shell
-# example of profiling with async-profiler
-# download async-profiler from https://github.com/async-profiler/async-profiler/releases
-LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.dylib
-java -jar microbench/target/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*BenchmarkName.*"
+LIBASYNCPROFILER_PATH=$(ls $JAVA_HOME/lib/libasyncProfiler.*)
 ```
 
-When profiling on Mac OS, you might need to add `\;event=itimer` to the `-prof` argument since it's the only [async profiler CPU sampling engine that supports Mac OS](https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md#summary). The default value for `event` is `cpu`.
+Alternatively, download async-profiler from https://github.com/async-profiler/async-profiler/releases and install to ~/async-profiler directory.
+
+Mac OS example:
+
+```shell
+LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.dylib
+```
+
+Linux example:
+
+```shell
+LIBASYNCPROFILER_PATH=$HOME/async-profiler/lib/libasyncProfiler.so
+```
+
+Then run the benchmarks with the `-prof` argument:
+```shell
+java -jar microbench/build/libs/microbench-*-benchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=flamegraph\;dir=profile-results ".*BenchmarkName.*"
+```
+
+The default value for `event` is `cpu`, which is a request for the best available [CPU sampling engine](https://github.com/async-profiler/async-profiler/blob/master/docs/CpuSamplingEngines.md#summary) rather than a specific one, so what it resolves to depends on the platform. If the profiler fails to start, add `\;event=itimer` to the `-prof` argument: `itimer` is available everywhere.
 
 It's possible to add options to the async-profiler that aren't supported by the JMH async-profiler plugin. This can be done by adding `rawCommand` option to the `-prof` argument. This example shows how to add `all` (new in Async Profiler 4.1), `jfrsync` (record JFR events such as garbage collection) and `cstack=vmx` options.
 
 ```shell
-java -jar microbench/target/microbenchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=jfr\;dir=profile-results\;rawCommand=all,jfrsync,cstack=vmx ".*BenchmarkName.*"
+java -jar microbench/build/libs/microbench-*-benchmarks.jar -prof async:libPath=$LIBASYNCPROFILER_PATH\;output=jfr\;dir=profile-results\;rawCommand=all,jfrsync,cstack=vmx ".*BenchmarkName.*"
 ```
+
+Outside Linux this particular command needs `\;event=itimer` as well. `all` turns on wall clock
+profiling, and where the `cpu` engine falls back to the wall clock engine the profiler refuses to
+start with `Cannot start wall clock with the selected event`, which shows up as a `<failure>` on the
+first warmup iteration and an empty result directory.
+
+### Turning a JFR recording into flame graphs
+
+`output=jfr` writes one recording per benchmark, into a directory named after the benchmark under
+`dir=`. The `jfrFlamegraphs` Gradle task renders each recording into every view at once — point it at
+the whole output directory and it finds the recordings inside:
+
+```shell
+./gradlew jfrFlamegraphs -Pjfr=profile-results
+```
+
+Each recording gets a directory beside it named after the file without its extension plus a
+`-flamegraphs` suffix, holding `cpu`, `wall`, `alloc` and `lock`, each rendered merged
+(`cpu.html`), split per thread (`cpu_threads.html`) and grouped into async-profiler's categories
+(`cpu_classify.html`). A view whose event the recording does not contain is skipped.
+
+The `.jfr` can also be opened in [Eclipse Mission Control](https://adoptium.net/jmc) or IntelliJ
+IDEA, or analyzed by an AI agent. [Performance testing](../tests/performance/README.md) leads to the
+analysis workflow and its tools.

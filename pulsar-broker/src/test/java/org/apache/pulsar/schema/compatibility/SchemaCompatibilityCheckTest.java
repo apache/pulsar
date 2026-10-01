@@ -29,15 +29,20 @@ import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -45,7 +50,11 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
@@ -57,13 +66,14 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.schema.MockExternalJsonSchema;
 import org.apache.pulsar.schema.Schemas;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "schema")
 public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     private static final String CLUSTER_NAME = "test";
@@ -347,7 +357,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setSchemaCompatibilityStrategy(namespaceName.toString(), schemaCompatibilityStrategy);
         admin.schemas().createSchema(fqtn, Schema.AVRO(Schemas.PersonOne.class).getSchemaInfo());
 
-        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false, true);
         ProducerBuilder<Schemas.PersonTwo> producerThreeBuilder = pulsarClient
                 .newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
@@ -359,7 +369,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
         }
 
-        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), true);
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), true, true);
         ConsumerBuilder<Schemas.PersonTwo> comsumerBuilder = pulsarClient.newConsumer(Schema.AVRO(
                 SchemaDefinition.<Schemas.PersonTwo>builder().withAlwaysAllowNull
                         (false).withSupportSchemaVersioning(true).
@@ -382,7 +392,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         producer.close();
         consumerTwo.close();
 
-        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false, true);
 
         producer = producerThreeBuilder.create();
         consumerTwo = comsumerBuilder.subscribe();
@@ -427,7 +437,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
         SchemaInfo schemaInfo = SchemaInfo.builder().type(SchemaType.AVRO).schema(changeSchemaBytes).build();
         admin.schemas().createSchema(fqtn, schemaInfo);
 
-        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false);
+        admin.namespaces().setIsAllowAutoUpdateSchema(namespaceName.toString(), false, true);
         ProducerBuilder<Schemas.PersonOne> producerOneBuilder = pulsarClient
                 .newProducer(Schema.AVRO(Schemas.PersonOne.class))
                 .topic(fqtn);
@@ -499,6 +509,7 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSchemaLedgerAutoRelease() throws Exception {
         String namespaceName = PUBLIC_TENANT + "/" + DEFAULT_NAMESPACE;
         String topicName = BrokerTestUtil.newUniqueName("persistent://" + namespaceName + "/tp");
@@ -635,6 +646,64 @@ public class SchemaCompatibilityCheckTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(e.getMessage().contains("Unable to read schema"));
         }
 
+    }
+
+    @Test
+    public void testCloseProducerWhenRegisteringNewSchema() throws Exception {
+        final String ns = BrokerTestUtil.newUniqueName(PUBLIC_TENANT + "/ns");
+        final String topic = "persistent://" + BrokerTestUtil.newUniqueName(ns + "/tp");
+        admin.namespaces().createNamespace(ns);
+        admin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(ns),
+                    SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        });
+
+        // Injection: Let the handling response of registering schema delay, then we have enough time to close producer
+        // when it's state is registering schema.
+        CountDownLatch handleErrorSignal = new CountDownLatch(1);
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        PulsarClient injectedReplClient = InjectedClientCnxClientBuilder.create(clientBuilder,
+            (conf, eventLoopGroup) -> {
+                return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+
+                    @Override
+                    protected void handleGetOrCreateSchemaResponse(CommandGetOrCreateSchemaResponse response) {
+                        if (response.hasErrorCode()) {
+                            try {
+                                handleErrorSignal.await();
+                            } catch (InterruptedException e) {
+                                // Nothing to do.
+                            }
+                        }
+                        super.handleGetOrCreateSchemaResponse(response);
+                    }
+                };
+            });
+
+        Producer<byte[]> producer = injectedReplClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topic).create();
+        // Registers a consumer to avoid client to close idle connections.
+        Consumer consumer = injectedReplClient.newConsumer(Schema.AUTO_CONSUME()).subscriptionName("s1")
+                .topic(topic).subscribe();
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+        assertEquals(persistentTopic.getProducers().size(), 1);
+        producer.newMessage(Schema.AVRO(Schemas.PersonOne.class)).value(new Schemas.PersonOne(1)).send();
+        CompletableFuture<MessageId> send2 = producer.newMessage(Schema.AVRO(Schemas.PersonTwo.class))
+                .value(new Schemas.PersonTwo(2, "2")).sendAsync();
+        producer.close();
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(send2.isDone());
+            assertTrue(send2.isCompletedExceptionally());
+            // Since the producer was closed, the topic should maintain 0 producers.
+            assertEquals(persistentTopic.getProducers().size(), 0);
+        });
+        handleErrorSignal.countDown();
+
+        // cleanup.
+        consumer.close();
+        injectedReplClient.close();
+        admin.topics().unload(topic);
     }
 
     @Test

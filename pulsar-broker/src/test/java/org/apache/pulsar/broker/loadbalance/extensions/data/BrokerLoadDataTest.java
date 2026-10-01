@@ -33,6 +33,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class BrokerLoadDataTest {
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testUpdateBySystemResourceUsage() {
 
@@ -118,6 +119,7 @@ public class BrokerLoadDataTest {
         assertEquals(data, new BrokerLoadData());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testUpdateByBrokerLoadData() {
         ServiceConfiguration conf = new ServiceConfiguration();

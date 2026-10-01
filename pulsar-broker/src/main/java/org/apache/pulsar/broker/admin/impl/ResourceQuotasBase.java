@@ -19,11 +19,9 @@
 package org.apache.pulsar.broker.admin.impl;
 
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 
-@Slf4j
 public abstract class ResourceQuotasBase extends NamespacesBase {
 
     public ResourceQuota getDefaultResourceQuota() {
@@ -70,13 +68,7 @@ public abstract class ResourceQuotasBase extends NamespacesBase {
                         return CompletableFuture.completedFuture(null);
                     }
                 });
-        if (!namespaceName.isGlobal()) {
-            ret = ret.thenCompose(__ -> validateClusterOwnershipAsync(namespaceName.getCluster()))
-                    .thenCompose(__ -> validateClusterForTenantAsync(namespaceName.getTenant(),
-                            namespaceName.getCluster()));
-        }
         return ret
-                .thenCompose(__ -> getNamespacePoliciesAsync(namespaceName))
-                .thenApply(policies -> validateNamespaceBundleRange(namespaceName, policies.bundles, bundleRange));
+                .thenCompose(__ -> validateNamespaceBundleRangeAsync(namespaceName, bundleRange));
     }
 }

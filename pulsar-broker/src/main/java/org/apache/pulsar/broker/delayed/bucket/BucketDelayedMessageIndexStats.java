@@ -47,8 +47,8 @@ public class BucketDelayedMessageIndexStats {
     private static final String BUCKET_TOTAL_NAME = "pulsar_delayed_message_index_bucket_total";
     private static final String INDEX_LOADED_NAME = "pulsar_delayed_message_index_loaded";
     private static final String SNAPSHOT_SIZE_BYTES_NAME = "pulsar_delayed_message_index_bucket_snapshot_size_bytes";
-    private static final String OP_COUNT_NAME = "pulsar_delayed_message_index_bucket_op_count";
-    private static final String OP_LATENCY_NAME = "pulsar_delayed_message_index_bucket_op_latency_ms";
+    static final String OP_COUNT_NAME = "pulsar_delayed_message_index_bucket_op_count";
+    static final String OP_LATENCY_NAME = "pulsar_delayed_message_index_bucket_op_latency_ms";
 
     private final AtomicInteger delayedMessageIndexBucketTotal = new AtomicInteger();
     private final AtomicLong delayedMessageIndexLoaded = new AtomicLong();
@@ -59,7 +59,7 @@ public class BucketDelayedMessageIndexStats {
     public BucketDelayedMessageIndexStats() {
     }
 
-    public Map<String, TopicMetricBean> genTopicMetricMap() {
+    public synchronized Map<String, TopicMetricBean> genTopicMetricMap() {
         Map<String, TopicMetricBean> metrics = new HashMap<>();
 
         metrics.put(BUCKET_TOTAL_NAME,
@@ -75,11 +75,11 @@ public class BucketDelayedMessageIndexStats {
             String[] labels = splitKey(k);
             String[] labelsAndValues = new String[] {"state", labels[0], "type", labels[1]};
             String key = OP_COUNT_NAME + joinKey(labelsAndValues);
-            metrics.put(key, new TopicMetricBean(OP_COUNT_NAME, count.sumThenReset(), labelsAndValues));
+            metrics.put(key, new TopicMetricBean(OP_COUNT_NAME, count.sum(), labelsAndValues));
         });
 
         delayedMessageIndexBucketOpLatencyMs.forEach((typeName, statsBuckets) -> {
-            statsBuckets.refresh();
+            statsBuckets.snapshot();
             long[] buckets = statsBuckets.getBuckets();
             for (int i = 0; i < buckets.length; i++) {
                 long count = buckets[i];

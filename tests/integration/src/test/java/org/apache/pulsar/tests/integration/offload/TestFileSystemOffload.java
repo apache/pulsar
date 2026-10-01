@@ -21,10 +21,10 @@ package org.apache.pulsar.tests.integration.offload;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class TestFileSystemOffload extends TestBaseOffload {
 
     @Test(dataProvider =  "ServiceAndAdminUrls")

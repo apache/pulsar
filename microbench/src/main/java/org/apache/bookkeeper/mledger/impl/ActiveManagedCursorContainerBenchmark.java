@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -130,6 +131,47 @@ public class ActiveManagedCursorContainerBenchmark {
     @Benchmark
     public int randomSeekingForward10(ThreadState threadState) {
         return doRandomSeekingForward(threadState);
+    }
+
+    @Threads(1)
+    @Benchmark
+    public int tailSeekingForward(ThreadState threadState) {
+        long counter = threadState.nextCounter();
+        ManagedCursor cursor = cursors.get(cursors.size() - 1);
+        // Keep moving the fastest cursor, without joining or leaving a shared position group.
+        cursor.seek(cursor.getReadPosition().getPositionAfterEntries(1));
+        return getNumberOfCursorsAtSamePositionOrBeforeRatio > 0
+                && counter % getNumberOfCursorsAtSamePositionOrBeforeRatio == 0
+                ? container.getNumberOfCursorsAtSamePositionOrBefore(cursor)
+                : (int) cursor.getReadPosition().getEntryId();
+    }
+
+    @Threads(1)
+    @Benchmark
+    public Position slowestCursorPosition01() {
+        return container.getSlowestCursorPosition();
+    }
+
+    @Threads(10)
+    @Benchmark
+    public Position slowestCursorPosition10() {
+        return container.getSlowestCursorPosition();
+    }
+
+    @Threads(1)
+    @Benchmark
+    public int cursorChurn(ThreadState threadState) {
+        long counter = threadState.nextCounter();
+        // Keep the other cursors active while repeatedly replacing one subscription.
+        container.removeCursor(cursors.get(0).getName());
+        // Use a new name and instance so that removed nodes cannot simply be reused indefinitely.
+        MockManagedCursor cursor = MockManagedCursor.createCursor(container, "churn" + counter,
+                PositionFactory.create(0, counter));
+        cursors.set(0, cursor);
+        container.add(cursor, cursor.getReadPosition());
+        return getNumberOfCursorsAtSamePositionOrBeforeRatio > 0
+                && counter % getNumberOfCursorsAtSamePositionOrBeforeRatio == 0
+                ? container.getNumberOfCursorsAtSamePositionOrBefore(cursor) : container.size();
     }
 
     private int doRandomSeekingForward(ThreadState threadState) {

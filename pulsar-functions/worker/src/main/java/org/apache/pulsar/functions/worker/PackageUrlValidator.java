@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 /**
  * Validates package URLs for functions and connectors.
@@ -82,7 +82,7 @@ public class PackageUrlValidator {
         return false;
     }
 
-    public boolean isValidPackageUrl(Function.FunctionDetails.ComponentType componentType, String functionPkgUrl) {
+    public boolean isValidPackageUrl(FunctionDetails.ComponentType componentType, String functionPkgUrl) {
         URI uri = URI.create(functionPkgUrl);
         if (componentType == null) {
             // if component type is not specified, we need to check both functions and connections

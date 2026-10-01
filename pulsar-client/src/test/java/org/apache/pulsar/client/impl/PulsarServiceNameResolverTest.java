@@ -161,8 +161,10 @@ public class PulsarServiceNameResolverTest {
             assertTrue(expectedHostUrls.contains(uri));
         }
 
-        // After backoff time, host1 should be recovery from the unavailable hosts
-        Uninterruptibles.sleepUninterruptibly(INIT_QUARANTINE_TIME_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+        // After backoff time, host1 should be recovery from the unavailable hosts.
+        // Sleep slightly longer than the configured init duration to absorb the Backoff jitter (±5%).
+        Uninterruptibles.sleepUninterruptibly(INIT_QUARANTINE_TIME_MS + 200,
+                java.util.concurrent.TimeUnit.MILLISECONDS);
         // trigger the recovery of host1
         resolver.markHostAvailability(InetSocketAddress.createUnresolved("host2", 6651), true);
 

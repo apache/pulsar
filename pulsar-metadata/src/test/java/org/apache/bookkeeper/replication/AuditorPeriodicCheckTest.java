@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.bookie.BookieAccessor;
 import org.apache.bookkeeper.bookie.BookieException;
@@ -70,8 +71,6 @@ import org.apache.bookkeeper.test.TestStatsProvider;
 import org.apache.bookkeeper.test.TestStatsProvider.TestOpStatsLogger;
 import org.apache.bookkeeper.test.TestStatsProvider.TestStatsLogger;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -80,9 +79,8 @@ import org.testng.annotations.Test;
  * This test verifies that the period check on the auditor
  * will pick up on missing data in the client.
  */
+@CustomLog
 public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
-    private static final Logger LOG = LoggerFactory
-            .getLogger(AuditorPeriodicCheckTest.class);
 
     private MetadataBookieDriver driver;
     private HashMap<String, AuditorElector> auditorElectors = new HashMap<String, AuditorElector>();
@@ -112,9 +110,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
             AuditorElector auditorElector = new AuditorElector(addr, conf);
             auditorElectors.put(addr, auditorElector);
             auditorElector.start();
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Starting Auditor Elector");
-            }
+                log.debug("Starting Auditor Elector");
         }
 
         URI uri = URI.create(confByIndex(0).getMetadataServiceUri().replaceAll("zk://", "metadata-store:")
@@ -220,7 +216,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
 
         // corrupt of entryLogs
         File index = new File(ledgerDir, IndexPersistenceMgr.getLedgerName(ledgerToCorrupt));
-        LOG.info("file to corrupt{}", index);
+        log.info().attr("file", index).log("file to corrupt");
         ByteBuffer junk = ByteBuffer.allocate(1024 * 1024);
         FileOutputStream out = new FileOutputStream(index);
         out.getChannel().write(junk);
@@ -258,7 +254,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                 lh.asyncAddEntry("testdata".getBytes(), new AddCallback() {
                     public void addComplete(int rc2, LedgerHandle lh, long entryId, Object ctx) {
                         if (rc.compareAndSet(BKException.Code.OK, rc2)) {
-                            LOG.info("Failed to add entry : {}", BKException.getMessage(rc2));
+                            log.info().attr("error", BKException.getMessage(rc2)).log("Failed to add entry");
                         }
                         completeLatch.countDown();
                     }
@@ -317,7 +313,8 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         underReplicatedLedger = underReplicationManager.pollLedgerToRereplicate();
         assertEquals("There should be no underreplicated ledgers", -1, underReplicatedLedger);
 
-        LOG.info("{} of {} ledgers underreplicated", numUnderreplicated, numUnderreplicated);
+        log.info().attr("underreplicated", numUnderreplicated).attr("total", numUnderreplicated)
+                .log("Ledgers underreplicated");
         assertTrue("All should be underreplicated",
                 numUnderreplicated <= numLedgers && numUnderreplicated > 0);
     }
@@ -355,7 +352,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                             ((AuditorCheckAllLedgersTask) auditor.auditorCheckAllLedgersTask).checkAllLedgers();
                         }
                     } catch (Exception e) {
-                        LOG.error("Caught exception while checking all ledgers", e);
+                        log.error().exception(e).log("Caught exception while checking all ledgers");
                         exceptionCaught.set(true);
                     }
                 }
@@ -388,7 +385,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                 lh.close();
             }
         } catch (InterruptedException | BKException e) {
-            LOG.error("Failed to shutdown auditor elector or write data to ledgers ", e);
+            log.error().exception(e).log("Failed to shutdown auditor elector or write data to ledgers");
             fail();
         }
 
@@ -407,7 +404,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
             ((AuditorCheckAllLedgersTask) auditor.auditorCheckAllLedgersTask).checkAllLedgers();
             assertEquals("NUM_LEDGERS_CHECKED", numberLedgers, (long) numLedgersChecked.get());
         } catch (Exception e) {
-            LOG.error("Caught exception while checking all ledgers ", e);
+            log.error().exception(e).log("Caught exception while checking all ledgers");
             fail();
         }
     }
@@ -963,7 +960,8 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         }
     }
 
-    private BookieId replaceBookieWithWriteFailingBookie(LedgerHandle lh) throws Exception {
+    private BookieId replaceBookieWithWriteFailingBookie(LedgerHandle lh, CountDownLatch releaseWriteFailures)
+            throws Exception {
         int bookieIdx = -1;
         Long entryId = lh.getLedgerMetadata().getAllEnsembles().firstKey();
         List<BookieId> curEnsemble = lh.getLedgerMetadata().getAllEnsembles().get(entryId);
@@ -979,7 +977,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         }
         assertNotSame("Couldn't find ensemble bookie in bookie list", -1, bookieIdx);
 
-        LOG.info("Killing bookie " + addressByIndex(bookieIdx));
+        log.info("Killing bookie " + addressByIndex(bookieIdx));
         ServerConfiguration conf = killBookie(bookieIdx);
         Bookie writeFailingBookie = new TestBookieImpl(conf) {
             @Override
@@ -987,12 +985,14 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
                                  Object ctx, byte[] masterKey)
                     throws IOException, BookieException {
                 try {
-                    LOG.info("Failing write to entry ");
-                    // sleep a bit so that writes to other bookies succeed before
-                    // the client hears about the failure on this bookie. If the
-                    // client gets ack-quorum number of acks first, it won't care
-                    // about any failures and won't reform the ensemble.
-                    Thread.sleep(100);
+                    log.info("Failing write to entry ");
+                    // Hold the failure back until the test has the ack-quorum number of acks from the
+                    // other bookies. The add operation is complete by then, so the client won't care
+                    // about this failure and won't reform the ensemble. Reporting it any earlier makes
+                    // the client replace this bookie, and the ledger never becomes under replicated.
+                    // The wait is bounded so that a stalled test cannot block this bookie thread
+                    // indefinitely; the write is failed either way.
+                    releaseWriteFailures.await(30, TimeUnit.SECONDS);
                     throw new IOException();
                 } catch (InterruptedException ie) {
                     // ignore, only interrupted if shutting down,
@@ -1018,29 +1018,36 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
 
         // kill one of the bookies and replace it with one that rejects write;
         // This way we get into the under replication state
-        BookieId replacedBookie = replaceBookieWithWriteFailingBookie(lh);
+        CountDownLatch releaseWriteFailures = new CountDownLatch(1);
+        BookieId replacedBookie = replaceBookieWithWriteFailingBookie(lh, releaseWriteFailures);
 
-        // Write a few entries; this should cause under replication
+        // Write a few entries; this should cause under replication. Each add completes as soon as the
+        // remaining bookie acknowledges it, since the ack quorum is 1.
         byte[] data = "foobar".getBytes();
-        data = "foobar".getBytes();
         lh.addEntry(data);
         lh.addEntry(data);
         lh.addEntry(data);
+
+        // All the adds are complete now, so letting the writes fail can no longer trigger an ensemble
+        // change: the failures are recorded as delayed write failures, and those are only acted upon
+        // when a subsequent entry is added, which this test doesn't do.
+        releaseWriteFailures.countDown();
 
         lh.close();
+
+        // The closed ledger must still list the write failing bookie in its ensemble. If the client
+        // reformed the ensemble instead, the entries were rewritten to a healthy bookie and the ledger
+        // never becomes under replicated, so the rest of this test would be meaningless.
+        assertTrue("Write failing bookie was replaced in the ensemble",
+                lh.getLedgerMetadata().getAllEnsembles().values().stream()
+                        .anyMatch(ensemble -> ensemble.contains(replacedBookie)));
 
         // enable under replication detection and wait for it to report
         // under replicated ledger
         underReplicationManager.enableLedgerReplication();
-        long underReplicatedLedger = -1;
-        for (int i = 0; i < 5; i++) {
-            underReplicatedLedger = underReplicationManager.pollLedgerToRereplicate();
-            if (underReplicatedLedger != -1) {
-                break;
-            }
-            Thread.sleep(CHECK_INTERVAL * 1000);
-        }
-        assertEquals("Ledger should be under replicated", lh.getId(), underReplicatedLedger);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() ->
+                assertEquals("Ledger should be under replicated", lh.getId(),
+                        underReplicationManager.pollLedgerToRereplicate()));
 
         // now start the replication workers
         List<ReplicationWorker> l = new ArrayList<ReplicationWorker>();

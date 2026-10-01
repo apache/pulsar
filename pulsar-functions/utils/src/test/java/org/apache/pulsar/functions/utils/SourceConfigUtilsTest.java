@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.utils;
 
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
@@ -37,9 +39,12 @@ import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.config.validation.ConfigValidationAnnotations;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.io.core.BatchSourceTriggerer;
 import org.apache.pulsar.io.core.SourceContext;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.Test;
 
 /**
@@ -76,7 +81,7 @@ public class SourceConfigUtilsTest {
     @Test
     public void testConvertBackFidelity() {
         SourceConfig sourceConfig = createSourceConfig();
-        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
+        FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
                 new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
@@ -91,7 +96,7 @@ public class SourceConfigUtilsTest {
     @Test
     public void testConvertBackFidelityWithBatch() {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
-        Function.FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
+        FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
                 new SourceConfigUtils.ExtractedSourceDetails(null, null));
         SourceConfig convertedConfig = SourceConfigUtils.convertFromDetails(functionDetails);
 
@@ -115,13 +120,14 @@ public class SourceConfigUtilsTest {
     }
 
     @Test
-    public void testBatchConfigMergeEqual() {
+    public void testBatchConfigMergeEqual() throws JSONException {
         SourceConfig sourceConfig = createSourceConfigWithBatch();
         SourceConfig newSourceConfig = createSourceConfigWithBatch();
         SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig, newSourceConfig);
-        assertEquals(
+        JSONAssert.assertEquals(
                 new Gson().toJson(sourceConfig),
-                new Gson().toJson(mergedConfig)
+                new Gson().toJson(mergedConfig),
+                JSONCompareMode.STRICT
         );
     }
 
@@ -351,7 +357,7 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         sourceConfig.setProducerConfig(null);
         sourceConfig.setBatchBuilder("KEY_BASED");
-        Function.FunctionDetails functionDetails =
+        FunctionDetails functionDetails =
                 SourceConfigUtils.convert(sourceConfig,
                         new SourceConfigUtils.ExtractedSourceDetails(null, null));
         assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
@@ -362,7 +368,7 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         sourceConfig.setBatchBuilder("KEY_BASED");
         sourceConfig.getProducerConfig().setMaxPendingMessages(123456);
-        Function.FunctionDetails functionDetails =
+        FunctionDetails functionDetails =
                 SourceConfigUtils.convert(sourceConfig,
                         new SourceConfigUtils.ExtractedSourceDetails(null, null));
         assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
@@ -374,7 +380,7 @@ public class SourceConfigUtilsTest {
         SourceConfig sourceConfig = createSourceConfig();
         sourceConfig.setBatchBuilder(null);
         sourceConfig.getProducerConfig().setBatchBuilder("KEY_BASED");
-        Function.FunctionDetails functionDetails =
+        FunctionDetails functionDetails =
                 SourceConfigUtils.convert(sourceConfig,
                         new SourceConfigUtils.ExtractedSourceDetails(null, null));
         assertEquals(functionDetails.getSink().getProducerSpec().getBatchBuilder(), "KEY_BASED");
@@ -439,5 +445,38 @@ public class SourceConfigUtilsTest {
             throw new RuntimeException("Something wrong with the test", e);
         }
         return sourceConfig;
+    }
+
+    @Test
+    public void testConvertClientApi() {
+        SourceConfig sourceConfig = createSourceConfig();
+        sourceConfig.setTopicName("topic://public/default/out");
+        sourceConfig.setLogTopic(null);
+        FunctionDetails functionDetails = SourceConfigUtils.convert(sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.AUTO);
+        assertThat(SourceConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
+
+        sourceConfig.setTopicName("persistent://public/default/out");
+        sourceConfig.setClientApi(FunctionConfig.ClientApi.V5);
+        functionDetails = SourceConfigUtils.convert(sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null));
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.V5);
+        assertThat(SourceConfigUtils.convertFromDetails(functionDetails).getClientApi())
+                .isEqualTo(FunctionConfig.ClientApi.V5);
+
+        sourceConfig.setProcessingGuarantees(EFFECTIVELY_ONCE);
+        assertThatThrownBy(() -> SourceConfigUtils.convert(sourceConfig,
+                new SourceConfigUtils.ExtractedSourceDetails(null, null)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("EFFECTIVELY_ONCE");
+    }
+
+    @Test
+    public void testMergeClientApi() {
+        SourceConfig sourceConfig = createSourceConfig();
+        SourceConfig mergedConfig = SourceConfigUtils.validateUpdate(sourceConfig,
+                createUpdatedSourceConfig("clientApi", FunctionConfig.ClientApi.V5));
+        assertThat(mergedConfig.getClientApi()).isEqualTo(FunctionConfig.ClientApi.V5);
     }
 }

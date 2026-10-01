@@ -24,7 +24,7 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.fail;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -38,7 +38,7 @@ import org.testng.annotations.Test;
 /**
  * Test cases for compaction.
  */
-@Slf4j
+@CustomLog
 public class TestTopicDeletion extends PulsarTestSuite {
 
     private final boolean unload = false;
@@ -103,13 +103,13 @@ public class TestTopicDeletion extends PulsarTestSuite {
                         .sendAsync();
                 }
                 producer.flush();
-                log.info("Successfully wrote {} values", numKeys);
+                log.info().attr("wrote", numKeys).log("Successfully wrote values");
             }
 
             log.info("Consuming half of the messages");
             for (int i = 0; i < numKeys / 2; i++) {
                 Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
-                log.info("Read value {}", m.getKey());
+                log.info().attr("value", m.getKey()).log("Read value");
             }
 
             if (unload) {
@@ -125,7 +125,7 @@ public class TestTopicDeletion extends PulsarTestSuite {
                         "delete-partitioned-topic", "--force", topic);
                 assertNotEquals(0, res.getExitCode());
             } catch (ContainerExecException e) {
-                log.info("Second delete failed with ContainerExecException, could be ok", e);
+                log.info().exception(e).log("Second delete failed with ContainerExecException, could be ok");
                 if (!e.getMessage().contains("with error code 1")) {
                     fail("Expected different error code");
                 }

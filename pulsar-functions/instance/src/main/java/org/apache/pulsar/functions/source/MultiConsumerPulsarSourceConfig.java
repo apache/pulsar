@@ -23,10 +23,12 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.TreeMap;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Data
+@EqualsAndHashCode(callSuper = false)
 public class MultiConsumerPulsarSourceConfig extends PulsarSourceConfig {
 
     private Map<String, ConsumerConfig> topicSchema = new TreeMap<>();

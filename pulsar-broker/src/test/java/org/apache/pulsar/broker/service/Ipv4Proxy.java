@@ -39,10 +39,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
+@CustomLog
 public class Ipv4Proxy {
     @Getter
     private int localPort;
@@ -74,7 +74,7 @@ public class Ipv4Proxy {
             .bind(localPort).sync();
         if (localServerChannel.isSuccess()) {
             localPort = ((InetSocketAddress) localServerChannel.channel().localAddress()).getPort();
-            log.info("Proxy started on port: {}", localPort);
+            log.info().attr("port", localPort).log("Proxy started");
         } else {
             throw new RuntimeException("Failed to bind to port: " + localPort, localServerChannel.cause());
         }

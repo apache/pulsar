@@ -30,6 +30,7 @@ import io.netty.channel.socket.SocketChannel;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -916,7 +917,16 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
         runGC();
-        // Should not have been deleted, since we have retention
+        // Should be deleted, If the topic has no data, it can always be deleted regardless of retention policy
+        // see PR https://github.com/apache/pulsar/pull/24733
+        assertFalse(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+
+        producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.send("test gc".getBytes(StandardCharsets.UTF_8));
+        producer.close();
+        assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
+        runGC();
+        // Should not be deleted, the topic still has entries
         assertTrue(pulsar.getBrokerService().getTopicReference(topicName).isPresent());
 
         // Remove retention
@@ -949,7 +959,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         String namespaceName = "prop/expiry-check";
 
         admin.namespaces().createNamespace(namespaceName);
-        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"), false);
         admin.namespaces().setNamespaceMessageTTL(namespaceName, messageTTLSecs);
 
         final String topicName = "persistent://prop/expiry-check/topic1";
@@ -991,6 +1001,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         deleteNamespaceWithRetry(namespaceName, false);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMessageExpiryWithTopicMessageTTL() throws Exception {
         int namespaceMessageTTLSecs = 10;
@@ -1002,7 +1013,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         setup();
 
         admin.namespaces().createNamespace(namespaceName);
-        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"), false);
         admin.namespaces().setNamespaceMessageTTL(namespaceName, namespaceMessageTTLSecs);
 
         final String topicName = "persistent://prop/expiry-check-2/topic2";
@@ -1092,7 +1103,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         String namespaceName = "prop/expiry-check-1";
 
         admin.namespaces().createNamespace(namespaceName);
-        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters(namespaceName, Sets.newHashSet("test"), false);
         admin.namespaces().setNamespaceMessageTTL(namespaceName, messageTTLSecs);
 
         final String topicName = "persistent://prop/expiry-check-1/topic1";
@@ -1990,6 +2001,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         private static AtomicInteger count = new AtomicInteger(0);
 
         @Override
+        @SuppressWarnings("unchecked")
         public <T extends Topic> T create(String topic, ManagedLedger ledger, BrokerService brokerService,
                 Class<T> topicClazz) {
             try {

@@ -73,7 +73,7 @@ public class EventTimeOrderCompactorTest extends CompactorTest {
 
   @Test
   public void testCompactedOutByEventTime() throws Exception {
-    String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/use/my-ns/testCompactedOutByEventTime");
+    String topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/testCompactedOutByEventTime");
     this.restartBroker();
 
     @Cleanup
@@ -95,7 +95,7 @@ public class EventTimeOrderCompactorTest extends CompactorTest {
     var attributes = Attributes.builder()
         .put(OpenTelemetryAttributes.PULSAR_DOMAIN, "persistent")
         .put(OpenTelemetryAttributes.PULSAR_TENANT, "my-property")
-        .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/use/my-ns")
+        .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, "my-property/my-ns")
         .put(OpenTelemetryAttributes.PULSAR_TOPIC, topicName)
         .build();
     var metrics = pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics();
@@ -145,7 +145,7 @@ public class EventTimeOrderCompactorTest extends CompactorTest {
 
   @Test
   public void testCompactWithEventTimeAddCompact() throws Exception {
-    String topic = "persistent://my-property/use/my-ns/my-topic1";
+    String topic = "persistent://my-property/my-ns/my-topic1";
 
     @Cleanup
     Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)

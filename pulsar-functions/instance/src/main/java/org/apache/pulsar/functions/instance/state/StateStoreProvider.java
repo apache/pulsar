@@ -20,7 +20,7 @@ package org.apache.pulsar.functions.instance.state;
 
 import java.util.Map;
 import org.apache.pulsar.functions.api.StateStore;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 /**
  * The State Store Provider provides the state stores for a function.

@@ -20,7 +20,10 @@ package org.apache.pulsar.functions.instance;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.testng.annotations.Test;
@@ -28,9 +31,10 @@ import org.testng.annotations.Test;
 public class ProducerCacheTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void shouldTolerateAlreadyClosedExceptionInClose() {
         ProducerCache cache = new ProducerCache();
-        Producer producer = mock(Producer.class);
+        Producer<?> producer = mock(Producer.class);
         when(producer.flushAsync()).thenReturn(CompletableFuture.completedFuture(null));
         when(producer.closeAsync()).thenReturn(
                 CompletableFuture.failedFuture(new PulsarClientException.AlreadyClosedException("Already closed")));
@@ -40,9 +44,10 @@ public class ProducerCacheTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void shouldTolerateRuntimeExceptionInClose() {
         ProducerCache cache = new ProducerCache();
-        Producer producer = mock(Producer.class);
+        Producer<?> producer = mock(Producer.class);
         when(producer.flushAsync()).thenReturn(CompletableFuture.completedFuture(null));
         when(producer.closeAsync()).thenThrow(new RuntimeException("Some exception"));
         cache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE, "topic", "key",
@@ -51,9 +56,10 @@ public class ProducerCacheTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void shouldTolerateRuntimeExceptionInFlush() {
         ProducerCache cache = new ProducerCache();
-        Producer producer = mock(Producer.class);
+        Producer<?> producer = mock(Producer.class);
         when(producer.flushAsync()).thenThrow(new RuntimeException("Some exception"));
         when(producer.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
         cache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE, "topic", "key",
@@ -61,4 +67,38 @@ public class ProducerCacheTest {
         cache.close();
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shouldCompleteFlushBeforeCloseAndWaitForClosing() {
+        ProducerCache cache = new ProducerCache();
+        Producer<?> producer = mock(Producer.class);
+        AtomicBoolean flushCompleted = new AtomicBoolean(false);
+        when(producer.flushAsync()).thenReturn(CompletableFuture.supplyAsync(() -> {
+            try {
+                // add delay to make sure that cache close waits for completion of flushAsync
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+            flushCompleted.set(true);
+            return null;
+        }));
+        AtomicBoolean closeCompleted = new AtomicBoolean(false);
+        when(producer.closeAsync()).thenReturn(CompletableFuture.supplyAsync(() -> {
+            try {
+                // add delay to make sure that cache close waits for completion of closeAsync
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+            closeCompleted.set(true);
+            return null;
+        }));
+        cache.getOrCreateProducer(ProducerCache.CacheArea.CONTEXT_CACHE, "topic", "key",
+                () -> (Producer<Object>) producer);
+        cache.close();
+        assertTrue(flushCompleted.get());
+        assertTrue(closeCompleted.get());
+        assertEquals(cache.closeFutures.size(), 1);
+    }
 }

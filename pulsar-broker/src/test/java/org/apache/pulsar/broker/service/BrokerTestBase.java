@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.collect.Sets;
 import java.util.Random;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -27,9 +28,8 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
     protected static final int ASYNC_EVENT_COMPLETION_WAIT = 100;
 
@@ -54,7 +54,12 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("prop",
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("prop/ns-abc");
-        admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("prop/ns-abc", Sets.newHashSet("test"), false);
+
+        admin.tenants().createTenant("my-property",
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns");
+        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"), false);
     }
 
     protected void createTransactionCoordinatorAssign() throws MetadataStoreException {
@@ -73,7 +78,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
         try {
             pulsar.getExecutor().submit(() -> pulsar.getBrokerService().updateRates()).get();
         } catch (Exception e) {
-            LOG.error("Stats executor error", e);
+            log.error().exception(e).log("Stats executor error");
         }
     }
 
@@ -87,7 +92,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             pulsar.getExecutor().submit(() -> pulsar.getBrokerService().checkGC()).get();
             Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         } catch (Exception e) {
-            LOG.error("GC executor error", e);
+            log.error().exception(e).log("GC executor error");
         }
     }
 
@@ -96,7 +101,7 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
             pulsar.getExecutor().submit(() -> pulsar.getBrokerService().checkMessageExpiry()).get();
             Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         } catch (Exception e) {
-            LOG.error("Error running message expiry check", e);
+            log.error().exception(e).log("Error running message expiry check");
         }
     }
 
@@ -106,5 +111,4 @@ public abstract class BrokerTestBase extends MockedPulsarServiceBaseTest {
         return "prop/ns-abc/topic-" + Long.toHexString(random.nextLong());
     }
 
-    private static final Logger LOG = LoggerFactory.getLogger(BrokerTestBase.class);
 }

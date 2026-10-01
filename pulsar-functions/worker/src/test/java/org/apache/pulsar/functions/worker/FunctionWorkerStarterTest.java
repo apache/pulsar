@@ -34,7 +34,7 @@ public class FunctionWorkerStarterTest {
             ByteArrayOutputStream baoStream = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baoStream));
 
-            Class argumentsClass =
+            Class<?> argumentsClass =
                     Class.forName("org.apache.pulsar.functions.worker.FunctionWorkerStarter$WorkerArguments");
 
             FunctionWorkerStarter.main(new String[]{"-g"});

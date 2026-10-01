@@ -29,7 +29,6 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
-import org.apache.pulsar.common.naming.TopicVersion;
 import org.apache.pulsar.common.policies.data.BrokerOperation;
 import org.apache.pulsar.security.MockedPulsarStandalone;
 import org.testng.Assert;
@@ -85,6 +84,10 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
         if (superUserAdmin != null) {
             superUserAdmin.close();
             superUserAdmin = null;
+        }
+        if (nobodyAdmin != null) {
+            nobodyAdmin.close();
+            nobodyAdmin = null;
         }
         spyAuthorizationService = null;
         orignalAuthorizationService = null;
@@ -287,7 +290,7 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
     public void testHealthCheck() throws PulsarAdminException {
         final String clusterName = getPulsarService().getConfiguration().getClusterName();
         final String brokerId = getPulsarService().getBrokerId();
-        superUserAdmin.brokers().healthcheck(TopicVersion.V2);
+        superUserAdmin.brokers().healthcheck();
         // test allow broker operation
         verify(spyAuthorizationService)
                 .allowBrokerOperationAsync(eq(clusterName), eq(brokerId),
@@ -297,6 +300,6 @@ public class BrokerEndpointsAuthorizationTest extends MockedPulsarStandalone {
 
         // ---- test nobody
         Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
-                () ->  nobodyAdmin.brokers().healthcheck(TopicVersion.V2));
+                () ->  nobodyAdmin.brokers().healthcheck());
     }
 }

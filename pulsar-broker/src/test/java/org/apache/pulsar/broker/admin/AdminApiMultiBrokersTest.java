@@ -27,7 +27,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.PulsarService;
@@ -51,7 +51,7 @@ import org.testng.annotations.Test;
 /**
  * Test multi-broker admin api.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
     @Override
@@ -77,7 +77,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         Optional<LeaderBroker> leaderBroker =
                 allBrokers.get(0).getLeaderElectionService().readCurrentLeader().get();
         assertTrue(leaderBroker.isPresent());
-        log.info("Leader broker is {}", leaderBroker);
+        log.info().attr("leaderBroker", leaderBroker).log("Leader broker");
         for (PulsarAdmin admin : getAllAdmins()) {
             String brokerId = admin.brokers().getLeaderBroker().getBrokerId();
             assertEquals(leaderBroker.get().getBrokerId(), brokerId);
@@ -97,6 +97,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30 * 1000, dataProvider = "topicTypes")
     public void testTopicLookup(TopicDomain topicDomain, boolean isPartition) throws Exception {
         PulsarAdmin admin0 = getAllAdmins().get(0);
@@ -123,13 +124,15 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
                     lookupResultSet.add(pulsarAdmin.lookups().lookupTopic(topic.getPartitionedTopicName()));
                 }
             } catch (Exception e) {
-                log.error(pulsarAdmin.getServiceUrl() + " - Failed to execute lookup for topic {} .", topic, e);
+                log.error().attr("serviceUrl", pulsarAdmin.getServiceUrl()).attr("topic", topic)
+                        .exception(e).log("Failed to execute lookup for topic");
                 Assert.fail("Failed to execute lookup by PulsarAdmin(" + pulsarAdmin.getServiceUrl() + ").");
             }
         }
         Assert.assertEquals(lookupResultSet.size(), 1);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(groups = "flaky")
     public void testForceDeletePartitionedTopicWithSub() throws Exception {
         final int numPartitions = 10;
@@ -174,7 +177,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
             Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
         }
 
-        log.info("trying to delete the topic {}", topic);
+        log.info().attr("topic", topic).log("trying to delete the topic");
         admin.topics().deletePartitionedTopic(topic, true);
 
         log.info("closing producer and consumer");

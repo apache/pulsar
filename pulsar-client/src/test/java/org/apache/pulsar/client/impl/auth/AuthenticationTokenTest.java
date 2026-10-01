@@ -66,6 +66,7 @@ public class AuthenticationTokenTest {
         authToken.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthTokenClientConfig() throws Exception {
         ClientConfigurationData clientConfig = new ClientConfigurationData();

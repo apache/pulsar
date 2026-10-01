@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.zookeeper;
 import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -34,7 +34,7 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.jspecify.annotations.NonNull;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
     @Override
@@ -60,7 +60,7 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
             try {
                 testZKServer.close();
             } catch (Exception e) {
-                log.error("Error in stopping ZK server", e);
+                log.error().exception(e).log("Error in stopping ZK server");
             }
         }
 
@@ -68,7 +68,7 @@ public class MultiBrokerMetadataConsistencyTest extends MultiBrokerBaseTest {
             try {
                 storeExtended.close();
             } catch (Exception e) {
-                log.error("error when close storeExtended", e);
+                log.error().exception(e).log("error when close storeExtended");
             }
         });
 

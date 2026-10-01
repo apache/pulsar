@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl.schema.generic;
 import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -31,14 +31,18 @@ import org.apache.pulsar.client.impl.schema.SchemaTestUtils.FooV2;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class GenericAvroReaderTest {
 
     private Foo foo;
     private FooV2 fooV2;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooSchemaNotNull;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooSchema;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooV2Schema;
+    @SuppressWarnings("rawtypes")
     private AvroSchema fooOffsetSchema;
 
     @BeforeMethod
@@ -67,6 +71,7 @@ public class GenericAvroReaderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericAvroReaderByWriterSchema() {
         byte[] fooBytes = fooSchema.encode(foo);
 
@@ -78,6 +83,7 @@ public class GenericAvroReaderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericAvroReaderByReaderSchema() {
         byte[] fooV2Bytes = fooV2Schema.encode(fooV2);
 
@@ -90,6 +96,7 @@ public class GenericAvroReaderTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testOffsetSchema() {
         byte[] fooBytes = fooOffsetSchema.encode(foo);
         ByteBuf byteBuf = Unpooled.buffer();

@@ -20,14 +20,14 @@ package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 
 
-@Slf4j
+@CustomLog
 public class BrokerIsolationPoliciesFilter implements BrokerFilter {
 
     public static final String FILTER_NAME = "broker_isolation_policies_filter";

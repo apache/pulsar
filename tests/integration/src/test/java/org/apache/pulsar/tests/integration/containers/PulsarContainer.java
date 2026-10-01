@@ -25,17 +25,20 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.tests.ExtendedNettyLeakDetector;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.apache.pulsar.tests.integration.profiling.JonoffcpuAgent;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.testcontainers.containers.BindMode;
 import org.testcontainers.containers.GenericContainer;
@@ -45,7 +48,7 @@ import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
 /**
  * Abstract Test Container for Pulsar.
  */
-@Slf4j
+@CustomLog
 public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> extends ChaosContainer<SelfT> {
 
     public static final int INVALID_PORT = -1;
@@ -57,7 +60,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     public static final int BROKER_HTTP_PORT = 8080;
     public static final int BROKER_HTTPS_PORT = 8081;
 
-    public static final String ALPINE_IMAGE_NAME = "alpine:3.20";
+    public static final String ALPINE_IMAGE_NAME = "alpine:3.24";
     public static final String DEFAULT_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_TEST_IMAGE_NAME",
             "apachepulsar/pulsar-test-latest-version:latest");
     public static final String UPGRADE_TEST_IMAGE_NAME = System.getenv().getOrDefault("PULSAR_UPGRADE_TEST_IMAGE_NAME",
@@ -93,6 +96,27 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     private final String httpPath;
     @Setter
     private boolean enableAsyncProfiler = false;
+    /**
+     * Directory the profiler writes into, letting a test keep its recordings apart from every other
+     * test's. Unset means the {@code inttest.asyncprofiler.dir} system property the build passes in,
+     * and failing that the working directory's {@code build}.
+     */
+    @Setter
+    private String profileDirectory;
+    /**
+     * Host path of the jonoffcpu agent JAR. When set, profiling attaches jonoffcpu (which embeds
+     * async-profiler and adds kernel-measured off-CPU samples) instead of the async-profiler library
+     * installed in the image. Unset means the {@code inttest.jonoffcpu.agent} system property, and failing
+     * that plain async-profiler.
+     */
+    @Setter
+    private String jonoffcpuAgentJar;
+    /**
+     * The jonoffcpu agent's {@code sampling} block, deciding which off-CPU intervals are recorded. Only
+     * used when jonoffcpu is attached.
+     */
+    @Setter
+    private Map<String, Object> jonoffcpuOptions = Map.of();
 
     public PulsarContainer(String clusterName,
                            String hostname,
@@ -165,18 +189,13 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     protected void beforeStop() {
         super.beforeStop();
         if (null != getContainerId()) {
-            DockerUtils.dumpContainerDirToTargetCompressed(
-                getDockerClient(),
-                getContainerId(),
-                "/var/log/pulsar"
-            );
             try {
                 // stop the "tail -f ..." commands started in afterStart method
                 // so that shutdown output doesn't clutter logs
                 execCmd("/usr/bin/pkill", "tail");
             } catch (Exception e) {
                 // will fail if there's no tail running
-                log.debug("Cannot run 'pkill tail'", e);
+                log.debug().exception(e).log("Cannot run 'pkill tail'");
             }
         }
     }
@@ -192,24 +211,38 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
 
     @Override
     protected void doStop() {
-        if (getContainerId() != null) {
-            if (serviceEntryPoint.equals("bin/pulsar")) {
-                // attempt graceful shutdown using "docker stop"
-                dockerClient.stopContainerCmd(getContainerId())
-                        .withTimeout(15)
-                        .exec();
-            } else {
-                // use "supervisorctl stop all" for graceful shutdown
-                try {
-                    ContainerExecResult result = execCmd("/usr/bin/supervisorctl", "stop", "all");
-                    log.info("Stopped supervisor services exit code: {}\nstdout: {}\nstderr: {}", result.getExitCode(),
-                            result.getStdout(), result.getStderr());
-                } catch (Exception e) {
-                    log.error("Cannot run 'supervisorctl stop all'", e);
+        try {
+            if (getContainerId() != null) {
+                if (serviceEntryPoint.equals("bin/pulsar")) {
+                    // attempt graceful shutdown using "docker stop"
+                    dockerClient.stopContainerCmd(getContainerId())
+                            .withTimeout(15)
+                            .exec();
+                } else {
+                    // use "supervisorctl stop all" for graceful shutdown
+                    try {
+                        ContainerExecResult result = execCmd("/usr/bin/supervisorctl", "stop", "all");
+                        log.info().attr("exitCode", result.getExitCode())
+                                .attr("stdout", result.getStdout())
+                                .attr("stderr", result.getStderr())
+                                .log("Stopped supervisor services");
+                    } catch (Exception e) {
+                        log.error().exception(e).log("Cannot run 'supervisorctl stop all'");
+                    }
                 }
             }
+        } finally {
+            try {
+                if (getContainerId() != null) {
+                    // The leak detector's JVM shutdown hook can produce additional reports. Copy them
+                    // after stopping the services, while the container still exists.
+                    DockerUtils.dumpContainerDirToTargetCompressed(
+                            getDockerClient(), getContainerId(), "/var/log/pulsar");
+                }
+            } finally {
+                super.doStop();
+            }
         }
-        super.doStop();
     }
 
     @Override
@@ -271,7 +304,10 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         beforeStart();
         super.start();
         afterStart();
-        log.info("[{}] Start pulsar service {} at container {}", getContainerName(), serviceName, getContainerId());
+        log.info().attr("container", getContainerName())
+                .attr("service", serviceName)
+                .attr("containerId", getContainerId())
+                .log("Start pulsar service");
     }
 
     protected boolean isPassNettyLeakDetectionSystemProperties() {
@@ -300,8 +336,6 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
     }
 
     protected void initializePulsarExtraOpts() {
-        appendToEnv("PULSAR_EXTRA_OPTS",
-                "-Dpulsar.allocator.exit_on_oom=true -Dio.netty.recycler.maxCapacityPerThread=4096");
     }
 
     protected boolean isCodeCoverageEnabled() {
@@ -313,7 +347,7 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         if (System.getProperty("integrationtest.coverage.dir") != null) {
             coverageDirectory = new File(System.getProperty("integrationtest.coverage.dir"));
         } else {
-            coverageDirectory = new File("target");
+            coverageDirectory = new File("build");
         }
 
         if (!coverageDirectory.isDirectory()) {
@@ -337,7 +371,8 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                     + ",includes=org.apache.pulsar.*:org.apache.bookkeeper.mledger.*"
                     + ",excludes=*.proto.*:*.shade.*:*.shaded.*");
         } else {
-            log.error("Cannot find jacoco agent jar from '" + jacocoAgentJar.getAbsolutePath() + "'");
+            log.error().attr("path", jacocoAgentJar.getAbsolutePath())
+                    .log("Cannot find jacoco agent jar");
         }
     }
 
@@ -363,22 +398,16 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
                     .withPrivileged(true);
         });
 
-        File asyncProfilerDir;
-        if (isNotBlank(System.getProperty("inttest.asyncprofiler.dir"))) {
-            asyncProfilerDir = new File(System.getProperty("inttest.asyncprofiler.dir"));
-        } else {
-            asyncProfilerDir = new File("target");
-        }
+        File asyncProfilerDir = new File(resolveProfileDirectory());
         if (!asyncProfilerDir.exists()) {
             if (!asyncProfilerDir.mkdirs()) {
-                throw new IllegalArgumentException(
-                        "inttest.asyncprofiler.dir '" + asyncProfilerDir.getAbsolutePath()
-                                + "' doesn't exist and cannot be created.");
+                throw new IllegalArgumentException("Profiler directory '" + asyncProfilerDir.getAbsolutePath()
+                        + "' doesn't exist and cannot be created.");
             }
         }
         if (!asyncProfilerDir.isDirectory()) {
             throw new IllegalArgumentException(
-                    "inttest.asyncprofiler.dir '" + asyncProfilerDir.getAbsolutePath() + "' isn't a directory.");
+                    "Profiler directory '" + asyncProfilerDir.getAbsolutePath() + "' isn't a directory.");
         }
         // change access to asyncProfilerDir to allow all access so the the container user can write to it
         // This matters only on Linux
@@ -389,16 +418,62 @@ public abstract class PulsarContainer<SelfT extends PulsarContainer<SelfT>> exte
         }
         withFileSystemBind(asyncProfilerDir.getAbsolutePath(), "/profiles", BindMode.READ_WRITE);
 
-        // build the async-profiler java agent command line
-        StringBuilder sb = new StringBuilder();
-        sb.append("-agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start,");
-        sb.append(System.getProperty("inttest.asyncprofiler.opts", "event=cpu,lock=1ms,alloc=2m,jfrsync=profile"));
-        sb.append(",file=/profiles/inttest_profile_").append(System.getProperty("git.commit.id.abbrev", ""));
-        sb.append("_").append(System.getProperty("maven.build.timestamp", "").replace(' ', '_'));
-        sb.append("_").append(getContainerName());
-        sb.append("_").append("%p.").append(System.getProperty("inttest.asyncprofiler.outputformat", "jfr"));
+        String profilerOptions =
+                System.getProperty("inttest.asyncprofiler.opts", "event=cpu,lock=1ms,alloc=2m,jfrsync=profile");
+        StringBuilder fileName = new StringBuilder("inttest_profile");
+        // Set by the build; left out of the name when the revision could not be determined
+        String commitId = System.getProperty("git.commit.id.abbrev", "");
+        if (isNotBlank(commitId)) {
+            fileName.append('_').append(commitId);
+        }
+        String agentArgument;
+        String agentJar = resolveJonoffcpuAgentJar();
+        if (agentJar != null) {
+            // jonoffcpu fixes both of its output paths up front, so runs are kept apart by a timestamp
+            // chosen here rather than by async-profiler's %t/%p expansion
+            fileName.append('_').append(System.currentTimeMillis()).append('_').append(getContainerName());
+            try {
+                agentArgument = JonoffcpuAgent.writeConfig(asyncProfilerDir.toPath(), "/profiles",
+                        fileName.toString(), profilerOptions, jonoffcpuOptions);
+            } catch (IOException e) {
+                throw new UncheckedIOException("Cannot write jonoffcpu configuration", e);
+            }
+            JonoffcpuAgent.attach(this, Path.of(agentJar));
+            // supervisord would otherwise drop the JVM back to the image's unprivileged user
+            withEnv(JonoffcpuAgent.PROCESS_USER_ENV, JonoffcpuAgent.ROOT_USER);
+        } else {
+            // async-profiler expands %t (the time profiling started) and %p (the pid inside the
+            // container) itself, which is what keeps the profiles of separate runs apart
+            fileName.append("_%t_").append(getContainerName()).append("_%p.")
+                    .append(System.getProperty("inttest.asyncprofiler.outputformat", "jfr"));
+            agentArgument = "-agentpath:/opt/async-profiler/lib/libasyncProfiler.so=start," + profilerOptions
+                    + ",file=/profiles/" + fileName;
+        }
         initializePulsarExtraOpts();
-        appendToEnv("PULSAR_EXTRA_OPTS", "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints " + sb);
+        appendToEnv("PULSAR_EXTRA_OPTS", "-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints " + agentArgument);
+    }
+
+    private String resolveJonoffcpuAgentJar() {
+        if (isNotBlank(jonoffcpuAgentJar)) {
+            return jonoffcpuAgentJar;
+        }
+        String fromBuild = System.getProperty(JonoffcpuAgent.AGENT_JAR_PROPERTY);
+        return isNotBlank(fromBuild) ? fromBuild : null;
+    }
+
+    /**
+     * Where the profiler writes, most specific first: the directory the test asked for through
+     * {@code PulsarClusterSpec.profileDirectory}, then the {@code inttest.asyncprofiler.dir} system
+     * property the build passes in, and finally {@code build} in the working directory.
+     *
+     * @return the directory to bind as /profiles in the container
+     */
+    private String resolveProfileDirectory() {
+        if (isNotBlank(profileDirectory)) {
+            return profileDirectory;
+        }
+        String fromBuild = System.getProperty("inttest.asyncprofiler.dir");
+        return isNotBlank(fromBuild) ? fromBuild : "build";
     }
 
     @Override

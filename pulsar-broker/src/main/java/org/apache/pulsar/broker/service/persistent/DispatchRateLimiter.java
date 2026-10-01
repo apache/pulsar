@@ -20,15 +20,15 @@ package org.apache.pulsar.broker.service.persistent;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public abstract class DispatchRateLimiter {
     public enum Type {
         TOPIC,
@@ -153,14 +153,18 @@ public abstract class DispatchRateLimiter {
                 dispatchRate = createDispatchRate();
                 break;
             default:
-                log.warn("ignore configured dispatch rate for type {}", type);
+                log.warn().attr("type", type).log("ignore configured dispatch rate for type");
                 return;
         }
         if (type == Type.BROKER) {
-            log.info("configured broker message-dispatch rate {}", dispatchRate);
+            log.info().attr("dispatchRate", dispatchRate).log("configured broker message-dispatch rate");
         } else {
-            log.info("[{}] configured {} message-dispatch rate at broker {} subscriptionName [{}]",
-                    this.topicName, type, subscriptionName == null ? "null" : subscriptionName, dispatchRate);
+            log.info()
+                    .attr("topic", this.topicName)
+                    .attr("type", type)
+                    .attr("subscription", subscriptionName)
+                    .attr("dispatchRate", dispatchRate)
+                    .log("configured message-dispatch rate at broker");
         }
         updateDispatchRate(dispatchRate);
     }
@@ -210,6 +214,4 @@ public abstract class DispatchRateLimiter {
         return dispatchRate != null && (dispatchRate.getDispatchThrottlingRateInMsg() > 0
                 || dispatchRate.getDispatchThrottlingRateInByte() > 0);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(DispatchRateLimiter.class);
 }

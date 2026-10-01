@@ -18,14 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
-import io.netty.channel.ChannelFuture;
-import io.netty.util.concurrent.GenericFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
+import io.netty.util.ReferenceCountUtil;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -34,48 +31,31 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.CustomLog;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.util.ExecutorProvider;
-import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
-public class SimpleProduceConsumeIoTest extends ProducerConsumerBase {
+@CustomLog
+public class SimpleProduceConsumeIoTest extends SharedPulsarBaseTest {
 
     private ExecutorService executor;
     private String topic;
     private PulsarClientImpl singleConnectionPerBrokerClient;
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        executor.shutdown();
-        super.internalCleanup();
-    }
-
     @BeforeMethod
     public void setupTopic() throws Exception {
         executor = Executors.newSingleThreadExecutor();
         singleConnectionPerBrokerClient = (PulsarClientImpl) PulsarClient.builder().connectionsPerBroker(1)
-                .serviceUrl(lookupUrl.toString()).build();
-        topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+                .serviceUrl(getBrokerServiceUrl()).build();
+        topic = newTopicName();
         admin.topics().createNonPartitionedTopic(topic);
     }
 
@@ -166,25 +146,15 @@ public class SimpleProduceConsumeIoTest extends ProducerConsumerBase {
     }
 
     private void setFailedContext(ClientCnx cnx) {
-        final var oldCtx = cnx.ctx();
-        final var newCtx = spy(oldCtx);
-        doAnswer(invocationOnMock -> {
-            final var failedFuture = mock(ChannelFuture.class);
-            doAnswer(invocation -> {
-                @SuppressWarnings("unchecked")
-                final var listener = (GenericFutureListener<ChannelFuture>) invocation.getArgument(0);
-                final var future = mock(ChannelFuture.class);
-                when(future.isSuccess()).thenReturn(false);
-                when(future.cause()).thenReturn(new RuntimeException("network exception"));
-                listener.operationComplete(future);
-                return future;
-            }).when(failedFuture).addListener(any());
-            // Set back the original context because reconnection will still get the same `ClientCnx` from the pool
-            cnx.setCtx(oldCtx);
-            return failedFuture;
-        }).when(newCtx).writeAndFlush(any());
-
-        cnx.setCtx(newCtx);
+        ChannelHandlerContext context = cnx.ctx();
+        context.pipeline().addBefore(context.name(), "fail-next-write", new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void write(ChannelHandlerContext ctx, Object message, ChannelPromise promise) {
+                ctx.pipeline().remove(this);
+                ReferenceCountUtil.release(message);
+                promise.setFailure(new RuntimeException("network exception"));
+            }
+        });
     }
 
     @RequiredArgsConstructor

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.io.FileUtils.cleanDirectory;
 import java.io.File;
 import java.io.IOException;
@@ -33,32 +34,31 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.bookie.Cookie;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
-import org.apache.bookkeeper.common.component.ComponentStarter;
 import org.apache.bookkeeper.common.component.Lifecycle;
 import org.apache.bookkeeper.common.component.LifecycleComponent;
 import org.apache.bookkeeper.common.component.LifecycleComponentStack;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.server.conf.BookieConfiguration;
 import org.apache.bookkeeper.util.IOUtils;
 import org.apache.commons.io.FileUtils;
-import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
  * A class runs several bookie servers for testing.
  */
-@Slf4j
+@CustomLog
 public class BKCluster implements AutoCloseable {
 
     private final BKClusterConf clusterConf;
@@ -75,7 +75,6 @@ public class BKCluster implements AutoCloseable {
     protected final ServerConfiguration baseConf;
     protected final ClientConfiguration baseClientConf;
 
-    private final List<Integer> lockedPorts = new ArrayList<>();
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
     public static class BKClusterConf {
@@ -84,7 +83,8 @@ public class BKCluster implements AutoCloseable {
         private String metadataServiceUri;
         private int numBookies = 1;
         private String dataDir;
-        private int bkPort = 0;
+        private String bookieIdPrefix;
+        private int bkPort;
 
         private boolean clearOldData;
 
@@ -108,7 +108,22 @@ public class BKCluster implements AutoCloseable {
             return this;
         }
 
+        /**
+         * Use {@code prefix-index} IDs for new bookies. The prefix must be unique among
+         * clusters sharing a metadata store. Existing cookies always retain their IDs.
+         * When unset, new bookie IDs include a hash of the data-directory path.
+         */
+        public BKClusterConf bookieIdPrefix(String bookieIdPrefix) {
+            this.bookieIdPrefix = bookieIdPrefix;
+            return this;
+        }
+
+        /**
+         * Set the base listening port for bookies, or zero for kernel-assigned ports.
+         * Legacy host:port cookies take precedence over this setting.
+         */
         public BKClusterConf bkPort(int bkPort) {
+            checkArgument(bkPort >= 0 && bkPort <= 65535, "Invalid bookie base port: %s", bkPort);
             this.bkPort = bkPort;
             return this;
         }
@@ -140,6 +155,11 @@ public class BKCluster implements AutoCloseable {
         baseConf.setJournalRemovePagesFromCache(false);
         baseConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
         baseClientConf.setProperty(AbstractMetadataDriver.METADATA_STORE_INSTANCE, store);
+        // Explicitly trigger class initialization to run static blocks that register
+        // drivers with MetadataDrivers. The .class literal only loads (but does not
+        // initialize) the class, so the static registration block may not have run yet.
+        PulsarMetadataBookieDriver.init();
+        PulsarMetadataClientDriver.init();
         System.setProperty("bookkeeper.metadata.bookie.drivers", PulsarMetadataBookieDriver.class.getName());
         System.setProperty("bookkeeper.metadata.client.drivers", PulsarMetadataClientDriver.class.getName());
         startBKCluster(bkClusterConf.numBookies);
@@ -157,15 +177,13 @@ public class BKCluster implements AutoCloseable {
             try {
                 stopBKCluster();
             } catch (Exception e) {
-                log.error("Got Exception while trying to stop BKCluster", e);
+                log.error().exception(e).log("Got Exception while trying to stop BKCluster");
             }
-            lockedPorts.forEach(PortManager::releaseLockedPort);
-            lockedPorts.clear();
             // cleanup temp dirs
             try {
                 cleanupTempDirs();
             } catch (Exception e) {
-                log.error("Got Exception while trying to cleanupTempDirs", e);
+                log.error().exception(e).log("Got Exception while trying to cleanupTempDirs");
             }
 
             this.store.close();
@@ -232,44 +250,57 @@ public class BKCluster implements AutoCloseable {
         }
 
         if (clusterConf.clearOldData && dataDir.exists()) {
-            log.info("Wiping Bookie data directory at {}", dataDir.getAbsolutePath());
+            log.info().attr("dataDir", dataDir.getAbsolutePath()).log("Wiping Bookie data directory");
             cleanDirectory(dataDir);
         }
 
-        int port;
-        if (baseConf.isEnableLocalTransport() || !baseConf.getAllowEphemeralPorts() || clusterConf.bkPort == 0) {
-            port = PortManager.nextLockedFreePort();
-            lockedPorts.add(port);
-        } else {
-            // bk 4.15 cookie validation finds the same ip:port in case of port 0
-            // and 2nd bookie's cookie validation fails
-            port = clusterConf.bkPort;
-        }
-        File[] cookieDir = dataDir.listFiles((file) -> file.getName().equals("current"));
-        if (cookieDir != null && cookieDir.length > 0) {
-            String existBookieAddr = parseBookieAddressFromCookie(cookieDir[0]);
-            if (existBookieAddr != null) {
-                baseConf.setAdvertisedAddress(existBookieAddr.split(":")[0]);
-                port = Integer.parseInt(existBookieAddr.split(":")[1]);
+        // The cookie's identity is also referenced by ledger ensembles, so preserve it
+        // regardless of how IDs are configured for new bookies.
+        String bookieId = null;
+        File cookieDir = new File(dataDir, "current");
+        if (new File(cookieDir, "VERSION").exists()) {
+            bookieId = parseBookieAddressFromCookie(cookieDir);
+            if (bookieId.contains(":")) {
+                // Legacy standalone bookies must also retain their listening address.
+                BookieSocketAddress bookieAddress = new BookieSocketAddress(bookieId);
+                ServerConfiguration conf = newServerConfiguration(bookieAddress.getPort(), bookieId,
+                        dataDir, new File[]{dataDir});
+                conf.setAdvertisedAddress(bookieAddress.getHostName());
+                return conf;
             }
         }
-        return newServerConfiguration(port, dataDir, new File[]{dataDir});
+
+        // Standalone uses an explicit identity prefix;
+        // the default isolates test clusters with different directories sharing a metadata store.
+        if (bookieId == null) {
+            bookieId = clusterConf.bookieIdPrefix != null ? clusterConf.bookieIdPrefix + "-" + index
+                    : "bk-" + index + "-" + Integer.toHexString(dataDir.getAbsolutePath().hashCode());
+        }
+        int port = clusterConf.bkPort == 0 ? 0 : clusterConf.bkPort + index;
+        checkArgument(port <= 65535, "Bookie port out of range: %s", port);
+        return newServerConfiguration(port, bookieId, dataDir, new File[]{dataDir});
     }
 
     private String parseBookieAddressFromCookie(File dir) throws IOException {
         Cookie cookie = Cookie.readFromDirectory(dir);
-        Pattern pattern = Pattern.compile(".*bookieHost: \"(.*?)\".*", Pattern.DOTALL);
-        Matcher m = pattern.matcher(cookie.toString());
-        return m.find() ? m.group(1) : null;
+        // Cookie has no public accessor for its bookie ID. The bookieHost field contains
+        // either a legacy host:port address or an ID independent of the network address.
+        Matcher matcher = Pattern.compile("bookieHost: \"([^\"]+)\"").matcher(cookie.toString());
+        if (!matcher.find()) {
+            throw new IOException("Missing bookie identity in cookie in " + dir);
+        }
+        return matcher.group(1);
     }
 
     private ClientConfiguration newClientConfiguration() {
         return new ClientConfiguration(baseConf);
     }
 
-    private ServerConfiguration newServerConfiguration(int port, File journalDir, File[] ledgerDirs) {
+    private ServerConfiguration newServerConfiguration(int port, String bookieId, File journalDir,
+                                                       File[] ledgerDirs) {
         ServerConfiguration conf = new ServerConfiguration(baseConf);
         conf.setBookiePort(port);
+        conf.setBookieId(bookieId);
         conf.setJournalDirName(journalDir.getPath());
         String[] ledgerDirNames = new String[ledgerDirs.length];
         for (int i = 0; i < ledgerDirs.length; i++) {
@@ -308,7 +339,7 @@ public class BKCluster implements AutoCloseable {
             throws Exception {
         ServerConfiguration conf = newServerConfiguration(index);
         bsConfs.add(conf);
-        log.info("Starting new bookie on port: {}", conf.getBookiePort());
+        log.info().attr("port", conf.getBookiePort()).log("Starting new bookie");
         LifecycleComponentStack server = startBookie(conf);
         bookieComponents.add(server);
         return conf.getBookiePort();
@@ -328,7 +359,10 @@ public class BKCluster implements AutoCloseable {
                 org.apache.bookkeeper.server.Main.buildBookieServer(new BookieConfiguration(conf));
 
         BookieId address = BookieImpl.getBookieId(conf);
-        ComponentStarter.startComponent(server);
+        // Start the bookie directly instead of using ComponentStarter.startComponent()
+        // which registers JVM shutdown hooks that are never cleaned up and can cause
+        // System.exit() during test cleanup, killing the test JVM.
+        server.start();
 
         // Wait for up to 30 seconds for the bookie to start
         for (int i = 0; i < 3000; i++) {
@@ -343,7 +377,7 @@ public class BKCluster implements AutoCloseable {
             throw new RuntimeException("Bookie failed to start within timeout period");
         }
 
-        log.info("New bookie '{}' has been created.", address);
+        log.info().attr("address", address).log("New bookie has been created");
 
         return server;
     }
@@ -354,8 +388,7 @@ public class BKCluster implements AutoCloseable {
             AutoRecoveryMain autoRecoveryProcess = new AutoRecoveryMain(conf);
             autoRecoveryProcess.start();
             autoRecoveryProcesses.put(bserver, autoRecoveryProcess);
-            log.debug("Starting Auditor Recovery for the bookie:"
-                    + bserver.getBookieId());
+            log.debug().attr("bookieId", bserver.getBookieId()).log("Starting Auditor Recovery for the bookie");
         }
     }
 
@@ -367,7 +400,7 @@ public class BKCluster implements AutoCloseable {
         confReturn.setAllowEphemeralPorts(true);
         confReturn.setJournalWriteData(false);
         confReturn.setProperty("journalPreAllocSizeMB", 1);
-        confReturn.setBookiePort(clusterConf.bkPort);
+        confReturn.setBookiePort(0);
         confReturn.setGcWaitTime(1000L);
         confReturn.setDiskUsageThreshold(0.999F);
         confReturn.setDiskUsageWarnThreshold(0.99F);
@@ -396,7 +429,7 @@ public class BKCluster implements AutoCloseable {
                 }
             }
         } catch (SocketException var3) {
-            log.warn("Exception while figuring out loopback interface. Will use null.", var3);
+            log.warn().exception(var3).log("Exception while figuring out loopback interface. Will use null");
             return null;
         }
 

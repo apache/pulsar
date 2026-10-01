@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static org.apache.bookkeeper.client.api.BKException.Code.NoSuchLedgerExistsException;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -31,6 +32,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
@@ -40,21 +42,18 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.OffloadContext;
+import org.apache.bookkeeper.mledger.proto.OffloadContext;
 import org.jclouds.blobstore.BlobStore;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManagedLedgerOffloaderBase {
-
-    private static final Logger log = LoggerFactory.getLogger(BlobStoreManagedLedgerOffloaderStreamingTest.class);
     private TieredStorageConfiguration mockedConfig;
     private static final Random random = new Random();
     private final LedgerOffloaderStats offloaderStats;
@@ -110,7 +109,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         UUID uuid = UUID.randomUUID();
         long beginLedger = 0;
         long beginEntry = 0;
-        log.error("try begin offload");
+        log.info("Trying to begin offload");
         @Cleanup
         OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, new HashMap<>()).get();
@@ -120,10 +119,10 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             random.nextBytes(data);
             final OffloadHandle.OfferEntryResult offerEntryResult = offloadHandle
                     .offerEntry(EntryImpl.create(0, i, data));
-            log.info("offer result: {}", offerEntryResult);
+            log.info().attr("result", offerEntryResult).log("Offer result");
         }
         final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
-        log.info("Offload reasult: {}", offloadResult);
+        log.info().attr("result", offloadResult).log("Offload result");
     }
 
     @Test
@@ -159,15 +158,16 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
         assertEquals(offloadResult.endLedger, 0);
         assertEquals(offloadResult.endEntry, 9);
-        final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();
-        contextBuilder.addOffloadSegment(
-                MLDataFormats.OffloadSegment.newBuilder()
-                        .setUidLsb(uuid.getLeastSignificantBits())
-                        .setUidMsb(uuid.getMostSignificantBits())
-                        .setComplete(true).setEndEntryId(9).build());
+        final OffloadContext context = new OffloadContext();
+        context.addOffloadSegment()
+                .setUidLsb(uuid.getLeastSignificantBits())
+                .setUidMsb(uuid.getMostSignificantBits())
+                .setComplete(true).setEndEntryId(9);
 
         @Cleanup
-        final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+        final ReadHandle readHandle = offloader.readOffloaded(0, context, driverMeta).get();
+        // The managed ledger relies on this marker to tell that the entries of a ledger are read from tiered storage
+        assertThat(readHandle).isInstanceOf(OffloadedLedgerHandle.class);
         @Cleanup
         final LedgerEntries ledgerEntries = readHandle.readAsync(0, 9).get();
 
@@ -220,15 +220,14 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
         assertEquals(offloadResult.endLedger, 1);
         assertEquals(offloadResult.endEntry, 9);
-        final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();
-        contextBuilder.addOffloadSegment(
-                MLDataFormats.OffloadSegment.newBuilder()
-                        .setUidLsb(uuid.getLeastSignificantBits())
-                        .setUidMsb(uuid.getMostSignificantBits())
-                        .setComplete(true).setEndEntryId(9).build());
+        final OffloadContext context = new OffloadContext();
+        context.addOffloadSegment()
+                .setUidLsb(uuid.getLeastSignificantBits())
+                .setUidMsb(uuid.getMostSignificantBits())
+                .setComplete(true).setEndEntryId(9);
 
         @Cleanup
-        final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+        final ReadHandle readHandle = offloader.readOffloaded(0, context, driverMeta).get();
         @Cleanup
         final LedgerEntries ledgerEntries = readHandle.readAsync(0, 9).get();
 
@@ -240,7 +239,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         }
 
         @Cleanup
-        final ReadHandle readHandle2 = offloader.readOffloaded(1, contextBuilder.build(), driverMeta).get();
+        final ReadHandle readHandle2 = offloader.readOffloaded(1, context, driverMeta).get();
         @Cleanup
         final LedgerEntries ledgerEntries2 = readHandle2.readAsync(0, 9).get();
 
@@ -308,20 +307,18 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         assertEquals(offloadResult2.endLedger, 0);
         assertEquals(offloadResult2.endEntry, 19);
 
-        final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();
-        contextBuilder.addOffloadSegment(
-                MLDataFormats.OffloadSegment.newBuilder()
-                        .setUidLsb(uuid.getLeastSignificantBits())
-                        .setUidMsb(uuid.getMostSignificantBits())
-                        .setComplete(true).setEndEntryId(9).build()).addOffloadSegment(
-                MLDataFormats.OffloadSegment.newBuilder()
-                        .setUidLsb(uuid2.getLeastSignificantBits())
-                        .setUidMsb(uuid2.getMostSignificantBits())
-                        .setComplete(true).setEndEntryId(19).build()
-        );
+        final OffloadContext context = new OffloadContext();
+        context.addOffloadSegment()
+                .setUidLsb(uuid.getLeastSignificantBits())
+                .setUidMsb(uuid.getMostSignificantBits())
+                .setComplete(true).setEndEntryId(9);
+        context.addOffloadSegment()
+                .setUidLsb(uuid2.getLeastSignificantBits())
+                .setUidMsb(uuid2.getMostSignificantBits())
+                .setComplete(true).setEndEntryId(19);
 
         @Cleanup
-        final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+        final ReadHandle readHandle = offloader.readOffloaded(0, context, driverMeta).get();
         @Cleanup
         final LedgerEntries ledgerEntries = readHandle.readAsync(0, 19).get();
 
@@ -388,20 +385,18 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         assertEquals(offloadResult2.endLedger, 0);
         assertEquals(offloadResult2.endEntry, 19);
 
-        final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();
-        contextBuilder.addOffloadSegment(
-                MLDataFormats.OffloadSegment.newBuilder()
-                        .setUidLsb(uuid.getLeastSignificantBits())
-                        .setUidMsb(uuid.getMostSignificantBits())
-                        .setComplete(true).setEndEntryId(9).build()).addOffloadSegment(
-                MLDataFormats.OffloadSegment.newBuilder()
-                        .setUidLsb(uuid2.getLeastSignificantBits())
-                        .setUidMsb(uuid2.getMostSignificantBits())
-                        .setComplete(true).setEndEntryId(19).build()
-        );
+        final OffloadContext context = new OffloadContext();
+        context.addOffloadSegment()
+                .setUidLsb(uuid.getLeastSignificantBits())
+                .setUidMsb(uuid.getMostSignificantBits())
+                .setComplete(true).setEndEntryId(9);
+        context.addOffloadSegment()
+                .setUidLsb(uuid2.getLeastSignificantBits())
+                .setUidMsb(uuid2.getMostSignificantBits())
+                .setComplete(true).setEndEntryId(19);
 
         @Cleanup
-        final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+        final ReadHandle readHandle = offloader.readOffloaded(0, context, driverMeta).get();
 
         for (int i = 0; i <= 19; i++) {
             Random seed = new Random(0);
@@ -456,15 +451,14 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
         assertEquals(offloadResult.endLedger, 0);
         assertEquals(offloadResult.endEntry, 9);
-        final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();
-        contextBuilder.addOffloadSegment(
-                MLDataFormats.OffloadSegment.newBuilder()
-                        .setUidLsb(uuid.getLeastSignificantBits())
-                        .setUidMsb(uuid.getMostSignificantBits())
-                        .setComplete(true).setEndEntryId(9).build());
+        final OffloadContext context = new OffloadContext();
+        context.addOffloadSegment()
+                .setUidLsb(uuid.getLeastSignificantBits())
+                .setUidMsb(uuid.getMostSignificantBits())
+                .setComplete(true).setEndEntryId(9);
 
         @Cleanup
-        final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+        final ReadHandle readHandle = offloader.readOffloaded(0, context, driverMeta).get();
         try {
             readHandle.read(-1, -1);
             Assert.fail("Shouldn't be able to read anything");
@@ -511,15 +505,14 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
         assertEquals(offloadResult.endLedger, 0);
         assertEquals(offloadResult.endEntry, 9);
-        final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();
-        contextBuilder.addOffloadSegment(
-                MLDataFormats.OffloadSegment.newBuilder()
-                        .setUidLsb(uuid.getLeastSignificantBits())
-                        .setUidMsb(uuid.getMostSignificantBits())
-                        .setComplete(true).setEndEntryId(9).build());
+        final OffloadContext context = new OffloadContext();
+        context.addOffloadSegment()
+                .setUidLsb(uuid.getLeastSignificantBits())
+                .setUidMsb(uuid.getMostSignificantBits())
+                .setComplete(true).setEndEntryId(9);
 
         @Cleanup
-        final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+        final ReadHandle readHandle = offloader.readOffloaded(0, context, driverMeta).get();
 
         // delete blob(ledger)
         blobStore.removeBlob(BUCKET, uuid.toString());

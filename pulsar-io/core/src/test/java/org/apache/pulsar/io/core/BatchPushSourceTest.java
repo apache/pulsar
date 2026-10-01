@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.function.Consumer;
 import org.testng.annotations.Test;
 
+@SuppressWarnings("try")
 public class BatchPushSourceTest {
 
   BatchPushSource testBatchSource = new BatchPushSource() {

@@ -27,7 +27,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.kerby.kerberos.kerb.KrbException;
 import org.apache.kerby.kerberos.kerb.server.KdcConfigKey;
 import org.apache.kerby.kerberos.kerb.server.SimpleKdcServer;
@@ -67,7 +67,7 @@ import org.apache.kerby.util.NetworkUtil;
  * in case of bug fixing, history, etc.
  * https://github.com/apache/hadoop/blob/trunk/hadoop-common-project/hadoop-minikdc/src/main/java/org/apache/hadoop/minikdc/MiniKdc.java
  */
-@Slf4j
+@CustomLog
 public class MiniKdc {
 
     public static final String JAVA_SECURITY_KRB5_CONF =
@@ -158,7 +158,7 @@ public class MiniKdc {
         log.info("Configuration:");
         log.info("---------------------------------------------------------------");
         for (Map.Entry<?, ?> entry : conf.entrySet()) {
-            log.info("  {}: {}", entry.getKey(), entry.getValue());
+            log.info().attr("key", entry.getKey()).attr("value", entry.getValue()).log("config");
         }
         log.info("---------------------------------------------------------------");
         this.conf = conf;

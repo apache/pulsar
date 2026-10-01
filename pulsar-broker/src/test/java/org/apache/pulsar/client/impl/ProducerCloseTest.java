@@ -25,10 +25,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
@@ -36,26 +35,11 @@ import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
-public class ProducerCloseTest extends ProducerConsumerBase {
-
-    @Override
-    @BeforeMethod
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @Override
-    @AfterMethod(alwaysRun = true)
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ProducerCloseTest extends SharedPulsarBaseTest {
 
     /**
      * Param1: Producer enableBatch or not
@@ -85,10 +69,11 @@ public class ProducerCloseTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "brokenPipeline")
     public void testProducerCloseCallback2(boolean brokenPipeline) throws Exception {
-        initClient();
         @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic("testProducerClose")
+        PulsarClient client = newPulsarClient();
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer()
+                .topic(newTopicName())
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .maxPendingMessages(0)
                 .enableBatching(false)
@@ -100,23 +85,22 @@ public class ProducerCloseTest extends ProducerConsumerBase {
         producer.closeAsync();
         Thread.sleep(3000);
         if (brokenPipeline) {
-            //producer.getClientCnx().channel().config().setAutoRead(true);
             producer.getClientCnx().channel().close();
         } else {
             producer.getClientCnx().channel().config().setAutoRead(true);
         }
         Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            System.out.println(1);
             Assert.assertTrue(completableFuture.isDone());
         });
     }
 
     @Test(timeOut = 10_000)
     public void testProducerCloseCallback() throws Exception {
-        initClient();
         @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic("testProducerClose")
+        PulsarClient client = newPulsarClient();
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer()
+                .topic(newTopicName())
                 .sendTimeout(5, TimeUnit.SECONDS)
                 .maxPendingMessages(0)
                 .enableBatching(false)
@@ -127,7 +111,7 @@ public class ProducerCloseTest extends ProducerConsumerBase {
         final CompletableFuture<MessageId> completableFuture = value.sendAsync();
         producer.closeAsync();
         final CommandSuccess commandSuccess = new CommandSuccess();
-        PulsarClientImpl clientImpl = (PulsarClientImpl) this.pulsarClient;
+        PulsarClientImpl clientImpl = (PulsarClientImpl) client;
         commandSuccess.setRequestId(clientImpl.newRequestId() - 1);
         producer.getClientCnx().handleSuccess(commandSuccess);
         Thread.sleep(3000);
@@ -136,10 +120,11 @@ public class ProducerCloseTest extends ProducerConsumerBase {
 
     @Test(timeOut = 10_000)
     public void testProducerCloseFailsPendingBatchWhenPreviousStateNotReadyCallback() throws Exception {
-        initClient();
         @Cleanup
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
-                .topic("testProducerClose")
+        PulsarClient client = newPulsarClient();
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer()
+                .topic(newTopicName())
                 .maxPendingMessages(10)
                 .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
                 .batchingMaxBytes(Integer.MAX_VALUE)
@@ -165,9 +150,9 @@ public class ProducerCloseTest extends ProducerConsumerBase {
         PulsarClient longBackOffClient = PulsarClient.builder()
                 .startingBackoffInterval(5, TimeUnit.SECONDS)
                 .maxBackoffInterval(5, TimeUnit.SECONDS)
-                .serviceUrl(lookupUrl.toString())
+                .serviceUrl(getBrokerServiceUrl())
                 .build();
-        String topic = "broker-close-test-" + RandomStringUtils.randomAlphabetic(5);
+        String topic = newTopicName();
         @Cleanup
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) longBackOffClient.newProducer()
                 .topic(topic)
@@ -175,8 +160,7 @@ public class ProducerCloseTest extends ProducerConsumerBase {
                 .create();
         producer.newMessage().value("test".getBytes()).send();
 
-        Optional<Topic> topicOptional = pulsar.getBrokerService()
-                .getTopicReference(TopicName.get(topic).getPartitionedTopicName());
+        Optional<Topic> topicOptional = getTopicReference(TopicName.get(topic).getPartitionedTopicName());
         Assert.assertTrue(topicOptional.isPresent());
         topicOptional.get().close(true).get();
         Awaitility.await().untilAsserted(() -> Assert.assertEquals(producer.getState(), HandlerState.State.Connecting));
@@ -186,10 +170,4 @@ public class ProducerCloseTest extends ProducerConsumerBase {
             producer.newMessage().value("test".getBytes()).send();
         }
     }
-
-    private void initClient() throws PulsarClientException {
-        replacePulsarClient(PulsarClient.builder().
-                serviceUrl(lookupUrl.toString()));
-    }
-
 }

@@ -38,12 +38,13 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -69,7 +71,7 @@ import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 
-@Slf4j
+@CustomLog
 public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
 
     protected final String defaultTenant = "public";
@@ -114,9 +116,9 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         }
 
         // Start BK.
-        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble1 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble1.start();
-        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble2 = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble2.start();
     }
 
@@ -209,10 +211,10 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
             throw new IllegalArgumentException("The method cleanupTopics does not support for global ZK");
         }
         waitChangeEventsInit(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Collections.singleton(cluster1));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Collections.singleton(cluster1), true);
         admin1.namespaces().unload(namespace);
         cleanupTopicAction.run();
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(cluster1, cluster2), true);
         waitChangeEventsInit(namespace);
     }
 
@@ -302,22 +304,50 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
     protected void cleanupPulsarResources() throws Exception {
         // delete namespaces.
         waitChangeEventsInit(replicatedNamespace);
-        admin1.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster1));
+        admin1.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster1), true);
+        admin1.namespaces().setNamespaceReplicationClusters(
+                sourceClusterAlwaysSchemaCompatibleNamespace, Sets.newHashSet(cluster1), true);
         if (!usingGlobalZK) {
-            admin2.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster2));
+            admin2.namespaces().setNamespaceReplicationClusters(replicatedNamespace, Sets.newHashSet(cluster2), true);
+            admin2.namespaces().setNamespaceReplicationClusters(
+                    sourceClusterAlwaysSchemaCompatibleNamespace, Sets.newHashSet(cluster2), true);
         }
-        admin1.namespaces().deleteNamespace(replicatedNamespace, true);
-        admin1.namespaces().deleteNamespace(nonReplicatedNamespace, true);
+        // When using global ZK, reducing replication clusters triggers async topic cleanup on removed clusters.
+        // Retry namespace deletion to handle topics that may be in a transitional state.
+        Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+            admin1.namespaces().deleteNamespace(replicatedNamespace, true);
+        });
+        Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+            admin1.namespaces().deleteNamespace(nonReplicatedNamespace, true);
+        });
+        Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+            admin1.namespaces().deleteNamespace(sourceClusterAlwaysSchemaCompatibleNamespace, true);
+        });
         if (!usingGlobalZK) {
-            admin2.namespaces().deleteNamespace(replicatedNamespace, true);
-            admin2.namespaces().deleteNamespace(nonReplicatedNamespace, true);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+                admin2.namespaces().deleteNamespace(replicatedNamespace, true);
+            });
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+                admin2.namespaces().deleteNamespace(nonReplicatedNamespace, true);
+            });
+            Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+                admin2.namespaces().deleteNamespace(sourceClusterAlwaysSchemaCompatibleNamespace, true);
+            });
         }
     }
 
     @Override
     protected void cleanup() throws Exception {
         // cleanup pulsar resources.
-        cleanupPulsarResources();
+        // Wrap in try-catch to ensure brokers, ZK, and BK are always shut down even if
+        // namespace deletion fails (e.g., topics in transitional state during async replication cleanup).
+        try {
+            cleanupPulsarResources();
+        } catch (Exception e) {
+            log.warn().exception(e).log(
+                    "Failed to cleanup Pulsar resources during shutdown,"
+                            + " continuing with broker/ZK/BK shutdown");
+        }
 
         // shutdown.
         markCurrentSetupNumberCleaned();
@@ -380,8 +410,13 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         Awaitility.await().untilAsserted(() -> {
             Optional<Topic> topicOptional2 = remoteCluster.getBrokerService().getTopic(topicName, false).get();
             assertTrue(topicOptional2.isPresent());
-            PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
-            assertFalse(persistentTopic2.getProducers().isEmpty());
+            if (TopicName.get(topicName).getDomain().equals(TopicDomain.persistent)) {
+                PersistentTopic persistentTopic2 = (PersistentTopic) topicOptional2.get();
+                assertFalse(persistentTopic2.getProducers().isEmpty());
+            } else {
+                NonPersistentTopic nonPersistentTopic2 = (NonPersistentTopic) topicOptional2.get();
+                assertFalse(nonPersistentTopic2.getProducers().isEmpty());
+            }
         });
     }
 
@@ -479,6 +514,7 @@ public abstract class OneWayReplicatorTestBase extends TestRetrySupport {
         Awaitility.await().untilAsserted(() -> {
             TopicPolicies policies = TopicPolicyTestUtils.getTopicPolicies(pulsar.getTopicPoliciesService(), topicName,
                     global);
+            Assert.assertNotNull(policies, "Topic policies not yet available");
             assertEquals(new HashSet<>(policies.getReplicationClusters()), expected);
             if (partitions == 0) {
                 checkNonPartitionedTopicLevelClusters(topicName.toString(), clusters, admin, pulsar,

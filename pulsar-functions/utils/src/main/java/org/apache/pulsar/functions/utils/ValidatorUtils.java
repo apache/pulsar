@@ -20,7 +20,7 @@ package org.apache.pulsar.functions.utils;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.pool.TypePool;
@@ -32,7 +32,7 @@ import org.apache.pulsar.common.functions.MessagePayloadProcessorConfig;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.functions.api.SerDe;
 
-@Slf4j
+@CustomLog
 public class ValidatorUtils {
     private static final String DEFAULT_SERDE = "org.apache.pulsar.functions.api.utils.DefaultSerDe";
 

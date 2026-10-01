@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
 
 public class PrometheusMetricsClient {
@@ -110,6 +111,7 @@ public class PrometheusMetricsClient {
     }
 
     public static class Metrics {
+        @Getter
         final Multimap<String, Metric> nameToDataPoints;
 
         public Metrics(Multimap<String, Metric> nameToDataPoints) {
@@ -141,6 +143,7 @@ public class PrometheusMetricsClient {
         }
 
         @SafeVarargs
+        @SuppressWarnings("varargs")
         public final Metric findSingleMetricByNameAndLabels(String metricName, Pair<String, String>... nameValuePairs) {
             List<Metric> metricByNameAndLabels = findByNameAndLabels(metricName, nameValuePairs);
             if (metricByNameAndLabels.size() != 1) {

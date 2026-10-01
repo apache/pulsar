@@ -23,7 +23,7 @@ import com.google.common.annotations.VisibleForTesting;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -33,7 +33,7 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.SourceContext;
 
-@Slf4j
+@CustomLog
 public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
 
     private final PulsarClient pulsarClient;
@@ -56,7 +56,7 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
 
     @Override
     public void open(Map<String, Object> config, SourceContext sourceContext) throws Exception {
-        log.info("Opening pulsar source with config: {}", pulsarSourceConfig);
+        log.info().attr("config", pulsarSourceConfig).log("Opening pulsar source");
 
         Class<?> typeArg = Reflections.loadClass(this.pulsarSourceConfig.getTypeClassName(), this.functionClassLoader);
 
@@ -66,8 +66,11 @@ public class SingleConsumerPulsarSource<T> extends PulsarSource<T> {
         PulsarSourceConsumerConfig<T> pulsarSourceConsumerConfig =
                 buildPulsarSourceConsumerConfig(topic, pulsarSourceConfig.getConsumerConfig(), typeArg);
 
-        log.info("Creating consumer for topic : {}, schema : {}, schemaInfo: {}", topic,
-                pulsarSourceConsumerConfig.getSchema(), pulsarSourceConsumerConfig.getSchema().getSchemaInfo());
+        log.info()
+                .attr("topic", topic)
+                .attr("schema", pulsarSourceConsumerConfig.getSchema())
+                .attr("schemaInfo", pulsarSourceConsumerConfig.getSchema().getSchemaInfo())
+                .log("Creating consumer");
 
         ConsumerBuilder<T> cb = createConsumeBuilder(topic, pulsarSourceConsumerConfig);
         consumer = cb.subscribeAsync().join();

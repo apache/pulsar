@@ -22,8 +22,8 @@ import java.util.Collections;
 import java.util.List;
 import lombok.Data;
 import lombok.Getter;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionAuthenticationSpec;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
@@ -37,7 +37,7 @@ public class InstanceConfig {
     private String functionVersion;
     private FunctionDetails functionDetails;
     private int maxBufferedTuples;
-    private Function.FunctionAuthenticationSpec functionAuthenticationSpec;
+    private FunctionAuthenticationSpec functionAuthenticationSpec;
     private int port;
     private String clusterName;
     // Max pending async requests per instance to avoid large number of concurrent requests.

@@ -19,8 +19,8 @@
 package org.apache.pulsar.tests.integration.transaction;
 
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
@@ -31,7 +31,7 @@ import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 /**
  * Transaction test base.
  */
-@Slf4j
+@CustomLog
 public abstract class TransactionTestBase extends PulsarTestSuite {
 
     @Override

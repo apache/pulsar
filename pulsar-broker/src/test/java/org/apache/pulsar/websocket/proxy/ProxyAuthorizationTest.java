@@ -84,42 +84,42 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     public void test() throws Exception {
         AuthorizationService auth = service.getAuthorizationService();
 
-        assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
+        assertFalse(auth.canLookup(TopicName.get("persistent://p1/ns1/ds1"), "my-role", null));
 
         admin.clusters().createCluster(configClusterName, ClusterData.builder().build());
         admin.tenants().createTenant("p1", new TenantInfoImpl(Sets.newHashSet("role1"), Sets.newHashSet("c1")));
         waitForChange();
-        admin.namespaces().createNamespace("p1/c1/ns1");
+        admin.namespaces().createNamespace("p1/ns1");
         waitForChange();
 
-        assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
+        assertFalse(auth.canLookup(TopicName.get("persistent://p1/ns1/ds1"), "my-role", null));
 
-        admin.namespaces().grantPermissionOnNamespace("p1/c1/ns1", "my-role", EnumSet.of(AuthAction.produce));
+        admin.namespaces().grantPermissionOnNamespace("p1/ns1", "my-role", EnumSet.of(AuthAction.produce));
         waitForChange();
 
-        assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
-        assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
+        assertTrue(auth.canLookup(TopicName.get("persistent://p1/ns1/ds1"), "my-role", null));
+        assertTrue(auth.canProduce(TopicName.get("persistent://p1/ns1/ds1"), "my-role", null));
 
-        String topic = "persistent://p1/c1/ns1/ds2";
+        String topic = "persistent://p1/ns1/ds2";
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().grantPermission(topic, "other-role", EnumSet.of(AuthAction.consume));
         waitForChange();
 
-        assertTrue(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null));
-        assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
-        assertFalse(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null));
-        assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null, null));
-        assertFalse(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null, null));
+        assertTrue(auth.canLookup(TopicName.get("persistent://p1/ns1/ds2"), "other-role", null));
+        assertTrue(auth.canProduce(TopicName.get("persistent://p1/ns1/ds1"), "my-role", null));
+        assertFalse(auth.canProduce(TopicName.get("persistent://p1/ns1/ds2"), "other-role", null));
+        assertTrue(auth.canConsume(TopicName.get("persistent://p1/ns1/ds2"), "other-role", null, null));
+        assertFalse(auth.canConsume(TopicName.get("persistent://p1/ns1/ds2"), "no-access-role", null, null));
 
-        assertFalse(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "no-access-role", null));
+        assertFalse(auth.canLookup(TopicName.get("persistent://p1/ns1/ds1"), "no-access-role", null));
 
-        admin.namespaces().grantPermissionOnNamespace("p1/c1/ns1", "my-role", EnumSet.allOf(AuthAction.class));
+        admin.namespaces().grantPermissionOnNamespace("p1/ns1", "my-role", EnumSet.allOf(AuthAction.class));
         waitForChange();
 
-        assertTrue(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null));
-        assertTrue(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null, null));
+        assertTrue(auth.canProduce(TopicName.get("persistent://p1/ns1/ds1"), "my-role", null));
+        assertTrue(auth.canConsume(TopicName.get("persistent://p1/ns1/ds1"), "my-role", null, null));
 
-        admin.namespaces().deleteNamespace("p1/c1/ns1", true);
+        admin.namespaces().deleteNamespace("p1/ns1", true);
         admin.tenants().deleteTenant("p1");
         admin.clusters().deleteCluster("c1");
     }

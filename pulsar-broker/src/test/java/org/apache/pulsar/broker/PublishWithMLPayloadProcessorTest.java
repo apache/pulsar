@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -35,7 +35,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
 
@@ -90,7 +90,7 @@ public class PublishWithMLPayloadProcessorTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             producer.sendAsync("message-" + i).whenComplete((ignored, e) -> {
                 if (e != null) {
-                    log.error("Failed to publish message", e);
+                    log.error().exception(e).log("Failed to publish message");
                 }
                 latch.countDown();
             });

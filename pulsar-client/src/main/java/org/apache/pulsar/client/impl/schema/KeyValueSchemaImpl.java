@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -44,7 +44,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * [Key, Value] pair schema definition.
  */
-@Slf4j
+@CustomLog
 public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> implements KeyValueSchema<K, V> {
 
 
@@ -289,8 +289,10 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
                                     String componentName,
                                     SchemaInfo schemaInfo) {
         if (schemaInfo == null) {
-            log.info("KeyValueSchema starting from null SchemaInfo. "
-                    + "This means that the topic {} still has not a schema", topicName);
+            log.info().attr("topic", topicName)
+                    .log("KeyValueSchema starting from null SchemaInfo."
+                            + " This means that the topic still has"
+                            + " not a schema");
             return;
         }
         KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo = KeyValueSchemaInfo.decodeKeyValueSchemaInfo(schemaInfo);
@@ -456,11 +458,13 @@ public class KeyValueSchemaImpl<K, V> extends AbstractSchema<KeyValue<K, V>> imp
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
                 }
-                log.error("Can't get last schema for topic {} using KeyValueSchemaImpl", topicName);
+                log.error().attr("topic", topicName).log("Can't get last schema for topic using KeyValueSchemaImpl");
                 throw new SchemaSerializationException(e.getCause());
             }
-            log.info("Configure schema {} for topic {} : {}",
-                    schemaVersion, topicName, schemaInfo.getSchemaDefinition());
+            log.info().attr("schema", schemaVersion)
+                    .attr("topic", topicName)
+                    .attr("schemaDefinition", schemaInfo.getSchemaDefinition())
+                    .log("Configure schema for topic");
         }
 
     }

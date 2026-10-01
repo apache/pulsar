@@ -24,7 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 /**
  * Test downgrading ZK from 3.5.x to 3.4.x. This is part of the upgrade from Pulsar 2.1.0 to 2.1.1.
  */
-@Slf4j
+@CustomLog
 public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
 
     protected static final int ENTRIES_PER_LEDGER = 1024;
@@ -64,13 +64,16 @@ public class PulsarZKDowngradeTest extends PulsarClusterTestBase {
                                 .build())
                 .build();
 
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+        log.info()
+                .attr("cluster", spec.clusterName())
+                .attr("with", spec.numBookies())
+                .attr("bookies", spec.numBrokers())
+                .log("Setting up cluster with bookies, brokers");
 
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
 
-        log.info("Cluster {} is setup", spec.clusterName());
+        log.info().attr("cluster", spec.clusterName()).log("Cluster is setup");
     }
 
     @AfterClass(alwaysRun = true)

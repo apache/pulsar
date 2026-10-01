@@ -47,7 +47,7 @@ public class BrokerToolTest {
 
             String message = baoStream.toString();
 
-            Class argumentsClass = Class.forName("org.apache.pulsar.broker.tools.LoadReportCommand");
+            Class<?> argumentsClass = Class.forName("org.apache.pulsar.broker.tools.LoadReportCommand");
             Field[] fields = argumentsClass.getDeclaredFields();
             for (Field field : fields) {
                 boolean fieldHasAnno = field.isAnnotationPresent(Option.class);

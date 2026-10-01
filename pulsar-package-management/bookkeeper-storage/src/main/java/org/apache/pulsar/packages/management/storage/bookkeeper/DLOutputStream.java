@@ -23,7 +23,7 @@ import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.distributedlog.LogRecord;
 import org.apache.distributedlog.api.AsyncLogWriter;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -31,7 +31,7 @@ import org.apache.distributedlog.api.DistributedLogManager;
 /**
  * DistributedLog Output Stream.
  */
-@Slf4j
+@CustomLog
 class DLOutputStream {
 
     private final DistributedLogManager distributedLogManager;
@@ -62,7 +62,8 @@ class DLOutputStream {
         try {
             int read = is.readNBytes(readBuffer, 0, readBuffer.length);
             if (read > 0) {
-                log.debug("write something into the ledgers offset: {}, length: {}", offset, read);
+                log.debug().attr("offset", offset).attr("length", read)
+                        .log("Write something into the ledgers");
                 final ByteBuf writeBuf = Unpooled.wrappedBuffer(readBuffer, 0, read);
                 offset += writeBuf.readableBytes();
                 final LogRecord record = new LogRecord(offset, writeBuf);
@@ -75,7 +76,7 @@ class DLOutputStream {
                 result.complete(this);
             }
         } catch (IOException e) {
-            log.error("Failed to get all records from the input stream", e);
+            log.error().exception(e).log("Failed to get all records from the input stream");
             result.completeExceptionally(e);
         }
     }

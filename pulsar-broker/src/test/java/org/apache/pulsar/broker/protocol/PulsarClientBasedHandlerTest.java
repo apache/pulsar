@@ -20,8 +20,7 @@ package org.apache.pulsar.broker.protocol;
 
 import java.io.File;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.util.PortManager;
+import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -33,13 +32,12 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarClientBasedHandlerTest {
 
     private static final String clusterName = "cluster";
     private static final int shutdownTimeoutMs = 100;
-    private final int zkPort = PortManager.nextFreePort();
-    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, zkPort, PortManager::nextFreePort);
+    private final LocalBookkeeperEnsemble bk = new LocalBookkeeperEnsemble(2, 0);
     private File tempDirectory;
     private PulsarService pulsar;
 
@@ -51,7 +49,7 @@ public class PulsarClientBasedHandlerTest {
         config.setAdvertisedAddress("localhost");
         config.setBrokerServicePort(Optional.of(0));
         config.setWebServicePort(Optional.of(0));
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + zkPort);
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bk.getZookeeperPort());
 
         tempDirectory = SimpleProtocolHandlerTestsBase.configureProtocolHandler(config,
                 PulsarClientBasedHandler.class.getName(), true);
@@ -71,7 +69,9 @@ public class PulsarClientBasedHandlerTest {
                 .protocol(PulsarClientBasedHandler.PROTOCOL);
         pulsar.close();
         final var elapsedMs = System.currentTimeMillis() - beforeStop;
-        log.info("It spends {} ms to stop the broker ({} for protocol handler)", elapsedMs, handler.closeTimeMs);
+        log.info().attr("elapsedMs", elapsedMs)
+                .attr("handlerCloseTimeMs", handler.closeTimeMs)
+                .log("Broker stop timing");
         Assert.assertTrue(elapsedMs
                < +handler.closeTimeMs + shutdownTimeoutMs + 1000); // tolerate 1 more second for other processes
     }

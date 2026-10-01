@@ -68,6 +68,7 @@ public abstract class TlsProducerConsumerBase extends ProducerConsumerBase {
         conf.setNumExecutorThreadPoolSize(5);
     }
 
+    @SuppressWarnings("deprecation")
     protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
         if (pulsarClient != null) {
             pulsarClient.close();

@@ -27,6 +27,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public class SchemaSerializationException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
 
     /**
      * Constructs an {@code SchemaSerializationException} with the specified detail message.

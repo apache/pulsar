@@ -62,6 +62,8 @@ public class TopicConsumerConfigurationData implements Serializable {
 
         @RequiredArgsConstructor
         class TopicsPattern implements TopicNameMatcher {
+            private static final long serialVersionUID = 1L;
+
             @NonNull
             private final Pattern topicsPattern;
 
@@ -73,6 +75,8 @@ public class TopicConsumerConfigurationData implements Serializable {
 
         @RequiredArgsConstructor
         class TopicName implements TopicNameMatcher {
+            private static final long serialVersionUID = 1L;
+
             @NonNull
             private final String topicName;
 

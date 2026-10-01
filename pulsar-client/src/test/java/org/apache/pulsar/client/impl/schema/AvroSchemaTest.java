@@ -38,9 +38,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaValidationException;
 import org.apache.avro.SchemaValidator;
@@ -71,7 +71,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
-@Slf4j
+@CustomLog
 public class AvroSchemaTest {
 
     @Data
@@ -552,5 +552,45 @@ public class AvroSchemaTest {
 
         LocalDateTimePojo pojo = avroSchema.decode(bytes);
         assertEquals(pojo.getValue().truncatedTo(ChronoUnit.MILLIS), now.truncatedTo(ChronoUnit.MILLIS));
+    }
+
+    public static class UuidLogicalTypeDto {
+        public UUID id;
+        public String name;
+
+        public UuidLogicalTypeDto() {
+        }
+
+        public UuidLogicalTypeDto(UUID id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+    }
+
+    @Test
+    public void testDecodeUuidLogicalTypeWithClass() {
+        UUID id = UUID.randomUUID();
+        String name = "name";
+        AvroSchema<UuidLogicalTypeDto> schema = AvroSchema.of(UuidLogicalTypeDto.class);
+        byte[] encoded = schema.encode(new UuidLogicalTypeDto(id, name));
+
+        UuidLogicalTypeDto decoded = schema.decode(encoded);
+        assertEquals(decoded.id, id);
+        assertEquals(decoded.name, name);
+    }
+
+    @Test
+    public void testDecodeUuidLogicalTypeWithJsonDef() {
+        UUID id = UUID.randomUUID();
+        String name = "name";
+        AvroSchema<UuidLogicalTypeDto> schemaFromClass = AvroSchema.of(UuidLogicalTypeDto.class);
+        byte[] encoded = schemaFromClass.encode(new UuidLogicalTypeDto(id, name));
+        String jsonDef = schemaFromClass.getSchemaInfo().getSchemaDefinition();
+
+        AvroSchema<UuidLogicalTypeDto> schemaFromJsonDef = AvroSchema.of(
+                SchemaDefinition.<UuidLogicalTypeDto>builder().withJsonDef(jsonDef).build());
+        UuidLogicalTypeDto decoded = schemaFromJsonDef.decode(encoded);
+        assertEquals(decoded.id, id);
+        assertEquals(decoded.name, name);
     }
 }

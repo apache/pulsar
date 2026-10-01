@@ -56,7 +56,7 @@ public class CompressionCodecZstd implements CompressionCodec {
     @Override
     public ByteBuf encode(ByteBuf source) {
         int uncompressedLength = source.readableBytes();
-        int maxLength = (int) ZSTD_COMPRESSOR.maxCompressedLength(uncompressedLength);
+        int maxLength = ZSTD_COMPRESSOR.maxCompressedLength(uncompressedLength);
 
         ByteBuf target = PulsarByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
         int compressedLength;

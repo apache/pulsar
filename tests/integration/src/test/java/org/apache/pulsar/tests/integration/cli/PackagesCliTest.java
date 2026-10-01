@@ -39,6 +39,7 @@ public class PackagesCliTest extends TestRetrySupport {
     private static final String clusterNamePrefix = "packages-service";
     private PulsarCluster pulsarCluster;
 
+    @SuppressWarnings("deprecation")
     @BeforeClass(alwaysRun = true)
     public final void setup() throws Exception {
         incrementSetupNumber();
@@ -82,6 +83,7 @@ public class PackagesCliTest extends TestRetrySupport {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 60000 * 8)
     public void testPackagesOperationsWithUploadingPackages() throws Exception {
         String testPackageName = "function://public/default/test@v1";

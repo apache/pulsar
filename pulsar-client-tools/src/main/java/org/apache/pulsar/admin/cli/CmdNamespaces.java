@@ -41,7 +41,6 @@ import org.apache.pulsar.client.admin.Mode;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -82,17 +81,6 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Command(description = "Get the namespaces for a tenant in a cluster", hidden = true)
-    private class GetNamespacesPerCluster extends CliCommand {
-        @Parameters(description = "tenant/cluster", arity = "1")
-        private String params;
-
-        @Override
-        void run() throws PulsarAdminException {
-            String[] parts = validatePropertyCluster(params);
-            print(getAdmin().namespaces().getNamespaces(parts[0], parts[1]));
-        }
-    }
 
     @Command(description = "Get the list of topics for a namespace")
     private class GetTopics extends CliCommand {
@@ -176,28 +164,15 @@ public class CmdNamespaces extends CmdBase {
                         "Invalid number of bundles. Number of bundles has to be in the range of (0, 2^32].");
             }
 
-            NamespaceName namespaceName = NamespaceName.get(namespace);
-            if (namespaceName.isV2()) {
-                Policies policies = new Policies();
-                policies.bundles = numBundles > 0 ? BundlesData.builder()
-                        .numBundles(numBundles).build() : null;
+            Policies policies = new Policies();
+            policies.bundles = numBundles > 0 ? BundlesData.builder()
+                    .numBundles(numBundles).build() : null;
 
-                if (clusters != null) {
-                    policies.replication_clusters = new HashSet<>(clusters);
-                }
-
-                getAdmin().namespaces().createNamespace(namespace, policies);
-            } else {
-                if (numBundles == 0) {
-                    getAdmin().namespaces().createNamespace(namespace);
-                } else {
-                    getAdmin().namespaces().createNamespace(namespace, numBundles);
-                }
-
-                if (clusters != null && !clusters.isEmpty()) {
-                    getAdmin().namespaces().setNamespaceReplicationClusters(namespace, new HashSet<>(clusters));
-                }
+            if (clusters != null) {
+                policies.replication_clusters = new HashSet<>(clusters);
             }
+
+            getAdmin().namespaces().createNamespace(namespace, policies);
         }
     }
 
@@ -328,11 +303,20 @@ public class CmdNamespaces extends CmdBase {
                 "-c" }, description = "Replication Cluster Ids list (comma separated values)", required = true)
         private String clusterIds;
 
+        @Option(names = { "--skipCompareTopicPartitions" }, defaultValue = "false",
+                description = "Whether skip to check topic partitions compatibility before enabling replication)")
+        private Boolean skipCompareTopicPartitions;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
             List<String> clusters = Lists.newArrayList(clusterIds.split(","));
-            getAdmin().namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusters));
+            boolean skipCompareTopicPartitions = false;
+            if (this.skipCompareTopicPartitions != null) {
+                skipCompareTopicPartitions = this.skipCompareTopicPartitions;
+            }
+            getAdmin().namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet(clusters),
+                    !skipCompareTopicPartitions);
         }
     }
 
@@ -396,6 +380,46 @@ public class CmdNamespaces extends CmdBase {
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
             getAdmin().namespaces().removeSubscriptionTypesEnabled(namespace);
+        }
+    }
+
+    @Command(description = "Set allowed topic property keys for metrics for a namespace")
+    private class SetAllowedTopicPropertyKeysForMetrics extends CliCommand {
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespaceName;
+
+        @Option(names = {"--keys", "-k"}, description = "Allowed topic property keys list (comma separated values).",
+                required = true, split = ",")
+        private List<String> keys;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(namespaceName);
+            getAdmin().namespaces().setAllowedTopicPropertyKeysForMetrics(namespace, new HashSet<>(keys));
+        }
+    }
+
+    @Command(description = "Get allowed topic property keys for metrics for a namespace")
+    private class GetAllowedTopicPropertyKeysForMetrics extends CliCommand {
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespaceName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(namespaceName);
+            print(getAdmin().namespaces().getAllowedTopicPropertyKeysForMetrics(namespace));
+        }
+    }
+
+    @Command(description = "Remove allowed topic property keys for metrics for a namespace")
+    private class RemoveAllowedTopicPropertyKeysForMetrics extends CliCommand {
+        @Parameters(description = "tenant/namespace", arity = "1")
+        private String namespaceName;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(namespaceName);
+            getAdmin().namespaces().removeAllowedTopicPropertyKeysForMetrics(namespace);
         }
     }
 
@@ -2027,6 +2051,7 @@ public class CmdNamespaces extends CmdBase {
         private String namespaceName;
 
         @Override
+        @SuppressWarnings("deprecation")
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
             System.out.println(getAdmin().namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace)
@@ -2048,6 +2073,7 @@ public class CmdNamespaces extends CmdBase {
         private boolean disabled = false;
 
         @Override
+        @SuppressWarnings("deprecation")
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
 
@@ -2137,6 +2163,12 @@ public class CmdNamespaces extends CmdBase {
         @Option(names = { "--disable", "-d" }, description = "Disable schema validation enforced")
         private boolean disable = false;
 
+        @Option(names = { "--enable-for-replicator" },
+                description = "By default, brokers always allow replicator to register new compatible schemas even"
+                + " when auto updates are disabled, if you want to disable replicators to register compatible schemas,"
+                + " please set it to false")
+        private Boolean enableForReplicator;
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(namespaceName);
@@ -2144,7 +2176,10 @@ public class CmdNamespaces extends CmdBase {
             if (enable == disable) {
                 throw new ParameterException("Need to specify either --enable or --disable");
             }
-            getAdmin().namespaces().setIsAllowAutoUpdateSchema(namespace, enable);
+            if (enable && enableForReplicator != null && !enableForReplicator) {
+                throw new ParameterException("Can not enable for all producers but denies for replicators");
+            }
+            getAdmin().namespaces().setIsAllowAutoUpdateSchema(namespace, enable, enableForReplicator);
         }
     }
 
@@ -2669,7 +2704,6 @@ public class CmdNamespaces extends CmdBase {
     public CmdNamespaces(Supplier<PulsarAdmin> admin) {
         super("namespaces", admin);
         addCommand("list", new GetNamespacesPerProperty());
-        addCommand("list-cluster", new GetNamespacesPerCluster());
 
         addCommand("topics", new GetTopics());
         addCommand("bundles", new GetBundles());
@@ -2692,6 +2726,10 @@ public class CmdNamespaces extends CmdBase {
         addCommand("set-subscription-types-enabled", new SetSubscriptionTypesEnabled());
         addCommand("get-subscription-types-enabled", new GetSubscriptionTypesEnabled());
         addCommand("remove-subscription-types-enabled", new RemoveSubscriptionTypesEnabled());
+
+        addCommand("set-allowed-topic-property-keys-for-metrics", new SetAllowedTopicPropertyKeysForMetrics());
+        addCommand("get-allowed-topic-property-keys-for-metrics", new GetAllowedTopicPropertyKeysForMetrics());
+        addCommand("remove-allowed-topic-property-keys-for-metrics", new RemoveAllowedTopicPropertyKeysForMetrics());
 
         addCommand("set-allowed-clusters", new SetAllowedClusters());
         addCommand("get-allowed-clusters", new GetAllowedClusters());

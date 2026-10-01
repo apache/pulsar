@@ -285,11 +285,12 @@ public class TopKBundlesTest {
 
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testPartitionSort() {
 
         Random rand = new Random();
-        List<Map.Entry<String, ? extends Comparable>> actual = new ArrayList<>();
-        List<Map.Entry<String, ? extends Comparable>> expected = new ArrayList<>();
+        @SuppressWarnings("rawtypes") List<Map.Entry<String, ? extends Comparable>> actual = new ArrayList<>();
+        @SuppressWarnings("rawtypes") List<Map.Entry<String, ? extends Comparable>> expected = new ArrayList<>();
 
         for (int j = 0; j < 100; j++) {
             Map<String, Integer> map = new HashMap<>();
@@ -318,5 +319,30 @@ public class TopKBundlesTest {
                 assertNull(errorMsg);
             }
         }
+    }
+
+    // Issue https://github.com/apache/pulsar/issues/24754
+    @Test
+    public void testPartitionSortCompareToContractViolationIssue() {
+        Random rnd = new Random(0);
+        ArrayList<NamespaceBundleStats> stats = new ArrayList<>();
+        for (int i = 0; i < 1000; ++i) {
+            NamespaceBundleStats s = new NamespaceBundleStats();
+            s.msgThroughputIn = 4 * 75000 * rnd.nextDouble();  // Just above threshold (1e5)
+            s.msgThroughputOut = 75000000 - (4 * (75000 * rnd.nextDouble()));
+            s.msgRateIn = 4 * 75 * rnd.nextDouble();
+            s.msgRateOut = 75000 - (4 * 75 * rnd.nextDouble());
+            s.topics = i;
+            s.consumerCount = i;
+            s.producerCount = 4 * rnd.nextInt(375);
+            s.cacheSize = 75000000 - (rnd.nextInt(4 * 75000));
+            stats.add(s);
+        }
+        @SuppressWarnings("rawtypes") List<Map.Entry<String, ? extends Comparable>> bundleEntries = new ArrayList<>();
+
+        for (NamespaceBundleStats s : stats) {
+            bundleEntries.add(Map.entry("bundle-" + s.msgThroughputIn, s));
+        }
+        TopKBundles.partitionSort(bundleEntries, 100);
     }
 }

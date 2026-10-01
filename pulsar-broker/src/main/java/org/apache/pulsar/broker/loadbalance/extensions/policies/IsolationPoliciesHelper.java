@@ -21,14 +21,14 @@ package org.apache.pulsar.broker.loadbalance.extensions.policies;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 
-@Slf4j
+@CustomLog
 public class IsolationPoliciesHelper {
 
     private final SimpleResourceAllocationPolicies policies;

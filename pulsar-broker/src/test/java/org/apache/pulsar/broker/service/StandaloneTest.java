@@ -65,5 +65,11 @@ public class StandaloneTest {
         assertEquals(standalone.getConfig().getMaxSecondsToClearTopicNameCache(), 1);
         assertEquals(standalone.getConfig().getTopicNameCacheMaxCapacity(), 200);
         assertEquals(standalone.getConfig().isCreateTopicToRemoteClusterForReplication(), true);
+        assertEquals(standalone.getConfig().getPulsarChannelWriteBufferHighWaterMark(), 60000);
+        assertEquals(standalone.getConfig().getPulsarChannelWriteBufferLowWaterMark(), 120000);
+        assertEquals(standalone.getConfig().isPulsarChannelPauseReceivingRequestsIfUnwritable(), true);
+        assertEquals(standalone.getConfig().getPulsarChannelPauseReceivingCooldownMs(), 10_000);
+        assertEquals(standalone.getConfig().getPulsarChannelPauseReceivingCooldownRateLimitPermits(), 100);
+        assertEquals(standalone.getConfig().getPulsarChannelPauseReceivingCooldownRateLimitPeriodMs(), 200);
     }
 }

@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -41,9 +42,8 @@ import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeySharedMode;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersistentDispatcherMultipleConsumers {
 
     private final StickyKeyConsumerSelector selector;
@@ -89,7 +89,10 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
     @Override
     public synchronized CompletableFuture<Void> addConsumer(Consumer consumer) {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
-            log.warn("[{}] Dispatcher is already closed. Closing consumer {}", name, consumer);
+            log.warn()
+                    .attr("name", name)
+                    .attr("consumer", consumer)
+                    .log("Dispatcher is already closed. Closing consumer");
             consumer.disconnect();
             return CompletableFuture.completedFuture(null);
         }
@@ -98,7 +101,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
                     if (ex != null) {
                         synchronized (NonPersistentStickyKeyDispatcherMultipleConsumers.this) {
                             consumerSet.removeAll(consumer);
-                            consumerList.remove(consumer);
+                            removeConsumerFromList(consumer);
                         }
                         throw FutureUtil.wrapToCompletionException(ex);
                     }
@@ -151,7 +154,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
         consumerStickyKeyHashesMap.clear();
 
         for (Entry entry : entries) {
-            byte[] stickyKey = peekStickyKey(entry.getDataBuffer());
+            byte[] stickyKey = peekStickyKey(entry);
             int stickyKeyHash = selector.makeStickyKeyHash(stickyKey);
 
             Consumer consumer = selector.select(stickyKeyHash);
@@ -182,7 +185,7 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
                 TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -sendMessageInfo.getTotalMessages());
             } else {
                 entriesForConsumer.forEach(e -> {
-                    int totalMsgs = Commands.getNumberOfMessagesInBatch(e.getDataBuffer(), subscription.toString(), -1);
+                    int totalMsgs = getNumberOfMessagesInBatch(e);
                     if (totalMsgs > 0) {
                         msgDrop.recordEvent(totalMsgs);
                     }
@@ -199,6 +202,4 @@ public class NonPersistentStickyKeyDispatcherMultipleConsumers extends NonPersis
     public boolean hasSameKeySharedPolicy(KeySharedMeta ksm) {
         return (ksm.getKeySharedMode() == this.keySharedMode);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NonPersistentStickyKeyDispatcherMultipleConsumers.class);
 }

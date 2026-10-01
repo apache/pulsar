@@ -153,6 +153,26 @@ public abstract class BaseAvroSchemaCompatibilityTest {
      * backward-compatible from the latest to newest and from the newest to latest.
      */
     @Test
+    public void testLegacyNamedTypeReferenceForm() {
+        // Avro 1.12.2 rejects named type references written as {"type": "name"} (AVRO-4176); schemas stored in
+        // that form must remain compatible with the same schema written with bare names
+        String colorEnum = "{\"type\":\"enum\",\"name\":\"Color\",\"namespace\":\"org.example.shapes\","
+                + "\"symbols\":[\"RED\",\"BLUE\"]}";
+        String legacyForm = "{\"type\":\"record\",\"name\":\"Drawing\",\"namespace\":\"org.example.shapes\","
+                + "\"fields\":[{\"name\":\"background\",\"type\":" + colorEnum + "},"
+                + "{\"name\":\"outline\",\"type\":{\"type\":\"org.example.shapes.Color\"}}]}";
+        String bareNameForm = legacyForm.replace("{\"type\":\"org.example.shapes.Color\"}",
+                "\"org.example.shapes.Color\"");
+        SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(getSchemaData(legacyForm),
+                        getSchemaData(bareNameForm), SchemaCompatibilityStrategy.FULL),
+                "the legacy and the bare name form of a schema are the same schema");
+        Assert.assertTrue(schemaCompatibilityCheck.isCompatible(getSchemaData(bareNameForm),
+                        getSchemaData(legacyForm), SchemaCompatibilityStrategy.FULL),
+                "the legacy and the bare name form of a schema are the same schema");
+    }
+
+    @Test
     public void testFullCompatibility() {
         SchemaCompatibilityCheck schemaCompatibilityCheck = getSchemaCheck();
         Assert.assertTrue(schemaCompatibilityCheck.isCompatible(schemaData1, schemaData2,

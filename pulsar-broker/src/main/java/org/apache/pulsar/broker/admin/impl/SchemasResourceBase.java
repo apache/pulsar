@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.admin.impl;
 import static java.util.Objects.isNull;
 import static org.apache.commons.lang3.StringUtils.defaultIfEmpty;
 import com.google.common.annotations.VisibleForTesting;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -28,7 +29,6 @@ import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
@@ -48,8 +48,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SchemasResourceBase extends AdminResource {
 
@@ -245,10 +243,7 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, operation));
     }
 
-
     protected boolean shouldPrintErrorLog(Throwable ex) {
         return isNot307And404Exception(ex);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);
 }

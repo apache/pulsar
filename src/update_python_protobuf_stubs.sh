@@ -20,7 +20,7 @@
 
 # This script generates Python gRPC and Protobuf stubs from the .proto files
 # Set the version of PYTHON_GRPCIO_VERSION to the version which matches the version of grpcio in the Dockerfile
-PYTHON_GRPCIO_VERSION=${PYTHON_GRPCIO_VERSION:-"1.73.1"}
+PYTHON_GRPCIO_VERSION=${PYTHON_GRPCIO_VERSION:-"1.78.0"}
 
 set -euo pipefail
 

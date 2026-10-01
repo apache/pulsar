@@ -21,14 +21,14 @@ package org.apache.bookkeeper.mledger;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.ToString;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.CompressionType;
 import org.apache.commons.lang3.StringUtils;
 
 @Data
 @AllArgsConstructor
 @ToString
 public class MetadataCompressionConfig {
-    MLDataFormats.CompressionType compressionType;
+    CompressionType compressionType;
     long compressSizeThresholdInBytes;
 
     public MetadataCompressionConfig(String compressionType) throws IllegalArgumentException {
@@ -41,15 +41,15 @@ public class MetadataCompressionConfig {
     }
 
     public static MetadataCompressionConfig noCompression =
-            new MetadataCompressionConfig(MLDataFormats.CompressionType.NONE, 0);
+            new MetadataCompressionConfig(CompressionType.NONE, 0);
 
-    private MLDataFormats.CompressionType parseCompressionType(String value) throws IllegalArgumentException {
+    private CompressionType parseCompressionType(String value) throws IllegalArgumentException {
         if (StringUtils.isEmpty(value)) {
-            return MLDataFormats.CompressionType.NONE;
+            return CompressionType.NONE;
         }
 
-        MLDataFormats.CompressionType compressionType;
-        compressionType = MLDataFormats.CompressionType.valueOf(value);
+        CompressionType compressionType;
+        compressionType = CompressionType.valueOf(value);
 
         return compressionType;
     }

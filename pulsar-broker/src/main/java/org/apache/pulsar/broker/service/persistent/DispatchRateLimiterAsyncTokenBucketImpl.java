@@ -19,13 +19,13 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.qos.AsyncTokenBucketBuilder;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class DispatchRateLimiterAsyncTokenBucketImpl extends DispatchRateLimiter {
     private volatile AsyncTokenBucket dispatchRateLimiterOnMessage;
     private volatile AsyncTokenBucket dispatchRateLimiterOnByte;
@@ -102,7 +102,7 @@ public class DispatchRateLimiterAsyncTokenBucketImpl extends DispatchRateLimiter
     @Override
     public synchronized void updateDispatchRate(DispatchRate dispatchRate) {
         // synchronized to prevent race condition from concurrent zk-watch
-        log.info("setting message-dispatch-rate {}", dispatchRate);
+        log.info().attr("dispatchRate", dispatchRate).log("setting message-dispatch-rate");
 
         long msgRate = dispatchRate.getDispatchThrottlingRateInMsg();
         long byteRate = dispatchRate.getDispatchThrottlingRateInByte();
@@ -200,6 +200,4 @@ public class DispatchRateLimiterAsyncTokenBucketImpl extends DispatchRateLimiter
             dispatchRateLimiterOnByte = null;
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(DispatchRateLimiterAsyncTokenBucketImpl.class);
 }

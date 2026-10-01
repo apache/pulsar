@@ -29,7 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -42,7 +42,7 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
 
     @Test(dataProvider = "impl")
@@ -61,8 +61,8 @@ public class MetadataStoreBatchingTest extends BaseMetadataStoreTest {
 
         Stat s1 = f1.join();
         Stat s2 = f2.join();
-        log.info("s1: {}", s1);
-        log.info("s2: {}", s2);
+        log.info().attr("s1", s1).log("s1");
+        log.info().attr("s2", s2).log("s2");
     }
 
     @Test(dataProvider = "impl")

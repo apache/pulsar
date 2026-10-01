@@ -28,7 +28,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.AvroRuntimeException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -49,10 +49,11 @@ import org.testng.annotations.Test;
  * Unit testing generic schemas.
  * this test is duplicated with GenericSchemaImplTest independent of GenericSchemaImpl
  */
-@Slf4j
+@CustomLog
 public class GenericSchemaTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericAvroSchema() {
         Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
         GenericSchema decodeSchema = GenericAvroSchema.of(encodeSchema.getSchemaInfo());
@@ -60,6 +61,7 @@ public class GenericSchemaTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericJsonSchema() {
         Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
         GenericSchema decodeSchema = GenericJsonSchema.of(encodeSchema.getSchemaInfo());
@@ -136,7 +138,7 @@ public class GenericSchemaTest {
             Foo foo = newFoo(i);
             byte[] data = encodeSchema.encode(foo);
 
-            log.info("Decoding : {}", new String(data, UTF_8));
+            log.info().attr("data", new String(data, UTF_8)).log("Decoding");
 
             GenericRecord record;
             if (decodeSchema instanceof AutoConsumeSchema) {

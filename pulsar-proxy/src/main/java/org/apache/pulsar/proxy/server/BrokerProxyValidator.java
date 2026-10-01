@@ -32,11 +32,11 @@ import java.util.StringTokenizer;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 
-@Slf4j
+@CustomLog
 public class BrokerProxyValidator {
     private static final String SEPARATOR = "\\s*,\\s*";
     private static final String ALLOW_ANY = "*";

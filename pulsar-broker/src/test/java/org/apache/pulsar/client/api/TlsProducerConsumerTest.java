@@ -33,19 +33,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(TlsProducerConsumerTest.class);
 
     /**
      * verifies that messages whose size is larger than 2^14 bytes (max size of single TLS chunk) can be
@@ -55,18 +54,18 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
      */
     @Test(timeOut = 30000)
     public void testTlsLargeSizeMessage() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size -- {}", messageSize);
+        log.info().attr("size", messageSize).log("message size");
 
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         internalSetUpForNamespace();
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1")
                 .create();
         for (int i = 0; i < 10; i++) {
             byte[] message = new byte[messageSize];
@@ -84,21 +83,21 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test(timeOut = 30000)
     public void testTlsClientAuthOverBinaryProtocol() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size -- {}", messageSize);
+        log.info().attr("size", messageSize).log("message size");
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on binary protocol without sending certs - expect failure
         internalSetUpForClient(false, pulsar.getBrokerServiceUrlTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+            pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
@@ -108,7 +107,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Test 2 - Using TLS on binary protocol - sending certs
         internalSetUpForClient(true, pulsar.getBrokerServiceUrlTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+            pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
@@ -117,16 +116,16 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
 
     @Test(timeOut = 30000)
     public void testTlsClientAuthOverHTTPProtocol() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         final int messageSize = 16 * 1024 + 1;
-        log.info("-- message size -- {}", messageSize);
+        log.info().attr("size", messageSize).log("message size");
         internalSetUpForNamespace();
 
         // Test 1 - Using TLS on https without sending certs - expect failure
         internalSetUpForClient(false, pulsar.getWebServiceAddressTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+            pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
             Assert.fail("Server should have failed the TLS handshake since client didn't .");
         } catch (Exception ex) {
@@ -136,17 +135,19 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Test 2 - Using TLS on https - sending certs
         internalSetUpForClient(true, pulsar.getWebServiceAddressTls());
         try {
-            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+            pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Exclusive).subscribe();
         } catch (Exception ex) {
             Assert.fail("Should not fail since certs are sent.");
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 60000)
     public void testTlsCertsFromDynamicStream() throws Exception {
-        log.info("-- Starting {} test --", methodName);
-        String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        log.info().attr("method", methodName).log("Starting test");
+        internalSetUpForNamespace();
+        String topicName = "persistent://my-property/my-ns/my-topic1";
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrlTls())
                 .enableTls(true).allowTlsInsecureConnection(false)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
@@ -170,7 +171,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
         topicRef.close(false);
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic1")
                 .createAsync().get(30, TimeUnit.SECONDS);
         for (int i = 0; i < 10; i++) {
             producer.send(("test" + i).getBytes());
@@ -185,7 +186,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     /**
@@ -200,9 +201,11 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testTlsCertsFromDynamicStreamExpiredAndRenewCert() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
+        internalSetUpForNamespace();
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrlTls())
                 .enableTls(true).allowTlsInsecureConnection(false)
                 .autoCertRefreshSeconds(1)
@@ -224,7 +227,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         PulsarClient pulsarClient = clientBuilder.build();
         Consumer<byte[]> consumer = null;
         try {
-            consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+            consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
             Assert.fail("should have failed due to invalid tls cert");
         } catch (PulsarClientException e) {
@@ -233,7 +236,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         sleepSeconds(2);
         certIndex.set(0);
         try {
-            consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+            consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                     .subscriptionName("my-subscriber-name").subscribe();
             Assert.fail("should have failed due to invalid tls cert");
         } catch (PulsarClientException e) {
@@ -242,11 +245,12 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         sleepSeconds(2);
         trustStoreIndex.set(0);
         sleepSeconds(2);
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+        consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
         consumer.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
+    @SuppressWarnings("deprecation")
 
     private ByteArrayInputStream createByteInputStream(String filePath) throws IOException {
         try (InputStream inStream = new FileInputStream(filePath)) {
@@ -301,6 +305,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         @Cleanup
         Producer<byte[]> ignored = client.newProducer().topic(topicName).create();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testTlsWithFakeAuthentication() throws Exception {

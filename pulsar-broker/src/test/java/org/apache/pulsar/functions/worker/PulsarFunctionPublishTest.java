@@ -41,7 +41,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
@@ -83,7 +83,7 @@ import org.testng.annotations.Test;
 /**
  * Test Pulsar function state.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "functions-worker")
 public class PulsarFunctionPublishTest {
     LocalBookkeeperEnsemble bkEnsemble;
@@ -117,13 +117,14 @@ public class PulsarFunctionPublishTest {
     public Object[][] validRoleName() {
         return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod
     void setup(Method method) throws Exception {
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         config = new ServiceConfiguration();
@@ -245,6 +246,7 @@ public class PulsarFunctionPublishTest {
             }
         }
     }
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
@@ -291,6 +293,7 @@ public class PulsarFunctionPublishTest {
         PulsarWorkerService workerService = new PulsarWorkerService();
         return workerService;
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName,
                                                      String sourceTopic, String publishTopic, String subscriptionName) {
@@ -326,7 +329,7 @@ public class PulsarFunctionPublishTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
@@ -404,6 +407,7 @@ public class PulsarFunctionPublishTest {
 
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testMultipleAddress() throws Exception {
@@ -415,7 +419,7 @@ public class PulsarFunctionPublishTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopic, publishTopic, subscriptionName);
@@ -468,7 +472,7 @@ public class PulsarFunctionPublishTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
@@ -552,7 +556,7 @@ public class PulsarFunctionPublishTest {
         // check if all function files are deleted from BK
         String url = String.format("distributedlog://%s/pulsar/functions", "127.0.0.1" + ":"
                 + bkEnsemble.getZookeeperPort());
-        log.info("dlog url: {}", url);
+        log.info().attr("url", url).log("dlog url");
         URI dlogUri = URI.create(url);
 
         @Cleanup
@@ -585,7 +589,7 @@ public class PulsarFunctionPublishTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopic, publishTopic, subscriptionName);

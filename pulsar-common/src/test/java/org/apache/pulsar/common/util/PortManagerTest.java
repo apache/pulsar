@@ -18,19 +18,41 @@
  */
 package org.apache.pulsar.common.util;
 
-import static org.apache.pulsar.common.util.PortManager.checkPortIfLocked;
-import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
-import static org.apache.pulsar.common.util.PortManager.releaseLockedPort;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
 public class PortManagerTest {
+
     @Test
-    public void testCheckPortIfLockedAndRemove() {
-        int port = nextLockedFreePort();
-        assertTrue(checkPortIfLocked(port));
-        assertTrue(releaseLockedPort(port));
-        assertFalse(checkPortIfLocked(port));
+    public void allocatesAFreePort() {
+        int port = PortManager.nextLockedFreePort();
+        try {
+            assertTrue(port > 0);
+            assertTrue(PortManager.checkPortIfLocked(port));
+        } finally {
+            PortManager.releaseLockedPort(port);
+        }
+    }
+
+    @Test
+    public void allocatesDistinctPorts() {
+        int p1 = PortManager.nextLockedFreePort();
+        int p2 = PortManager.nextLockedFreePort();
+        try {
+            assertNotEquals(p1, p2);
+        } finally {
+            PortManager.releaseLockedPort(p1);
+            PortManager.releaseLockedPort(p2);
+        }
+    }
+
+    @Test
+    public void releasingMarksPortAsUnlocked() {
+        int port = PortManager.nextLockedFreePort();
+        assertTrue(PortManager.checkPortIfLocked(port));
+        assertTrue(PortManager.releaseLockedPort(port));
+        assertFalse(PortManager.checkPortIfLocked(port));
     }
 }

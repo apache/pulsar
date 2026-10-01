@@ -33,6 +33,7 @@ import org.apache.pulsar.packages.management.core.PackagesStorageProvider;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import org.apache.pulsar.packages.management.core.common.PackageMetadataUtil;
 import org.apache.pulsar.packages.management.core.common.PackageName;
+import org.apache.pulsar.packages.management.core.common.PackageType;
 import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -125,7 +126,7 @@ public class PackagesManagementImplTest {
             .contact("test@apache.org")
             .description("A mocked test package")
             .createTime(System.currentTimeMillis()).build();
-        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata, true))) {
             packagesManagement.upload(packageName, metadata, inputStream).get();
         } catch (Exception e) {
             Assert.fail("should not throw any exception");
@@ -142,7 +143,7 @@ public class PackagesManagementImplTest {
         // download an existent package should succeed
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             packagesManagement.download(packageName, outputStream).get();
-            PackageMetadata getPackage = PackageMetadataUtil.fromBytes(outputStream.toByteArray());
+            PackageMetadata getPackage = PackageMetadataUtil.fromBytes(outputStream.toByteArray(), true);
             Assert.assertEquals(metadata, getPackage);
         } catch (Exception e) {
             Assert.fail("should not throw any exception");
@@ -254,5 +255,23 @@ public class PackagesManagementImplTest {
         Assert.assertEquals(metaPath, "function/public/default/test/v1/meta");
         dataPath = impl.packagePath(pn);
         Assert.assertEquals(dataPath, "function/public/default/test/v1/tmp");
+    }
+
+    @Test
+    public void testListPackagesRejectsInvalidNamespace() throws Exception {
+        PackageName packageName = PackageName.get("function://tenant/ns/name@v1");
+        packagesManagement.upload(packageName, PackageMetadata.builder().description("test").build(),
+                new ByteArrayInputStream("test".getBytes())).get();
+        Assert.assertEquals(packagesManagement.list(PackageType.FUNCTION, "tenant", "ns").get(), List.of("name"));
+
+        for (String[] tenantAndNamespace : new String[][]{
+                {"tenant", ".."}, {"tenant", "."}, {"tenant", ""}, {"tenant", "ns/name"}, {"..", "tenant"}}) {
+            try {
+                packagesManagement.list(PackageType.FUNCTION, tenantAndNamespace[0], tenantAndNamespace[1]).get();
+                Assert.fail("Listing should have been rejected for " + String.join("/", tenantAndNamespace));
+            } catch (ExecutionException e) {
+                Assert.assertTrue(e.getCause() instanceof IllegalArgumentException, "Unexpected exception " + e);
+            }
+        }
     }
 }

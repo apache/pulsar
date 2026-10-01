@@ -18,59 +18,129 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.LedgerMetadataBuilder;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.compaction.Compactor;
-import org.apache.zookeeper.MockZooKeeper;
+import org.apache.pulsar.compaction.PulsarTopicCompactionService;
+import org.apache.pulsar.compaction.StrategicTwoPhaseCompactor;
 import org.awaitility.Awaitility;
-import org.awaitility.reflect.WhiteboxImpl;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class CompactionConcurrencyTest extends ProducerConsumerBase {
-    // don't make this over 2000ms, otherwise the test will be flaky due to ZKSessionWatcher
-    static final int DELETE_OPERATION_DELAY_MS = 1900;
+public class CompactionConcurrencyTest extends SharedPulsarBaseTest {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+    @Test(timeOut = 60000)
+    public void testStrategicCompactionCloseFailurePreservesPublishedLedger() throws Exception {
+        String topicName = newTopicName();
+        BookKeeper bookKeeper = getPulsar().getBookKeeperClient();
+        var strategy = new TopicCompactionStrategy<String>() {
+            @Override
+            public Schema<String> getSchema() {
+                return Schema.STRING;
+            }
 
-    @AfterClass
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+            @Override
+            public boolean shouldKeepLeft(String previous, String current) {
+                return false;
+            }
+        };
+        var compactor = new StrategicTwoPhaseCompactor(getConfig(), pulsarClient, bookKeeper,
+                getPulsar().getCompactorExecutor());
+        try (var producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).enableBatching(false).create()) {
+            producer.newMessage().key("key").value("original").send();
+            var originalCompaction = compactor.compact(topicName, strategy);
+            assertThat(originalCompaction).succeedsWithin(15, TimeUnit.SECONDS);
+            long originalLedgerId = originalCompaction.join();
+            var topicFuture = getTopic(topicName, false);
+            assertThat(topicFuture).succeedsWithin(10, TimeUnit.SECONDS);
+            PersistentTopic topic = (PersistentTopic) topicFuture.join().orElseThrow();
+            var cursor = topic.getSubscription(Compactor.COMPACTION_SUBSCRIPTION).getCursor();
+            Awaitility.await().untilAsserted(() -> assertThat(cursor.getProperties())
+                    .containsEntry(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, originalLedgerId));
+            Position originalPosition = cursor.getMarkDeletedPosition();
+            producer.newMessage().key("key").value("updated").send();
 
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        // Disable the scheduled task: compaction.
-        conf.setBrokerServiceCompactionMonitorIntervalInSeconds(Integer.MAX_VALUE);
-        // Disable the scheduled task: retention.
-        conf.setRetentionCheckIntervalInSeconds(Integer.MAX_VALUE);
+            AtomicLong failedLedgerId = new AtomicLong(-1);
+            AtomicReference<Throwable> closeFailure = new AtomicReference<>();
+            var failingCompactor = new StrategicTwoPhaseCompactor(getConfig(), pulsarClient, bookKeeper,
+                    getPulsar().getCompactorExecutor()) {
+                @Override
+                protected CompletableFuture<Void> closeLedger(LedgerHandle ledger) {
+                    failedLedgerId.set(ledger.getId());
+                    // Persist a conflicting close through the real metadata manager. BookKeeper's own
+                    // close path must detect the inconsistent length and report MetadataVersionException.
+                    var ledgerManager = bookKeeper.getLedgerManager();
+                    return ledgerManager.readLedgerMetadata(ledger.getId()).thenCompose(metadata ->
+                            ledgerManager.writeLedgerMetadata(ledger.getId(),
+                                    LedgerMetadataBuilder.from(metadata.getValue()).withClosedState()
+                                            .withLastEntryId(ledger.getLastAddConfirmed())
+                                            .withLength(ledger.getLength() + 1).build(), metadata.getVersion()))
+                            .thenCompose(__ -> super.closeLedger(ledger)
+                                    .whenComplete((ignored, error) -> closeFailure.set(error)));
+                }
+            };
+            assertThat(failingCompactor.compact(topicName, strategy))
+                    .failsWithin(15, TimeUnit.SECONDS)
+                    .withThrowableThat()
+                    .withRootCauseInstanceOf(BKException.BKMetadataVersionException.class);
+            assertThat(closeFailure.get()).isInstanceOf(BKException.BKMetadataVersionException.class);
+
+            assertThat(cursor.getProperties())
+                    .containsEntry(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, originalLedgerId);
+            assertThat(cursor.getMarkDeletedPosition()).isEqualTo(originalPosition);
+            var compactedTopic = ((PulsarTopicCompactionService) topic.getTopicCompactionService()).getCompactedTopic();
+            assertThat(compactedTopic.getCompactedTopicContextFuture())
+                    .succeedsWithin(10, TimeUnit.SECONDS)
+                    .extracting(context -> context.getLedger().getId())
+                    .isEqualTo(originalLedgerId);
+            assertThat(bookKeeper.getLedgerManager().readLedgerMetadata(originalLedgerId))
+                    .succeedsWithin(10, TimeUnit.SECONDS)
+                    .satisfies(metadata -> assertThat(metadata.getValue().isClosed()).isTrue());
+            assertThat(bookKeeper.getLedgerManager().readLedgerMetadata(failedLedgerId.get()))
+                    .failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableThat()
+                    .withRootCauseInstanceOf(BKException.BKNoSuchLedgerExistsOnMetadataServerException.class);
+
+            // A normal retry must publish a closed ledger containing the updated value.
+            var retryCompaction = compactor.compact(topicName, strategy);
+            assertThat(retryCompaction).succeedsWithin(15, TimeUnit.SECONDS);
+            long retryLedgerId = retryCompaction.join();
+            Awaitility.await().untilAsserted(() -> assertThat(cursor.getProperties())
+                    .containsEntry(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, retryLedgerId));
+            assertThat(bookKeeper.getLedgerManager().readLedgerMetadata(retryLedgerId))
+                    .succeedsWithin(10, TimeUnit.SECONDS)
+                    .satisfies(metadata -> assertThat(metadata.getValue().isClosed()).isTrue());
+            try (var reader = pulsarClient.newReader(Schema.STRING).topic(topicName)
+                    .startMessageId(MessageId.earliest).readCompacted(true).create()) {
+                var message = reader.readNext(10, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                assertThat(message.getKey()).isEqualTo("key");
+                assertThat(message.getValue()).isEqualTo("updated");
+            }
+        }
     }
 
     private void triggerCompactionAndWait(String topicName) throws Exception {
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
+                (PersistentTopic) getTopic(topicName, false).get().get();
         persistentTopic.triggerCompaction();
         Awaitility.await().untilAsserted(() -> {
             Position lastConfirmPos = persistentTopic.getManagedLedger().getLastConfirmedEntry();
@@ -83,7 +153,7 @@ public class CompactionConcurrencyTest extends ProducerConsumerBase {
 
     @Test
     public void testDisableCompactionConcurrently() throws Exception {
-        String topicName = "persistent://public/default/" + BrokerTestUtil.newUniqueName("tp");
+        String topicName = newTopicName();
         admin.topics().createNonPartitionedTopic(topicName);
         admin.topicPolicies().setCompactionThreshold(topicName, 1);
         admin.topics().createSubscription(topicName, "s1", MessageId.earliest);
@@ -92,62 +162,42 @@ public class CompactionConcurrencyTest extends ProducerConsumerBase {
         triggerCompactionAndWait(topicName);
         admin.topics().deleteSubscription(topicName, "s1");
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName, false).get().get();
-        AtomicBoolean disablingCompaction = persistentTopic.disablingCompaction;
+                (PersistentTopic) getTopic(topicName, false).get().get();
 
         // Disable compaction.
-        // Inject a delay when the first time of deleting cursor.
-        AtomicInteger times = new AtomicInteger();
-        String cursorPath = String.format("/managed-ledgers/%s/__compaction",
-                TopicName.get(topicName).getPersistenceNamingEncoding());
         admin.topicPolicies().removeCompactionThreshold(topicName);
-        mockZooKeeper.delay(DELETE_OPERATION_DELAY_MS, (op, path) -> {
-            return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
-        });
-        mockZooKeeperGlobal.delay(DELETE_OPERATION_DELAY_MS, (op, path) -> {
-            return op == MockZooKeeper.Op.DELETE && cursorPath.equals(path) && times.incrementAndGet() == 1;
-        });
-        AtomicReference<CompletableFuture<Void>> f1 = new AtomicReference<CompletableFuture<Void>>();
-        AtomicReference<CompletableFuture<Void>> f2 = new AtomicReference<CompletableFuture<Void>>();
-        new Thread(() -> {
-            f1.set(admin.topics().deleteSubscriptionAsync(topicName, "__compaction"));
-        }).start();
-        new Thread(() -> {
-            f2.set(admin.topics().deleteSubscriptionAsync(topicName, "__compaction"));
-        }).start();
-
-        // Verify: the next compaction will be skipped.
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(disablingCompaction.get());
-        });
-        producer.newMessage().key("k1").value("v1").send();
-        producer.newMessage().key("k2").value("v2").send();
-        CompletableFuture<Long> currentCompaction1 = persistentTopic.currentCompaction;
-                WhiteboxImpl.getInternalState(persistentTopic, "currentCompaction");
-        persistentTopic.triggerCompaction();
-        CompletableFuture<Long> currentCompaction2 = persistentTopic.currentCompaction;
-        assertTrue(currentCompaction1 == currentCompaction2);
-
-        // Verify: one of the requests should fail.
-        Awaitility.await().untilAsserted(() -> {
-            assertTrue(f1.get() != null);
-            assertTrue(f2.get() != null);
-            assertTrue(f1.get().isDone());
-            assertTrue(f2.get().isDone());
-            assertTrue(f1.get().isCompletedExceptionally() || f2.get().isCompletedExceptionally());
-            assertTrue(!f1.get().isCompletedExceptionally() || !f2.get().isCompletedExceptionally());
-        });
+        CompletableFuture<Long> originalCompaction = persistentTopic.currentCompaction;
+        CompletableFuture<Long> blockedCompaction = new CompletableFuture<>();
+        persistentTopic.currentCompaction = blockedCompaction;
         try {
-            f1.get().join();
-            f2.get().join();
-            fail("Should fail");
-        } catch (Exception ex) {
-            Throwable actEx = FutureUtil.unwrapCompletionException(ex);
-            assertTrue(actEx instanceof PulsarAdminException.PreconditionFailedException);
+            CompletableFuture<Void> firstDelete =
+                    admin.topics().deleteSubscriptionAsync(topicName, Compactor.COMPACTION_SUBSCRIPTION);
+            Awaitility.await().untilAsserted(() -> assertTrue(persistentTopic.disablingCompaction.get()));
+
+            CompletableFuture<Void> secondDelete =
+                    admin.topics().deleteSubscriptionAsync(topicName, Compactor.COMPACTION_SUBSCRIPTION);
+            Awaitility.await().untilAsserted(() -> assertTrue(secondDelete.isCompletedExceptionally()));
+            try {
+                secondDelete.join();
+                fail("The second concurrent compaction subscription delete should fail");
+            } catch (Exception ex) {
+                Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                assertTrue(actEx instanceof PulsarAdminException.PreconditionFailedException);
+            }
+
+            blockedCompaction.complete(0L);
+            Awaitility.await().untilAsserted(() -> {
+                assertTrue(firstDelete.isDone());
+                assertFalse(firstDelete.isCompletedExceptionally());
+                assertFalse(persistentTopic.disablingCompaction.get());
+            });
+            firstDelete.join();
+        } finally {
+            blockedCompaction.complete(0L);
+            persistentTopic.currentCompaction = originalCompaction;
         }
 
         // cleanup.
         producer.close();
-        admin.topics().delete(topicName, false);
     }
 }

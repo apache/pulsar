@@ -220,7 +220,7 @@ class RangeCacheRemovalQueue {
                 bytesSize.add(entryWrapper.size);
             }
         });
-        return Pair.of(entries.getValue(), bytesSize.getValue());
+        return Pair.of(entries.intValue(), bytesSize.longValue());
     }
 
     /**

@@ -22,6 +22,7 @@ import io.netty.channel.EventLoopGroup;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -29,11 +30,9 @@ import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
-    private static final Logger log = LoggerFactory.getLogger(MockedBookKeeperClientFactory.class);
 
     private final BookKeeper mockedBk;
     private final OrderedExecutor executor;

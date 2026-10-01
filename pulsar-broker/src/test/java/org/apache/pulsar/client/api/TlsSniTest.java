@@ -25,10 +25,18 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 public class TlsSniTest extends TlsProducerConsumerBase {
+
+    @BeforeMethod
+    @Override
+    protected void setup() throws Exception {
+        super.setup();
+        internalSetUpForNamespace();
+    }
 
     /**
      * Verify that using an IP-address in the broker service URL will work with using the SNI capabilities
@@ -39,7 +47,7 @@ public class TlsSniTest extends TlsProducerConsumerBase {
      */
     @Test
     public void testIpAddressInBrokerServiceUrl() throws Exception {
-        String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        String topicName = "persistent://my-property/my-ns/my-topic1";
 
         URI brokerServiceUrlTls = new URI(pulsar.getBrokerServiceUrlTls());
 

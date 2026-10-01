@@ -24,14 +24,14 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class SubscribeRateLimiter {
     private final String topicName;
     private final BrokerService brokerService;
@@ -45,7 +45,10 @@ public class SubscribeRateLimiter {
         // get subscribeRate from topic level policies
         this.subscribeRate = topic.getSubscribeRate();
         if (isSubscribeRateEnabled(this.subscribeRate)) {
-            log.info("[{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
+            log.info()
+                    .attr("topic", this.topicName)
+                    .attr("subscribeRate", subscribeRate)
+                    .log("configured subscribe-dispatch rate at broker");
         }
     }
 
@@ -140,7 +143,10 @@ public class SubscribeRateLimiter {
             }
         }
         if (isSubscribeRateEnabled(this.subscribeRate)) {
-            log.info("[{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
+            log.info()
+                    .attr("topic", this.topicName)
+                    .attr("subscribeRate", subscribeRate)
+                    .log("configured subscribe-dispatch rate at broker");
         }
     }
 
@@ -240,6 +246,4 @@ public class SubscribeRateLimiter {
                     .add("consumerId", consumerId).toString();
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SubscribeRateLimiter.class);
 }

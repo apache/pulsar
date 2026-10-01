@@ -31,7 +31,7 @@ import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -54,7 +54,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "websocket")
 public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsumerBase {
     private static final int TIME_TO_CHECK_BACKLOG_QUOTA = 5;
@@ -128,7 +128,7 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
         messageSent.key = "k";
         messageSent.payload = msgPayloadBeforeEncrypt;
         MessageIdData messageIdData = producer.sendMessage(messageSent);
-        log.info("send success: {}", messageIdData.toString());
+        log.info().attr("success", messageIdData.toString()).log("send success");
 
         // Consume.
         Consumer consumer = pulsarClient.newConsumer().cryptoKeyReader(cryptoKeyReader)
@@ -179,7 +179,7 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
         messageSent.payload = originalPayload;
         messageSent.compressionType = compressionType;
         MessageIdData messageIdData = producer.sendMessage(messageSent);
-        log.info("send success: {}", messageIdData.toString());
+        log.info().attr("success", messageIdData.toString()).log("send success");
 
         // Consume.
         Consumer consumer = pulsarClient.newConsumer().cryptoKeyReader(cryptoKeyReader)
@@ -344,7 +344,7 @@ public class ProxyPublishConsumeClientSideEncryptionTest extends ProducerConsume
         messageSent.key = "k";
         messageSent.payload = msgPayloadBeforeEncrypt;
         MessageIdData messageIdData = producer.sendMessage(messageSent);
-        log.info("send success: {}", messageIdData.toString());
+        log.info().attr("success", messageIdData.toString()).log("send success");
 
         // Consume.
         ClientSideEncryptionWssConsumer consumer = new ClientSideEncryptionWssConsumer(webSocketProxyHost,

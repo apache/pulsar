@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.ShutdownUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import picocli.CommandLine;
@@ -30,7 +30,7 @@ import picocli.CommandLine.ScopeType;
 /**
  * A starter to start function worker.
  */
-@Slf4j
+@CustomLog
 public class FunctionWorkerStarter {
 
     @Command(name = "functions-worker", showDefaultValues = true, scope = ScopeType.INHERIT)
@@ -78,7 +78,7 @@ public class FunctionWorkerStarter {
         try {
             worker.start();
         } catch (Throwable th) {
-            log.error("Encountered error in function worker.", th);
+            log.error().exception(th).log("Encountered error in function worker.");
             worker.stop();
             ShutdownUtil.triggerImmediateForcefulShutdown();
         }

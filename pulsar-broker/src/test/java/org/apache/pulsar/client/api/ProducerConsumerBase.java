@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
@@ -49,13 +50,13 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
         admin.tenants().createTenant("my-property",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("my-property/my-ns");
-        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"), false);
 
         // so that clients can test short names
         admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace("public/default");
-        admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
+        admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"), false);
     }
 
     protected <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage,
@@ -71,13 +72,14 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
     private static final Random random = new Random();
 
     protected String newTopicName() {
-        return "my-property/my-ns/topic-" + Long.toHexString(random.nextLong());
+        return TopicName.get("my-property/my-ns/topic-" + Long.toHexString(random.nextLong())).toString();
     }
 
+    @SuppressWarnings("unchecked")
     protected <T> ReceivedMessages<T> receiveAndAckMessages(
             BiFunction<MessageId, T, Boolean> ackPredicate,
             Consumer<T>...consumers) throws Exception {
-        ReceivedMessages receivedMessages = new ReceivedMessages();
+        ReceivedMessages<T> receivedMessages = new ReceivedMessages<>();
         receiveMessagesInThreads((consumer, msg) -> {
             T v = msg.getValue();
             MessageId messageId = msg.getMessageId();
@@ -91,6 +93,7 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
         return receivedMessages;
     }
 
+    @SuppressWarnings("unchecked")
     protected <T> ReceivedMessages<T> ackAllMessages(Consumer<T>...consumers) throws Exception {
         return receiveAndAckMessages((msgId, msgV) -> true, consumers);
     }

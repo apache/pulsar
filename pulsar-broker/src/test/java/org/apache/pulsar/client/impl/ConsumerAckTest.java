@@ -18,106 +18,61 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.transaction.TransactionImpl;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.collections.Sets;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
-public class ConsumerAckTest extends ProducerConsumerBase {
+public class ConsumerAckTest extends SharedPulsarBaseTest {
 
-    private TransactionImpl transaction;
     private PulsarClient clientWithStats;
 
-    @BeforeClass(alwaysRun = true)
-    public void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-        this.clientWithStats = newPulsarClient(lookupUrl.toString(), 30);
-        transaction = mock(TransactionImpl.class);
-        doReturn(1L).when(transaction).getTxnIdLeastBits();
-        doReturn(1L).when(transaction).getTxnIdMostBits();
-        doReturn(TransactionImpl.State.OPEN).when(transaction).getState();
-        CompletableFuture<Void> completableFuture = CompletableFuture.completedFuture(null);
-        doNothing().when(transaction).registerAckOp(any());
-        doReturn(true).when(transaction).checkIfOpen(any());
-        doReturn(completableFuture).when(transaction).registerAckedTopic(any(), any());
+    @SuppressWarnings("deprecation")
+    @BeforeMethod(alwaysRun = true)
+    public void setupConsumerAckTest() throws Exception {
+        this.clientWithStats = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .statsInterval(30, TimeUnit.SECONDS)
+                .build();
     }
 
-    @AfterClass(alwaysRun = true)
-    public void cleanup() throws Exception {
-        this.clientWithStats.close();
-        super.internalCleanup();
-    }
-
-    @Test
-    public void testAckResponse() throws PulsarClientException, InterruptedException {
-        String topic = "testAckResponse";
-        @Cleanup
-        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
-                .topic(topic)
-                .enableBatching(false)
-                .create();
-        @Cleanup
-        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
-                .topic(topic)
-                .subscriptionName("sub")
-                .subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(1, TimeUnit.SECONDS)
-                .subscribe();
-        producer.send(1);
-        producer.send(2);
-        try {
-            consumer.acknowledgeAsync(new MessageIdImpl(1, 1, 1), transaction).get();
-            fail();
-        } catch (ExecutionException e) {
-            Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
-        }
-        Message<Integer> message = consumer.receive();
-
-        try {
-            consumer.acknowledgeAsync(message.getMessageId(), transaction).get();
-            fail();
-        } catch (ExecutionException e) {
-            Assert.assertTrue(e.getCause() instanceof PulsarClientException.NotAllowedException);
+    @AfterMethod(alwaysRun = true)
+    public void cleanupConsumerAckTest() throws Exception {
+        if (this.clientWithStats != null) {
+            this.clientWithStats.close();
         }
     }
+
     @Test(timeOut = 30000)
     public void testAckReceipt() throws Exception {
-        String topic = "testAckReceipt";
+        String topic = newTopicName();
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topic)
@@ -152,7 +107,7 @@ public class ConsumerAckTest extends ProducerConsumerBase {
 
     @Test
     public void testIndividualAck() throws Exception {
-        @Cleanup AckTestData data = prepareDataForAck("test-individual-ack");
+        @Cleanup AckTestData data = prepareDataForAck(newTopicName());
         for (MessageId messageId : data.messageIds) {
             data.consumer.acknowledge(messageId);
         }
@@ -163,16 +118,60 @@ public class ConsumerAckTest extends ProducerConsumerBase {
 
     @Test
     public void testIndividualAckList() throws Exception {
-        @Cleanup AckTestData data = prepareDataForAck("test-individual-ack-list");
+        @Cleanup AckTestData data = prepareDataForAck(newTopicName());
         data.consumer.acknowledge(data.messageIds);
         assertEquals(data.interceptor.individualAckedMessageIdList, data.messageIds);
         assertEquals(data.consumer.getStats().getNumAcksSent(), data.size());
         assertTrue(data.consumer.getUnAckedMessageTracker().isEmpty());
     }
 
+    @Test(timeOut = 10000)
+    public void testAcknowledgeWithNullMessageId() throws Exception {
+        final String topic = newTopicName();
+        @Cleanup final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .subscribe();
+        List<MessageId> messageIdList = null;
+
+        // 1.pass null messageIdList to acknowledgeAsync(messageIdList, txn) will trigger
+        // PulsarClientException.InvalidMessageException
+        assertThatThrownBy(
+                () -> consumer.acknowledgeAsync(messageIdList, null).get()
+        )
+                .isInstanceOf(ExecutionException.class)
+                .hasMessageContaining("Cannot handle messages with null messageIdList")
+                .hasCauseInstanceOf(PulsarClientException.InvalidMessageException.class);
+
+        // 2. pass null messageIdList to acknowledge(messageIdList) will trigger PulsarClientException
+        assertThatThrownBy(
+                () -> consumer.acknowledge(messageIdList)
+        ).isInstanceOf(PulsarClientException.class)
+                .hasMessage("Cannot handle messages with null messageIdList");
+
+        // 3. pass null messages to acknowledge(messages) will trigger PulsarClientException
+        Messages<?> messages = null;
+        assertThatThrownBy(
+                () -> consumer.acknowledge(messages)
+        ).isInstanceOf(PulsarClientException.class)
+                .hasMessage("Cannot handle messages with null messages");
+
+        // 4. pass null messageId to acknowledgeCumulativeAsync(messageId, txn) will trigger
+        // PulsarClientException.InvalidMessageException
+        MessageId messageId = null;
+        assertThatThrownBy(
+                () -> consumer.acknowledgeCumulativeAsync(messageId, null).get()
+        )
+                .isInstanceOf(ExecutionException.class)
+                .hasMessageContaining("Cannot handle message with null messageId")
+                .hasCauseInstanceOf(PulsarClientException.InvalidMessageException.class);
+
+    }
+
+
     @Test
     public void testCumulativeAck() throws Exception {
-        @Cleanup AckTestData data = prepareDataForAck("test-cumulative-ack");
+        @Cleanup AckTestData data = prepareDataForAck(newTopicName());
         System.out.println(data.size());
         data.consumer.acknowledgeCumulative(data.messageIds.get(data.size() - 1));
         assertEquals(data.interceptor.cumulativeAckedMessageIdList.get(0),
@@ -182,6 +181,7 @@ public class ConsumerAckTest extends ProducerConsumerBase {
     }
 
     // Send 1 non-batched message, then send N-1 messages that are in the same batch
+    @SuppressWarnings("unchecked")
     private AckTestData prepareDataForAck(String topic) throws PulsarClientException {
         final int numMessages = 10;
         @Cleanup Producer<String> batchProducer = pulsarClient.newProducer(Schema.STRING)
@@ -261,7 +261,10 @@ public class ConsumerAckTest extends ProducerConsumerBase {
         @Override
         public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable exception) {
             if (exception != null) {
-                log.error("[{}] Failed to acknowledge {}", consumer.getConsumerName(), messageId);
+                log.error()
+                        .attr("consumerName", consumer.getConsumerName())
+                        .attr("acknowledge", messageId)
+                        .log("Failed to acknowledge");
                 return;
             }
             individualAckedMessageIdList.add(messageId);
@@ -270,7 +273,10 @@ public class ConsumerAckTest extends ProducerConsumerBase {
         @Override
         public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable exception) {
             if (exception != null) {
-                log.error("[{}] Failed to acknowledge {}", consumer.getConsumerName(), messageId);
+                log.error()
+                        .attr("consumerName", consumer.getConsumerName())
+                        .attr("acknowledge", messageId)
+                        .log("Failed to acknowledge");
                 return;
             }
             cumulativeAckedMessageIdList.add(messageId);

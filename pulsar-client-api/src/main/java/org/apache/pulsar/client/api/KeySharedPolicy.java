@@ -31,6 +31,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Public
 @InterfaceStability.Stable
 public abstract class KeySharedPolicy implements Serializable {
+    private static final long serialVersionUID = 1L;
 
     protected KeySharedMode keySharedMode;
 

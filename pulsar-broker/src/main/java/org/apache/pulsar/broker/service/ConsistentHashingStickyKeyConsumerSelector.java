@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -28,15 +29,15 @@ import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import lombok.CustomLog;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Range;
 
 /**
  * This is a consumer selector using consistent hashing to evenly split
  * the number of keys assigned to each consumer.
  */
-@Slf4j
+@CustomLog
 public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyConsumerSelector {
     // use NUL character as field separator for hash key calculation
     private static final String KEY_SEPARATOR = "\0";
@@ -110,6 +111,13 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
     private final boolean addOrRemoveReturnsImpactedConsumersResult;
     private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
 
+    // Membership changes are serialized by the write lock. Readers capture one snapshot, so hash points and
+    // consumer identities always belong to the same completed ring update. Neither array is mutated after publication.
+    private record HashRingLookup(int[] points, Consumer[] consumers) {
+    }
+
+    private volatile HashRingLookup lookup = new HashRingLookup(new int[0], new Consumer[0]);
+
     public ConsistentHashingStickyKeyConsumerSelector(int numberOfPoints) {
         this(numberOfPoints, false);
     }
@@ -159,16 +167,21 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                 }
             }
             if (hashPointsAdded == 0) {
-                log.error("Failed to add consumer '{}' to the hash ring. There were {} collisions. Consider increasing "
-                                + "the number of points ({}) per consumer by setting "
-                                + "subscriptionKeySharedConsistentHashingReplicaPoints={}",
-                        consumer, hashPointCollisions, numberOfPoints,
-                        Math.max((int) (numberOfPoints * 1.5d), numberOfPoints + 1));
+                log.error()
+                        .attr("consumer", consumer)
+                        .attr("hashPointCollisions", hashPointCollisions)
+                        .attr("numberOfPoints", numberOfPoints)
+                        .attr("suggestedReplicaPoints",
+                                Math.max((int) (numberOfPoints * 1.5d), numberOfPoints + 1))
+                        .log("Failed to add consumer to the hash ring due to collisions. Consider increasing "
+                                + "subscriptionKeySharedConsistentHashingReplicaPoints");
             }
-            if (log.isDebugEnabled()) {
-                log.debug("Added consumer '{}' with {} points, {} collisions", consumer, hashPointsAdded,
-                        hashPointCollisions);
-            }
+            log.debug()
+                    .attr("consumer", consumer)
+                    .attr("hashPointsAdded", hashPointsAdded)
+                    .attr("hashPointCollisions", hashPointCollisions)
+                    .log("Added consumer");
+            publishLookup();
             if (!addOrRemoveReturnsImpactedConsumersResult) {
                 return CompletableFuture.completedFuture(Optional.empty());
             }
@@ -219,6 +232,7 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
                     consumerNameIndexTracker.decreaseConsumerRefCount(consumerIdentityWrapper);
                 }
             }
+            publishLookup();
             if (!addOrRemoveReturnsImpactedConsumersResult) {
                 return Optional.empty();
             }
@@ -232,23 +246,31 @@ public class ConsistentHashingStickyKeyConsumerSelector implements StickyKeyCons
         }
     }
 
+    /** Called under the membership write lock; never expose mutable HashRingPointEntry objects to readers. */
+    private void publishLookup() {
+        int[] points = new int[hashRing.size()];
+        Consumer[] consumers = new Consumer[points.length];
+        int index = 0;
+        for (Map.Entry<Integer, HashRingPointEntry> entry : hashRing.entrySet()) {
+            points[index] = entry.getKey();
+            consumers[index] = entry.getValue().selectedConsumer;
+            index++;
+        }
+        lookup = new HashRingLookup(points, consumers);
+    }
+
     @Override
     public Consumer select(int hash) {
-        rwLock.readLock().lock();
-        try {
-            if (hashRing.isEmpty()) {
-                return null;
-            }
-            Map.Entry<Integer, HashRingPointEntry> ceilingEntry = hashRing.ceilingEntry(hash);
-            if (ceilingEntry != null) {
-                return ceilingEntry.getValue().selectedConsumer;
-            } else {
-                // Handle wrap-around in the hash ring, return the first consumer
-                return hashRing.firstEntry().getValue().selectedConsumer;
-            }
-        } finally {
-            rwLock.readLock().unlock();
+        HashRingLookup current = lookup;
+        int[] points = current.points();
+        if (points.length == 0) {
+            return null;
         }
+        int index = Arrays.binarySearch(points, hash);
+        if (index < 0) {
+            index = -index - 1;
+        }
+        return current.consumers()[index == points.length ? 0 : index];
     }
 
     @Override

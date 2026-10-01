@@ -25,8 +25,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodec;
@@ -37,8 +37,8 @@ import org.apache.pulsar.common.protocol.Commands;
 /**
  * Helper class to work with a raw Pulsar entry payload.
  */
+@CustomLog
 @UtilityClass
-@Slf4j
 public class MessageParser {
 
     private static final FastThreadLocal<SingleMessageMetadata> LOCAL_SINGLE_MESSAGE_METADATA = //
@@ -83,8 +83,11 @@ public class MessageParser {
             try {
                 Commands.parseMessageMetadata(payload, msgMetadata);
             } catch (Throwable t) {
-                log.warn("[{}] Failed to deserialize metadata for message {}:{} - Ignoring",
-                    topicName, ledgerId, entryId);
+                log.warn()
+                    .attr("topic", topicName)
+                    .attr("ledgerId", ledgerId)
+                    .attr("entryId", entryId)
+                    .log("Failed to deserialize metadata for message - Ignoring");
                 return;
             }
 
@@ -128,9 +131,13 @@ public class MessageParser {
             int checksum = readChecksum(headersAndPayload);
             int computedChecksum = computeChecksum(headersAndPayload);
             if (checksum != computedChecksum) {
-                log.error(
-                        "[{}] Checksum mismatch for message at {}:{}. Received checksum: 0x{}, Computed checksum: 0x{}",
-                        topic, ledgerId, entryId, Long.toHexString(checksum), Integer.toHexString(computedChecksum));
+                log.error()
+                        .attr("topic", topic)
+                        .attr("ledgerId", ledgerId)
+                        .attr("entryId", entryId)
+                        .attr("receivedChecksum", "0x" + Long.toHexString(checksum))
+                        .attr("computedChecksum", "0x" + Integer.toHexString(computedChecksum))
+                        .log("Checksum mismatch for message");
                 return false;
             }
         }
@@ -152,8 +159,12 @@ public class MessageParser {
         int payloadSize = payload.readableBytes();
         if (payloadSize > maxMessageSize) {
             // payload size is itself corrupted since it cannot be bigger than the MaxMessageSize
-            log.error("[{}] Got corrupted payload message size {} at {}:{}", topic, payloadSize,
-                    ledgerId, entryId);
+            log.error()
+                    .attr("topic", topic)
+                    .attr("payloadSize", payloadSize)
+                    .attr("ledgerId", ledgerId)
+                    .attr("entryId", entryId)
+                    .log("Got corrupted payload message size");
             return null;
         }
 
@@ -161,8 +172,13 @@ public class MessageParser {
             ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
             return uncompressedPayload;
         } catch (IOException e) {
-            log.error("[{}] Failed to decompress message with {} at {}:{} : {}", topic,
-                    msgMetadata.getCompression(), ledgerId, entryId, e.getMessage(), e);
+            log.error()
+                    .attr("topic", topic)
+                    .attr("compression", msgMetadata.getCompression())
+                    .attr("ledgerId", ledgerId)
+                    .attr("entryId", entryId)
+                    .exception(e)
+                    .log("Failed to decompress message");
             return null;
         }
     }
@@ -187,7 +203,7 @@ public class MessageParser {
                         ledgerId, entryId, i));
             }
         } catch (IOException e) {
-            log.warn("Unable to obtain messages in batch", e);
+            log.warn().exception(e).log("Unable to obtain messages in batch");
         }
     }
 

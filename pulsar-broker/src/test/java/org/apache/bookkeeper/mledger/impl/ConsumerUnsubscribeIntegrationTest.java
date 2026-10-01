@@ -20,39 +20,23 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.BrokerTestUtil;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.Schema;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
-public class ConsumerUnsubscribeIntegrationTest extends ProducerConsumerBase {
-
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class ConsumerUnsubscribeIntegrationTest extends SharedPulsarBaseTest {
 
     @Test
     public void testUnSubscribeWhenCursorNotExists() throws Exception {
-        final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String topic = newTopicName();
         final String subscription = "s1";
         admin.topics().createNonPartitionedTopic(topic);
         admin.topics().createSubscription(topic, subscription, MessageId.earliest);
@@ -65,7 +49,7 @@ public class ConsumerUnsubscribeIntegrationTest extends ProducerConsumerBase {
         consumer.acknowledge(consumer.receive(2, TimeUnit.SECONDS));
 
         PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+                (PersistentTopic) getTopic(topic, false).join().get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().get(subscription);
         Awaitility.await().untilAsserted(() -> {

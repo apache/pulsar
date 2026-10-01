@@ -38,7 +38,7 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        super.internalSetup();
+        super.baseSetup();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -50,10 +50,10 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testWebSocketNonDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
+        final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
         {
@@ -88,6 +88,8 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
             Assert.assertFalse(future.isCompletedExceptionally());
         }
 
+        // A persistent:// topic uses the v4 client, which really creates a non-durable subscription,
+        // so it is removed once the consumer disconnects.
         Awaitility.await()
                 .ignoreExceptions().untilAsserted(() -> {
             Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 0);
@@ -97,10 +99,10 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testWebSocketDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
+        final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
         {
@@ -145,10 +147,10 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testWebSocketReader() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
+        final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
         {

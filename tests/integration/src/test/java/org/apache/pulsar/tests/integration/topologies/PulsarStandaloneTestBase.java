@@ -20,7 +20,7 @@ package org.apache.pulsar.tests.integration.topologies;
 
 import static org.testng.Assert.assertEquals;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.tests.integration.containers.StandaloneContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -35,7 +35,7 @@ import org.testng.annotations.DataProvider;
  * tests on cluster mode. We only run basic validation and test new features (e.g. state)
  * on standalone.
  */
-@Slf4j
+@CustomLog
 public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
 
     @DataProvider(name = "StandaloneServiceUrlAndTopics")
@@ -85,15 +85,15 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
             .withEnv("PF_stateStorageServiceUrl", "bk://localhost:4181")
             .withEnv("PULSAR_STANDALONE_USE_ZOOKEEPER", "true");
         container.start();
-        log.info("Pulsar cluster {} is up running:", clusterName);
-        log.info("\tBinary Service Url : {}", container.getPlainTextServiceUrl());
-        log.info("\tHttp Service Url : {}", container.getHttpServiceUrl());
+        log.info().attr("cluster", clusterName).log("Pulsar cluster is up running");
+        log.info().attr("url", container.getPlainTextServiceUrl()).log("\tBinary Service Url");
+        log.info().attr("url", container.getHttpServiceUrl()).log("\tHttp Service Url");
 
         // add cluster to public tenant
         ContainerExecResult result = container.execCmd(
                 "/pulsar/bin/pulsar-admin", "namespaces", "policies", "public/default");
         assertEquals(0, result.getExitCode());
-        log.info("public/default namespace policies are {}", result.getStdout());
+        log.info().attr("are", result.getStdout()).log("public/default namespace policies are");
     }
 
     protected void stopCluster() throws Exception {
@@ -114,7 +114,7 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
                 return IOUtils.toString(inputStream, "utf-8");
             });
         } catch (Throwable err) {
-            log.info("Cannot get {} logs", name, err);
+            log.info().attr("get", name).exception(err).log("Cannot get logs");
             return "";
         }
     }
@@ -125,9 +125,9 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
             String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
                 return IOUtils.toString(inputStream, "utf-8");
             });
-            log.info("Function {} logs {}", name, logs);
+            log.info().attr("function", name).attr("logs", logs).log("Function logs");
         } catch (Throwable err) {
-            log.info("Cannot download {} logs", name, err);
+            log.info().attr("download", name).exception(err).log("Cannot download logs");
         }
     }
 
